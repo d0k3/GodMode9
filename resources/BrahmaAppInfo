@@ -1,0 +1,6 @@
+APP_TITLE = GodMode9
+APP_DESCRIPTION = Open source 3DS all access file browser
+APP_AUTHOR = d0k3
+
+PAYLOAD_MEM = 1
+VOODOO = 0xF

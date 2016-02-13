@@ -1,0 +1,41 @@
+language: c
+
+before_install:
+  - wget http://sourceforge.net/projects/devkitpro/files/Automated%20Installer/devkitARMupdate.pl
+  - export DEVKITPRO=/home/travis/devkitPro
+  - export DEVKITARM=${DEVKITPRO}/devkitARM
+
+install:
+  - sudo perl devkitARMupdate.pl
+
+script:
+  - git submodule update --init --recursive
+  - make gateway
+  - mv output/Launcher.dat .
+  - make clean
+  - make bootstrap
+  - mv output/Decrypt9.bin .
+
+env:
+  global:
+    secure: "QeQ3FDs8vOcB7+TJBPIszTPo6EuYOTcqTlC15fAXTHLLnGsY36ySSMKXKq9aV5mqJr9t92WGY169fAW35vg9wwQAx09A2EIEkaqLysozkNxaR9LralgwEEAXXJP2lD5NvJ0n13PMPloGyDCnjBRUjJ+WdDz5H6F329PbItKo5uE="
+
+after_success:
+  - >
+    if [ "$TRAVIS_BRANCH" == "master" ]; then
+        GITDATE="`git show -s --date=short --format='%ad' | sed 's/-//g'`"
+        GITREV="`git show -s --format='%h'`"
+        REV_NAME_GW="decrypt9-${GITDATE}-${GITREV}-browser"
+        REV_NAME_BS="decrypt9-${GITDATE}-${GITREV}-bootstrap"
+
+        sudo apt-get -qq install lftp p7zip-full
+        mkdir "$REV_NAME_GW" "$REV_NAME_BS"
+
+        cp -R README.md Launcher.dat scripts "$REV_NAME_GW"
+        cp -R README.md Decrypt9.bin scripts "$REV_NAME_BS"
+        7z a "$REV_NAME_GW" "$REV_NAME_GW/*"
+        7z a "$REV_NAME_BS" "$REV_NAME_BS/*"
+
+        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/browser' '${REV_NAME_GW}.7z'"
+        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/bootstrap' '${REV_NAME_BS}.7z'"
+    fi

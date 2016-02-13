@@ -30,3 +30,9 @@
 
 # Debug files
 *.dSYM/
+
+# Build directories
+/build
+/output
+/release
+/zzz_backup
