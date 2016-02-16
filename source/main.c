@@ -1,10 +1,7 @@
 #include "common.h"
 #include "draw.h"
 #include "fs.h"
-#include "menu.h"
 #include "i2c.h"
-#include "decryptor/game.h"
-#include "decryptor/nand.h"
 
 void Reboot()
 {

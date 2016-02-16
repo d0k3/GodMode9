@@ -109,7 +109,7 @@ PartitionInfo* GetPartitionInfo(u32 partition_id)
 
 u32 GetNandCtr(u8* ctr, u32 offset)
 {
-    static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
+    // static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
     static const u8* version_ctrs[] = {
         (u8*)0x080D7CAC,
         (u8*)0x080D858C,

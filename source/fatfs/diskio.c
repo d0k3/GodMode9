@@ -10,7 +10,7 @@
 #include "diskio.h"		/* FatFs lower layer API */
 #include "platform.h"
 #include "sdmmc.h"
-#include "decryptor/nand.h"
+#include "3dsnand.h"
 
 #define TYPE_SDCARD 0
 #define TYPE_SYSNAND 1
@@ -23,7 +23,7 @@ typedef struct {
 } FATpartition;
 
 FATpartition DriveInfo[28] = {
-    { 0x000000, TYPE_SCARD, 0 },            //  0 - SDCARD
+    { 0x000000, TYPE_SDCARD, 0 },           //  0 - SDCARD
     { 0x000000, TYPE_SYSNAND, P_CTRNAND },  //  1 - SYSNAND CTRNAND
     { 0x000000, TYPE_SYSNAND, P_TWLN },     //  2 - SYSNAND TWLN
     { 0x000000, TYPE_SYSNAND, P_TWLP },     //  3 - SYSNAND TWLP
@@ -96,7 +96,7 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-    if (DriveInfo[pdrv].type == TYPE_SCARD) {
+    if (DriveInfo[pdrv].type == TYPE_SDCARD) {
         if (sdmmc_sdcard_readsectors(sector, count, buff)) {
             return RES_PARERR;
         }
@@ -127,7 +127,7 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-    if (DriveInfo[pdrv].type == TYPE_SCARD) {
+    if (DriveInfo[pdrv].type == TYPE_SDCARD) {
         if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
             return RES_PARERR;
         }
@@ -166,11 +166,11 @@ DRESULT disk_ioctl (
             *((DWORD*) buff) = 0x200;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            *((DWORD*) buff) = getMMCDevice((DriveInfo[pdrv].type == TYPE_SCARD) ? 1 : 0)->total_size;
+            *((DWORD*) buff) = getMMCDevice((DriveInfo[pdrv].type == TYPE_SDCARD) ? 1 : 0)->total_size;
             return RES_OK;
         case GET_BLOCK_SIZE:
             *((DWORD*) buff) = 0x2000;
-            return (DriveInfo[pdrv].type == TYPE_SCARD) ? RES_OK : RES_PARERR;
+            return (DriveInfo[pdrv].type == TYPE_SDCARD) ? RES_OK : RES_PARERR;
         case CTRL_SYNC:
             // nothing to do here - the disk_write function handles that
             return RES_OK;
