@@ -8,8 +8,52 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"		/* FatFs lower layer API */
+#include "platform.h"
 #include "sdmmc.h"
+#include "decryptor/nand.h"
 
+#define TYPE_SDCARD 0
+#define TYPE_SYSNAND 1
+#define TYPE_EMUNAND 2
+
+typedef struct {
+    DWORD offset;
+    DWORD subtype;
+    BYTE type;
+} FATpartition;
+
+FATpartition DriveInfo[28] = {
+    { 0x000000, TYPE_SCARD, 0 },            //  0 - SDCARD
+    { 0x000000, TYPE_SYSNAND, P_CTRNAND },  //  1 - SYSNAND CTRNAND
+    { 0x000000, TYPE_SYSNAND, P_TWLN },     //  2 - SYSNAND TWLN
+    { 0x000000, TYPE_SYSNAND, P_TWLP },     //  3 - SYSNAND TWLP
+    { 0x000000, TYPE_EMUNAND, P_CTRNAND },  //  4 - EMUNAND0 O3DS CTRNAND
+    { 0x000000, TYPE_EMUNAND, P_TWLN },     //  5 - EMUNAND0 O3DS TWLN
+    { 0x000000, TYPE_EMUNAND, P_TWLP },     //  6 - EMUNAND0 O3DS TWLP
+    { 0x200000, TYPE_EMUNAND, P_CTRNAND },  //  7 - EMUNAND1 O3DS CTRNAND
+    { 0x200000, TYPE_EMUNAND, P_TWLN },     //  8 - EMUNAND1 O3DS TWLN
+    { 0x200000, TYPE_EMUNAND, P_TWLP },     //  9 - EMUNAND1 O3DS TWLP
+    { 0x400000, TYPE_EMUNAND, P_CTRNAND },  // 10 - EMUNAND2 O3DS CTRNAND
+    { 0x400000, TYPE_EMUNAND, P_TWLN },     // 11 - EMUNAND2 O3DS TWLN
+    { 0x400000, TYPE_EMUNAND, P_TWLP },     // 12 - EMUNAND2 O3DS TWLP
+    { 0x600000, TYPE_EMUNAND, P_CTRNAND },  // 13 - EMUNAND3 O3DS CTRNAND
+    { 0x600000, TYPE_EMUNAND, P_TWLN },     // 14 - EMUNAND3 O3DS TWLN
+    { 0x600000, TYPE_EMUNAND, P_TWLP },     // 15 - EMUNAND3 O3DS TWLP
+    { 0x000000, TYPE_EMUNAND, P_CTRNAND },  // 16 - EMUNAND0 N3DS CTRNAND
+    { 0x000000, TYPE_EMUNAND, P_TWLN },     // 17 - EMUNAND0 N3DS TWLN
+    { 0x000000, TYPE_EMUNAND, P_TWLP },     // 18 - EMUNAND0 N3DS TWLP
+    { 0x400000, TYPE_EMUNAND, P_CTRNAND },  // 19 - EMUNAND1 N3DS CTRNAND
+    { 0x400000, TYPE_EMUNAND, P_TWLN },     // 20 - EMUNAND1 N3DS TWLN
+    { 0x400000, TYPE_EMUNAND, P_TWLP },     // 21 - EMUNAND1 N3DS TWLP
+    { 0x800000, TYPE_EMUNAND, P_CTRNAND },  // 22 - EMUNAND2 N3DS CTRNAND
+    { 0x800000, TYPE_EMUNAND, P_TWLN },     // 23 - EMUNAND2 N3DS TWLN
+    { 0x800000, TYPE_EMUNAND, P_TWLP },     // 24 - EMUNAND2 N3DS TWLP
+    { 0xC00000, TYPE_EMUNAND, P_CTRNAND },  // 25 - EMUNAND3 N3DS CTRNAND
+    { 0xC00000, TYPE_EMUNAND, P_TWLN },     // 26 - EMUNAND3 N3DS TWLN
+    { 0xC00000, TYPE_EMUNAND, P_TWLP }      // 27 - EMUNAND3 N3DS TWLP
+};
+
+    
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
@@ -52,9 +96,18 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	if (sdmmc_sdcard_readsectors(sector, count, buff)) {
-		return RES_PARERR;
-	}
+    if (DriveInfo[pdrv].type == TYPE_SCARD) {
+        if (sdmmc_sdcard_readsectors(sector, count, buff)) {
+            return RES_PARERR;
+        }
+    } else {
+        PartitionInfo* partition = GetPartitionInfo(DriveInfo[pdrv].subtype);
+        if (partition == NULL) return RES_PARERR;
+        u32 offset = (sector * 0x200) + partition->offset;
+        SetNand(DriveInfo[pdrv].type == TYPE_EMUNAND, DriveInfo[pdrv].offset);
+        if (DecryptNandToMem(buff, offset, count * 0x200, partition) != 0)
+            return RES_PARERR;
+    }
 
 	return RES_OK;
 }
@@ -74,9 +127,19 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-	if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
-		return RES_PARERR;
-	}
+    if (DriveInfo[pdrv].type == TYPE_SCARD) {
+        if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
+            return RES_PARERR;
+        }
+    } else {
+        PartitionInfo* partition = GetPartitionInfo(DriveInfo[pdrv].subtype);
+        if (partition == NULL) return RES_PARERR;
+        u32 offset = (sector * 0x200) + partition->offset;
+        SetNand(DriveInfo[pdrv].type == TYPE_EMUNAND, DriveInfo[pdrv].offset);
+        // if (EncryptMemToNand(buff, offset, count * 0x200, partition) != 0)
+            return RES_PARERR;
+        // NO, not yet!
+    }
 
 	return RES_OK;
 }
@@ -103,11 +166,11 @@ DRESULT disk_ioctl (
             *((DWORD*) buff) = 0x200;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            *((DWORD*) buff) = getMMCDevice(1)->total_size;
+            *((DWORD*) buff) = getMMCDevice((DriveInfo[pdrv].type == TYPE_SCARD) ? 1 : 0)->total_size;
             return RES_OK;
         case GET_BLOCK_SIZE:
             *((DWORD*) buff) = 0x2000;
-            return RES_OK;
+            return (DriveInfo[pdrv].type == TYPE_SCARD) ? RES_OK : RES_PARERR;
         case CTRL_SYNC:
             // nothing to do here - the disk_write function handles that
             return RES_OK;

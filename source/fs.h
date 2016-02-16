@@ -2,6 +2,22 @@
 
 #include "common.h"
 
+typedef enum {
+    T_NAND_BASE,
+    T_NONFAT_ROOT,
+    T_FAT_ROOT,
+    T_FAT_FILE,
+    T_FAT_DIR
+} EntryType;
+
+typedef struct {
+    char* name; // should point to the correct portion of the path
+    char path[256];
+    u32 size;
+    u32 offset;
+    EntryType entryType;
+} DirEntry;
+
 bool InitFS();
 void DeinitFS();
 

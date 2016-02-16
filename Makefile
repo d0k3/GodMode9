@@ -18,9 +18,9 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 export TARGET	:=	GodMode9
 BUILD		:=	build
-SOURCES		:=	source source/fatfs source/fatfs/crypto source/abstraction
+SOURCES		:=	source source/fatfs source/decryptor source/abstraction
 DATA		:=	data
-INCLUDES	:=	include source source/fatfs source/fatfs/crypto
+INCLUDES	:=	include source source/fatfs source/decryptor
 
 #---------------------------------------------------------------------------------
 # options for code generation
