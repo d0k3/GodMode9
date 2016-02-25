@@ -1,4 +1,5 @@
 #include "common.h"
+#include "godmode.h"
 #include "draw.h"
 #include "fs.h"
 #include "i2c.h"
@@ -19,12 +20,6 @@ void PowerOff()
 
 int main()
 {
-    ClearScreenFull(true, true);
-    InitFS();
-
-    u32 godmode_exit = 0;
-    
-    DeinitFS();
-    (godmode_exit == 0) ? Reboot() : PowerOff();
+    (GodMode() == GODMODE_EXIT_REBOOT) ? Reboot() : PowerOff();
     return 0;
 }

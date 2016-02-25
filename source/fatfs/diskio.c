@@ -10,7 +10,7 @@
 #include "diskio.h"		/* FatFs lower layer API */
 #include "platform.h"
 #include "sdmmc.h"
-#include "3dsnand.h"
+#include "nandio.h"
 
 #define TYPE_SDCARD 0
 #define TYPE_SYSNAND 1
@@ -53,6 +53,7 @@ FATpartition DriveInfo[28] = {
     { 0xC00000, TYPE_EMUNAND, P_TWLP }      // 27 - EMUNAND3 N3DS TWLP
 };
 
+static bool mode_n3ds = false;
     
 
 /*-----------------------------------------------------------------------*/
@@ -78,6 +79,7 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber to identify the drive */
 )
 {
+    mode_n3ds = (GetUnitPlatform() == PLATFORM_N3DS);
 	sdmmc_sdcard_init();
 	return RES_OK;
 }
@@ -96,6 +98,9 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
+    if ((pdrv >= 4) && mode_n3ds)
+        pdrv += 12;
+    
     if (DriveInfo[pdrv].type == TYPE_SDCARD) {
         if (sdmmc_sdcard_readsectors(sector, count, buff)) {
             return RES_PARERR;
@@ -127,6 +132,9 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
+    if ((pdrv >= 4) && mode_n3ds)
+        pdrv += 12;
+    
     if (DriveInfo[pdrv].type == TYPE_SDCARD) {
         if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
             return RES_PARERR;
@@ -161,6 +169,9 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
+    if ((pdrv >= 4) && mode_n3ds)
+        pdrv += 12;
+    
     switch (cmd) {
         case GET_SECTOR_SIZE:
             *((DWORD*) buff) = 0x200;

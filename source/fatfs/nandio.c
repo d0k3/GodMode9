@@ -1,6 +1,6 @@
 #include "platform.h"
 #include "fatfs/aes.h"
-#include "fatfs/3dsnand.h"
+#include "fatfs/nandio.h"
 #include "fatfs/sdmmc.h"
 
 // see: http://3dbrew.org/wiki/Flash_Filesystem
@@ -20,25 +20,25 @@ static u32 emunand_offset = 0;
 
 u32 CheckEmuNand(void)
 {
-    u8* buffer = BUFFER_ADDRESS;
+    u8 header[0x200];
     u32 nand_size_sectors = getMMCDevice(0)->total_size;
     u32 multi_sectors = (GetUnitPlatform() == PLATFORM_3DS) ? EMUNAND_MULTI_OFFSET_O3DS : EMUNAND_MULTI_OFFSET_N3DS;
     u32 ret = EMUNAND_NOT_READY;
 
     // check the MBR for presence of a hidden partition
-    sdmmc_sdcard_readsectors(0, 1, buffer);
-    u32 hidden_sectors = getle32(buffer + 0x1BE + 0x8);
+    sdmmc_sdcard_readsectors(0, 1, header);
+    u32 hidden_sectors = getle32(header + 0x1BE + 0x8);
     
     for (u32 offset_sector = 0; offset_sector + nand_size_sectors < hidden_sectors; offset_sector += multi_sectors) {
         // check for Gateway type EmuNAND
-        sdmmc_sdcard_readsectors(offset_sector + nand_size_sectors, 1, buffer);
-        if (memcmp(buffer + 0x100, "NCSD", 4) == 0) {
+        sdmmc_sdcard_readsectors(offset_sector + nand_size_sectors, 1, header);
+        if (memcmp(header + 0x100, "NCSD", 4) == 0) {
             ret |= EMUNAND_GATEWAY << (2 * (offset_sector / multi_sectors)); 
             continue;
         }
         // check for RedNAND type EmuNAND
-        sdmmc_sdcard_readsectors(offset_sector + 1, 1, buffer);
-        if (memcmp(buffer + 0x100, "NCSD", 4) == 0) {
+        sdmmc_sdcard_readsectors(offset_sector + 1, 1, header);
+        if (memcmp(header + 0x100, "NCSD", 4) == 0) {
             ret |= EMUNAND_REDNAND << (2 * (offset_sector / multi_sectors)); 
             continue;
         }

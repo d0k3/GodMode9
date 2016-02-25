@@ -9,12 +9,7 @@
 
 #include "font.h"
 #include "draw.h"
-#include "fs.h"
-#ifdef USE_THEME
-#include "theme.h"
-#endif
-
-static char debugstr[DBG_N_CHARS_X * DBG_N_CHARS_Y] = { 0 };
+// #include "fs.h"
 
 void ClearScreen(u8* screen, int width, int color)
 {
@@ -26,15 +21,15 @@ void ClearScreen(u8* screen, int width, int color)
     }
 }
 
-void ClearScreenFull(bool clear_top, bool clear_bottom)
+void ClearScreenFull(bool clear_top, bool clear_bottom, int color)
 {
     if (clear_top) {
-        ClearScreen(TOP_SCREEN0, SCREEN_WIDTH_TOP, STD_COLOR_BG);
-        ClearScreen(TOP_SCREEN1, SCREEN_WIDTH_TOP, STD_COLOR_BG);
+        ClearScreen(TOP_SCREEN0, SCREEN_WIDTH_TOP, color);
+        ClearScreen(TOP_SCREEN1, SCREEN_WIDTH_TOP, color);
     }
     if (clear_bottom) {
-        ClearScreen(BOT_SCREEN0, SCREEN_WIDTH_BOT, STD_COLOR_BG);
-        ClearScreen(BOT_SCREEN1, SCREEN_WIDTH_BOT, STD_COLOR_BG);
+        ClearScreen(BOT_SCREEN0, SCREEN_WIDTH_BOT, color);
+        ClearScreen(BOT_SCREEN1, SCREEN_WIDTH_BOT, color);
     }
 }
 
@@ -67,7 +62,7 @@ void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolo
         DrawCharacter(screen, str[i], x + i * 8, y, color, bgcolor);
 }
 
-void DrawStringF(int x, int y, bool use_top, const char *format, ...)
+void DrawStringF(bool use_top, int x, int y, int color, int bgcolor, const char *format, ...)
 {
     char str[512] = {}; // 512 should be more than enough
     va_list va;
@@ -78,16 +73,16 @@ void DrawStringF(int x, int y, bool use_top, const char *format, ...)
 
     for (char* text = strtok(str, "\n"); text != NULL; text = strtok(NULL, "\n"), y += 10) {
         if (use_top) {
-            DrawString(TOP_SCREEN0, text, x, y, STD_COLOR_FONT, STD_COLOR_BG);
-            DrawString(TOP_SCREEN1, text, x, y, STD_COLOR_FONT, STD_COLOR_BG);
+            DrawString(TOP_SCREEN0, text, x, y, color, bgcolor);
+            DrawString(TOP_SCREEN1, text, x, y, color, bgcolor);
         } else {
-            DrawString(BOT_SCREEN0, text, x, y, STD_COLOR_FONT, STD_COLOR_BG);
-            DrawString(BOT_SCREEN1, text, x, y, STD_COLOR_FONT, STD_COLOR_BG);
+            DrawString(BOT_SCREEN0, text, x, y, color, bgcolor);
+            DrawString(BOT_SCREEN1, text, x, y, color, bgcolor);
         }
     }
 }
 
-void Screenshot(const char* path)
+/*void Screenshot(const char* path)
 {
     u8* buffer = (u8*) 0x21000000; // careful, this area is used by other functions in Decrypt9
     u8* buffer_t = buffer + (400 * 240 * 3);
@@ -125,66 +120,22 @@ void Screenshot(const char* path)
     FileWrite(bmp_header, 54, 0);
     FileWrite(buffer, 400 * 240 * 3 * 2, 54);
     FileClose();
-}
+}*/
 
-void DebugClear()
+void ShowError(const char *format, ...)
 {
-    memset(debugstr, 0x00, DBG_N_CHARS_X * DBG_N_CHARS_Y);
-    ClearScreen(TOP_SCREEN0, SCREEN_WIDTH_TOP, DBG_COLOR_BG);
-    ClearScreen(TOP_SCREEN1, SCREEN_WIDTH_TOP, DBG_COLOR_BG);
-    #if defined USE_THEME && defined GFX_DEBUG_BG
-    LoadThemeGfx(GFX_DEBUG_BG, true);
-    #endif
-    LogWrite("");
-    LogWrite(NULL);
-}
-
-void DebugSet(const char **strs)
-{
-    if (strs != NULL) for (int y = 0; y < DBG_N_CHARS_Y; y++) {
-        int pos_dbgstr = DBG_N_CHARS_X * (DBG_N_CHARS_Y - 1 - y);
-        snprintf(debugstr + pos_dbgstr, DBG_N_CHARS_X, "%-*.*s", DBG_N_CHARS_X - 1, DBG_N_CHARS_X - 1, strs[y]);
-    }
-    
-    int pos_y = DBG_START_Y;
-    for (char* str = debugstr + (DBG_N_CHARS_X * (DBG_N_CHARS_Y - 1)); str >= debugstr; str -= DBG_N_CHARS_X) {
-        if (str[0] != '\0') {
-            DrawString(TOP_SCREEN0, str, DBG_START_X, pos_y, DBG_COLOR_FONT, DBG_COLOR_BG);
-            DrawString(TOP_SCREEN1, str, DBG_START_X, pos_y, DBG_COLOR_FONT, DBG_COLOR_BG);
-            pos_y += DBG_STEP_Y;
-        }
-    }
-}
-
-void Debug(const char *format, ...)
-{
-    static bool adv_output = true;
-    char tempstr[128] = { 0 }; // 128 instead of DBG_N_CHARS_X for log file 
+    char str[128] = {}; // 128 should be more than enough
     va_list va;
-    
+
     va_start(va, format);
-    vsnprintf(tempstr, 128, format, va);
+    vsnprintf(str, 128, format, va);
     va_end(va);
     
-    if (adv_output) {
-        memmove(debugstr + DBG_N_CHARS_X, debugstr, DBG_N_CHARS_X * (DBG_N_CHARS_Y - 1));
-    } else {
-        adv_output = true;
-    }
-    
-    if (*tempstr != '\r') { // not a good way of doing this - improve this later
-        snprintf(debugstr, DBG_N_CHARS_X, "%-*.*s", DBG_N_CHARS_X - 1, DBG_N_CHARS_X - 1, tempstr);
-        LogWrite(tempstr);
-    } else {
-        snprintf(debugstr, DBG_N_CHARS_X, "%-*.*s", DBG_N_CHARS_X - 1, DBG_N_CHARS_X - 1, tempstr + 1);
-        adv_output = false;
-    }
-    
-    DebugSet(NULL);
+    ClearScreenFull(true, false, COLOR_BLACK);
+    DrawStringF(true, 80, 80, COLOR_WHITE, COLOR_BLACK, str);
 }
 
-#if !defined(USE_THEME) || !defined(ALT_PROGRESS)
-void ShowProgress(u64 current, u64 total)
+/*void ShowProgress(u64 current, u64 total)
 {
     const u32 progX = SCREEN_WIDTH_TOP - 40;
     const u32 progY = SCREEN_HEIGHT - 20;
@@ -198,5 +149,4 @@ void ShowProgress(u64 current, u64 total)
         DrawString(TOP_SCREEN0, "    ", progX, progY, DBG_COLOR_FONT, DBG_COLOR_BG);
         DrawString(TOP_SCREEN1, "    ", progX, progY, DBG_COLOR_FONT, DBG_COLOR_BG);
     }
-}
-#endif
+}*/
