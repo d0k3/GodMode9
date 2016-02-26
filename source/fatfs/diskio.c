@@ -122,7 +122,7 @@ DRESULT disk_read (
 /*-----------------------------------------------------------------------*/
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
-
+#undef _USE_WRITE
 #if _USE_WRITE
 DRESULT disk_write (
 	__attribute__((unused))
@@ -181,11 +181,12 @@ DRESULT disk_ioctl (
             return RES_OK;
         case GET_BLOCK_SIZE:
             *((DWORD*) buff) = 0x2000;
-            return (DriveInfo[pdrv].type == TYPE_SDCARD) ? RES_OK : RES_PARERR;
+            // return (DriveInfo[pdrv].type == TYPE_SDCARD) ? RES_OK : RES_PARERR;
+            return RES_OK;
         case CTRL_SYNC:
             // nothing to do here - the disk_write function handles that
             return RES_OK;
     }
-	return RES_PARERR;
+	return RES_OK;
 }
 #endif

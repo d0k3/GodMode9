@@ -15,6 +15,7 @@
 
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
 #define COLOR_WHITE         RGB(0xFF, 0xFF, 0xFF)
+#define COLOR_GREY          RGB(0x7F, 0x7F, 0x7F)
 #define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
 
 #ifdef EXEC_GATEWAY

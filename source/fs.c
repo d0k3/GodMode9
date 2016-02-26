@@ -4,7 +4,7 @@
 #include "fatfs/nandio.h"
 
 // don't use this area for anything else!
-static FATFS* fs = (FATFS*) 0x20316000; 
+static FATFS* fs = (FATFS*)0x20316000; 
 // reserve one MB for this, just to be safe
 static DirStruct* curdir_contents = (DirStruct*)0x21000000;
 // this is the main buffer
@@ -22,15 +22,16 @@ bool InitFS()
     u32 emunand_state = CheckEmuNand();
     for (numfs = 0; numfs < 16; numfs++) {
         char fsname[8];
-        snprintf(fsname, 7, "%lu:", numfs);
-        if ((numfs >= 4) && (emunand_state >> (2*((numfs-4)/3)) != EMUNAND_GATEWAY))
-            break;
-        if (f_mount(fs, fsname, 0) != FR_OK) {
-            ShowError("Initialising failed! (%lu/%s)", numfs, fsname);
+        snprintf(fsname, 8, "%lu:", numfs);
+        int res = f_mount(fs + numfs, fsname, 1);
+        if (res != FR_OK) {
+            if (numfs >= 4) break;
+            ShowError("Initialising failed! (%lu/%s/%i)", numfs, fsname, res);
             DeinitFS();
             return false;
         }
     }
+    ShowError("Mounted: %i partitions", numfs);
     return true;
 }
 
@@ -47,23 +48,23 @@ void DeinitFS()
 bool GetRootDirContentsWorker(DirStruct* contents)
 {
     static const char* drvname[16] = {
-        "sdcard",
-        "sysctrn", "systwln", "systwlp",
-        "emu0ctrn", "emu0twln", "emu0twlp",
-        "emu1ctrn", "emu1twln", "emu1twlp",
-        "emu2ctrn", "emu2twln", "emu2twlp",
-        "emu3ctrn", "emu3twln", "emu3twlp"
+        "SDCARD",
+        "SYSCTRN", "SYSTWLN", "SYSTWLP",
+        "EMU0CTRN", "EMU0TWLN", "EMU0TWLP",
+        "EMU1CTRN", "EMU1TWLN", "EMU1TWLP",
+        "EMU2CTRN", "EMU2TWLN", "EMU2TWLP",
+        "EMU3CTRN", "EMU3TWLN", "EMU3TWLP"
     };
     
     for (u32 pdrv = 0; (pdrv < numfs) && (pdrv < MAX_ENTRIES); pdrv++) {
         memset(contents->entry[pdrv].path, 0x00, 16);
-        snprintf(contents->entry[pdrv].path + 0, 4, "%lu:", pdrv);
-        snprintf(contents->entry[pdrv].path + 4, 4, "%s", drvname[pdrv]);
+        snprintf(contents->entry[pdrv].path + 0,  4, "%lu:", pdrv);
+        snprintf(contents->entry[pdrv].path + 4, 16, "[%lu:] (%s)", pdrv, drvname[pdrv]);
         contents->entry[pdrv].name = contents->entry[pdrv].path + 4;
         contents->entry[pdrv].size = 0;
         contents->entry[pdrv].type = T_FAT_ROOT;
-        contents->n_entries = pdrv;
     }
+    contents->n_entries = numfs;
     
     return contents->n_entries;
 }
