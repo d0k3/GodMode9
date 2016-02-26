@@ -19,7 +19,6 @@ bool InitFS()
     *(u32*)0x10000020 = 0;
     *(u32*)0x10000020 = 0x340;
     #endif
-    u32 emunand_state = CheckEmuNand();
     for (numfs = 0; numfs < 16; numfs++) {
         char fsname[8];
         snprintf(fsname, 8, "%lu:", numfs);
@@ -59,10 +58,10 @@ bool GetRootDirContentsWorker(DirStruct* contents)
     for (u32 pdrv = 0; (pdrv < numfs) && (pdrv < MAX_ENTRIES); pdrv++) {
         memset(contents->entry[pdrv].path, 0x00, 16);
         snprintf(contents->entry[pdrv].path + 0,  4, "%lu:", pdrv);
-        snprintf(contents->entry[pdrv].path + 4, 16, "[%lu:] (%s)", pdrv, drvname[pdrv]);
+        snprintf(contents->entry[pdrv].path + 4, 16, "[%lu:] %s", pdrv, drvname[pdrv]);
         contents->entry[pdrv].name = contents->entry[pdrv].path + 4;
         contents->entry[pdrv].size = 0;
-        contents->entry[pdrv].type = T_FAT_ROOT;
+        contents->entry[pdrv].type = T_FAT_DIR;
     }
     contents->n_entries = numfs;
     
@@ -92,8 +91,8 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
             break;
         } else {
             DirEntry* entry = &(contents->entry[contents->n_entries]);
-            snprintf(entry->path, 256, "%s", fpath);
-            entry->name = entry->path + (fpath - fname);
+            strncpy(entry->path, fpath, 256);
+            entry->name = entry->path + (fname - fpath);
             if (fno.fattrib & AM_DIR) {
                 entry->type = T_FAT_DIR;
                 entry->size = 0;

@@ -10,6 +10,7 @@
 #include "font.h"
 #include "draw.h"
 // #include "fs.h"
+#include "hid.h"
 
 void ClearScreen(u8* screen, int width, int color)
 {
@@ -133,6 +134,8 @@ void ShowError(const char *format, ...)
     
     ClearScreenFull(true, false, COLOR_BLACK);
     DrawStringF(true, 80, 80, COLOR_WHITE, COLOR_BLACK, str);
+    
+    // InputWait();
 }
 
 /*void ShowProgress(u64 current, u64 total)

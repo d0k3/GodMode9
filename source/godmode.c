@@ -3,7 +3,7 @@
 #include "hid.h"
 #include "fs.h"
 
-void DrawDirContents(DirStruct* contents, u32 offset, u32 cursor) {
+void DrawDirContents(DirStruct* contents, u32* offset, u32 cursor) {
     const int str_width = 40;
     const u32 stp_y = 12;
     const u32 pos_x = 0;
@@ -11,7 +11,7 @@ void DrawDirContents(DirStruct* contents, u32 offset, u32 cursor) {
     
     for (u32 i = 0; pos_y < SCREEN_HEIGHT; i++) {
         char tempstr[str_width + 1];
-        u32 offset_i = offset + i;
+        u32 offset_i = *offset + i;
         u32 color_font;
         u32 color_bg;
         if (offset_i < contents->n_entries) {
@@ -35,18 +35,41 @@ void DrawDirContents(DirStruct* contents, u32 offset, u32 cursor) {
 
 u32 GodMode() {
     u32 exit_mode = GODMODE_EXIT_REBOOT;
+    char current_path[256] = { 0x00 };
     DirStruct* contents;
+    u32 cursor = 0;
+    u32 offset_disp = 0;
     
     ClearScreenFull(true, true, COLOR_BLACK);
-    if (!InitFS()) {
-        // ShowError("Could not initialize fs!");
-        InputWait();
-        return exit_mode;
-    }
+    if (!InitFS()) return exit_mode;
     
     contents = GetDirContents("");
-    DrawDirContents(contents, 0, 0);
-    InputWait();
+    while (true) { // this is the main loop
+        DrawDirContents(contents, &offset_disp, cursor);
+        u32 pad_state = InputWait();
+        if (pad_state & BUTTON_DOWN) {
+            cursor++;
+            if (cursor >= contents->n_entries)
+                cursor = contents->n_entries - 1;
+        } else if ((pad_state & BUTTON_UP) && cursor) {
+            cursor--;
+        } else if ((pad_state & BUTTON_A) && (contents->entry[cursor].type == T_FAT_DIR)) {
+            strncpy(current_path, contents->entry[cursor].path, 256);
+            contents = GetDirContents(current_path);
+            cursor = offset_disp = 0;
+            ShowError(current_path);
+        } else if (pad_state & BUTTON_B) {
+            char* last_slash = strrchr(current_path, '/');
+            if (last_slash) *last_slash = '\0'; 
+            else *current_path = '\0';
+            contents = GetDirContents(current_path);
+            cursor = offset_disp = 0;
+        }
+        if (pad_state & BUTTON_START) {
+            exit_mode = (pad_state & BUTTON_LEFT) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
+            break;
+        } 
+    }
     
     DeinitFS();
     

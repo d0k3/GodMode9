@@ -18,8 +18,8 @@
 
 typedef struct {
     DWORD offset;
-    DWORD subtype;
     BYTE type;
+    DWORD subtype;
 } FATpartition;
 
 FATpartition DriveInfo[28] = {
