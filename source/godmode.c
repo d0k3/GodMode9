@@ -64,6 +64,8 @@ u32 GodMode() {
             else *current_path = '\0';
             contents = GetDirContents(current_path);
             cursor = offset_disp = 0;
+        } else if (pad_state & BUTTON_X) {
+            Screenshot();
         }
         if (pad_state & BUTTON_START) {
             exit_mode = (pad_state & BUTTON_LEFT) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;

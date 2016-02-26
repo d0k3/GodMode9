@@ -39,7 +39,5 @@ void DrawCharacter(unsigned char *screen, int character, int x, int y, int color
 void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);
 void DrawStringF(bool use_top, int x, int y, int color, int bgcolor, const char *format, ...);
 
-void Screenshot(const char* path);
-
 void ShowError(const char *format, ...);
 void ShowProgress(u64 current, u64 total);

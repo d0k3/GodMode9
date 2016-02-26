@@ -27,6 +27,15 @@ typedef struct {
 bool InitFS();
 void DeinitFS();
 
+/** Check if file exists **/
+bool FileExists(const char* path);
+
+/** Create / overwrite file and write the provided data to it **/
+bool FileCreate(const char* path, u8* data, u32 size);
+
+/** Create a screenshot of the current framebuffer **/
+void Screenshot();
+
 /** Get directory content under a given path **/
 DirStruct* GetDirContents(const char* path);
 

@@ -8,7 +8,7 @@ static FATFS* fs = (FATFS*)0x20316000;
 // reserve one MB for this, just to be safe
 static DirStruct* curdir_contents = (DirStruct*)0x21000000;
 // this is the main buffer
-// static u8* main_buffer = (u8*)0x21100000;
+static u8* main_buffer = (u8*)0x21100000;
 // number of currently open file systems
 static u32 numfs = 0;
 
@@ -44,8 +44,51 @@ void DeinitFS()
     numfs = 0;
 }
 
-bool GetRootDirContentsWorker(DirStruct* contents)
+bool FileExists(const char* path) {
+    return (f_stat(path, NULL) == FR_OK);
+}
+
+bool FileCreate(const char* path, u8* data, u32 size) {
+    FIL file;
+    UINT bytes_written = 0;
+    if (f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        return false;
+    f_write(&file, data, size, &bytes_written);
+    f_close(&file);
+    return (bytes_written == size);
+}
+
+void Screenshot()
 {
+    const u8 bmp_header[54] = {
+        0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,
+        0x00, 0x00, 0x90, 0x01, 0x00, 0x00, 0xE0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0xCA, 0x08, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    u8* buffer = main_buffer + 54;
+    u8* buffer_t = buffer + (400 * 240 * 3);
+    char filename[16];
+    static u32 n = 0;
+    
+    for (; n < 1000; n++) {
+        snprintf(filename, 16, "0:/snap%03i.bmp", (int) n);
+        if (!FileExists(filename)) break;
+    }
+    if (n >= 1000) return;
+    
+    memcpy(main_buffer, bmp_header, 54);
+    memset(buffer, 0x1F, 400 * 240 * 3 * 2);
+    for (u32 x = 0; x < 400; x++)
+        for (u32 y = 0; y < 240; y++)
+            memcpy(buffer_t + (y*400 + x) * 3, TOP_SCREEN0 + (x*240 + y) * 3, 3);
+    for (u32 x = 0; x < 320; x++)
+        for (u32 y = 0; y < 240; y++)
+            memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN0 + (x*240 + y) * 3, 3);
+    FileCreate(filename, main_buffer, 54 + (400 * 240 * 3 * 2));
+}
+
+bool GetRootDirContentsWorker(DirStruct* contents) {
     static const char* drvname[16] = {
         "SDCARD",
         "SYSCTRN", "SYSTWLN", "SYSTWLP",
@@ -68,8 +111,7 @@ bool GetRootDirContentsWorker(DirStruct* contents)
     return contents->n_entries;
 }
 
-bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recursive)
-{
+bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recursive) {
     DIR pdir;
     FILINFO fno;
     char* fname = fpath + strnlen(fpath, fsize - 1);
@@ -114,8 +156,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
     return ret;
 }
 
-DirStruct* GetDirContents(const char* path)
-{
+DirStruct* GetDirContents(const char* path) {
     curdir_contents->n_entries = 0;
     if (strncmp(path, "", 256) == 0) { // root directory
         if (!GetRootDirContentsWorker(curdir_contents))
