@@ -67,7 +67,7 @@ void Screenshot()
     
     for (; n < 1000; n++) {
         snprintf(filename, 16, "0:/snap%03i.bmp", (int) n);
-        if (f_stat(filename, NULL) == FR_OK) break;
+        if (f_stat(filename, NULL) != FR_OK) break;
     }
     if (n >= 1000) return;
     
