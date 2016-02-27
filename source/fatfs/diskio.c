@@ -30,6 +30,7 @@ typedef struct {
 
 typedef struct {
     DWORD offset;
+    DWORD size;
     DWORD mode;
     BYTE  keyslot;
 } SubtypeDesc;
@@ -69,10 +70,10 @@ FATpartition DriveInfo[31] = {
 };
 
 SubtypeDesc SubTypes[4] = {
-    { 0x05CAE5, AES_CNT_CTRNAND_MODE, 0x4 }, // O3DS CTRNAND
-    { 0x05CAD7, AES_CNT_CTRNAND_MODE, 0x5 }, // N3DS CTRNAND
-    { 0x000097, AES_CNT_TWLNAND_MODE, 0x3 }, // TWLN
-    { 0x04808D, AES_CNT_TWLNAND_MODE, 0x3 }  // TWLP
+    { 0x05CAE5, 0x179F1B, AES_CNT_CTRNAND_MODE, 0x4 }, // O3DS CTRNAND
+    { 0x05CAD7, 0x20E969, AES_CNT_CTRNAND_MODE, 0x5 }, // N3DS CTRNAND
+    { 0x000097, 0x047DA9, AES_CNT_TWLNAND_MODE, 0x3 }, // TWLN
+    { 0x04808D, 0x0105B3, AES_CNT_TWLNAND_MODE, 0x3 }  // TWLP
 };
 
 static bool mode_n3ds = false;
@@ -84,7 +85,6 @@ static bool mode_n3ds = false;
 
 u32 GetNandCtr(u8* ctr, u32 sector)
 {
-    // static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
     static const u8* version_ctrs[] = {
         (u8*)0x080D7CAC,
         (u8*)0x080D858C,
@@ -199,7 +199,8 @@ DRESULT disk_read (
             return RES_PARERR;
         }
         
-        GetNandCtr(ctr, isector);
+        if (GetNandCtr(ctr, isector) != 0)
+            return RES_PARERR;
         use_aeskey(SubTypes[subtype].keyslot);
         for (UINT s = 0; s < count; s++) {
             for (UINT b = 0x0; b < 0x200; b += 0x10, buff += 0x10) {
@@ -241,7 +242,8 @@ DRESULT disk_write (
         DWORD mode = SubTypes[subtype].mode;
         BYTE ctr[16] __attribute__((aligned(32)));
         
-        GetNandCtr(ctr, isector);
+        if (GetNandCtr(ctr, isector) != 0)
+            return RES_PARERR;
         use_aeskey(SubTypes[subtype].keyslot);
         for (UINT s = 0; s < count; s++) {
             for (UINT b = 0x0; b < 0x200; b += 0x10, buff += 0x10) {
@@ -288,16 +290,19 @@ DRESULT disk_ioctl (
             *((DWORD*) buff) = 0x200;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            *((DWORD*) buff) = getMMCDevice((DriveInfo[pdrv].type == TYPE_SDCARD) ? 1 : 0)->total_size;
+            if (DriveInfo[pdrv].type == TYPE_SDCARD) {
+                *((DWORD*) buff) = getMMCDevice(1)->total_size;
+            } else {
+                *((DWORD*) buff) = SubTypes[DriveInfo[pdrv].subtype].size;
+            }
             return RES_OK;
         case GET_BLOCK_SIZE:
             *((DWORD*) buff) = 0x2000;
-            // return (DriveInfo[pdrv].type == TYPE_SDCARD) ? RES_OK : RES_PARERR;
             return RES_OK;
         case CTRL_SYNC:
             // nothing to do here - the disk_write function handles that
             return RES_OK;
     }
-	return RES_OK;
+	return RES_PARERR;
 }
 #endif
