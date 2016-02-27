@@ -8,53 +8,132 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"		/* FatFs lower layer API */
+#include "aes.h"
 #include "platform.h"
 #include "sdmmc.h"
-#include "nandio.h"
 
-#define TYPE_SDCARD 0
-#define TYPE_SYSNAND 1
-#define TYPE_EMUNAND 2
+#define TYPE_SDCARD     0
+#define TYPE_SYSNAND    1
+#define TYPE_EMUNAND    2
+
+#define SUBTYPE_CTRN_O  0
+#define SUBTYPE_CTRN_N  1
+#define SUBTYPE_TWLN    2
+#define SUBTYPE_TWLP    3
+#define SUBTYPE_NONE    4
 
 typedef struct {
     DWORD offset;
-    BYTE type;
-    DWORD subtype;
+    BYTE  type;
+    BYTE  subtype;
 } FATpartition;
 
-FATpartition DriveInfo[28] = {
-    { 0x000000, TYPE_SDCARD, 0 },           //  0 - SDCARD
-    { 0x000000, TYPE_SYSNAND, P_CTRNAND },  //  1 - SYSNAND CTRNAND
-    { 0x000000, TYPE_SYSNAND, P_TWLN },     //  2 - SYSNAND TWLN
-    { 0x000000, TYPE_SYSNAND, P_TWLP },     //  3 - SYSNAND TWLP
-    { 0x000000, TYPE_EMUNAND, P_CTRNAND },  //  4 - EMUNAND0 O3DS CTRNAND
-    { 0x000000, TYPE_EMUNAND, P_TWLN },     //  5 - EMUNAND0 O3DS TWLN
-    { 0x000000, TYPE_EMUNAND, P_TWLP },     //  6 - EMUNAND0 O3DS TWLP
-    { 0x200000, TYPE_EMUNAND, P_CTRNAND },  //  7 - EMUNAND1 O3DS CTRNAND
-    { 0x200000, TYPE_EMUNAND, P_TWLN },     //  8 - EMUNAND1 O3DS TWLN
-    { 0x200000, TYPE_EMUNAND, P_TWLP },     //  9 - EMUNAND1 O3DS TWLP
-    { 0x400000, TYPE_EMUNAND, P_CTRNAND },  // 10 - EMUNAND2 O3DS CTRNAND
-    { 0x400000, TYPE_EMUNAND, P_TWLN },     // 11 - EMUNAND2 O3DS TWLN
-    { 0x400000, TYPE_EMUNAND, P_TWLP },     // 12 - EMUNAND2 O3DS TWLP
-    { 0x600000, TYPE_EMUNAND, P_CTRNAND },  // 13 - EMUNAND3 O3DS CTRNAND
-    { 0x600000, TYPE_EMUNAND, P_TWLN },     // 14 - EMUNAND3 O3DS TWLN
-    { 0x600000, TYPE_EMUNAND, P_TWLP },     // 15 - EMUNAND3 O3DS TWLP
-    { 0x000000, TYPE_EMUNAND, P_CTRNAND },  // 16 - EMUNAND0 N3DS CTRNAND
-    { 0x000000, TYPE_EMUNAND, P_TWLN },     // 17 - EMUNAND0 N3DS TWLN
-    { 0x000000, TYPE_EMUNAND, P_TWLP },     // 18 - EMUNAND0 N3DS TWLP
-    { 0x400000, TYPE_EMUNAND, P_CTRNAND },  // 19 - EMUNAND1 N3DS CTRNAND
-    { 0x400000, TYPE_EMUNAND, P_TWLN },     // 20 - EMUNAND1 N3DS TWLN
-    { 0x400000, TYPE_EMUNAND, P_TWLP },     // 21 - EMUNAND1 N3DS TWLP
-    { 0x800000, TYPE_EMUNAND, P_CTRNAND },  // 22 - EMUNAND2 N3DS CTRNAND
-    { 0x800000, TYPE_EMUNAND, P_TWLN },     // 23 - EMUNAND2 N3DS TWLN
-    { 0x800000, TYPE_EMUNAND, P_TWLP },     // 24 - EMUNAND2 N3DS TWLP
-    { 0xC00000, TYPE_EMUNAND, P_CTRNAND },  // 25 - EMUNAND3 N3DS CTRNAND
-    { 0xC00000, TYPE_EMUNAND, P_TWLN },     // 26 - EMUNAND3 N3DS TWLN
-    { 0xC00000, TYPE_EMUNAND, P_TWLP }      // 27 - EMUNAND3 N3DS TWLP
+typedef struct {
+    DWORD offset;
+    DWORD mode;
+    BYTE  keyslot;
+} SubtypeDesc;
+
+FATpartition DriveInfo[31] = {
+    { 0x000000, TYPE_SDCARD,  SUBTYPE_NONE },     //   0 - SDCARD
+    { 0x000000, TYPE_SYSNAND, SUBTYPE_CTRN_O },   //   1 - SYSNAND CTRNAND
+    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLN },     //   2 - SYSNAND TWLN
+    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLP },     //   3 - SYSNAND TWLP
+    { 0x000000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //   4 - EMUNAND0 O3DS CTRNAND
+    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLN },     //   5 - EMUNAND0 O3DS TWLN
+    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLP },     //   6 - EMUNAND0 O3DS TWLP
+    { 0x200000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //   7 - EMUNAND1 O3DS CTRNAND
+    { 0x200000, TYPE_EMUNAND, SUBTYPE_TWLN },     //   8 - EMUNAND1 O3DS TWLN
+    { 0x200000, TYPE_EMUNAND, SUBTYPE_TWLP },     //   9 - EMUNAND1 O3DS TWLP
+    { 0x400000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //  10 - EMUNAND2 O3DS CTRNAND
+    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  11 - EMUNAND2 O3DS TWLN
+    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  12 - EMUNAND2 O3DS TWLP
+    { 0x600000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //  13 - EMUNAND3 O3DS CTRNAND
+    { 0x600000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  14 - EMUNAND3 O3DS TWLN
+    { 0x600000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  15 - EMUNAND3 O3DS TWLPSDCARD
+    { 0x000000, TYPE_SYSNAND, SUBTYPE_CTRN_N },   //  *1 - SYSNAND CTRNAND
+    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLN },     //  *2 - SYSNAND TWLN
+    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLP },     //  *3 - SYSNAND TWLP
+    { 0x000000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   //  *4 - EMUNAND0 N3DS CTRNAND
+    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  *5 - EMUNAND0 N3DS TWLN 
+    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  *6 - EMUNAND0 N3DS TWLP
+    { 0x400000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   //  *7 - EMUNAND1 N3DS CTRNAND
+    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  *8 - EMUNAND1 N3DS TWLN
+    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  *9 - EMUNAND1 N3DS TWLP
+    { 0x800000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   // *10 - EMUNAND2 N3DS CTRNAND
+    { 0x800000, TYPE_EMUNAND, SUBTYPE_TWLN },     // *11 - EMUNAND2 N3DS TWLN
+    { 0x800000, TYPE_EMUNAND, SUBTYPE_TWLP },     // *12 - EMUNAND2 N3DS TWLP
+    { 0xC00000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   // *13 - EMUNAND3 N3DS CTRNAND
+    { 0xC00000, TYPE_EMUNAND, SUBTYPE_TWLN },     // *14 - EMUNAND3 N3DS TWLN
+    { 0xC00000, TYPE_EMUNAND, SUBTYPE_TWLP }      // *15 - EMUNAND3 N3DS TWLP
+};
+
+SubtypeDesc SubTypes[4] = {
+    { 0x05CAE5, AES_CNT_CTRNAND_MODE, 0x4 }, // O3DS CTRNAND
+    { 0x05CAD7, AES_CNT_CTRNAND_MODE, 0x5 }, // N3DS CTRNAND
+    { 0x000097, AES_CNT_TWLNAND_MODE, 0x3 }, // TWLN
+    { 0x04808D, AES_CNT_TWLNAND_MODE, 0x3 }  // TWLP
 };
 
 static bool mode_n3ds = false;
     
+
+/*-----------------------------------------------------------------------*/
+/* Get counter for NAND AES decryption                                    */
+/*-----------------------------------------------------------------------*/
+
+u32 GetNandCtr(u8* ctr, u32 sector)
+{
+    // static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
+    static const u8* version_ctrs[] = {
+        (u8*)0x080D7CAC,
+        (u8*)0x080D858C,
+        (u8*)0x080D748C,
+        (u8*)0x080D740C,
+        (u8*)0x080D74CC,
+        (u8*)0x080D794C
+    };
+    static const u32 version_ctrs_len = sizeof(version_ctrs) / sizeof(u32);
+    static u8* ctr_start = NULL;
+    
+    if (ctr_start == NULL) {
+        for (u32 i = 0; i < version_ctrs_len; i++) {
+            if (*(u32*)version_ctrs[i] == 0x5C980) {
+                ctr_start = (u8*) version_ctrs[i] + 0x30;
+            }
+        }
+        
+        // If value not in previous list start memory scanning (test range)
+        if (ctr_start == NULL) {
+            for (u8* c = (u8*) 0x080D8FFF; c > (u8*) 0x08000000; c--) {
+                if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
+                    ctr_start = c + 0x30;
+                    break;
+                }
+            }
+        }
+        
+        if (ctr_start == NULL) {
+            return 1;
+        }
+    }
+    
+    // the ctr is stored backwards in memory
+    if (sector >= (0x0B100000 / 0x200)) { // CTRNAND/AGBSAVE region
+        for (u32 i = 0; i < 16; i++)
+            ctr[i] = *(ctr_start + (0xF - i));
+    } else { // TWL region
+        for (u32 i = 0; i < 16; i++)
+            ctr[i] = *(ctr_start + 0x88 + (0xF - i));
+    }
+    
+    // increment counter
+    add_ctr(ctr, sector * (0x200/0x10));
+
+    return 0;
+}
+
+
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
@@ -97,21 +176,38 @@ DRESULT disk_read (
 	DWORD sector,	/* Sector address in LBA */
 	UINT count		/* Number of sectors to read */
 )
-{
-    if ((pdrv >= 4) && mode_n3ds)
-        pdrv += 12;
+{   
+    if ((pdrv > 0) && mode_n3ds) // is this really set at this point?
+        pdrv += 15;
     
-    if (DriveInfo[pdrv].type == TYPE_SDCARD) {
+    BYTE type = DriveInfo[pdrv].type;
+    
+    if (type == TYPE_SDCARD) {
         if (sdmmc_sdcard_readsectors(sector, count, buff)) {
             return RES_PARERR;
         }
     } else {
-        PartitionInfo* partition = GetPartitionInfo(DriveInfo[pdrv].subtype);
-        if (partition == NULL) return RES_PARERR;
-        u32 offset = (sector * 0x200) + partition->offset;
-        SetNand(DriveInfo[pdrv].type == TYPE_EMUNAND, DriveInfo[pdrv].offset);
-        if (DecryptNandToMem(buff, offset, count * 0x200, partition) != 0)
+        BYTE subtype = DriveInfo[pdrv].subtype;
+        DWORD isector = SubTypes[subtype].offset + sector;
+        DWORD mode = SubTypes[subtype].mode;
+        BYTE ctr[16] __attribute__((aligned(32)));
+        
+        if (type == TYPE_SYSNAND) {
+            if (sdmmc_nand_readsectors(isector, count, buff))
+                return RES_PARERR;
+        } else if (sdmmc_sdcard_readsectors(DriveInfo[pdrv].offset + isector, count, buff)) {
             return RES_PARERR;
+        }
+        
+        GetNandCtr(ctr, isector);
+        use_aeskey(SubTypes[subtype].keyslot);
+        for (UINT s = 0; s < count; s++) {
+            for (UINT b = 0x0; b < 0x200; b += 0x10, buff += 0x10) {
+                set_ctr(ctr);
+                aes_decrypt((void*) buff, (void*) buff, 1, mode);
+                add_ctr(ctr, 0x1);
+            }
+        }
     }
 
 	return RES_OK;
@@ -132,21 +228,36 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-    if ((pdrv >= 4) && mode_n3ds)
-        pdrv += 12;
+    if ((pdrv > 0) && mode_n3ds)
+        pdrv += 15;
     
     if (DriveInfo[pdrv].type == TYPE_SDCARD) {
         if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
             return RES_PARERR;
         }
     } else {
-        PartitionInfo* partition = GetPartitionInfo(DriveInfo[pdrv].subtype);
-        if (partition == NULL) return RES_PARERR;
-        u32 offset = (sector * 0x200) + partition->offset;
-        SetNand(DriveInfo[pdrv].type == TYPE_EMUNAND, DriveInfo[pdrv].offset);
-        // if (EncryptMemToNand(buff, offset, count * 0x200, partition) != 0)
+        BYTE subtype = DriveInfo[pdrv].subtype;
+        DWORD isector = SubTypes[subtype].offset + sector;
+        DWORD mode = SubTypes[subtype].mode;
+        BYTE ctr[16] __attribute__((aligned(32)));
+        
+        GetNandCtr(ctr, isector);
+        use_aeskey(SubTypes[subtype].keyslot);
+        for (UINT s = 0; s < count; s++) {
+            for (UINT b = 0x0; b < 0x200; b += 0x10, buff += 0x10) {
+                set_ctr(ctr);
+                aes_decrypt((void*) buff, (void*) buff, 1, mode);
+                add_ctr(ctr, 0x1);
+            }
+        }
+        
+        /*if (type == TYPE_SYSNAND) {
+            if (sdmmc_nand_writesectors(isector, count, buff))
+                return RES_PARERR;
+        } else if (sdmmc_sdcard_writesectors(DriveInfo[pdrv].offset + isector, count, buff)) {
             return RES_PARERR;
-        // NO, not yet!
+        }*/
+        // stubbed, better be safe!
     }
 
 	return RES_OK;
@@ -169,8 +280,8 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-    if ((pdrv >= 4) && mode_n3ds)
-        pdrv += 12;
+    if ((pdrv > 0) && mode_n3ds)
+        pdrv += 15;
     
     switch (cmd) {
         case GET_SECTOR_SIZE:

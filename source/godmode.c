@@ -41,7 +41,10 @@ u32 GodMode() {
     u32 offset_disp = 0;
     
     ClearScreenFull(true, true, COLOR_BLACK);
-    if (!InitFS()) return exit_mode;
+    if (!InitFS()) {
+        InputWait();
+        return exit_mode;
+    }
     
     contents = GetDirContents("");
     while (true) { // this is the main loop

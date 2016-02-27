@@ -1,7 +1,6 @@
 #include "draw.h"
 #include "fs.h"
 #include "fatfs/ff.h"
-#include "fatfs/nandio.h"
 
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
