@@ -18,18 +18,17 @@ bool InitFS()
     *(u32*)0x10000020 = 0;
     *(u32*)0x10000020 = 0x340;
     #endif
-    for (numfs = 0; numfs < 16; numfs++) {
+    for (numfs = 0; numfs < 7; numfs++) {
         char fsname[8];
         snprintf(fsname, 8, "%lu:", numfs);
         int res = f_mount(fs + numfs, fsname, 1);
         if (res != FR_OK) {
             if (numfs >= 4) break;
-            ShowError("Initialising failed! (%lu/%s/%i)", numfs, fsname, res);
+            ShowPrompt(false, "Initialising failed! (%lu/%s/%i)", numfs, fsname, res);
             DeinitFS();
             return false;
         }
     }
-    ShowError("Mounted: %i partitions", numfs);
     return true;
 }
 
@@ -41,10 +40,6 @@ void DeinitFS()
         f_mount(NULL, fsname, 1);
     }
     numfs = 0;
-}
-
-bool FileExists(const char* path) {
-    return (f_stat(path, NULL) == FR_OK);
 }
 
 bool FileCreate(const char* path, u8* data, u32 size) {
@@ -72,7 +67,7 @@ void Screenshot()
     
     for (; n < 1000; n++) {
         snprintf(filename, 16, "0:/snap%03i.bmp", (int) n);
-        if (!FileExists(filename)) break;
+        if (f_stat(filename, NULL) == FR_OK) break;
     }
     if (n >= 1000) return;
     
@@ -90,20 +85,18 @@ void Screenshot()
 bool GetRootDirContentsWorker(DirStruct* contents) {
     static const char* drvname[16] = {
         "SDCARD",
-        "SYSCTRN", "SYSTWLN", "SYSTWLP",
-        "EMU0CTRN", "EMU0TWLN", "EMU0TWLP",
-        "EMU1CTRN", "EMU1TWLN", "EMU1TWLP",
-        "EMU2CTRN", "EMU2TWLN", "EMU2TWLP",
-        "EMU3CTRN", "EMU3TWLN", "EMU3TWLP"
+        "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP",
+        "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP"
     };
     
     for (u32 pdrv = 0; (pdrv < numfs) && (pdrv < MAX_ENTRIES); pdrv++) {
         memset(contents->entry[pdrv].path, 0x00, 16);
         snprintf(contents->entry[pdrv].path + 0,  4, "%lu:", pdrv);
-        snprintf(contents->entry[pdrv].path + 4, 16, "[%lu:] %s", pdrv, drvname[pdrv]);
+        snprintf(contents->entry[pdrv].path + 4, 32, "[%lu:] %s", pdrv, drvname[pdrv]);
         contents->entry[pdrv].name = contents->entry[pdrv].path + 4;
-        contents->entry[pdrv].size = 0;
-        contents->entry[pdrv].type = T_FAT_DIR;
+        contents->entry[pdrv].size = GetTotalSpace(contents->entry[pdrv].path);
+        contents->entry[pdrv].type = T_FAT_ROOT;
+        contents->entry[pdrv].marked = 0;
     }
     contents->n_entries = numfs;
     
@@ -141,6 +134,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
                 entry->type = T_FAT_FILE;
                 entry->size = fno.fsize;
             }
+            entry->marked = 0;
             contents->n_entries++;
             if (contents->n_entries >= MAX_ENTRIES)
                 break;
@@ -178,20 +172,32 @@ DirStruct* GetDirContents(const char* path) {
 #else
     return sectors * _MAX_SS;
 #endif
-}
+}*/
 
-uint64_t RemainingStorageSpace()
+uint64_t GetFreeSpace(const char* path)
 {
     DWORD free_clusters;
-    FATFS *fs2;
-    FRESULT res = f_getfree("0:", &free_clusters, &fs2);
-    if (res)
+    FATFS *fs_ptr;
+    char fsname[4] = { '\0' };
+    int fsnum = -1;
+    
+    strncpy(fsname, path, 2);
+    fsnum = *fsname - (int) '0';
+    if ((fsnum < 0) || (fsnum >= 7) || (fsname[1] != ':'))
+        return -1;
+    if (f_getfree(fsname, &free_clusters, &fs_ptr) != FR_OK)
         return -1;
 
-    return ClustersToBytes(&fs, free_clusters);
+    return (uint64_t) free_clusters * fs[fsnum].csize * _MAX_SS;
 }
 
-uint64_t TotalStorageSpace()
+uint64_t GetTotalSpace(const char* path)
 {
-    return ClustersToBytes(&fs, fs.n_fatent - 2);
-}*/
+    int fsnum = -1;
+    
+    fsnum = *path - (int) '0';
+    if ((fsnum < 0) || (fsnum >= 7) || (path[1] != ':'))
+        return -1;
+    
+    return (uint64_t) (fs[fsnum].n_fatent - 2) * fs[fsnum].csize * _MAX_SS;
+}

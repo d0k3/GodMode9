@@ -3,8 +3,6 @@
 #include "common.h"
 
 typedef enum {
-    T_NAND_BASE, // might not be needed
-    T_NONFAT_ROOT, // might not be needed
     T_FAT_ROOT,
     T_FAT_FILE,
     T_FAT_DIR
@@ -15,8 +13,9 @@ typedef enum {
 typedef struct {
     char* name; // should point to the correct portion of the path
     char path[256];
-    u32 size;
+    u64 size;
     EntryType type;
+    u8 marked;
 } DirEntry;
 
 typedef struct {
@@ -27,9 +26,6 @@ typedef struct {
 bool InitFS();
 void DeinitFS();
 
-/** Check if file exists **/
-bool FileExists(const char* path);
-
 /** Create / overwrite file and write the provided data to it **/
 bool FileCreate(const char* path, u8* data, u32 size);
 
@@ -39,8 +35,8 @@ void Screenshot();
 /** Get directory content under a given path **/
 DirStruct* GetDirContents(const char* path);
 
-/** Gets remaining space on SD card in bytes */
-uint64_t RemainingStorageSpace();
+/** Gets remaining space in filesystem in bytes */
+uint64_t GetFreeSpace(const char* path);
 
-/** Gets total space on SD card in bytes */
-uint64_t TotalStorageSpace();
+/** Gets total spacein filesystem in bytes */
+uint64_t GetTotalSpace(const char* path);

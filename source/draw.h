@@ -15,8 +15,22 @@
 
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
 #define COLOR_WHITE         RGB(0xFF, 0xFF, 0xFF)
-#define COLOR_GREY          RGB(0x7F, 0x7F, 0x7F)
+#define COLOR_GREY          RGB(0x80, 0x80, 0x80)
+
+#define COLOR_RED           RGB(0xFF, 0x00, 0x00)
+#define COLOR_GREEN         RGB(0x00, 0xFF, 0x00)
+#define COLOR_BLUE          RGB(0xFF, 0x00, 0xFF)
+#define COLOR_YELLOW        RGB(0xFF, 0xFF, 0x00)
+#define COLOR_CYAN          RGB(0xFF, 0x00, 0xFF)
+
+#define COLOR_TINTEDBLUE    RGB(0x60, 0x60, 0x80)
+#define COLOR_TINTEDYELLOW  RGB(0xD0, 0xD0, 0x60)
+#define COLOR_TINTEDGREEN   RGB(0x70, 0x80, 0x70)
+
 #define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
+
+#define COLOR_STD_BG        COLOR_BLACK
+#define COLOR_STD_FONT      COLOR_WHITE
 
 #ifdef EXEC_GATEWAY
 	#define TOP_SCREEN0 (u8*)(*(u32*)((uint32_t)0x080FFFC0 + 4 * (*(u32*)0x080FFFD8 & 1)))
@@ -33,11 +47,21 @@
 #endif
 
 void ClearScreen(unsigned char *screen, int width, int color);
-void ClearScreenFull(bool clear_top, bool clear_bottom, int color);
+void ClearScreenF(bool clear_top, bool clear_bottom, int color);
+
+void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
+void DrawRectangleF(bool use_top, int x, int y, int width, int height, int color);
 
 void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
 void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);
 void DrawStringF(bool use_top, int x, int y, int color, int bgcolor, const char *format, ...);
 
-void ShowError(const char *format, ...);
+u32 GetDrawStringHeight(const char* str);
+u32 GetDrawStringWidth(char* str);
+
+void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);
+void TruncateString(char* dest, const char* orig, int nsize, int tpos);
+void FormatBytes(char* str, u64 bytes);
+
+bool ShowPrompt(bool ask, const char *format, ...);
 void ShowProgress(u64 current, u64 total);
