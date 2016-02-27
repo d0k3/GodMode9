@@ -23,7 +23,6 @@
 #define SUBTYPE_NONE    4
 
 typedef struct {
-    DWORD offset;
     BYTE  type;
     BYTE  subtype;
 } FATpartition;
@@ -35,38 +34,20 @@ typedef struct {
     BYTE  keyslot;
 } SubtypeDesc;
 
-FATpartition DriveInfo[31] = {
-    { 0x000000, TYPE_SDCARD,  SUBTYPE_NONE },     //   0 - SDCARD
-    { 0x000000, TYPE_SYSNAND, SUBTYPE_CTRN_O },   //   1 - SYSNAND CTRNAND
-    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLN },     //   2 - SYSNAND TWLN
-    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLP },     //   3 - SYSNAND TWLP
-    { 0x000000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //   4 - EMUNAND0 O3DS CTRNAND
-    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLN },     //   5 - EMUNAND0 O3DS TWLN
-    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLP },     //   6 - EMUNAND0 O3DS TWLP
-    { 0x200000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //   7 - EMUNAND1 O3DS CTRNAND
-    { 0x200000, TYPE_EMUNAND, SUBTYPE_TWLN },     //   8 - EMUNAND1 O3DS TWLN
-    { 0x200000, TYPE_EMUNAND, SUBTYPE_TWLP },     //   9 - EMUNAND1 O3DS TWLP
-    { 0x400000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //  10 - EMUNAND2 O3DS CTRNAND
-    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  11 - EMUNAND2 O3DS TWLN
-    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  12 - EMUNAND2 O3DS TWLP
-    { 0x600000, TYPE_EMUNAND, SUBTYPE_CTRN_O },   //  13 - EMUNAND3 O3DS CTRNAND
-    { 0x600000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  14 - EMUNAND3 O3DS TWLN
-    { 0x600000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  15 - EMUNAND3 O3DS TWLPSDCARD
-    { 0x000000, TYPE_SYSNAND, SUBTYPE_CTRN_N },   //  *1 - SYSNAND CTRNAND
-    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLN },     //  *2 - SYSNAND TWLN
-    { 0x000000, TYPE_SYSNAND, SUBTYPE_TWLP },     //  *3 - SYSNAND TWLP
-    { 0x000000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   //  *4 - EMUNAND0 N3DS CTRNAND
-    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  *5 - EMUNAND0 N3DS TWLN 
-    { 0x000000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  *6 - EMUNAND0 N3DS TWLP
-    { 0x400000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   //  *7 - EMUNAND1 N3DS CTRNAND
-    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLN },     //  *8 - EMUNAND1 N3DS TWLN
-    { 0x400000, TYPE_EMUNAND, SUBTYPE_TWLP },     //  *9 - EMUNAND1 N3DS TWLP
-    { 0x800000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   // *10 - EMUNAND2 N3DS CTRNAND
-    { 0x800000, TYPE_EMUNAND, SUBTYPE_TWLN },     // *11 - EMUNAND2 N3DS TWLN
-    { 0x800000, TYPE_EMUNAND, SUBTYPE_TWLP },     // *12 - EMUNAND2 N3DS TWLP
-    { 0xC00000, TYPE_EMUNAND, SUBTYPE_CTRN_N },   // *13 - EMUNAND3 N3DS CTRNAND
-    { 0xC00000, TYPE_EMUNAND, SUBTYPE_TWLN },     // *14 - EMUNAND3 N3DS TWLN
-    { 0xC00000, TYPE_EMUNAND, SUBTYPE_TWLP }      // *15 - EMUNAND3 N3DS TWLP
+FATpartition DriveInfo[13] = {
+    { TYPE_SDCARD,  SUBTYPE_NONE },     //   0 - SDCARD
+    { TYPE_SYSNAND, SUBTYPE_CTRN_O },   //   1 - SYSNAND O3DS CTRNAND
+    { TYPE_SYSNAND, SUBTYPE_TWLN },     //   2 - SYSNAND O3DS TWLN
+    { TYPE_SYSNAND, SUBTYPE_TWLP },     //   3 - SYSNAND O3DS TWLP
+    { TYPE_EMUNAND, SUBTYPE_CTRN_O },   //   4 - EMUNAND O3DS CTRNAND
+    { TYPE_EMUNAND, SUBTYPE_TWLN },     //   5 - EMUNAND O3DS TWLN
+    { TYPE_EMUNAND, SUBTYPE_TWLP },     //   6 - EMUNAND O3DS TWLP
+    { TYPE_SYSNAND, SUBTYPE_CTRN_N },   //  *1 - SYSNAND N3DS CTRNAND
+    { TYPE_SYSNAND, SUBTYPE_TWLN },     //  *2 - SYSNAND N3DS TWLN
+    { TYPE_SYSNAND, SUBTYPE_TWLP },     //  *3 - SYSNAND N3DS TWLP
+    { TYPE_EMUNAND, SUBTYPE_CTRN_N },   //  *4 - EMUNAND N3DS CTRNAND
+    { TYPE_EMUNAND, SUBTYPE_TWLN },     //  *5 - EMUNAND N3DS TWLN 
+    { TYPE_EMUNAND, SUBTYPE_TWLP },     //  *6 - EMUNAND N3DS TWLP
 };
 
 SubtypeDesc SubTypes[4] = {
@@ -77,6 +58,7 @@ SubtypeDesc SubTypes[4] = {
 };
 
 static bool mode_n3ds = false;
+static u32 emunand_base_sector = 0x000000;
     
 
 /*-----------------------------------------------------------------------*/
@@ -178,7 +160,7 @@ DRESULT disk_read (
 )
 {   
     if ((pdrv > 0) && mode_n3ds) // is this really set at this point?
-        pdrv += 15;
+        pdrv += 6;
     
     BYTE type = DriveInfo[pdrv].type;
     
@@ -195,7 +177,7 @@ DRESULT disk_read (
         if (type == TYPE_SYSNAND) {
             if (sdmmc_nand_readsectors(isector, count, buff))
                 return RES_PARERR;
-        } else if (sdmmc_sdcard_readsectors(DriveInfo[pdrv].offset + isector, count, buff)) {
+        } else if (sdmmc_sdcard_readsectors(emunand_base_sector + isector, count, buff)) {
             return RES_PARERR;
         }
         
@@ -230,7 +212,7 @@ DRESULT disk_write (
 )
 {
     if ((pdrv > 0) && mode_n3ds)
-        pdrv += 15;
+        pdrv += 6;
     
     if (DriveInfo[pdrv].type == TYPE_SDCARD) {
         if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
@@ -256,7 +238,7 @@ DRESULT disk_write (
         /*if (type == TYPE_SYSNAND) {
             if (sdmmc_nand_writesectors(isector, count, buff))
                 return RES_PARERR;
-        } else if (sdmmc_sdcard_writesectors(DriveInfo[pdrv].offset + isector, count, buff)) {
+        } else if (sdmmc_sdcard_writesectors(emunand_base_sector + isector, count, buff)) {
             return RES_PARERR;
         }*/
         // stubbed, better be safe!
@@ -283,7 +265,7 @@ DRESULT disk_ioctl (
 )
 {
     if ((pdrv > 0) && mode_n3ds)
-        pdrv += 15;
+        pdrv += 6;
     
     switch (cmd) {
         case GET_SECTOR_SIZE:
