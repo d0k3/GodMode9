@@ -4,6 +4,7 @@
 #include "fs.h"
 
 #define COLOR_TOP_BAR   COLOR_WHITE
+#define COLOR_SIDE_BAR  COLOR_DARKGREY
 #define COLOR_MARKED    COLOR_TINTEDYELLOW
 #define COLOR_FILE      COLOR_TINTEDGREEN
 #define COLOR_DIR       COLOR_TINTEDBLUE
@@ -31,15 +32,16 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry) {
     }
     
     // left top - current file info
+    DrawStringF(true, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[CURRENT]");
     ResizeString(tempstr, curr_entry->name, 20, 8, false);
-    DrawStringF(true, 2, info_start, (curr_entry->marked) ? COLOR_MARKED : COLOR_STD_FONT, COLOR_STD_BG, "%s", tempstr);
+    DrawStringF(true, 2, info_start + 12, (curr_entry->marked) ? COLOR_MARKED : COLOR_STD_FONT, COLOR_STD_BG, "%s", tempstr);
     if (curr_entry->type == T_FAT_DIR) {
         ResizeString(tempstr, "(dir)", 20, 8, false);
-        DrawStringF(true, 4, info_start + 10, COLOR_DIR, COLOR_STD_BG, tempstr);
+        DrawStringF(true, 4, info_start + 12 + 10, COLOR_DIR, COLOR_STD_BG, tempstr);
     } else {
         FormatBytes(bytestr0, curr_entry->size);
         ResizeString(tempstr, bytestr0, 20, 8, false);
-        DrawStringF(true, 4, info_start + 10, COLOR_FILE, COLOR_STD_BG, tempstr);
+        DrawStringF(true, 4, info_start + 12 + 10, (curr_entry->type == T_FAT_FILE) ? COLOR_FILE : COLOR_ROOT, COLOR_STD_BG, tempstr);
     }
     
     // bottom: inctruction block
@@ -49,7 +51,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry) {
 
 void DrawDirContents(DirStruct* contents, u32 cursor) {
     static u32 offset_disp = 0;
-    const int str_width = 40;
+    const int str_width = 39;
     const u32 start_y = 2;
     const u32 stp_y = 12;
     const u32 pos_x = 0;
@@ -62,7 +64,6 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
     for (u32 i = 0; pos_y < SCREEN_HEIGHT; i++) {
         char tempstr[str_width + 1];
         u32 offset_i = offset_disp + i;
-        u32 color_bg = COLOR_STD_BG;
         u32 color_font;
         if (offset_i < contents->n_entries) {
             if (cursor != offset_i) {
@@ -70,14 +71,26 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
             } else {
                 color_font = COLOR_STD_FONT;
             }
-            snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, contents->entry[offset_i].name);
+            ResizeString(tempstr, contents->entry[offset_i].name, str_width, str_width - 10, false);
         } else {
             color_font = COLOR_WHITE;
-            color_bg = COLOR_BLACK;
             snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
         }
-        DrawStringF(false, pos_x, pos_y, color_font, color_bg, tempstr);
+        DrawStringF(false, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
         pos_y += stp_y;
+    }
+    
+    if (contents->n_entries > lines) { // draw position bar at the right
+        const u32 bar_height_min = 32;
+        const u32 bar_width = 2;
+        
+        u32 bar_height = (lines * SCREEN_HEIGHT) / contents->n_entries;
+        if (bar_height < bar_height_min) bar_height = bar_height_min;
+        u32 bar_pos = (((u64) cursor * (SCREEN_HEIGHT - bar_height)) / contents->n_entries);
+        
+        DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
+        DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
+        DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
     }
 }
 
