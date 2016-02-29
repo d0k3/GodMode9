@@ -5,7 +5,7 @@
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
 
-// reserve one MB for this, just to be safe
+// reserve one MB for this, just to be safe -> 512kb is more than enough!
 static DirStruct* curdir_contents = (DirStruct*)0x21000000;
 
 // this is the main buffer
@@ -16,8 +16,7 @@ static size_t main_buffer_size = 4 * 1024 * 1024;
 // number of currently open file systems
 static u32 numfs = 0;
 
-bool InitFS()
-{
+bool InitFS() {
     #ifndef EXEC_GATEWAY
     // TODO: Magic?
     *(u32*)0x10000020 = 0;
@@ -37,8 +36,7 @@ bool InitFS()
     return true;
 }
 
-void DeinitFS()
-{
+void DeinitFS() {
     for (u32 i = 0; i < numfs; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", numfs);
@@ -57,8 +55,7 @@ bool FileCreate(const char* path, u8* data, u32 size) {
     return (bytes_written == size);
 }
 
-bool PathCopyWorker(char* dest, char* orig)
-{
+bool PathCopyWorker(char* dest, char* orig) {
     FILINFO fno;
     bool ret = false;
     
@@ -148,8 +145,7 @@ bool PathCopyWorker(char* dest, char* orig)
     return ret;
 }
 
-bool PathCopy(const char* destdir, const char* orig)
-{
+bool PathCopy(const char* destdir, const char* orig) {
     char fdpath[256]; // 256 is the maximum length of a full path
     char fopath[256];
     strncpy(fdpath, destdir, 256);
@@ -157,8 +153,7 @@ bool PathCopy(const char* destdir, const char* orig)
     return PathCopyWorker(fdpath, fopath);
 }
 
-bool PathDeleteWorker(char* fpath)
-{
+bool PathDeleteWorker(char* fpath) {
     FILINFO fno;
     bool ret = true;
     
@@ -193,15 +188,13 @@ bool PathDeleteWorker(char* fpath)
     return ret;
 }
 
-bool PathDelete(const char* path)
-{
+bool PathDelete(const char* path) {
     char fpath[256]; // 256 is the maximum length of a full path
     strncpy(fpath, path, 256);
     return PathDeleteWorker(fpath);
 }
 
-void Screenshot()
-{
+void CreateScreenshot() {
     const u8 bmp_header[54] = {
         0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,
         0x00, 0x00, 0x90, 0x01, 0x00, 0x00, 0xE0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00,
@@ -228,6 +221,33 @@ void Screenshot()
         for (u32 y = 0; y < 240; y++)
             memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN0 + (x*240 + y) * 3, 3);
     FileCreate(filename, main_buffer, 54 + (400 * 240 * 3 * 2));
+}
+
+void SortDirStruct(DirStruct* contents) {
+    for (u32 s = 0; s < contents->n_entries; s++) {
+        DirEntry* cmp0 = &(contents->entry[s]);
+        DirEntry* min0 = cmp0;
+        for (u32 c = s + 1; c < contents->n_entries; c++) {
+            DirEntry* cmp1 = &(contents->entry[c]);
+            if (min0->type != cmp1->type) {
+                if (min0->type > cmp1->type)
+                    min0 = cmp1;
+                continue;
+            }
+            if (strncasecmp(min0->name, cmp1->name, 256) > 0)
+                min0 = cmp1;
+        }
+        if (min0 != cmp0) {
+            DirEntry swap; // swap entries and fix names
+            u32 offset_name_cmp0 = cmp0->name - cmp0->path;
+            u32 offset_name_min0 = min0->name - min0->path;
+            memcpy(&swap, cmp0, sizeof(DirEntry));
+            memcpy(cmp0, min0, sizeof(DirEntry));
+            memcpy(min0, &swap, sizeof(DirEntry));
+            cmp0->name = cmp0->path + offset_name_min0;
+            min0->name = min0->path + offset_name_cmp0;
+        }
+    }
 }
 
 bool GetRootDirContentsWorker(DirStruct* contents) {
@@ -307,6 +327,7 @@ DirStruct* GetDirContents(const char* path) {
         strncpy(fpath, path, 256);
         if (!GetDirContentsWorker(curdir_contents, fpath, 256, false))
             curdir_contents->n_entries = 0;
+        SortDirStruct(curdir_contents);
     }
     
     return curdir_contents;

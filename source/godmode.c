@@ -106,7 +106,7 @@ u32 GodMode() {
     
     contents = GetDirContents("");
     while (true) { // this is the main loop
-        DrawUserInterface(current_path, &contents->entry[cursor]);
+        DrawUserInterface(current_path, &contents->entry[cursor]); // no need to fully do this everytime!
         DrawDirContents(contents, cursor);
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_DOWN) {
@@ -127,16 +127,16 @@ u32 GodMode() {
             strncpy(current_path, contents->entry[cursor].path, 256);
             contents = GetDirContents(current_path);
             cursor = 0;
-            ClearScreenF(true, true, COLOR_STD_BG);
+            ClearScreenF(true, true, COLOR_STD_BG); // not really required
         } else if (pad_state & BUTTON_B) {
             char* last_slash = strrchr(current_path, '/');
             if (last_slash) *last_slash = '\0'; 
             else *current_path = '\0';
             contents = GetDirContents(current_path);
             cursor = 0;
-            ClearScreenF(true, true, COLOR_STD_BG);
+            ClearScreenF(true, true, COLOR_STD_BG); // not really required
         } else if (pad_state & BUTTON_X) {
-            Screenshot();
+            CreateScreenshot();
         }
         if (pad_state & BUTTON_START) {
             exit_mode = (pad_state & BUTTON_LEFT) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;

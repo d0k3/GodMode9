@@ -4,8 +4,8 @@
 
 typedef enum {
     T_FAT_ROOT,
-    T_FAT_FILE,
-    T_FAT_DIR
+    T_FAT_DIR,
+    T_FAT_FILE
 } EntryType;
 
 #define MAX_ENTRIES 1024
@@ -36,7 +36,7 @@ bool PathCopy(const char* destdir, const char* orig);
 bool PathDelete(const char* path);
 
 /** Create a screenshot of the current framebuffer **/
-void Screenshot();
+void CreateScreenshot();
 
 /** Get directory content under a given path **/
 DirStruct* GetDirContents(const char* path);
