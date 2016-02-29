@@ -195,18 +195,21 @@ bool ShowPrompt(bool ask, const char *format, ...)
     return true;
 }
 
-/*void ShowProgress(u64 current, u64 total)
+void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen)
 {
-    const u32 progX = SCREEN_WIDTH_TOP - 40;
-    const u32 progY = SCREEN_HEIGHT - 20;
+    const u32 bar_width = 240;
+    const u32 bar_height = 12;
+    const u32 bar_pos_x = (SCREEN_WIDTH_TOP - bar_width) / 2;
+    const u32 bar_pos_y = (SCREEN_HEIGHT / 2) - bar_height - 2;
+    const u32 text_pos_y = (SCREEN_HEIGHT / 2);
+    u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-2)) / total : 0;
+    char tempstr[64];
     
-    if (total > 0) {
-        char progStr[8];
-        snprintf(progStr, 8, "%3llu%%", (current * 100) / total);
-        DrawString(TOP_SCREEN0, progStr, progX, progY, DBG_COLOR_FONT, DBG_COLOR_BG);
-        DrawString(TOP_SCREEN1, progStr, progX, progY, DBG_COLOR_FONT, DBG_COLOR_BG);
-    } else {
-        DrawString(TOP_SCREEN0, "    ", progX, progY, DBG_COLOR_FONT, DBG_COLOR_BG);
-        DrawString(TOP_SCREEN1, "    ", progX, progY, DBG_COLOR_FONT, DBG_COLOR_BG);
-    }
-}*/
+    if (clearscreen) ClearScreenF(true, false, COLOR_STD_BG);
+    DrawRectangleF(true, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_DARKGREY);
+    DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
+    DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, prog_width, bar_height - 2, COLOR_STD_FONT);
+    
+    ResizeString(tempstr, opstr, 28, 8, false);
+    DrawStringF(true, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG, tempstr);
+}

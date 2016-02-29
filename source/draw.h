@@ -26,6 +26,7 @@
 #define COLOR_TINTEDBLUE    RGB(0x60, 0x60, 0x80)
 #define COLOR_TINTEDYELLOW  RGB(0xD0, 0xD0, 0x60)
 #define COLOR_TINTEDGREEN   RGB(0x70, 0x80, 0x70)
+#define COLOR_DARKGREY      RGB(0x50, 0x50, 0x50)
 
 #define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
 
@@ -64,4 +65,4 @@ void TruncateString(char* dest, const char* orig, int nsize, int tpos);
 void FormatBytes(char* str, u64 bytes);
 
 bool ShowPrompt(bool ask, const char *format, ...);
-void ShowProgress(u64 current, u64 total);
+void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen);

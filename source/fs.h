@@ -29,6 +29,12 @@ void DeinitFS();
 /** Create / overwrite file and write the provided data to it **/
 bool FileCreate(const char* path, u8* data, u32 size);
 
+/** Recursively copy a file or directory **/
+bool PathCopy(const char* destdir, const char* orig);
+
+/** Recursively delete a file or directory **/
+bool PathDelete(const char* path);
+
 /** Create a screenshot of the current framebuffer **/
 void Screenshot();
 

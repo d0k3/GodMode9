@@ -4,10 +4,15 @@
 
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
+
 // reserve one MB for this, just to be safe
 static DirStruct* curdir_contents = (DirStruct*)0x21000000;
+
 // this is the main buffer
 static u8* main_buffer = (u8*)0x21100000;
+// this is the main buffer size
+static size_t main_buffer_size = 4 * 1024 * 1024;
+
 // number of currently open file systems
 static u32 numfs = 0;
 
@@ -50,6 +55,149 @@ bool FileCreate(const char* path, u8* data, u32 size) {
     f_write(&file, data, size, &bytes_written);
     f_close(&file);
     return (bytes_written == size);
+}
+
+bool PathCopyWorker(char* dest, char* orig)
+{
+    FILINFO fno;
+    bool ret = false;
+    
+    if (f_stat(dest, &fno) != FR_OK) return false; // destination directory does not exist
+    if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
+    if (f_stat(orig, &fno) != FR_OK) return false; // origin does not exist
+
+    // get filename, build full destination path
+    char* oname = strrchr(orig, '/');
+    char* dname = dest + strnlen(dest, 256);
+    if (oname == NULL) return false; // not a proper origin path
+    oname++;
+    *(dname++) = '/';
+    strncpy(dname, oname, 256 - (dname - dest));
+    
+    // check if destination exists
+    if (f_stat(dest, NULL) == FR_OK) {
+        char tempstr[40];
+        TruncateString(tempstr, dest, 36, 8);
+        if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?"))
+            return false;
+    }
+    
+    // the copy process takes place here
+    ShowProgress(0, 0, orig, true);
+    if (fno.fattrib & AM_DIR) { // processing folders...
+        DIR pdir;
+        char* fname = orig + strnlen(orig, 256);
+        
+        *(fname++) = '/';
+        fno.lfname = fname;
+        fno.lfsize = 256 - (fname - orig);
+        
+        if (f_stat(dest, NULL) != FR_OK)
+            f_mkdir(dest);
+        if (f_stat(dest, NULL) != FR_OK)
+            return false;
+        
+        if (f_opendir(&pdir, orig) != FR_OK)
+            return false;
+        while (f_readdir(&pdir, &fno) == FR_OK) {
+            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+                continue; // filter out virtual entries
+            if (fname[0] == 0)
+                strncpy(fname, fno.fname, 256 - (fname - orig));
+            if (fno.fname[0] == 0) {
+                ret = true;
+                break;
+            } else if (!PathCopyWorker(dest, orig)) {
+                break;
+            }
+        }
+        f_closedir(&pdir);
+    } else { // processing files...
+        FIL ofile;
+        FIL dfile;
+        size_t fsize;
+        
+        if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+            return false;
+        if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+            f_close(&ofile);
+            return false;
+        }
+        fsize = f_size(&ofile);
+        f_lseek(&dfile, 0);
+        f_sync(&dfile);
+        f_lseek(&ofile, 0);
+        f_sync(&ofile);
+        
+        for (size_t pos = 0; pos < fsize; pos += main_buffer_size) {
+            UINT bytes_read = 0;
+            UINT bytes_written = 0;
+            ShowProgress(pos, fsize, orig, false);
+            f_read(&ofile, main_buffer, main_buffer_size, &bytes_read);
+            f_write(&dfile, main_buffer, bytes_read, &bytes_written);
+            if (bytes_read != bytes_written) {
+                ret = false;
+                break;
+            }
+        }
+        
+        f_close(&ofile);
+        f_close(&dfile);
+    }
+    
+    return ret;
+}
+
+bool PathCopy(const char* destdir, const char* orig)
+{
+    char fdpath[256]; // 256 is the maximum length of a full path
+    char fopath[256];
+    strncpy(fdpath, destdir, 256);
+    strncpy(fopath, orig, 256);
+    return PathCopyWorker(fdpath, fopath);
+}
+
+bool PathDeleteWorker(char* fpath)
+{
+    FILINFO fno;
+    bool ret = true;
+    
+    // the deletion process takes place here
+    if (f_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
+    if (fno.fattrib & AM_DIR) { // processing folders...
+        DIR pdir;
+        char* fname = fpath + strnlen(fpath, 256);
+        
+        *(fname++) = '/';
+        fno.lfname = fname;
+        fno.lfsize = 256 - (fname - fpath);
+        
+        if (f_opendir(&pdir, fpath) != FR_OK)
+            return false;
+        while (f_readdir(&pdir, &fno) == FR_OK) {
+            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+                continue; // filter out virtual entries
+            if (fname[0] == 0)
+                strncpy(fname, fno.fname, 256 - (fname - fpath));
+            if (fno.fname[0] == 0) {
+                break;
+            } else if (!PathDeleteWorker(fpath)) {
+                ret = false;
+            }
+        }
+        f_closedir(&pdir);
+    } else { // processing files...
+        ret = (f_unlink(fpath) == FR_OK);
+    }
+    
+    return ret;
+}
+
+bool PathDelete(const char* path)
+{
+    char fpath[256]; // 256 is the maximum length of a full path
+    strncpy(fpath, path, 256);
+    return PathDeleteWorker(fpath);
 }
 
 void Screenshot()
@@ -163,16 +311,6 @@ DirStruct* GetDirContents(const char* path) {
     
     return curdir_contents;
 }
-
-/*static uint64_t ClustersToBytes(FATFS* fs, DWORD clusters)
-{
-    uint64_t sectors = clusters * fs->csize;
-#if _MAX_SS != _MIN_SS
-    return sectors * fs->ssize;
-#else
-    return sectors * _MAX_SS;
-#endif
-}*/
 
 uint64_t GetFreeSpace(const char* path)
 {
