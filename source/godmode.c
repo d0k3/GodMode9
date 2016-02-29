@@ -103,6 +103,7 @@ u32 GodMode() {
     static DirStruct* clipboard   = (DirStruct*)0x21080000;
     char current_path[256] = { 0x00 };
     
+    int mark_setting = -1;
     u32 cursor = 0;
     
     ClearScreenF(true, true, COLOR_BLACK);
@@ -114,34 +115,46 @@ u32 GodMode() {
         DrawUserInterface(current_path, &current_dir->entry[cursor]); // no need to fully do this everytime!
         DrawDirContents(current_dir, cursor);
         u32 pad_state = InputWait();
-        if (pad_state & BUTTON_DOWN) {
+        if (pad_state & BUTTON_DOWN) { // cursor up
             cursor++;
             if (cursor >= current_dir->n_entries)
                 cursor = current_dir->n_entries - 1;
-        } else if ((pad_state & BUTTON_UP) && cursor) {
+        } else if ((pad_state & BUTTON_UP) && cursor) { // cursor down
             cursor--;
-        } else if (pad_state & BUTTON_RIGHT) {
+        } else if ((pad_state & BUTTON_RIGHT) && (mark_setting < 0)) { // cursor down (quick)
             cursor += quick_stp;
             if (cursor >= current_dir->n_entries)
                 cursor = current_dir->n_entries - 1;
-        } else if (pad_state & BUTTON_LEFT) {
+        } else if ((pad_state & BUTTON_LEFT) && (mark_setting < 0)) { // curor up (quick)
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
-        } else if ((pad_state & BUTTON_L1) && *current_path) {
-            current_dir->entry[cursor].marked ^= 0x1;
-        } else if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FAT_FILE)) {
+        } else if (pad_state & BUTTON_RIGHT) { // mark all entries
+            for (u32 c = 0; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 1;
+        } else if (pad_state & BUTTON_LEFT) { // unmark all entries
+            for (u32 c = 0; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
+        } else if ((pad_state & BUTTON_L1) && *current_path) { // switch marking for single entry
+            if (mark_setting >= 0) {
+                current_dir->entry[cursor].marked = mark_setting;
+            } else {
+                current_dir->entry[cursor].marked ^= 0x1;
+                mark_setting = current_dir->entry[cursor].marked;
+            }
+        } else if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FAT_FILE)) { // one level up
             strncpy(current_path, current_dir->entry[cursor].path, 256);
             GetDirContents(current_dir, current_path);
             cursor = 0;
             ClearScreenF(true, true, COLOR_STD_BG); // not really required
-        } else if (pad_state & BUTTON_B) {
+        } else if (pad_state & BUTTON_B) { // one level down
             char* last_slash = strrchr(current_path, '/');
             if (last_slash) *last_slash = '\0'; 
             else *current_path = '\0';
             GetDirContents(current_dir, current_path);
             cursor = 0;
             ClearScreenF(true, true, COLOR_STD_BG); // not really required
-        } else if (pad_state & BUTTON_X) {
+        } else if (pad_state & BUTTON_X) { // create a screenshot
             CreateScreenshot();
+        }
+        if (!(pad_state & BUTTON_L1)) {
+            mark_setting = -1;
         }
         if (pad_state & BUTTON_START) {
             exit_mode = (pad_state & BUTTON_LEFT) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
