@@ -10,6 +10,9 @@ static u8* main_buffer = (u8*)0x21100000;
 // this is the main buffer size
 static size_t main_buffer_size = 4 * 1024 * 1024;
 
+// write permission level - careful with this
+static u32 write_permission_level = 1;
+
 // number of currently open file systems
 static u32 numfs = 0;
 
@@ -42,9 +45,38 @@ void DeinitFS() {
     numfs = 0;
 }
 
+bool CheckWritePermissions(const char* path) {
+    u32 pdrv = *path - '0';
+    
+    if ((pdrv > 6) || (*(path+1) != ':')) {
+        ShowPrompt(false, "Invalid path");
+        return false;
+    }
+        
+    if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
+        ShowPrompt(false, "Writing to the SysNAND is locked!\nUnlock it from the root menu.");
+        return false;
+    } else if ((pdrv >= 4) && (pdrv <= 6) && (write_permission_level < 2)) {
+        ShowPrompt(false, "Writing to the EmuNAND is locked!\nUnlock it from the root menu.");
+        return false;
+    } else if ((pdrv == 0) && (write_permission_level < 1)) {
+        ShowPrompt(false, "Writing to the SD card is locked!\nUnlock it from the root menu.");
+        return false;
+    }
+        
+    return true;
+}
+
+bool SetWritePermissions(u32 level) {
+    write_permission_level = level;
+    
+    return true;
+}
+
 bool FileCreate(const char* path, u8* data, u32 size) {
     FIL file;
     UINT bytes_written = 0;
+    if (!CheckWritePermissions(path)) return false;
     if (f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
         return false;
     f_write(&file, data, size, &bytes_written);
@@ -145,6 +177,7 @@ bool PathCopyWorker(char* dest, char* orig) {
 bool PathCopy(const char* destdir, const char* orig) {
     char fdpath[256]; // 256 is the maximum length of a full path
     char fopath[256];
+    if (!CheckWritePermissions(destdir)) return false;
     strncpy(fdpath, destdir, 256);
     strncpy(fopath, orig, 256);
     return PathCopyWorker(fdpath, fopath);
@@ -187,6 +220,7 @@ bool PathDeleteWorker(char* fpath) {
 
 bool PathDelete(const char* path) {
     char fpath[256]; // 256 is the maximum length of a full path
+    if (!CheckWritePermissions(path)) return false;
     strncpy(fpath, path, 256);
     return PathDeleteWorker(fpath);
 }

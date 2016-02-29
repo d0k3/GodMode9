@@ -56,7 +56,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     
     // bottom: inctruction block
-    char* instr = "GodMode 9 v0.0.1\n<A>/<B>/<\x18\x19\x1A\x1B> - Navigation\n<L> - Mark (multiple) file(s)\n<X> - Make a Screenshot\n<START/+\x1B> - Reboot / Power off";
+    char* instr = "GodMode 9 v0.0.3\n<A>/<B>/<\x18\x19\x1A\x1B> - Navigation\n<L>(+<\x18\x19\x1A\x1B> - Mark entries(s)\n<X> - Make a Screenshot\n<START/+\x1B> - Reboot/Poweroff";
     DrawStringF(true, (SCREEN_WIDTH_TOP - GetDrawStringWidth(instr)) / 2, SCREEN_HEIGHT - 2 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 

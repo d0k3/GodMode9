@@ -26,6 +26,12 @@ typedef struct {
 bool InitFS();
 void DeinitFS();
 
+/** Check if writing to this path is allowed **/
+bool CheckWritePermissions(const char* path);
+
+/** Set new write permissions */
+bool SetWritePermissions(u32 level);
+
 /** Create / overwrite file and write the provided data to it **/
 bool FileCreate(const char* path, u8* data, u32 size);
 
