@@ -86,7 +86,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
         
         u32 bar_height = (lines * SCREEN_HEIGHT) / contents->n_entries;
         if (bar_height < bar_height_min) bar_height = bar_height_min;
-        u32 bar_pos = (((u64) cursor * (SCREEN_HEIGHT - bar_height)) / contents->n_entries);
+        u32 bar_pos = ((u64) offset_disp * (SCREEN_HEIGHT - bar_height)) / (contents->n_entries - lines);
         
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
