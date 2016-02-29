@@ -10,7 +10,7 @@
 #define COLOR_DIR       COLOR_TINTEDBLUE
 #define COLOR_ROOT      COLOR_GREY
 
-void DrawUserInterface(const char* curr_path, DirEntry* curr_entry) {
+void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard) {
     const u32 info_start = 16;
     char bytestr0[32];
     char bytestr1[32];
@@ -34,15 +34,26 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry) {
     // left top - current file info
     DrawStringF(true, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[CURRENT]");
     ResizeString(tempstr, curr_entry->name, 20, 8, false);
-    DrawStringF(true, 2, info_start + 12, (curr_entry->marked) ? COLOR_MARKED : COLOR_STD_FONT, COLOR_STD_BG, "%s", tempstr);
+    u32 color_current = (curr_entry->marked) ? COLOR_MARKED : (curr_entry->type == T_FAT_ROOT) ? COLOR_ROOT : (curr_entry->type == T_FAT_DIR) ? COLOR_DIR : COLOR_FILE;
+    DrawStringF(true, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
     if (curr_entry->type == T_FAT_DIR) {
         ResizeString(tempstr, "(dir)", 20, 8, false);
-        DrawStringF(true, 4, info_start + 12 + 10, COLOR_DIR, COLOR_STD_BG, tempstr);
     } else {
         FormatBytes(bytestr0, curr_entry->size);
         ResizeString(tempstr, bytestr0, 20, 8, false);
-        DrawStringF(true, 4, info_start + 12 + 10, (curr_entry->type == T_FAT_FILE) ? COLOR_FILE : COLOR_ROOT, COLOR_STD_BG, tempstr);
     }
+    DrawStringF(true, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
+    
+    // right top - clipboard
+    DrawStringF(true, SCREEN_WIDTH_TOP - (20*8), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
+    for (u32 c = 0; c < 10; c++) {
+        ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", 20, 8, true);
+        DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (c*10), (clipboard->entry[c].type == T_FAT_FILE) ? COLOR_FILE : COLOR_DIR, COLOR_STD_BG, tempstr);
+    }
+    *tempstr = '\0';
+    if (clipboard->n_entries > 10) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - 10);
+    DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (10*10), COLOR_GREY, COLOR_STD_BG, "%20s", tempstr);
+    
     
     // bottom: inctruction block
     char* instr = "GodMode 9 v0.0.1\n<A>/<B>/<\x18\x19\x1A\x1B> - Navigation\n<L> - Mark (multiple) file(s)\n<X> - Make a Screenshot\n<START/+\x1B> - Reboot / Power off";
@@ -112,7 +123,7 @@ u32 GodMode() {
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
     while (true) { // this is the main loop
-        DrawUserInterface(current_path, &current_dir->entry[cursor]); // no need to fully do this everytime!
+        DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard); // no need to fully do this everytime!
         DrawDirContents(current_dir, cursor);
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_DOWN) { // cursor up
@@ -152,7 +163,22 @@ u32 GodMode() {
             ClearScreenF(true, true, COLOR_STD_BG); // not really required
         } else if (pad_state & BUTTON_X) { // create a screenshot
             CreateScreenshot();
+        } else if ((pad_state & BUTTON_Y) && (clipboard->n_entries == 0)) { // fill clipboard
+            for (u32 c = 0; c < current_dir->n_entries; c++) {
+                if (current_dir->entry[c].marked) {
+                    DirEntryCpy(&(clipboard->entry[clipboard->n_entries]), &(current_dir->entry[c]));
+                    current_dir->entry[c].marked = 0;
+                    clipboard->n_entries++;
+                }
+            }
+            if (clipboard->n_entries == 0) {
+                DirEntryCpy(&(clipboard->entry[0]), &(current_dir->entry[cursor]));
+                clipboard->n_entries = 1;
+            }
+        } else if ((pad_state & BUTTON_SELECT) && (clipboard->n_entries > 0)) { // clear clipboard
+            clipboard->n_entries = 0;
         }
+        
         if (!(pad_state & BUTTON_L1)) {
             mark_setting = -1;
         }

@@ -46,3 +46,6 @@ uint64_t GetFreeSpace(const char* path);
 
 /** Gets total spacein filesystem in bytes */
 uint64_t GetTotalSpace(const char* path);
+
+/** Helper function for copying DirEntry structs */
+void DirEntryCpy(DirEntry* dest, const DirEntry* orig);

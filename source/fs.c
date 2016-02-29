@@ -220,6 +220,11 @@ void CreateScreenshot() {
     FileCreate(filename, main_buffer, 54 + (400 * 240 * 3 * 2));
 }
 
+void DirEntryCpy(DirEntry* dest, const DirEntry* orig) {
+    memcpy(dest, orig, sizeof(DirEntry));
+    dest->name = dest->path + (orig->name - orig->path);
+}
+
 void SortDirStruct(DirStruct* contents) {
     for (u32 s = 0; s < contents->n_entries; s++) {
         DirEntry* cmp0 = &(contents->entry[s]);
@@ -236,13 +241,9 @@ void SortDirStruct(DirStruct* contents) {
         }
         if (min0 != cmp0) {
             DirEntry swap; // swap entries and fix names
-            u32 offset_name_cmp0 = cmp0->name - cmp0->path;
-            u32 offset_name_min0 = min0->name - min0->path;
-            memcpy(&swap, cmp0, sizeof(DirEntry));
-            memcpy(cmp0, min0, sizeof(DirEntry));
-            memcpy(min0, &swap, sizeof(DirEntry));
-            cmp0->name = cmp0->path + offset_name_min0;
-            min0->name = min0->path + offset_name_cmp0;
+            DirEntryCpy(&swap, cmp0);
+            DirEntryCpy(cmp0, min0);
+            DirEntryCpy(min0, &swap);
         }
     }
 }
