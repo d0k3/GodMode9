@@ -5,9 +5,6 @@
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
 
-// reserve one MB for this, just to be safe -> 512kb is more than enough!
-static DirStruct* curdir_contents = (DirStruct*)0x21000000;
-
 // this is the main buffer
 static u8* main_buffer = (u8*)0x21100000;
 // this is the main buffer size
@@ -317,20 +314,18 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
     return ret;
 }
 
-DirStruct* GetDirContents(const char* path) {
-    curdir_contents->n_entries = 0;
+void GetDirContents(DirStruct* contents, const char* path) {
+    contents->n_entries = 0;
     if (strncmp(path, "", 256) == 0) { // root directory
-        if (!GetRootDirContentsWorker(curdir_contents))
-            curdir_contents->n_entries = 0; // not required, but so what?
+        if (!GetRootDirContentsWorker(contents))
+            contents->n_entries = 0; // not required, but so what?
     } else {
         char fpath[256]; // 256 is the maximum length of a full path
         strncpy(fpath, path, 256);
-        if (!GetDirContentsWorker(curdir_contents, fpath, 256, false))
-            curdir_contents->n_entries = 0;
-        SortDirStruct(curdir_contents);
+        if (!GetDirContentsWorker(contents, fpath, 256, false))
+            contents->n_entries = 0;
+        SortDirStruct(contents);
     }
-    
-    return curdir_contents;
 }
 
 uint64_t GetFreeSpace(const char* path)

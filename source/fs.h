@@ -39,7 +39,7 @@ bool PathDelete(const char* path);
 void CreateScreenshot();
 
 /** Get directory content under a given path **/
-DirStruct* GetDirContents(const char* path);
+void GetDirContents(DirStruct* contents, const char* path);
 
 /** Gets remaining space in filesystem in bytes */
 uint64_t GetFreeSpace(const char* path);

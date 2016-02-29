@@ -97,42 +97,47 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
 u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
+    
+    // reserve 512kB for each, just to be safe
+    static DirStruct* current_dir = (DirStruct*)0x21000000;
+    static DirStruct* clipboard   = (DirStruct*)0x21080000;
     char current_path[256] = { 0x00 };
-    DirStruct* contents;
+    
     u32 cursor = 0;
     
     ClearScreenF(true, true, COLOR_BLACK);
     if (!InitFS()) return exit_mode;
     
-    contents = GetDirContents("");
+    GetDirContents(current_dir, "");
+    clipboard->n_entries = 0;
     while (true) { // this is the main loop
-        DrawUserInterface(current_path, &contents->entry[cursor]); // no need to fully do this everytime!
-        DrawDirContents(contents, cursor);
+        DrawUserInterface(current_path, &current_dir->entry[cursor]); // no need to fully do this everytime!
+        DrawDirContents(current_dir, cursor);
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_DOWN) {
             cursor++;
-            if (cursor >= contents->n_entries)
-                cursor = contents->n_entries - 1;
+            if (cursor >= current_dir->n_entries)
+                cursor = current_dir->n_entries - 1;
         } else if ((pad_state & BUTTON_UP) && cursor) {
             cursor--;
         } else if (pad_state & BUTTON_RIGHT) {
             cursor += quick_stp;
-            if (cursor >= contents->n_entries)
-                cursor = contents->n_entries - 1;
+            if (cursor >= current_dir->n_entries)
+                cursor = current_dir->n_entries - 1;
         } else if (pad_state & BUTTON_LEFT) {
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
         } else if ((pad_state & BUTTON_L1) && *current_path) {
-            contents->entry[cursor].marked ^= 0x1;
-        } else if ((pad_state & BUTTON_A) && (contents->entry[cursor].type != T_FAT_FILE)) {
-            strncpy(current_path, contents->entry[cursor].path, 256);
-            contents = GetDirContents(current_path);
+            current_dir->entry[cursor].marked ^= 0x1;
+        } else if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FAT_FILE)) {
+            strncpy(current_path, current_dir->entry[cursor].path, 256);
+            GetDirContents(current_dir, current_path);
             cursor = 0;
             ClearScreenF(true, true, COLOR_STD_BG); // not really required
         } else if (pad_state & BUTTON_B) {
             char* last_slash = strrchr(current_path, '/');
             if (last_slash) *last_slash = '\0'; 
             else *current_path = '\0';
-            contents = GetDirContents(current_path);
+            GetDirContents(current_dir, current_path);
             cursor = 0;
             ClearScreenF(true, true, COLOR_STD_BG); // not really required
         } else if (pad_state & BUTTON_X) {
