@@ -171,28 +171,90 @@ bool ShowPrompt(bool ask, const char *format, ...)
     u32 str_width, str_height;
     u32 x, y;
     
-    char str[384] = {}; // 384 should be more than enough
+    char str[512] = {}; // 512 should be more than enough
     va_list va;
 
     va_start(va, format);
-    vsnprintf(str, 384, format, va);
+    vsnprintf(str, 512, format, va);
     va_end(va);
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (2 * 10);
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
-    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - (str_height+20)) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "%s\n\n(<A> to continue, <B> to cancel)" : "%s\n\n(<A> to continue)", str);
+    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(true, x, y + str_height, COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
     
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) break;
-        else if (pad_state & BUTTON_B) return false;
+        else if (ask && (pad_state & BUTTON_B)) return false;
     }
     
+    ClearScreenF(true, false, COLOR_STD_BG);
+    
     return true;
+}
+
+bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
+    const u32 seqcolors[4] = { COLOR_STD_FONT, COLOR_GREEN, COLOR_YELLOW, COLOR_RED };
+    const u32 sequences[4][5] = {
+        { BUTTON_RIGHT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_A },
+        { BUTTON_LEFT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_UP, BUTTON_A },
+        { BUTTON_LEFT, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_UP, BUTTON_A },
+        { BUTTON_LEFT, BUTTON_UP, BUTTON_RIGHT, BUTTON_UP, BUTTON_A }
+    };
+    const char seqsymbols[4][5] = { 
+        { '\x1A', '\x19', '\x1A', '\x19', 'A' },
+        { '\x1B', '\x19', '\x1A', '\x18', 'A' },
+        { '\x1B', '\x1A', '\x19', '\x18', 'A' },
+        { '\x1B', '\x18', '\x1A', '\x18', 'A' },
+    };
+    const u32 len = 5;
+    u32 lvl = 0;
+    
+    u32 str_width, str_height;
+    u32 x, y;
+    
+    char str[512] = {}; // 512 should be more than enough
+    va_list va;
+
+    va_start(va, format);
+    vsnprintf(str, 512, format, va);
+    va_end(va);
+    
+    str_width = GetDrawStringWidth(str);
+    str_height = GetDrawStringHeight(str) + (2 * 10);
+    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - (str_height + 30)) / 2;
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(true, x, y + str_height, COLOR_STD_FONT, COLOR_STD_BG, "To proceed, enter this:");
+    
+    while (true) {
+        for (u32 n = 0; n < len; n++) {
+            DrawStringF(true, x + (n*4*8), y + str_height + 10,
+                (lvl > n) ? seqcolors[seqlvl] : COLOR_GREY, COLOR_STD_BG, "<%c>", seqsymbols[seqlvl][n]);
+        }
+        if (lvl == len)
+            break;
+        u32 pad_state = InputWait();
+        if (!(pad_state & BUTTON_ANY))
+            continue;
+        else if (pad_state & sequences[seqlvl][lvl])
+            lvl++;
+        else if (pad_state & BUTTON_B)
+            break;
+        else if (lvl == 0 || !(pad_state & sequences[seqlvl][lvl-1]))
+            lvl = 0;
+    }
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    
+    return (lvl >= len);
 }
 
 void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen)
@@ -202,14 +264,15 @@ void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen)
     const u32 bar_pos_x = (SCREEN_WIDTH_TOP - bar_width) / 2;
     const u32 bar_pos_y = (SCREEN_HEIGHT / 2) - bar_height - 2;
     const u32 text_pos_y = (SCREEN_HEIGHT / 2);
-    u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-2)) / total : 0;
+    u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
     char tempstr[64];
     
     if (clearscreen) ClearScreenF(true, false, COLOR_STD_BG);
     DrawRectangleF(true, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_DARKGREY);
     DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
-    DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, prog_width, bar_height - 2, COLOR_STD_FONT);
+    DrawRectangleF(true, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
     
     ResizeString(tempstr, opstr, 28, 8, false);
-    DrawStringF(true, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG, tempstr);
+    DrawString(TOP_SCREEN0, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(TOP_SCREEN1, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
 }

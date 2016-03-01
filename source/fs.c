@@ -54,13 +54,16 @@ bool CheckWritePermissions(const char* path) {
     }
         
     if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
-        ShowPrompt(false, "Writing to the SysNAND is locked!\nUnlock it from the root menu.");
+        if (ShowPrompt(true, "Writing to the SysNAND is locked!\nUnlock it now?"))
+            return SetWritePermissions(3);
         return false;
     } else if ((pdrv >= 4) && (pdrv <= 6) && (write_permission_level < 2)) {
-        ShowPrompt(false, "Writing to the EmuNAND is locked!\nUnlock it from the root menu.");
+        if (ShowPrompt(true, "Writing to the EmuNAND is locked!\nUnlock it now?"))
+            return SetWritePermissions(2);
         return false;
     } else if ((pdrv == 0) && (write_permission_level < 1)) {
-        ShowPrompt(false, "Writing to the SD card is locked!\nUnlock it from the root menu.");
+        if (ShowPrompt(true, "Writing to the SD card is locked!\nUnlock it now?"))
+            return SetWritePermissions(1);
         return false;
     }
         
@@ -68,9 +71,36 @@ bool CheckWritePermissions(const char* path) {
 }
 
 bool SetWritePermissions(u32 level) {
+    if (write_permission_level >= level) {
+        // no need to ask the user here
+        write_permission_level = level;
+        return true;
+    }
+    
+    switch (level) {
+        case 1:
+            if (!ShowUnlockSequence(1, "You want to enable SD card\nwriting permissions."))
+                return false;
+            break;
+        case 2:
+            if (!ShowUnlockSequence(2, "You want to enable EmuNAND\nwriting permissions.\nThis is potentially dangerous!\nKeep a backup, just in case."))
+                return false;
+            break;
+        case 3:
+            if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable SysNAND\nwriting permissions.\nThis is potentially dangerous\nand can brick your 3DS!\nHaving a SysNAND backup and\nNANDmod is recommended."))
+                return false;
+            break;
+        default:
+            break;
+    }
+    
     write_permission_level = level;
     
     return true;
+}
+
+u32 GetWritePermissions() {
+    return write_permission_level;
 }
 
 bool FileCreate(const char* path, u8* data, u32 size) {

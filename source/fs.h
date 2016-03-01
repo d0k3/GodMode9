@@ -32,6 +32,9 @@ bool CheckWritePermissions(const char* path);
 /** Set new write permissions */
 bool SetWritePermissions(u32 level);
 
+/** Get write permissions */
+u32 GetWritePermissions();
+
 /** Create / overwrite file and write the provided data to it **/
 bool FileCreate(const char* path, u8* data, u32 size);
 

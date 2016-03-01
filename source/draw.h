@@ -23,6 +23,10 @@
 #define COLOR_YELLOW        RGB(0xFF, 0xFF, 0x00)
 #define COLOR_CYAN          RGB(0xFF, 0x00, 0xFF)
 
+#define COLOR_BRIGHTRED     RGB(0xFF, 0x30, 0x30)
+#define COLOR_BRIGHTYELLOW  RGB(0xFF, 0xFF, 0x30)
+#define COLOR_BRIGHTGREEN   RGB(0x30, 0xFF, 0x30)
+
 #define COLOR_TINTEDBLUE    RGB(0x60, 0x60, 0x80)
 #define COLOR_TINTEDYELLOW  RGB(0xD0, 0xD0, 0x60)
 #define COLOR_TINTEDGREEN   RGB(0x70, 0x80, 0x70)
@@ -65,4 +69,5 @@ void TruncateString(char* dest, const char* orig, int nsize, int tpos);
 void FormatBytes(char* str, u64 bytes);
 
 bool ShowPrompt(bool ask, const char *format, ...);
+bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen);
