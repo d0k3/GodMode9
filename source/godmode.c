@@ -3,22 +3,21 @@
 #include "hid.h"
 #include "fs.h"
 
-#define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_BRIGHTRED)
+#define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
 #define COLOR_MARKED    COLOR_TINTEDYELLOW
 #define COLOR_FILE      COLOR_TINTEDGREEN
 #define COLOR_DIR       COLOR_TINTEDBLUE
 #define COLOR_ROOT      COLOR_GREY
 
-void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, bool switched) {
+void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard) {
     const u32 info_start = 18;
     
     static u32 state_prev = 0xFFFFFFFF;
     u32 state_curr =
         ((*curr_path) ? (1<<0) : 0) |
         ((clipboard->n_entries) ? (1<<1) : 0) |
-        ((switched) ? (1<<2) : 0) |
-        (GetWritePermissions()<<3);
+        (GetWritePermissions()<<2);
     
     char bytestr0[32];
     char bytestr1[32];
@@ -70,21 +69,15 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[256];
-    snprintf(instr, 256, "%s%s%s%s%s%s",
-        "GodMode 9 v0.0.4\n", // generic start part
-        (*curr_path && !switched) ? "<R> (hold) - Switch commands\n<L> (+<\x18\x19\x1A\x1B>) - Mark entries\n" :
-        (*curr_path && switched) ? "<R> (rel.) - Switch commands\n<L> - Make a Screenshot\n" :
-        "<R+L> - Make a Screenshot\n",
-        (!(*curr_path)) ? "" :
-        (!switched) ? "<X> - DELETE file(s)\n<Y> - ADD file(s) to clipboard\n" :
-        "<X> - RENAME file\n<Y> - CREATE directory\n",
-        (*curr_path) ? "" :
-        (GetWritePermissions() <= 1) ? "<X> - Unlock EmuNAND writing\n<Y> - Unlock SysNAND writing\n" :
-        (GetWritePermissions() == 2) ? "<X> - Relock EmuNAND writing\n<Y> - Unlock SysNAND writing\n" :
-        "<X> - Relock EmuNAND writing\n<Y> - Relock SysNAND writing\n",
-        (clipboard->n_entries) ? "<SELECT> - Clear Clipboard\n" : "", // only if clipboard is full
-        "<START/+\x1B> - Reboot/Poweroff"); // generic end part
-    DrawStringF(true, (SCREEN_WIDTH_TOP - GetDrawStringWidth(instr)) / 2, SCREEN_HEIGHT - 2 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
+    snprintf(instr, 256, "%s%s%s%s",
+        "GodMode9 File Explorer v0.0.4\n", // generic start part
+        (*curr_path) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
+        (GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
+        (GetWritePermissions() == 2) ? "X - Relock EmuNAND writing\nY - Unlock SysNAND writing\n" :
+        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\n",
+        (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "", // only if clipboard is full
+        "R+L - Make a SCREENSHOT\nSTART - Reboot / [+\x1B] Poweroff"); // generic end part
+    DrawStringF(true, (SCREEN_WIDTH_TOP - GetDrawStringWidth(instr)) / 2, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
 void DrawDirContents(DirStruct* contents, u32 cursor) {
@@ -151,7 +144,7 @@ u32 GodMode() {
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
     while (true) { // this is the main loop
-        DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard, switched);
+        DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard);
         DrawDirContents(current_dir, cursor);
         u32 pad_state = InputWait();
         switched = (pad_state & BUTTON_R1);
@@ -182,8 +175,10 @@ u32 GodMode() {
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
         } else if (pad_state & BUTTON_RIGHT) { // mark all entries
             for (u32 c = 0; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 1;
+            mark_setting = 1;
         } else if (pad_state & BUTTON_LEFT) { // unmark all entries
             for (u32 c = 0; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
+            mark_setting = 0;
         } else if (switched && (pad_state & BUTTON_L1)) { // switched L -> screenshot
             CreateScreenshot();
             ClearScreenF(true, true, COLOR_STD_BG);

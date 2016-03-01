@@ -181,11 +181,11 @@ bool ShowPrompt(bool ask, const char *format, ...)
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (2 * 10);
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
-    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - (str_height+20)) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(true, x, y + str_height, COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
+    DrawStringF(true, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
     
     while (true) {
         u32 pad_state = InputWait();
@@ -226,17 +226,17 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     va_end(va);
     
     str_width = GetDrawStringWidth(str);
-    str_height = GetDrawStringHeight(str) + (2 * 10);
+    str_height = GetDrawStringHeight(str) + (3*10);
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
-    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - (str_height + 30)) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - (str_height)) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(true, x, y + str_height, COLOR_STD_FONT, COLOR_STD_BG, "To proceed, enter this:");
+    DrawStringF(true, x, y + str_height - (2*10), COLOR_STD_FONT, COLOR_STD_BG, "To proceed, enter this:");
     
     while (true) {
         for (u32 n = 0; n < len; n++) {
-            DrawStringF(true, x + (n*4*8), y + str_height + 10,
+            DrawStringF(true, x + (n*4*8), y + str_height - (1*10),
                 (lvl > n) ? seqcolors[seqlvl] : COLOR_GREY, COLOR_STD_BG, "<%c>", seqsymbols[seqlvl][n]);
         }
         if (lvl == len)
