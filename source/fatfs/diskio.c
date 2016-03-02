@@ -9,6 +9,7 @@
 
 #include "diskio.h"		/* FatFs lower layer API */
 #include "aes.h"
+#include "sha.h"
 #include "platform.h"
 #include "sdmmc.h"
 
@@ -65,7 +66,7 @@ static u32 emunand_base_sector = 0x000000;
 /* Get counter for NAND AES decryption                                    */
 /*-----------------------------------------------------------------------*/
 
-u32 GetNandCtr(u8* ctr, u32 sector)
+/*u32 GetNandCtr(u8* ctr, u32 sector)
 {
     static const u8* version_ctrs[] = {
         (u8*)0x080D7CAC,
@@ -108,6 +109,35 @@ u32 GetNandCtr(u8* ctr, u32 sector)
         for (u32 i = 0; i < 16; i++)
             ctr[i] = *(ctr_start + 0x88 + (0xF - i));
     }
+    
+    // increment counter
+    add_ctr(ctr, sector * (0x200/0x10));
+
+    return 0;
+}*/
+
+u32 GetNandCtr(u8* ctr, u32 sector)
+{
+    static u8* NandCid = NULL;
+    static u8 CtrNandCtr[16];
+    static u8 TwlNandCtr[16];
+    
+    if (!NandCid) {
+        NandCid = (u8*) 0x01FFCD84;
+        u8 shasum[32];
+        sha_init(SHA256_MODE);
+        sha_update(NandCid, 16);
+        sha_get(shasum);
+        memcpy(CtrNandCtr, shasum, 16);
+        sha_init(SHA1_MODE);
+        sha_update(NandCid, 16);
+        sha_get(shasum);
+        for(u32 i = 0; i < 16; i++) // little endian and reversed order
+            TwlNandCtr[i] = shasum[15-i];
+    }
+    
+    // copy NAND CTR over
+    memcpy(ctr, (sector >= (0x0B100000 / 0x200)) ? CtrNandCtr : TwlNandCtr, 16);
     
     // increment counter
     add_ctr(ctr, sector * (0x200/0x10));
