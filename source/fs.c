@@ -114,7 +114,7 @@ bool FileCreate(const char* path, u8* data, u32 size) {
     return (bytes_written == size);
 }
 
-bool PathCopyWorker(char* dest, char* orig) {
+bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
     FILINFO fno = {.lfname = NULL};
     bool ret = false;
     
@@ -138,11 +138,12 @@ bool PathCopyWorker(char* dest, char* orig) {
     }
     
     // check if destination exists
-    if (f_stat(dest, NULL) == FR_OK) {
-        char namestr[40];
+    if (!overwrite && (f_stat(dest, NULL) == FR_OK)) {
+        char namestr[36 + 1];
         TruncateString(namestr, dest, 36, 8);
         if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?", namestr))
             return false;
+        overwrite = true;
     }
     
     // the copy process takes place here
@@ -169,7 +170,7 @@ bool PathCopyWorker(char* dest, char* orig) {
             if (fno.fname[0] == 0) {
                 ret = true;
                 break;
-            } else if (!PathCopyWorker(dest, orig)) {
+            } else if (!PathCopyWorker(dest, orig, overwrite)) {
                 break;
             }
         }
@@ -222,7 +223,7 @@ bool PathCopy(const char* destdir, const char* orig) {
     if (!CheckWritePermissions(destdir)) return false;
     strncpy(fdpath, destdir, 255);
     strncpy(fopath, orig, 255);
-    return PathCopyWorker(fdpath, fopath);
+    return PathCopyWorker(fdpath, fopath, false);
 }
 
 bool PathDeleteWorker(char* fpath) {
