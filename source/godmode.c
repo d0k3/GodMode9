@@ -9,15 +9,17 @@
 #define COLOR_FILE      COLOR_TINTEDGREEN
 #define COLOR_DIR       COLOR_TINTEDBLUE
 #define COLOR_ROOT      COLOR_GREY
+#define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_FAT_DIR) ? COLOR_DIR : ((e)->type == T_FAT_FILE) ? COLOR_FILE : ((e)->type == T_VRT_ROOT) ?  COLOR_ROOT : COLOR_GREY)
 
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard) {
+    const u32 n_cb_show = 8;
     const u32 info_start = 18;
+    const u32 instr_x = 56;
     
     static u32 state_prev = 0xFFFFFFFF;
     u32 state_curr =
         ((*curr_path) ? (1<<0) : 0) |
-        ((clipboard->n_entries) ? (1<<1) : 0) |
-        (GetWritePermissions()<<2);
+        ((clipboard->n_entries) ? (1<<1) : 0);
     
     char bytestr0[32];
     char bytestr1[32];
@@ -46,10 +48,12 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     // left top - current file info
     DrawStringF(true, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[CURRENT]");
     ResizeString(tempstr, curr_entry->name, 20, 8, false);
-    u32 color_current = (curr_entry->marked) ? COLOR_MARKED : (curr_entry->type == T_FAT_ROOT) ? COLOR_ROOT : (curr_entry->type == T_FAT_DIR) ? COLOR_DIR : COLOR_FILE;
+    u32 color_current = COLOR_ENTRY(curr_entry);
     DrawStringF(true, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
     if (curr_entry->type == T_FAT_DIR) {
         ResizeString(tempstr, "(dir)", 20, 8, false);
+    } else if (curr_entry->type == T_VRT_DOTDOT) {
+        snprintf(tempstr, 21, "%20s", "");
     } else {
         FormatBytes(bytestr0, curr_entry->size);
         ResizeString(tempstr, bytestr0, 20, 8, false);
@@ -58,19 +62,19 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // right top - clipboard
     DrawStringF(true, SCREEN_WIDTH_TOP - (20*8), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
-    for (u32 c = 0; c < 10; c++) {
+    for (u32 c = 0; c < n_cb_show; c++) {
+        u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
         ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", 20, 8, true);
-        DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (c*10), (clipboard->entry[c].type == T_FAT_FILE) ? COLOR_FILE : COLOR_DIR, COLOR_STD_BG, tempstr);
+        DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
     }
     *tempstr = '\0';
-    if (clipboard->n_entries > 10) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - 10);
-    DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (10*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
-    
+    if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - n_cb_show);
+    DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
     
     // bottom: inctruction block
     char instr[256];
     snprintf(instr, 256, "%s%s%s%s%s",
-        "GodMode9 File Explorer v0.0.4\n", // generic start part
+        "GodMode9 Explorer v0.0.9\n", // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
         ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
@@ -79,7 +83,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "R+L - Make a Screenshot\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
         "START - Reboot / [+\x1B] Poweroff"); // generic end part
-    DrawStringF(true, (SCREEN_WIDTH_TOP - GetDrawStringWidth(instr)) / 2, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
+    DrawStringF(true, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
 void DrawDirContents(DirStruct* contents, u32 cursor) {
@@ -99,18 +103,11 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
     for (u32 i = 0; pos_y < SCREEN_HEIGHT; i++) {
         char tempstr[str_width + 1];
         u32 offset_i = offset_disp + i;
-        u32 color_font;
+        u32 color_font = COLOR_WHITE;
         if (offset_i < contents->n_entries) {
-            if (cursor != offset_i) {
-                color_font = (contents->entry[offset_i].marked) ? COLOR_MARKED : (contents->entry[offset_i].type == T_FAT_DIR) ? COLOR_DIR : (contents->entry[offset_i].type == T_FAT_FILE) ? COLOR_FILE : COLOR_ROOT;
-            } else {
-                color_font = COLOR_STD_FONT;
-            }
+            color_font = (cursor != offset_i) ? COLOR_ENTRY(&(contents->entry[offset_i])) : COLOR_STD_FONT;
             ResizeString(tempstr, contents->entry[offset_i].name, str_width, str_width - 10, false);
-        } else {
-            color_font = COLOR_WHITE;
-            snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
-        }
+        } else snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
         DrawStringF(false, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
         pos_y += stp_y;
     }
@@ -156,7 +153,13 @@ u32 GodMode() {
         
         // commands which are valid anywhere
         if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FAT_FILE)) { // one level up
-            strncpy(current_path, current_dir->entry[cursor].path, 256);
+            if (current_dir->entry[cursor].type == T_VRT_DOTDOT) {
+                char* last_slash = strrchr(current_path, '/');
+                if (last_slash) *last_slash = '\0'; 
+                else *current_path = '\0';
+            } else { // type == T_FAT_DIR || type == T_VRT_ROOT
+                strncpy(current_path, current_dir->entry[cursor].path, 256);
+            }
             GetDirContents(current_dir, current_path);
             cursor = 0;
         } else if (pad_state & BUTTON_B) { // one level down
@@ -176,15 +179,15 @@ u32 GodMode() {
         } else if ((pad_state & BUTTON_LEFT) && (mark_setting < 0)) { // cursor up (quick)
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
         } else if (pad_state & BUTTON_RIGHT) { // mark all entries
-            for (u32 c = 0; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 1;
+            for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 1;
             mark_setting = 1;
         } else if (pad_state & BUTTON_LEFT) { // unmark all entries
-            for (u32 c = 0; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
+            for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
             mark_setting = 0;
         } else if (switched && (pad_state & BUTTON_L1)) { // switched L -> screenshot
             CreateScreenshot();
             ClearScreenF(true, true, COLOR_STD_BG);
-        } else if (*current_path && (pad_state & BUTTON_L1)) { // unswitched L - mark/unmark single entry
+        } else if (*current_path && (pad_state & BUTTON_L1) && cursor) { // unswitched L - mark/unmark single entry
             if (mark_setting >= 0) {
                 current_dir->entry[cursor].marked = mark_setting;
             } else {
@@ -215,7 +218,7 @@ u32 GodMode() {
                                 n_errors++;
                         if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
                     }
-                } else {
+                } else if (cursor) {
                     char namestr[36+1];
                     TruncateString(namestr, current_dir->entry[cursor].name, 36, 12);
                     if ((ShowPrompt(true, "Delete \"%s\"?", namestr)) && !PathDelete(current_dir->entry[cursor].path))
@@ -227,16 +230,17 @@ u32 GodMode() {
             } else if ((pad_state & BUTTON_Y) && (clipboard->n_entries == 0)) { // fill clipboard
                 for (u32 c = 0; c < current_dir->n_entries; c++) {
                     if (current_dir->entry[c].marked) {
-                        DirEntryCpy(&(clipboard->entry[clipboard->n_entries]), &(current_dir->entry[c]));
                         current_dir->entry[c].marked = 0;
+                        DirEntryCpy(&(clipboard->entry[clipboard->n_entries]), &(current_dir->entry[c]));
                         clipboard->n_entries++;
                     }
                 }
-                if (clipboard->n_entries == 0) {
+                if ((clipboard->n_entries == 0) && cursor) {
                     DirEntryCpy(&(clipboard->entry[0]), &(current_dir->entry[cursor]));
                     clipboard->n_entries = 1;
                 }
-                last_clipboard_size = clipboard->n_entries;
+                if (clipboard->n_entries)
+                    last_clipboard_size = clipboard->n_entries;
             } else if (pad_state & BUTTON_Y) { // paste files
                 char promptstr[64];
                 if (clipboard->n_entries == 1) {

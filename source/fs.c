@@ -304,6 +304,7 @@ void SortDirStruct(DirStruct* contents) {
     for (u32 s = 0; s < contents->n_entries; s++) {
         DirEntry* cmp0 = &(contents->entry[s]);
         DirEntry* min0 = cmp0;
+        if (cmp0->type == T_VRT_DOTDOT) continue;
         for (u32 c = s + 1; c < contents->n_entries; c++) {
             DirEntry* cmp1 = &(contents->entry[c]);
             if (min0->type != cmp1->type) {
@@ -336,7 +337,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         snprintf(contents->entry[pdrv].path + 4, 32, "[%lu:] %s", pdrv, drvname[pdrv]);
         contents->entry[pdrv].name = contents->entry[pdrv].path + 4;
         contents->entry[pdrv].size = GetTotalSpace(contents->entry[pdrv].path);
-        contents->entry[pdrv].type = T_FAT_ROOT;
+        contents->entry[pdrv].type = T_VRT_ROOT;
         contents->entry[pdrv].marked = 0;
     }
     contents->n_entries = numfs;
@@ -392,12 +393,19 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
 
 void GetDirContents(DirStruct* contents, const char* path) {
     contents->n_entries = 0;
-    if (strncmp(path, "", 256) == 0) { // root directory
+    if (!(*path)) { // root directory
         if (!GetRootDirContentsWorker(contents))
             contents->n_entries = 0; // not required, but so what?
     } else {
         char fpath[256]; // 256 is the maximum length of a full path
         strncpy(fpath, path, 256);
+        // create virtual '..' entry
+        contents->entry->name = contents->entry->path + 8;
+        strncpy(contents->entry->path, "*?*?*", 8);
+        strncpy(contents->entry->name, "..", 4);
+        contents->entry->type = T_VRT_DOTDOT;
+        contents->entry->size = 0;
+        contents->n_entries = 1;
         if (!GetDirContentsWorker(contents, fpath, 256, false))
             contents->n_entries = 0;
         SortDirStruct(contents);
