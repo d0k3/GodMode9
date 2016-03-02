@@ -265,12 +265,12 @@ DRESULT disk_write (
             }
         }
         
-        /*if (type == TYPE_SYSNAND) {
+        if (type == TYPE_SYSNAND) {
             if (sdmmc_nand_writesectors(isector, count, buff))
                 return RES_PARERR;
         } else if (sdmmc_sdcard_writesectors(emunand_base_sector + isector, count, buff)) {
             return RES_PARERR;
-        }*/
+        }
         // stubbed, better be safe!
     }
 
