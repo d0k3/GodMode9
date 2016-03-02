@@ -85,6 +85,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
 void DrawDirContents(DirStruct* contents, u32 cursor) {
     static u32 offset_disp = 0;
     const int str_width = 39;
+    const u32 bar_height_min = 32;
+    const u32 bar_width = 2;
     const u32 start_y = 2;
     const u32 stp_y = 12;
     const u32 pos_x = 0;
@@ -113,10 +115,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
         pos_y += stp_y;
     }
     
-    if (contents->n_entries > lines) { // draw position bar at the right
-        const u32 bar_height_min = 32;
-        const u32 bar_width = 2;
-        
+    if (contents->n_entries > lines) { // draw position bar at the right      
         u32 bar_height = (lines * SCREEN_HEIGHT) / contents->n_entries;
         if (bar_height < bar_height_min) bar_height = bar_height_min;
         u32 bar_pos = ((u64) offset_disp * (SCREEN_HEIGHT - bar_height)) / (contents->n_entries - lines);
@@ -124,7 +123,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
-    }
+    } else DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, SCREEN_HEIGHT, COLOR_STD_BG);
 }
 
 u32 GodMode() {
@@ -217,10 +216,10 @@ u32 GodMode() {
                         if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
                     }
                 } else {
-                    char namestr[20+1];
-                    TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
+                    char namestr[36+1];
+                    TruncateString(namestr, current_dir->entry[cursor].name, 36, 12);
                     if ((ShowPrompt(true, "Delete \"%s\"?", namestr)) && !PathDelete(current_dir->entry[cursor].path))
-                        ShowPrompt(false, "Failed deleting \"%s\"", namestr);
+                        ShowPrompt(false, "Failed deleting:\n%s", namestr);
                 }
                 GetDirContents(current_dir, current_path);
                 if (cursor >= current_dir->n_entries)
@@ -248,11 +247,11 @@ u32 GodMode() {
                 if (ShowPrompt(true, promptstr)) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
                         if (!PathCopy(current_path, clipboard->entry[c].path)) {
-                            char namestr[20+1];
-                            TruncateString(namestr, clipboard->entry[c].name, 20, 12);
+                            char namestr[36+1];
+                            TruncateString(namestr, clipboard->entry[c].name, 36, 12);
                             if (c + 1 < clipboard->n_entries) {
-                                if (!ShowPrompt(true, "Failed copying \"%s\"\nContinue?", namestr)) break;
-                            } else ShowPrompt(false, "Failed copying \"%s\"\n", namestr);
+                                if (!ShowPrompt(true, "Failed copying path:\n%s\nProcess remaining?", namestr)) break;
+                            } else ShowPrompt(false, "Failed copying path:\n%s", namestr);
                         }
                     }
                 }

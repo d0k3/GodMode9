@@ -70,4 +70,4 @@ void FormatBytes(char* str, u64 bytes);
 
 bool ShowPrompt(bool ask, const char *format, ...);
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
-void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen);
+bool ShowProgress(u64 current, u64 total, const char* opstr);

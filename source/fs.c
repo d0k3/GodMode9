@@ -8,7 +8,7 @@ static FATFS* fs = (FATFS*)0x20316000;
 // this is the main buffer
 static u8* main_buffer = (u8*)0x21100000;
 // this is the main buffer size
-static size_t main_buffer_size = 128 * 1024;
+static size_t main_buffer_size = 1 * 1024 * 1024;
 
 // write permission level - careful with this
 static u32 write_permission_level = 1;
@@ -24,7 +24,7 @@ bool InitFS() {
     #endif
     for (numfs = 0; numfs < 7; numfs++) {
         char fsname[8];
-        snprintf(fsname, 8, "%lu:", numfs);
+        snprintf(fsname, 7, "%lu:", numfs);
         int res = f_mount(fs + numfs, fsname, 1);
         if (res != FR_OK) {
             if (numfs >= 4) break;
@@ -115,35 +115,43 @@ bool FileCreate(const char* path, u8* data, u32 size) {
 }
 
 bool PathCopyWorker(char* dest, char* orig) {
-    FILINFO fno;
+    FILINFO fno = {.lfname = NULL};
     bool ret = false;
+    
     
     if (f_stat(dest, &fno) != FR_OK) return false; // destination directory does not exist
     if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
     if (f_stat(orig, &fno) != FR_OK) return false; // origin does not exist
 
-    // get filename, build full destination path
+    // build full destination path (on top of destination directory)
     char* oname = strrchr(orig, '/');
-    char* dname = dest + strnlen(dest, 256);
+    char* dname = dest + strnlen(dest, 255);
     if (oname == NULL) return false; // not a proper origin path
     oname++;
     *(dname++) = '/';
     strncpy(dname, oname, 256 - (dname - dest));
     
+    // check if destination is part of or equal origin
+    if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
+        if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0'))
+            return false;
+    }
+    
     // check if destination exists
     if (f_stat(dest, NULL) == FR_OK) {
-        char tempstr[40];
-        TruncateString(tempstr, dest, 36, 8);
-        if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?"))
+        char namestr[40];
+        TruncateString(namestr, dest, 36, 8);
+        if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?", namestr))
             return false;
     }
     
     // the copy process takes place here
-    ShowProgress(0, 0, orig, true);
+    if (!ShowProgress(0, 0, orig)) return false;
     if (fno.fattrib & AM_DIR) { // processing folders...
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
         
+        // create the destination folder if it does not already exist
         if ((f_stat(dest, NULL) != FR_OK) && (f_mkdir(dest) != FR_OK))
             return false;
         
@@ -153,9 +161,7 @@ bool PathCopyWorker(char* dest, char* orig) {
         fno.lfname = fname;
         fno.lfsize = 256 - (fname - orig);
         
-        ShowPrompt(false, "Made:\n%s\n%s", orig, dest);
         while (f_readdir(&pdir, &fno) == FR_OK) {
-            ShowPrompt(false, "Trying:\n%s\n%s", orig, dest);
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
             if (fname[0] == 0)
@@ -164,7 +170,6 @@ bool PathCopyWorker(char* dest, char* orig) {
                 ret = true;
                 break;
             } else if (!PathCopyWorker(dest, orig)) {
-                ShowPrompt(false, "Failed:\n%s\n%s", orig, dest);
                 break;
             }
         }
@@ -189,21 +194,25 @@ bool PathCopyWorker(char* dest, char* orig) {
         ret = true;
         for (size_t pos = 0; pos < fsize; pos += main_buffer_size) {
             UINT bytes_read = 0;
-            UINT bytes_written = 0;
-            ShowProgress(pos, fsize, orig, false);
+            UINT bytes_written = 0;            
             f_read(&ofile, main_buffer, main_buffer_size, &bytes_read);
+            if (!ShowProgress(pos + (bytes_read / 2), fsize, orig)) {
+                ret = false;
+                break;
+            }
             f_write(&dfile, main_buffer, bytes_read, &bytes_written);
             if (bytes_read != bytes_written) {
                 ret = false;
                 break;
             }
         }
-        ShowProgress(1, 1, orig, false);
+        ShowProgress(1, 1, orig);
         
         f_close(&ofile);
         f_close(&dfile);
     }
     
+    *(--dname) = '\0';
     return ret;
 }
 
@@ -211,13 +220,13 @@ bool PathCopy(const char* destdir, const char* orig) {
     char fdpath[256]; // 256 is the maximum length of a full path
     char fopath[256];
     if (!CheckWritePermissions(destdir)) return false;
-    strncpy(fdpath, destdir, 256);
-    strncpy(fopath, orig, 256);
+    strncpy(fdpath, destdir, 255);
+    strncpy(fopath, orig, 255);
     return PathCopyWorker(fdpath, fopath);
 }
 
 bool PathDeleteWorker(char* fpath) {
-    FILINFO fno;
+    FILINFO fno = {.lfname = NULL};
     
     // this code handles directory content deletion
     if (f_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist

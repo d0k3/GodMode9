@@ -264,22 +264,31 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     return (lvl >= len);
 }
 
-void ShowProgress(u64 current, u64 total, const char* opstr, bool clearscreen)
+bool ShowProgress(u64 current, u64 total, const char* opstr)
 {
+    static u32 last_prog_width = 0;
     const u32 bar_width = 240;
     const u32 bar_height = 12;
     const u32 bar_pos_x = (SCREEN_WIDTH_TOP - bar_width) / 2;
-    const u32 bar_pos_y = (SCREEN_HEIGHT / 2) - bar_height - 2;
-    const u32 text_pos_y = (SCREEN_HEIGHT / 2);
+    const u32 bar_pos_y = (SCREEN_HEIGHT / 2) - bar_height - 2 - 10;
+    const u32 text_pos_y = bar_pos_y + bar_height + 2;
     u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
     char tempstr[64];
     
-    if (clearscreen) ClearScreenF(true, false, COLOR_STD_BG);
-    DrawRectangleF(true, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_DARKGREY);
-    DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
+    if (!current || last_prog_width > prog_width) { 
+        ClearScreenF(true, false, COLOR_STD_BG);
+        DrawRectangleF(true, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_STD_FONT);
+        DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
+    }
     DrawRectangleF(true, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
     
     ResizeString(tempstr, opstr, 28, 8, false);
     DrawString(TOP_SCREEN0, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     DrawString(TOP_SCREEN1, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(TOP_SCREEN0, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(TOP_SCREEN1, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
+    
+    last_prog_width = prog_width;
+    
+    return !(~HID_STATE & BUTTON_B);
 }
