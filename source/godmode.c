@@ -69,14 +69,16 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[256];
-    snprintf(instr, 256, "%s%s%s%s",
+    snprintf(instr, 256, "%s%s%s%s%s",
         "GodMode9 File Explorer v0.0.4\n", // generic start part
-        (*curr_path) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
-        (GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
+        (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
+        "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
+        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
         (GetWritePermissions() == 2) ? "X - Relock EmuNAND writing\nY - Unlock SysNAND writing\n" :
-        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\n",
-        (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "", // only if clipboard is full
-        "R+L - Make a SCREENSHOT\nSTART - Reboot / [+\x1B] Poweroff"); // generic end part
+        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\n"),
+        "R+L - Make a Screenshot\n",
+        (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
+        "START - Reboot / [+\x1B] Poweroff"); // generic end part
     DrawStringF(true, (SCREEN_WIDTH_TOP - GetDrawStringWidth(instr)) / 2, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
@@ -135,6 +137,7 @@ u32 GodMode() {
     char current_path[256] = { 0x00 };
     
     int mark_setting = -1;
+    u32 last_clipboard_size = 0;
     bool switched = false;
     u32 cursor = 0;
     
@@ -143,7 +146,7 @@ u32 GodMode() {
     
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
-    while (true) { // this is the main loop
+    while (true) { // this is the main loop !!! EMPTY DIRS
         DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard);
         DrawDirContents(current_dir, cursor);
         u32 pad_state = InputWait();
@@ -163,7 +166,7 @@ u32 GodMode() {
             else *current_path = '\0';
             GetDirContents(current_dir, current_path);
             cursor = 0;
-        } else if ((pad_state & BUTTON_DOWN) && (cursor < current_dir->n_entries - 1))  { // cursor up
+        } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor up
             cursor++;
         } else if ((pad_state & BUTTON_UP) && cursor) { // cursor down
             cursor--;
@@ -189,8 +192,8 @@ u32 GodMode() {
                 current_dir->entry[cursor].marked ^= 0x1;
                 mark_setting = current_dir->entry[cursor].marked;
             }
-        } else if ((pad_state & BUTTON_SELECT) && (clipboard->n_entries > 0)) { // clear clipboard
-            clipboard->n_entries = 0;
+        } else if (pad_state & BUTTON_SELECT) { // clear/restore clipboard
+            clipboard->n_entries = (clipboard->n_entries > 0) ? 0 : last_clipboard_size;
         }
 
         // highly specific commands
@@ -202,7 +205,26 @@ u32 GodMode() {
             }
         } else if (!switched) { // standard unswitched command set
             if (pad_state & BUTTON_X) { // delete a file 
-                // not implemented yet
+                u32 n_marked = 0;
+                for (u32 c = 0; c < current_dir->n_entries; c++)
+                    if (current_dir->entry[c].marked) n_marked++;
+                if (n_marked) {
+                    if (ShowPrompt(true, "Delete %u path(s)?", n_marked)) {
+                        u32 n_errors = 0;
+                        for (u32 c = 0; c < current_dir->n_entries; c++)
+                            if (current_dir->entry[c].marked && !PathDelete(current_dir->entry[c].path))
+                                n_errors++;
+                        if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
+                    }
+                } else {
+                    char namestr[20+1];
+                    TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
+                    if ((ShowPrompt(true, "Delete \"%s\"?", namestr)) && !PathDelete(current_dir->entry[cursor].path))
+                        ShowPrompt(false, "Failed deleting \"%s\"", namestr);
+                }
+                GetDirContents(current_dir, current_path);
+                if (cursor >= current_dir->n_entries)
+                    cursor = current_dir->n_entries - 1;
             } else if ((pad_state & BUTTON_Y) && (clipboard->n_entries == 0)) { // fill clipboard
                 for (u32 c = 0; c < current_dir->n_entries; c++) {
                     if (current_dir->entry[c].marked) {
@@ -215,6 +237,28 @@ u32 GodMode() {
                     DirEntryCpy(&(clipboard->entry[0]), &(current_dir->entry[cursor]));
                     clipboard->n_entries = 1;
                 }
+                last_clipboard_size = clipboard->n_entries;
+            } else if (pad_state & BUTTON_Y) { // paste files
+                char promptstr[64];
+                if (clipboard->n_entries == 1) {
+                    char namestr[20+1];
+                    TruncateString(namestr, clipboard->entry[0].name, 20, 12);
+                    snprintf(promptstr, 64, "Copy \"%s\" here?", namestr);
+                } else snprintf(promptstr, 64, "Copy %lu path(s) here?", clipboard->n_entries);
+                if (ShowPrompt(true, promptstr)) {
+                    for (u32 c = 0; c < clipboard->n_entries; c++) {
+                        if (!PathCopy(current_path, clipboard->entry[c].path)) {
+                            char namestr[20+1];
+                            TruncateString(namestr, clipboard->entry[c].name, 20, 12);
+                            if (c + 1 < clipboard->n_entries) {
+                                if (!ShowPrompt(true, "Failed copying \"%s\"\nContinue?", namestr)) break;
+                            } else ShowPrompt(false, "Failed copying \"%s\"\n", namestr);
+                        }
+                    }
+                }
+                clipboard->n_entries = 0;
+                GetDirContents(current_dir, current_path);
+                ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
             // not implemented yet

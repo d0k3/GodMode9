@@ -118,12 +118,13 @@ u32 GetDrawStringHeight(const char* str) {
 u32 GetDrawStringWidth(char* str) {
     u32 width = 0;
     char* old_lf = str;
-    for (char* lf = strchr(str, '\n'); (lf != NULL); lf = strchr(lf + 1, '\n')) {
+    char* str_end = str + strnlen(str, 512);
+    for (char* lf = strchr(str, '\n'); lf != NULL; lf = strchr(lf + 1, '\n')) {
         if ((lf - old_lf) > width) width = lf - old_lf;
         old_lf = lf;
     }
-    if (old_lf == str)
-        width = strnlen(str, 256);
+    if (str_end - old_lf > width)
+        width = str_end - old_lf;
     width *= 8;
     return width;
 }
@@ -170,6 +171,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
 {
     u32 str_width, str_height;
     u32 x, y;
+    bool ret = true;
     
     char str[512] = {}; // 512 should be more than enough
     va_list va;
@@ -180,6 +182,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (2 * 10);
+    if (str_width < 18*8) str_width = 18 * 8;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
@@ -190,12 +193,15 @@ bool ShowPrompt(bool ask, const char *format, ...)
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) break;
-        else if (ask && (pad_state & BUTTON_B)) return false;
+        else if (ask && (pad_state & BUTTON_B)) {
+            ret = false;
+            break;
+        }
     }
     
     ClearScreenF(true, false, COLOR_STD_BG);
     
-    return true;
+    return ret;
 }
 
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
@@ -227,6 +233,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (3*10);
+    if (str_width < 24) str_width = 24;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - (str_height)) / 2;
     

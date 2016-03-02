@@ -8,7 +8,7 @@ static FATFS* fs = (FATFS*)0x20316000;
 // this is the main buffer
 static u8* main_buffer = (u8*)0x21100000;
 // this is the main buffer size
-static size_t main_buffer_size = 4 * 1024 * 1024;
+static size_t main_buffer_size = 128 * 1024;
 
 // write permission level - careful with this
 static u32 write_permission_level = 1;
@@ -46,7 +46,7 @@ void DeinitFS() {
 }
 
 bool CheckWritePermissions(const char* path) {
-    u32 pdrv = *path - '0';
+    u32 pdrv = (*path) - '0';
     
     if ((pdrv > 6) || (*(path+1) != ':')) {
         ShowPrompt(false, "Invalid path");
@@ -144,18 +144,18 @@ bool PathCopyWorker(char* dest, char* orig) {
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
         
-        *(fname++) = '/';
-        fno.lfname = fname;
-        fno.lfsize = 256 - (fname - orig);
-        
-        if (f_stat(dest, NULL) != FR_OK)
-            f_mkdir(dest);
-        if (f_stat(dest, NULL) != FR_OK)
+        if ((f_stat(dest, NULL) != FR_OK) && (f_mkdir(dest) != FR_OK))
             return false;
         
         if (f_opendir(&pdir, orig) != FR_OK)
             return false;
+        *(fname++) = '/';
+        fno.lfname = fname;
+        fno.lfsize = 256 - (fname - orig);
+        
+        ShowPrompt(false, "Made:\n%s\n%s", orig, dest);
         while (f_readdir(&pdir, &fno) == FR_OK) {
+            ShowPrompt(false, "Trying:\n%s\n%s", orig, dest);
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
             if (fname[0] == 0)
@@ -164,6 +164,7 @@ bool PathCopyWorker(char* dest, char* orig) {
                 ret = true;
                 break;
             } else if (!PathCopyWorker(dest, orig)) {
+                ShowPrompt(false, "Failed:\n%s\n%s", orig, dest);
                 break;
             }
         }
@@ -185,6 +186,7 @@ bool PathCopyWorker(char* dest, char* orig) {
         f_lseek(&ofile, 0);
         f_sync(&ofile);
         
+        ret = true;
         for (size_t pos = 0; pos < fsize; pos += main_buffer_size) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;
@@ -196,6 +198,7 @@ bool PathCopyWorker(char* dest, char* orig) {
                 break;
             }
         }
+        ShowProgress(1, 1, orig, false);
         
         f_close(&ofile);
         f_close(&dfile);
@@ -219,16 +222,16 @@ bool PathDeleteWorker(char* fpath) {
     
     // the deletion process takes place here
     if (f_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
-    if (fno.fattrib & AM_DIR) { // processing folders...
+    if (fno.fattrib & AM_DIR) { // process folder contents
         DIR pdir;
         char* fname = fpath + strnlen(fpath, 256);
         
+        if (f_opendir(&pdir, fpath) != FR_OK)
+            return false;
         *(fname++) = '/';
         fno.lfname = fname;
         fno.lfsize = 256 - (fname - fpath);
         
-        if (f_opendir(&pdir, fpath) != FR_OK)
-            return false;
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
@@ -241,6 +244,7 @@ bool PathDeleteWorker(char* fpath) {
             }
         }
         f_closedir(&pdir);
+        *(--fname) = '\0';
     } else { // processing files...
         ret = (f_unlink(fpath) == FR_OK);
     }

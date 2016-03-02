@@ -159,7 +159,7 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {   
-    if ((pdrv > 0) && mode_n3ds) // is this really set at this point?
+    if ((pdrv > 0) && mode_n3ds)
         pdrv += 6;
     
     BYTE type = DriveInfo[pdrv].type;
