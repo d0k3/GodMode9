@@ -218,38 +218,35 @@ bool PathCopy(const char* destdir, const char* orig) {
 
 bool PathDeleteWorker(char* fpath) {
     FILINFO fno;
-    bool ret = true;
     
-    // the deletion process takes place here
+    // this code handles directory content deletion
     if (f_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
     if (fno.fattrib & AM_DIR) { // process folder contents
         DIR pdir;
-        char* fname = fpath + strnlen(fpath, 256);
+        char* fname = fpath + strnlen(fpath, 255);
         
         if (f_opendir(&pdir, fpath) != FR_OK)
             return false;
         *(fname++) = '/';
         fno.lfname = fname;
-        fno.lfsize = 256 - (fname - fpath);
+        fno.lfsize = fpath + 255 - fname;
         
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
             if (fname[0] == 0)
-                strncpy(fname, fno.fname, 256 - (fname - fpath));
+                strncpy(fname, fno.fname, fpath + 255 - fname);
             if (fno.fname[0] == 0) {
                 break;
-            } else if (!PathDeleteWorker(fpath)) {
-                ret = false;
+            } else { // return value won't matter
+                PathDeleteWorker(fpath);
             }
         }
         f_closedir(&pdir);
         *(--fname) = '\0';
-    } else { // processing files...
-        ret = (f_unlink(fpath) == FR_OK);
     }
     
-    return ret;
+    return (f_unlink(fpath) == FR_OK);
 }
 
 bool PathDelete(const char* path) {
