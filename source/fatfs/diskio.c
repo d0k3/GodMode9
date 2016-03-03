@@ -138,12 +138,12 @@ DRESULT disk_write (
             return RES_PARERR;
         }
     } else {
-        /*BYTE subtype = SUBTYPE(pdrv);
+        BYTE subtype = SUBTYPE(pdrv);
         BYTE keyslot = SubTypes[subtype].keyslot;
         DWORD isector = SubTypes[subtype].offset + sector;
         
         if (WriteNandSectors(buff, isector, count, keyslot, type == TYPE_EMUNAND))
-            return RES_PARERR;*/ // stubbed!
+            return RES_PARERR; // unstubbed!
     }
 
 	return RES_OK;
