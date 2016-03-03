@@ -27,7 +27,7 @@ bool InitFS() {
         snprintf(fsname, 7, "%lu:", numfs);
         int res = f_mount(fs + numfs, fsname, 1);
         if (res != FR_OK) {
-            if (numfs >= 4) break;
+            if (numfs >= 1) break;
             ShowPrompt(false, "Initialising failed! (%lu/%s/%i)", numfs, fsname, res);
             DeinitFS();
             return false;
