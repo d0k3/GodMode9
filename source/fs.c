@@ -6,7 +6,7 @@
 static FATFS* fs = (FATFS*)0x20316000; 
 
 // this is the main buffer
-static u8* main_buffer = (u8*)0x21100000;
+static u8* main_buffer = (u8*)0x21200000;
 // this is the main buffer size
 static size_t main_buffer_size = 1 * 1024 * 1024;
 

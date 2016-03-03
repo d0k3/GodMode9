@@ -618,3 +618,45 @@ void sdmmc_sdcard_init()
 	SD_Init();
 	DEBUGPRINT(topScreen, "sd_res ", sd_res, 10, 20 + 4*8, RGB(40, 40, 40), RGB(208, 208, 208));
 }
+
+int sdmmc_get_cid( int isNand, uint32_t *info)
+{
+	struct mmcdevice *device;
+	if(isNand)
+		device = &handelNAND;
+	else
+		device = &handelSD;
+	
+	inittarget(device);
+	// use cmd7 to put sd card in standby mode
+	// CMD7
+	{
+		sdmmc_send_command(device,0x10507,0);
+		//if((device->error & 0x4)) return -1;
+	}
+
+	// get sd card info
+	// use cmd10 to read CID
+	{
+		sdmmc_send_command(device,0x1060A,device->initarg << 0x10);
+		//if((device->error & 0x4)) return -2;
+
+		for( int i = 0; i < 4; ++i ) {
+			info[i] = device->ret[i];
+		}
+	}
+
+	// put sd card back to transfer mode
+	// CMD7
+	{
+		sdmmc_send_command(device,0x10507,device->initarg << 0x10);
+		//if((device->error & 0x4)) return -3;
+	}
+
+	if(isNand)
+	{
+		inittarget(&handelSD);
+	}
+	
+	return 0;
+}
