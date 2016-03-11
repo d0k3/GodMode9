@@ -2,6 +2,7 @@
 #include "draw.h"
 #include "hid.h"
 #include "fs.h"
+#include "nand.h"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -138,11 +139,16 @@ u32 GodMode() {
     u32 cursor = 0;
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    if (!InitFS()) return exit_mode;
+    if (!InitSDCardFS()) {
+        ShowPrompt(false, "Initialising SD card failed!");
+        return exit_mode;
+    }
+    InitNandCrypto();
+    InitNandFS();
     
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
-    while (true) { // this is the main loop !!! EMPTY DIRS
+    while (true) { // this is the main loop
         DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard);
         DrawDirContents(current_dir, cursor);
         u32 pad_state = InputWait();

@@ -22,6 +22,8 @@
 #define REG_AESKEYFIFO ((volatile u32*)0x10009100)
 #define REG_AESKEYXFIFO ((volatile u32*)0x10009104)
 #define REG_AESKEYYFIFO ((volatile u32*)0x10009108)
+// see https://www.3dbrew.org/wiki/AES_Registers#AES_KEY0.2F1.2F2.2F3
+#define REG_AESKEY0123 ((volatile u32*)0x10009040)
 
 #define AES_CNT_START         0x80000000
 #define AES_CNT_INPUT_ORDER   0x02000000

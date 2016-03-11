@@ -5,30 +5,57 @@ void setup_aeskeyX(u8 keyslot, void* keyx)
 {
     u32 * _keyx = (u32*)keyx;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
-    *REG_AESKEYXFIFO = _keyx[0];
-    *REG_AESKEYXFIFO = _keyx[1];
-    *REG_AESKEYXFIFO = _keyx[2];
-    *REG_AESKEYXFIFO = _keyx[3];
+    if (keyslot > 3) {
+        *REG_AESKEYXFIFO = _keyx[0];
+        *REG_AESKEYXFIFO = _keyx[1];
+        *REG_AESKEYXFIFO = _keyx[2];
+        *REG_AESKEYXFIFO = _keyx[3];
+    } else {
+        u32 old_aescnt = *REG_AESCNT;
+        vu32* reg_aeskeyx = REG_AESKEY0123 + (((0x30*keyslot) + 0x10)/4);
+        *REG_AESCNT = (*REG_AESCNT & ~(AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER));
+        for (u32 i = 0; i < 4; i++)
+            reg_aeskeyx[i] = _keyx[i];
+        *REG_AESCNT = old_aescnt;
+    }
 }
 
 void setup_aeskeyY(u8 keyslot, void* keyy)
 {
     u32 * _keyy = (u32*)keyy;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
-    *REG_AESKEYYFIFO = _keyy[0];
-    *REG_AESKEYYFIFO = _keyy[1];
-    *REG_AESKEYYFIFO = _keyy[2];
-    *REG_AESKEYYFIFO = _keyy[3];
+    if (keyslot > 3) {
+        *REG_AESKEYYFIFO = _keyy[0];
+        *REG_AESKEYYFIFO = _keyy[1];
+        *REG_AESKEYYFIFO = _keyy[2];
+        *REG_AESKEYYFIFO = _keyy[3];
+    } else {
+        u32 old_aescnt = *REG_AESCNT;
+        vu32* reg_aeskeyy = REG_AESKEY0123 + (((0x30*keyslot) + 0x20)/4);
+        *REG_AESCNT = (*REG_AESCNT & ~(AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER));
+        for (u32 i = 0; i < 4; i++)
+            reg_aeskeyy[i] = _keyy[i];
+        *REG_AESCNT = old_aescnt;
+    }
 }
 
 void setup_aeskey(u8 keyslot, void* key)
 {
     u32 * _key = (u32*)key;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
-    *REG_AESKEYFIFO = _key[0];
-    *REG_AESKEYFIFO = _key[1];
-    *REG_AESKEYFIFO = _key[2];
-    *REG_AESKEYFIFO = _key[3];
+    if (keyslot > 3) {
+        *REG_AESKEYFIFO = _key[0];
+        *REG_AESKEYFIFO = _key[1];
+        *REG_AESKEYFIFO = _key[2];
+        *REG_AESKEYFIFO = _key[3];
+    } else {
+        u32 old_aescnt = *REG_AESCNT;
+        vu32* reg_aeskey = REG_AESKEY0123 + ((0x30*keyslot)/4);
+        *REG_AESCNT = (*REG_AESCNT & ~(AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER));
+        for (u32 i = 0; i < 4; i++)
+            reg_aeskey[i] = _key[i];
+        *REG_AESCNT = old_aescnt;
+    }
 }
 
 void use_aeskey(u32 keyno)

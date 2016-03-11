@@ -33,9 +33,40 @@ bool InitNandCrypto(void)
     for(u32 i = 0; i < 16; i++) // little endian and reversed order
         TwlNandCtr[i] = shasum[15-i];
     
-    // STEP #2: Calculate slot 0x3 key, set it up to slot 0x11
+    // part #2: TWL KEY
+    // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
+    u32* TwlCustId = (u32*) (0x01FFB808);
+    u8 TwlKeyX[16];
+    u8 TwlKeyY[16];
     
+    // thanks b1l1s & Normmatt
+    // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
+    const char* nintendo = "NINTENDO";
+    u32* TwlKeyXW = (u32*) TwlKeyX;
+    TwlKeyXW[0] = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
+    TwlKeyXW[3] = TwlCustId[1] ^ 0x08C267B7;
+    memcpy(TwlKeyX + 4, nintendo, 8);
+    
+    // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
+    u32 TwlKeyYW3 = 0xE1A00005;
+    memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 12);
+    memcpy(TwlKeyY + 12, &TwlKeyYW3, 4);
+    
+    setup_aeskeyX(0x03, TwlKeyX);
+    setup_aeskeyY(0x03, TwlKeyY);
+    use_aeskey(0x03);
+    
+    // part #3: CTRNAND N3DS KEY
+    if (GetUnitPlatform() == PLATFORM_N3DS) {
+        u8 CtrNandKeyY[16];
         
+        if (FileGetData("0:/slot0x05KeyY.bin", CtrNandKeyY, 16, 0)) {
+            setup_aeskeyY(0x05, CtrNandKeyY);
+            use_aeskey(0x05);
+        }
+    }
+    
+    
     return true;
 }
 

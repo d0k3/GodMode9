@@ -78,9 +78,10 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber to identify the drive */
 )
 {
-    mode_n3ds = (GetUnitPlatform() == PLATFORM_N3DS);
-	sdmmc_sdcard_init(); // multiple inits should not be required (also, below)
-    InitNandCrypto();
+    if (pdrv == 0) { // a mounted SD card is the preriquisite for everything else
+        mode_n3ds = (GetUnitPlatform() == PLATFORM_N3DS);
+        sdmmc_sdcard_init();
+    }
 	return RES_OK;
 }
 

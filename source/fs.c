@@ -2,6 +2,9 @@
 #include "fs.h"
 #include "fatfs/ff.h"
 
+#define MAX_FS  7
+
+
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
 
@@ -14,35 +17,37 @@ static size_t main_buffer_size = 1 * 1024 * 1024;
 static u32 write_permission_level = 1;
 
 // number of currently open file systems
-static u32 numfs = 0;
+static bool fs_mounted[MAX_FS] = { false };
 
-bool InitFS() {
+bool InitSDCardFS() {
     #ifndef EXEC_GATEWAY
     // TODO: Magic?
     *(u32*)0x10000020 = 0;
     *(u32*)0x10000020 = 0x340;
     #endif
-    for (numfs = 0; numfs < 7; numfs++) {
+    fs_mounted[0] = (f_mount(fs, "0:", 1) == FR_OK);
+    return fs_mounted[0];
+}
+
+bool InitNandFS() {
+    for (u32 i = 1; i < MAX_FS; i++) {
         char fsname[8];
-        snprintf(fsname, 7, "%lu:", numfs);
-        int res = f_mount(fs + numfs, fsname, 1);
-        if (res != FR_OK) {
-            if (numfs >= 1) break;
-            ShowPrompt(false, "Initialising failed! (%lu/%s/%i)", numfs, fsname, res);
-            DeinitFS();
-            return false;
-        }
+        snprintf(fsname, 7, "%lu:", i);
+        if (f_mount(fs + i, fsname, 1) != FR_OK) return false;
+        fs_mounted[i] = true;
     }
     return true;
 }
 
 void DeinitFS() {
-    for (u32 i = 0; i < numfs; i++) {
-        char fsname[8];
-        snprintf(fsname, 7, "%lu:", numfs);
-        f_mount(NULL, fsname, 1);
+    for (u32 i = 0; i < MAX_FS; i++) {
+        if (fs_mounted[i]) {
+            char fsname[8];
+            snprintf(fsname, 7, "%lu:", i);
+            f_mount(NULL, fsname, 1);
+            fs_mounted[i] = false;
+        }
     }
-    numfs = 0;
 }
 
 bool CheckWritePermissions(const char* path) {
@@ -103,15 +108,27 @@ u32 GetWritePermissions() {
     return write_permission_level;
 }
 
-bool FileCreate(const char* path, u8* data, u32 size) {
+bool FileCreateData(const char* path, u8* data, size_t size) {
     FIL file;
     UINT bytes_written = 0;
     if (!CheckWritePermissions(path)) return false;
-    if (f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+    if (f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
         return false;
     f_write(&file, data, size, &bytes_written);
     f_close(&file);
     return (bytes_written == size);
+}
+
+bool FileGetData(const char* path, u8* data, size_t size, size_t foffset)
+{
+    FIL file;
+    UINT bytes_read = 0;
+    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return false;
+    f_lseek(&file, foffset);
+    f_read(&file, data, size, &bytes_read);
+    f_close(&file);
+    return (bytes_read == size);
 }
 
 bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
@@ -292,7 +309,7 @@ void CreateScreenshot() {
     for (u32 x = 0; x < 320; x++)
         for (u32 y = 0; y < 240; y++)
             memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN0 + (x*240 + y) * 3, 3);
-    FileCreate(filename, main_buffer, 54 + (400 * 240 * 3 * 2));
+    FileCreateData(filename, main_buffer, 54 + (400 * 240 * 3 * 2));
 }
 
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig) {
@@ -330,17 +347,20 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP",
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP"
     };
+    u32 n_entries = 0;
     
-    for (u32 pdrv = 0; (pdrv < numfs) && (pdrv < MAX_ENTRIES); pdrv++) {
-        memset(contents->entry[pdrv].path, 0x00, 16);
-        snprintf(contents->entry[pdrv].path + 0,  4, "%lu:", pdrv);
-        snprintf(contents->entry[pdrv].path + 4, 32, "[%lu:] %s", pdrv, drvname[pdrv]);
-        contents->entry[pdrv].name = contents->entry[pdrv].path + 4;
-        contents->entry[pdrv].size = GetTotalSpace(contents->entry[pdrv].path);
-        contents->entry[pdrv].type = T_VRT_ROOT;
-        contents->entry[pdrv].marked = 0;
+    for (u32 pdrv = 0; (pdrv < MAX_FS) && (pdrv < MAX_ENTRIES); pdrv++) {
+        if (!fs_mounted[pdrv]) continue;
+        memset(contents->entry[n_entries].path, 0x00, 16);
+        snprintf(contents->entry[n_entries].path + 0,  4, "%lu:", pdrv);
+        snprintf(contents->entry[n_entries].path + 4, 32, "[%lu:] %s", pdrv, drvname[pdrv]);
+        contents->entry[n_entries].name = contents->entry[n_entries].path + 4;
+        contents->entry[n_entries].size = GetTotalSpace(contents->entry[n_entries].path);
+        contents->entry[n_entries].type = T_VRT_ROOT;
+        contents->entry[n_entries].marked = 0;
+        n_entries++;
     }
-    contents->n_entries = numfs;
+    contents->n_entries = n_entries;
     
     return contents->n_entries;
 }

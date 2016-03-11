@@ -24,7 +24,8 @@ typedef struct {
     DirEntry entry[MAX_ENTRIES];
 } DirStruct;
 
-bool InitFS();
+bool InitSDCardFS();
+bool InitNandFS();
 void DeinitFS();
 
 /** Check if writing to this path is allowed **/
@@ -37,7 +38,10 @@ bool SetWritePermissions(u32 level);
 u32 GetWritePermissions();
 
 /** Create / overwrite file and write the provided data to it **/
-bool FileCreate(const char* path, u8* data, u32 size);
+bool FileCreateData(const char* path, u8* data, size_t size);
+
+/** Read data from file@offset **/
+bool FileGetData(const char* path, u8* data, size_t size, size_t foffset);
 
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig);
