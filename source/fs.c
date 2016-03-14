@@ -298,6 +298,12 @@ bool PathRename(const char* path, const char* newname) {
     return (f_rename(path, npath) == FR_OK);
 }
 
+bool DirCreate(const char* cpath, const char* dirname) {
+    char npath[256]; // 256 is the maximum length of a full path
+    snprintf(npath, 255, "%s/%s", cpath, dirname);
+    return (f_mkdir(npath) == FR_OK);
+}
+
 void CreateScreenshot() {
     const u8 bmp_header[54] = {
         0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,

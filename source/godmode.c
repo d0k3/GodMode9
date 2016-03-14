@@ -283,7 +283,13 @@ u32 GodMode() {
             } else if (pad_state & BUTTON_Y) { // create a folder
                 char dirname[256];
                 snprintf(dirname, 255, "newdir");
-                ShowInputPrompt(dirname, 256, "Create a new folder here?\nEnter name below.");
+                if (ShowInputPrompt(dirname, 256, "Create a new folder here?\nEnter name below.")) {
+                    if (!DirCreate(current_path, dirname)) {
+                        char namestr[20+1];
+                        TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
+                        ShowPrompt(false, "Failed creating dir:\n%s", namestr);
+                    } else GetDirContents(current_dir, current_path);
+                }
             }
         }
         

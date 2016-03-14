@@ -52,6 +52,9 @@ bool PathDelete(const char* path);
 /** Rename file / folder in path to new name **/
 bool PathRename(const char* path, const char* newname);
 
+/** Create a new directory in cpath **/
+bool DirCreate(const char* cpath, const char* dirname);
+
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();
 
