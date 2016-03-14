@@ -75,7 +75,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     // bottom: inctruction block
     char instr[256];
     snprintf(instr, 256, "%s%s%s%s%s",
-        "GodMode9 Explorer v0.0.9\n", // generic start part
+        "GodMode9 Explorer v0.1.1\n", // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
         ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
@@ -166,7 +166,7 @@ u32 GodMode() {
             } else { // type == T_FAT_DIR || type == T_VRT_ROOT
                 strncpy(current_path, current_dir->entry[cursor].path, 256);
             }
-            GetDirContents(current_dir, current_path);
+            GetDirContents(current_dir, current_path); // maybe start cursor at 1 instead of 0? (!!!)
             cursor = 0;
         } else if (pad_state & BUTTON_B) { // one level down
             char* last_slash = strrchr(current_path, '/');
@@ -270,7 +270,21 @@ u32 GodMode() {
                 ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
-            // not implemented yet
+            if (pad_state & BUTTON_X) { // rename a file
+                char newname[256];
+                char namestr[20+1];
+                TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
+                snprintf(newname, 255, current_dir->entry[cursor].name);
+                if (ShowInputPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
+                    if (!PathRename(current_dir->entry[cursor].path, newname))
+                        ShowPrompt(false, "Failed renaming path:\n%s", namestr);
+                    else GetDirContents(current_dir, current_path);
+                }
+            } else if (pad_state & BUTTON_Y) { // create a folder
+                char dirname[256];
+                snprintf(dirname, 255, "newdir");
+                ShowInputPrompt(dirname, 256, "Create a new folder here?\nEnter name below.");
+            }
         }
         
         if (pad_state & BUTTON_START) {

@@ -49,6 +49,9 @@ bool PathCopy(const char* destdir, const char* orig);
 /** Recursively delete a file or directory **/
 bool PathDelete(const char* path);
 
+/** Rename file / folder in path to new name **/
+bool PathRename(const char* path, const char* newname);
+
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();
 

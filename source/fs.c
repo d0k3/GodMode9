@@ -288,6 +288,16 @@ bool PathDelete(const char* path) {
     return PathDeleteWorker(fpath);
 }
 
+bool PathRename(const char* path, const char* newname) {
+    char npath[256]; // 256 is the maximum length of a full path
+    char* oldname = strrchr(path, '/');
+    if (!oldname) return false;
+    oldname++;
+    strncpy(npath, path, oldname - path);
+    strncpy(npath + (oldname - path), newname, strnlen(newname, 255 - (oldname - path)));
+    return (f_rename(path, npath) == FR_OK);
+}
+
 void CreateScreenshot() {
     const u8 bmp_header[54] = {
         0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,

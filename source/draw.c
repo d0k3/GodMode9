@@ -264,6 +264,117 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     return (lvl >= len);
 }
 
+bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
+    const char* alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]'`^,~!@#$%&0123456789=+-_.";
+    const u32 alphabet_size = strnlen(alphabet, 256);
+    const u32 input_shown = 22;
+    const u32 fast_scroll = 4;
+    
+    u32 str_width, str_height;
+    u32 x, y;
+    
+    char str[512] = {}; // 512 should be more than enough
+    va_list va;
+
+    va_start(va, format);
+    vsnprintf(str, 512, format, va);
+    va_end(va);
+    
+    // check / fix up the inputstring if required
+    if (max_size < 2) return false; // catching this, too
+    if (*inputstr == '\0') snprintf(inputstr, 2, "%c", alphabet[0]); // set the string if it is not set
+    
+    str_width = GetDrawStringWidth(str);
+    str_height = GetDrawStringHeight(str) + (8*10);
+    if (str_width < 24) str_width = 24;
+    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(true, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear string\nX - remove char\nY - insert char");
+    
+    int cursor_s = 0;
+    int cursor_a = -1;
+    int scroll = 0;
+    bool ret = false;
+    
+    while (true) {
+        u32 inputstr_size = strnlen(inputstr, max_size - 1);
+        if (cursor_s < scroll) scroll = cursor_s;
+        else if (cursor_s - scroll >= input_shown) scroll = cursor_s - input_shown + 1;
+        DrawStringF(true, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
+            (scroll) ? '<' : '|',
+            (inputstr_size > input_shown) ? input_shown : inputstr_size,
+            (inputstr_size > input_shown) ? input_shown : inputstr_size,
+            inputstr + scroll,
+            (inputstr_size - scroll > input_shown) ? '>' : '|',
+            (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
+            (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
+            "",
+            1 + cursor_s - scroll,
+            1 + cursor_s - scroll,
+            "",
+            input_shown - (cursor_s - scroll),
+            input_shown - (cursor_s - scroll),
+            ""
+        );
+        if (cursor_a < 0) {
+            for (cursor_a = alphabet_size - 1; (cursor_a > 0) && (alphabet[cursor_a] != inputstr[cursor_s]); cursor_a--);
+        }
+        u32 pad_state = InputWait();
+        if (pad_state & BUTTON_A) {
+            ret = true;
+            break;
+        } else if (pad_state & BUTTON_B) {
+            break;
+        } else if (pad_state & BUTTON_L1) {
+            cursor_a = 0;
+            cursor_s = 0;
+            inputstr[0] = alphabet[0];
+            inputstr[1] = '\0';
+        } else if (pad_state & BUTTON_X) {
+            if (inputstr_size > 1) {
+                inputstr_size--;
+                memmove(&inputstr[cursor_s], &inputstr[cursor_s + 1], max_size - (cursor_s + 1));
+                if (cursor_s >= inputstr_size) {
+                    cursor_s--;
+                    cursor_a = -1;
+                }
+            } else inputstr[0] = alphabet[0];
+        } else if (pad_state & BUTTON_Y) {
+            if (inputstr_size < max_size - 1) {
+                inputstr_size--;
+                memmove(&inputstr[cursor_s + 1], &inputstr[cursor_s], max_size - (cursor_s + 1));
+                inputstr[cursor_s] = alphabet[0];
+                cursor_a = 0;
+            } else inputstr[0] = alphabet[0];
+        } else if (pad_state & BUTTON_UP) {
+            cursor_a += (pad_state & BUTTON_R1) ? fast_scroll : 1;
+            cursor_a = cursor_a % alphabet_size;
+            inputstr[cursor_s] = alphabet[cursor_a];
+        } else if (pad_state & BUTTON_DOWN) {
+            cursor_a -= (pad_state & BUTTON_R1) ? fast_scroll : 1;
+            if (cursor_a < 0) cursor_a = alphabet_size + cursor_a;
+            inputstr[cursor_s] = alphabet[cursor_a];
+        } else if (pad_state & BUTTON_LEFT) {
+            if (cursor_s > 0) cursor_s--;
+            cursor_a = -1;
+        } else if (pad_state & BUTTON_RIGHT) {
+            if (cursor_s < max_size - 2) cursor_s++;
+            if (cursor_s >= inputstr_size) {
+                inputstr[cursor_s] = alphabet[0];
+                inputstr[cursor_s+1] = '\0';
+            }
+            cursor_a = -1;
+        }
+    }
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    
+    return ret;
+}
+
 bool ShowProgress(u64 current, u64 total, const char* opstr)
 {
     static u32 last_prog_width = 0;
