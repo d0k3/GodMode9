@@ -136,8 +136,11 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
     bool ret = false;
     
     
-    if (f_stat(dest, &fno) != FR_OK) return false; // destination directory does not exist
-    if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
+    if (f_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
+        DIR tmp_dir; // check if root
+        if (f_opendir(&tmp_dir, dest) != FR_OK) return false;
+        f_closedir(&tmp_dir);
+    } else if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
     if (f_stat(orig, &fno) != FR_OK) return false; // origin does not exist
 
     // build full destination path (on top of destination directory)
@@ -150,8 +153,10 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
     
     // check if destination is part of or equal origin
     if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
-        if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0'))
+        if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0')) {
+            ShowPrompt(false, "Error: Destination is part of origin");
             return false;
+        }
     }
     
     // check if destination exists
