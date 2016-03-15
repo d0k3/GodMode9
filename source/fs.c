@@ -291,6 +291,7 @@ bool PathDelete(const char* path) {
 bool PathRename(const char* path, const char* newname) {
     char npath[256]; // 256 is the maximum length of a full path
     char* oldname = strrchr(path, '/');
+    if (!CheckWritePermissions(path)) return false;
     if (!oldname) return false;
     oldname++;
     strncpy(npath, path, oldname - path);
@@ -300,6 +301,7 @@ bool PathRename(const char* path, const char* newname) {
 
 bool DirCreate(const char* cpath, const char* dirname) {
     char npath[256]; // 256 is the maximum length of a full path
+    if (!CheckWritePermissions(cpath)) return false;
     snprintf(npath, 255, "%s/%s", cpath, dirname);
     return (f_mkdir(npath) == FR_OK);
 }

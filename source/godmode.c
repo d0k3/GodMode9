@@ -270,7 +270,7 @@ u32 GodMode() {
                 ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
-            if (pad_state & BUTTON_X) { // rename a file
+            if ((pad_state & BUTTON_X) && cursor) { // rename a file
                 char newname[256];
                 char namestr[20+1];
                 TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
