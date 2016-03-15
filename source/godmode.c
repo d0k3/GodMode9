@@ -4,6 +4,8 @@
 #include "fs.h"
 #include "nand.h"
 
+#define VERSION "0.1.4"
+
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
 #define COLOR_MARKED    COLOR_TINTEDYELLOW
@@ -74,8 +76,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[256];
-    snprintf(instr, 256, "%s%s%s%s%s",
-        "GodMode9 Explorer v0.1.1\n", // generic start part
+    snprintf(instr, 256, "%s%s\n%s%s%s%s",
+        "GodMode9 Explorer v", VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
         ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
@@ -87,8 +89,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     DrawStringF(true, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
-void DrawDirContents(DirStruct* contents, u32 cursor) {
-    static u32 offset_disp = 0;
+void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     const int str_width = 39;
     const u32 bar_height_min = 32;
     const u32 bar_width = 2;
@@ -97,13 +98,13 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
     const u32 pos_x = 0;
     const u32 lines = (SCREEN_HEIGHT-start_y+stp_y-1) / stp_y;
     u32 pos_y = start_y;
-    
-    if (offset_disp > cursor) offset_disp = cursor;
-    else if (offset_disp + lines <= cursor) offset_disp = cursor - lines + 1;
+     
+    if (*scroll > cursor) *scroll = cursor;
+    else if (*scroll + lines <= cursor) *scroll = cursor - lines + 1;
     
     for (u32 i = 0; pos_y < SCREEN_HEIGHT; i++) {
         char tempstr[str_width + 1];
-        u32 offset_i = offset_disp + i;
+        u32 offset_i = *scroll + i;
         u32 color_font = COLOR_WHITE;
         if (offset_i < contents->n_entries) {
             color_font = (cursor != offset_i) ? COLOR_ENTRY(&(contents->entry[offset_i])) : COLOR_STD_FONT;
@@ -116,7 +117,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor) {
     if (contents->n_entries > lines) { // draw position bar at the right      
         u32 bar_height = (lines * SCREEN_HEIGHT) / contents->n_entries;
         if (bar_height < bar_height_min) bar_height = bar_height_min;
-        u32 bar_pos = ((u64) offset_disp * (SCREEN_HEIGHT - bar_height)) / (contents->n_entries - lines);
+        u32 bar_pos = ((u64) *scroll * (SCREEN_HEIGHT - bar_height)) / (contents->n_entries - lines);
         
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
         DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
@@ -137,6 +138,7 @@ u32 GodMode() {
     u32 last_clipboard_size = 0;
     bool switched = false;
     u32 cursor = 0;
+    u32 scroll = 0;
     
     ClearScreenF(true, true, COLOR_STD_BG);
     if (!InitSDCardFS()) {
@@ -150,7 +152,7 @@ u32 GodMode() {
     clipboard->n_entries = 0;
     while (true) { // this is the main loop
         DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard);
-        DrawDirContents(current_dir, cursor);
+        DrawDirContents(current_dir, cursor, &scroll);
         u32 pad_state = InputWait();
         switched = (pad_state & BUTTON_R1);
         if (!(*current_path) || switched || !(pad_state & BUTTON_L1)) {
@@ -166,14 +168,23 @@ u32 GodMode() {
             } else { // type == T_FAT_DIR || type == T_VRT_ROOT
                 strncpy(current_path, current_dir->entry[cursor].path, 256);
             }
-            GetDirContents(current_dir, current_path); // maybe start cursor at 1 instead of 0? (!!!)
-            cursor = 0;
+            GetDirContents(current_dir, current_path);
+            if (*current_path && (current_dir->n_entries > 1)) {
+                cursor = 1;
+                scroll = 0;
+            } else cursor = 0;
         } else if (pad_state & BUTTON_B) { // one level down
+            char old_path[256];
             char* last_slash = strrchr(current_path, '/');
+            strncpy(old_path, current_path, 256);
             if (last_slash) *last_slash = '\0'; 
             else *current_path = '\0';
             GetDirContents(current_dir, current_path);
-            cursor = 0;
+            if (*old_path) {
+                for (cursor = current_dir->n_entries - 1;
+                    (cursor > 1) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
+                scroll = 0;
+            }
         } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor up
             cursor++;
         } else if ((pad_state & BUTTON_UP) && cursor) { // cursor down
@@ -278,17 +289,25 @@ u32 GodMode() {
                 if (ShowInputPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
                     if (!PathRename(current_dir->entry[cursor].path, newname))
                         ShowPrompt(false, "Failed renaming path:\n%s", namestr);
-                    else GetDirContents(current_dir, current_path);
+                    else {
+                        GetDirContents(current_dir, current_path);
+                        for (cursor = current_dir->n_entries - 1;
+                            (cursor > 1) && (strncmp(current_dir->entry[cursor].name, newname, 256) != 0); cursor--);
+                    }
                 }
             } else if (pad_state & BUTTON_Y) { // create a folder
                 char dirname[256];
                 snprintf(dirname, 255, "newdir");
                 if (ShowInputPrompt(dirname, 256, "Create a new folder here?\nEnter name below.")) {
                     if (!DirCreate(current_path, dirname)) {
-                        char namestr[20+1];
-                        TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
-                        ShowPrompt(false, "Failed creating dir:\n%s", namestr);
-                    } else GetDirContents(current_dir, current_path);
+                        char namestr[36+1];
+                        TruncateString(namestr, dirname, 36, 12);
+                        ShowPrompt(false, "Failed creating folder:\n%s", namestr);
+                    } else {
+                        GetDirContents(current_dir, current_path);
+                        for (cursor = current_dir->n_entries - 1;
+                            (cursor > 1) && (strncmp(current_dir->entry[cursor].name, dirname, 256) != 0); cursor--);
+                    }
                 }
             }
         }
