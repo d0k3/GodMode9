@@ -10,6 +10,24 @@
 #define NAND_BUFFER ((u8*)0x21100000)
 #define NAND_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
+static u8 nand_magic_n3ds[0x60] = { // NCSD NAND header N3DS magic
+    0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x04, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x03, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x05, 0x00, 0x00, 0x88, 0x05, 0x00, 0x80, 0x01, 0x00, 0x00,
+    0x80, 0x89, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00, 0x80, 0xA9, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00,
+    0x80, 0xC9, 0x05, 0x00, 0x80, 0xF6, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static u8 nand_magic_o3ds[0x60] = { // NCSD NAND header O3DS magic
+    0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x04, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x05, 0x00, 0x00, 0x88, 0x05, 0x00, 0x80, 0x01, 0x00, 0x00,
+    0x80, 0x89, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00, 0x80, 0xA9, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00,
+    0x80, 0xC9, 0x05, 0x00, 0x80, 0xAE, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
 static u8 CtrNandCtr[16];
 static u8 TwlNandCtr[16];
 
@@ -93,13 +111,20 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
 int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, bool read_emunand)
 {
     if (read_emunand) {
-        int errorcode = sdmmc_sdcard_readsectors(emunand_base_sector + sector, count, buffer);
+        int errorcode = 0;
+        if ((sector == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
+            errorcode = sdmmc_sdcard_readsectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, buffer);
+            sector = 1;
+            count--;
+            buffer += 0x200;
+        }
+        errorcode = (!errorcode && count) ? sdmmc_sdcard_readsectors(emunand_base_sector + sector, count, buffer) : errorcode;
         if (errorcode) return errorcode;
     } else {
         int errorcode = sdmmc_nand_readsectors(sector, count, buffer);
         if (errorcode) return errorcode;   
     }
-    CryptNand(buffer, sector, count, keyslot);
+    if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
     
     return 0;
 }
@@ -110,9 +135,13 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, bool 
     for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
         memcpy(NAND_BUFFER, buffer + (s*0x200), pcount * 0x200);
-        CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
+        if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
         if (write_emunand) {
-            int errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + sector + s, pcount, NAND_BUFFER);
+            int errorcode = 0;
+            if ((sector + s == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
+                errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, NAND_BUFFER);
+                errorcode = (!errorcode && (pcount > 1)) ? sdmmc_sdcard_writesectors(emunand_base_sector + 1, pcount - 1, NAND_BUFFER + 0x200) : errorcode;
+            } else errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + sector + s, pcount, NAND_BUFFER);
             if (errorcode) return errorcode;
         } else {
             int errorcode = sdmmc_nand_writesectors(sector + s, pcount, NAND_BUFFER);
@@ -121,6 +150,19 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, bool 
     }
     
     return 0;
+}
+
+u8 CheckNandType(bool check_emunand)
+{
+    if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, check_emunand) != 0)
+        return NAND_TYPE_UNK;
+    if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, 0x60) == 0) {
+        return NAND_TYPE_N3DS;
+    } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, 0x60) == 0) {
+        return (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_NO3DS;
+    }
+    
+    return NAND_TYPE_UNK;
 }
 
 u32 GetEmuNandBase(void)

@@ -8,7 +8,6 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"		/* FatFs lower layer API */
-#include "platform.h"
 #include "nand.h"
 #include "sdmmc.h"
 
@@ -18,11 +17,10 @@
 
 #define SUBTYPE_CTRN    0
 #define SUBTYPE_CTRN_N  1
-#define SUBTYPE_TWLN    2
-#define SUBTYPE_TWLP    3
-#define SUBTYPE_NONE    4
-
-#define SUBTYPE(pd) ((mode_n3ds && (DriveInfo[pd].subtype == SUBTYPE_CTRN)) ? SUBTYPE_CTRN_N : DriveInfo[pd].subtype)
+#define SUBTYPE_CTRN_NO 2
+#define SUBTYPE_TWLN    3
+#define SUBTYPE_TWLP    4
+#define SUBTYPE_NONE    5
 
 typedef struct {
     BYTE  type;
@@ -45,14 +43,42 @@ FATpartition DriveInfo[7] = {
     { TYPE_EMUNAND, SUBTYPE_TWLP },     // 6 - EMUNAND TWLP
 };
 
-SubtypeDesc SubTypes[4] = {
+SubtypeDesc SubTypes[5] = {
     { 0x05CAE5, 0x179F1B, 0x4 },        // O3DS CTRNAND
     { 0x05CAD7, 0x20E969, 0x5 },        // N3DS CTRNAND
+    { 0x05CAD7, 0x20E969, 0x4 },        // N3DS CTRNAND (downgraded)
     { 0x000097, 0x047DA9, 0x3 },        // TWLN
     { 0x04808D, 0x0105B3, 0x3 }         // TWLP
 };
 
-static bool mode_n3ds = false;
+static BYTE nand_type_sys = NAND_TYPE_UNK;
+static BYTE nand_type_emu = NAND_TYPE_UNK;
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Get Drive Subtype helper                                                      */
+/*-----------------------------------------------------------------------*/
+
+SubtypeDesc* get_subtype_desc(
+    __attribute__((unused))
+	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+)
+{
+    BYTE type = DriveInfo[pdrv].type;
+    BYTE subtype = DriveInfo[pdrv].subtype;
+    
+    if (type == TYPE_SDCARD) {
+        return NULL;
+    } else if (subtype == SUBTYPE_CTRN) {
+        BYTE nand_type = (type == TYPE_SYSNAND) ? nand_type_sys : nand_type_emu;
+        if (nand_type != NAND_TYPE_O3DS)
+            subtype = (nand_type == NAND_TYPE_N3DS) ? SUBTYPE_CTRN_N : SUBTYPE_CTRN_NO;
+    }
+    
+    return &(SubTypes[subtype]);
+}
+
 
 
 /*-----------------------------------------------------------------------*/
@@ -79,8 +105,11 @@ DSTATUS disk_initialize (
 )
 {
     if (pdrv == 0) { // a mounted SD card is the preriquisite for everything else
-        mode_n3ds = (GetUnitPlatform() == PLATFORM_N3DS);
         sdmmc_sdcard_init();
+    } else if (pdrv < 4) {
+        nand_type_sys = CheckNandType(false);
+    } else if (pdrv < 7) {
+        nand_type_emu = CheckNandType(true);
     }
 	return RES_OK;
 }
@@ -106,9 +135,9 @@ DRESULT disk_read (
             return RES_PARERR;
         }
     } else {
-        BYTE subtype = SUBTYPE(pdrv);
-        BYTE keyslot = SubTypes[subtype].keyslot;
-        DWORD isector = SubTypes[subtype].offset + sector;
+        SubtypeDesc* subtype = get_subtype_desc(pdrv);
+        BYTE keyslot = subtype->keyslot;
+        DWORD isector = subtype->offset + sector;
         
         if (ReadNandSectors(buff, isector, count, keyslot, type == TYPE_EMUNAND))
             return RES_PARERR;
@@ -139,9 +168,9 @@ DRESULT disk_write (
             return RES_PARERR;
         }
     } else {
-        BYTE subtype = SUBTYPE(pdrv);
-        BYTE keyslot = SubTypes[subtype].keyslot;
-        DWORD isector = SubTypes[subtype].offset + sector;
+        SubtypeDesc* subtype = get_subtype_desc(pdrv);
+        BYTE keyslot = subtype->keyslot;
+        DWORD isector = subtype->offset + sector;
         
         if (WriteNandSectors(buff, isector, count, keyslot, type == TYPE_EMUNAND))
             return RES_PARERR; // unstubbed!
@@ -175,7 +204,7 @@ DRESULT disk_ioctl (
             if (DriveInfo[pdrv].type == TYPE_SDCARD) {
                 *((DWORD*) buff) = getMMCDevice(1)->total_size;
             } else {
-                *((DWORD*) buff) = SubTypes[SUBTYPE(pdrv)].size;
+                *((DWORD*) buff) = get_subtype_desc(pdrv)->size;
             }
             return RES_OK;
         case GET_BLOCK_SIZE:
