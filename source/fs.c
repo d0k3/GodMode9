@@ -204,30 +204,33 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
         
         if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
+        fsize = f_size(&ofile);
+        if (GetFreeSpace(dest) < fsize) {
+            ShowPrompt(false, "Error: File is too big for destination");
+            f_close(&ofile);
+            return false;
+        }
+        
         if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
             f_close(&ofile);
             return false;
         }
-        fsize = f_size(&ofile);
+        
         f_lseek(&dfile, 0);
         f_sync(&dfile);
         f_lseek(&ofile, 0);
         f_sync(&ofile);
         
         ret = true;
-        for (size_t pos = 0; pos < fsize; pos += main_buffer_size) {
+        for (size_t pos = 0; (pos < fsize) && ret; pos += main_buffer_size) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
             f_read(&ofile, main_buffer, main_buffer_size, &bytes_read);
-            if (!ShowProgress(pos + (bytes_read / 2), fsize, orig)) {
+            if (!ShowProgress(pos + (bytes_read / 2), fsize, orig))
                 ret = false;
-                break;
-            }
             f_write(&dfile, main_buffer, bytes_read, &bytes_written);
-            if (bytes_read != bytes_written) {
+            if (bytes_read != bytes_written)
                 ret = false;
-                break;
-            }
         }
         ShowProgress(1, 1, orig);
         
