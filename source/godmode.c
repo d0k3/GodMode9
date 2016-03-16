@@ -4,7 +4,7 @@
 #include "fs.h"
 #include "nand.h"
 
-#define VERSION "0.1.4"
+#define VERSION "0.1.5"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -13,6 +13,7 @@
 #define COLOR_DIR       COLOR_TINTEDBLUE
 #define COLOR_ROOT      COLOR_GREY
 #define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_FAT_DIR) ? COLOR_DIR : ((e)->type == T_FAT_FILE) ? COLOR_FILE : ((e)->type == T_VRT_ROOT) ?  COLOR_ROOT : COLOR_GREY)
+
 
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard) {
     const u32 n_cb_show = 8;
@@ -80,9 +81,9 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "GodMode9 Explorer v", VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
-        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\n" :
-        (GetWritePermissions() == 2) ? "X - Relock EmuNAND writing\nY - Unlock SysNAND writing\n" :
-        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\n"),
+        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\nB - Unmount SD card\n" :
+        (GetWritePermissions() == 2) ? "X - Relock EmuNAND writing\nY - Unlock SysNAND writing\nB - Unmount SD card\n" :
+        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nB - Unmount SD card\n"),
         "R+L - Make a Screenshot\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
         "START - Reboot / [+\x1B] Poweroff"); // generic end part
@@ -173,7 +174,7 @@ u32 GodMode() {
                 cursor = 1;
                 scroll = 0;
             } else cursor = 0;
-        } else if (pad_state & BUTTON_B) { // one level down
+        } else if ((pad_state & BUTTON_B) && *current_path) { // one level down
             char old_path[256];
             char* last_slash = strrchr(current_path, '/');
             strncpy(old_path, current_path, 256);
@@ -185,6 +186,16 @@ u32 GodMode() {
                     (cursor > 1) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
                 scroll = 0;
             }
+        } else if (pad_state & BUTTON_B) { // unmount SD card
+            DeinitFS();
+            ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
+            if (!InitSDCardFS()) {
+                ShowPrompt(false, "Reinitialising SD card failed!");
+                return exit_mode;
+            }
+            InitNandFS();
+            GetDirContents(current_dir, current_path);
+            cursor = 0;
         } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor up
             cursor++;
         } else if ((pad_state & BUTTON_UP) && cursor) { // cursor down
