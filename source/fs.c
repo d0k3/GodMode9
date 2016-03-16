@@ -30,6 +30,8 @@ bool InitSDCardFS() {
 }
 
 bool InitNandFS() {
+    if (!fs_mounted[0])
+        return false;
     for (u32 i = 1; i < MAX_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);

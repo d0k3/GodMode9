@@ -105,7 +105,8 @@ DSTATUS disk_initialize (
 )
 {
     if (pdrv == 0) { // a mounted SD card is the preriquisite for everything else
-        sdmmc_sdcard_init();
+        if (!sdmmc_sdcard_init())
+            return RES_PARERR;
     } else if (pdrv < 4) {
         nand_type_sys = CheckNandType(false);
     } else if (pdrv < 7) {

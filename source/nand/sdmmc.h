@@ -122,7 +122,7 @@ extern "C" {
 		uint32_t res;
 	} mmcdevice;
 	
-	void sdmmc_sdcard_init();
+	int sdmmc_sdcard_init();
 	int sdmmc_sdcard_readsector(uint32_t sector_no, uint8_t *out);
 	int sdmmc_sdcard_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *out);
 	int sdmmc_sdcard_writesector(uint32_t sector_no, uint8_t *in);

@@ -142,9 +142,9 @@ u32 GodMode() {
     u32 scroll = 0;
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    if (!InitSDCardFS()) {
-        ShowPrompt(false, "Initialising SD card failed!");
-        return exit_mode;
+    while (!InitSDCardFS()) {
+        if (!ShowPrompt(true, "Initialising SD card failed! Retry?"))
+            return exit_mode;
     }
     InitNandCrypto();
     InitNandFS();
@@ -189,9 +189,9 @@ u32 GodMode() {
         } else if (pad_state & BUTTON_B) { // unmount SD card
             DeinitFS();
             ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
-            if (!InitSDCardFS()) {
-                ShowPrompt(false, "Reinitialising SD card failed!");
-                return exit_mode;
+            while (!InitSDCardFS()) {
+                if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
+                    return exit_mode;
             }
             InitNandFS();
             GetDirContents(current_dir, current_path);
