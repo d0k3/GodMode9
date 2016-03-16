@@ -15,6 +15,7 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, bool 
 
 u8 CheckNandType(bool check_emunand);
 
+bool InitEmuNandBase(void);
 u32 GetEmuNandBase(void);
 u32 SwitchEmuNandBase(int start_sector);
 

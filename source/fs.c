@@ -52,14 +52,19 @@ void DeinitFS() {
     }
 }
 
-bool CheckWritePermissions(const char* path) {
-    u32 pdrv = (*path) - '0';
-    
-    if ((pdrv > 6) || (*(path+1) != ':')) {
+int PathToNumFS(const char* path) {
+    int fsnum = *path - (int) '0';
+    if ((fsnum < 0) || (fsnum >= MAX_FS) || (path[1] != ':')) {
         ShowPrompt(false, "Invalid path");
-        return false;
+        return -1;
     }
-        
+    return fsnum;
+}
+
+bool CheckWritePermissions(const char* path) {
+    int pdrv = PathToNumFS(path);
+    if (pdrv < 0) return false;
+    
     if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
         if (ShowPrompt(true, "Writing to the SysNAND is locked!\nUnlock it now?"))
             return SetWritePermissions(3);
@@ -465,25 +470,28 @@ uint64_t GetFreeSpace(const char* path)
     DWORD free_clusters;
     FATFS *fs_ptr;
     char fsname[4] = { '\0' };
-    int fsnum = -1;
+    int pdrv = PathToNumFS(path);
+    if (pdrv < 0) return -1;
     
-    strncpy(fsname, path, 2);
-    fsnum = *fsname - (int) '0';
-    if ((fsnum < 0) || (fsnum >= 7) || (fsname[1] != ':'))
-        return -1;
+    snprintf(fsname, 3, "%i:", pdrv);
     if (f_getfree(fsname, &free_clusters, &fs_ptr) != FR_OK)
         return -1;
 
-    return (uint64_t) free_clusters * fs[fsnum].csize * _MAX_SS;
+    return (uint64_t) free_clusters * fs[pdrv].csize * _MAX_SS;
 }
 
 uint64_t GetTotalSpace(const char* path)
 {
-    int fsnum = -1;
+    int pdrv = PathToNumFS(path);
+    if (pdrv < 0) return -1;
     
-    fsnum = *path - (int) '0';
-    if ((fsnum < 0) || (fsnum >= 7) || (path[1] != ':'))
-        return -1;
+    return (uint64_t) (fs[pdrv].n_fatent - 2) * fs[pdrv].csize * _MAX_SS;
+}
+
+uint64_t GetPartitionOffsetSector(const char* path)
+{
+    int pdrv = PathToNumFS(path);
+    if (pdrv < 0) return -1;
     
-    return (uint64_t) (fs[fsnum].n_fatent - 2) * fs[fsnum].csize * _MAX_SS;
+    return (uint64_t) fs[pdrv].fatbase;
 }

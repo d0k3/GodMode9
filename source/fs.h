@@ -67,5 +67,11 @@ uint64_t GetFreeSpace(const char* path);
 /** Gets total spacein filesystem in bytes */
 uint64_t GetTotalSpace(const char* path);
 
+/** Return the offset - in sectors - of the FAT partition on the drive **/
+uint64_t GetPartitionOffsetSector(const char* path);
+
+/** Helper function to get drive number from path */
+int PathToNumFS(const char* path);
+
 /** Helper function for copying DirEntry structs */
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig);

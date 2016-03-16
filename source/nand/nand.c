@@ -165,6 +165,23 @@ u8 CheckNandType(bool check_emunand)
     return NAND_TYPE_UNK;
 }
 
+bool InitEmuNandBase(void)
+{
+    if (GetPartitionOffsetSector("0:") <= getMMCDevice(0)->total_size)
+        return false;
+    
+    emunand_base_sector = 0x000000; // GW type EmuNAND
+    if (CheckNandType(true) != NAND_TYPE_UNK)
+        return true;
+    
+    emunand_base_sector = 0x000001; // RedNAND type EmuNAND
+    if (CheckNandType(true) != NAND_TYPE_UNK)
+        return true;
+    
+    emunand_base_sector = 0x000000;
+    return false;
+}
+
 u32 GetEmuNandBase(void)
 {
     return emunand_base_sector;

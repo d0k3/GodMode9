@@ -146,6 +146,7 @@ u32 GodMode() {
         if (!ShowPrompt(true, "Initialising SD card failed! Retry?"))
             return exit_mode;
     }
+    InitEmuNandBase();
     InitNandCrypto();
     InitNandFS();
     
@@ -193,6 +194,7 @@ u32 GodMode() {
                 if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
                     return exit_mode;
             }
+            InitEmuNandBase();
             InitNandFS();
             GetDirContents(current_dir, current_path);
             cursor = 0;
