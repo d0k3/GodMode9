@@ -1,6 +1,4 @@
 #include "fs.h"
-#include "draw.h"
-#include "hid.h"
 #include "platform.h"
 #include "aes.h"
 #include "sha.h"
@@ -167,6 +165,7 @@ u8 CheckNandType(bool check_emunand)
 
 bool InitEmuNandBase(void)
 {
+    emunand_base_sector = 0x000000;
     if (GetPartitionOffsetSector("0:") <= getMMCDevice(0)->total_size)
         return false;
     
@@ -181,16 +180,3 @@ bool InitEmuNandBase(void)
     emunand_base_sector = 0x000000;
     return false;
 }
-
-u32 GetEmuNandBase(void)
-{
-    return emunand_base_sector;
-}
-
-u32 SwitchEmuNandBase(int start_sector)
-{
-    // switching code goes here
-    return emunand_base_sector;
-}
-
-
