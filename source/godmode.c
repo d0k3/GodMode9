@@ -81,9 +81,9 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "GodMode9 Explorer v", VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
-        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\nB - Unmount SD card\n" :
-        (GetWritePermissions() == 2) ? "X - Relock EmuNAND writing\nY - Unlock SysNAND writing\nB - Unmount SD card\n" :
-        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nB - Unmount SD card\n"),
+        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
+        (GetWritePermissions() == 2) ? "X - Relock EmuNAND writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
+        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nR+B - Unmount SD card\n"),
         "R+L - Make a Screenshot\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
         "START - Reboot / [+\x1B] Poweroff"); // generic end part
@@ -187,7 +187,7 @@ u32 GodMode() {
                     (cursor > 1) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
                 scroll = 0;
             }
-        } else if (pad_state & BUTTON_B) { // unmount SD card
+        } else if ((pad_state & BUTTON_B) && (pad_state & BUTTON_R1)) { // unmount SD card
             DeinitFS();
             ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
             while (!InitSDCardFS()) {
@@ -197,7 +197,7 @@ u32 GodMode() {
             InitEmuNandBase();
             InitNandFS();
             GetDirContents(current_dir, current_path);
-            cursor = 0;
+            if (cursor >= current_dir->n_entries) cursor = 0;
         } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor up
             cursor++;
         } else if ((pad_state & BUTTON_UP) && cursor) { // cursor down
