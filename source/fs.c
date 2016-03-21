@@ -3,16 +3,13 @@
 #include "virtual.h"
 #include "fatfs/ff.h"
 
-#define MAX_FS  7
+#define MAIN_BUFFER ((u8*)0x21200000)
+#define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
+#define MAX_FS  7
 
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
-
-// this is the main buffer
-static u8* main_buffer = (u8*)0x21200000;
-// this is the main buffer size
-static size_t main_buffer_size = 1 * 1024 * 1024;
 
 // write permission level - careful with this
 static u32 write_permission_level = 1;
@@ -234,13 +231,13 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
         f_sync(&ofile);
         
         ret = true;
-        for (size_t pos = 0; (pos < fsize) && ret; pos += main_buffer_size) {
+        for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
-            f_read(&ofile, main_buffer, main_buffer_size, &bytes_read);
+            f_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read);
             if (!ShowProgress(pos + (bytes_read / 2), fsize, orig))
                 ret = false;
-            f_write(&dfile, main_buffer, bytes_read, &bytes_written);
+            f_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written);
             if (bytes_read != bytes_written)
                 ret = false;
         }
@@ -328,7 +325,7 @@ void CreateScreenshot() {
         0x00, 0x00, 0x00, 0xCA, 0x08, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
-    u8* buffer = main_buffer + 54;
+    u8* buffer = MAIN_BUFFER + 54;
     u8* buffer_t = buffer + (400 * 240 * 3);
     char filename[16];
     static u32 n = 0;
@@ -339,7 +336,7 @@ void CreateScreenshot() {
     }
     if (n >= 1000) return;
     
-    memcpy(main_buffer, bmp_header, 54);
+    memcpy(MAIN_BUFFER, bmp_header, 54);
     memset(buffer, 0x1F, 400 * 240 * 3 * 2);
     for (u32 x = 0; x < 400; x++)
         for (u32 y = 0; y < 240; y++)
@@ -347,7 +344,7 @@ void CreateScreenshot() {
     for (u32 x = 0; x < 320; x++)
         for (u32 y = 0; y < 240; y++)
             memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN0 + (x*240 + y) * 3, 3);
-    FileCreateData(filename, main_buffer, 54 + (400 * 240 * 3 * 2));
+    FileCreateData(filename, MAIN_BUFFER, 54 + (400 * 240 * 3 * 2));
 }
 
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig) {
