@@ -1,5 +1,6 @@
 #include "draw.h"
 #include "fs.h"
+#include "virtual.h"
 #include "fatfs/ff.h"
 
 #define MAX_FS  7
@@ -55,7 +56,7 @@ void DeinitFS() {
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
     if ((fsnum < 0) || (fsnum >= MAX_FS) || (path[1] != ':')) {
-        ShowPrompt(false, "Invalid path");
+        if (!IsVirtualPath(path)) ShowPrompt(false, "Invalid path (%s)", path);
         return -1;
     }
     return fsnum;
@@ -63,7 +64,11 @@ int PathToNumFS(const char* path) {
 
 bool CheckWritePermissions(const char* path) {
     int pdrv = PathToNumFS(path);
-    if (pdrv < 0) return false;
+    if (pdrv < 0) {
+        if (IsVirtualPath(path)) // this is a hack, but okay for now
+            pdrv = (*path == 'S') ? 1 : 4; 
+        else return false;
+    }
     
     if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
         if (ShowPrompt(true, "Writing to the SysNAND is locked!\nUnlock it now?"))
@@ -375,27 +380,52 @@ void SortDirStruct(DirStruct* contents) {
 }
 
 bool GetRootDirContentsWorker(DirStruct* contents) {
-    static const char* drvname[16] = {
+    static const char* drvname[] = {
         "SDCARD",
         "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP",
-        "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP"
+        "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
+        "SYSNAND VIRTUAL", "EMUNAND VIRTUAL"
+    };
+    static const char* drvnum[] = {
+        "0", "1", "2", "3", "4", "5", "6", "S", "E"
     };
     u32 n_entries = 0;
     
-    for (u32 pdrv = 0; (pdrv < MAX_FS) && (pdrv < MAX_ENTRIES); pdrv++) {
-        if (!fs_mounted[pdrv]) continue;
-        memset(contents->entry[n_entries].path, 0x00, 16);
-        snprintf(contents->entry[n_entries].path + 0,  4, "%lu:", pdrv);
-        snprintf(contents->entry[n_entries].path + 4, 32, "[%lu:] %s", pdrv, drvname[pdrv]);
-        contents->entry[n_entries].name = contents->entry[n_entries].path + 4;
-        contents->entry[n_entries].size = GetTotalSpace(contents->entry[n_entries].path);
-        contents->entry[n_entries].type = T_ROOT;
-        contents->entry[n_entries].marked = 0;
+    // virtual root objects hacked in
+    for (u32 pdrv = 0; (pdrv < MAX_FS+2) && (n_entries < MAX_ENTRIES); pdrv++) {
+        DirEntry* entry = &(contents->entry[n_entries]);
+        if ((pdrv < MAX_FS) && !fs_mounted[pdrv]) continue;
+        if ((pdrv == MAX_FS+0) && (!fs_mounted[1] || !fs_mounted[2] || !fs_mounted[3])) continue;
+        if ((pdrv == MAX_FS+1) && (!fs_mounted[4] || !fs_mounted[5] || !fs_mounted[6])) continue;
+        memset(entry->path, 0x00, 64);
+        snprintf(entry->path + 0,  4, "%s:", drvnum[pdrv]);
+        snprintf(entry->path + 4, 32, "[%s:] %s", drvnum[pdrv], drvname[pdrv]);
+        entry->name = entry->path + 4;
+        entry->size = GetTotalSpace(entry->path);
+        entry->type = T_ROOT;
+        entry->marked = 0;
         n_entries++;
     }
     contents->n_entries = n_entries;
     
     return contents->n_entries;
+}
+
+bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path) {
+    if (strchr(path, '/')) return false; // only top level paths
+    for (u32 n = 0; (n < virtualFileList_size) && (contents->n_entries < MAX_ENTRIES); n++) {
+        VirtualFile vfile;
+        DirEntry* entry = &(contents->entry[contents->n_entries]);
+        snprintf(entry->path, 256, "%s/%s", path, virtualFileList[n]);
+        if (!FindVirtualFile(&vfile, entry->path)) continue;
+        entry->name = entry->path + strnlen(path, 256) + 1;
+        entry->size = vfile.size;
+        entry->type = T_FILE;
+        entry->marked = 0;
+        contents->n_entries++;
+    }
+    
+    return true; // not much we can check here
 }
 
 bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recursive) {
@@ -450,8 +480,6 @@ void GetDirContents(DirStruct* contents, const char* path) {
         if (!GetRootDirContentsWorker(contents))
             contents->n_entries = 0; // not required, but so what?
     } else {
-        char fpath[256]; // 256 is the maximum length of a full path
-        strncpy(fpath, path, 256);
         // create virtual '..' entry
         contents->entry->name = contents->entry->path + 8;
         strncpy(contents->entry->path, "*?*?*", 8);
@@ -459,8 +487,15 @@ void GetDirContents(DirStruct* contents, const char* path) {
         contents->entry->type = T_DOTDOT;
         contents->entry->size = 0;
         contents->n_entries = 1;
-        if (!GetDirContentsWorker(contents, fpath, 256, false))
-            contents->n_entries = 0;
+        if (IsVirtualPath(path)) {
+            if (!GetVirtualDirContentsWorker(contents, path))
+                contents->n_entries = 0;
+        } else {
+            char fpath[256]; // 256 is the maximum length of a full path
+            strncpy(fpath, path, 256);
+            if (!GetDirContentsWorker(contents, fpath, 256, false))
+                contents->n_entries = 0;
+        }
         SortDirStruct(contents);
     }
 }
@@ -471,11 +506,11 @@ uint64_t GetFreeSpace(const char* path)
     FATFS *fs_ptr;
     char fsname[4] = { '\0' };
     int pdrv = PathToNumFS(path);
-    if (pdrv < 0) return -1;
+    if (pdrv < 0) return 0;
     
     snprintf(fsname, 3, "%i:", pdrv);
     if (f_getfree(fsname, &free_clusters, &fs_ptr) != FR_OK)
-        return -1;
+        return 0;
 
     return (uint64_t) free_clusters * fs[pdrv].csize * _MAX_SS;
 }
@@ -483,7 +518,7 @@ uint64_t GetFreeSpace(const char* path)
 uint64_t GetTotalSpace(const char* path)
 {
     int pdrv = PathToNumFS(path);
-    if (pdrv < 0) return -1;
+    if (pdrv < 0) return 0;
     
     return (uint64_t) (fs[pdrv].n_fatent - 2) * fs[pdrv].csize * _MAX_SS;
 }
