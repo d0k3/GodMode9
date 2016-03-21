@@ -3,8 +3,9 @@
 #include "hid.h"
 #include "fs.h"
 #include "nand.h"
+#include "virtual.h"
 
-#define VERSION "0.1.8"
+#define VERSION "0.1.9"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -236,7 +237,9 @@ u32 GodMode() {
                 SetWritePermissions((GetWritePermissions() >= 3) ? 2 : 3);
             }
         } else if (!switched) { // standard unswitched command set
-            if (pad_state & BUTTON_X) { // delete a file 
+            if (IsVirtualPath(current_path) && (pad_state & BUTTON_X)) {
+                ShowPrompt(false, "Not allowed in virtual path");
+            } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
                 for (u32 c = 0; c < current_dir->n_entries; c++)
                     if (current_dir->entry[c].marked) n_marked++;
@@ -294,7 +297,9 @@ u32 GodMode() {
                 ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
-            if ((pad_state & BUTTON_X) && cursor) { // rename a file
+            if (IsVirtualPath(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
+                ShowPrompt(false, "Not allowed in virtual path");
+            } else if ((pad_state & BUTTON_X) && cursor) { // rename a file
                 char newname[256];
                 char namestr[20+1];
                 TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
