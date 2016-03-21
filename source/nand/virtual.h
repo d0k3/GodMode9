@@ -3,8 +3,6 @@
 #include "common.h"
 #include "nand.h"
 
-#define VFLAG_EXT_NAND_REMOUNT (1<<31)
-
 static const char* virtualFileList[] = { // must have a match in virtualFileTemplates[]
     "twln.bin", "twlp.bin", "agbsave.bin", "firm0.bin", "firm1.bin", "ctrnand_fat.bin", "ctrnand_full.bin",
     "nand.bin", "nand_minsize.bin", "nand_hdr.bin", "sector0x96.bin"

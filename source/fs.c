@@ -147,6 +147,131 @@ bool FileGetData(const char* path, u8* data, size_t size, size_t foffset)
     return (bytes_read == size);
 }
 
+bool PathCopyVirtual(const char* destdir, const char* orig) {
+    char dest[256]; // maximum path name length in FAT
+    char* oname = strrchr(orig, '/');
+    char deststr[36 + 1];
+    char origstr[36 + 1];
+    bool ret = true;
+    
+    if (oname == NULL) return false; // not a proper origin path
+    oname++;
+    snprintf(dest, 256, "%s/%s", destdir, oname);
+    
+    TruncateString(deststr, dest, 36, 8);
+    TruncateString(origstr, orig, 36, 8);
+    
+    if (IsVirtualPath(dest) && IsVirtualPath(orig)) { // virtual to virtual
+        VirtualFile dvfile;
+        VirtualFile ovfile;
+        u32 osize;
+        
+        if (!FindVirtualFile(&dvfile, dest))
+            return false;
+        if (!FindVirtualFile(&ovfile, orig))
+            return false;
+        osize = ovfile.size;
+        if (dvfile.size != osize) { // almost impossible, but so what...
+            ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
+            return false;
+        }
+        if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
+            dvfile.keyslot = ovfile.keyslot = 0xFF;
+        
+        DeinitNandFS();
+        if (!ShowProgress(0, 0, orig)) ret = false;
+        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+            UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
+            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes) != 0)
+                ret = false;
+            if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
+                ret = false;
+            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, read_bytes) != 0)
+                ret = false;
+        }
+        ShowProgress(1, 1, orig);
+        InitNandFS();
+    } else if (IsVirtualPath(dest)) { // SD card to virtual (other FAT not allowed!)
+        VirtualFile dvfile;
+        FIL ofile;
+        u32 osize;
+        
+        if (!FindVirtualFile(&dvfile, dest))
+            return false;
+        if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+            return false;
+        f_lseek(&ofile, 0);
+        f_sync(&ofile);
+        osize = f_size(&ofile);
+        if (dvfile.size != osize) {
+            char osizestr[32];
+            char dsizestr[32];
+            FormatBytes(osizestr, osize);
+            FormatBytes(dsizestr, dvfile.size);
+            ShowPrompt(false, "File size mismatch:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
+            f_close(&ofile);
+            return false;
+        }
+        
+        DeinitNandFS();
+        if (!ShowProgress(0, 0, orig)) ret = false;
+        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+            UINT bytes_read = 0;           
+            if (f_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+                ret = false;
+            if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
+                ret = false;
+            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, bytes_read) != 0)
+                ret = false;
+        }
+        ShowProgress(1, 1, orig);
+        f_close(&ofile);
+        InitNandFS();
+    } else if (IsVirtualPath(orig)) { // virtual to SD card (other FAT not allowed)
+        VirtualFile ovfile;
+        FIL dfile;
+        u32 osize;
+        
+        if (!FindVirtualFile(&ovfile, orig))
+            return false;
+        // check if destination exists
+        if (f_stat(dest, NULL) == FR_OK) {
+            if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?", deststr))
+                return false;
+        }
+        if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+            return false;
+        f_lseek(&dfile, 0);
+        f_sync(&dfile);
+        osize = ovfile.size;
+        if (GetFreeSpace(dest) < osize) {
+            ShowPrompt(false, "Error: File is too big for destination");
+            f_close(&dfile);
+            return false;
+        }
+        
+        if (!ShowProgress(0, 0, orig)) ret = false;
+        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+            UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
+            UINT bytes_written = 0;
+            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes) != 0)
+                ret = false;
+            if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
+                ret = false;
+            if (f_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)
+                ret = false;
+            if (read_bytes != bytes_written)
+                ret = false;
+        }
+        ShowProgress(1, 1, orig);
+        f_close(&dfile);
+    } else {
+        return false;
+    }
+    
+    return ret;
+}
+
 bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
     FILINFO fno = {.lfname = NULL};
     bool ret = false;
@@ -261,12 +386,21 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
 }
 
 bool PathCopy(const char* destdir, const char* orig) {
-    char fdpath[256]; // 256 is the maximum length of a full path
-    char fopath[256];
     if (!CheckWritePermissions(destdir)) return false;
-    strncpy(fdpath, destdir, 255);
-    strncpy(fopath, orig, 255);
-    return PathCopyWorker(fdpath, fopath, false);
+    if (IsVirtualPath(destdir) || IsVirtualPath(orig)) {
+        // users are inventive...
+        if ((PathToNumFS(orig) > 0) && IsVirtualPath(destdir)) {
+            ShowPrompt(false, "Only files from SD card are accepted");
+            return false;
+        }
+        return PathCopyVirtual(destdir, orig);
+    } else {
+        char fdpath[256]; // 256 is the maximum length of a full path
+        char fopath[256];
+        strncpy(fdpath, destdir, 255);
+        strncpy(fopath, orig, 255);
+        return PathCopyWorker(fdpath, fopath, false);
+    }
 }
 
 bool PathDeleteWorker(char* fpath) {
@@ -401,8 +535,8 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 pdrv = 0; (pdrv < MAX_FS+2) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if ((pdrv < MAX_FS) && !fs_mounted[pdrv]) continue;
-        if ((pdrv == MAX_FS+0) && (!fs_mounted[1] || !fs_mounted[2] || !fs_mounted[3])) continue;
-        if ((pdrv == MAX_FS+1) && (!fs_mounted[4] || !fs_mounted[5] || !fs_mounted[6])) continue;
+        if ((pdrv == MAX_FS+0) && (!fs_mounted[1])) continue;
+        if ((pdrv == MAX_FS+1) && (!fs_mounted[4])) continue;
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, "%s:", drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s:] %s", drvnum[pdrv], drvname[pdrv]);
