@@ -354,7 +354,7 @@ void SortDirStruct(DirStruct* contents) {
     for (u32 s = 0; s < contents->n_entries; s++) {
         DirEntry* cmp0 = &(contents->entry[s]);
         DirEntry* min0 = cmp0;
-        if (cmp0->type == T_VRT_DOTDOT) continue;
+        if (cmp0->type == T_DOTDOT) continue;
         for (u32 c = s + 1; c < contents->n_entries; c++) {
             DirEntry* cmp1 = &(contents->entry[c]);
             if (min0->type != cmp1->type) {
@@ -389,7 +389,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         snprintf(contents->entry[n_entries].path + 4, 32, "[%lu:] %s", pdrv, drvname[pdrv]);
         contents->entry[n_entries].name = contents->entry[n_entries].path + 4;
         contents->entry[n_entries].size = GetTotalSpace(contents->entry[n_entries].path);
-        contents->entry[n_entries].type = T_VRT_ROOT;
+        contents->entry[n_entries].type = T_ROOT;
         contents->entry[n_entries].marked = 0;
         n_entries++;
     }
@@ -423,10 +423,10 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
             strncpy(entry->path, fpath, 256);
             entry->name = entry->path + (fname - fpath);
             if (fno.fattrib & AM_DIR) {
-                entry->type = T_FAT_DIR;
+                entry->type = T_DIR;
                 entry->size = 0;
             } else {
-                entry->type = T_FAT_FILE;
+                entry->type = T_FILE;
                 entry->size = fno.fsize;
             }
             entry->marked = 0;
@@ -456,7 +456,7 @@ void GetDirContents(DirStruct* contents, const char* path) {
         contents->entry->name = contents->entry->path + 8;
         strncpy(contents->entry->path, "*?*?*", 8);
         strncpy(contents->entry->name, "..", 4);
-        contents->entry->type = T_VRT_DOTDOT;
+        contents->entry->type = T_DOTDOT;
         contents->entry->size = 0;
         contents->n_entries = 1;
         if (!GetDirContentsWorker(contents, fpath, 256, false))

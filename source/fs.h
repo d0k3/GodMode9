@@ -3,10 +3,10 @@
 #include "common.h"
 
 typedef enum {
-    T_VRT_ROOT,
-    T_FAT_DIR,
-    T_FAT_FILE,
-    T_VRT_DOTDOT
+    T_ROOT,
+    T_DIR,
+    T_FILE,
+    T_DOTDOT
 } EntryType;
 
 #define MAX_ENTRIES 1024

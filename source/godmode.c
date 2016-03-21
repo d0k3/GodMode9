@@ -4,7 +4,7 @@
 #include "fs.h"
 #include "nand.h"
 
-#define VERSION "0.1.5"
+#define VERSION "0.1.8"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -12,7 +12,7 @@
 #define COLOR_FILE      COLOR_TINTEDGREEN
 #define COLOR_DIR       COLOR_TINTEDBLUE
 #define COLOR_ROOT      COLOR_GREY
-#define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_FAT_DIR) ? COLOR_DIR : ((e)->type == T_FAT_FILE) ? COLOR_FILE : ((e)->type == T_VRT_ROOT) ?  COLOR_ROOT : COLOR_GREY)
+#define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_DIR) ? COLOR_DIR : ((e)->type == T_FILE) ? COLOR_FILE : ((e)->type == T_ROOT) ?  COLOR_ROOT : COLOR_GREY)
 
 
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard) {
@@ -54,9 +54,9 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     ResizeString(tempstr, curr_entry->name, 20, 8, false);
     u32 color_current = COLOR_ENTRY(curr_entry);
     DrawStringF(true, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
-    if (curr_entry->type == T_FAT_DIR) {
+    if (curr_entry->type == T_DIR) {
         ResizeString(tempstr, "(dir)", 20, 8, false);
-    } else if (curr_entry->type == T_VRT_DOTDOT) {
+    } else if (curr_entry->type == T_DOTDOT) {
         snprintf(tempstr, 21, "%20s", "");
     } else {
         FormatBytes(bytestr0, curr_entry->size);
@@ -162,12 +162,12 @@ u32 GodMode() {
         }
         
         // commands which are valid anywhere
-        if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FAT_FILE)) { // one level up
-            if (current_dir->entry[cursor].type == T_VRT_DOTDOT) {
+        if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FILE)) { // one level up
+            if (current_dir->entry[cursor].type == T_DOTDOT) {
                 char* last_slash = strrchr(current_path, '/');
                 if (last_slash) *last_slash = '\0'; 
                 else *current_path = '\0';
-            } else { // type == T_FAT_DIR || type == T_VRT_ROOT
+            } else { // type == T_DIR || type == T_ROOT
                 strncpy(current_path, current_dir->entry[cursor].path, 256);
             }
             GetDirContents(current_dir, current_path);
