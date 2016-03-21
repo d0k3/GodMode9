@@ -26,7 +26,8 @@ typedef struct {
 
 bool InitSDCardFS();
 bool InitNandFS();
-void DeinitFS();
+void DeinitNandFS();
+void DeinitSDCardFS();
 
 /** Check if writing to this path is allowed **/
 bool CheckWritePermissions(const char* path);

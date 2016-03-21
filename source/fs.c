@@ -39,7 +39,7 @@ bool InitNandFS() {
     return true;
 }
 
-void DeinitFS() {
+void DeinitNandFS() {
     for (u32 i = MAX_FS; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
@@ -47,6 +47,13 @@ void DeinitFS() {
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = false;
         }
+    }
+}
+
+void DeinitSDCardFS() {
+    if (fs_mounted[0]) {
+        f_mount(NULL, "0:", 1);
+        fs_mounted[0] = false;
     }
 }
 
@@ -234,10 +241,12 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
         for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
-            f_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read);
+            if (f_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+                ret = false;
             if (!ShowProgress(pos + (bytes_read / 2), fsize, orig))
                 ret = false;
-            f_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written);
+            if (f_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK)
+                ret = false;
             if (bytes_read != bytes_written)
                 ret = false;
         }

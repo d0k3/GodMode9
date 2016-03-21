@@ -189,7 +189,8 @@ u32 GodMode() {
                 scroll = 0;
             }
         } else if ((pad_state & BUTTON_B) && (pad_state & BUTTON_R1)) { // unmount SD card
-            DeinitFS();
+            DeinitNandFS();
+            DeinitSDCardFS();
             ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
             while (!InitSDCardFS()) {
                 if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
@@ -336,7 +337,8 @@ u32 GodMode() {
         } 
     }
     
-    DeinitFS();
+    DeinitNandFS();
+    DeinitSDCardFS();
     
     return exit_mode;
 }
