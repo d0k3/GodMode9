@@ -163,12 +163,18 @@ u8 CheckNandType(bool check_emunand)
     return NAND_TYPE_UNK;
 }
 
+u64 GetNandSizeSectors(bool size_emunand)
+{
+    if (size_emunand) { // for EmuNAND
+        u32 emunand_max_sectors = GetPartitionOffsetSector("0:") - (emunand_base_sector + 1); // +1 for safety
+        u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? getMMCDevice(0)->total_size :
+            (GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800;
+        return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
+    } else return getMMCDevice(0)->total_size; // for SysNAND
+}
+
 bool InitEmuNandBase(void)
 {
-    emunand_base_sector = 0x000000;
-    if (GetPartitionOffsetSector("0:") <= getMMCDevice(0)->total_size)
-        return false;
-    
     emunand_base_sector = 0x000000; // GW type EmuNAND
     if (CheckNandType(true) != NAND_TYPE_UNK)
         return true;
@@ -177,6 +183,6 @@ bool InitEmuNandBase(void)
     if (CheckNandType(true) != NAND_TYPE_UNK)
         return true;
     
-    emunand_base_sector = 0x000000;
+    if (GetPartitionOffsetSector("0:") > getMMCDevice(0)->total_size)
     return false;
 }

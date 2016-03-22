@@ -70,7 +70,7 @@ bool CheckWritePermissions(const char* path) {
     int pdrv = PathToNumFS(path);
     if (pdrv < 0) {
         if (IsVirtualPath(path)) // this is a hack, but okay for now
-            pdrv = (*path == 'S') ? 1 : 4; 
+            pdrv = (IsVirtualPath(path) == VRT_SYSNAND) ? 1 : 4; 
         else return false;
     }
     
@@ -208,9 +208,16 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             char dsizestr[32];
             FormatBytes(osizestr, osize);
             FormatBytes(dsizestr, dvfile.size);
-            ShowPrompt(false, "File size mismatch:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
-            f_close(&ofile);
-            return false;
+            if (dvfile.size > osize) {
+                if (!ShowPrompt(true, "File smaller than available space:\n%s (%s)\n%s (%s)\nContinue?", origstr, osizestr, deststr, dsizestr)) {
+                    f_close(&ofile);
+                    return false;
+                }
+            } else {
+                ShowPrompt(false, "File bigger than available space:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
+                f_close(&ofile);
+                return false;
+            }
         }
         
         DeinitNandFS();

@@ -1,5 +1,4 @@
 #include "virtual.h"
-#include "sdmmc.h"
 
 #define VFLAG_ON_O3DS       NAND_TYPE_O3DS
 #define VFLAG_ON_N3DS       NAND_TYPE_N3DS
@@ -27,23 +26,32 @@ VirtualFile virtualFileTemplates[] = {
     { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0xFF, VFLAG_ON_ALL }
 };    
 
-bool IsVirtualPath(const char* path) {
-    return (strncmp(path, "S:", 2) == 0) || (strncmp(path, "E:", 2) == 0);
+u32 IsVirtualPath(const char* path) {
+    u32 plen = strnlen(path, 16);
+    if (strncmp(path, "S:/", (plen >= 3) ? 3 : 2) == 0)
+        return VRT_SYSNAND;
+    else if (strncmp(path, "E:/", (plen >= 3) ? 3 : 2) == 0)
+        return VRT_EMUNAND;
+    return 0;
 }
 
 bool FindVirtualFile(VirtualFile* vfile, const char* path)
 {
     char* fname = strchr(path, '/');
-    bool on_emunand = (*path == 'E');
-    u8 nand_type = CheckNandType(on_emunand);
+    bool on_emunand = false;
+    u8 nand_type = 0;
     
     // fix the name
     if (!fname) return false;
     fname++;
     
-    // more safety checks
+    // check path vailidity
     if (!IsVirtualPath(path) || (fname - path != 3))
         return false;
+    
+    // check NAND type
+    on_emunand = (IsVirtualPath(path) == VRT_EMUNAND);
+    nand_type = CheckNandType(on_emunand);
     
     // parse the template list, get the correct one
     u32 n_templates = sizeof(virtualFileTemplates) / sizeof(VirtualFile);
@@ -60,8 +68,11 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path)
     memcpy(vfile, curr_template, sizeof(VirtualFile));
     
     // process special flags
-    if (vfile->flags & VFLAG_NAND_SIZE)
-        vfile->size = getMMCDevice(0)->total_size * 0x200;
+    if (vfile->flags & VFLAG_NAND_SIZE) {
+        if (on_emunand && (GetNandSizeSectors(false) != GetNandSizeSectors(true)))
+            return false; // EmuNAND is too small
+        vfile->size = GetNandSizeSectors(false) * 0x200;
+    }
     if (on_emunand) vfile->flags |= VFLAG_ON_EMUNAND;
     
     return true;
