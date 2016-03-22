@@ -23,6 +23,6 @@ typedef struct {
 
 u32 IsVirtualPath(const char* path);
 bool CheckVirtualPath(const char* path);
-bool FindVirtualFile(VirtualFile* vfile, const char* path);
+bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size);
 int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count);
 int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count);

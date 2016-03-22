@@ -22,8 +22,8 @@ VirtualFile virtualFileTemplates[] = {
     { "nand.bin"         , 0x00000000, 0x00000000, 0xFF, VFLAG_ON_ALL | VFLAG_NAND_SIZE },
     { "nand_minsize.bin" , 0x00000000, 0x3AF00000, 0xFF, VFLAG_ON_O3DS },
     { "nand_minsize.bin" , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS },
-    { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_ALL },
-    { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0xFF, VFLAG_ON_ALL }
+    { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0xFF, VFLAG_ON_ALL },
+    { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_ALL }
 };    
 
 u32 IsVirtualPath(const char* path) {
@@ -45,7 +45,7 @@ bool CheckVirtualPath(const char* path) {
     return false;
 }
 
-bool FindVirtualFile(VirtualFile* vfile, const char* path)
+bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
 {
     char* fname = strchr(path, '/');
     bool on_emunand = false;
@@ -68,7 +68,9 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path)
     VirtualFile* curr_template = NULL;
     for (u32 i = 0; i < n_templates; i++) {
         curr_template = &virtualFileTemplates[i];
-        if ((curr_template->flags & nand_type) && (strncmp(fname, curr_template->name, 32) == 0))
+        if ((curr_template->flags & nand_type) && (strncasecmp(fname, curr_template->name, 32) == 0))
+            break;
+        else if (size && (curr_template->size == size)) //search by size should be a last resort solution
             break;
         curr_template = NULL;
     }

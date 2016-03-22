@@ -156,7 +156,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
     
     if (oname == NULL) return false; // not a proper origin path
     oname++;
-    snprintf(dest, 256, "%s/%s", destdir, oname);
+    snprintf(dest, 255, "%s/%s", destdir, oname);
     
     TruncateString(deststr, dest, 36, 8);
     TruncateString(origstr, orig, 36, 8);
@@ -166,9 +166,9 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         VirtualFile ovfile;
         u32 osize;
         
-        if (!FindVirtualFile(&dvfile, dest))
+        if (!FindVirtualFile(&dvfile, dest, 0))
             return false;
-        if (!FindVirtualFile(&ovfile, orig))
+        if (!FindVirtualFile(&ovfile, orig, 0))
             return false;
         osize = ovfile.size;
         if (dvfile.size != osize) { // almost impossible, but so what...
@@ -196,13 +196,23 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         FIL ofile;
         u32 osize;
         
-        if (!FindVirtualFile(&dvfile, dest))
-            return false;
         if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         f_lseek(&ofile, 0);
         f_sync(&ofile);
         osize = f_size(&ofile);
+        if (!FindVirtualFile(&dvfile, dest, 0)) {
+            if (!FindVirtualFile(&dvfile, dest, osize)) {
+                f_close(&ofile);
+                return false;
+            }
+            snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
+            if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", deststr, dest)) {
+                f_close(&ofile);
+                return false;
+            }
+            TruncateString(deststr, dest, 36, 8);
+        }
         if (dvfile.size != osize) {
             char osizestr[32];
             char dsizestr[32];
@@ -239,7 +249,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         FIL dfile;
         u32 osize;
         
-        if (!FindVirtualFile(&ovfile, orig))
+        if (!FindVirtualFile(&ovfile, orig, 0))
             return false;
         // check if destination exists
         if (f_stat(dest, NULL) == FR_OK) {
@@ -563,7 +573,7 @@ bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path) {
         VirtualFile vfile;
         DirEntry* entry = &(contents->entry[contents->n_entries]);
         snprintf(entry->path, 256, "%s/%s", path, virtualFileList[n]);
-        if (!FindVirtualFile(&vfile, entry->path)) continue;
+        if (!FindVirtualFile(&vfile, entry->path, 0)) continue;
         entry->name = entry->path + strnlen(path, 256) + 1;
         entry->size = vfile.size;
         entry->type = T_FILE;
