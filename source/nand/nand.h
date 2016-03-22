@@ -8,8 +8,9 @@
 #define NAND_TYPE_NO3DS (1<<2)
 
 bool InitNandCrypto(void);
-void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot);
+bool CheckSlot0x05Crypto(void);
 
+void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot);
 int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, bool read_emunand);
 int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, bool write_emunand);
 

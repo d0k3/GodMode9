@@ -35,6 +35,16 @@ u32 IsVirtualPath(const char* path) {
     return 0;
 }
 
+bool CheckVirtualPath(const char* path) {
+    u32 vp_nand = IsVirtualPath(path);
+    if (vp_nand == VRT_SYSNAND) {
+        return true; // this is safe because we re-check for slot0x05 crypto
+    } else if (vp_nand == VRT_EMUNAND) {
+        return GetNandSizeSectors(true);
+    }
+    return false;
+}
+
 bool FindVirtualFile(VirtualFile* vfile, const char* path)
 {
     char* fname = strchr(path, '/');
@@ -68,6 +78,8 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path)
     memcpy(vfile, curr_template, sizeof(VirtualFile));
     
     // process special flags
+    if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
+        return false; // keyslot 0x05 not properly set up
     if (vfile->flags & VFLAG_NAND_SIZE) {
         if (on_emunand && (GetNandSizeSectors(false) != GetNandSizeSectors(true)))
             return false; // EmuNAND is too small

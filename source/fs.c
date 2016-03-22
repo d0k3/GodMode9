@@ -534,7 +534,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL"
     };
     static const char* drvnum[] = {
-        "0", "1", "2", "3", "4", "5", "6", "S", "E"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "S:", "E:"
     };
     u32 n_entries = 0;
     
@@ -542,11 +542,10 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 pdrv = 0; (pdrv < MAX_FS+2) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if ((pdrv < MAX_FS) && !fs_mounted[pdrv]) continue;
-        if ((pdrv == MAX_FS+0) && (!fs_mounted[1])) continue;
-        if ((pdrv == MAX_FS+1) && (!fs_mounted[4])) continue;
+        else if ((pdrv >= MAX_FS) && (!CheckVirtualPath(drvnum[pdrv]))) continue;
         memset(entry->path, 0x00, 64);
-        snprintf(entry->path + 0,  4, "%s:", drvnum[pdrv]);
-        snprintf(entry->path + 4, 32, "[%s:] %s", drvnum[pdrv], drvname[pdrv]);
+        snprintf(entry->path + 0,  4, drvnum[pdrv]);
+        snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
         entry->name = entry->path + 4;
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;

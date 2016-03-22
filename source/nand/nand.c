@@ -8,6 +8,12 @@
 #define NAND_BUFFER ((u8*)0x21100000)
 #define NAND_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
+static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from file
+static u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY file
+    0x98, 0x24, 0x27, 0x14, 0x22, 0xB0, 0x6B, 0xF2, 0x10, 0x96, 0x9C, 0x36, 0x42, 0x53, 0x7C, 0x86,
+    0x62, 0x22, 0x5C, 0xFD, 0x6F, 0xAE, 0x9B, 0x0A, 0x85, 0xA5, 0xCE, 0x21, 0xAA, 0xB6, 0xC8, 0x4D
+};
+
 static u8 nand_magic_n3ds[0x60] = { // NCSD NAND header N3DS magic
     0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x01, 0x04, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x03, 0x00, 0x00, 0x00,
@@ -73,17 +79,37 @@ bool InitNandCrypto(void)
     use_aeskey(0x03);
     
     // part #3: CTRNAND N3DS KEY
-    if (GetUnitPlatform() == PLATFORM_N3DS) {
-        u8 CtrNandKeyY[16];
-        
-        if (FileGetData("0:/slot0x05KeyY.bin", CtrNandKeyY, 16, 0)) {
-            setup_aeskeyY(0x05, CtrNandKeyY);
-            use_aeskey(0x05);
-        }
+    if (FileGetData("0:/slot0x05KeyY.bin", slot0x05KeyY, 16, 0)) {
+        setup_aeskeyY(0x05, slot0x05KeyY);
+        use_aeskey(0x05);
     }
     
     
     return true;
+}
+
+bool CheckSlot0x05Crypto(void)
+{
+    // step #1 - check the slot0x05KeyY SHA-256
+    u8 shasum[32];
+    sha_init(SHA256_MODE);
+    sha_update(slot0x05KeyY, 16);
+    sha_get(shasum);
+    if (memcmp(shasum, slot0x05KeyY_sha256, 32) == 0)
+        return true;
+    
+    // step #2 - check actual CTRNAND magic
+    const u8 magic[8] = {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}; 
+    const u32 sector = 0x05CAD7;
+    u8 buffer[0x200];
+    for (u32 nand = 0; nand < 2; nand++) {
+        ReadNandSectors(buffer, sector, 1, 0x05, nand);
+        if (memcmp(buffer, magic, 8) == 0)
+            return true;
+    }
+    
+    // failed if we arrive here
+    return false;
 }
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
@@ -184,5 +210,6 @@ bool InitEmuNandBase(void)
         return true;
     
     if (GetPartitionOffsetSector("0:") > getMMCDevice(0)->total_size)
+        emunand_base_sector = 0x000000; // keep unknown EmuNAND as RedNAND only if space is low
     return false;
 }

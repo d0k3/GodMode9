@@ -2,10 +2,11 @@
 #include "draw.h"
 #include "hid.h"
 #include "fs.h"
+#include "platform.h"
 #include "nand.h"
 #include "virtual.h"
 
-#define VERSION "0.1.9"
+#define VERSION "0.2.0"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -150,6 +151,14 @@ u32 GodMode() {
     InitEmuNandBase();
     InitNandCrypto();
     InitNandFS();
+    
+    if ((GetUnitPlatform() == PLATFORM_N3DS) && !CheckSlot0x05Crypto()) {
+        if (!ShowPrompt(true, "Warning: slot0x05 crypto fail\nslot0x05keyY.bin is either corrupt\nor does not exist. Continue?")) {
+            DeinitNandFS();
+            DeinitSDCardFS();
+            return exit_mode;
+        }
+    }
     
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
