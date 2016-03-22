@@ -145,8 +145,8 @@
 /* Number of volumes (logical drives) to be used. */
 
 
-#define _STR_VOLUME_ID	0
-#define _VOLUME_STRS	"SDCARD","CTRNAND_S","TWLN_S","TWLP_S","CTRNAND_E","TWLN_E","TWLP_E" // <--- improve(!!!)
+#define _STR_VOLUME_ID	1
+#define _VOLUME_STRS	"sdcard","sysnand","systwln","systwlp","emunand","emutwln","emutwlp"
 /* _STR_VOLUME_ID option switches string volume ID feature.
 /  When _STR_VOLUME_ID is set to 1, also pre-defined strings can be used as drive
 /  number in the path name. _VOLUME_STRS defines the drive ID strings for each
