@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 #include "font.h"
-#include "draw.h"
+#include "ui.h"
 #include "hid.h"
 
 void ClearScreen(u8* screen, int width, int color)
