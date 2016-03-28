@@ -303,6 +303,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
         u32 inputstr_size = strnlen(inputstr, max_size - 1);
         if (cursor_s < scroll) scroll = cursor_s;
         else if (cursor_s - scroll >= input_shown) scroll = cursor_s - input_shown + 1;
+        while (scroll && (inputstr_size - scroll < input_shown)) scroll--;
         DrawStringF(true, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
             (scroll) ? '<' : '|',
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
@@ -335,8 +336,8 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
             inputstr[1] = '\0';
         } else if (pad_state & BUTTON_X) {
             if (inputstr_size > 1) {
+                memmove(&inputstr[cursor_s], &inputstr[cursor_s + 1], (max_size - 1) - cursor_s);
                 inputstr_size--;
-                memmove(&inputstr[cursor_s], &inputstr[cursor_s + 1], max_size - (cursor_s + 1));
                 if (cursor_s >= inputstr_size) {
                     cursor_s--;
                     cursor_a = -1;
@@ -344,11 +345,11 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
             } else inputstr[0] = alphabet[0];
         } else if (pad_state & BUTTON_Y) {
             if (inputstr_size < max_size - 1) {
-                inputstr_size--;
-                memmove(&inputstr[cursor_s + 1], &inputstr[cursor_s], max_size - (cursor_s + 1));
+                memmove(&inputstr[cursor_s + 1], &inputstr[cursor_s], (max_size - 1 )- cursor_s);
+                inputstr_size++;
                 inputstr[cursor_s] = alphabet[0];
                 cursor_a = 0;
-            } else inputstr[0] = alphabet[0];
+            }
         } else if (pad_state & BUTTON_UP) {
             cursor_a += (pad_state & BUTTON_R1) ? fast_scroll : 1;
             cursor_a = cursor_a % alphabet_size;
@@ -369,6 +370,9 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
             cursor_a = -1;
         }
     }
+    // remove any trailing spaces
+    for (char* cc = inputstr + strnlen(inputstr, max_size) - 1;
+        (*cc == ' ') && (cc > inputstr); *(cc--) = '\0');
     
     ClearScreenF(true, false, COLOR_STD_BG);
     
