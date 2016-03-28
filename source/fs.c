@@ -684,5 +684,5 @@ uint64_t GetPartitionOffsetSector(const char* path)
     int pdrv = PathToNumFS(path);
     if (pdrv < 0) return -1;
     
-    return (uint64_t) fs[pdrv].fatbase;
+    return (uint64_t) fs[pdrv].volbase;
 }

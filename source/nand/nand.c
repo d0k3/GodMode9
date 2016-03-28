@@ -195,7 +195,8 @@ u64 GetNandSizeSectors(bool size_emunand)
         u32 emunand_max_sectors = GetPartitionOffsetSector("0:") - (emunand_base_sector + 1); // +1 for safety
         u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? getMMCDevice(0)->total_size :
             (GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800;
-        return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
+        if (emunand_max_sectors >= getMMCDevice(0)->total_size) return getMMCDevice(0)->total_size;
+        else return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
     } else return getMMCDevice(0)->total_size; // for SysNAND
 }
 
