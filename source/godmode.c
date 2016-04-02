@@ -6,7 +6,7 @@
 #include "nand.h"
 #include "virtual.h"
 
-#define VERSION "0.2.0"
+#define VERSION "0.2.1"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -21,15 +21,12 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     const u32 n_cb_show = 8;
     const u32 info_start = 18;
     const u32 instr_x = 56;
+    char tempstr[64];
     
     static u32 state_prev = 0xFFFFFFFF;
     u32 state_curr =
         ((*curr_path) ? (1<<0) : 0) |
         ((clipboard->n_entries) ? (1<<1) : 0);
-    
-    char bytestr0[32];
-    char bytestr1[32];
-    char tempstr[64];
     
     if (state_prev != state_curr) {
         ClearScreenF(true, false, COLOR_STD_BG);
@@ -39,6 +36,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     // top bar - current path & free/total storage
     DrawRectangleF(true, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
     if (strncmp(curr_path, "", 256) != 0) {
+        char bytestr0[32];
+        char bytestr1[32];
         TruncateString(tempstr, curr_path, 30, 8);
         DrawStringF(true, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
         DrawStringF(true, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
@@ -61,8 +60,9 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     } else if (curr_entry->type == T_DOTDOT) {
         snprintf(tempstr, 21, "%20s", "");
     } else {
-        FormatBytes(bytestr0, curr_entry->size);
-        ResizeString(tempstr, bytestr0, 20, 8, false);
+        char bytestr[32];
+        FormatBytes(bytestr, curr_entry->size);
+        ResizeString(tempstr, bytestr, 20, 8, false);
     }
     DrawStringF(true, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
     
@@ -139,7 +139,6 @@ u32 GodMode() {
     
     int mark_setting = -1;
     u32 last_clipboard_size = 0;
-    bool switched = false;
     u32 cursor = 0;
     u32 scroll = 0;
     
@@ -166,7 +165,7 @@ u32 GodMode() {
         DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard);
         DrawDirContents(current_dir, cursor, &scroll);
         u32 pad_state = InputWait();
-        switched = (pad_state & BUTTON_R1);
+        bool switched = (pad_state & BUTTON_R1);
         if (!(*current_path) || switched || !(pad_state & BUTTON_L1)) {
             mark_setting = -1;
         }
