@@ -5,8 +5,9 @@
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
+#include "image.h"
 
-#define VERSION "0.2.1"
+#define VERSION "0.2.3"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -184,6 +185,20 @@ u32 GodMode() {
                 cursor = 1;
                 scroll = 0;
             } else cursor = 0;
+        } else if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type == T_FILE) &&
+            (PathToNumFS(current_dir->entry[cursor].path) == 0)) { // try to mount image
+            u32 file_type = IdentifyImage(current_dir->entry[cursor].path);
+            if (file_type && ShowPrompt(true, "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
+                if (!MountImage(current_dir->entry[cursor].path)) {
+                    ShowPrompt(false, "Mounting image: failed");
+                } else {
+                    DeinitNandFS();
+                    InitNandFS();
+                    *current_path = '\0';
+                    GetDirContents(current_dir, current_path);
+                    cursor = 0;
+                }
+            }
         } else if ((pad_state & BUTTON_B) && *current_path) { // one level down
             char old_path[256];
             char* last_slash = strrchr(current_path, '/');

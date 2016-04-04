@@ -6,7 +6,8 @@
 #define MAIN_BUFFER ((u8*)0x21200000)
 #define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
-#define MAX_FS  7
+#define NORM_FS  10
+#define VIRT_FS  3
 
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
@@ -15,7 +16,7 @@ static FATFS* fs = (FATFS*)0x20316000;
 static u32 write_permission_level = 1;
 
 // number of currently open file systems
-static bool fs_mounted[MAX_FS] = { false };
+static bool fs_mounted[NORM_FS] = { false };
 
 bool InitSDCardFS() {
     #ifndef EXEC_GATEWAY
@@ -30,7 +31,7 @@ bool InitSDCardFS() {
 bool InitNandFS() {
     if (!fs_mounted[0])
         return false;
-    for (u32 i = 1; i < MAX_FS; i++) {
+    for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
         if (f_mount(fs + i, fsname, 1) != FR_OK) return false;
@@ -40,7 +41,7 @@ bool InitNandFS() {
 }
 
 void DeinitNandFS() {
-    for (u32 i = MAX_FS; i > 0; i--) {
+    for (u32 i = NORM_FS; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
             snprintf(fsname, 7, "%lu:", i);
@@ -59,7 +60,7 @@ void DeinitSDCardFS() {
 
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
-    if ((fsnum < 0) || (fsnum >= MAX_FS) || (path[1] != ':')) {
+    if ((fsnum < 0) || (fsnum >= NORM_FS) || (path[1] != ':')) {
         if (!IsVirtualPath(path)) ShowPrompt(false, "Invalid path (%s)", path);
         return -1;
     }
@@ -80,6 +81,10 @@ bool CheckWritePermissions(const char* path) {
         return false;
     } else if ((pdrv >= 4) && (pdrv <= 6) && (write_permission_level < 2)) {
         if (ShowPrompt(true, "Writing to the EmuNAND is locked!\nUnlock it now?"))
+            return SetWritePermissions(2);
+        return false;
+    } else if ((pdrv >= 7) && (pdrv <= 9) && (write_permission_level < 2)) {
+        if (ShowPrompt(true, "Writing to the images is locked!\nUnlock it now?"))
             return SetWritePermissions(2);
         return false;
     } else if ((pdrv == 0) && (write_permission_level < 1)) {
@@ -570,18 +575,19 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "SDCARD",
         "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP",
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
-        "SYSNAND VIRTUAL", "EMUNAND VIRTUAL"
+        "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP",
+        "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "S:", "E:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "S:", "E:", "I:"
     };
     u32 n_entries = 0;
     
     // virtual root objects hacked in
-    for (u32 pdrv = 0; (pdrv < MAX_FS+2) && (n_entries < MAX_ENTRIES); pdrv++) {
+    for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
-        if ((pdrv < MAX_FS) && !fs_mounted[pdrv]) continue;
-        else if ((pdrv >= MAX_FS) && (!CheckVirtualPath(drvnum[pdrv]))) continue;
+        if ((pdrv < NORM_FS) && !fs_mounted[pdrv]) continue;
+        else if ((pdrv >= NORM_FS) && (!CheckVirtualPath(drvnum[pdrv]))) continue;
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);

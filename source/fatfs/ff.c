@@ -456,7 +456,7 @@ WCHAR ff_wtoupper(WCHAR chr)
 /  or start-up routine being used is out of ANSI-C standard.
 */
 
-#if _VOLUMES < 1 || _VOLUMES > 9
+#if _VOLUMES < 1 || _VOLUMES > 10 // <--- increased the limit to 10 (this won't break anything, no?)
 #error Wrong _VOLUMES setting
 #endif
 static FATFS *FatFs[_VOLUMES];	/* Pointer to the file system objects (logical drives) */

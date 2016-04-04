@@ -141,11 +141,11 @@
 / Drive/Volume Configurations
 /---------------------------------------------------------------------------*/
 
-#define _VOLUMES	7
+#define _VOLUMES	10
 /* Number of volumes (logical drives) to be used. */
 
 
-#define _STR_VOLUME_ID	1
+#define _STR_VOLUME_ID	0
 #define _VOLUME_STRS	"sdcard","sysnand","systwln","systwlp","emunand","emutwln","emutwlp"
 /* _STR_VOLUME_ID option switches string volume ID feature.
 /  When _STR_VOLUME_ID is set to 1, also pre-defined strings can be used as drive

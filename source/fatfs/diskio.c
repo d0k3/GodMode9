@@ -8,12 +8,15 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"		/* FatFs lower layer API */
+#include "image.h"
 #include "nand.h"
 #include "sdmmc.h"
 
-#define TYPE_SDCARD     0
-#define TYPE_SYSNAND    1
-#define TYPE_EMUNAND    2
+#define TYPE_SDCARD     0x00
+#define TYPE_SYSNAND    NAND_SYSNAND
+#define TYPE_EMUNAND    NAND_EMUNAND
+#define TYPE_IMGNAND    NAND_IMGNAND
+#define TYPE_IMAGE      0xFF
 
 #define SUBTYPE_CTRN    0
 #define SUBTYPE_CTRN_N  1
@@ -33,7 +36,7 @@ typedef struct {
     BYTE  keyslot;
 } SubtypeDesc;
 
-FATpartition DriveInfo[7] = {
+FATpartition DriveInfo[11] = {
     { TYPE_SDCARD,  SUBTYPE_NONE },     // 0 - SDCARD
     { TYPE_SYSNAND, SUBTYPE_CTRN },     // 1 - SYSNAND CTRNAND
     { TYPE_SYSNAND, SUBTYPE_TWLN },     // 2 - SYSNAND TWLN
@@ -41,6 +44,10 @@ FATpartition DriveInfo[7] = {
     { TYPE_EMUNAND, SUBTYPE_CTRN },     // 4 - EMUNAND CTRNAND
     { TYPE_EMUNAND, SUBTYPE_TWLN },     // 5 - EMUNAND TWLN
     { TYPE_EMUNAND, SUBTYPE_TWLP },     // 6 - EMUNAND TWLP
+    { TYPE_IMGNAND, SUBTYPE_CTRN },     // 7 - EMUNAND CTRNAND
+    { TYPE_IMGNAND, SUBTYPE_TWLN },     // 8 - EMUNAND TWLN
+    { TYPE_IMGNAND, SUBTYPE_TWLP },     // 9 - EMUNAND TWLP
+    { TYPE_IMAGE,   SUBTYPE_NONE }      // X - IMAGE
 };
 
 SubtypeDesc SubTypes[5] = {
@@ -51,8 +58,9 @@ SubtypeDesc SubTypes[5] = {
     { 0x04808D, 0x0105B3, 0x3 }         // TWLP
 };
 
-static BYTE nand_type_sys = NAND_TYPE_UNK;
-static BYTE nand_type_emu = NAND_TYPE_UNK;
+static BYTE nand_type_sys = 0;
+static BYTE nand_type_emu = 0;
+static BYTE nand_type_img = 0;
 
 
 
@@ -68,10 +76,10 @@ SubtypeDesc* get_subtype_desc(
     BYTE type = DriveInfo[pdrv].type;
     BYTE subtype = DriveInfo[pdrv].subtype;
     
-    if (type == TYPE_SDCARD) {
+    if (subtype == SUBTYPE_NONE) {
         return NULL;
     } else if (subtype == SUBTYPE_CTRN) {
-        BYTE nand_type = (type == TYPE_SYSNAND) ? nand_type_sys : nand_type_emu;
+        BYTE nand_type = (type == TYPE_SYSNAND) ? nand_type_sys : (type == TYPE_EMUNAND) ? nand_type_emu : nand_type_img;
         if (nand_type != NAND_TYPE_O3DS)
             subtype = (nand_type == NAND_TYPE_N3DS) ? SUBTYPE_CTRN_N : SUBTYPE_CTRN_NO;
     }
@@ -108,9 +116,11 @@ DSTATUS disk_initialize (
         if (!sdmmc_sdcard_init())
             return RES_PARERR;
     } else if (pdrv < 4) {
-        nand_type_sys = CheckNandType(false);
+        nand_type_sys = CheckNandType(NAND_SYSNAND);
     } else if (pdrv < 7) {
-        nand_type_emu = CheckNandType(true);
+        nand_type_emu = CheckNandType(NAND_EMUNAND);
+    } else if (pdrv < 10) {
+        nand_type_img = CheckNandType(NAND_IMGNAND);
     }
 	return RES_OK;
 }
@@ -135,12 +145,14 @@ DRESULT disk_read (
         if (sdmmc_sdcard_readsectors(sector, count, buff)) {
             return RES_PARERR;
         }
+    } else if (type == TYPE_IMAGE) {
+        return RES_PARERR;
     } else {
         SubtypeDesc* subtype = get_subtype_desc(pdrv);
         BYTE keyslot = subtype->keyslot;
         DWORD isector = subtype->offset + sector;
         
-        if (ReadNandSectors(buff, isector, count, keyslot, type == TYPE_EMUNAND))
+        if (ReadNandSectors(buff, isector, count, keyslot, type))
             return RES_PARERR;
     }
 
@@ -168,12 +180,14 @@ DRESULT disk_write (
         if (sdmmc_sdcard_writesectors(sector, count, (BYTE *)buff)) {
             return RES_PARERR;
         }
+    } else if (type == TYPE_IMAGE) {
+        return RES_PARERR;
     } else {
         SubtypeDesc* subtype = get_subtype_desc(pdrv);
         BYTE keyslot = subtype->keyslot;
         DWORD isector = subtype->offset + sector;
         
-        if (WriteNandSectors(buff, isector, count, keyslot, type == TYPE_EMUNAND))
+        if (WriteNandSectors(buff, isector, count, keyslot, type))
             return RES_PARERR; // unstubbed!
     }
 
@@ -197,13 +211,17 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
+    BYTE type = DriveInfo[pdrv].type;
+    
     switch (cmd) {
         case GET_SECTOR_SIZE:
             *((DWORD*) buff) = 0x200;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            if (DriveInfo[pdrv].type == TYPE_SDCARD) {
+            if (type == TYPE_SDCARD) {
                 *((DWORD*) buff) = getMMCDevice(1)->total_size;
+            } else if (type == TYPE_IMAGE) {
+                *((DWORD*) buff) = GetMountSize();
             } else {
                 *((DWORD*) buff) = get_subtype_desc(pdrv)->size;
             }
@@ -212,7 +230,9 @@ DRESULT disk_ioctl (
             *((DWORD*) buff) = 0x2000;
             return RES_OK;
         case CTRL_SYNC:
-            // nothing to do here - the disk_write function handles that
+            if ((type == TYPE_IMAGE) || (type == TYPE_IMGNAND))
+                SyncImage();
+            // nothing else to do here - sdmmc.c handles that
             return RES_OK;
     }
 	return RES_PARERR;

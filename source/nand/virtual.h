@@ -4,8 +4,9 @@
 #include "nand.h"
 
 #define VRT_NONE    0
-#define VRT_SYSNAND 1
-#define VRT_EMUNAND 2
+#define VRT_SYSNAND NAND_SYSNAND
+#define VRT_EMUNAND NAND_EMUNAND
+#define VRT_IMGNAND NAND_IMGNAND
 
 static const char* virtualFileList[] = { // must have a match in virtualFileTemplates[]
     "twln.bin", "twlp.bin", "agbsave.bin", "firm0.bin", "firm1.bin", "ctrnand_fat.bin", "ctrnand_full.bin",

@@ -4,8 +4,7 @@
 #define VFLAG_ON_N3DS       NAND_TYPE_N3DS
 #define VFLAG_ON_NO3DS      NAND_TYPE_NO3DS
 #define VFLAG_ON_ALL        (VFLAG_ON_O3DS | VFLAG_ON_N3DS | VFLAG_ON_NO3DS)
-#define VFLAG_NAND_SIZE     (1<<30)
-#define VFLAG_ON_EMUNAND    (1<<31)
+#define VFLAG_NAND_SIZE     (1<<31)
 
 VirtualFile virtualFileTemplates[] = {
     { "twln.bin"         , 0x00012E00, 0x08FB5200, 0x03, VFLAG_ON_ALL },
@@ -32,23 +31,23 @@ u32 IsVirtualPath(const char* path) {
         return VRT_SYSNAND;
     else if (strncmp(path, "E:/", (plen >= 3) ? 3 : 2) == 0)
         return VRT_EMUNAND;
+    else if (strncmp(path, "I:/", (plen >= 3) ? 3 : 2) == 0)
+        return VRT_IMGNAND;
     return 0;
 }
 
 bool CheckVirtualPath(const char* path) {
     u32 vp_nand = IsVirtualPath(path);
-    if (vp_nand == VRT_SYSNAND) {
-        return true; // this is safe because we re-check for slot0x05 crypto
-    } else if (vp_nand == VRT_EMUNAND) {
-        return GetNandSizeSectors(true);
+    if ((vp_nand == VRT_EMUNAND) || (vp_nand == VRT_IMGNAND)) {
+        return GetNandSizeSectors(vp_nand);
     }
-    return false;
+    return vp_nand; // this is safe for SysNAND because we re-check for slot0x05 crypto
 }
 
 bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
 {
     char* fname = strchr(path, '/');
-    bool on_emunand = false;
+    u8 nand_src = 0;
     u8 nand_type = 0;
     
     // fix the name
@@ -56,12 +55,12 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
     fname++;
     
     // check path vailidity
-    if (!IsVirtualPath(path) || (fname - path != 3))
+    nand_src = IsVirtualPath(path);
+    if (!nand_src || (fname - path != 3))
         return false;
     
     // check NAND type
-    on_emunand = (IsVirtualPath(path) == VRT_EMUNAND);
-    nand_type = CheckNandType(on_emunand);
+    nand_type = CheckNandType(nand_src);
     
     // parse the template list, get the correct one
     u32 n_templates = sizeof(virtualFileTemplates) / sizeof(VirtualFile);
@@ -83,23 +82,25 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
     if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
         return false; // keyslot 0x05 not properly set up
     if (vfile->flags & VFLAG_NAND_SIZE) {
-        if (on_emunand && (GetNandSizeSectors(false) != GetNandSizeSectors(true)))
-            return false; // EmuNAND is too small
-        vfile->size = GetNandSizeSectors(false) * 0x200;
+        if ((nand_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
+            return false; // EmuNAND/IMGNAND is too small
+        vfile->size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
     }
-    if (on_emunand) vfile->flags |= VFLAG_ON_EMUNAND;
+    vfile->flags |= nand_src;
     
     return true;
 }
 
 int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count)
 {
-    // simple wrapper function for ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, bool read_emunand)
-    return ReadNandSectors(buffer, (vfile->offset + offset) / 0x200, (count+0x1FF) / 0x200, vfile->keyslot, vfile->flags & VFLAG_ON_EMUNAND);
+    // simple wrapper function for ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 src)
+    return ReadNandSectors(buffer, (vfile->offset + offset) / 0x200, (count+0x1FF) / 0x200, vfile->keyslot,
+        vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND));
 }
 
 int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count)
 {
-    // simple wrapper function for WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, bool write_emunand)
-    return WriteNandSectors(buffer, (vfile->offset + offset) / 0x200, (count+0x1FF) / 0x200, vfile->keyslot, vfile->flags & VFLAG_ON_EMUNAND);
+    // simple wrapper function for WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 dest)
+    return WriteNandSectors(buffer, (vfile->offset + offset) / 0x200, (count+0x1FF) / 0x200, vfile->keyslot,
+        vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND));
 }

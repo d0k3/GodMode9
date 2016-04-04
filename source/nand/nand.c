@@ -4,9 +4,11 @@
 #include "sha.h"
 #include "sdmmc.h"
 #include "nand.h"
+#include "image.h"
 
 #define NAND_BUFFER ((u8*)0x21100000)
 #define NAND_BUFFER_SIZE (0x100000) // must be multiple of 0x200
+#define NAND_MIN_SIZE ((GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800)
 
 static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from file
 static u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY file
@@ -102,11 +104,9 @@ bool CheckSlot0x05Crypto(void)
     const u8 magic[8] = {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}; 
     const u32 sector = 0x05CAD7;
     u8 buffer[0x200];
-    for (u32 nand = 0; nand < 2; nand++) {
-        ReadNandSectors(buffer, sector, 1, 0x05, nand);
-        if (memcmp(buffer, magic, 8) == 0)
-            return true;
-    }
+    ReadNandSectors(buffer, sector, 1, 0x05, NAND_SYSNAND);
+    if (memcmp(buffer, magic, 8) == 0)
+        return true;
     
     // failed if we arrive here
     return false;
@@ -132,9 +132,9 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
     }
 }
 
-int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, bool read_emunand)
+int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
 {
-    if (read_emunand) {
+    if (nand_src == NAND_EMUNAND) { // EmuNAND
         int errorcode = 0;
         if ((sector == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
             errorcode = sdmmc_sdcard_readsectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, buffer);
@@ -144,70 +144,83 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, bool read_em
         }
         errorcode = (!errorcode && count) ? sdmmc_sdcard_readsectors(emunand_base_sector + sector, count, buffer) : errorcode;
         if (errorcode) return errorcode;
-    } else {
+    } else if (nand_src == NAND_IMGNAND) { // ImgNAND
+        int errorcode = ReadImageSectors(buffer, sector, count);
+        if (errorcode) return errorcode;
+    } else if (nand_src == NAND_SYSNAND) { // SysNAND
         int errorcode = sdmmc_nand_readsectors(sector, count, buffer);
         if (errorcode) return errorcode;   
+    } else {
+        return -1;
     }
     if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
     
     return 0;
 }
 
-int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, bool write_emunand)
+int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_dst)
 {
     // buffer must not be changed, so this is a little complicated
     for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
         memcpy(NAND_BUFFER, buffer + (s*0x200), pcount * 0x200);
         if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
-        if (write_emunand) {
+        if (nand_dst == NAND_EMUNAND) {
             int errorcode = 0;
             if ((sector + s == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
                 errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, NAND_BUFFER);
                 errorcode = (!errorcode && (pcount > 1)) ? sdmmc_sdcard_writesectors(emunand_base_sector + 1, pcount - 1, NAND_BUFFER + 0x200) : errorcode;
             } else errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + sector + s, pcount, NAND_BUFFER);
             if (errorcode) return errorcode;
-        } else {
+        } else if (nand_dst == NAND_IMGNAND) {
+            int errorcode = WriteImageSectors(NAND_BUFFER, sector + s, pcount);
+            if (errorcode) return errorcode;
+        } else if (nand_dst == NAND_SYSNAND) {
             int errorcode = sdmmc_nand_writesectors(sector + s, pcount, NAND_BUFFER);
-            if (errorcode) return errorcode;   
+            if (errorcode) return errorcode;
+        } else {
+            return -1;
         }
     }
     
     return 0;
 }
 
-u8 CheckNandType(bool check_emunand)
+u8 CheckNandType(u32 nand_src)
 {
-    if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, check_emunand) != 0)
-        return NAND_TYPE_UNK;
+    if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, nand_src) != 0)
+        return NAND_UNKNOWN;
     if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, 0x60) == 0) {
         return NAND_TYPE_N3DS;
     } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, 0x60) == 0) {
         return (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_NO3DS;
     }
     
-    return NAND_TYPE_UNK;
+    return NAND_UNKNOWN;
 }
 
-u64 GetNandSizeSectors(bool size_emunand)
+u64 GetNandSizeSectors(u32 nand_src)
 {
-    if (size_emunand) { // for EmuNAND
+    u32 sysnand_sectors = getMMCDevice(0)->total_size;
+    if (nand_src == NAND_EMUNAND) { // for EmuNAND
         u32 emunand_max_sectors = GetPartitionOffsetSector("0:") - (emunand_base_sector + 1); // +1 for safety
-        u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? getMMCDevice(0)->total_size :
-            (GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800;
-        if (emunand_max_sectors >= getMMCDevice(0)->total_size) return getMMCDevice(0)->total_size;
+        u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? sysnand_sectors : NAND_MIN_SIZE;
+        if (emunand_max_sectors >= sysnand_sectors) return sysnand_sectors;
         else return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
-    } else return getMMCDevice(0)->total_size; // for SysNAND
+    } else if (nand_src == NAND_IMGNAND) {
+        u32 img_size = (GetMountState() == IMG_NAND) ? GetMountSize() : 0;
+        return (img_size > sysnand_sectors) ? sysnand_sectors : (img_size > NAND_MIN_SIZE) ? NAND_MIN_SIZE : 0;
+    } else return sysnand_sectors; // for SysNAND
 }
 
 bool InitEmuNandBase(void)
 {
     emunand_base_sector = 0x000000; // GW type EmuNAND
-    if (CheckNandType(true) != NAND_TYPE_UNK)
+    if (CheckNandType(NAND_EMUNAND) != NAND_UNKNOWN)
         return true;
     
     emunand_base_sector = 0x000001; // RedNAND type EmuNAND
-    if (CheckNandType(true) != NAND_TYPE_UNK)
+    if (CheckNandType(NAND_EMUNAND) != NAND_UNKNOWN)
         return true;
     
     if (GetPartitionOffsetSector("0:") > getMMCDevice(0)->total_size)
