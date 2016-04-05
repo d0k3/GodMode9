@@ -84,7 +84,7 @@ bool CheckWritePermissions(const char* path) {
             return SetWritePermissions(2);
         return false;
     } else if ((pdrv >= 7) && (pdrv <= 9) && (write_permission_level < 2)) {
-        if (ShowPrompt(true, "Writing to the images is locked!\nUnlock it now?"))
+        if (ShowPrompt(true, "Writing to images is locked!\nUnlock it now?"))
             return SetWritePermissions(2);
         return false;
     } else if ((pdrv == 0) && (write_permission_level < 1)) {
@@ -109,11 +109,11 @@ bool SetWritePermissions(u32 level) {
                 return false;
             break;
         case 2:
-            if (!ShowUnlockSequence(2, "You want to enable EmuNAND\nwriting permissions.\nThis is potentially dangerous!\nKeep a backup, just in case."))
+            if (!ShowUnlockSequence(2, "You want to enable EmuNAND &\nimage writing permissions.\nKeep backups, just in case."))
                 return false;
             break;
         case 3:
-            if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable SysNAND\nwriting permissions.\nThis is potentially dangerous\nand can brick your 3DS!\nHaving a SysNAND backup and\nNANDmod is recommended."))
+            if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable SysNAND\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!\nHaving a SysNAND backup and\nNANDmod is recommended."))
                 return false;
             break;
         default:
