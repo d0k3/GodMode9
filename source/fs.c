@@ -1,7 +1,8 @@
 #include "ui.h"
 #include "fs.h"
 #include "virtual.h"
-#include "fatfs/ff.h"
+#include "image.h"
+#include "ff.h"
 
 #define MAIN_BUFFER ((u8*)0x21200000)
 #define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
@@ -596,6 +597,8 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
+        if ((GetMountState() == IMG_FAT) && (pdrv == 7)) // FAT image special handling
+            snprintf(entry->path + 4, 32, "[7:] FAT IMAGE");
         entry->name = entry->path + 4;
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;
