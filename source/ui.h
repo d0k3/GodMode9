@@ -66,6 +66,7 @@ u32 GetDrawStringWidth(char* str);
 
 void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);
 void TruncateString(char* dest, const char* orig, int nsize, int tpos);
+void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 
 bool ShowPrompt(bool ask, const char *format, ...);

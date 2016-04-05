@@ -154,8 +154,18 @@ void TruncateString(char* dest, const char* orig, int nsize, int tpos) {
     }
 }
 
+void FormatNumber(char* str, u64 number) { // str should be 32 byte in size
+    u64 mag1000 = 1;
+    *str = '\0';
+    for (; number / (mag1000 * 1000) > 0; mag1000 *= 1000);
+    for (; mag1000 > 0; mag1000 /= 1000) {
+        u32 pos = strnlen(str, 31);
+        snprintf(str + pos, 31 - pos, "%0*llu%c", (pos) ? 3 : 1, (number / mag1000) % 1000, (mag1000 > 1) ? ',' : '\0');
+    }
+}
+
 void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just to be safe
-    const char* units[] = {" byte", "kB", "MB", "GB"};
+    const char* units[] = {" byte", " kB", " MB", " GB"};
     
     if (bytes == (u64) -1) snprintf(str, 32, "INVALID");
     else if (bytes < 1024) snprintf(str, 32, "%llu%s", bytes, units[0]);
