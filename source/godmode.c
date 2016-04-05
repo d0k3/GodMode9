@@ -150,11 +150,11 @@ u32 GodMode() {
     }
     InitEmuNandBase();
     InitNandCrypto();
-    InitNandFS();
+    InitExtFS();
     
     if ((GetUnitPlatform() == PLATFORM_N3DS) && !CheckSlot0x05Crypto()) {
         if (!ShowPrompt(true, "Warning: slot0x05 crypto fail\nslot0x05keyY.bin is either corrupt\nor does not exist. Continue?")) {
-            DeinitNandFS();
+            DeinitExtFS();
             DeinitSDCardFS();
             return exit_mode;
         }
@@ -189,15 +189,21 @@ u32 GodMode() {
             (PathToNumFS(current_dir->entry[cursor].path) == 0)) { // try to mount image
             u32 file_type = IdentifyImage(current_dir->entry[cursor].path);
             if (file_type && ShowPrompt(true, "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
-                if (!MountImage(current_dir->entry[cursor].path)) {
+                DeinitExtFS();
+                u32 mount_state = MountImage(current_dir->entry[cursor].path);
+                InitExtFS();
+                if (!mount_state || !(IsMountedFS("7:")|IsMountedFS("8:")|IsMountedFS("9:"))) {
                     ShowPrompt(false, "Mounting image: failed");
+                    DeinitExtFS();
+                    MountImage(NULL);
+                    InitExtFS();
                 } else {
-                    DeinitNandFS();
-                    InitNandFS();
                     *current_path = '\0';
                     GetDirContents(current_dir, current_path);
                     cursor = 0;
                 }
+                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, "789I") == 0))
+                    clipboard->n_entries = 0; // remove invalid clipboard stuff
             }
         } else if ((pad_state & BUTTON_B) && *current_path) { // one level down
             char old_path[256];
@@ -212,7 +218,7 @@ u32 GodMode() {
                 scroll = 0;
             }
         } else if ((pad_state & BUTTON_B) && (pad_state & BUTTON_R1)) { // unmount SD card
-            DeinitNandFS();
+            DeinitExtFS();
             DeinitSDCardFS();
             clipboard->n_entries = 0;
             ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
@@ -221,7 +227,7 @@ u32 GodMode() {
                     return exit_mode;
             }
             InitEmuNandBase();
-            InitNandFS();
+            InitExtFS();
             GetDirContents(current_dir, current_path);
             if (cursor >= current_dir->n_entries) cursor = 0;
         } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor up
@@ -361,7 +367,7 @@ u32 GodMode() {
         } 
     }
     
-    DeinitNandFS();
+    DeinitExtFS();
     DeinitSDCardFS();
     
     return exit_mode;

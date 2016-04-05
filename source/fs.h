@@ -25,8 +25,8 @@ typedef struct {
 } DirStruct;
 
 bool InitSDCardFS();
-bool InitNandFS();
-void DeinitNandFS();
+bool InitExtFS();
+void DeinitExtFS();
 void DeinitSDCardFS();
 
 /** Check if writing to this path is allowed **/
@@ -73,6 +73,9 @@ uint64_t GetPartitionOffsetSector(const char* path);
 
 /** Helper function to get drive number from path */
 int PathToNumFS(const char* path);
+
+/** Check if drive is mounted */
+bool IsMountedFS(const char* path);
 
 /** Helper function for copying DirEntry structs */
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig);

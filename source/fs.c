@@ -28,7 +28,7 @@ bool InitSDCardFS() {
     return fs_mounted[0];
 }
 
-bool InitNandFS() {
+bool InitExtFS() {
     if (!fs_mounted[0])
         return false;
     for (u32 i = 1; i < NORM_FS; i++) {
@@ -40,7 +40,7 @@ bool InitNandFS() {
     return true;
 }
 
-void DeinitNandFS() {
+void DeinitExtFS() {
     for (u32 i = NORM_FS; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
@@ -65,6 +65,11 @@ int PathToNumFS(const char* path) {
         return -1;
     }
     return fsnum;
+}
+
+bool IsMountedFS(const char* path) {
+    int fsnum = PathToNumFS(path);
+    return ((fsnum >= 0) && (fsnum < NORM_FS)) ? fs_mounted[fsnum] : false;
 }
 
 bool CheckWritePermissions(const char* path) {
@@ -198,7 +203,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
             dvfile.keyslot = ovfile.keyslot = 0xFF;
         
-        DeinitNandFS();
+        DeinitExtFS();
         if (!ShowProgress(0, 0, orig)) ret = false;
         for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
@@ -210,7 +215,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
                 ret = false;
         }
         ShowProgress(1, 1, orig);
-        InitNandFS();
+        InitExtFS();
     } else if (IsVirtualPath(dest)) { // SD card to virtual (other FAT not allowed!)
         VirtualFile dvfile;
         FIL ofile;
@@ -250,7 +255,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             }
         }
         
-        DeinitNandFS();
+        DeinitExtFS();
         if (!ShowProgress(0, 0, orig)) ret = false;
         for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;           
@@ -263,8 +268,8 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         }
         ShowProgress(1, 1, orig);
         f_close(&ofile);
-        InitNandFS();
-    } else if (IsVirtualPath(orig)) { // virtual to SD card (other FAT not allowed)
+        InitExtFS();
+    } else if (IsVirtualPath(orig)) { // virtual to any file system
         VirtualFile ovfile;
         FIL dfile;
         u32 osize;
