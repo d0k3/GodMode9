@@ -8,7 +8,7 @@
 
 #define NAND_BUFFER ((u8*)0x21100000)
 #define NAND_BUFFER_SIZE (0x100000) // must be multiple of 0x200
-#define NAND_MIN_SIZE ((GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800)
+#define NAND_MIN_SECTORS ((GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800)
 
 static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from file
 static u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY file
@@ -204,12 +204,12 @@ u64 GetNandSizeSectors(u32 nand_src)
     u32 sysnand_sectors = getMMCDevice(0)->total_size;
     if (nand_src == NAND_EMUNAND) { // for EmuNAND
         u32 emunand_max_sectors = GetPartitionOffsetSector("0:") - (emunand_base_sector + 1); // +1 for safety
-        u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? sysnand_sectors : NAND_MIN_SIZE;
+        u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? sysnand_sectors : NAND_MIN_SECTORS;
         if (emunand_max_sectors >= sysnand_sectors) return sysnand_sectors;
         else return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
     } else if (nand_src == NAND_IMGNAND) {
-        u32 img_size = (GetMountState() == IMG_NAND) ? GetMountSize() : 0;
-        return (img_size > sysnand_sectors) ? sysnand_sectors : (img_size > NAND_MIN_SIZE) ? NAND_MIN_SIZE : 0;
+        u32 img_sectors = (GetMountState() == IMG_NAND) ? GetMountSize() / 0x200 : 0;
+        return (img_sectors >= sysnand_sectors) ? sysnand_sectors : (img_sectors >= NAND_MIN_SECTORS) ? NAND_MIN_SECTORS : 0;
     } else return sysnand_sectors; // for SysNAND
 }
 
