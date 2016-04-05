@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.2.4"
+#define VERSION "0.2.5"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -123,8 +123,14 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
         u32 offset_i = *scroll + i;
         u32 color_font = COLOR_WHITE;
         if (offset_i < contents->n_entries) {
-            color_font = (cursor != offset_i) ? COLOR_ENTRY(&(contents->entry[offset_i])) : COLOR_STD_FONT;
-            ResizeString(tempstr, contents->entry[offset_i].name, str_width, str_width - 10, false);
+            DirEntry* curr_entry = &(contents->entry[offset_i]);
+            char namestr[str_width - 10 + 1];
+            char bytestr[10 + 1];
+            color_font = (cursor != offset_i) ? COLOR_ENTRY(curr_entry) : COLOR_STD_FONT;
+            FormatBytes(bytestr, curr_entry->size);
+            ResizeString(namestr, curr_entry->name, str_width - 10, str_width - 20, false);
+            snprintf(tempstr, str_width + 1, "%s%10.10s", namestr,
+                (curr_entry->type == T_DIR) ? "(dir)" : (curr_entry->type == T_DOTDOT) ? "(back)" : bytestr);
         } else snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
         DrawStringF(false, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
         pos_y += stp_y;
