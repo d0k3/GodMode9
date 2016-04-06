@@ -3,7 +3,6 @@
 #include "common.h"
 #include "nand.h"
 
-#define VRT_NONE    0
 #define VRT_SYSNAND NAND_SYSNAND
 #define VRT_EMUNAND NAND_EMUNAND
 #define VRT_IMGNAND NAND_IMGNAND

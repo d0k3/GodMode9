@@ -2,7 +2,6 @@
 
 #include "common.h"
 
-#define IMG_NONE 0
 #define IMG_FAT  1
 #define IMG_NAND 2
 

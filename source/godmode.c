@@ -65,7 +65,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         char numstr[32];
         char bytestr[32];
         FormatNumber(numstr, curr_entry->size);
-        snprintf(bytestr, 31, "%s byte", numstr);
+        snprintf(bytestr, 31, "%s Byte", numstr);
         ResizeString(tempstr, bytestr, 20, 8, false);
     }
     DrawStringF(true, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
@@ -95,8 +95,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "GodMode9 Explorer v", VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
-        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND/image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
-        (GetWritePermissions() == 2) ? "X - Relock EmuNAND/image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
+        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND / image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
+        (GetWritePermissions() == 2) ? "X - Relock EmuNAND / image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
         "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nR+B - Unmount SD card\n"),
         (GetMountState() && !*curr_path) ? "R+X - Unmount image\n" : "",
         "R+L - Make a Screenshot\n",
@@ -130,7 +130,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
             FormatBytes(bytestr, curr_entry->size);
             ResizeString(namestr, curr_entry->name, str_width - 10, str_width - 20, false);
             snprintf(tempstr, str_width + 1, "%s%10.10s", namestr,
-                (curr_entry->type == T_DIR) ? "(dir)" : (curr_entry->type == T_DOTDOT) ? "(back)" : bytestr);
+                (curr_entry->type == T_DIR) ? "(dir)" : (curr_entry->type == T_DOTDOT) ? "(..)" : bytestr);
         } else snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
         DrawStringF(false, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
         pos_y += stp_y;
@@ -170,8 +170,9 @@ u32 GodMode() {
     InitNandCrypto();
     InitExtFS();
     
+    // could also check for a9lh via this: ((*(vu32*) 0x101401C0) == 0) 
     if ((GetUnitPlatform() == PLATFORM_N3DS) && !CheckSlot0x05Crypto()) {
-        if (!ShowPrompt(true, "Warning: slot0x05 crypto fail\nslot0x05keyY.bin is either corrupt\nor does not exist. Continue?")) {
+        if (!ShowPrompt(true, "Warning: slot0x05 crypto fail!\nCould not set up slot0x05keyY.\nContinue?")) {
             DeinitExtFS();
             DeinitSDCardFS();
             return exit_mode;
@@ -232,7 +233,8 @@ u32 GodMode() {
             GetDirContents(current_dir, current_path);
             if (*old_path) {
                 for (cursor = current_dir->n_entries - 1;
-                    (cursor > 1) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
+                    (cursor > 0) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
+                if (*current_path && !cursor) cursor = 1; // don't set it on the dotdot
                 scroll = 0;
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card

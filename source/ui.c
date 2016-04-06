@@ -165,7 +165,7 @@ void FormatNumber(char* str, u64 number) { // str should be 32 byte in size
 }
 
 void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just to be safe
-    const char* units[] = {" byte", " kB", " MB", " GB"};
+    const char* units[] = {" Byte", " kB", " MB", " GB"};
     
     if (bytes == (u64) -1) snprintf(str, 32, "INVALID");
     else if (bytes < 1024) snprintf(str, 32, "%llu%s", bytes, units[0]);

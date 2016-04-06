@@ -2,7 +2,7 @@
 #include "fatfs/ff.h"
 
 FIL mount_file;
-u32 mount_state = IMG_NONE;
+u32 mount_state = 0;
 
 int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
     UINT bytes_read;
@@ -40,14 +40,14 @@ u32 IdentifyImage(const char* path) {
     u8 header[0x200];
     FIL file;
     if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-        return IMG_NONE;
+        return 0;
     f_lseek(&file, 0);
     f_sync(&file);
     UINT fsize = f_size(&file);
     UINT bytes_read;
     if ((f_read(&file, header, 0x200, &bytes_read) != FR_OK) || (bytes_read != 0x200)) {
         f_close(&file);
-        return IMG_NONE;
+        return 0;
     }
     f_close(&file);
     if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) && (getbe64(header + 0x108) == (u64) 0)) {
@@ -63,17 +63,17 @@ u32 IdentifyImage(const char* path) {
             return IMG_FAT; // this might be an MBR -> give it the benefit of doubt
         }
     }
-    return IMG_NONE;
+    return 0;
 }
 
 u32 MountImage(const char* path) {
     if (mount_state) {
         f_close(&mount_file);
-        mount_state = IMG_NONE;
+        mount_state = 0;
     }
-    if (!path || !IdentifyImage(path)) return IMG_NONE;
+    if (!path || !IdentifyImage(path)) return 0;
     if (f_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
-        return IMG_NONE;
+        return 0;
     f_lseek(&mount_file, 0);
     f_sync(&mount_file);
     return (mount_state = IdentifyImage(path));

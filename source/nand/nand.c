@@ -253,14 +253,14 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
 u8 CheckNandType(u32 nand_src)
 {
     if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, nand_src) != 0)
-        return NAND_UNKNOWN;
+        return 0;
     if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, 0x60) == 0) {
         return NAND_TYPE_N3DS;
     } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, 0x60) == 0) {
         return (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_NO3DS;
     }
     
-    return NAND_UNKNOWN;
+    return 0;
 }
 
 u64 GetNandSizeSectors(u32 nand_src)
@@ -280,11 +280,11 @@ u64 GetNandSizeSectors(u32 nand_src)
 bool InitEmuNandBase(void)
 {
     emunand_base_sector = 0x000000; // GW type EmuNAND
-    if (CheckNandType(NAND_EMUNAND) != NAND_UNKNOWN)
+    if (CheckNandType(NAND_EMUNAND))
         return true;
     
     emunand_base_sector = 0x000001; // RedNAND type EmuNAND
-    if (CheckNandType(NAND_EMUNAND) != NAND_UNKNOWN)
+    if (CheckNandType(NAND_EMUNAND))
         return true;
     
     if (GetPartitionOffsetSector("0:") > getMMCDevice(0)->total_size)

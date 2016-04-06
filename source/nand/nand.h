@@ -2,7 +2,6 @@
 
 #include "common.h"
 
-#define NAND_UNKNOWN    0
 #define NAND_SYSNAND    (1<<0)
 #define NAND_EMUNAND    (1<<1)
 #define NAND_IMGNAND    (1<<2)
