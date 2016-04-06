@@ -42,6 +42,7 @@ bool InitExtFS() {
 }
 
 void DeinitExtFS() {
+    MountImage(NULL);
     for (u32 i = NORM_FS; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
