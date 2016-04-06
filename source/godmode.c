@@ -7,7 +7,10 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.2.5"
+#define VERSION "0.2.8"
+
+#define N_PANES 4
+#define IMG_DRV "789I"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -17,8 +20,13 @@
 #define COLOR_ROOT      COLOR_GREY
 #define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_DIR) ? COLOR_DIR : ((e)->type == T_FILE) ? COLOR_FILE : ((e)->type == T_ROOT) ?  COLOR_ROOT : COLOR_GREY)
 
+typedef struct {
+    char path[256];
+    u32 cursor;
+    u32 scroll;
+} PaneData;
 
-void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard) {
+void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
     const u32 n_cb_show = 8;
     const u32 info_start = 18;
     const u32 instr_x = 56;
@@ -28,7 +36,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     u32 state_curr =
         ((*curr_path) ? (1<<0) : 0) |
         ((clipboard->n_entries) ? (1<<1) : 0) |
-        ((GetMountState()) ? (1<<2) : 0);
+        ((GetMountState()) ? (1<<2) : 0) |
+        (curr_pane<<3);
     
     if (state_prev != state_curr) {
         ClearScreenF(true, false, COLOR_STD_BG);
@@ -53,10 +62,14 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     }
     
     // left top - current file info
-    DrawStringF(true, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[CURRENT]");
+    if (curr_pane) snprintf(tempstr, 63, "PANE #%lu", curr_pane);
+    else snprintf(tempstr, 63, "CURRENT");
+    DrawStringF(true, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[%s]", tempstr);
+    // file / entry name
     ResizeString(tempstr, curr_entry->name, 20, 8, false);
     u32 color_current = COLOR_ENTRY(curr_entry);
     DrawStringF(true, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
+    // size (in Byte) or type desc
     if (curr_entry->type == T_DIR) {
         ResizeString(tempstr, "(dir)", 20, 8, false);
     } else if (curr_entry->type == T_DOTDOT) {
@@ -69,6 +82,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         ResizeString(tempstr, bytestr, 20, 8, false);
     }
     DrawStringF(true, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
+    // size (formatted)
     if (((curr_entry->type == T_FILE) || (curr_entry->type == T_ROOT)) && (curr_entry->size >= 1024)) {
         char bytestr[32];
         FormatBytes(bytestr, curr_entry->size);
@@ -91,7 +105,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[256];
-    snprintf(instr, 256, "%s%s\n%s%s%s%s%s",
+    snprintf(instr, 256, "%s%s\n%s%s%s%s%s%s",
         "GodMode9 Explorer v", VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
@@ -100,6 +114,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nR+B - Unmount SD card\n"),
         (GetMountState() && !*curr_path) ? "R+X - Unmount image\n" : "",
         "R+L - Make a Screenshot\n",
+        "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
         "START - Reboot / [+\x1B] Poweroff"); // generic end part
     DrawStringF(true, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
@@ -151,9 +166,11 @@ u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
     
-    // reserve 512kB for each, just to be safe
-    static DirStruct* current_dir = (DirStruct*)0x21000000;
-    static DirStruct* clipboard   = (DirStruct*)0x21080000;
+    // reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
+    static DirStruct* current_dir = (DirStruct*) 0x21000000;
+    static DirStruct* clipboard   = (DirStruct*) 0x21078000;
+    static PaneData* panedata     = (PaneData*)  0x210F0000;
+    PaneData* pane = panedata;
     char current_path[256] = { 0x00 };
     
     int mark_setting = -1;
@@ -162,6 +179,10 @@ u32 GodMode() {
     u32 scroll = 0;
     
     ClearScreenF(true, true, COLOR_STD_BG);
+    if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {
+        ShowPrompt(false, "Out of memory!"); // just to be safe
+        return exit_mode;
+    }
     while (!InitSDCardFS()) {
         if (!ShowPrompt(true, "Initialising SD card failed! Retry?"))
             return exit_mode;
@@ -181,8 +202,9 @@ u32 GodMode() {
     
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
+    memset(panedata, 0x00, 0x10000);
     while (true) { // this is the main loop
-        DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard);
+        DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard, N_PANES ? pane - panedata + 1 : 0);
         DrawDirContents(current_dir, cursor, &scroll);
         u32 pad_state = InputWait();
         bool switched = (pad_state & BUTTON_R1);
@@ -221,8 +243,10 @@ u32 GodMode() {
                     GetDirContents(current_dir, current_path);
                     cursor = 0;
                 }
-                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, "789I") == 0))
+                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
+                for (u32 p = 0; p < N_PANES; p++) // also remove invalid paths from memory
+                    if (strcspn(panedata[p].path, IMG_DRV) == 0) memset(&panedata[p], 0x00, sizeof(PaneData));
             }
         } else if ((pad_state & BUTTON_B) && *current_path) { // one level down
             char old_path[256];
@@ -250,10 +274,23 @@ u32 GodMode() {
             InitExtFS();
             GetDirContents(current_dir, current_path);
             if (cursor >= current_dir->n_entries) cursor = 0;
-        } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor up
+        } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor down
             cursor++;
-        } else if ((pad_state & BUTTON_UP) && cursor) { // cursor down
+        } else if ((pad_state & BUTTON_UP) && cursor) { // cursor up
             cursor--;
+        } else if (switched && (pad_state & (BUTTON_RIGHT|BUTTON_LEFT))) { // switch pane
+            memcpy(pane->path, current_path, 256);  // store state in current pane
+            pane->cursor = cursor;
+            pane->scroll = scroll;
+            (pad_state & BUTTON_LEFT) ? pane-- : pane++; // switch to next
+            if (pane < panedata) pane += N_PANES;
+            else if (pane >= panedata + N_PANES) pane -= N_PANES;
+            memcpy(current_path, pane->path, 256);  // get state from next pane
+            cursor = pane->cursor;
+            scroll = pane->scroll;
+            GetDirContents(current_dir, current_path);
+            if (cursor >= current_dir->n_entries)
+                cursor = current_dir->n_entries - 1;
         } else if ((pad_state & BUTTON_RIGHT) && (mark_setting < 0)) { // cursor down (quick)
             cursor += quick_stp;
             if (cursor >= current_dir->n_entries)
@@ -288,8 +325,10 @@ u32 GodMode() {
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
                 if (cursor >= current_dir->n_entries) cursor = current_dir->n_entries - 1;
-                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, "789I") == 0))
+                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
+                for (u32 p = 0; p < N_PANES; p++) // also remove invalid paths from memory
+                    if (strcspn(panedata[p].path, IMG_DRV) == 0) memset(&panedata[p], 0x00, sizeof(PaneData));
             } else if (pad_state & BUTTON_X) {
                 SetWritePermissions((GetWritePermissions() >= 2) ? 1 : 2);
             } else if (pad_state & BUTTON_Y) {
