@@ -265,6 +265,7 @@ u32 GodMode() {
             DeinitExtFS();
             DeinitSDCardFS();
             clipboard->n_entries = 0;
+            memset(panedata, 0x00, N_PANES * sizeof(PaneData));
             ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
             while (!InitSDCardFS()) {
                 if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))

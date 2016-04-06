@@ -137,6 +137,8 @@ DSTATUS disk_initialize (
     } else if (pdrv < 7) {
         nand_type_emu = CheckNandType(NAND_EMUNAND);
     } else if (pdrv < 10) {
+        if (!GetMountState())
+            return RES_PARERR;
         nand_type_img = CheckNandType(NAND_IMGNAND);
     }
 	return RES_OK;
