@@ -9,7 +9,7 @@
 
 #define VERSION "0.2.8"
 
-#define N_PANES 4
+#define N_PANES 2
 #define IMG_DRV "789I"
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
