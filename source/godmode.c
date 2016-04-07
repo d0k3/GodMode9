@@ -195,7 +195,18 @@ u32 GodMode() {
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
     while (true) { // this is the main loop
-        DrawUserInterface(current_path, &(current_dir->entry[cursor]), clipboard, N_PANES ? pane - panedata + 1 : 0);
+        // basic sanity checking
+        if (!current_dir->n_entries) { // current dir is empty -> revert to root
+            *current_path = '\0';
+            GetDirContents(current_dir, current_path);
+            cursor = 0;
+            if (!current_dir->n_entries) { // should not happen, if it does fail gracefully
+                ShowPrompt(false, "Invalid directory object");
+                return exit_mode;
+            }
+        }
+        if (cursor >= current_dir->n_entries) // cursor beyond allowed range
+            cursor = current_dir->n_entries - 1;
         DrawDirContents(current_dir, cursor, &scroll);
         u32 pad_state = InputWait();
         bool switched = (pad_state & BUTTON_R1);
