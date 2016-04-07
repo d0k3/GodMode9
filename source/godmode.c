@@ -82,15 +82,6 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         ResizeString(tempstr, bytestr, 20, 8, false);
     }
     DrawStringF(true, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
-    // size (formatted)
-    if (((curr_entry->type == T_FILE) || (curr_entry->type == T_ROOT)) && (curr_entry->size >= 1024)) {
-        char bytestr[32];
-        FormatBytes(bytestr, curr_entry->size);
-        ResizeString(tempstr, bytestr, 20, 8, false);
-    } else {
-        snprintf(tempstr, 21, "%20s", "");
-    }
-    DrawStringF(true, 4, info_start + 12 + 20, color_current, COLOR_STD_BG, tempstr);
     
     // right top - clipboard
     DrawStringF(true, SCREEN_WIDTH_TOP - (20*8), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
