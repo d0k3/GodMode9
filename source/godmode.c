@@ -207,6 +207,8 @@ u32 GodMode() {
         }
         if (cursor >= current_dir->n_entries) // cursor beyond allowed range
             cursor = current_dir->n_entries - 1;
+        DirEntry* curr_entry = &(current_dir->entry[cursor]);
+        DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
         DrawDirContents(current_dir, cursor, &scroll);
         u32 pad_state = InputWait();
         bool switched = (pad_state & BUTTON_R1);
@@ -214,26 +216,20 @@ u32 GodMode() {
             mark_setting = -1;
         }
         
-        // commands which are valid anywhere
-        if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type != T_FILE)) { // one level up
-            if (current_dir->entry[cursor].type == T_DOTDOT) {
-                char* last_slash = strrchr(current_path, '/');
-                if (last_slash) *last_slash = '\0'; 
-                else *current_path = '\0';
-            } else { // type == T_DIR || type == T_ROOT
-                strncpy(current_path, current_dir->entry[cursor].path, 256);
-            }
+        // basic navigation commands
+        if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // one level up
+            strncpy(current_path, curr_entry->path, 256);
             GetDirContents(current_dir, current_path);
             if (*current_path && (current_dir->n_entries > 1)) {
                 cursor = 1;
                 scroll = 0;
             } else cursor = 0;
-        } else if ((pad_state & BUTTON_A) && (current_dir->entry[cursor].type == T_FILE) &&
-            (PathToNumFS(current_dir->entry[cursor].path) == 0)) { // try to mount image
-            u32 file_type = IdentifyImage(current_dir->entry[cursor].path);
+        } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE) &&
+            (PathToNumFS(curr_entry->path) == 0)) { // try to mount image / only on SD
+            u32 file_type = IdentifyImage(curr_entry->path);
             if (file_type && ShowPrompt(true, "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
                 DeinitExtFS();
-                u32 mount_state = MountImage(current_dir->entry[cursor].path);
+                u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
                 if (!mount_state || !(IsMountedFS("7:")|IsMountedFS("8:")|IsMountedFS("9:"))) {
                     ShowPrompt(false, "Mounting image: failed");
@@ -247,20 +243,19 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-                for (u32 p = 0; p < N_PANES; p++) // also remove invalid paths from memory
-                    if (strcspn(panedata[p].path, IMG_DRV) == 0) memset(&panedata[p], 0x00, sizeof(PaneData));
             }
-        } else if ((pad_state & BUTTON_B) && *current_path) { // one level down
+        } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
+            ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) { 
             char old_path[256];
             char* last_slash = strrchr(current_path, '/');
             strncpy(old_path, current_path, 256);
             if (last_slash) *last_slash = '\0'; 
             else *current_path = '\0';
             GetDirContents(current_dir, current_path);
-            if (*old_path) {
+            if (*old_path && current_dir->n_entries) {
                 for (cursor = current_dir->n_entries - 1;
                     (cursor > 0) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
-                if (*current_path && !cursor) cursor = 1; // don't set it on the dotdot
+                if (*current_path && !cursor && (current_dir->n_entries > 1)) cursor = 1; // don't set it on the dotdot
                 scroll = 0;
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
@@ -292,12 +287,8 @@ u32 GodMode() {
             cursor = pane->cursor;
             scroll = pane->scroll;
             GetDirContents(current_dir, current_path);
-            if (cursor >= current_dir->n_entries)
-                cursor = current_dir->n_entries - 1;
         } else if ((pad_state & BUTTON_RIGHT) && (mark_setting < 0)) { // cursor down (quick)
             cursor += quick_stp;
-            if (cursor >= current_dir->n_entries)
-                cursor = current_dir->n_entries - 1;
         } else if ((pad_state & BUTTON_LEFT) && (mark_setting < 0)) { // cursor up (quick)
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
         } else if (pad_state & BUTTON_RIGHT) { // mark all entries
@@ -309,12 +300,12 @@ u32 GodMode() {
         } else if (switched && (pad_state & BUTTON_L1)) { // switched L -> screenshot
             CreateScreenshot();
             ClearScreenF(true, true, COLOR_STD_BG);
-        } else if (*current_path && (pad_state & BUTTON_L1) && cursor) { // unswitched L - mark/unmark single entry
+        } else if (*current_path && (pad_state & BUTTON_L1) && (curr_entry->type != T_DOTDOT)) { // unswitched L - mark/unmark single entry
             if (mark_setting >= 0) {
-                current_dir->entry[cursor].marked = mark_setting;
+                curr_entry->marked = mark_setting;
             } else {
-                current_dir->entry[cursor].marked ^= 0x1;
-                mark_setting = current_dir->entry[cursor].marked;
+                curr_entry->marked ^= 0x1;
+                mark_setting = curr_entry->marked;
             }
         } else if (pad_state & BUTTON_SELECT) { // clear/restore clipboard
             clipboard->n_entries = (clipboard->n_entries > 0) ? 0 : last_clipboard_size;
@@ -327,11 +318,8 @@ u32 GodMode() {
                 MountImage(NULL);
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
-                if (cursor >= current_dir->n_entries) cursor = current_dir->n_entries - 1;
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-                for (u32 p = 0; p < N_PANES; p++) // also remove invalid paths from memory
-                    if (strcspn(panedata[p].path, IMG_DRV) == 0) memset(&panedata[p], 0x00, sizeof(PaneData));
             } else if (pad_state & BUTTON_X) {
                 SetWritePermissions((GetWritePermissions() >= 2) ? 1 : 2);
             } else if (pad_state & BUTTON_Y) {
@@ -352,15 +340,13 @@ u32 GodMode() {
                                 n_errors++;
                         if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
                     }
-                } else if (cursor) {
+                } else if (curr_entry->type != T_DOTDOT) {
                     char namestr[36+1];
-                    TruncateString(namestr, current_dir->entry[cursor].name, 36, 12);
-                    if ((ShowPrompt(true, "Delete \"%s\"?", namestr)) && !PathDelete(current_dir->entry[cursor].path))
+                    TruncateString(namestr, curr_entry->name, 36, 12);
+                    if ((ShowPrompt(true, "Delete \"%s\"?", namestr)) && !PathDelete(curr_entry->path))
                         ShowPrompt(false, "Failed deleting:\n%s", namestr);
                 }
                 GetDirContents(current_dir, current_path);
-                if (cursor >= current_dir->n_entries)
-                    cursor = current_dir->n_entries - 1;
             } else if ((pad_state & BUTTON_Y) && (clipboard->n_entries == 0)) { // fill clipboard
                 for (u32 c = 0; c < current_dir->n_entries; c++) {
                     if (current_dir->entry[c].marked) {
@@ -369,8 +355,8 @@ u32 GodMode() {
                         clipboard->n_entries++;
                     }
                 }
-                if ((clipboard->n_entries == 0) && cursor) {
-                    DirEntryCpy(&(clipboard->entry[0]), &(current_dir->entry[cursor]));
+                if ((clipboard->n_entries == 0) && (curr_entry->type != T_DOTDOT)) {
+                    DirEntryCpy(&(clipboard->entry[0]), curr_entry);
                     clipboard->n_entries = 1;
                 }
                 if (clipboard->n_entries)
@@ -400,17 +386,17 @@ u32 GodMode() {
         } else { // switched command set
             if (IsVirtualPath(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
                 ShowPrompt(false, "Not allowed in virtual path");
-            } else if ((pad_state & BUTTON_X) && cursor) { // rename a file
+            } else if ((pad_state & BUTTON_X) && (curr_entry->type != T_DOTDOT)) { // rename a file
                 char newname[256];
                 char namestr[20+1];
-                TruncateString(namestr, current_dir->entry[cursor].name, 20, 12);
-                snprintf(newname, 255, current_dir->entry[cursor].name);
+                TruncateString(namestr, curr_entry->name, 20, 12);
+                snprintf(newname, 255, curr_entry->name);
                 if (ShowInputPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
-                    if (!PathRename(current_dir->entry[cursor].path, newname))
+                    if (!PathRename(curr_entry->path, newname))
                         ShowPrompt(false, "Failed renaming path:\n%s", namestr);
                     else {
                         GetDirContents(current_dir, current_path);
-                        for (cursor = current_dir->n_entries - 1;
+                        for (cursor = (current_dir->n_entries) ? current_dir->n_entries - 1 : 0;
                             (cursor > 1) && (strncmp(current_dir->entry[cursor].name, newname, 256) != 0); cursor--);
                     }
                 }
@@ -424,7 +410,7 @@ u32 GodMode() {
                         ShowPrompt(false, "Failed creating folder:\n%s", namestr);
                     } else {
                         GetDirContents(current_dir, current_path);
-                        for (cursor = current_dir->n_entries - 1;
+                        for (cursor = (current_dir->n_entries) ? current_dir->n_entries - 1 : 0;
                             (cursor > 1) && (strncmp(current_dir->entry[cursor].name, dirname, 256) != 0); cursor--);
                     }
                 }
