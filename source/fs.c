@@ -35,8 +35,8 @@ bool InitExtFS() {
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
-        if (f_mount(fs + i, fsname, 1) != FR_OK) return false;
-        fs_mounted[i] = true;
+        if (f_mount(fs + i, fsname, 1) == FR_OK)
+            fs_mounted[i] = true;
     }
     return true;
 }

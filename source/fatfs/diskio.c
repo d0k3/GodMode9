@@ -134,12 +134,14 @@ DSTATUS disk_initialize (
             return RES_PARERR;
     } else if (pdrv < 4) {
         nand_type_sys = CheckNandType(NAND_SYSNAND);
+        if (!nand_type_sys) return RES_PARERR;
     } else if (pdrv < 7) {
         nand_type_emu = CheckNandType(NAND_EMUNAND);
+        if (!nand_type_emu) return RES_PARERR;
     } else if (pdrv < 10) {
-        if (!GetMountState())
-            return RES_PARERR;
+        if (!GetMountState()) return RES_PARERR;
         nand_type_img = CheckNandType(NAND_IMGNAND);
+        if (!nand_type_img) return RES_PARERR;
     }
 	return RES_OK;
 }
