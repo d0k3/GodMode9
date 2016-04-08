@@ -31,6 +31,7 @@
 #define COLOR_TINTEDYELLOW  RGB(0xD0, 0xD0, 0x60)
 #define COLOR_TINTEDGREEN   RGB(0x70, 0x80, 0x70)
 #define COLOR_DARKGREY      RGB(0x50, 0x50, 0x50)
+#define COLOR_DARKESTGREY   RGB(0x20, 0x20, 0x20)
 
 #define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
 

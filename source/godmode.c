@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.2.8"
+#define VERSION "0.3.1"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -19,6 +19,11 @@
 #define COLOR_DIR       COLOR_TINTEDBLUE
 #define COLOR_ROOT      COLOR_GREY
 #define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_DIR) ? COLOR_DIR : ((e)->type == T_FILE) ? COLOR_FILE : ((e)->type == T_ROOT) ?  COLOR_ROOT : COLOR_GREY)
+
+#define COLOR_HVOFFS    RGB(0x40, 0x60, 0x50)
+#define COLOR_HVOFFSI   COLOR_DARKESTGREY
+#define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
+#define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
 typedef struct {
     char path[256];
@@ -153,6 +158,106 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     } else DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, SCREEN_HEIGHT, COLOR_STD_BG);
 }
 
+u32 HexViewer(const char* path) {
+    static u32 mode = 0;
+    u8 data[(SCREEN_HEIGHT / 8) * 16]; // this is the maximum size
+    
+    int x_off, x_hex, x_ascii;
+    u32 vpad, hlpad, hrpad;
+    u32 rows, cols;
+    u32 total_shown;
+    u32 total_data;
+    
+    u32 last_mode = 0xFF;
+    u32 offset = 0;
+    
+    while (true) {
+        if (mode != last_mode) {
+            switch (mode) { // display mode
+                case 1:
+                    vpad = hlpad = hrpad = 1;
+                    cols = 12;
+                    x_off = 0;
+                    x_ascii = SCREEN_WIDTH_TOP - (8 * cols);
+                    x_hex = x_off + (8*8) + 12;
+                    break;
+                case 2:
+                    vpad = 1;
+                    hlpad = 0;
+                    hrpad = 1;
+                    cols = 16;
+                    x_off = -1;
+                    x_ascii = SCREEN_WIDTH_TOP - (8 * cols);
+                    x_hex = 0;
+                    break;
+                case 3:
+                    vpad = hlpad = hrpad = 1;
+                    cols = 16;
+                    x_off = 20;
+                    x_ascii = -1;
+                    x_hex = x_off + (8*8) + 12;
+                    break;
+                default:
+                    vpad = hlpad = hrpad = 2;
+                    cols = 8;
+                    x_off = (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
+                    x_ascii = SCREEN_WIDTH_TOP - x_off - (8 * cols);
+                    x_hex = (SCREEN_WIDTH_TOP - ((hlpad + 16 + hrpad) * cols)) / 2;
+                    break;
+            }
+            rows = SCREEN_HEIGHT / (8 + (2*vpad));
+            total_shown = rows * cols;
+            if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
+            last_mode = mode;
+            ClearScreenF(true, false, COLOR_STD_BG);
+        }
+        total_data = FileGetData(path, data, total_shown, offset); // get data
+        
+        // display data on screen
+        for (u32 row = 0; row < rows; row++) {
+            char ascii[16 + 1] = { 0 };
+            u32 y = row * (8 + (2*vpad)) + vpad;
+            u32 curr_pos = row * cols;
+            u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
+            
+            memcpy(ascii, data + curr_pos, cols);
+            for (u32 col = 0; col < cols; col++)
+                if ((col >= cutoff) || (ascii[col] == 0x00)) ascii[col] = ' ';
+            
+            // draw offset / ASCII representation
+            if (x_off >= 0) DrawStringF(true, x_off, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI, COLOR_STD_BG,
+                "%08X", (unsigned int) offset + curr_pos);
+            if (x_ascii >= 0) {
+                DrawString(TOP_SCREEN0, ascii, x_ascii, y, COLOR_HVASCII, COLOR_STD_BG);
+                DrawString(TOP_SCREEN1, ascii, x_ascii, y, COLOR_HVASCII, COLOR_STD_BG);
+            }
+            
+            // draw HEX values
+            for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
+                u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col);
+                if (col < cutoff)
+                    DrawStringF(true, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
+                else DrawStringF(true, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "  ");
+            }
+        }
+        
+        // handle user input
+        u32 pad_state = InputWait();
+        u32 step_ud = (pad_state & BUTTON_R1) ? total_shown * 16 : cols;
+        u32 step_lr = (pad_state & BUTTON_R1) ? total_shown * 256 : total_shown;
+        if (pad_state & BUTTON_DOWN) offset += step_ud;
+        else if (pad_state & BUTTON_RIGHT) offset += step_lr;
+        else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
+        else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
+        else if (pad_state & BUTTON_L1) mode = (mode + 1) % 4;
+        else if ((pad_state & BUTTON_L1) && (pad_state & BUTTON_R1)) CreateScreenshot();
+        else if (pad_state & BUTTON_B) break;
+    }
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    return 0;
+}
+
 u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
@@ -224,10 +329,10 @@ u32 GodMode() {
                 cursor = 1;
                 scroll = 0;
             } else cursor = 0;
-        } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE) &&
-            (PathToNumFS(curr_entry->path) == 0)) { // try to mount image / only on SD
+        } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             u32 file_type = IdentifyImage(curr_entry->path);
-            if (file_type && ShowPrompt(true, "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
+            if (file_type && (PathToNumFS(curr_entry->path) == 0) && ShowPrompt(true, // try to mount image / only on SD
+                "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
@@ -243,6 +348,8 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
+            } else if (ShowPrompt(true, "Show HexViewer?\n \nControls:\n\x18\x19\x1A\x1B(+R) - Scroll\nL - Switch view\nB - Exit\n")) {
+                HexViewer(curr_entry->path);
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) { 
