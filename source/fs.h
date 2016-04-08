@@ -42,7 +42,7 @@ u32 GetWritePermissions();
 bool FileCreateData(const char* path, u8* data, size_t size);
 
 /** Read data from file@offset **/
-bool FileGetData(const char* path, u8* data, size_t size, size_t foffset);
+size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset);
 
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig);

@@ -61,7 +61,7 @@ bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, ch
     if (id) strncpy((char*) key_magic + 2, id, 10);
     
     // try to find key in 'aeskeydb.bin' file
-    for (u32 p = 0; FileGetData(path, buffer, 32, p); p += 32) {
+    for (u32 p = 0; FileGetData(path, buffer, 32, p) == 32; p += 32) {
         if (memcmp(buffer, key_magic, 12) == 0) {
             found = true;
             break;
@@ -83,7 +83,7 @@ bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, ch
     if (!found) {
         snprintf(path, 256, "%s/slot0x%02XKey%.10s", folder, (unsigned int) keyslot,
             (id) ? id : (type == 'X') ? "X" : (type == 'Y') ? "Y" : "");
-        if (FileGetData(path, key, 16, 0))
+        if (FileGetData(path, key, 16, 0) == 16)
             found = true;
     }
     
@@ -198,6 +198,7 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
 
 int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
 {
+    if (!count) return 0; // <--- just to be safe
     if (nand_src == NAND_EMUNAND) { // EmuNAND
         int errorcode = 0;
         if ((sector == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling

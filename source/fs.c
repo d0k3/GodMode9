@@ -162,16 +162,26 @@ bool FileCreateData(const char* path, u8* data, size_t size) {
     return (bytes_written == size);
 }
 
-bool FileGetData(const char* path, u8* data, size_t size, size_t foffset)
+size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
 {
-    FIL file;
-    UINT bytes_read = 0;
-    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-        return false;
-    f_lseek(&file, foffset);
-    f_read(&file, data, size, &bytes_read);
-    f_close(&file);
-    return (bytes_read == size);
+    if (PathToNumFS(path) >= 0) {
+        UINT bytes_read = 0;
+        FIL file;
+        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+            return 0;
+        f_lseek(&file, foffset);
+        if (f_read(&file, data, size, &bytes_read) != FR_OK)
+            return 0;
+        f_close(&file);
+        return bytes_read;
+    } else if (IsVirtualPath(path)) {
+        u32 bytes_read = 0;
+        VirtualFile vfile;
+        if (!FindVirtualFile(&vfile, path, 0))
+            return 0;
+        return (ReadVirtualFile(&vfile, data, foffset, size, &bytes_read) == 0) ? bytes_read : 0;
+    }
+    return 0;
 }
 
 bool PathCopyVirtual(const char* destdir, const char* orig) {
@@ -209,11 +219,11 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         if (!ShowProgress(0, 0, orig)) ret = false;
         for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
-            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes) != 0)
+            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
                 ret = false;
             if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
                 ret = false;
-            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, read_bytes) != 0)
+            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
                 ret = false;
         }
         ShowProgress(1, 1, orig);
@@ -265,7 +275,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
                 ret = false;
             if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
                 ret = false;
-            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, bytes_read) != 0)
+            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, bytes_read, NULL) != 0)
                 ret = false;
         }
         ShowProgress(1, 1, orig);
@@ -298,7 +308,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
             UINT bytes_written = 0;
-            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes) != 0)
+            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
                 ret = false;
             if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
                 ret = false;
