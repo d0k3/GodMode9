@@ -8,7 +8,7 @@
 #define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
 #define NORM_FS  10
-#define VIRT_FS  3
+#define VIRT_FS  4
 
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
@@ -78,7 +78,8 @@ bool CheckWritePermissions(const char* path) {
     int pdrv = PathToNumFS(path);
     if (pdrv < 0) {
         if (IsVirtualPath(path)) // this is a hack, but okay for now
-            pdrv = (IsVirtualPath(path) == VRT_SYSNAND) ? 1 : 4; 
+            pdrv = (IsVirtualPath(path) == VRT_MEMORY) ? 10 :
+                (IsVirtualPath(path) == VRT_SYSNAND) ? 1 : 4; 
         else return false;
     }
     
@@ -97,6 +98,9 @@ bool CheckWritePermissions(const char* path) {
     } else if ((pdrv == 0) && (write_permission_level < 1)) {
         if (ShowPrompt(true, "Writing to the SD card is locked!\nUnlock it now?"))
             return SetWritePermissions(1);
+        return false;
+    } else if (pdrv >= 10) {
+        ShowPrompt(false, "Writing to memory is forbidden!");
         return false;
     }
         
@@ -594,9 +598,10 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP",
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
+        "MEMORY VIRTUAL"
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "S:", "E:", "I:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "S:", "E:", "I:", "M:"
     };
     u32 n_entries = 0;
     

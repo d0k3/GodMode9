@@ -251,7 +251,7 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
     return 0;
 }
 
-u8 CheckNandType(u32 nand_src)
+u32 CheckNandType(u32 nand_src)
 {
     if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, nand_src) != 0)
         return 0;
