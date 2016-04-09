@@ -249,8 +249,8 @@ u32 HexViewer(const char* path) {
         else if (pad_state & BUTTON_RIGHT) offset += step_lr;
         else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
         else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
-        else if (pad_state & BUTTON_L1) mode = (mode + 1) % 4;
-        else if ((pad_state & BUTTON_L1) && (pad_state & BUTTON_R1)) CreateScreenshot();
+        else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
+        else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
         else if (pad_state & BUTTON_B) break;
     }
     
@@ -330,9 +330,9 @@ u32 GodMode() {
                 scroll = 0;
             } else cursor = 0;
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
-            u32 file_type = IdentifyImage(curr_entry->path);
-            if (file_type && (PathToNumFS(curr_entry->path) == 0) && ShowPrompt(true, // try to mount image / only on SD
-                "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
+            u32 file_type = IdentifyImage(curr_entry->path); 
+            if (file_type && (PathToNumFS(curr_entry->path) == 0) && // try to mount image / only on SD
+                ShowPrompt(true, "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
@@ -348,7 +348,7 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-            } else if (ShowPrompt(true, "Show HexViewer?\n \nControls:\n\x18\x19\x1A\x1B(+R) - Scroll\nL - Switch view\nB - Exit\n")) {
+            } else if (ShowPrompt(true, "Show HexViewer?\n \nControls:\n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nB - Exit\n")) {
                 HexViewer(curr_entry->path);
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
