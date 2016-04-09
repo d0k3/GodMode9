@@ -433,7 +433,7 @@ u32 GodMode() {
                 SetWritePermissions((GetWritePermissions() >= 3) ? 2 : 3);
             }
         } else if (!switched) { // standard unswitched command set
-            if (IsVirtualPath(current_path) && (pad_state & BUTTON_X)) {
+            if (GetVirtualSource(current_path) && (pad_state & BUTTON_X)) {
                 ShowPrompt(false, "Not allowed in virtual path");
             } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
@@ -491,7 +491,7 @@ u32 GodMode() {
                 ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
-            if (IsVirtualPath(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
+            if (GetVirtualSource(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
                 ShowPrompt(false, "Not allowed in virtual path");
             } else if ((pad_state & BUTTON_X) && (curr_entry->type != T_DOTDOT)) { // rename a file
                 char newname[256];

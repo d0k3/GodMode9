@@ -63,7 +63,7 @@ void DeinitSDCardFS() {
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
     if ((fsnum < 0) || (fsnum >= NORM_FS) || (path[1] != ':')) {
-        if (!IsVirtualPath(path)) ShowPrompt(false, "Invalid path (%s)", path);
+        if (!GetVirtualSource(path)) ShowPrompt(false, "Invalid path (%s)", path);
         return -1;
     }
     return fsnum;
@@ -77,9 +77,9 @@ bool IsMountedFS(const char* path) {
 bool CheckWritePermissions(const char* path) {
     int pdrv = PathToNumFS(path);
     if (pdrv < 0) {
-        if (IsVirtualPath(path)) // this is a hack, but okay for now
-            pdrv = (IsVirtualPath(path) == VRT_MEMORY) ? 10 :
-                (IsVirtualPath(path) == VRT_SYSNAND) ? 1 : 4; 
+        if (GetVirtualSource(path)) // this is a hack, but okay for now
+            pdrv = (GetVirtualSource(path) == VRT_MEMORY) ? 10 :
+                (GetVirtualSource(path) == VRT_SYSNAND) ? 1 : 4; 
         else return false;
     }
     
@@ -178,7 +178,7 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
             return 0;
         f_close(&file);
         return bytes_read;
-    } else if (IsVirtualPath(path)) {
+    } else if (GetVirtualSource(path)) {
         u32 bytes_read = 0;
         VirtualFile vfile;
         if (!FindVirtualFile(&vfile, path, 0))
@@ -202,7 +202,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
     TruncateString(deststr, dest, 36, 8);
     TruncateString(origstr, orig, 36, 8);
     
-    if (IsVirtualPath(dest) && IsVirtualPath(orig)) { // virtual to virtual
+    if (GetVirtualSource(dest) && GetVirtualSource(orig)) { // virtual to virtual
         VirtualFile dvfile;
         VirtualFile ovfile;
         u32 osize;
@@ -232,7 +232,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         }
         ShowProgress(1, 1, orig);
         InitExtFS();
-    } else if (IsVirtualPath(dest)) { // SD card to virtual (other FAT not allowed!)
+    } else if (GetVirtualSource(dest)) { // SD card to virtual (other FAT not allowed!)
         VirtualFile dvfile;
         FIL ofile;
         u32 osize;
@@ -285,7 +285,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         ShowProgress(1, 1, orig);
         f_close(&ofile);
         InitExtFS();
-    } else if (IsVirtualPath(orig)) { // virtual to any file system
+    } else if (GetVirtualSource(orig)) { // virtual to any file system
         VirtualFile ovfile;
         FIL dfile;
         u32 osize;
@@ -445,9 +445,9 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
 
 bool PathCopy(const char* destdir, const char* orig) {
     if (!CheckWritePermissions(destdir)) return false;
-    if (IsVirtualPath(destdir) || IsVirtualPath(orig)) {
+    if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
         // users are inventive...
-        if ((PathToNumFS(orig) > 0) && IsVirtualPath(destdir)) {
+        if ((PathToNumFS(orig) > 0) && GetVirtualSource(destdir)) {
             ShowPrompt(false, "Only files from SD card are accepted");
             return false;
         }
@@ -609,7 +609,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if ((pdrv < NORM_FS) && !fs_mounted[pdrv]) continue;
-        else if ((pdrv >= NORM_FS) && (!CheckVirtualPath(drvnum[pdrv]))) continue;
+        else if ((pdrv >= NORM_FS) && (!CheckVirtualDrive(drvnum[pdrv]))) continue;
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
@@ -702,7 +702,7 @@ void GetDirContents(DirStruct* contents, const char* path) {
         contents->entry->type = T_DOTDOT;
         contents->entry->size = 0;
         contents->n_entries = 1;
-        if (IsVirtualPath(path)) {
+        if (GetVirtualSource(path)) {
             if (!GetVirtualDirContentsWorker(contents, path))
                 contents->n_entries = 0;
         } else {
