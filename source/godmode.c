@@ -291,6 +291,7 @@ u32 GodMode() {
     if ((GetUnitPlatform() == PLATFORM_N3DS) && !CheckSlot0x05Crypto()) {
         if (!ShowPrompt(true, "Warning: slot0x05 crypto fail!\nCould not set up slot0x05keyY.\nContinue?")) {
             DeinitExtFS();
+            MountImage(NULL);
             DeinitSDCardFS();
             return exit_mode;
         }
@@ -367,6 +368,7 @@ u32 GodMode() {
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
             DeinitExtFS();
+            MountImage(NULL);
             DeinitSDCardFS();
             clipboard->n_entries = 0;
             memset(panedata, 0x00, N_PANES * sizeof(PaneData));
@@ -531,6 +533,7 @@ u32 GodMode() {
     }
     
     DeinitExtFS();
+    MountImage(NULL);
     DeinitSDCardFS();
     
     return exit_mode;

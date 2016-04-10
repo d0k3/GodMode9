@@ -42,8 +42,7 @@ bool InitExtFS() {
 }
 
 void DeinitExtFS() {
-    MountImage(NULL);
-    for (u32 i = NORM_FS; i > 0; i--) {
+    for (u32 i = NORM_FS - 1; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
             snprintf(fsname, 7, "%lu:", i);
@@ -79,7 +78,8 @@ bool CheckWritePermissions(const char* path) {
     if (pdrv < 0) {
         if (GetVirtualSource(path)) // this is a hack, but okay for now
             pdrv = (GetVirtualSource(path) == VRT_MEMORY) ? 10 :
-                (GetVirtualSource(path) == VRT_SYSNAND) ? 1 : 4; 
+                (GetVirtualSource(path) == VRT_SYSNAND) ? 1 :
+                (GetVirtualSource(path) == VRT_EMUNAND) ? 4 : 7; 
         else return false;
     }
     
@@ -100,7 +100,7 @@ bool CheckWritePermissions(const char* path) {
             return SetWritePermissions(1);
         return false;
     } else if (pdrv >= 10) {
-        ShowPrompt(false, "Writing to memory is forbidden!");
+        ShowPrompt(false, "Writing to memory is not allowed!");
         return false;
     }
         
