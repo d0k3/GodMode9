@@ -50,7 +50,8 @@ u32 IdentifyImage(const char* path) {
         return 0;
     }
     f_close(&file);
-    if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) && (getbe64(header + 0x108) == (u64) 0)) {
+    if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
+        (getbe64(header + 0x108) == (u64) 0) && (fsize >= 0x8FC8000)) {
         return IMG_NAND;
     } else if (getbe16(header + 0x1FE) == 0x55AA) { // migt be FAT or MBR
         if ((strncmp((char*) header + 0x36, "FAT12   ", 8) == 0) || (strncmp((char*) header + 0x36, "FAT16   ", 8) == 0) ||
@@ -58,7 +59,7 @@ u32 IdentifyImage(const char* path) {
             return IMG_FAT; // this is an actual FAT header
         } else if (((getle32(header + 0x1BE + 0x8) + getle32(header + 0x1BE + 0xC)) < (fsize / 0x200)) && // check file size
             (getle32(header + 0x1BE + 0x8) > 0) && (getle32(header + 0x1BE + 0xC) >= 0x800) && // check first partition sanity
-            ((header[0x1BE + 0x4] == 0x1) || (header[0x1BE + 0x4] == 0x4) || (header[0x1BE + 0x4] == 0x6) || // check filesystem type
+            ((header[0x1BE + 0x4] == 0x1) || (header[0x1BE + 0x4] == 0x4) || (header[0x1BE + 0x4] == 0x6) || // filesystem type
              (header[0x1BE + 0x4] == 0xB) || (header[0x1BE + 0x4] == 0xC) || (header[0x1BE + 0x4] == 0xE))) {
             return IMG_FAT; // this might be an MBR -> give it the benefit of doubt
         }
