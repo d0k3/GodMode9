@@ -188,6 +188,22 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
     return 0;
 }
 
+size_t FileGetSize(const char* path) {
+    if (PathToNumFS(path) >= 0) {
+        FILINFO fno;
+        fno.lfname = NULL;
+        if (f_stat(path, &fno) != FR_OK)
+            return 0;
+        return fno.fsize;
+    } else if (GetVirtualSource(path)) {
+        VirtualFile vfile;
+        if (!FindVirtualFile(&vfile, path, 0))
+            return 0;
+        return vfile.size;
+    }
+    return 0;
+}
+
 bool PathCopyVirtual(const char* destdir, const char* orig) {
     char dest[256]; // maximum path name length in FAT
     char* oname = strrchr(orig, '/');

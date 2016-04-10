@@ -44,6 +44,9 @@ bool FileCreateData(const char* path, u8* data, size_t size);
 /** Read data from file@offset **/
 size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset);
 
+/** Get size of file **/
+size_t FileGetSize(const char* path);
+
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig);
 

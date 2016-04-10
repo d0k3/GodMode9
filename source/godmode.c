@@ -161,6 +161,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 u32 HexViewer(const char* path) {
     static u32 mode = 0;
     u8 data[(SCREEN_HEIGHT / 8) * 16]; // this is the maximum size
+    u32 fsize = FileGetSize(path);
     
     int x_off, x_hex, x_ascii;
     u32 vpad, hlpad, hrpad;
@@ -211,6 +212,9 @@ u32 HexViewer(const char* path) {
             last_mode = mode;
             ClearScreenF(true, false, COLOR_STD_BG);
         }
+        // fix offset (if required)
+        if (offset + total_shown > fsize + cols)
+            offset = (total_shown > fsize) ? 0 : (fsize + cols - total_shown - (fsize % cols));
         total_data = FileGetData(path, data, total_shown, offset); // get data
         
         // display data on screen
@@ -243,8 +247,8 @@ u32 HexViewer(const char* path) {
         
         // handle user input
         u32 pad_state = InputWait();
-        u32 step_ud = (pad_state & BUTTON_R1) ? total_shown * 16 : cols;
-        u32 step_lr = (pad_state & BUTTON_R1) ? total_shown * 256 : total_shown;
+        u32 step_ud = (pad_state & BUTTON_R1) ? (0x1000  - (0x1000  % cols))  : cols;
+        u32 step_lr = (pad_state & BUTTON_R1) ? (0x10000 - (0x10000 % cols)) : total_shown;
         if (pad_state & BUTTON_DOWN) offset += step_ud;
         else if (pad_state & BUTTON_RIGHT) offset += step_lr;
         else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
@@ -349,7 +353,8 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-            } else if (ShowPrompt(true, "Show HexViewer?\n \nControls:\n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nB - Exit\n")) {
+            } else if (FileGetSize(curr_entry->path) &&
+                ShowPrompt(true, "Show HexViewer?\n \nControls:\n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nB - Exit\n")) {
                 HexViewer(curr_entry->path);
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
