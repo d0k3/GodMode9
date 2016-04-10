@@ -7,9 +7,12 @@ u32 mount_state = 0;
 int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
     UINT bytes_read;
     UINT ret;
+    if (!count) return -1;
     if (!mount_state) return FR_INVALID_OBJECT;
-    if (f_tell(&mount_file) != sector * 0x200)
+    if (f_tell(&mount_file) != sector * 0x200) {
+        if (f_size(&mount_file) < sector * 0x200) return -1;
         f_lseek(&mount_file, sector * 0x200);
+    }
     ret = f_read(&mount_file, buffer, count * 0x200, &bytes_read);
     return (ret != 0) ? ret : (bytes_read != count * 0x200) ? -1 : 0;
 }
@@ -17,6 +20,7 @@ int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
 int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
     UINT bytes_written;
     UINT ret;
+    if (!count) return -1;
     if (!mount_state) return FR_INVALID_OBJECT;
     if (f_tell(&mount_file) != sector * 0x200)
         f_lseek(&mount_file, sector * 0x200);
