@@ -28,14 +28,14 @@ VirtualFile virtualFileTemplates[] = {
     { "nand_minsize.bin" , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS },
     { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0xFF, VFLAG_ON_NAND },
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
-    { "itcm.dmp"         , 0x01FF8000, 0x00008000, 0xFF, VFLAG_ON_MEMORY },
-    { "arm9internal.dmp" , 0x08000000, 0x00100000, 0xFF, VFLAG_ON_MEMORY },
-    { "vram.dmp"         , 0x18000000, 0x00600000, 0xFF, VFLAG_ON_MEMORY },
-    { "dsp.dmp"          , 0x1FF00000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
-    { "axiwram.dmp"      , 0x1FF80000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
-    { "fcram.dmp"        , 0x20000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY },
-    { "dtcm.dmp"         , 0xFFFF0000, 0x00004000, 0xFF, VFLAG_ON_MEMORY },
-    { "bootrom_unp.dmp"  , 0xFFFF0000, 0x00008000, 0xFF, VFLAG_ON_MEMORY }
+    { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, VFLAG_ON_MEMORY },
+    { "arm9internal.mem" , 0x08000000, 0x00100000, 0xFF, VFLAG_ON_MEMORY },
+    { "vram.mem"         , 0x18000000, 0x00600000, 0xFF, VFLAG_ON_MEMORY },
+    { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
+    { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
+    { "fcram.mem"        , 0x20000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY },
+    { "dtcm.mem"         , 0xFFFF0000, 0x00004000, 0xFF, VFLAG_ON_MEMORY },
+    { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, VFLAG_ON_MEMORY }
 };    
 
 u32 GetVirtualSource(const char* path) {
