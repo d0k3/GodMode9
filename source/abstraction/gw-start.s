@@ -1,11 +1,8 @@
 #ifdef EXEC_GATEWAY
 
-.section ".init"
-
+.section .text.start
 .global _start
-.extern main
-
-.align	4
+.align 4
 .arm
 
 _vectors:
