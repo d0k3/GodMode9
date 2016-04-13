@@ -81,7 +81,7 @@ bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, ch
     
     // try legacy slot0x??Key?.bin file
     if (!found) {
-        snprintf(path, 256, "%s/slot0x%02XKey%.10s", folder, (unsigned int) keyslot,
+        snprintf(path, 256, "%s/slot0x%02XKey%.10s.bin", folder, (unsigned int) keyslot,
             (id) ? id : (type == 'X') ? "X" : (type == 'Y') ? "Y" : "");
         if (FileGetData(path, key, 16, 0) == 16)
             found = true;
