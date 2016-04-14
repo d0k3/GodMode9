@@ -125,28 +125,31 @@ bool InitNandCrypto(void)
     
     // part #2: TWL KEY
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-    u32* TwlCustId = (u32*) (0x01FFB808);
-    u8 TwlKeyX[16];
-    u8 TwlKeyY[16];
-    
-    // thanks b1l1s & Normmatt
-    // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
-    const char* nintendo = "NINTENDO";
-    u32* TwlKeyXW = (u32*) TwlKeyX;
-    TwlKeyXW[0] = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
-    TwlKeyXW[3] = TwlCustId[1] ^ 0x08C267B7;
-    memcpy(TwlKeyX + 4, nintendo, 8);
-    
-    // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-    u32 TwlKeyYW3 = 0xE1A00005;
-    memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 12);
-    memcpy(TwlKeyY + 12, &TwlKeyYW3, 4);
-    
-    setup_aeskeyX(0x03, TwlKeyX);
-    setup_aeskeyY(0x03, TwlKeyY);
-    use_aeskey(0x03);
+    if ((*(vu32*) 0x101401C0) == 0) { // only for a9lh
+        u32* TwlCustId = (u32*) (0x01FFB808);
+        u8 TwlKeyX[16];
+        u8 TwlKeyY[16];
+        
+        // thanks b1l1s & Normmatt
+        // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
+        const char* nintendo = "NINTENDO";
+        u32* TwlKeyXW = (u32*) TwlKeyX;
+        TwlKeyXW[0] = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
+        TwlKeyXW[3] = TwlCustId[1] ^ 0x08C267B7;
+        memcpy(TwlKeyX + 4, nintendo, 8);
+        
+        // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
+        u32 TwlKeyYW3 = 0xE1A00005;
+        memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 12);
+        memcpy(TwlKeyY + 12, &TwlKeyYW3, 4);
+        
+        setup_aeskeyX(0x03, TwlKeyX);
+        setup_aeskeyY(0x03, TwlKeyY);
+        use_aeskey(0x03);
+    }
     
     // part #3: CTRNAND N3DS KEY
+    // this could make sense for alternative entrypoints, so it's not a9lh exclusive
     if (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL))
         LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL);
     
