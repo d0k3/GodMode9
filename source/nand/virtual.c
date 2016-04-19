@@ -34,7 +34,7 @@ VirtualFile virtualFileTemplates[] = {
     { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
     { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
     { "fcram.mem"        , 0x20000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY },
-    { "dtcm.mem"         , 0xFFFF0000, 0x00004000, 0xFF, VFLAG_ON_MEMORY },
+    { "dtcm.mem"         , 0xFFF00000, 0x00004000, 0xFF, VFLAG_ON_MEMORY },
     { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, VFLAG_ON_MEMORY }
 };    
 
