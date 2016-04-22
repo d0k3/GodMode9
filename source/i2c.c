@@ -124,7 +124,7 @@ bool i2cReadRegisterBuffer(unsigned int dev_id, int reg, u8* buffer, size_t buf_
     i2cWaitBusy(bus_id);
     *i2cGetCntReg(bus_id) = 0xE1;
     i2cWaitBusy(bus_id);
-    *buffer = *i2cGetDataReg(bus_id);
+    buffer[buf_size - 1] = *i2cGetDataReg(bus_id);
     return true;
 }
 
