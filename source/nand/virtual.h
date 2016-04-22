@@ -8,7 +8,7 @@
 #define VRT_IMGNAND NAND_IMGNAND
 #define VRT_MEMORY  (1<<10)
 
-#define VFLAG_EXT_A9LH_AREA (1<<20)
+#define VFLAG_A9LH_AREA (1<<20)
 
 static const char* virtualFileList[] = { // must have a match in virtualFileTemplates[]
     "twln.bin", "twlp.bin", "agbsave.bin", "firm0.bin", "firm1.bin", "ctrnand_fat.bin",

@@ -218,6 +218,15 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
     TruncateString(deststr, dest, 36, 8);
     TruncateString(origstr, orig, 36, 8);
     
+    if (GetVirtualSource(dest)) { // check destination file flags
+        VirtualFile dvfile;
+        if (!FindVirtualFile(&dvfile, dest, 0))
+            return false;
+        if ((dvfile.flags & VFLAG_A9LH_AREA) &&
+            !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
+            return false;
+    }
+    
     if (GetVirtualSource(dest) && GetVirtualSource(orig)) { // virtual to virtual
         VirtualFile dvfile;
         VirtualFile ovfile;
