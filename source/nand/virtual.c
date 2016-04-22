@@ -7,6 +7,7 @@
 #define VFLAG_ON_NO3DS      NAND_TYPE_NO3DS
 #define VFLAG_ON_NAND       (VFLAG_ON_O3DS | VFLAG_ON_N3DS | VFLAG_ON_NO3DS)
 #define VFLAG_ON_MEMORY     VRT_MEMORY
+#define VFLAG_N3DS_ONLY     (1<<30)
 #define VFLAG_NAND_SIZE     (1<<31)
 
 // see: http://3dbrew.org/wiki/Flash_Filesystem#NAND_structure
@@ -29,12 +30,15 @@ VirtualFile virtualFileTemplates[] = {
     { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0xFF, VFLAG_ON_NAND },
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
     { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, VFLAG_ON_MEMORY },
-    { "arm9internal.mem" , 0x08000000, 0x00100000, 0xFF, VFLAG_ON_MEMORY },
+    { "arm9.mem"         , 0x08000000, 0x00100000, 0xFF, VFLAG_ON_MEMORY },
+    { "arm9ext.mem"      , 0x08010000, 0x00100000, 0xFF, VFLAG_ON_MEMORY | VFLAG_N3DS_ONLY },
     { "vram.mem"         , 0x18000000, 0x00600000, 0xFF, VFLAG_ON_MEMORY },
     { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
     { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
     { "fcram.mem"        , 0x20000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY },
+    { "fcramext.mem"     , 0x28000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY | VFLAG_N3DS_ONLY },
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, VFLAG_ON_MEMORY },
+    // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, VFLAG_ON_MEMORY },
     { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, VFLAG_ON_MEMORY }
 };    
 
@@ -95,6 +99,8 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
     // process special flags
     if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
         return false; // keyslot 0x05 not properly set up
+    if ((vfile->flags & VFLAG_N3DS_ONLY) && (GetUnitPlatform() != PLATFORM_N3DS))
+        return false; // this is not on O3DS consoles
     if (vfile->flags & VFLAG_NAND_SIZE) {
         if ((virtual_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(virtual_src)))
             return false; // EmuNAND/IMGNAND is too small
