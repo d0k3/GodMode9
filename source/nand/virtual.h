@@ -8,11 +8,13 @@
 #define VRT_IMGNAND NAND_IMGNAND
 #define VRT_MEMORY  (1<<10)
 
+#define VFLAG_EXT_A9LH_AREA (1<<20)
+
 static const char* virtualFileList[] = { // must have a match in virtualFileTemplates[]
     "twln.bin", "twlp.bin", "agbsave.bin", "firm0.bin", "firm1.bin", "ctrnand_fat.bin",
     "ctrnand_full.bin", "nand.bin", "nand_minsize.bin", "nand_hdr.bin", "sector0x96.bin",
-    "itcm.mem", "arm9internal.mem", "vram.mem", "dsp.mem", "axiwram.mem", "fcram.mem",
-    "dtcm.mem", "bootrom_unp.mem"
+    "itcm.mem", "arm9.mem", "arm9ext.mem", "vram.mem", "dsp.mem", "axiwram.mem",
+    "fcram.mem", "fcramext.mem", "dtcm.mem", "bootrom_unp.mem"
 };
 static const u32 virtualFileList_size = sizeof(virtualFileList) / sizeof(char*);
 
