@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.3.5"
+#define VERSION "0.3.7"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -112,7 +112,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
-        "START - Reboot / [+\x1B] Poweroff"); // generic end part
+        "START - Reboot / [+R] Poweroff"); // generic end part
     DrawStringF(true, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
@@ -532,7 +532,7 @@ u32 GodMode() {
         }
         
         if (pad_state & BUTTON_START) {
-            exit_mode = (pad_state & BUTTON_LEFT) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
+            exit_mode = switched ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
             break;
         } 
     }
