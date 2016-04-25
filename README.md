@@ -9,11 +9,11 @@ __This is powerful stuff__, so you should not use it if you don't know exactly w
 ## How to run this / entry points
 
 GodMode9 can be built to run from a number of entry points, descriptions are below. Note that you need to be on or below 3DS firmware version v9.2 or have ARM9loaderhax installed for any of these to work. Note that for ARM9loaderhax you also need to have a file called `slot0x05keyY.bin` in the root of your SD card for full compatibility.
-* __Gateway Browser Exploit__: Copy `Launcher.dat` to your SD card root and run this via http://go.gateway-3ds.com/ from your 3DS browser. Build this with `make gateway`.
 * __A9LH, Brahma & Bootstrap__: Copy `GodMode9.bin` to somewhere on your SD card and run it via either [Brahma](https://github.com/delebile/Brahma2) or [Bootstrap](https://github.com/shinyquagsire23/bootstrap). Brahma derivatives / loaders such as [BrahmaLoader](https://gbatemp.net/threads/release-easily-load-payloads-in-hb-launcher-via-brahma-2-mod.402857/), [BootCTR](https://gbatemp.net/threads/re-release-bootctr-a-simple-boot-manager-for-3ds.401630/) and [CTR Boot Manager](https://gbatemp.net/threads/ctrbootmanager-3ds-boot-manager-loader-homemenuhax.398383/) will also work with this. Build this with `make bootstrap`.
 * __Homebrew Launcher__: Copy `GodMode9.3dsx` & `GodMode9.smdh` into `/3DS/GodMode9` on your SD card. Run this via [Smealums Homebrew Launcher](http://smealum.github.io/3ds/), [Mashers Grid Launcher](https://gbatemp.net/threads/release-homebrew-launcher-with-grid-layout.397527/) or any other compatible software. Build this with `make brahma`.
 * __CakeHax Browser__: Copy `GodMode9.dat` to the root of your SD card. You can then run it via http://dukesrg.github.io/?GodMode9.dat from your 3DS browser. Build this via `make cakehax`.
 * __CakeHax MSET__: Copy `GodMode9.dat` to the root of your SD card and `GodMode9.nds` to anywhere on the SD card. You can then run it either via MSET and GodMode9.nds. Build this via `make cakerop`.
+* __Gateway Browser Exploit__: Copy Launcher.dat to your SD card root and run this via http://go.gateway-3ds.com/ from your 3DS browser. Build this with `make gateway`. Please note: __this entrypoint is deprecated__. While it may still work at the present time with little to no problems, bugs will no more be fixed and it may be completely removed at a later time. Use CakeHax instead.
 
 If you are a developer and you are building this, you may also just run `make release` to build all files at once. If you are a user, all files are already included in the release archive.
 
