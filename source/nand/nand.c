@@ -149,10 +149,45 @@ bool InitNandCrypto(void)
     }
     
     // part #3: CTRNAND N3DS KEY
-    // this could make sense for alternative entrypoints, so it's not a9lh exclusive
-    if (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL))
-        LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL);
-    
+    // thanks AuroraWright and Gelex for advice on this
+    // see: https://github.com/AuroraWright/Luma3DS/blob/master/source/crypto.c#L347
+    if ((*(vu32*) 0x101401C0) == 0) { // only for a9lh
+        u8 ctr[16] __attribute__((aligned(32)));
+        u8 keyY[16] __attribute__((aligned(32)));
+        u8 buffer[0x200];
+        
+        // section 2 of FIRM0
+        // this is @0x066A00 in the FIRM90
+        ReadNandSectors(buffer, 0x58980 + 0x335, 1, 0x06, NAND_SYSNAND);
+        memcpy(keyY, buffer + 0x10, 0x10); // 0x15 keyY
+        memcpy(ctr, buffer + 0x20, 0x10); // 0x15 counter
+        add_ctr(ctr, (0x758 - (0x335 + 0x4)) * 0x20);
+        
+        // sector containing the slot0x05 keyY
+        // key is encrypted @0x0EB014 in the FIRM90
+        ReadNandSectors(buffer, 0x58980 + 0x758, 1, 0x06, NAND_SYSNAND);
+        
+        // decrypt the buffer, get the key
+        setup_aeskeyY(0x15, keyY);
+        use_aeskey(0x15);
+        for (u32 i = 0x0; i < 0x200; i += 0x10) {
+            set_ctr(ctr);
+            aes_decrypt((void*) buffer + i, (void*) buffer + i, 1, AES_CNT_CTRNAND_MODE);
+            add_ctr(ctr, 0x1);
+        }
+        memcpy(slot0x05KeyY, buffer + 0x14, 16);
+        
+        // check the key
+        sha_init(SHA256_MODE);
+        sha_update(slot0x05KeyY, 16);
+        sha_get(shasum);
+        if (memcmp(shasum, slot0x05KeyY_sha256, 32) == 0) {
+            setup_aeskeyY(0x05, slot0x05KeyY);
+            use_aeskey(0x05);
+        } else if (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL)) { // last resort
+            LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL);
+        }
+    }
     
     return true;
 }
