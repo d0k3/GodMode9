@@ -47,6 +47,9 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset);
 /** Get size of file **/
 size_t FileGetSize(const char* path);
 
+/** Get SHA-256 of file **/
+bool FileGetSha256(const char* path, u8* sha256);
+
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig);
 

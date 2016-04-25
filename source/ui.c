@@ -203,7 +203,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) break;
-        else if (ask && (pad_state & BUTTON_B)) {
+        else if (pad_state & BUTTON_B) {
             ret = false;
             break;
         }
@@ -272,6 +272,51 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     ClearScreenF(true, false, COLOR_STD_BG);
     
     return (lvl >= len);
+}
+
+u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
+    u32 str_width, str_height;
+    u32 x, y, yopt;
+    u32 sel = 0;
+    
+    char str[512] = {}; // 512 should be more than enough
+    va_list va;
+
+    va_start(va, format);
+    vsnprintf(str, 512, format, va);
+    va_end(va);
+    
+    if (n == 0) return 0; // check for low number of options
+    else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
+    
+    str_width = GetDrawStringWidth(str);
+    str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
+    if (str_width < 18*8) str_width = 18 * 8;
+    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
+    yopt = y + GetDrawStringHeight(str) + 8;
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(true, x, yopt + (n*12) + 10, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
+    while (true) {
+        for (u32 i = 0; i < n; i++) {
+            DrawStringF(true, x, yopt + (12*i), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
+                (sel == i) ? "->" : "", options[i]);
+        }
+        u32 pad_state = InputWait();
+        if (pad_state & BUTTON_DOWN) sel = (sel+1) % n;
+        else if (pad_state & BUTTON_UP) sel = (sel+n-1) % n;
+        else if (pad_state & BUTTON_A) break;
+        else if (pad_state & BUTTON_B) {
+            sel = n;
+            break;
+        }
+    }
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    
+    return (sel >= n) ? 0 : sel + 1;
 }
 
 bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {

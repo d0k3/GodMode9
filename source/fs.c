@@ -2,6 +2,7 @@
 #include "fs.h"
 #include "virtual.h"
 #include "image.h"
+#include "sha.h"
 #include "ff.h"
 
 #define MAIN_BUFFER ((u8*)0x21200000)
@@ -202,6 +203,53 @@ size_t FileGetSize(const char* path) {
         return vfile.size;
     }
     return 0;
+}
+
+bool FileGetSha256(const char* path, u8* sha256) {
+    bool ret = true;
+    
+    sha_init(SHA256_MODE);
+    ShowProgress(0, 0, path);
+    if (GetVirtualSource(path)) { // for virtual files
+        VirtualFile vfile;
+        u32 fsize;
+        
+        if (!FindVirtualFile(&vfile, path, 0))
+            return false;
+        fsize = vfile.size;
+        
+        for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+            UINT read_bytes = min(MAIN_BUFFER_SIZE, fsize - pos);
+            if (ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
+                ret = false;
+            if (!ShowProgress(pos + read_bytes, fsize, path))
+                ret = false;
+            sha_update(MAIN_BUFFER, read_bytes);
+        }
+    } else { // for regular FAT files
+        FIL file;
+        size_t fsize;
+        
+        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+            return false;
+        fsize = f_size(&file);
+        f_lseek(&file, 0);
+        f_sync(&file);
+        
+        for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+            UINT bytes_read = 0;            
+            if (f_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+                ret = false;
+            if (!ShowProgress(pos + bytes_read, fsize, path))
+                ret = false;
+            sha_update(MAIN_BUFFER, bytes_read);
+        }
+        f_close(&file);
+    }
+    ShowProgress(1, 1, path);
+    sha_get(sha256);
+    
+    return ret;
 }
 
 bool PathCopyVirtual(const char* destdir, const char* orig) {

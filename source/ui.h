@@ -30,6 +30,7 @@
 #define COLOR_TINTEDBLUE    RGB(0x60, 0x60, 0x80)
 #define COLOR_TINTEDYELLOW  RGB(0xD0, 0xD0, 0x60)
 #define COLOR_TINTEDGREEN   RGB(0x70, 0x80, 0x70)
+#define COLOR_LIGHTGREY     RGB(0xB0, 0xB0, 0xB0)
 #define COLOR_DARKGREY      RGB(0x50, 0x50, 0x50)
 #define COLOR_DARKESTGREY   RGB(0x20, 0x20, 0x20)
 
@@ -72,5 +73,6 @@ void FormatBytes(char* str, u64 bytes);
 
 bool ShowPrompt(bool ask, const char *format, ...);
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
+u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
 bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...);
 bool ShowProgress(u64 current, u64 total, const char* opstr);

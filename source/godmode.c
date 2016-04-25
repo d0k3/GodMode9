@@ -335,9 +335,46 @@ u32 GodMode() {
                 scroll = 0;
             } else cursor = 0;
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
-            u32 file_type = IdentifyImage(curr_entry->path); 
-            if (file_type && (PathToNumFS(curr_entry->path) == 0) && // try to mount image / only on SD
-                ShowPrompt(true, "This looks like a %s image\nTry to mount it?", (file_type == IMG_NAND) ? "NAND" : "FAT")) {
+            u32 file_type = IdentifyImage(curr_entry->path);
+            char pathstr[32 + 1];
+            const char* options[4];
+            u32 n_opt = 2;
+            
+            TruncateString(pathstr, curr_entry->path, 32, 8);
+            options[0] = "Show in Hexviewer";
+            options[1] = "Calculate SHA-256";
+            if (file_type && (PathToNumFS(curr_entry->path) == 0)) {
+                options[2] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
+                n_opt = 3;
+            }
+            
+            u32 user_select = ShowSelectPrompt(n_opt, options, pathstr);
+            if (user_select == 1) { // -> show in hex viewer
+                static bool show_instr = true;
+                if (show_instr) {
+                    ShowPrompt(false, "HexViewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nB - Exit\n");
+                    show_instr = false;
+                }
+                HexViewer(curr_entry->path);
+            } else if (user_select == 2) { // -> calculate SHA-256
+                static char pathstr_prev[32 + 1] = { 0 };
+                static u8 sha256_prev[32] = { 0 };
+                u8 sha256[32];
+                if (!FileGetSha256(curr_entry->path, sha256)) {
+                    ShowPrompt(false, "Calculating SHA-256: failed!");
+                } else {
+                    ShowPrompt(false, "%s\n%08X%08X%08X%08X\n%08X%08X%08X%08X%s%s",
+                        pathstr,
+                        getbe32(sha256 +  0), getbe32(sha256 +  4),
+                        getbe32(sha256 +  8), getbe32(sha256 + 12),
+                        getbe32(sha256 + 16), getbe32(sha256 + 20),
+                        getbe32(sha256 + 24), getbe32(sha256 + 28),
+                        (memcmp(sha256, sha256_prev, 32) == 0) ? "\n \nIdentical with previous file:\n" : "",
+                        (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "");
+                    strncpy(pathstr_prev, pathstr, 32 + 1);
+                    memcpy(sha256_prev, sha256, 32);
+                }
+            } else if (user_select == 3) { // -> mount as image
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
@@ -353,9 +390,6 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-            } else if (FileGetSize(curr_entry->path) &&
-                ShowPrompt(true, "Show HexViewer?\n \nControls:\n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nB - Exit\n")) {
-                HexViewer(curr_entry->path);
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) { 
