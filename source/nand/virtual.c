@@ -31,7 +31,7 @@ VirtualFile virtualFileTemplates[] = {
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND | VFLAG_A9LH_AREA },
     { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, VFLAG_ON_MEMORY },
     { "arm9.mem"         , 0x08000000, 0x00100000, 0xFF, VFLAG_ON_MEMORY },
-    { "arm9ext.mem"      , 0x08010000, 0x00100000, 0xFF, VFLAG_ON_MEMORY | VFLAG_N3DS_ONLY },
+    { "arm9ext.mem"      , 0x08010000, 0x00080000, 0xFF, VFLAG_ON_MEMORY | VFLAG_N3DS_ONLY },
     { "vram.mem"         , 0x18000000, 0x00600000, 0xFF, VFLAG_ON_MEMORY },
     { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
     { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, VFLAG_ON_MEMORY },
