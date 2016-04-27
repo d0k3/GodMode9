@@ -393,10 +393,9 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
             if (inputstr_size > 1) {
                 memmove(&inputstr[cursor_s], &inputstr[cursor_s + 1], (max_size - 1) - cursor_s);
                 inputstr_size--;
-                if (cursor_s >= inputstr_size) {
+                if (cursor_s >= inputstr_size)
                     cursor_s--;
-                    cursor_a = -1;
-                }
+                cursor_a = -1;
             } else inputstr[0] = alphabet[0];
         } else if (pad_state & BUTTON_Y) {
             if (inputstr_size < max_size - 1) {
