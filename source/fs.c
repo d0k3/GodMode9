@@ -447,8 +447,10 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
         char* fname = orig + strnlen(orig, 256);
         
         // create the destination folder if it does not already exist
-        if ((f_stat(dest, NULL) != FR_OK) && (f_mkdir(dest) != FR_OK))
+        if ((f_opendir(&pdir, dest) != FR_OK) && (f_mkdir(dest) != FR_OK)) {
+            ShowPrompt(false, "Error: Cannot create output dir");
             return false;
+        } else f_closedir(&pdir);
         
         if (f_opendir(&pdir, orig) != FR_OK)
             return false;
@@ -484,6 +486,7 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
         }
         
         if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+            ShowPrompt(false, "Error: Cannot create output file");
             f_close(&ofile);
             return false;
         }
