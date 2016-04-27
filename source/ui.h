@@ -44,7 +44,7 @@
 	#define BOT_SCREEN0 (u8*)(*(u32*)((uint32_t)0x080FFFD0 + 4 * (*(u32*)0x080FFFDC & 1)))
 	#define TOP_SCREEN1 TOP_SCREEN0
 	#define BOT_SCREEN1 BOT_SCREEN0
-#elif defined(EXEC_BOOTSTRAP)
+#elif defined(EXEC_A9LH)
 	#define TOP_SCREEN0 (u8*)(*(u32*)0x23FFFE00)
 	#define TOP_SCREEN1 (u8*)(*(u32*)0x23FFFE00)
 	#define BOT_SCREEN0 (u8*)(*(u32*)0x23FFFE08)
