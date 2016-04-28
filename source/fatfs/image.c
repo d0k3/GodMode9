@@ -14,7 +14,7 @@ int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
         f_lseek(&mount_file, sector * 0x200);
     }
     ret = f_read(&mount_file, buffer, count * 0x200, &bytes_read);
-    return (ret != 0) ? ret : (bytes_read != count * 0x200) ? -1 : 0;
+    return (ret != 0) ? (int) ret : (bytes_read != count * 0x200) ? -1 : 0;
 }
 
 int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
@@ -25,7 +25,7 @@ int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
     if (f_tell(&mount_file) != sector * 0x200)
         f_lseek(&mount_file, sector * 0x200);
     ret = f_write(&mount_file, buffer, count * 0x200, &bytes_written);
-    return (ret != 0) ? ret : (bytes_written != count * 0x200) ? -1 : 0;
+    return (ret != 0) ? (int) ret : (bytes_written != count * 0x200) ? -1 : 0;
 }
 
 int SyncImage(void) {

@@ -30,3 +30,9 @@ void sha_get(void* res) {
     while(*REG_SHACNT & 1);
     memcpy(res, (void*)REG_SHAHASH, (256 / 8));
 }
+
+void sha_quick(void* res, const void* src, u32 size, u32 mode) {
+    sha_init(mode);
+    sha_update(src, size);
+    sha_get(res);
+}

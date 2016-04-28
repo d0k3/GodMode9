@@ -172,7 +172,7 @@ bool InitNandCrypto(void)
         use_aeskey(0x15);
         for (u32 i = 0x0; i < 0x200; i += 0x10) {
             set_ctr(ctr);
-            aes_decrypt((void*) buffer + i, (void*) buffer + i, 1, AES_CNT_CTRNAND_MODE);
+            aes_decrypt(buffer + i, buffer + i, 1, AES_CNT_CTRNAND_MODE);
             add_ctr(ctr, 0x1);
         }
         memcpy(slot0x05KeyY, buffer + 0x14, 16);

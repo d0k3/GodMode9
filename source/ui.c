@@ -84,13 +84,13 @@ void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcol
 
 void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor)
 {
-    for (int i = 0; i < strlen(str); i++)
+    for (size_t i = 0; i < strlen(str); i++)
         DrawCharacter(screen, str[i], x + i * 8, y, color, bgcolor);
 }
 
 void DrawStringF(bool use_top, int x, int y, int color, int bgcolor, const char *format, ...)
 {
-    char str[512] = {}; // 512 should be more than enough
+    char str[512] = { 0 }; // 512 should be more than enough
     va_list va;
 
     va_start(va, format);
@@ -120,10 +120,10 @@ u32 GetDrawStringWidth(char* str) {
     char* old_lf = str;
     char* str_end = str + strnlen(str, 512);
     for (char* lf = strchr(str, '\n'); lf != NULL; lf = strchr(lf + 1, '\n')) {
-        if ((lf - old_lf) > width) width = lf - old_lf;
+        if ((u32) (lf - old_lf) > width) width = lf - old_lf;
         old_lf = lf;
     }
-    if (str_end - old_lf > width)
+    if ((u32) (str_end - old_lf) > width)
         width = str_end - old_lf;
     width *= 8;
     return width;
@@ -183,7 +183,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
     u32 x, y;
     bool ret = true;
     
-    char str[512] = {}; // 512 should be more than enough
+    char str[512] = { 0 }; // 512 should be more than enough
     va_list va;
 
     va_start(va, format);
@@ -215,7 +215,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
 }
 
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
-    const u32 seqcolors[4] = { COLOR_STD_FONT, COLOR_GREEN, COLOR_YELLOW, COLOR_RED };
+    const int seqcolors[4] = { COLOR_STD_FONT, COLOR_GREEN, COLOR_YELLOW, COLOR_RED };
     const u32 sequences[4][5] = {
         { BUTTON_RIGHT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_A },
         { BUTTON_LEFT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_UP, BUTTON_A },
@@ -234,7 +234,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     u32 str_width, str_height;
     u32 x, y;
     
-    char str[512] = {}; // 512 should be more than enough
+    char str[512] = { 0 }; // 512 should be more than enough
     va_list va;
 
     va_start(va, format);
@@ -279,7 +279,7 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     u32 x, y, yopt;
     u32 sel = 0;
     
-    char str[512] = {}; // 512 should be more than enough
+    char str[512] = { 0 }; // 512 should be more than enough
     va_list va;
 
     va_start(va, format);
@@ -328,7 +328,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     u32 str_width, str_height;
     u32 x, y;
     
-    char str[512] = {}; // 512 should be more than enough
+    char str[512] = { 0 }; // 512 should be more than enough
     va_list va;
 
     va_start(va, format);
@@ -349,9 +349,9 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
     DrawStringF(true, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear string\nX - remove char\nY - insert char");
     
-    int cursor_s = 0;
     int cursor_a = -1;
-    int scroll = 0;
+    u32 cursor_s = 0;
+    u32 scroll = 0;
     bool ret = false;
     
     while (true) {

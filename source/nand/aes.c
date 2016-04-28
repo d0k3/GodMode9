@@ -141,7 +141,7 @@ void aes_fifos(void* inbuf, void* outbuf, size_t blocks)
     {
         while (aescnt_checkwrite());
 
-        int ii = 0;
+        u32 ii = 0;
         for (ii = in; ii != in + AES_BLOCK_SIZE; ii += 4)
         {
             set_aeswrfifo( *(u32*)(ii) );
