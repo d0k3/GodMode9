@@ -113,13 +113,9 @@ bool InitNandCrypto(void)
     u8 shasum[32];
     
     sdmmc_get_cid( 1, (uint32_t*) NandCid);
-    sha_init(SHA256_MODE);
-    sha_update(NandCid, 16);
-    sha_get(shasum);
+    sha_quick(shasum, NandCid, 16, SHA256_MODE);
     memcpy(CtrNandCtr, shasum, 16);
-    sha_init(SHA1_MODE);
-    sha_update(NandCid, 16);
-    sha_get(shasum);
+    sha_quick(shasum, NandCid, 16, SHA1_MODE);
     for(u32 i = 0; i < 16; i++) // little endian and reversed order
         TwlNandCtr[i] = shasum[15-i];
     
@@ -178,9 +174,7 @@ bool InitNandCrypto(void)
         memcpy(slot0x05KeyY, buffer + 0x14, 16);
         
         // check the key
-        sha_init(SHA256_MODE);
-        sha_update(slot0x05KeyY, 16);
-        sha_get(shasum);
+        sha_quick(shasum, slot0x05KeyY, 16, SHA256_MODE);
         if (memcmp(shasum, slot0x05KeyY_sha256, 32) == 0) {
             setup_aeskeyY(0x05, slot0x05KeyY);
             use_aeskey(0x05);
@@ -196,9 +190,7 @@ bool CheckSlot0x05Crypto(void)
 {
     // step #1 - check the slot0x05KeyY SHA-256
     u8 shasum[32];
-    sha_init(SHA256_MODE);
-    sha_update(slot0x05KeyY, 16);
-    sha_get(shasum);
+    sha_quick(shasum, slot0x05KeyY, 16, SHA256_MODE);
     if (memcmp(shasum, slot0x05KeyY_sha256, 32) == 0)
         return true;
     
