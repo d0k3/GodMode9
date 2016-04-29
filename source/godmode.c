@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.3.7"
+#define VERSION "0.3.9"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -337,18 +337,18 @@ u32 GodMode() {
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             u32 file_type = IdentifyImage(curr_entry->path);
             char pathstr[32 + 1];
-            const char* options[4];
+            const char* optionstr[4];
             u32 n_opt = 2;
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
-            options[0] = "Show in Hexviewer";
-            options[1] = "Calculate SHA-256";
+            optionstr[0] = "Show in Hexviewer";
+            optionstr[1] = "Calculate SHA-256";
             if (file_type && (PathToNumFS(curr_entry->path) == 0)) {
-                options[2] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
+                optionstr[2] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
                 n_opt = 3;
             }
             
-            u32 user_select = ShowSelectPrompt(n_opt, options, pathstr);
+            u32 user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
             if (user_select == 1) { // -> show in hex viewer
                 static bool show_instr = true;
                 if (show_instr) {
@@ -510,20 +510,26 @@ u32 GodMode() {
                 if (clipboard->n_entries)
                     last_clipboard_size = clipboard->n_entries;
             } else if (pad_state & BUTTON_Y) { // paste files
+                const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
+                u32 user_select;
                 if (clipboard->n_entries == 1) {
                     char namestr[20+1];
                     TruncateString(namestr, clipboard->entry[0].name, 20, 12);
-                    snprintf(promptstr, 64, "Copy \"%s\" here?", namestr);
-                } else snprintf(promptstr, 64, "Copy %lu path(s) here?", clipboard->n_entries);
-                if (ShowPrompt(true, promptstr)) {
+                    snprintf(promptstr, 64, "Copy / Move \"%s\" here?", namestr);
+                } else snprintf(promptstr, 64, "Copy / Move %lu paths here?", clipboard->n_entries);
+                if ((user_select = ShowSelectPrompt(2, optionstr, promptstr))) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
-                        if (!PathCopy(current_path, clipboard->entry[c].path)) {
-                            char namestr[36+1];
-                            TruncateString(namestr, clipboard->entry[c].name, 36, 12);
+                        char namestr[36+1];
+                        TruncateString(namestr, clipboard->entry[c].name, 36, 12);
+                        if ((user_select == 1) && !PathCopy(current_path, clipboard->entry[c].path)) {    
                             if (c + 1 < clipboard->n_entries) {
                                 if (!ShowPrompt(true, "Failed copying path:\n%s\nProcess remaining?", namestr)) break;
                             } else ShowPrompt(false, "Failed copying path:\n%s", namestr);
+                        } else if ((user_select == 2) && !PathMove(current_path, clipboard->entry[c].path)) {    
+                            if (c + 1 < clipboard->n_entries) {
+                                if (!ShowPrompt(true, "Failed moving path:\n%s\nProcess remaining?", namestr)) break;
+                            } else ShowPrompt(false, "Failed moving path:\n%s", namestr);
                         }
                     }
                 }

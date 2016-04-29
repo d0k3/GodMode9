@@ -53,6 +53,9 @@ bool FileGetSha256(const char* path, u8* sha256);
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig);
 
+/** Recursively move a file or directory **/
+bool PathMove(const char* destdir, const char* orig);
+
 /** Recursively delete a file or directory **/
 bool PathDelete(const char* path);
 

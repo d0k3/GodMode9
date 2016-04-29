@@ -291,7 +291,7 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
-    if (str_width < 18*8) str_width = 18 * 8;
+    if (str_width < 24*8) str_width = 24 * 8;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;
@@ -341,7 +341,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (8*10);
-    if (str_width < 24) str_width = 24;
+    if (str_width < (24*8)) str_width = 24 * 8;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     

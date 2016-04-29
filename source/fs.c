@@ -403,7 +403,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
     return ret;
 }
 
-bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
+bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     FILINFO fno = {.lfname = NULL};
     bool ret = false;
     
@@ -442,13 +442,15 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
     
     // the copy process takes place here
     if (!ShowProgress(0, 0, orig)) return false;
-    if (fno.fattrib & AM_DIR) { // processing folders...
+    if (move && f_stat(dest, NULL) != FR_OK) { // moving if dest not existing
+        ret = (f_rename(orig, dest) == FR_OK);
+    } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
         
         // create the destination folder if it does not already exist
         if ((f_opendir(&pdir, dest) != FR_OK) && (f_mkdir(dest) != FR_OK)) {
-            ShowPrompt(false, "Error: Cannot create output dir");
+            ShowPrompt(false, "Error: Overwriting file with dir");
             return false;
         } else f_closedir(&pdir);
         
@@ -466,12 +468,22 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
             if (fno.fname[0] == 0) {
                 ret = true;
                 break;
-            } else if (!PathCopyWorker(dest, orig, overwrite)) {
+            } else if (!PathCopyWorker(dest, orig, overwrite, move)) {
                 break;
             }
         }
         f_closedir(&pdir);
-    } else { // processing files...
+    } else if (move) { // moving if destination exists
+        if (f_stat(dest, &fno) != FR_OK)
+            return false;
+        if (fno.fattrib & AM_DIR) {
+            ShowPrompt(false, "Error: Overwriting dir with file");
+            return false;
+        }
+        if (f_unlink(dest) != FR_OK)
+            return false;
+        ret = (f_rename(orig, dest) == FR_OK);
+    } else { // copying files
         FIL ofile;
         FIL dfile;
         size_t fsize;
@@ -486,7 +498,7 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite) {
         }
         
         if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-            ShowPrompt(false, "Error: Cannot create output file");
+            ShowPrompt(false, "Error: Cannot create destination file");
             f_close(&ofile);
             return false;
         }
@@ -533,7 +545,24 @@ bool PathCopy(const char* destdir, const char* orig) {
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
-        return PathCopyWorker(fdpath, fopath, false);
+        return PathCopyWorker(fdpath, fopath, false, false);
+    }
+}
+
+bool PathMove(const char* destdir, const char* orig) {
+    if (!CheckWritePermissions(destdir)) return false;
+    if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
+        ShowPrompt(false, "Error: Moving virtual files not possible");
+        return false;
+    } else {
+        char fdpath[256]; // 256 is the maximum length of a full path
+        char fopath[256];
+        strncpy(fdpath, destdir, 255);
+        strncpy(fopath, orig, 255);
+        bool same_drv = (PathToNumFS(orig) == PathToNumFS(destdir));
+        bool res = PathCopyWorker(fdpath, fopath, false, same_drv);
+        if (res) PathDelete(orig);
+        return res;
     }
 }
 
