@@ -1,6 +1,9 @@
 #include "image.h"
 #include "fatfs/ff.h"
 
+#define RAMDRV_BUFFER ((u8*)0x22200000)
+#define RAMDRV_SIZE (0x01C00000) // 28MB
+
 FIL mount_file;
 u32 mount_state = 0;
 
@@ -8,10 +11,15 @@ int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
     UINT bytes_read;
     UINT ret;
     if (!count) return -1;
+    if (mount_state == IMG_RAMDRV) {
+        if ((sector + count) * 0x200 > RAMDRV_SIZE) return -1;
+        memcpy(buffer, RAMDRV_BUFFER + (sector * 0x200), count * 0x200);
+        return 0;
+    }
     if (!mount_state) return FR_INVALID_OBJECT;
     if (f_tell(&mount_file) != sector * 0x200) {
         if (f_size(&mount_file) < sector * 0x200) return -1;
-        f_lseek(&mount_file, sector * 0x200);
+        f_lseek(&mount_file, sector * 0x200); 
     }
     ret = f_read(&mount_file, buffer, count * 0x200, &bytes_read);
     return (ret != 0) ? (int) ret : (bytes_read != count * 0x200) ? -1 : 0;
@@ -21,6 +29,11 @@ int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
     UINT bytes_written;
     UINT ret;
     if (!count) return -1;
+    if (mount_state == IMG_RAMDRV) {
+        if ((sector + count) * 0x200 > RAMDRV_SIZE) return -1;
+        memcpy(RAMDRV_BUFFER + (sector * 0x200), buffer, count * 0x200);
+        return 0;
+    }
     if (!mount_state) return FR_INVALID_OBJECT;
     if (f_tell(&mount_file) != sector * 0x200)
         f_lseek(&mount_file, sector * 0x200);
@@ -29,11 +42,13 @@ int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
 }
 
 int SyncImage(void) {
-    return (mount_state) ? f_sync(&mount_file) : FR_INVALID_OBJECT;
+    return (mount_state == IMG_RAMDRV) ? FR_OK :
+        mount_state ? f_sync(&mount_file) : FR_INVALID_OBJECT;
 }
 
 u64 GetMountSize(void) {
-    return mount_state ? f_size(&mount_file) : 0;
+    return (mount_state == IMG_RAMDRV) ? RAMDRV_SIZE :
+        mount_state ? f_size(&mount_file) : 0;
 }
 
 u32 GetMountState(void) {
@@ -71,9 +86,15 @@ u32 IdentifyImage(const char* path) {
     return 0;
 }
 
+u32 MountRamDrive(void) {
+    if (mount_state && (mount_state != IMG_RAMDRV))
+        f_close(&mount_file);    
+    return (mount_state = IMG_RAMDRV);
+}
+
 u32 MountImage(const char* path) {
     if (mount_state) {
-        f_close(&mount_file);
+        if (mount_state != IMG_RAMDRV) f_close(&mount_file);
         mount_state = 0;
     }
     if (!path || !IdentifyImage(path)) return 0;

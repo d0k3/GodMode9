@@ -41,8 +41,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     u32 state_curr =
         ((*curr_path) ? (1<<0) : 0) |
         ((clipboard->n_entries) ? (1<<1) : 0) |
-        ((GetMountState()) ? (1<<2) : 0) |
-        (curr_pane<<3);
+        (GetMountState()<<2) |
+        (curr_pane<<4);
     
     if (state_prev != state_curr) {
         ClearScreenF(true, false, COLOR_STD_BG);
@@ -108,7 +108,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND / image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
         (GetWritePermissions() == 2) ? "X - Relock EmuNAND / image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
         "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nR+B - Unmount SD card\n"),
-        (GetMountState() && !*curr_path) ? "R+X - Unmount image\n" : "",
+        (*curr_path) ? "" : ((GetMountState() == IMG_RAMDRV) ? "R+X - Unmount RAM drive\n" :
+        (GetMountState()) ? "R+X - Unmount image\n" : "R+X - Mount RAM drive\n"),
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
@@ -463,7 +464,8 @@ u32 GodMode() {
         if (!(*current_path)) { // in the root folder...
             if (switched && !*current_path && (pad_state & BUTTON_X)) { // unmount image
                 DeinitExtFS();
-                MountImage(NULL);
+                if (!GetMountState()) MountRamDrive();
+                else MountImage(NULL);
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
