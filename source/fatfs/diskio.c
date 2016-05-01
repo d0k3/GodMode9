@@ -130,18 +130,17 @@ DSTATUS disk_initialize (
 )
 {
     if (pdrv == 0) { // a mounted SD card is the preriquisite for everything else
-        if (!sdmmc_sdcard_init())
-            return RES_PARERR;
+        if (!sdmmc_sdcard_init()) return STA_NODISK;
     } else if (pdrv < 4) {
         nand_type_sys = CheckNandType(NAND_SYSNAND);
-        if (!nand_type_sys) return RES_PARERR;
+        if (!nand_type_sys) return STA_NODISK;
     } else if (pdrv < 7) {
         nand_type_emu = CheckNandType(NAND_EMUNAND);
-        if (!nand_type_emu) return RES_PARERR;
+        if (!nand_type_emu) return STA_NODISK;
     } else if (pdrv < 10) {
-        if (!GetMountState()) return RES_PARERR;
+        if (!GetMountState()) return STA_NODISK;
         nand_type_img = CheckNandType(NAND_IMGNAND);
-        if (!nand_type_img) return RES_PARERR;
+        if ((!nand_type_img) && (pdrv != 7)) return STA_NODISK;
     }
 	return RES_OK;
 }
@@ -246,13 +245,13 @@ DRESULT disk_ioctl (
             if (type == TYPE_SDCARD) { // SD card
                 *((DWORD*) buff) = getMMCDevice(1)->total_size;
             } else if (type == TYPE_IMAGE) { // FAT image
-                *((DWORD*) buff) = GetMountSize();
+                *((DWORD*) buff) = GetMountSize() / 0x200;
             } else if (type != TYPE_NONE) { // NAND
                 *((DWORD*) buff) = get_subtype_desc(pdrv)->size;
             }
             return RES_OK;
         case GET_BLOCK_SIZE:
-            *((DWORD*) buff) = 0x2000;
+            *((DWORD*) buff) = (type == TYPE_IMAGE) ? 0x1 : 0x2000;
             return RES_OK;
         case CTRL_SYNC:
             if ((type == TYPE_IMAGE) || (type == TYPE_IMGNAND))

@@ -63,9 +63,9 @@ _start:
     mcr p15, 0, r5, c7, c10, 4 @ drain write buffer
 
     @ Fixes mounting of SDMC
-	ldr r0, =0x10000020
-	mov r1, #0x340
-	str r1, [r0]
+    ldr r0, =0x10000020
+    mov r1, #0x340
+    str r1, [r0]
 
     bl main
 
