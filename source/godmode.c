@@ -408,7 +408,8 @@ u32 GodMode() {
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
             DeinitExtFS();
-            MountImage(NULL);
+            if (GetMountState() != IMG_RAMDRV)
+                MountImage(NULL);
             DeinitSDCardFS();
             clipboard->n_entries = 0;
             memset(panedata, 0x00, N_PANES * sizeof(PaneData));

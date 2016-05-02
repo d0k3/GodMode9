@@ -38,7 +38,7 @@ bool InitExtFS() {
         snprintf(fsname, 7, "%lu:", i);
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
         if ((i == 7) && !fs_mounted[7] && (GetMountState() == IMG_RAMDRV)) {
-            f_mkfs("7:", 0, 0); // format ramdrive
+            f_mkfs("7:", 0, 0); // format ramdrive if required
             f_mount(NULL, fsname, 1);
             fs_mounted[7] = (f_mount(fs + 7, "7:", 1) == FR_OK);
         }
