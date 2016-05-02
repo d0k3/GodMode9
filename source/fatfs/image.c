@@ -1,19 +1,25 @@
 #include "image.h"
+#include "platform.h"
 #include "fatfs/ff.h"
 
-#define RAMDRV_BUFFER ((u8*)0x22200000)
-#define RAMDRV_SIZE (0x01C00000) // 28MB
+#define RAMDRV_BUFFER_O3DS ((u8*)0x22200000) // in O3DS FCRAM
+#define RAMDRV_SIZE_O3DS (0x01C00000) // 28MB
+#define RAMDRV_BUFFER_N3DS ((u8*)0x28000000) // in N3DS FCRAM
+#define RAMDRV_SIZE_N3DS (0x08000000) // 128MB
 
-FIL mount_file;
-u32 mount_state = 0;
+static u8* ramdrv_buffer = NULL;
+static u32 ramdrv_size = 0;
+
+static FIL mount_file;
+static u32 mount_state = 0;
 
 int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
     UINT bytes_read;
     UINT ret;
     if (!count) return -1;
     if (mount_state == IMG_RAMDRV) {
-        if ((sector + count) * 0x200 > RAMDRV_SIZE) return -1;
-        memcpy(buffer, RAMDRV_BUFFER + (sector * 0x200), count * 0x200);
+        if ((sector + count) * 0x200 > ramdrv_size) return -1;
+        memcpy(buffer, ramdrv_buffer + (sector * 0x200), count * 0x200);
         return 0;
     }
     if (!mount_state) return FR_INVALID_OBJECT;
@@ -30,8 +36,8 @@ int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
     UINT ret;
     if (!count) return -1;
     if (mount_state == IMG_RAMDRV) {
-        if ((sector + count) * 0x200 > RAMDRV_SIZE) return -1;
-        memcpy(RAMDRV_BUFFER + (sector * 0x200), buffer, count * 0x200);
+        if ((sector + count) * 0x200 > ramdrv_size) return -1;
+        memcpy(ramdrv_buffer + (sector * 0x200), buffer, count * 0x200);
         return 0;
     }
     if (!mount_state) return FR_INVALID_OBJECT;
@@ -47,7 +53,7 @@ int SyncImage(void) {
 }
 
 u64 GetMountSize(void) {
-    return (mount_state == IMG_RAMDRV) ? RAMDRV_SIZE :
+    return (mount_state == IMG_RAMDRV) ? ramdrv_size :
         mount_state ? f_size(&mount_file) : 0;
 }
 
@@ -88,7 +94,14 @@ u32 IdentifyImage(const char* path) {
 
 u32 MountRamDrive(void) {
     if (mount_state && (mount_state != IMG_RAMDRV))
-        f_close(&mount_file);    
+        f_close(&mount_file);
+    if (GetUnitPlatform() == PLATFORM_3DS) {
+        ramdrv_buffer = RAMDRV_BUFFER_O3DS;
+        ramdrv_size = RAMDRV_SIZE_O3DS;
+    } else {
+        ramdrv_buffer = RAMDRV_BUFFER_N3DS;
+        ramdrv_size = RAMDRV_SIZE_N3DS;
+    }
     return (mount_state = IMG_RAMDRV);
 }
 
