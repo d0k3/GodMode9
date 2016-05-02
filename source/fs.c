@@ -86,6 +86,8 @@ bool CheckWritePermissions(const char* path) {
                 (GetVirtualSource(path) == VRT_SYSNAND) ? 1 :
                 (GetVirtualSource(path) == VRT_EMUNAND) ? 4 : 7; 
         else return false;
+    } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
+        pdrv = 0; // ...and another hack
     }
     
     if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
