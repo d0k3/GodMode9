@@ -36,8 +36,12 @@ bool InitExtFS() {
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
-        if (f_mount(fs + i, fsname, 1) == FR_OK)
-            fs_mounted[i] = true;
+        fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
+        if ((i == 7) && !fs_mounted[7] && (GetMountState() == IMG_RAMDRV)) {
+            f_mkfs("7:", 0, 0); // format ramdrive if required
+            f_mount(NULL, fsname, 1);
+            fs_mounted[7] = (f_mount(fs + 7, "7:", 1) == FR_OK);
+        }
     }
     return true;
 }
@@ -82,6 +86,8 @@ bool CheckWritePermissions(const char* path) {
                 (GetVirtualSource(path) == VRT_SYSNAND) ? 1 :
                 (GetVirtualSource(path) == VRT_EMUNAND) ? 4 : 7; 
         else return false;
+    } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
+        pdrv = 0; // ...and another hack
     }
     
     if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
@@ -720,6 +726,8 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
         if ((GetMountState() == IMG_FAT) && (pdrv == 7)) // FAT image special handling
             snprintf(entry->path + 4, 32, "[7:] FAT IMAGE");
+        else if ((GetMountState() == IMG_RAMDRV) && (pdrv == 7)) // RAM drive special handling
+            snprintf(entry->path + 4, 32, "[7:] RAMDRIVE");
         entry->name = entry->path + 4;
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;
