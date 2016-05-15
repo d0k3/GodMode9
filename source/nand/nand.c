@@ -355,7 +355,5 @@ bool InitEmuNandBase(void)
     if (CheckNandType(NAND_EMUNAND))
         return true;
     
-    if (GetPartitionOffsetSector("0:") > getMMCDevice(0)->total_size)
-        emunand_base_sector = 0x000000; // keep unknown EmuNAND as RedNAND only if space is low
     return false;
 }
