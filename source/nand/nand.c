@@ -36,6 +36,7 @@ static u8 nand_magic_o3ds[0x60] = { // NCSD NAND header O3DS magic
 
 static u8 CtrNandCtr[16];
 static u8 TwlNandCtr[16];
+static u8 OtpSha256[32] = { 0 };
 
 static u32 emunand_base_sector = 0x000000;
 
@@ -108,7 +109,21 @@ bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, ch
 
 bool InitNandCrypto(void)
 {
-    // STEP #1: Get NAND CID, set up TWL/CTR counter
+    // part #0: KeyX / KeyY for secret sector 0x96
+    // on a9lh this MUST be run before accessing the SHA register in any other way
+    if ((*(u32*) 0x101401C0) == 0) { // for a9lh
+        // store the current SHA256 from register
+        memcpy(OtpSha256, (void*)REG_SHAHASH, 32);
+    } else {
+        u8 otp[0x100];
+        if ((FileGetData("0:/otp.bin", otp, 0x100, 0) == 0x100) ||
+            (FileGetData("0:/otp0x108.bin", otp, 0x100, 0) == 0x100) ||
+            (FileGetData("0:/Decrypt9/otp.bin", otp, 0x100, 0) == 0x100) ||
+            (FileGetData("0:/Decrypt9/otp0x108.bin", otp, 0x100, 0) == 0x100))
+            sha_quick(OtpSha256, otp, 0x90, SHA256_MODE);
+    }
+        
+    // part #1: Get NAND CID, set up TWL/CTR counter
     u8 NandCid[16];
     u8 shasum[32];
     
@@ -206,6 +221,12 @@ bool CheckSlot0x05Crypto(void)
     return false;
 }
 
+bool CheckSector0x96Crypto(void)
+{
+    const u8 zeroes[32] = { 0 };
+    return !(memcmp(OtpSha256, zeroes, 32) == 0);
+}
+
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
 {
     u32 mode = (sector >= (0x0B100000 / 0x200)) ? AES_CNT_CTRNAND_MODE : AES_CNT_TWLNAND_MODE;
@@ -224,6 +245,20 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
             add_ctr(ctr, 0x1);
         }
     }
+}
+
+void CryptSector0x96(u8* buffer, bool encrypt)
+{
+    u32 mode = encrypt ? AES_CNT_ECB_ENCRYPT_MODE : AES_CNT_ECB_DECRYPT_MODE;
+    
+    // setup the key
+    setup_aeskeyX(0x11, OtpSha256);
+    setup_aeskeyY(0x11, OtpSha256 + 16);
+    
+    // decrypt the sector
+    use_aeskey(0x11);
+    for (u32 b = 0x0; b < 0x200; b += 0x10, buffer += 0x10)
+        aes_decrypt((void*) buffer, (void*) buffer, 1, mode);
 }
 
 int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
@@ -248,7 +283,8 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src
     } else {
         return -1;
     }
-    if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
+    if ((keyslot == 0x11) && (sector == 0x96)) CryptSector0x96(buffer, false);
+    else if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
     
     return 0;
 }
@@ -259,7 +295,8 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
     for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
         memcpy(NAND_BUFFER, buffer + (s*0x200), pcount * 0x200);
-        if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
+        if ((keyslot == 0x11) && (sector == 0x96)) CryptSector0x96((u8*) buffer, true);
+        else if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
         if (nand_dst == NAND_EMUNAND) {
             int errorcode = 0;
             if ((sector + s == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
