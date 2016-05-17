@@ -7,10 +7,12 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.4.1"
+#define VERSION "0.4.2"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
+
+#define WORK_BUFFER     ((u8*)0x21100000)
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -161,9 +163,11 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 
 u32 HexViewer(const char* path) {
     static u32 mode = 0;
-    u8 data[(SCREEN_HEIGHT / 8) * 16]; // this is the maximum size
+    u8* bottom_cpy = WORK_BUFFER;
+    u8* data = WORK_BUFFER + (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3);
     u32 fsize = FileGetSize(path);
     
+    bool dual_screen;
     int x_off, x_hex, x_ascii;
     u32 vpad, hlpad, hrpad;
     u32 rows, cols;
@@ -172,6 +176,8 @@ u32 HexViewer(const char* path) {
     
     u32 last_mode = 0xFF;
     u32 offset = 0;
+    
+    memcpy(bottom_cpy, BOT_SCREEN0, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     
     while (true) {
         if (mode != last_mode) {
@@ -182,6 +188,7 @@ u32 HexViewer(const char* path) {
                     x_off = 0;
                     x_ascii = SCREEN_WIDTH_TOP - (8 * cols);
                     x_hex = x_off + (8*8) + 12;
+                    dual_screen = false;
                     break;
                 case 2:
                     vpad = 1;
@@ -191,6 +198,7 @@ u32 HexViewer(const char* path) {
                     x_off = -1;
                     x_ascii = SCREEN_WIDTH_TOP - (8 * cols);
                     x_hex = 0;
+                    dual_screen = false;
                     break;
                 case 3:
                     vpad = hlpad = hrpad = 1;
@@ -198,6 +206,7 @@ u32 HexViewer(const char* path) {
                     x_off = 20;
                     x_ascii = -1;
                     x_hex = x_off + (8*8) + 12;
+                    dual_screen = false;
                     break;
                 default:
                     vpad = hlpad = hrpad = 2;
@@ -205,13 +214,18 @@ u32 HexViewer(const char* path) {
                     x_off = (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
                     x_ascii = SCREEN_WIDTH_TOP - x_off - (8 * cols);
                     x_hex = (SCREEN_WIDTH_TOP - ((hlpad + 16 + hrpad) * cols)) / 2;
+                    dual_screen = true;
                     break;
             }
-            rows = SCREEN_HEIGHT / (8 + (2*vpad));
+            rows = (dual_screen ? 2 : 1) * SCREEN_HEIGHT / (8 + (2*vpad));
             total_shown = rows * cols;
             if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
             last_mode = mode;
-            ClearScreenF(true, false, COLOR_STD_BG);
+            ClearScreenF(true, dual_screen, COLOR_STD_BG);
+            if (!dual_screen) {
+                memcpy(BOT_SCREEN0, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+                memcpy(BOT_SCREEN1, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+            }
         }
         // fix offset (if required)
         if (offset + total_shown > fsize + cols)
@@ -224,25 +238,28 @@ u32 HexViewer(const char* path) {
             u32 y = row * (8 + (2*vpad)) + vpad;
             u32 curr_pos = row * cols;
             u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
+            bool top = (y < SCREEN_HEIGHT);
+            u32 x0 = (top ? 0 : 40);
+            if (!top) y -= SCREEN_HEIGHT;
             
             memcpy(ascii, data + curr_pos, cols);
             for (u32 col = 0; col < cols; col++)
                 if ((col >= cutoff) || (ascii[col] == 0x00)) ascii[col] = ' ';
             
             // draw offset / ASCII representation
-            if (x_off >= 0) DrawStringF(true, x_off, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI, COLOR_STD_BG,
-                "%08X", (unsigned int) offset + curr_pos);
+            if (x_off >= 0) DrawStringF(top, x_off - x0, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI,
+                COLOR_STD_BG, "%08X", (unsigned int) offset + curr_pos);
             if (x_ascii >= 0) {
-                DrawString(TOP_SCREEN0, ascii, x_ascii, y, COLOR_HVASCII, COLOR_STD_BG);
-                DrawString(TOP_SCREEN1, ascii, x_ascii, y, COLOR_HVASCII, COLOR_STD_BG);
+                DrawString(top ? TOP_SCREEN0 : BOT_SCREEN0, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
+                DrawString(top ? TOP_SCREEN1 : BOT_SCREEN1, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
             }
             
             // draw HEX values
             for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
-                u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col);
+                u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col) - x0;
                 if (col < cutoff)
-                    DrawStringF(true, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
-                else DrawStringF(true, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "  ");
+                    DrawStringF(top, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
+                else DrawStringF(top, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "  ");
             }
         }
         
@@ -260,6 +277,8 @@ u32 HexViewer(const char* path) {
     }
     
     ClearScreenF(true, false, COLOR_STD_BG);
+    memcpy(BOT_SCREEN0, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+    memcpy(BOT_SCREEN1, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     return 0;
 }
 
