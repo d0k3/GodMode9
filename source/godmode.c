@@ -52,30 +52,30 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     }
     
     // top bar - current path & free/total storage
-    DrawRectangleF(true, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
+    DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
     if (strncmp(curr_path, "", 256) != 0) {
         char bytestr0[32];
         char bytestr1[32];
         TruncateString(tempstr, curr_path, 30, 8);
-        DrawStringF(true, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
-        DrawStringF(true, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
+        DrawStringF(TOP_SCREEN, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
+        DrawStringF(TOP_SCREEN, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
         FormatBytes(bytestr1, GetTotalSpace(curr_path));
         snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
-        DrawStringF(true, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
+        DrawStringF(TOP_SCREEN, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
     } else {
-        DrawStringF(true, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
-        DrawStringF(true, 30 * 8 + 6, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "GodMode9");
+        DrawStringF(TOP_SCREEN, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
+        DrawStringF(TOP_SCREEN, 30 * 8 + 6, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "GodMode9");
     }
     
     // left top - current file info
     if (curr_pane) snprintf(tempstr, 63, "PANE #%lu", curr_pane);
     else snprintf(tempstr, 63, "CURRENT");
-    DrawStringF(true, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[%s]", tempstr);
+    DrawStringF(TOP_SCREEN, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[%s]", tempstr);
     // file / entry name
     ResizeString(tempstr, curr_entry->name, 20, 8, false);
     u32 color_current = COLOR_ENTRY(curr_entry);
-    DrawStringF(true, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
+    DrawStringF(TOP_SCREEN, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
     // size (in Byte) or type desc
     if (curr_entry->type == T_DIR) {
         ResizeString(tempstr, "(dir)", 20, 8, false);
@@ -88,18 +88,18 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         snprintf(bytestr, 31, "%s Byte", numstr);
         ResizeString(tempstr, bytestr, 20, 8, false);
     }
-    DrawStringF(true, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
+    DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
     
     // right top - clipboard
-    DrawStringF(true, SCREEN_WIDTH_TOP - (20*8), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*8), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
     for (u32 c = 0; c < n_cb_show; c++) {
         u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
         ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", 20, 8, true);
-        DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
+        DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
     }
     *tempstr = '\0';
     if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - n_cb_show);
-    DrawStringF(true, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
     
     // bottom: inctruction block
     char instr[256];
@@ -116,7 +116,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
         "START - Reboot / [+R] Poweroff"); // generic end part
-    DrawStringF(true, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
+    DrawStringF(TOP_SCREEN, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
 void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
@@ -146,7 +146,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
             snprintf(tempstr, str_width + 1, "%s%10.10s", namestr,
                 (curr_entry->type == T_DIR) ? "(dir)" : (curr_entry->type == T_DOTDOT) ? "(..)" : bytestr);
         } else snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
-        DrawStringF(false, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
+        DrawStringF(BOT_SCREEN, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
         pos_y += stp_y;
     }
     
@@ -155,10 +155,10 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
         if (bar_height < bar_height_min) bar_height = bar_height_min;
         u32 bar_pos = ((u64) *scroll * (SCREEN_HEIGHT - bar_height)) / (contents->n_entries - lines);
         
-        DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
-        DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
-        DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
-    } else DrawRectangleF(false, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, SCREEN_HEIGHT, COLOR_STD_BG);
+        DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
+        DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
+        DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
+    } else DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, SCREEN_HEIGHT, COLOR_STD_BG);
 }
 
 u32 HexViewer(const char* path) {
@@ -175,9 +175,10 @@ u32 HexViewer(const char* path) {
     u32 total_data;
     
     u32 last_mode = 0xFF;
+    u32 last_offset = (u32) -1;
     u32 offset = 0;
     
-    memcpy(bottom_cpy, BOT_SCREEN0, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+    memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     
     while (true) {
         if (mode != last_mode) {
@@ -222,10 +223,7 @@ u32 HexViewer(const char* path) {
             if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
             last_mode = mode;
             ClearScreenF(true, dual_screen, COLOR_STD_BG);
-            if (!dual_screen) {
-                memcpy(BOT_SCREEN0, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
-                memcpy(BOT_SCREEN1, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
-            }
+            if (!dual_screen) memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
         }
         // fix offset (if required)
         if (offset + total_shown > fsize + cols)
@@ -238,28 +236,31 @@ u32 HexViewer(const char* path) {
             u32 y = row * (8 + (2*vpad)) + vpad;
             u32 curr_pos = row * cols;
             u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
-            bool top = (y < SCREEN_HEIGHT);
-            u32 x0 = (top ? 0 : 40);
-            if (!top) y -= SCREEN_HEIGHT;
+            u8* screen = TOP_SCREEN;
+            u32 x0 = 0;
+            
+            if (y >= SCREEN_HEIGHT) { // switch to bottom screen
+                y -= SCREEN_HEIGHT;
+                screen = BOT_SCREEN;
+                x0 = 40;
+            }
             
             memcpy(ascii, data + curr_pos, cols);
             for (u32 col = 0; col < cols; col++)
                 if ((col >= cutoff) || (ascii[col] == 0x00)) ascii[col] = ' ';
             
             // draw offset / ASCII representation
-            if (x_off >= 0) DrawStringF(top, x_off - x0, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI,
+            if (x_off >= 0) DrawStringF(screen, x_off - x0, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI,
                 COLOR_STD_BG, "%08X", (unsigned int) offset + curr_pos);
-            if (x_ascii >= 0) {
-                DrawString(top ? TOP_SCREEN0 : BOT_SCREEN0, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
-                DrawString(top ? TOP_SCREEN1 : BOT_SCREEN1, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
-            }
+            if (x_ascii >= 0)
+                DrawString(screen, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
             
             // draw HEX values
             for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
                 u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col) - x0;
                 if (col < cutoff)
-                    DrawStringF(top, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
-                else DrawStringF(top, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "  ");
+                    DrawStringF(screen, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
+                else DrawStringF(screen, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "  ");
             }
         }
         
@@ -277,8 +278,7 @@ u32 HexViewer(const char* path) {
     }
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    memcpy(BOT_SCREEN0, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
-    memcpy(BOT_SCREEN1, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+    memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     return 0;
 }
 

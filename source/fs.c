@@ -666,10 +666,10 @@ void CreateScreenshot() {
     memset(buffer, 0x1F, 400 * 240 * 3 * 2);
     for (u32 x = 0; x < 400; x++)
         for (u32 y = 0; y < 240; y++)
-            memcpy(buffer_t + (y*400 + x) * 3, TOP_SCREEN0 + (x*240 + y) * 3, 3);
+            memcpy(buffer_t + (y*400 + x) * 3, TOP_SCREEN + (x*240 + y) * 3, 3);
     for (u32 x = 0; x < 320; x++)
         for (u32 y = 0; y < 240; y++)
-            memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN0 + (x*240 + y) * 3, 3);
+            memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN + (x*240 + y) * 3, 3);
     FileCreateData(filename, MAIN_BUFFER, 54 + (400 * 240 * 3 * 2));
 }
 

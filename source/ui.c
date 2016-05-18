@@ -11,8 +11,9 @@
 #include "ui.h"
 #include "hid.h"
 
-void ClearScreen(u8* screen, int width, int color)
+void ClearScreen(u8* screen, int color)
 {
+    int width = (screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT;
     if (color == COLOR_TRANSPARENT) color = COLOR_BLACK;
     for (int i = 0; i < (width * SCREEN_HEIGHT); i++) {
         *(screen++) = color >> 16;  // B
@@ -23,14 +24,8 @@ void ClearScreen(u8* screen, int width, int color)
 
 void ClearScreenF(bool clear_top, bool clear_bottom, int color)
 {
-    if (clear_top) {
-        ClearScreen(TOP_SCREEN0, SCREEN_WIDTH_TOP, color);
-        ClearScreen(TOP_SCREEN1, SCREEN_WIDTH_TOP, color);
-    }
-    if (clear_bottom) {
-        ClearScreen(BOT_SCREEN0, SCREEN_WIDTH_BOT, color);
-        ClearScreen(BOT_SCREEN1, SCREEN_WIDTH_BOT, color);
-    }
+    if (clear_top) ClearScreen(TOP_SCREEN, color);
+    if (clear_bottom) ClearScreen(BOT_SCREEN, color);
 }
 
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
@@ -45,17 +40,6 @@ void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
             *(screenPos + 2) = color & 0xFF; // R
             screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
         }
-    }
-}
-
-void DrawRectangleF(bool use_top, int x, int y, int width, int height, int color)
-{
-    if (use_top) {
-        DrawRectangle(TOP_SCREEN0, x, y, width, height, color);
-        DrawRectangle(TOP_SCREEN1, x, y, width, height, color);
-    } else {
-        DrawRectangle(BOT_SCREEN0, x, y, width, height, color);
-        DrawRectangle(BOT_SCREEN1, x, y, width, height, color);
     }
 }
 
@@ -88,7 +72,7 @@ void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolo
         DrawCharacter(screen, str[i], x + i * 8, y, color, bgcolor);
 }
 
-void DrawStringF(bool use_top, int x, int y, int color, int bgcolor, const char *format, ...)
+void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *format, ...)
 {
     char str[512] = { 0 }; // 512 should be more than enough
     va_list va;
@@ -97,15 +81,8 @@ void DrawStringF(bool use_top, int x, int y, int color, int bgcolor, const char 
     vsnprintf(str, 512, format, va);
     va_end(va);
 
-    for (char* text = strtok(str, "\n"); text != NULL; text = strtok(NULL, "\n"), y += 10) {
-        if (use_top) {
-            DrawString(TOP_SCREEN0, text, x, y, color, bgcolor);
-            DrawString(TOP_SCREEN1, text, x, y, color, bgcolor);
-        } else {
-            DrawString(BOT_SCREEN0, text, x, y, color, bgcolor);
-            DrawString(BOT_SCREEN1, text, x, y, color, bgcolor);
-        }
-    }
+    for (char* text = strtok(str, "\n"); text != NULL; text = strtok(NULL, "\n"), y += 10)
+        DrawString(screen, text, x, y, color, bgcolor);
 }
 
 u32 GetDrawStringHeight(const char* str) {
@@ -197,8 +174,8 @@ bool ShowPrompt(bool ask, const char *format, ...)
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(true, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
+    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(TOP_SCREEN, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
     
     while (true) {
         u32 pad_state = InputWait();
@@ -248,12 +225,12 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(true, x, y + str_height - 28, COLOR_STD_FONT, COLOR_STD_BG, "To proceed, enter this:");
+    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(TOP_SCREEN, x, y + str_height - 28, COLOR_STD_FONT, COLOR_STD_BG, "To proceed, enter this:");
     
     while (true) {
         for (u32 n = 0; n < len; n++) {
-            DrawStringF(true, x + (n*4*8), y + str_height - 18,
+            DrawStringF(TOP_SCREEN, x + (n*4*8), y + str_height - 18,
                 (lvl > n) ? seqcolors[seqlvl] : COLOR_GREY, COLOR_STD_BG, "<%c>", seqsymbols[seqlvl][n]);
         }
         if (lvl == len)
@@ -297,11 +274,11 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     yopt = y + GetDrawStringHeight(str) + 8;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(true, x, yopt + (n*12) + 10, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
+    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(TOP_SCREEN, x, yopt + (n*12) + 10, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
     while (true) {
         for (u32 i = 0; i < n; i++) {
-            DrawStringF(true, x, yopt + (12*i), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
+            DrawStringF(TOP_SCREEN, x, yopt + (12*i), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
                 (sel == i) ? "->" : "", options[i]);
         }
         u32 pad_state = InputWait();
@@ -346,8 +323,8 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(true, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(true, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear string\nX - remove char\nY - insert char");
+    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(TOP_SCREEN, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear string\nX - remove char\nY - insert char");
     
     int cursor_a = -1;
     u32 cursor_s = 0;
@@ -359,7 +336,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
         if (cursor_s < scroll) scroll = cursor_s;
         else if (cursor_s - scroll >= input_shown) scroll = cursor_s - input_shown + 1;
         while (scroll && (inputstr_size - scroll < input_shown)) scroll--;
-        DrawStringF(true, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
+        DrawStringF(TOP_SCREEN, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
             (scroll) ? '<' : '|',
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
@@ -446,16 +423,14 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     
     if (!current || last_prog_width > prog_width) { 
         ClearScreenF(true, false, COLOR_STD_BG);
-        DrawRectangleF(true, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_STD_FONT);
-        DrawRectangleF(true, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
+        DrawRectangle(TOP_SCREEN, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_STD_FONT);
+        DrawRectangle(TOP_SCREEN, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
     }
-    DrawRectangleF(true, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
+    DrawRectangle(TOP_SCREEN, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
     
     ResizeString(tempstr, opstr, 28, 8, false);
-    DrawString(TOP_SCREEN0, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
-    DrawString(TOP_SCREEN1, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
-    DrawString(TOP_SCREEN0, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
-    DrawString(TOP_SCREEN1, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(TOP_SCREEN, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(TOP_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
     
     last_prog_width = prog_width;
     
