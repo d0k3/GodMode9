@@ -650,7 +650,7 @@ u32 GodMode() {
         }
         
         if (pad_state & BUTTON_START) {
-            exit_mode = switched ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
+            exit_mode = (switched || (pad_state & BUTTON_LEFT)) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
             break;
         } 
     }
