@@ -38,8 +38,8 @@ bool SetWritePermissions(u32 level);
 /** Get write permissions */
 u32 GetWritePermissions();
 
-/** Create / overwrite file and write the provided data to it **/
-bool FileCreateData(const char* path, u8* data, size_t size);
+/** Create / open file and write the provided data to it **/
+bool FileSetData(const char* path, u8* data, size_t size, size_t foffset);
 
 /** Read data from file@offset **/
 size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset);

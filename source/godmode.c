@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.4.2"
+#define VERSION "0.4.4"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -162,9 +162,11 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 }
 
 u32 HexViewer(const char* path) {
+    static const u32 max_data = (SCREEN_HEIGHT / 8) * 16;
     static u32 mode = 0;
-    u8* bottom_cpy = WORK_BUFFER;
+    u8* bottom_cpy = WORK_BUFFER; // a copy of the bottom screen framebuffer
     u8* data = WORK_BUFFER + (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3);
+    u8* data_cpy = data + max_data;
     u32 fsize = FileGetSize(path);
     
     bool dual_screen;
@@ -177,6 +179,9 @@ u32 HexViewer(const char* path) {
     u32 last_mode = 0xFF;
     u32 last_offset = (u32) -1;
     u32 offset = 0;
+    
+    bool edit_mode = false;
+    int cursor = 0;
     
     memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     
@@ -228,7 +233,12 @@ u32 HexViewer(const char* path) {
         // fix offset (if required)
         if (offset + total_shown > fsize + cols)
             offset = (total_shown > fsize) ? 0 : (fsize + cols - total_shown - (fsize % cols));
-        total_data = FileGetData(path, data, total_shown, offset); // get data
+        // get data, using max data size (if new offset)
+        if (offset != last_offset) { 
+            total_data = FileGetData(path, data, max_data, offset);
+            memcpy(data_cpy, data, max_data);
+            last_offset = offset;
+        }
         
         // display data on screen
         for (u32 row = 0; row < rows; row++) {
@@ -252,29 +262,75 @@ u32 HexViewer(const char* path) {
             // draw offset / ASCII representation
             if (x_off >= 0) DrawStringF(screen, x_off - x0, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI,
                 COLOR_STD_BG, "%08X", (unsigned int) offset + curr_pos);
-            if (x_ascii >= 0)
+            if (x_ascii >= 0) {
                 DrawString(screen, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
+                if (edit_mode && ((u32) cursor / cols == row)) DrawCharacter(screen, ascii[cursor % cols],
+                    x_ascii - x0 + 8 * (cursor % cols), y, COLOR_RED, COLOR_STD_BG);
+            }
             
             // draw HEX values
             for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
                 u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col) - x0;
+                u32 hex_color = (edit_mode && ((u32) cursor == curr_pos + col)) ? COLOR_RED : COLOR_HVHEX(col);
                 if (col < cutoff)
-                    DrawStringF(screen, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
-                else DrawStringF(screen, x, y, COLOR_HVHEX(col), COLOR_STD_BG, "  ");
+                    DrawStringF(screen, x, y, hex_color, COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
+                else DrawStringF(screen, x, y, hex_color, COLOR_STD_BG, "  ");
             }
         }
         
         // handle user input
         u32 pad_state = InputWait();
-        u32 step_ud = (pad_state & BUTTON_R1) ? (0x1000  - (0x1000  % cols))  : cols;
-        u32 step_lr = (pad_state & BUTTON_R1) ? (0x10000 - (0x10000 % cols)) : total_shown;
-        if (pad_state & BUTTON_DOWN) offset += step_ud;
-        else if (pad_state & BUTTON_RIGHT) offset += step_lr;
-        else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
-        else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
-        else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
-        else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
-        else if (pad_state & BUTTON_B) break;
+        if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
+        else if (!edit_mode) { // standard viewer mode
+            u32 step_ud = (pad_state & BUTTON_R1) ? (0x1000  - (0x1000  % cols)) : cols;
+            u32 step_lr = (pad_state & BUTTON_R1) ? (0x10000 - (0x10000 % cols)) : total_shown;
+            if (pad_state & BUTTON_DOWN) offset += step_ud;
+            else if (pad_state & BUTTON_RIGHT) offset += step_lr;
+            else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
+            else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
+            else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
+            else if (pad_state & BUTTON_A) edit_mode = true;
+            else if (pad_state & BUTTON_B) break;
+            if (edit_mode && !CheckWritePermissions(path))
+                edit_mode = false;
+        } else { // editor mode
+            if (pad_state & BUTTON_B) {
+                edit_mode = false;
+                cursor = 0;
+                // write data if required
+                if (memcmp(data, data_cpy, total_data) != 0)
+                    FileSetData(path, data, total_data, last_offset);
+            } else if (pad_state & BUTTON_A) {
+                if (pad_state & BUTTON_DOWN) data[cursor]--;
+                else if (pad_state & BUTTON_UP) data[cursor]++;
+                else if (pad_state & BUTTON_RIGHT) data[cursor] += 0x10;
+                else if (pad_state & BUTTON_LEFT) data[cursor] -= 0x10;
+            } else {
+                if (pad_state & BUTTON_DOWN) cursor += cols;
+                else if (pad_state & BUTTON_UP) cursor -= cols;
+                else if (pad_state & BUTTON_RIGHT) cursor++;
+                else if (pad_state & BUTTON_LEFT) cursor--;
+                // fix cursor position
+                if (cursor < 0) {
+                    if (offset >= cols) {
+                        offset -= cols;
+                        cursor += cols;
+                    } else cursor = 0;
+                } else if (((u32) cursor >= total_data) && (total_data < total_shown)) {
+                    cursor = total_data - 1;
+                } else if ((u32) cursor >= total_shown) {
+                    if (offset + total_shown == fsize) {
+                        cursor = total_shown - 1;
+                    } else {
+                        offset += cols;
+                        cursor = (offset + cursor >= fsize) ? fsize - offset - 1 : cursor - cols;
+                    }
+                }
+                // write data if required
+                if ((offset != last_offset) && (memcmp(data, data_cpy, total_data) != 0))
+                    FileSetData(path, data, total_data, last_offset);
+            }
+        }
     }
     
     ClearScreenF(true, false, COLOR_STD_BG);
@@ -361,7 +417,7 @@ u32 GodMode() {
             u32 n_opt = 2;
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
-            optionstr[0] = "Show in Hexviewer";
+            optionstr[0] = "Show in Hexeditor";
             optionstr[1] = "Calculate SHA-256";
             if (file_type && (PathToNumFS(curr_entry->path) == 0)) {
                 optionstr[2] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
@@ -372,7 +428,7 @@ u32 GodMode() {
             if (user_select == 1) { // -> show in hex viewer
                 static bool show_instr = true;
                 if (show_instr) {
-                    ShowPrompt(false, "HexViewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nB - Exit\n");
+                    ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
                     show_instr = false;
                 }
                 HexViewer(curr_entry->path);
