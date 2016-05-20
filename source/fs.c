@@ -431,7 +431,10 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     strncpy(dname, oname, 256 - (dname - dest));
     
     // check if destination is part of or equal origin
-    if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
+    if (strncmp(dest, orig, 255) == 0) {
+        if (!ShowInputPrompt(dname, 255 - (dname - dest), "Destination is equal to origin\nChoose another name?"))
+            return false;
+    } else if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
         if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0')) {
             ShowPrompt(false, "Error: Destination is part of origin");
             return false;
