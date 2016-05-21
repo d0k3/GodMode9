@@ -281,15 +281,6 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
     TruncateString(deststr, dest, 36, 8);
     TruncateString(origstr, orig, 36, 8);
     
-    if (GetVirtualSource(dest)) { // check destination file flags
-        VirtualFile dvfile;
-        if (!FindVirtualFile(&dvfile, dest, 0))
-            return false;
-        if ((dvfile.flags & VFLAG_A9LH_AREA) &&
-            !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
-            return false;
-    }
-    
     if (GetVirtualSource(dest) && GetVirtualSource(orig)) { // virtual to virtual
         VirtualFile dvfile;
         VirtualFile ovfile;
@@ -304,6 +295,9 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
             return false;
         }
+        if ((dvfile.flags & VFLAG_A9LH_AREA) && // check A9LH critical area
+            !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
+            return false;
         if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
             dvfile.keyslot = ovfile.keyslot = 0xFF;
         
@@ -342,6 +336,9 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             }
             TruncateString(deststr, dest, 36, 8);
         }
+        if ((dvfile.flags & VFLAG_A9LH_AREA) && // check A9LH critical area
+            !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
+            return false;
         if (dvfile.size != osize) {
             char osizestr[32];
             char dsizestr[32];
