@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.4.6"
+#define VERSION "0.4.7"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -164,9 +164,8 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 u32 HexViewer(const char* path) {
     static const u32 max_data = (SCREEN_HEIGHT / 8) * 16;
     static u32 mode = 0;
-    u8* bottom_cpy = WORK_BUFFER; // a copy of the bottom screen framebuffer
-    u8* data = WORK_BUFFER + (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3);
-    u8* data_cpy = data + max_data;
+    u8* data = WORK_BUFFER;
+    u8* bottom_cpy = WORK_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
     u32 fsize = FileGetSize(path);
     
     bool dual_screen;
@@ -180,7 +179,11 @@ u32 HexViewer(const char* path) {
     u32 last_offset = (u32) -1;
     u32 offset = 0;
     
+    static const u32 edit_bsize = 0x4000; // should be multiple of 0x200 * 2
     bool edit_mode = false;
+    u8* edit_buffer = WORK_BUFFER;
+    u8* edit_buffer_cpy = WORK_BUFFER + edit_bsize;
+    u32 edit_start;
     int cursor = 0;
     
     memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
@@ -235,8 +238,14 @@ u32 HexViewer(const char* path) {
             offset = (total_shown > fsize) ? 0 : (fsize + cols - total_shown - (fsize % cols));
         // get data, using max data size (if new offset)
         if (offset != last_offset) { 
-            total_data = FileGetData(path, data, max_data, offset);
-            memcpy(data_cpy, data, max_data);
+            if (!edit_mode) {
+                total_data = FileGetData(path, data, max_data, offset);
+            } else { // edit mode - read from memory
+                if ((offset < edit_start) || (offset + max_data > edit_start + edit_bsize))
+                    offset = last_offset; // we don't expect this to happen
+                total_data = (fsize - offset >= max_data) ? max_data : fsize - offset;
+                data = edit_buffer + (offset - edit_start);
+            }
             last_offset = offset;
         }
         
@@ -291,15 +300,26 @@ u32 HexViewer(const char* path) {
             else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
             else if (pad_state & BUTTON_A) edit_mode = true;
             else if (pad_state & BUTTON_B) break;
-            if (edit_mode && !CheckWritePermissions(path))
+            if (edit_mode && !CheckWritePermissions(path)) {
                 edit_mode = false;
+            } else { // setup edit mode
+                cursor = 0;
+                edit_start = ((offset - (offset % 0x200) <= (edit_bsize / 2)) || (fsize < edit_bsize)) ? 0 : 
+                    offset - (offset % 0x200) - (edit_bsize / 2);
+                FileGetData(path, edit_buffer, edit_bsize, edit_start);
+                memcpy(edit_buffer_cpy, edit_buffer, edit_bsize);
+                data = edit_buffer + (offset - edit_start);
+            }
         } else { // editor mode
             if (pad_state & BUTTON_B) {
                 edit_mode = false;
-                cursor = 0;
-                // write data if required
-                if (memcmp(data, data_cpy, total_data) != 0)
-                    FileSetData(path, data, total_data, last_offset);
+                // check for user edits
+                u32 diffs = 0;
+                for (u32 i = 0; i < edit_bsize; i++) if (edit_buffer[i] != edit_buffer_cpy[i]) diffs++;
+                if (diffs && ShowPrompt(true, "You made edits in %i place(s).\nWrite changes to file?", diffs))
+                    FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start);
+                data = WORK_BUFFER;
+                last_offset = (u32) -1; // force reload from file
             } else if (pad_state & BUTTON_A) {
                 if (pad_state & BUTTON_DOWN) data[cursor]--;
                 else if (pad_state & BUTTON_UP) data[cursor]++;
@@ -326,9 +346,6 @@ u32 HexViewer(const char* path) {
                         cursor = (offset + cursor >= fsize) ? fsize - offset - 1 : cursor - cols;
                     }
                 }
-                // write data if required
-                if ((offset != last_offset) && (memcmp(data, data_cpy, total_data) != 0))
-                    FileSetData(path, data, total_data, last_offset);
             }
         }
     }
