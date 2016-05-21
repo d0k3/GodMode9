@@ -126,14 +126,13 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count,
     if (bytes_read) *bytes_read = count;
     
     if (vfile->flags & VFLAG_ON_NAND) {
+        u32 nand_src = vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND);
+        u32 keyslot = vfile->keyslot;
         if (!(foffset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
             // simple wrapper function for ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 src)
-            return ReadNandSectors(buffer, foffset / 0x200, count / 0x200, vfile->keyslot,
-                vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND));
-        } else { // nonaligned data -> -___-
+            return ReadNandSectors(buffer, foffset / 0x200, count / 0x200, keyslot, nand_src);
+        } else { // misaligned data -> -___-
             u8 l_buffer[0x200];
-            u32 nand_src = vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND);
-            u32 keyslot = vfile->keyslot;
             int errorcode = 0;
             if (foffset % 0x200) { // handle misaligned offset
                 u32 offset_fix = 0x200 - (foffset % 0x200);
@@ -175,11 +174,40 @@ int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32
     if (bytes_written) *bytes_written = count;
     
     if (vfile->flags & VFLAG_ON_NAND) {
+        u32 nand_dst = vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND);
+        u32 keyslot = vfile->keyslot;
         if (!(foffset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
             // simple wrapper function for WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 dest)
-            return WriteNandSectors(buffer, foffset / 0x200, count / 0x200, vfile->keyslot,
-                vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND));
-        } else return -1; // misaligned data -> not implemented (!!!)
+            return WriteNandSectors(buffer, foffset / 0x200, count / 0x200, keyslot, nand_dst);
+        } else { // misaligned data -> -___-
+            u8 l_buffer[0x200];
+            int errorcode = 0;
+            if (foffset % 0x200) { // handle misaligned offset
+                u32 offset_fix = 0x200 - (foffset % 0x200);
+                errorcode = ReadNandSectors(l_buffer, foffset / 0x200, 1, keyslot, nand_dst);
+                if (errorcode != 0) return errorcode;
+                memcpy(l_buffer + 0x200 - offset_fix, buffer, min(offset_fix, count));
+                errorcode = WriteNandSectors((const u8*) l_buffer, foffset / 0x200, 1, keyslot, nand_dst);
+                if (errorcode != 0) return errorcode;
+                if (count <= offset_fix) return 0;
+                foffset += offset_fix;
+                buffer += offset_fix;
+                count -= offset_fix;
+            } // foffset is now aligned and part of the data is written
+            if (count >= 0x200) { // otherwise this is misaligned and will be handled below
+                errorcode = WriteNandSectors(buffer, foffset / 0x200, count / 0x200, keyslot, nand_dst);
+                if (errorcode != 0) return errorcode;
+            }
+            if (count % 0x200) { // handle misaligned count
+                u32 count_fix = count % 0x200;
+                errorcode = ReadNandSectors(l_buffer, (foffset + count) / 0x200, 1, keyslot, nand_dst);
+                if (errorcode != 0) return errorcode;
+                memcpy(l_buffer, buffer + count - count_fix, count_fix);
+                errorcode = WriteNandSectors((const u8*) l_buffer, (foffset + count) / 0x200, 1, keyslot, nand_dst);
+                if (errorcode != 0) return errorcode;
+            }
+            return errorcode;
+        }
     } else if (vfile->flags & VFLAG_ON_MEMORY) {
         memcpy((u8*) foffset, buffer, count);
         return 0;

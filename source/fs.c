@@ -162,16 +162,24 @@ bool GetTempFileName(char* path) {
     return (cc - tempname < 8) ? true : false;
 }
 
-bool FileSetData(const char* path, u8* data, size_t size, size_t foffset) {
-    FIL file;
-    UINT bytes_written = 0;
-    if (!CheckWritePermissions(path)) return false;
-    if (f_open(&file, path, FA_WRITE | FA_OPEN_ALWAYS) != FR_OK)
-        return false;
-    f_lseek(&file, foffset);
-    f_write(&file, data, size, &bytes_written);
-    f_close(&file);
-    return (bytes_written == size);
+bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset) {
+    if (PathToNumFS(path) >= 0) {
+        UINT bytes_written = 0;
+        FIL file;
+        if (!CheckWritePermissions(path)) return false;
+        if (f_open(&file, path, FA_WRITE | FA_OPEN_ALWAYS) != FR_OK)
+            return false;
+        f_lseek(&file, foffset);
+        f_write(&file, data, size, &bytes_written);
+        f_close(&file);
+        return (bytes_written == size);
+    } else if (GetVirtualSource(path)) {
+        VirtualFile vfile;
+        if (!FindVirtualFile(&vfile, path, 0))
+            return 0;
+        return (WriteVirtualFile(&vfile, data, foffset, size, NULL) == 0);
+    }
+    return false;
 }
 
 size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
