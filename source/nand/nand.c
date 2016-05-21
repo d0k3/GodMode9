@@ -295,7 +295,7 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
     for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
         memcpy(NAND_BUFFER, buffer + (s*0x200), pcount * 0x200);
-        if ((keyslot == 0x11) && (sector == 0x96)) CryptSector0x96((u8*) buffer, true);
+        if ((keyslot == 0x11) && (sector == 0x96)) CryptSector0x96(NAND_BUFFER, true);
         else if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
         if (nand_dst == NAND_EMUNAND) {
             int errorcode = 0;

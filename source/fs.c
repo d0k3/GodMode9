@@ -379,7 +379,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             return false;
         // check if destination exists
         if (f_stat(dest, NULL) == FR_OK) {
-            if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?", deststr))
+            if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file?", deststr))
                 return false;
         }
         if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
