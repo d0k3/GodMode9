@@ -17,6 +17,9 @@ GodMode9 can be built to run from a number of entry points, descriptions are bel
 
 If you are a developer and you are building this, you may also just run `make release` to build all files at once. If you are a user, all files are already included in the release archive.
 
+## License
+You may use this under the terms of the GNU General Public License GPL v2 or under the terms of any later revisions of the GPL. Refer to the provided `LICENSE.txt` file for further information.
+
 ## Credits
 This tool would not have been possible without the help of numerous people. Thanks go to...
 * **Archshift**, for providing the base project infrastructure
