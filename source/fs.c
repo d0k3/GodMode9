@@ -295,6 +295,10 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
             return false;
         }
+        if (strncmp(dest, orig, 256) == 0) { // destination == origin
+            ShowPrompt(false, "Origin equals destination:\n%s\n%s", origstr, deststr);
+            return false;
+        }
         if ((dvfile.flags & VFLAG_A9LH_AREA) && // check A9LH critical area
             !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
             return false;
@@ -377,11 +381,22 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         
         if (!FindVirtualFile(&ovfile, orig, 0))
             return false;
+        
         // check if destination exists
         if (f_stat(dest, NULL) == FR_OK) {
-            if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file?", deststr))
-                return false;
+            const char* optionstr[3] = {"Choose new name", "Overwrite file", "Skip file"};
+            u32 user_select = ShowSelectPrompt(3, optionstr, "Destination already exists:\n%s", deststr);
+            if (user_select == 1) {
+                do {
+                    char* dname = strrchr(dest, '/');
+                    if (dname == NULL) return false;
+                    dname++;
+                    if (!ShowInputPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
+                        return false;
+                } while (f_stat(dest, NULL) == FR_OK);
+            } else if (user_select != 2) return (user_select == 3);
         }
+        
         if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
             return false;
         f_lseek(&dfile, 0);
@@ -436,10 +451,11 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     strncpy(dname, oname, 256 - (dname - dest));
     
     // check if destination is part of or equal origin
-    if (strncmp(dest, orig, 255) == 0) {
+    while (strncmp(dest, orig, 255) == 0) {
         if (!ShowInputPrompt(dname, 255 - (dname - dest), "Destination is equal to origin\nChoose another name?"))
             return false;
-    } else if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
+    }
+    if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
         if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0')) {
             ShowPrompt(false, "Error: Destination is part of origin");
             return false;
@@ -448,10 +464,16 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     
     // check if destination exists
     if (!overwrite && (f_stat(dest, NULL) == FR_OK)) {
+        const char* optionstr[3] = {"Choose new name", "Overwrite file(s)", "Skip file(s)"};
         char namestr[36 + 1];
         TruncateString(namestr, dest, 36, 8);
-        if (!ShowPrompt(true, "Destination already exists:\n%s\nOverwrite existing file(s)?", namestr))
-            return false;
+        u32 user_select = ShowSelectPrompt(3, optionstr, "Destination already exists:\n%s", namestr);
+        if (user_select == 1) {
+            do {
+                if (!ShowInputPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
+                    return false;
+            } while (f_stat(dest, NULL) == FR_OK);
+        } else if (user_select != 2) return (user_select == 3);
         overwrite = true;
     }
     
