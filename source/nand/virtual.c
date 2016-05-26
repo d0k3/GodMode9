@@ -39,6 +39,7 @@ VirtualFile virtualFileTemplates[] = {
     { "fcram.mem"        , 0x20000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY },
     { "fcramext.mem"     , 0x28000000, 0x08000000, 0xFF, VFLAG_ON_MEMORY | VFLAG_N3DS_ONLY },
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, VFLAG_ON_MEMORY },
+    // { "otp.mem"          , 0x10012000, 0x00000108, 0xFF, VFLAG_ON_MEMORY },
     // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, VFLAG_ON_MEMORY },
     { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, VFLAG_ON_MEMORY }
 };    
