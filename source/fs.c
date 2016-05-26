@@ -566,6 +566,7 @@ bool PathCopy(const char* destdir, const char* orig) {
 
 bool PathMove(const char* destdir, const char* orig) {
     if (!CheckWritePermissions(destdir)) return false;
+    if (!CheckWritePermissions(orig)) return false;
     if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
         ShowPrompt(false, "Error: Moving virtual files not possible");
         return false;
