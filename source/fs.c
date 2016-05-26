@@ -163,6 +163,7 @@ bool GetTempFileName(char* path) {
 }
 
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset) {
+    if (!CheckWritePermissions(path)) return false;
     if (PathToNumFS(path) >= 0) {
         UINT bytes_written = 0;
         FIL file;

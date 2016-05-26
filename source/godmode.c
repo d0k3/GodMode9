@@ -237,7 +237,7 @@ u32 HexViewer(const char* path) {
         if (offset + total_shown > fsize + cols)
             offset = (total_shown > fsize) ? 0 : (fsize + cols - total_shown - (fsize % cols));
         // get data, using max data size (if new offset)
-        if (offset != last_offset) { 
+        if (offset != last_offset) {
             if (!edit_mode) {
                 total_data = FileGetData(path, data, max_data, offset);
             } else { // edit mode - read from memory
@@ -300,16 +300,14 @@ u32 HexViewer(const char* path) {
             else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
             else if (pad_state & BUTTON_A) edit_mode = true;
             else if (pad_state & BUTTON_B) break;
-            if (edit_mode && !CheckWritePermissions(path)) {
-                edit_mode = false;
-            } else { // setup edit mode
+            if (edit_mode && CheckWritePermissions(path)) { // setup edit mode
                 cursor = 0;
                 edit_start = ((offset - (offset % 0x200) <= (edit_bsize / 2)) || (fsize < edit_bsize)) ? 0 : 
                     offset - (offset % 0x200) - (edit_bsize / 2);
                 FileGetData(path, edit_buffer, edit_bsize, edit_start);
                 memcpy(edit_buffer_cpy, edit_buffer, edit_bsize);
                 data = edit_buffer + (offset - edit_start);
-            }
+            } else edit_mode = false;
         } else { // editor mode
             if (pad_state & BUTTON_B) {
                 edit_mode = false;
