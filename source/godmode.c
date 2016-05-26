@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.4.7"
+#define VERSION "0.4.9"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -317,7 +317,8 @@ u32 HexViewer(const char* path) {
                 u32 diffs = 0;
                 for (u32 i = 0; i < edit_bsize; i++) if (edit_buffer[i] != edit_buffer_cpy[i]) diffs++;
                 if (diffs && ShowPrompt(true, "You made edits in %i place(s).\nWrite changes to file?", diffs))
-                    FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start);
+                    if (!FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start))
+                        ShowPrompt(false, "Failed writing to file!");
                 data = WORK_BUFFER;
                 last_offset = (u32) -1; // force reload from file
             } else if (pad_state & BUTTON_A) {
