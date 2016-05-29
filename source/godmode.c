@@ -7,14 +7,14 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.4.9"
+#define VERSION "0.5.0rc1"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
 
 #define WORK_BUFFER     ((u8*)0x21100000)
 
-#define COLOR_TOP_BAR   ((GetWritePermissions() == 0) ? COLOR_WHITE : (GetWritePermissions() == 1) ? COLOR_BRIGHTGREEN : (GetWritePermissions() == 2) ? COLOR_BRIGHTYELLOW : COLOR_RED)
+#define COLOR_TOP_BAR   ((GetWritePermissions() & PERM_SYSNAND) ? COLOR_RED : (GetWritePermissions() & PERM_MEMORY) ? COLOR_BRIGHTBLUE : (GetWritePermissions() & (PERM_EMUNAND|PERM_IMAGE)) ? COLOR_BRIGHTYELLOW : GetWritePermissions() ? COLOR_BRIGHTGREEN : COLOR_WHITE)   
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
 #define COLOR_MARKED    COLOR_TINTEDYELLOW
 #define COLOR_FILE      COLOR_TINTEDGREEN
@@ -107,9 +107,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "GodMode9 Explorer v", VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
-        ((GetWritePermissions() <= 1) ? "X - Unlock EmuNAND / image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
-        (GetWritePermissions() == 2) ? "X - Relock EmuNAND / image writing\nY - Unlock SysNAND writing\nR+B - Unmount SD card\n" :
-        "X - Relock EmuNAND writing\nY - Relock SysNAND writing\nR+B - Unmount SD card\n"),
+        ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\nR+B - Unmount SD card\n" :
+        "R+Y - Unlock write permissions\nR+B - Unmount SD card\n"),
         (*curr_path) ? "" : ((GetMountState() == IMG_RAMDRV) ? "R+X - Unmount RAM drive\n" :
         (GetMountState()) ? "R+X - Unmount image\n" : "R+X - Mount RAM drive\n"),
         "R+L - Make a Screenshot\n",
@@ -553,8 +552,8 @@ u32 GodMode() {
         }
 
         // highly specific commands
-        if (!(*current_path)) { // in the root folder...
-            if (switched && !*current_path && (pad_state & BUTTON_X)) { // unmount image
+        if (!*current_path) { // in the root folder...
+            if (switched && (pad_state & BUTTON_X)) { // unmount image
                 DeinitExtFS();
                 if (!GetMountState()) MountRamDrive();
                 else MountImage(NULL);
@@ -562,10 +561,8 @@ u32 GodMode() {
                 GetDirContents(current_dir, current_path);
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-            } else if (pad_state & BUTTON_X) {
-                SetWritePermissions((GetWritePermissions() >= 2) ? 1 : 2);
-            } else if (pad_state & BUTTON_Y) {
-                SetWritePermissions((GetWritePermissions() >= 3) ? 2 : 3);
+            } else if (switched && (pad_state & BUTTON_Y)) {
+                SetWritePermissions((GetWritePermissions() > PERM_BASE) ? PERM_BASE : PERM_ALL, false);
             }
         } else if (!switched) { // standard unswitched command set
             if (GetVirtualSource(current_path) && (pad_state & BUTTON_X)) {

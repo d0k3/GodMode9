@@ -14,8 +14,8 @@
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
 
-// write permission level - careful with this
-static u32 write_permission_level = 1;
+// write permissions - careful with this
+static u32 write_permissions = PERM_BASE;
 
 // number of currently open file systems
 static bool fs_mounted[NORM_FS] = { false };
@@ -79,72 +79,93 @@ bool IsMountedFS(const char* path) {
 }
 
 bool CheckWritePermissions(const char* path) {
+    char area_name[16];
     int pdrv = PathToNumFS(path);
-    if (pdrv < 0) {
-        if (GetVirtualSource(path)) // this is a hack, but okay for now
-            pdrv = (GetVirtualSource(path) == VRT_MEMORY) ? 10 :
-                (GetVirtualSource(path) == VRT_SYSNAND) ? 1 :
-                (GetVirtualSource(path) == VRT_EMUNAND) ? 4 : 7; 
-        else return false;
-    } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
-        pdrv = 0; // ...and another hack
+    u32 perm;
+    
+    if (pdrv == 0) {
+        perm = PERM_SDCARD;
+        snprintf(area_name, 16, "the SD card");
+    } else if (GetMountState() == IMG_RAMDRV) {
+        perm = PERM_RAMDRIVE;
+        snprintf(area_name, 16, "the RAM drive");
+    } else if (((pdrv >= 1) && (pdrv <= 3)) || (GetVirtualSource(path) == VRT_SYSNAND)) {
+        perm = PERM_SYSNAND;
+        snprintf(area_name, 16, "the SysNAND");
+    } else if (((pdrv >= 4) && (pdrv <= 6)) || (GetVirtualSource(path) == VRT_EMUNAND)) {
+        perm = PERM_EMUNAND;
+        snprintf(area_name, 16, "the EmuNAND");
+    } else if ((pdrv >= 7) && (pdrv <= 9)) {
+        perm = PERM_IMAGE;
+        snprintf(area_name, 16, "images");
+    } else if (GetVirtualSource(path) == VRT_MEMORY) {
+        perm = PERM_MEMORY;
+        snprintf(area_name, 16, "memory areas");
+    } else {
+        return false;
     }
     
-    if ((pdrv >= 1) && (pdrv <= 3) && (write_permission_level < 3)) {
-        if (ShowPrompt(true, "Writing to the SysNAND is locked!\nUnlock it now?"))
-            return SetWritePermissions(3);
+    // check permission, return if already set
+    if ((write_permissions & perm) == perm)
+        return true;
+    
+    // ask the user
+    if (!ShowPrompt(true, "Writing to %s is locked!\nUnlock it now?", area_name))
         return false;
-    } else if ((pdrv >= 4) && (pdrv <= 6) && (write_permission_level < 2)) {
-        if (ShowPrompt(true, "Writing to the EmuNAND is locked!\nUnlock it now?"))
-            return SetWritePermissions(2);
-        return false;
-    } else if ((pdrv >= 7) && (pdrv <= 9) && (write_permission_level < 2)) {
-        if (ShowPrompt(true, "Writing to images is locked!\nUnlock it now?"))
-            return SetWritePermissions(2);
-        return false;
-    } else if ((pdrv == 0) && (write_permission_level < 1)) {
-        if (ShowPrompt(true, "Writing to the SD card is locked!\nUnlock it now?"))
-            return SetWritePermissions(1);
-        return false;
-    } else if (pdrv >= 10) {
-        ShowPrompt(false, "Writing to memory is not allowed!");
-        return false;
-    }
         
-    return true;
+    return SetWritePermissions(perm, true);
 }
 
-bool SetWritePermissions(u32 level) {
-    if (write_permission_level >= level) {
-        // no need to ask the user here
-        write_permission_level = level;
+bool SetWritePermissions(u32 perm, bool add_perm) {
+    if ((write_permissions & perm) == perm) { // write permissions already given
+        if (!add_perm) write_permissions = perm;
         return true;
     }
     
-    switch (level) {
-        case 1:
+    switch (perm) {
+        case PERM_SDCARD:
             if (!ShowUnlockSequence(1, "You want to enable SD card\nwriting permissions."))
                 return false;
             break;
-        case 2:
-            if (!ShowUnlockSequence(2, "You want to enable EmuNAND &\nimage writing permissions.\nKeep backups, just in case."))
+        case PERM_RAMDRIVE:
+            if (!ShowUnlockSequence(1, "You want to enable RAM drive\nwriting permissions."))
+                return false;
+        case PERM_EMUNAND:
+            if (!ShowUnlockSequence(2, "You want to enable EmuNAND\nwriting permissions.\nKeep backups, just in case."))
                 return false;
             break;
-        case 3:
+        case PERM_IMAGE:
+            if (!ShowUnlockSequence(2, "You want to enable image\nwriting permissions.\nKeep backups, just in case."))
+                return false;
+            break;
+        case PERM_SYSNAND:
             if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable SysNAND\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!\nHaving a SysNAND backup and\nNANDmod is recommended."))
                 return false;
             break;
+        case PERM_MEMORY:
+            if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\nWriting to certain areas may\nlead to unexpected results."))
+                return false;
+            break;
+        case PERM_BASE:
+            if (!ShowUnlockSequence(1, "You want to enable base\nwriting permissions."))
+                return false;
+            break;
+        case PERM_ALL:
+            if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable ALL\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!\nHaving a SysNAND backup and\nNANDmod is recommended."))
+                return false;
+            break;
         default:
+            return false;
             break;
     }
     
-    write_permission_level = level;
+    write_permissions = add_perm ? write_permissions | perm : perm;
     
     return true;
 }
 
 u32 GetWritePermissions() {
-    return write_permission_level;
+    return write_permissions;
 }
 
 bool GetTempFileName(char* path) {

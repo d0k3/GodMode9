@@ -192,18 +192,20 @@ bool ShowPrompt(bool ask, const char *format, ...)
 }
 
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
-    const int seqcolors[4] = { COLOR_STD_FONT, COLOR_GREEN, COLOR_YELLOW, COLOR_RED };
-    const u32 sequences[4][5] = {
+    const int seqcolors[5] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN, COLOR_BRIGHTYELLOW, COLOR_RED, COLOR_BRIGHTBLUE };
+    const u32 sequences[5][5] = {
         { BUTTON_RIGHT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_A },
         { BUTTON_LEFT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_UP, BUTTON_A },
         { BUTTON_LEFT, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_UP, BUTTON_A },
-        { BUTTON_LEFT, BUTTON_UP, BUTTON_RIGHT, BUTTON_UP, BUTTON_A }
+        { BUTTON_LEFT, BUTTON_UP, BUTTON_RIGHT, BUTTON_UP, BUTTON_A },
+        { BUTTON_RIGHT, BUTTON_DOWN, BUTTON_LEFT, BUTTON_DOWN, BUTTON_A }
     };
-    const char seqsymbols[4][5] = { 
+    const char seqsymbols[5][5] = { 
         { '\x1A', '\x19', '\x1A', '\x19', 'A' },
         { '\x1B', '\x19', '\x1A', '\x18', 'A' },
         { '\x1B', '\x1A', '\x19', '\x18', 'A' },
         { '\x1B', '\x18', '\x1A', '\x18', 'A' },
+        { '\x1A', '\x19', '\x1B', '\x19', 'A' }
     };
     const u32 len = 5;
     u32 lvl = 0;

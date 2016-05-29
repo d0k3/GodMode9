@@ -11,6 +11,15 @@ typedef enum {
 
 #define MAX_ENTRIES 1024
 
+#define PERM_SDCARD     (1<<0)
+#define PERM_RAMDRIVE   (1<<1)
+#define PERM_EMUNAND    (1<<2)
+#define PERM_SYSNAND    (1<<3)
+#define PERM_IMAGE      (1<<4)
+#define PERM_MEMORY     (1<<5)
+#define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
+#define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY)
+
 typedef struct {
     char* name; // should point to the correct portion of the path
     char path[256];
@@ -33,7 +42,7 @@ void DeinitSDCardFS();
 bool CheckWritePermissions(const char* path);
 
 /** Set new write permissions */
-bool SetWritePermissions(u32 level);
+bool SetWritePermissions(u32 perm, bool add_perm);
 
 /** Get write permissions */
 u32 GetWritePermissions();
