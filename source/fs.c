@@ -86,7 +86,7 @@ bool CheckWritePermissions(const char* path) {
     if (pdrv == 0) {
         perm = PERM_SDCARD;
         snprintf(area_name, 16, "the SD card");
-    } else if (GetMountState() == IMG_RAMDRV) {
+    } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
         perm = PERM_RAMDRIVE;
         snprintf(area_name, 16, "the RAM drive");
     } else if (((pdrv >= 1) && (pdrv <= 3)) || (GetVirtualSource(path) == VRT_SYSNAND)) {
