@@ -123,6 +123,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
     }
     
     switch (perm) {
+        case PERM_BASE:
+            if (!ShowUnlockSequence(1, "You want to enable base\nwriting permissions."))
+                return false;
+            break;
         case PERM_SDCARD:
             if (!ShowUnlockSequence(1, "You want to enable SD card\nwriting permissions."))
                 return false;
@@ -138,16 +142,13 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             if (!ShowUnlockSequence(2, "You want to enable image\nwriting permissions.\nKeep backups, just in case."))
                 return false;
             break;
+        #ifndef SAFEMODE
         case PERM_SYSNAND:
             if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable SysNAND\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!\nHaving a SysNAND backup and\nNANDmod is recommended."))
                 return false;
             break;
         case PERM_MEMORY:
             if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\nWriting to certain areas may\nlead to unexpected results."))
-                return false;
-            break;
-        case PERM_BASE:
-            if (!ShowUnlockSequence(1, "You want to enable base\nwriting permissions."))
                 return false;
             break;
         case PERM_ALL:
@@ -157,6 +158,17 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
         default:
             return false;
             break;
+        #else
+        case PERM_ALL:
+            perm &= ~(PERM_SYSNAND|PERM_MEMORY);
+            if (!ShowUnlockSequence(2, "You want to enable EmuNAND &\nimage writing permissions.\nKeep backups, just in case."))
+                return false;
+            break;
+        default:
+            ShowPrompt(false, "Can't unlock write permission.\nTry GodMode9 instead!");
+            return false;
+            break;
+        #endif
     }
     
     write_permissions = add_perm ? write_permissions | perm : perm;

@@ -17,6 +17,9 @@ include $(DEVKITARM)/ds_rules
 # SPECS is the directory containing the important build and link files
 #---------------------------------------------------------------------------------
 export TARGET	:=	GodMode9
+ifeq ($(MODE),safe)
+	export TARGET	:=	SafeMode9
+endif
 BUILD		:=	build
 SOURCES		:=	source source/fatfs source/nand source/abstraction
 DATA		:=	data
@@ -49,6 +52,10 @@ ifeq ($(EXEC_METHOD),GATEWAY)
 	LDFLAGS += --specs=../gateway.specs
 else ifeq ($(EXEC_METHOD),A9LH)
 	LDFLAGS += --specs=../a9lh.specs
+endif
+
+ifeq ($(MODE),safe)
+	CFLAGS += -DSAFEMODE
 endif
 
 LIBS	:=

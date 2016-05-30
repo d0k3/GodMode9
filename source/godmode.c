@@ -104,7 +104,11 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     // bottom: inctruction block
     char instr[256];
     snprintf(instr, 256, "%s%s\n%s%s%s%s%s%s",
+        #ifndef SAFEMODE
         "GodMode9 Explorer v", VERSION, // generic start part
+        #else
+        "SafeMode9 Explorer v", VERSION, // generic start part
+        #endif
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
         ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\nR+B - Unmount SD card\n" :
