@@ -10,12 +10,12 @@
 #define NAND_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 #define NAND_MIN_SECTORS ((GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800)
 
-static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from file
-static u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY file
+static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this up from FIRM0 / external file
+static u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY (16 byte)
     0x98, 0x24, 0x27, 0x14, 0x22, 0xB0, 0x6B, 0xF2, 0x10, 0x96, 0x9C, 0x36, 0x42, 0x53, 0x7C, 0x86,
     0x62, 0x22, 0x5C, 0xFD, 0x6F, 0xAE, 0x9B, 0x0A, 0x85, 0xA5, 0xCE, 0x21, 0xAA, 0xB6, 0xC8, 0x4D
 };
-
+    
 static u8 nand_magic_n3ds[0x60] = { // NCSD NAND header N3DS magic
     0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x01, 0x04, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x03, 0x00, 0x00, 0x00,
@@ -108,7 +108,7 @@ bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, ch
 }
 
 bool InitNandCrypto(void)
-{
+{   
     // part #0: KeyX / KeyY for secret sector 0x96
     // on a9lh this MUST be run before accessing the SHA register in any other way
     if ((*(u32*) 0x101401C0) == 0) { // for a9lh
@@ -165,37 +165,49 @@ bool InitNandCrypto(void)
     if ((*(vu32*) 0x101401C0) == 0) { // only for a9lh
         u8 ctr[16] __attribute__((aligned(32)));
         u8 keyY[16] __attribute__((aligned(32)));
-        u8 buffer[0x200];
+        u8 header[0x200];
         
-        // section 2 of FIRM0
-        // this is @0x066A00 in the FIRM90
-        ReadNandSectors(buffer, 0x58980 + 0x335, 1, 0x06, NAND_SYSNAND);
-        memcpy(keyY, buffer + 0x10, 0x10); // 0x15 keyY
-        memcpy(ctr, buffer + 0x20, 0x10); // 0x15 counter
-        add_ctr(ctr, (0x758 - (0x335 + 0x4)) * 0x20);
+        // section 2 header of FIRM0
+        // this is @0x066A00 in FIRM90 & FIRM81
+        static u32 offsetSection2 = 0x066A00;
+        ReadNandSectors(header, 0x58980 + (offsetSection2 / 0x200), 1, 0x06, NAND_SYSNAND);
+        memcpy(keyY, header + 0x10, 0x10); // 0x15 keyY
         
-        // sector containing the slot0x05 keyY
-        // key is encrypted @0x0EB014 in the FIRM90
-        ReadNandSectors(buffer, 0x58980 + 0x758, 1, 0x06, NAND_SYSNAND);
+        // try FRIM90 & FIRM81 offsets, search for the key
+        for (u32 fver = 0; fver < 2; fver++) {
+            static u32 offset0x05KeyY[2] = { 0x0EB014, 0x0EB24C };
+            u32 offset = offset0x05KeyY[fver];
+            u8 sector[0x200];
         
-        // decrypt the buffer, get the key
-        setup_aeskeyY(0x15, keyY);
-        use_aeskey(0x15);
-        for (u32 i = 0x0; i < 0x200; i += 0x10) {
-            set_ctr(ctr);
-            aes_decrypt(buffer + i, buffer + i, 1, AES_CNT_CTRNAND_MODE);
-            add_ctr(ctr, 0x1);
+            // sector containing the slot0x05 keyY
+            // key is encrypted @0x0EB014 in the FIRM90
+            // key is encrypted @0x0EB24C in the FIRM81
+            ReadNandSectors(sector, 0x58980 + (offset / 0x200), 1, 0x06, NAND_SYSNAND);
+            
+            // decrypt the sector, get the key
+            memcpy(ctr, header + 0x20, 0x10); // 0x15 counter
+            add_ctr(ctr, (offset - (offset % 0x200) - (offsetSection2 + 0x800)) / 16);
+            for (u32 i = 0x0; i < 0x200; i += 0x10) {
+                setup_aeskeyY(0x15, keyY);
+                use_aeskey(0x15);
+                set_ctr(ctr);
+                aes_decrypt(sector + i, sector + i, 1, AES_CNT_CTRNAND_MODE);
+                add_ctr(ctr, 0x1);
+            }
+            memcpy(slot0x05KeyY, sector + (offset % 0x200), 16);
+            
+            // check the key
+            sha_quick(shasum, slot0x05KeyY, 16, SHA256_MODE);
+            if (memcmp(shasum, slot0x05KeyY_sha256, 32) == 0) {
+                setup_aeskeyY(0x05, slot0x05KeyY);
+                use_aeskey(0x05);
+                break;
+            }
         }
-        memcpy(slot0x05KeyY, buffer + 0x14, 16);
         
-        // check the key
-        sha_quick(shasum, slot0x05KeyY, 16, SHA256_MODE);
-        if (memcmp(shasum, slot0x05KeyY_sha256, 32) == 0) {
-            setup_aeskeyY(0x05, slot0x05KeyY);
-            use_aeskey(0x05);
-        } else if (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL)) { // last resort
-            LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL);
-        }
+        if ((memcmp(shasum, slot0x05KeyY_sha256, 32) != 0) && // last resort
+            (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL)) &&
+            (!LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL))) {};
     }
     
     return true;
