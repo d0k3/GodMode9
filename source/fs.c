@@ -457,6 +457,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
         }
         ShowProgress(1, 1, orig);
         f_close(&dfile);
+        if (!ret) f_unlink(dest);
     } else {
         return false;
     }
@@ -596,6 +597,7 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
         
         f_close(&ofile);
         f_close(&dfile);
+        if (!ret) f_unlink(dest);
     }
     
     *(--dname) = '\0';
