@@ -134,6 +134,8 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
      
     if (*scroll > cursor) *scroll = cursor;
     else if (*scroll + lines <= cursor) *scroll = cursor - lines + 1;
+    if (*scroll + lines > contents->n_entries)
+        *scroll = (contents->n_entries > lines) ? contents->n_entries - lines : 0;
     
     for (u32 i = 0; pos_y < SCREEN_HEIGHT; i++) {
         char tempstr[str_width + 1];
