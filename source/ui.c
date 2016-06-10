@@ -11,6 +11,8 @@
 #include "ui.h"
 #include "hid.h"
 
+#define STRBUF_SIZE 512 // maximum size of the string buffer
+
 void ClearScreen(u8* screen, int color)
 {
     int width = (screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT;
@@ -74,11 +76,10 @@ void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolo
 
 void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *format, ...)
 {
-    char str[512] = { 0 }; // 512 should be more than enough
+    char str[STRBUF_SIZE] = { 0 };
     va_list va;
-
     va_start(va, format);
-    vsnprintf(str, 512, format, va);
+    vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
 
     for (char* text = strtok(str, "\n"); text != NULL; text = strtok(NULL, "\n"), y += 10)
@@ -95,7 +96,7 @@ u32 GetDrawStringHeight(const char* str) {
 u32 GetDrawStringWidth(char* str) {
     u32 width = 0;
     char* old_lf = str;
-    char* str_end = str + strnlen(str, 512);
+    char* str_end = str + strnlen(str, STRBUF_SIZE);
     for (char* lf = strchr(str, '\n'); lf != NULL; lf = strchr(lf + 1, '\n')) {
         if ((u32) (lf - old_lf) > width) width = lf - old_lf;
         old_lf = lf;
@@ -160,11 +161,10 @@ bool ShowPrompt(bool ask, const char *format, ...)
     u32 x, y;
     bool ret = true;
     
-    char str[512] = { 0 }; // 512 should be more than enough
+    char str[STRBUF_SIZE] = { 0 };
     va_list va;
-
     va_start(va, format);
-    vsnprintf(str, 512, format, va);
+    vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
     
     str_width = GetDrawStringWidth(str);
@@ -213,11 +213,10 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     u32 str_width, str_height;
     u32 x, y;
     
-    char str[512] = { 0 }; // 512 should be more than enough
+    char str[STRBUF_SIZE] = { 0 };
     va_list va;
-
     va_start(va, format);
-    vsnprintf(str, 512, format, va);
+    vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
     
     str_width = GetDrawStringWidth(str);
@@ -258,11 +257,10 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     u32 x, y, yopt;
     u32 sel = 0;
     
-    char str[512] = { 0 }; // 512 should be more than enough
+    char str[STRBUF_SIZE] = { 0 };
     va_list va;
-
     va_start(va, format);
-    vsnprintf(str, 512, format, va);
+    vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
     
     if (n == 0) return 0; // check for low number of options
@@ -307,11 +305,10 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     u32 str_width, str_height;
     u32 x, y;
     
-    char str[512] = { 0 }; // 512 should be more than enough
+    char str[STRBUF_SIZE] = { 0 };
     va_list va;
-
     va_start(va, format);
-    vsnprintf(str, 512, format, va);
+    vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
     
     // check / fix up the inputstring if required
