@@ -66,6 +66,7 @@ void TruncateString(char* dest, const char* orig, int nsize, int tpos);
 void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 
+void ShowString(const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);

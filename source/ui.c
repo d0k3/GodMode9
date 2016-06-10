@@ -155,6 +155,28 @@ void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just 
     }
 }
 
+void ShowString(const char *format, ...)
+{
+    if (format && *format) { // only if there is something in there
+        u32 str_width, str_height;
+        u32 x, y;
+        
+        char str[STRBUF_SIZE] = { 0 };
+        va_list va;
+        va_start(va, format);
+        vsnprintf(str, STRBUF_SIZE, format, va);
+        va_end(va);
+        
+        str_width = GetDrawStringWidth(str);
+        str_height = GetDrawStringHeight(str);
+        x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+        y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
+        
+        ClearScreenF(true, false, COLOR_STD_BG);
+        DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    } else ClearScreenF(true, false, COLOR_STD_BG);
+}
+
 bool ShowPrompt(bool ask, const char *format, ...)
 {
     u32 str_width, str_height;

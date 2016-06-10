@@ -580,16 +580,22 @@ u32 GodMode() {
                 if (n_marked) {
                     if (ShowPrompt(true, "Delete %u path(s)?", n_marked)) {
                         u32 n_errors = 0;
+                        ShowString("Deleting files, please wait...");
                         for (u32 c = 0; c < current_dir->n_entries; c++)
                             if (current_dir->entry[c].marked && !PathDelete(current_dir->entry[c].path))
                                 n_errors++;
+                        ClearScreenF(true, false, COLOR_STD_BG);
                         if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
                     }
                 } else if (curr_entry->type != T_DOTDOT) {
                     char namestr[36+1];
                     TruncateString(namestr, curr_entry->name, 36, 12);
-                    if ((ShowPrompt(true, "Delete \"%s\"?", namestr)) && !PathDelete(curr_entry->path))
-                        ShowPrompt(false, "Failed deleting:\n%s", namestr);
+                    if (ShowPrompt(true, "Delete \"%s\"?", namestr)) {
+                        ShowString("Deleting %s\nPlease wait...", namestr);
+                        if (!PathDelete(curr_entry->path))
+                            ShowPrompt(false, "Failed deleting:\n%s", namestr);
+                        ClearScreenF(true, false, COLOR_STD_BG);
+                    }
                 }
                 GetDirContents(current_dir, current_path);
             } else if ((pad_state & BUTTON_Y) && (clipboard->n_entries == 0)) { // fill clipboard
