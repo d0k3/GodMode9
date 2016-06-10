@@ -421,7 +421,9 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     const u32 bar_pos_y = (SCREEN_HEIGHT / 2) - bar_height - 2 - 10;
     const u32 text_pos_y = bar_pos_y + bar_height + 2;
     u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
-    char tempstr[64];
+    u32 prog_percent = ((total > 0) && (current <= total)) ? (current * 100) / total : 0;
+    char tempstr[32];
+    char progstr[32];
     
     if (!current || last_prog_width > prog_width) { 
         ClearScreenF(true, false, COLOR_STD_BG);
@@ -430,8 +432,9 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     }
     DrawRectangle(TOP_SCREEN, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
     
-    ResizeString(tempstr, opstr, 28, 8, false);
-    DrawString(TOP_SCREEN, tempstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    TruncateString(tempstr, opstr, 24, 8);
+    snprintf(progstr, 32, "%s (%lu%%)", tempstr, prog_percent);
+    DrawString(TOP_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     DrawString(TOP_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
     
     last_prog_width = prog_width;
