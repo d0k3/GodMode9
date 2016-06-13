@@ -70,5 +70,6 @@ void ShowString(const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
-bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...);
+bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...);
+u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...);
 bool ShowProgress(u64 current, u64 total, const char* opstr);

@@ -425,7 +425,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
                     char* dname = strrchr(dest, '/');
                     if (dname == NULL) return false;
                     dname++;
-                    if (!ShowInputPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
+                    if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
                         return false;
                 } while (f_stat(dest, NULL) == FR_OK);
             } else if (user_select != 2) return (user_select == 3);
@@ -487,7 +487,7 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     
     // check if destination is part of or equal origin
     while (strncmp(dest, orig, 255) == 0) {
-        if (!ShowInputPrompt(dname, 255 - (dname - dest), "Destination is equal to origin\nChoose another name?"))
+        if (!ShowStringPrompt(dname, 255 - (dname - dest), "Destination is equal to origin\nChoose another name?"))
             return false;
     }
     if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
@@ -505,7 +505,7 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
         u32 user_select = ShowSelectPrompt(3, optionstr, "Destination already exists:\n%s", namestr);
         if (user_select == 1) {
             do {
-                if (!ShowInputPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
+                if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
                     return false;
             } while (f_stat(dest, NULL) == FR_OK);
         } else if (user_select != 2) return (user_select == 3);

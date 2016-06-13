@@ -318,8 +318,7 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     return (sel >= n) ? 0 : sel + 1;
 }
 
-bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
-    const char* alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]'`^,~!@#$%&0123456789=+-_.";
+bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alphabet, const char *format, va_list va) {
     const u32 alphabet_size = strnlen(alphabet, 256);
     const u32 input_shown = 22;
     const u32 fast_scroll = 4;
@@ -328,14 +327,14 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     u32 x, y;
     
     char str[STRBUF_SIZE] = { 0 };
-    va_list va;
-    va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
-    va_end(va);
     
     // check / fix up the inputstring if required
     if (max_size < 2) return false; // catching this, too
-    if (*inputstr == '\0') snprintf(inputstr, 2, "%c", alphabet[0]); // set the string if it is not set
+    if ((*inputstr == '\0') || (resize && (strnlen(inputstr, max_size - 1) % resize))) {
+        memset(inputstr, alphabet[0], resize); // set the string if it is not set or invalid
+        inputstr[resize] = '\0';
+    }
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (8*10);
@@ -345,7 +344,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(TOP_SCREEN, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear string\nX - remove char\nY - insert char");
+    DrawStringF(TOP_SCREEN, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
     
     int cursor_a = -1;
     u32 cursor_s = 0;
@@ -384,22 +383,28 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
             break;
         } else if (pad_state & BUTTON_L1) {
             cursor_a = 0;
-            cursor_s = 0;
-            inputstr[0] = alphabet[0];
-            inputstr[1] = '\0';
+            memset(inputstr, alphabet[0], inputstr_size);
+            if (resize) {
+                cursor_s = 0;
+                inputstr[1] = '\0';
+            }
         } else if (pad_state & BUTTON_X) {
-            if (inputstr_size > 1) {
-                memmove(&inputstr[cursor_s], &inputstr[cursor_s + 1], (max_size - 1) - cursor_s);
-                inputstr_size--;
-                if (cursor_s >= inputstr_size)
+            if (resize && (inputstr_size > resize)) {
+                char* inputfrom = inputstr + cursor_s - (cursor_s % resize) + resize;
+                char* inputto = inputstr + cursor_s - (cursor_s % resize);
+                memmove(inputto, inputfrom, max_size - (inputfrom - inputstr));
+                inputstr_size -= resize;
+                while (cursor_s >= inputstr_size)
                     cursor_s--;
                 cursor_a = -1;
-            } else inputstr[0] = alphabet[0];
+            } else if (resize == 1) inputstr[0] = alphabet[0];
         } else if (pad_state & BUTTON_Y) {
-            if (inputstr_size < max_size - 1) {
-                memmove(&inputstr[cursor_s + 1], &inputstr[cursor_s], (max_size - 1 )- cursor_s);
-                inputstr_size++;
-                inputstr[cursor_s] = alphabet[0];
+            if (resize && (inputstr_size < max_size - resize)) {
+                char* inputfrom = inputstr + cursor_s - (cursor_s % resize);
+                char* inputto = inputstr + cursor_s - (cursor_s % resize) + resize;
+                memmove(inputto, inputfrom, max_size - (inputto - inputstr));
+                inputstr_size += resize;
+                memset(inputfrom, alphabet[0], resize);
                 cursor_a = 0;
             }
         } else if (pad_state & BUTTON_UP) {
@@ -416,8 +421,8 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
         } else if (pad_state & BUTTON_RIGHT) {
             if (cursor_s < max_size - 2) cursor_s++;
             if (cursor_s >= inputstr_size) {
-                inputstr[cursor_s] = alphabet[0];
-                inputstr[cursor_s+1] = '\0';
+                memset(inputstr + cursor_s, alphabet[0], resize);
+                inputstr[cursor_s + resize] = '\0';
             }
             cursor_a = -1;
         }
@@ -429,6 +434,36 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     ClearScreenF(true, false, COLOR_STD_BG);
     
     return ret;
+}
+
+bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...) {
+    const char* alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]'`^,~!@#$%&0123456789=+-_.";
+    bool ret = false;
+    va_list va;
+    
+    va_start(va, format);
+    ret = ShowInputPrompt(inputstr, max_size, 1, alphabet, format, va);
+    va_end(va);
+    
+    return ret; 
+}
+
+u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
+    const char* alphabet = "0123456789ABCDEF";
+    char inputstr[16 + 1] = { 0 };
+    u64 ret = 0;
+    va_list va;
+    
+    if (n_digits > 16) n_digits = 16;
+    snprintf(inputstr, 16 + 1, "%0*llX", (int) n_digits, start_val);
+    
+    va_start(va, format);
+    if (ShowInputPrompt(inputstr, n_digits + 1, 0, alphabet, format, va)) {
+        sscanf(inputstr, "%llX", &ret);
+    } else ret = (u64) -1;
+    va_end(va);
+    
+    return ret; 
 }
 
 bool ShowProgress(u64 current, u64 total, const char* opstr)

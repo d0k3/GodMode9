@@ -233,13 +233,13 @@ u32 HexViewer(const char* path) {
             }
             rows = (dual_screen ? 2 : 1) * SCREEN_HEIGHT / (8 + (2*vpad));
             total_shown = rows * cols;
-            if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
             last_mode = mode;
             ClearScreenF(true, dual_screen, COLOR_STD_BG);
             if (!dual_screen) memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
         }
         // fix offset (if required)
-        if (offset + total_shown > fsize + cols)
+        if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
+        if (offset + total_shown > fsize + cols) // if offset too big
             offset = (total_shown > fsize) ? 0 : (fsize + cols - total_shown - (fsize % cols));
         // get data, using max data size (if new offset)
         if (offset != last_offset) {
@@ -305,6 +305,11 @@ u32 HexViewer(const char* path) {
             else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
             else if (pad_state & BUTTON_A) edit_mode = true;
             else if (pad_state & BUTTON_B) break;
+            else if (pad_state & BUTTON_X) {
+                u64 new_offset = ShowHexPrompt(offset, 8, "Current offset: %08X\nEnter new offset below.",
+                    (unsigned int) offset);
+                if (new_offset != (u64) -1) offset = new_offset;
+            }
             if (edit_mode && CheckWritePermissions(path)) { // setup edit mode
                 cursor = 0;
                 edit_start = ((offset - (offset % 0x200) <= (edit_bsize / 2)) || (fsize < edit_bsize)) ? 0 : 
@@ -449,7 +454,7 @@ u32 GodMode() {
             if (user_select == 1) { // -> show in hex viewer
                 static bool show_instr = true;
                 if (show_instr) {
-                    ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
+                    ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nX - Goto offset\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
                     show_instr = false;
                 }
                 HexViewer(curr_entry->path);
@@ -648,7 +653,7 @@ u32 GodMode() {
                 char namestr[20+1];
                 TruncateString(namestr, curr_entry->name, 20, 12);
                 snprintf(newname, 255, curr_entry->name);
-                if (ShowInputPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
+                if (ShowStringPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
                     if (!PathRename(curr_entry->path, newname))
                         ShowPrompt(false, "Failed renaming path:\n%s", namestr);
                     else {
@@ -660,7 +665,7 @@ u32 GodMode() {
             } else if (pad_state & BUTTON_Y) { // create a folder
                 char dirname[256];
                 snprintf(dirname, 255, "newdir");
-                if (ShowInputPrompt(dirname, 256, "Create a new folder here?\nEnter name below.")) {
+                if (ShowStringPrompt(dirname, 256, "Create a new folder here?\nEnter name below.")) {
                     if (!DirCreate(current_path, dirname)) {
                         char namestr[36+1];
                         TruncateString(namestr, dirname, 36, 12);
