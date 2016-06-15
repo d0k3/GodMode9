@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.5.3"
+#define VERSION "0.5.4"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -459,20 +459,29 @@ u32 GodMode() {
                 }
                 HexViewer(curr_entry->path);
             } else if (user_select == 2) { // -> calculate SHA-256
-                static char pathstr_prev[32 + 1] = { 0 };
-                static u8 sha256_prev[32] = { 0 };
                 u8 sha256[32];
                 if (!FileGetSha256(curr_entry->path, sha256)) {
                     ShowPrompt(false, "Calculating SHA-256: failed!");
                 } else {
-                    ShowPrompt(false, "%s\n%08X%08X%08X%08X\n%08X%08X%08X%08X%s%s",
-                        pathstr,
-                        getbe32(sha256 +  0), getbe32(sha256 +  4),
-                        getbe32(sha256 +  8), getbe32(sha256 + 12),
-                        getbe32(sha256 + 16), getbe32(sha256 + 20),
-                        getbe32(sha256 + 24), getbe32(sha256 + 28),
+                    static char pathstr_prev[32 + 1] = { 0 };
+                    static u8 sha256_prev[32] = { 0 };
+                    char sha_path[256];
+                    u8 sha256_file[32];
+                    bool have_sha = false;
+                    bool write_sha = false;
+                    snprintf(sha_path, 256, "%s.sha", curr_entry->path);
+                    have_sha = (FileGetData(sha_path, sha256_file, 32, 0) == 32);
+                    write_sha = !have_sha && (PathToNumFS(curr_entry->path) == 0); // writing only on SD
+                    if (ShowPrompt(write_sha, "%s\n%016llX%016llX\n%016llX%016llX%s%s%s%s%s",
+                        pathstr, getbe64(sha256 + 0), getbe64(sha256 + 8), getbe64(sha256 + 16), getbe64(sha256 + 24),
+                        (have_sha) ? "\nSHA verification: " : "",
+                        (have_sha) ? ((memcmp(sha256, sha256_file, 32) == 0) ? "passed!" : "failed!") : "",
                         (memcmp(sha256, sha256_prev, 32) == 0) ? "\n \nIdentical with previous file:\n" : "",
-                        (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "");
+                        (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "",
+                        (write_sha) ? "\n \nWrite .SHA file?" : "") && !have_sha) {
+                        FileSetData(sha_path, sha256, 32, 0);
+                        GetDirContents(current_dir, current_path);
+                    }
                     strncpy(pathstr_prev, pathstr, 32 + 1);
                     memcpy(sha256_prev, sha256, 32);
                 }
@@ -594,7 +603,7 @@ u32 GodMode() {
                     }
                 } else if (curr_entry->type != T_DOTDOT) {
                     char namestr[36+1];
-                    TruncateString(namestr, curr_entry->name, 36, 12);
+                    TruncateString(namestr, curr_entry->name, 28, 12);
                     if (ShowPrompt(true, "Delete \"%s\"?", namestr)) {
                         ShowString("Deleting %s\nPlease wait...", namestr);
                         if (!PathDelete(curr_entry->path))
