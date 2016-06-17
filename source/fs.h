@@ -59,6 +59,9 @@ size_t FileGetSize(const char* path);
 /** Get SHA-256 of file **/
 bool FileGetSha256(const char* path, u8* sha256);
 
+/** Inject file into file @offset **/
+bool FileInjectFile(const char* dest, const char* orig, u32 offset);
+
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig);
 

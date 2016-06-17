@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.5.4"
+#define VERSION "0.5.5"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -438,6 +438,7 @@ u32 GodMode() {
             } else cursor = 0;
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             u32 file_type = IdentifyImage(curr_entry->path);
+            bool injectable = (clipboard->n_entries == 1) && (clipboard->entry[0].type == T_FILE);
             char pathstr[32 + 1];
             const char* optionstr[4];
             u32 n_opt = 2;
@@ -445,10 +446,9 @@ u32 GodMode() {
             TruncateString(pathstr, curr_entry->path, 32, 8);
             optionstr[0] = "Show in Hexeditor";
             optionstr[1] = "Calculate SHA-256";
-            if (file_type && (PathToNumFS(curr_entry->path) == 0)) {
-                optionstr[2] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
-                n_opt = 3;
-            }
+            if (injectable) optionstr[n_opt++] = "Inject data @offset";
+            if (file_type && (PathToNumFS(curr_entry->path) == 0))
+                optionstr[n_opt++] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
             
             u32 user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
             if (user_select == 1) { // -> show in hex viewer
@@ -485,7 +485,7 @@ u32 GodMode() {
                     strncpy(pathstr_prev, pathstr, 32 + 1);
                     memcpy(sha256_prev, sha256, 32);
                 }
-            } else if (user_select == 3) { // -> mount as image
+            } else if ((!injectable && (user_select == 3)) || (user_select == 4)) { // -> mount as image
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
@@ -501,6 +501,13 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
+            } else if (injectable && (user_select == 3)) { // -> inject data from clipboard
+                char origstr[24 + 1];
+                TruncateString(origstr, clipboard->entry[0].name, 24, 8);
+                u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
+                if ((offset != (u64) -1) && !FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
+                    ShowPrompt(false, "Failed injecting %s", origstr);
+                clipboard->n_entries = 0;
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) { 
