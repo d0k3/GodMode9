@@ -325,7 +325,7 @@ u32 HexViewer(const char* path) {
                 u32 diffs = 0;
                 for (u32 i = 0; i < edit_bsize; i++) if (edit_buffer[i] != edit_buffer_cpy[i]) diffs++;
                 if (diffs && ShowPrompt(true, "You made edits in %i place(s).\nWrite changes to file?", diffs))
-                    if (!FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start))
+                    if (!FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start, false))
                         ShowPrompt(false, "Failed writing to file!");
                 data = WORK_BUFFER;
                 last_offset = (u32) -1; // force reload from file
@@ -479,7 +479,7 @@ u32 GodMode() {
                         (memcmp(sha256, sha256_prev, 32) == 0) ? "\n \nIdentical with previous file:\n" : "",
                         (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "",
                         (write_sha) ? "\n \nWrite .SHA file?" : "") && !have_sha) {
-                        FileSetData(sha_path, sha256, 32, 0);
+                        FileSetData(sha_path, sha256, 32, 0, true);
                         GetDirContents(current_dir, current_path);
                     }
                     strncpy(pathstr_prev, pathstr, 32 + 1);

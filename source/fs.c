@@ -195,13 +195,13 @@ bool GetTempFileName(char* path) {
     return (cc - tempname < 8) ? true : false;
 }
 
-bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset) {
+bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
     if (!CheckWritePermissions(path)) return false;
     if (PathToNumFS(path) >= 0) {
         UINT bytes_written = 0;
         FIL file;
         if (!CheckWritePermissions(path)) return false;
-        if (f_open(&file, path, FA_WRITE | FA_OPEN_ALWAYS) != FR_OK)
+        if (f_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
             return false;
         f_lseek(&file, foffset);
         f_write(&file, data, size, &bytes_written);
@@ -738,7 +738,7 @@ void CreateScreenshot() {
     for (u32 x = 0; x < 320; x++)
         for (u32 y = 0; y < 240; y++)
             memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN + (x*240 + y) * 3, 3);
-    FileSetData(filename, MAIN_BUFFER, 54 + (400 * 240 * 3 * 2), 0);
+    FileSetData(filename, MAIN_BUFFER, 54 + (400 * 240 * 3 * 2), 0, true);
 }
 
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig) {
