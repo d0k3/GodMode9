@@ -358,6 +358,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     }
     
     ret = true;
+    ShowProgress(0, 0, orig);
     for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
         UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
         UINT bytes_read = read_bytes;

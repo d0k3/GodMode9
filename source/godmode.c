@@ -502,8 +502,8 @@ u32 GodMode() {
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
             } else if (injectable && (user_select == 3)) { // -> inject data from clipboard
-                char origstr[24 + 1];
-                TruncateString(origstr, clipboard->entry[0].name, 24, 8);
+                char origstr[18 + 1];
+                TruncateString(origstr, clipboard->entry[0].name, 18, 8);
                 u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
                 if ((offset != (u64) -1) && !FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
                     ShowPrompt(false, "Failed injecting %s", origstr);
