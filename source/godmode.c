@@ -304,7 +304,7 @@ u32 HexViewer(const char* path) {
             else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
             else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
             else if (pad_state & BUTTON_A) edit_mode = true;
-            else if (pad_state & BUTTON_B) break;
+            else if (pad_state & (BUTTON_B|BUTTON_START)) break;
             else if (pad_state & BUTTON_X) {
                 u64 new_offset = ShowHexPrompt(offset, 8, "Current offset: %08X\nEnter new offset below.",
                     (unsigned int) offset);
@@ -319,7 +319,7 @@ u32 HexViewer(const char* path) {
                 data = edit_buffer + (offset - edit_start);
             } else edit_mode = false;
         } else { // editor mode
-            if (pad_state & BUTTON_B) {
+            if (pad_state & (BUTTON_B|BUTTON_START)) {
                 edit_mode = false;
                 // check for user edits
                 u32 diffs = 0;
