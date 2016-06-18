@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.5.5"
+#define VERSION "0.5.6"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -508,9 +508,11 @@ u32 GodMode() {
                 char origstr[18 + 1];
                 TruncateString(origstr, clipboard->entry[0].name, 18, 10);
                 u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
-                if ((offset != (u64) -1) && !FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
-                    ShowPrompt(false, "Failed injecting %s", origstr);
-                clipboard->n_entries = 0;
+                if (offset != (u64) -1) {
+                    if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
+                        ShowPrompt(false, "Failed injecting %s", origstr);
+                    clipboard->n_entries = 0;
+                }
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) { 
@@ -643,9 +645,11 @@ u32 GodMode() {
                 if (clipboard->n_entries == 1) {
                     char namestr[20+1];
                     TruncateString(namestr, clipboard->entry[0].name, 20, 12);
-                    snprintf(promptstr, 64, "Copy / Move \"%s\" here?", namestr);
-                } else snprintf(promptstr, 64, "Copy / Move %lu paths here?", clipboard->n_entries);
-                if ((user_select = ShowSelectPrompt(2, optionstr, promptstr))) {
+                    snprintf(promptstr, 64, "Paste \"%s\" here?", namestr);
+                } else snprintf(promptstr, 64, "Paste %lu paths here?", clipboard->n_entries);
+                user_select = (!GetVirtualSource(clipboard->entry[0].path) && !GetVirtualSource(current_path)) ?
+                    ShowSelectPrompt(2, optionstr, promptstr) : (ShowPrompt(true, promptstr) ? 1 : 0);
+                if (user_select) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
                         char namestr[36+1];
                         TruncateString(namestr, clipboard->entry[c].name, 36, 12);
@@ -658,10 +662,10 @@ u32 GodMode() {
                                 if (!ShowPrompt(true, "Failed moving path:\n%s\nProcess remaining?", namestr)) break;
                             } else ShowPrompt(false, "Failed moving path:\n%s", namestr);
                         }
-                    }
+                    }                        
+                    clipboard->n_entries = 0;
+                    GetDirContents(current_dir, current_path);
                 }
-                clipboard->n_entries = 0;
-                GetDirContents(current_dir, current_path);
                 ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
