@@ -314,6 +314,10 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     bool ret;
     
     if (!CheckWritePermissions(dest)) return false;
+    if (strncmp(dest, orig, 256) == 0) {
+        ShowPrompt(false, "Error: Can't inject file into itself");
+        return false;
+    }
     
     // open destination
     if (GetVirtualSource(dest)) {

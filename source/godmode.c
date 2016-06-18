@@ -438,7 +438,10 @@ u32 GodMode() {
             } else cursor = 0;
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             u32 file_type = IdentifyImage(curr_entry->path);
-            bool injectable = (clipboard->n_entries == 1) && (clipboard->entry[0].type == T_FILE);
+            bool injectable = (clipboard->n_entries == 1) &&
+                (clipboard->entry[0].type == T_FILE) &&
+                (PathToNumFS(clipboard->entry[0].path) >= 0) &&
+                (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0);
             char pathstr[32 + 1];
             const char* optionstr[4];
             u32 n_opt = 2;
@@ -503,7 +506,7 @@ u32 GodMode() {
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
             } else if (injectable && (user_select == 3)) { // -> inject data from clipboard
                 char origstr[18 + 1];
-                TruncateString(origstr, clipboard->entry[0].name, 18, 8);
+                TruncateString(origstr, clipboard->entry[0].name, 18, 10);
                 u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
                 if ((offset != (u64) -1) && !FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
                     ShowPrompt(false, "Failed injecting %s", origstr);
