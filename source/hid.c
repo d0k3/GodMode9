@@ -4,7 +4,7 @@
 u32 InputWait() {
     static u64 delay = 0;
     u32 pad_state_old = HID_STATE;
-    delay = (delay) ? 80 : 400;
+    delay = (delay) ? 72 : 128;
     timer_start();
     while (true) {
         u32 pad_state = HID_STATE;
