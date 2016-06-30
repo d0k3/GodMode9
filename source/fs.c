@@ -95,7 +95,7 @@ bool CheckWritePermissions(const char* path) {
     } else if (((pdrv >= 4) && (pdrv <= 6)) || (GetVirtualSource(path) == VRT_EMUNAND)) {
         perm = PERM_EMUNAND;
         snprintf(area_name, 16, "the EmuNAND");
-    } else if ((pdrv >= 7) && (pdrv <= 9)) {
+    } else if (((pdrv >= 7) && (pdrv <= 9)) || (GetVirtualSource(path) == VRT_IMGNAND)) {
         perm = PERM_IMAGE;
         snprintf(area_name, 16, "images");
     } else if (GetVirtualSource(path) == VRT_MEMORY) {
