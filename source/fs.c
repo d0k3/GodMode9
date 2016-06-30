@@ -92,6 +92,12 @@ bool CheckWritePermissions(const char* path) {
     } else if (((pdrv >= 1) && (pdrv <= 3)) || (GetVirtualSource(path) == VRT_SYSNAND)) {
         perm = PERM_SYSNAND;
         snprintf(area_name, 16, "the SysNAND");
+        // check virtual file flags (if any)
+        VirtualFile vfile;
+        if (FindVirtualFile(&vfile, path, 0) && (vfile.flags & VFLAG_A9LH_AREA)) {
+            perm = PERM_A9LH;
+            snprintf(area_name, 16, "A9LH regions");
+        }
     } else if (((pdrv >= 4) && (pdrv <= 6)) || (GetVirtualSource(path) == VRT_EMUNAND)) {
         perm = PERM_EMUNAND;
         snprintf(area_name, 16, "the EmuNAND");
@@ -135,16 +141,19 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             if (!ShowUnlockSequence(1, "You want to enable RAM drive\nwriting permissions."))
                 return false;
         case PERM_EMUNAND:
-            if (!ShowUnlockSequence(2, "You want to enable EmuNAND\nwriting permissions.\nKeep backups, just in case."))
                 return false;
             break;
         case PERM_IMAGE:
-            if (!ShowUnlockSequence(2, "You want to enable image\nwriting permissions.\nKeep backups, just in case."))
+            if (!ShowUnlockSequence(2, "You want to enable image\nwriting permissions."))
                 return false;
             break;
         #ifndef SAFEMODE
         case PERM_SYSNAND:
-            if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable SysNAND\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!\nHaving a SysNAND backup and\nNANDmod is recommended."))
+            if (!ShowUnlockSequence(3, "!Better be careful!\n \nYou want to enable SysNAND\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!"))
+                return false;
+            break;
+        case PERM_A9LH:
+            if (!ShowUnlockSequence(5, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable A9LH area\nwriting permissions.\nThis enables you to OVERWRITE\nyour A9LH installation!"))
                 return false;
             break;
         case PERM_MEMORY:
@@ -152,7 +161,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
                 return false;
             break;
         case PERM_ALL:
-            if (!ShowUnlockSequence(3, "!This is your only warning!\n \nYou want to enable ALL\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!\nHaving a SysNAND backup and\nNANDmod is recommended."))
+            if (!ShowUnlockSequence(3, "!Better be careful!\n \nYou want to enable ALL\nwriting permissions.\nThis enables you to do some\nreally dangerous stuff!"))
                 return false;
             break;
         default:
@@ -418,9 +427,6 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             ShowPrompt(false, "Origin equals destination:\n%s\n%s", origstr, deststr);
             return false;
         }
-        if ((dvfile.flags & VFLAG_A9LH_AREA) && // check A9LH critical area
-            !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
-            return false;
         if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
             dvfile.keyslot = ovfile.keyslot = 0xFF;
         
@@ -459,9 +465,6 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             }
             TruncateString(deststr, dest, 36, 8);
         }
-        if ((dvfile.flags & VFLAG_A9LH_AREA) && // check A9LH critical area
-            !ShowPrompt(true, "This is critical for A9LH:\n%s\nProceed writing to it?", deststr))
-            return false;
         if (dvfile.size != osize) {
             char osizestr[32];
             char dsizestr[32];

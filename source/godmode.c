@@ -7,14 +7,14 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.5.6"
+#define VERSION "0.5.7"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
 
 #define WORK_BUFFER     ((u8*)0x21100000)
 
-#define COLOR_TOP_BAR   ((GetWritePermissions() & PERM_SYSNAND) ? COLOR_RED : (GetWritePermissions() & PERM_MEMORY) ? COLOR_BRIGHTBLUE : (GetWritePermissions() & (PERM_EMUNAND|PERM_IMAGE)) ? COLOR_BRIGHTYELLOW : GetWritePermissions() ? COLOR_BRIGHTGREEN : COLOR_WHITE)   
+#define COLOR_TOP_BAR   ((GetWritePermissions() & (PERM_A9LH&~PERM_SYSNAND)) ? COLOR_DARKRED : (GetWritePermissions() & PERM_SYSNAND) ? COLOR_RED : (GetWritePermissions() & PERM_MEMORY) ? COLOR_BRIGHTBLUE : (GetWritePermissions() & (PERM_EMUNAND|PERM_IMAGE)) ? COLOR_BRIGHTYELLOW : GetWritePermissions() ? COLOR_BRIGHTGREEN : COLOR_WHITE)   
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
 #define COLOR_MARKED    COLOR_TINTEDYELLOW
 #define COLOR_FILE      COLOR_TINTEDGREEN

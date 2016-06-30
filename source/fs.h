@@ -17,6 +17,7 @@ typedef enum {
 #define PERM_SYSNAND    (1<<3)
 #define PERM_IMAGE      (1<<4)
 #define PERM_MEMORY     (1<<5)
+#define PERM_A9LH       ((1<<6) | PERM_SYSNAND)
 #define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
 #define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY)
 
