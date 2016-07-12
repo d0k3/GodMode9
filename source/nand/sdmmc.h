@@ -1,10 +1,8 @@
 #ifndef __SDMMC_H__
 #define __SDMMC_H__
 
-#define TRUE 1
-#define FALSE 0
-
 #include <stdint.h>
+#include <stdbool.h>
 
 #define SDMMC_BASE				0x10006000
 
@@ -30,8 +28,8 @@
 
 #define REG_SDIRMASK0			0x20
 #define REG_SDIRMASK1			0x22
-#define REG_SDCLKCTL			0x24 
-		
+#define REG_SDCLKCTL			0x24
+
 #define REG_SDBLKLEN			0x26
 #define REG_SDOPT				0x28
 #define REG_SDFIFO				0x30
@@ -70,30 +68,6 @@
 #define TMIO_STAT1_CMD_BUSY      0x4000
 #define TMIO_STAT1_ILL_ACCESS    0x8000
 
-//Comes from TWLSDK mongoose.tef DWARF info
-#define SDMC_NORMAL              0x00000000
-#define SDMC_ERR_COMMAND         0x00000001
-#define SDMC_ERR_CRC             0x00000002
-#define SDMC_ERR_END             0x00000004
-#define SDMC_ERR_TIMEOUT         0x00000008
-#define SDMC_ERR_FIFO_OVF        0x00000010
-#define SDMC_ERR_FIFO_UDF        0x00000020
-#define SDMC_ERR_WP              0x00000040
-#define SDMC_ERR_ABORT           0x00000080
-#define SDMC_ERR_FPGA_TIMEOUT    0x00000100
-#define SDMC_ERR_PARAM           0x00000200
-#define SDMC_ERR_R1_STATUS       0x00000800
-#define SDMC_ERR_NUM_WR_SECTORS  0x00001000
-#define SDMC_ERR_RESET           0x00002000
-#define SDMC_ERR_ILA             0x00004000
-#define SDMC_ERR_INFO_DETECT     0x00008000
-
-#define SDMC_STAT_ERR_UNKNOWN    0x00080000
-#define SDMC_STAT_ERR_CC         0x00100000
-#define SDMC_STAT_ERR_ECC_FAILED 0x00200000
-#define SDMC_STAT_ERR_CRC        0x00800000
-#define SDMC_STAT_ERR_OTHER      0xf9c70008
-
 #define TMIO_MASK_ALL           0x837f031d
 
 #define TMIO_MASK_GW            (TMIO_STAT1_ILL_ACCESS | TMIO_STAT1_CMDTIMEOUT | TMIO_STAT1_TXUNDERRUN | TMIO_STAT1_RXOVERFLOW | \
@@ -107,7 +81,8 @@ extern "C" {
 #endif
 
 	typedef struct mmcdevice {
-		uint8_t* data;
+		uint8_t* rData;
+		const uint8_t* tData;
 		uint32_t size;
 		uint32_t error;
 		uint16_t stat0;
@@ -121,20 +96,20 @@ extern "C" {
 		uint32_t total_size; //size in sectors of the device
 		uint32_t res;
 	} mmcdevice;
-	
+
 	int sdmmc_sdcard_init();
 	int sdmmc_sdcard_readsector(uint32_t sector_no, uint8_t *out);
 	int sdmmc_sdcard_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *out);
-	int sdmmc_sdcard_writesector(uint32_t sector_no, uint8_t *in);
-	int sdmmc_sdcard_writesectors(uint32_t sector_no, uint32_t numsectors, uint8_t *in);
-	
+	int sdmmc_sdcard_writesector(uint32_t sector_no, const uint8_t *in);
+	int sdmmc_sdcard_writesectors(uint32_t sector_no, uint32_t numsectors, const uint8_t *in);
+
 	int sdmmc_nand_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *out);
-	int sdmmc_nand_writesectors(uint32_t sector_no, uint32_t numsectors, uint8_t *in);
-    
-    int sdmmc_get_cid( int isNand, uint32_t *info);
-	
+	int sdmmc_nand_writesectors(uint32_t sector_no, uint32_t numsectors, const uint8_t *in);
+
+	int sdmmc_get_cid(bool isNand, uint32_t *info);
+
 	mmcdevice *getMMCDevice(int drive);
-	
+
 	void InitSD();
 	int Nand_Init();
 	int SD_Init();
