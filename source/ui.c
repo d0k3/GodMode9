@@ -469,6 +469,33 @@ u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
     return ret; 
 }
 
+bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
+    const char* alphabet = "0123456789ABCDEF";
+    char inputstr[128 + 1] = { 0 }; // maximum size of data: 64 byte
+    bool ret = false;
+    va_list va;
+    
+    if (*size > 64) *size = 64;
+    for (u32 i = 0; i < *size; i++)
+        snprintf(inputstr + (2*i), 128 + 1 - (2*i), "%02X", (unsigned int) data[i]);
+    
+    va_start(va, format);
+    if (ShowInputPrompt(inputstr, 128 + 1, 2, alphabet, format, va)) {
+        *size = strnlen(inputstr, 128) / 2;
+        for (u32 i = 0; i < *size; i++) {
+            char bytestr[2 + 1] = { 0 };
+            unsigned int byte;
+            strncpy(bytestr, inputstr + (2*i), 2);
+            sscanf(bytestr, "%02X", &byte);
+            data[i] = (u8) byte;
+        }
+        ret = true;
+    }
+    va_end(va);
+    
+    return ret; 
+}
+
 bool ShowProgress(u64 current, u64 total, const char* opstr)
 {
     static u32 last_prog_width = 0;
