@@ -119,7 +119,9 @@ bool InitNandCrypto(void)
         if ((FileGetData("0:/otp.bin", otp, 0x100, 0) == 0x100) ||
             (FileGetData("0:/otp0x108.bin", otp, 0x100, 0) == 0x100) ||
             (FileGetData("0:/Decrypt9/otp.bin", otp, 0x100, 0) == 0x100) ||
-            (FileGetData("0:/Decrypt9/otp0x108.bin", otp, 0x100, 0) == 0x100))
+            (FileGetData("0:/Decrypt9/otp0x108.bin", otp, 0x100, 0) == 0x100) ||
+            (FileGetData("0:/files9/otp.bin", otp, 0x100, 0) == 0x100) ||
+            (FileGetData("0:/files9/otp0x108.bin", otp, 0x100, 0) == 0x100))
             sha_quick(OtpSha256, otp, 0x90, SHA256_MODE);
     }
         
@@ -207,7 +209,8 @@ bool InitNandCrypto(void)
         
         if ((memcmp(shasum, slot0x05KeyY_sha256, 32) != 0) && // last resort
             (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL)) &&
-            (!LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL))) {};
+            (!LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL)) &&
+            (!LoadKeyFromFile("0:/files9", slot0x05KeyY, 0x05, 'Y', NULL))) {};
     }
     
     return true;
