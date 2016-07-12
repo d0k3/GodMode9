@@ -141,6 +141,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             if (!ShowUnlockSequence(1, "You want to enable RAM drive\nwriting permissions."))
                 return false;
         case PERM_EMUNAND:
+            if (!ShowUnlockSequence(2, "You want to enable EmuNAND\nwriting permissions."))
                 return false;
             break;
         case PERM_IMAGE:
@@ -233,8 +234,10 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
         if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return 0;
         f_lseek(&file, foffset);
-        if (f_read(&file, data, size, &bytes_read) != FR_OK)
+        if (f_read(&file, data, size, &bytes_read) != FR_OK) {
+            f_close(&file);
             return 0;
+        }
         f_close(&file);
         return bytes_read;
     } else if (GetVirtualSource(path)) {
@@ -308,6 +311,37 @@ bool FileGetSha256(const char* path, u8* sha256) {
     sha_get(sha256);
     
     return ret;
+}
+
+u32 FileFindData(const char* path, u8* data, u32 size, u32 offset) {
+    u32 found = (u32) -1;
+    u32 fsize = FileGetSize(path);
+    
+    for (u32 pass = 0; pass < 2; pass++) {
+        bool show_progress = false;
+        u32 pos = (pass == 0) ? offset : 0;
+        u32 search_end = (pass == 0) ? fsize : offset + size;
+        search_end = (search_end > fsize) ? fsize : search_end;
+        for (; (pos < search_end) && (found == (u32) -1); pos += MAIN_BUFFER_SIZE - (size - 1)) {
+            UINT read_bytes = min(MAIN_BUFFER_SIZE, search_end - pos);
+            if (FileGetData(path, MAIN_BUFFER, read_bytes, pos) != read_bytes)
+                break;
+            for (u32 i = 0; i + size <= read_bytes; i++) {
+                if (memcmp(MAIN_BUFFER + i, data, size) == 0) {
+                    found = pos + i;
+                    break;
+                }
+            }
+            if (!show_progress && (found == (u32) -1) && (pos + read_bytes < fsize)) {
+                ShowProgress(0, 0, path);
+                show_progress = true;
+            }
+            if (show_progress && (!ShowProgress(pos + read_bytes, fsize, path)))
+                break;
+        }
+    }
+    
+    return found;
 }
 
 bool FileInjectFile(const char* dest, const char* orig, u32 offset) {

@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.5.7"
+#define VERSION "0.5.8"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -184,6 +184,9 @@ u32 HexViewer(const char* path) {
     u32 last_offset = (u32) -1;
     u32 offset = 0;
     
+    u32 found_offset = (u32) -1;
+    u32 found_size = 0;
+    
     static const u32 edit_bsize = 0x4000; // should be multiple of 0x200 * 2
     bool edit_mode = false;
     u8* edit_buffer = WORK_BUFFER;
@@ -260,8 +263,14 @@ u32 HexViewer(const char* path) {
             u32 y = row * (8 + (2*vpad)) + vpad;
             u32 curr_pos = row * cols;
             u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
+            u32 marked0 = (found_size && (offset <= found_offset)) ? found_offset - offset : 0;
+            u32 marked1 = marked0 + found_size;
             u8* screen = TOP_SCREEN;
             u32 x0 = 0;
+            
+            // fix marked0 / marked1 offsets for current row
+            marked0 = (marked0 < curr_pos) ? 0 : (marked0 >= curr_pos + cols) ? cols : marked0 - curr_pos;
+            marked1 = (marked1 < curr_pos) ? 0 : (marked1 >= curr_pos + cols) ? cols : marked1 - curr_pos;
             
             if (y >= SCREEN_HEIGHT) { // switch to bottom screen
                 y -= SCREEN_HEIGHT;
@@ -278,6 +287,8 @@ u32 HexViewer(const char* path) {
                 COLOR_STD_BG, "%08X", (unsigned int) offset + curr_pos);
             if (x_ascii >= 0) {
                 DrawString(screen, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
+                for (u32 i = marked0; i < marked1; i++)
+                    DrawCharacter(screen, ascii[i % cols], x_ascii - x0 + (8 * i), y, COLOR_MARKED, COLOR_STD_BG);
                 if (edit_mode && ((u32) cursor / cols == row)) DrawCharacter(screen, ascii[cursor % cols],
                     x_ascii - x0 + 8 * (cursor % cols), y, COLOR_RED, COLOR_STD_BG);
             }
@@ -285,7 +296,8 @@ u32 HexViewer(const char* path) {
             // draw HEX values
             for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
                 u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col) - x0;
-                u32 hex_color = (edit_mode && ((u32) cursor == curr_pos + col)) ? COLOR_RED : COLOR_HVHEX(col);
+                u32 hex_color = (edit_mode && ((u32) cursor == curr_pos + col)) ? COLOR_RED :
+                    ((col >= marked0) && (col < marked1)) ? COLOR_MARKED : COLOR_HVHEX(col);
                 if (col < cutoff)
                     DrawStringF(screen, x, y, hex_color, COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
                 else DrawStringF(screen, x, y, hex_color, COLOR_STD_BG, "  ");
@@ -305,12 +317,53 @@ u32 HexViewer(const char* path) {
             else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
             else if (pad_state & BUTTON_A) edit_mode = true;
             else if (pad_state & (BUTTON_B|BUTTON_START)) break;
-            else if (pad_state & BUTTON_X) {
-                u64 new_offset = ShowHexPrompt(offset, 8, "Current offset: %08X\nEnter new offset below.",
+            else if (found_size && (pad_state & BUTTON_R1) && (pad_state & BUTTON_X)) {
+                u8 data[64] = { 0 };
+                FileGetData(path, data, found_size, found_offset);
+                found_offset = FileFindData(path, data, found_size, found_offset + 1);
+                ClearScreenF(true, false, COLOR_STD_BG);
+                if (found_offset == (u32) -1) {
+                    ShowPrompt(false, "Not found!");
+                    found_size = 0;
+                } else offset = found_offset;
+            } else if (pad_state & BUTTON_X) {
+                const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
+                u32 user_select = ShowSelectPrompt(3, optionstr, "Current offset: %08X\nSelect action:", 
                     (unsigned int) offset);
-                if (new_offset != (u64) -1) offset = new_offset;
+                if (user_select == 1) { // -> goto offset
+                    u64 new_offset = ShowHexPrompt(offset, 8, "Current offset: %08X\nEnter new offset below.",
+                        (unsigned int) offset);
+                    if (new_offset != (u64) -1) offset = new_offset;
+                } else if (user_select == 2) {
+                    char string[64 + 1] = { 0 };
+                    if (found_size) FileGetData(path, (u8*) string, (found_size <= 64) ? found_size : 64, found_offset);
+                    if (ShowStringPrompt(string, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                        found_size = strnlen(string, 64);
+                        found_offset = FileFindData(path, (u8*) string, found_size, offset);
+                        ClearScreenF(true, false, COLOR_STD_BG);
+                        if (found_offset == (u32) -1) {
+                            ShowPrompt(false, "Not found!");
+                            found_size = 0;
+                        } else offset = found_offset;
+                    }
+                } else if (user_select == 3) {
+                    u8 data[64] = { 0 };
+                    u32 size = 0;
+                    if (found_size) size = FileGetData(path, data, (found_size <= 64) ? found_size : 64, found_offset);
+                    if (ShowDataPrompt(data, &size, "Enter search data below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                        found_size = size;
+                        found_offset = FileFindData(path, data, size, offset);
+                        ClearScreenF(true, false, COLOR_STD_BG);
+                        if (found_offset == (u32) -1) {
+                            ShowPrompt(false, "Not found!");
+                            found_size = 0;
+                        } else offset = found_offset;
+                    }
+                }
             }
             if (edit_mode && CheckWritePermissions(path)) { // setup edit mode
+                found_size = 0;
+                found_offset = (u32) -1;
                 cursor = 0;
                 edit_start = ((offset - (offset % 0x200) <= (edit_bsize / 2)) || (fsize < edit_bsize)) ? 0 : 
                     offset - (offset % 0x200) - (edit_bsize / 2);
@@ -457,7 +510,7 @@ u32 GodMode() {
             if (user_select == 1) { // -> show in hex viewer
                 static bool show_instr = true;
                 if (show_instr) {
-                    ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nX - Goto offset\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
+                    ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
                     show_instr = false;
                 }
                 HexViewer(curr_entry->path);
