@@ -109,7 +109,7 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
         return false; // this is not on O3DS consoles
     if (vfile->flags & VFLAG_NAND_SIZE) {
         if ((virtual_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(virtual_src)))
-            return false; // EmuNAND/IMGNAND is too small
+            return false; // EmuNAND/ImgNAND is too small
         vfile->size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
     }
     vfile->flags |= virtual_src;

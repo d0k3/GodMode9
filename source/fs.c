@@ -134,10 +134,10 @@ bool FormatSDCard(u32 hidden_mb) {
     
     // format the SD card
     // cluster size: auto (<= 4GB) / 32KiB (<= 8GB) / 64 KiB (> 8GB)
-    InitSDCardFS();
+    f_mount(fs, "0:", 1);
     UINT c_size = (sd_size < 0x800000) ? 0 : (sd_size < 0x1000000) ? 32768 : 65536;
     bool ret = (f_mkfs("0:", 0, c_size) == FR_OK) && (f_setlabel("0:GM9SD") == FR_OK);
-    DeinitSDCardFS();
+    f_mount(NULL, "0:", 1);
     
     return ret;
 }

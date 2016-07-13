@@ -167,7 +167,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 }
 
 u32 SdFormatMenu(void) {
-    const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x400, 0x800 };
+    const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x3FF, 0x7FF };
     const char* optionstr[6] = { "No EmuNAND", "O3DS NAND size", "N3DS NAND size", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
     u64 sdcard_size_mb = 0;
     u64 emunand_size_mb = (u64) -1;
@@ -179,7 +179,7 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    u32 user_select = ShowSelectPrompt(6, optionstr, "Format SD card (%lluGB)?\nChoose EmuNAND size:", sdcard_size_mb / 1024);
+    u32 user_select = ShowSelectPrompt(6, optionstr, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
     if (user_select && (user_select < 6)) {
         emunand_size_mb = emunand_size_table[user_select];
     } else if (user_select == 6) do {
@@ -623,6 +623,7 @@ u32 GodMode() {
                 u32 pad_choice = InputWait();
                 if ((pad_choice & (BUTTON_R1|BUTTON_Y|BUTTON_LEFT)) == (BUTTON_R1|BUTTON_Y|BUTTON_LEFT))
                     SdFormatMenu();
+                else if ((pad_choice & BUTTON_B) && InitSDCardFS()) break;
                 else if (pad_choice & (BUTTON_B|BUTTON_START)) return exit_mode;
                 else if (!(pad_choice & BUTTON_A)) continue;
                 if (InitSDCardFS()) break;
