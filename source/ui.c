@@ -469,6 +469,23 @@ u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
     return ret; 
 }
 
+u64 ShowNumberPrompt(u64 start_val, const char *format, ...) {
+    const char* alphabet = "0123456789";
+    char inputstr[20 + 1] = { 0 };
+    u64 ret = 0;
+    va_list va;
+    
+    snprintf(inputstr, 20 + 1, "%llu", start_val);
+    
+    va_start(va, format);
+    if (ShowInputPrompt(inputstr, 20 + 1, 1, alphabet, format, va)) {
+        sscanf(inputstr, "%llu", &ret);
+    } else ret = (u64) -1;
+    va_end(va);
+    
+    return ret; 
+}
+
 bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
     const char* alphabet = "0123456789ABCDEF";
     char inputstr[128 + 1] = { 0 }; // maximum size of data: 64 byte

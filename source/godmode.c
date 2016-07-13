@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.5.8"
+#define VERSION "0.5.9"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -164,6 +164,36 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
         DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_BOT - (bar_pos + bar_height), COLOR_STD_BG);
         DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
     } else DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - bar_width, 0, bar_width, SCREEN_HEIGHT, COLOR_STD_BG);
+}
+
+u32 SdFormatMenu(void) {
+    const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x400, 0x800 };
+    const char* optionstr[6] = { "No EmuNAND", "O3DS NAND size", "N3DS NAND size", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
+    u64 sdcard_size_mb = 0;
+    u64 emunand_size_mb = (u64) -1;
+    
+    // check actual SD card size
+    sdcard_size_mb = GetSDCardSize() / 0x100000;
+    if (!sdcard_size_mb) {
+        ShowPrompt(false, "ERROR: SD card not detected.");
+        return 1;
+    }
+    
+    u32 user_select = ShowSelectPrompt(6, optionstr, "Format SD card (%lluGB)?\nChoose EmuNAND size:", sdcard_size_mb / 1024);
+    if (user_select && (user_select < 6)) {
+        emunand_size_mb = emunand_size_table[user_select];
+    } else if (user_select == 6) do {
+        emunand_size_mb = ShowNumberPrompt(0, "SD card size is %lluMB.\nEnter EmuNAND size (MB) below:", sdcard_size_mb);
+        if (emunand_size_mb == (u64) -1) break;
+    } while (emunand_size_mb > sdcard_size_mb);
+    if (emunand_size_mb == (u64) -1) return 1;
+    
+    if (!FormatSDCard((u32) emunand_size_mb)) {
+        ShowPrompt(false, "Format SD: failed!");
+        return 1;
+    }
+    
+    return 0;
 }
 
 u32 HexViewer(const char* path) {
@@ -588,11 +618,17 @@ u32 GodMode() {
             DeinitSDCardFS();
             clipboard->n_entries = 0;
             memset(panedata, 0x00, N_PANES * sizeof(PaneData));
-            ShowPrompt(false, "SD card unmounted, you can eject now.\nPut it back in before you press <A>.");
-            while (!InitSDCardFS()) {
-                if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
-                    return exit_mode;
+            ShowString("SD card unmounted, you can eject now.\n \n<R+Y+\x1B> for format menu\n<A> to remount SD card");
+            while (true) {
+                u32 pad_choice = InputWait();
+                if ((pad_choice & (BUTTON_R1|BUTTON_Y|BUTTON_LEFT)) == (BUTTON_R1|BUTTON_Y|BUTTON_LEFT))
+                    SdFormatMenu();
+                else if (pad_choice & (BUTTON_B|BUTTON_START)) return exit_mode;
+                else if (!(pad_choice & BUTTON_A)) continue;
+                if (InitSDCardFS()) break;
+                ShowString("Reinitialising SD card failed!\n \n<R+Y+\x1B> for format menu\n<A> to retry, <B> to reboot");
             }
+            ClearScreenF(true, false, COLOR_STD_BG);
             InitEmuNandBase();
             InitExtFS();
             GetDirContents(current_dir, current_path);

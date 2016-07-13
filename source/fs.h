@@ -39,6 +39,12 @@ bool InitExtFS();
 void DeinitExtFS();
 void DeinitSDCardFS();
 
+/** Return total size of SD card **/
+uint64_t GetSDCardSize();
+
+/** Format the SD card **/
+bool FormatSDCard(u32 hidden_mb);
+
 /** Check if writing to this path is allowed **/
 bool CheckWritePermissions(const char* path);
 

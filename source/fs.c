@@ -3,6 +3,7 @@
 #include "virtual.h"
 #include "image.h"
 #include "sha.h"
+#include "sdmmc.h"
 #include "ff.h"
 
 #define MAIN_BUFFER ((u8*)0x21200000)
@@ -10,6 +11,12 @@
 
 #define NORM_FS  10
 #define VIRT_FS  4
+
+// Volume2Partition resolution table
+PARTITION VolToPart[] = {
+    {0, 1}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
+    {5, 0}, {6, 0}, {7, 0}, {8, 0}, {9, 0}
+};
 
 // don't use this area for anything else!
 static FATFS* fs = (FATFS*)0x20316000; 
@@ -76,6 +83,63 @@ int PathToNumFS(const char* path) {
 bool IsMountedFS(const char* path) {
     int fsnum = PathToNumFS(path);
     return ((fsnum >= 0) && (fsnum < NORM_FS)) ? fs_mounted[fsnum] : false;
+}
+
+uint64_t GetSDCardSize() {
+    if (sdmmc_sdcard_init() != 0) return 0;
+    return (u64) getMMCDevice(1)->total_size * 512;
+}
+
+bool FormatSDCard(u32 hidden_mb) {
+    u8 mbr[0x200] = { 0 };
+    u8 mbrdata[0x42] = {
+        0x80, 0x01, 0x01, 0x00, 0x0C, 0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x80, 0x01, 0x01, 0x00, 0x1C, 0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x55, 0xAA
+    };
+    u32 sd_size = getMMCDevice(1)->total_size;
+    u32* fat_sector = (u32*) (mbrdata + 0x08);
+    u32* fat_size   = (u32*) (mbrdata + 0x0C);
+    u32* emu_sector = (u32*) (mbrdata + 0x18);
+    u32* emu_size   = (u32*) (mbrdata + 0x1C);
+    
+    *emu_sector = 1;
+    *emu_size = hidden_mb * (1024 * 1024) / 512;
+    *fat_sector = align(*emu_sector + *emu_size, 0x2000); // align to 4MB
+    if (sd_size < *fat_sector + 0x80000) { // minimum free space: 256MB
+        ShowPrompt(false, "ERROR: SD card is too small");
+        return false;
+    }
+    *fat_size = sd_size - *fat_sector;
+    sd_size = *fat_size;
+    
+    // build the MBR
+    memcpy(mbr + 0x1BE, mbrdata, 0x42);
+    if (hidden_mb) memcpy(mbr, "GATEWAYNAND", 12);
+    else memset(mbr + 0x1CE, 0, 0x10);
+    
+    // one last warning....
+    if (!ShowUnlockSequence(3, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it.\n"))
+        return false;
+    ShowString("Formatting SD, please wait...", hidden_mb); 
+    
+    // write the MBR to disk
+    // !this assumes a fully deinitialized file system!
+    if ((sdmmc_sdcard_init() != 0) || (sdmmc_sdcard_writesectors(0, 1, mbr) != 0)) {
+        ShowPrompt(false, "ERROR: SD card i/o failure");
+        return false;
+    }
+    
+    // format the SD card
+    // cluster size: auto (<= 4GB) / 32KiB (<= 8GB) / 64 KiB (> 8GB)
+    InitSDCardFS();
+    UINT c_size = (sd_size < 0x800000) ? 0 : (sd_size < 0x1000000) ? 32768 : 65536;
+    bool ret = (f_mkfs("0:", 0, c_size) == FR_OK) && (f_setlabel("0:GM9SD") == FR_OK);
+    DeinitSDCardFS();
+    
+    return ret;
 }
 
 bool CheckWritePermissions(const char* path) {
