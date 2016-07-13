@@ -80,8 +80,11 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
     if (!virtual_src || (fname - path != 3))
         return false;
     
-    // check NAND type
-    virtual_type = (virtual_src & VRT_ANYNAND) ? CheckNandType(virtual_src) : virtual_src;
+    // check virtual type
+    if (virtual_src & VRT_ANYNAND) {
+        virtual_type = CheckNandType(virtual_src); // workaround if this comes up with no result
+        if (!virtual_type) virtual_type = (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
+    } else virtual_type = virtual_src;
     
     // parse the template list, get the correct one
     u32 n_templates = sizeof(virtualFileTemplates) / sizeof(VirtualFile);

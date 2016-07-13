@@ -338,7 +338,7 @@ u32 CheckNandType(u32 nand_src)
     if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, nand_src) != 0)
         return 0;
     if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, 0x60) == 0) {
-        return NAND_TYPE_N3DS;
+        return (GetUnitPlatform() == PLATFORM_3DS) ? 0 : NAND_TYPE_N3DS;
     } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, 0x60) == 0) {
         return (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_NO3DS;
     }
