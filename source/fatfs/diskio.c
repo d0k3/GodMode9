@@ -71,7 +71,7 @@ static BYTE nand_type_img = 0;
 
 static inline BYTE get_partition_type(
     __attribute__((unused))
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
     if ((pdrv >= 7) && !nand_type_img) // special handling for FAT images
@@ -87,7 +87,7 @@ static inline BYTE get_partition_type(
 
 static inline SubtypeDesc* get_subtype_desc(
     __attribute__((unused))
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
     BYTE type = get_partition_type(pdrv);
@@ -112,35 +112,36 @@ static inline SubtypeDesc* get_subtype_desc(
 
 DSTATUS disk_status (
 	__attribute__((unused))
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
-	return RES_OK;
+    return RES_OK;
 }
 
 
 
 /*-----------------------------------------------------------------------*/
-/* Inidialize a Drive                                                    */
+/* Initialize a Drive                                                    */
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_initialize (
 	__attribute__((unused))
-	BYTE pdrv				/* Physical drive nmuber to identify the drive */
+	BYTE pdrv				/* Physical drive number to identify the drive */
 )
 {
     if (pdrv == 0) { // a mounted SD card is the preriquisite for everything else
-        if (!sdmmc_sdcard_init()) return STA_NODISK;
+        if (sdmmc_sdcard_init() != 0) return STA_NOINIT|STA_NODISK;
     } else if (pdrv < 4) {
         nand_type_sys = CheckNandType(NAND_SYSNAND);
-        if (!nand_type_sys) return STA_NODISK;
+        if (!nand_type_sys) return STA_NOINIT|STA_NODISK;
     } else if (pdrv < 7) {
+        if (!GetNandSizeSectors(NAND_EMUNAND)) return STA_NOINIT|STA_NODISK;
         nand_type_emu = CheckNandType(NAND_EMUNAND);
-        if (!nand_type_emu) return STA_NODISK;
+        if (!nand_type_emu) return STA_NOINIT|STA_NODISK;
     } else if (pdrv < 10) {
-        if (!GetMountState()) return STA_NODISK;
+        if (!GetMountState()) return STA_NOINIT|STA_NODISK;
         nand_type_img = CheckNandType(NAND_IMGNAND);
-        if ((!nand_type_img) && (pdrv != 7)) return STA_NODISK;
+        if ((!nand_type_img) && (pdrv != 7)) return STA_NOINIT|STA_NODISK;
     }
 	return RES_OK;
 }
@@ -153,7 +154,7 @@ DSTATUS disk_initialize (
 
 DRESULT disk_read (
 	__attribute__((unused))
-	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv,		/* Physical drive number to identify the drive */
 	BYTE *buff,		/* Data buffer to store read data */
 	DWORD sector,	/* Sector address in LBA */
 	UINT count		/* Number of sectors to read */
@@ -190,7 +191,7 @@ DRESULT disk_read (
 #if _USE_WRITE
 DRESULT disk_write (
 	__attribute__((unused))
-	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
+	BYTE pdrv,			/* Physical drive number to identify the drive */
 	const BYTE *buff,	/* Data to be written */
 	DWORD sector,		/* Sector address in LBA */
 	UINT count			/* Number of sectors to write */
@@ -228,7 +229,7 @@ DRESULT disk_write (
 #if _USE_IOCTL
 DRESULT disk_ioctl (
 	__attribute__((unused))
-	BYTE pdrv,		/* Physical drive nmuber (0..) */
+	BYTE pdrv,		/* Physical drive number (0..) */
 	__attribute__((unused))
 	BYTE cmd,		/* Control code */
 	__attribute__((unused))
