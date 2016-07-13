@@ -44,6 +44,18 @@ _start:
     bic r4, #(1<<0)            @ - mpu disable
     mcr p15, 0, r4, c1, c0, 0  @ write control register
     
+    @ Clear bss
+    ldr r0, =__bss_start
+    ldr r1, =__bss_end
+    mov r2, #0
+
+    .bss_clr:
+    cmp r0, r1
+    beq .bss_clr_done
+    str r2, [r0], #4
+    b .bss_clr
+    .bss_clr_done:
+    
     @ Give read/write access to all the memory regions
     ldr r5, =0x33333333
     mcr p15, 0, r5, c5, c0, 2 @ write data access
