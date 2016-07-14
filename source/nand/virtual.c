@@ -30,6 +30,7 @@ VirtualFile virtualFileTemplates[] = {
     { "nand_minsize.bin" , 0x00000000, 0x3AF00000, 0xFF, VFLAG_ON_O3DS | VFLAG_A9LH_AREA },
     { "nand_minsize.bin" , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_A9LH_AREA },
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND | VFLAG_A9LH_AREA },
+    { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND | VFLAG_A9LH_AREA },
     { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, VFLAG_ON_MEMORY },
     { "arm9.mem"         , 0x08000000, 0x00100000, 0xFF, VFLAG_ON_MEMORY },
     { "arm9ext.mem"      , 0x08010000, 0x00080000, 0xFF, VFLAG_ON_MEMORY | VFLAG_N3DS_ONLY },

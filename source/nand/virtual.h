@@ -12,7 +12,7 @@
 
 static const char* virtualFileList[] = { // must have a match in virtualFileTemplates[]
     "twln.bin", "twlp.bin", "agbsave.bin", "firm0.bin", "firm1.bin", "ctrnand_fat.bin",
-    "ctrnand_full.bin", "nand.bin", "nand_minsize.bin", "nand_hdr.bin", "sector0x96.bin",
+    "ctrnand_full.bin", "nand.bin", "nand_minsize.bin", "nand_hdr.bin", "twlmbr.bin", "sector0x96.bin",
     "itcm.mem", "arm9.mem", "arm9ext.mem", "vram.mem", "dsp.mem", "axiwram.mem",
     "fcram.mem", "fcramext.mem", "dtcm.mem", "bootrom_unp.mem"
 };
