@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.6.0"
+#define VERSION "0.6.1"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -35,8 +35,11 @@ typedef struct {
 
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
     const u32 n_cb_show = 8;
+    const u32 bartxt_start = (FONT_HEIGHT_EXT == 10) ? 1 : 2;
+    const u32 bartxt_x = 2;
+    const u32 bartxt_rx = SCREEN_WIDTH_TOP - (19*FONT_WIDTH_EXT) - bartxt_x;
     const u32 info_start = 18;
-    const u32 instr_x = 56;
+    const u32 instr_x = (SCREEN_WIDTH_TOP - (36*FONT_WIDTH_EXT)) / 2;
     char tempstr[64];
     
     static u32 state_prev = 0xFFFFFFFF;
@@ -57,15 +60,15 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         char bytestr0[32];
         char bytestr1[32];
         TruncateString(tempstr, curr_path, 30, 8);
-        DrawStringF(TOP_SCREEN, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
-        DrawStringF(TOP_SCREEN, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
+        DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
         FormatBytes(bytestr1, GetTotalSpace(curr_path));
         snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
-        DrawStringF(TOP_SCREEN, 30 * 8 + 4, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
     } else {
-        DrawStringF(TOP_SCREEN, 2, 2, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
-        DrawStringF(TOP_SCREEN, 30 * 8 + 6, 2, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "GodMode9");
+        DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "GodMode9");
     }
     
     // left top - current file info
@@ -91,15 +94,15 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
     
     // right top - clipboard
-    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*8), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
     for (u32 c = 0; c < n_cb_show; c++) {
         u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
         ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", 20, 8, true);
-        DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
+        DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT) - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
     }
     *tempstr = '\0';
     if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - n_cb_show);
-    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*8) - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT) - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
     
     // bottom: inctruction block
     char instr[256];
@@ -123,7 +126,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
 }
 
 void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
-    const int str_width = 39;
+    const int str_width = (SCREEN_WIDTH_BOT-1) / FONT_WIDTH_EXT;
     const u32 bar_height_min = 32;
     const u32 bar_width = 2;
     const u32 start_y = 2;
@@ -235,6 +238,27 @@ u32 HexViewer(const char* path) {
     while (true) {
         if (mode != last_mode) {
             switch (mode) { // display mode
+                #ifdef FONT_6X10
+                case 1:
+                    vpad = 0;
+                    hlpad = hrpad = 1;
+                    cols = 16;
+                    x_off = 0;
+                    x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
+                    x_hex = x_off + (8*FONT_WIDTH_EXT) + 16;
+                    dual_screen = false;
+                    break;
+                default:
+                    mode = 0; 
+                    vpad = 0;
+                    hlpad = hrpad = 3;
+                    cols = 8;
+                    x_off = 30 + (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
+                    x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
+                    x_hex = (SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2;
+                    dual_screen = true;
+                    break;
+                #else
                 case 1:
                     vpad = hlpad = hrpad = 1;
                     cols = 12;
@@ -262,6 +286,7 @@ u32 HexViewer(const char* path) {
                     dual_screen = false;
                     break;
                 default:
+                    mode = 0; 
                     vpad = hlpad = hrpad = 2;
                     cols = 8;
                     x_off = (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
@@ -269,8 +294,9 @@ u32 HexViewer(const char* path) {
                     x_hex = (SCREEN_WIDTH_TOP - ((hlpad + 16 + hrpad) * cols)) / 2;
                     dual_screen = true;
                     break;
+                #endif
             }
-            rows = (dual_screen ? 2 : 1) * SCREEN_HEIGHT / (8 + (2*vpad));
+            rows = (dual_screen ? 2 : 1) * SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*vpad));
             total_shown = rows * cols;
             last_mode = mode;
             ClearScreenF(true, dual_screen, COLOR_STD_BG);
@@ -296,7 +322,7 @@ u32 HexViewer(const char* path) {
         // display data on screen
         for (u32 row = 0; row < rows; row++) {
             char ascii[16 + 1] = { 0 };
-            u32 y = row * (8 + (2*vpad)) + vpad;
+            u32 y = row * (FONT_HEIGHT_EXT + (2*vpad)) + vpad;
             u32 curr_pos = row * cols;
             u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
             u32 marked0 = (found_size && (offset <= found_offset)) ? found_offset - offset : 0;
@@ -324,14 +350,14 @@ u32 HexViewer(const char* path) {
             if (x_ascii >= 0) {
                 DrawString(screen, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG);
                 for (u32 i = marked0; i < marked1; i++)
-                    DrawCharacter(screen, ascii[i % cols], x_ascii - x0 + (8 * i), y, COLOR_MARKED, COLOR_STD_BG);
+                    DrawCharacter(screen, ascii[i % cols], x_ascii - x0 + (FONT_WIDTH_EXT * i), y, COLOR_MARKED, COLOR_STD_BG);
                 if (edit_mode && ((u32) cursor / cols == row)) DrawCharacter(screen, ascii[cursor % cols],
-                    x_ascii - x0 + 8 * (cursor % cols), y, COLOR_RED, COLOR_STD_BG);
+                    x_ascii - x0 + FONT_WIDTH_EXT * (cursor % cols), y, COLOR_RED, COLOR_STD_BG);
             }
             
             // draw HEX values
             for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
-                u32 x = (x_hex + hlpad) + ((16 + hrpad + hlpad) * col) - x0;
+                u32 x = (x_hex + hlpad) + (((2*FONT_WIDTH_EXT) + hrpad + hlpad) * col) - x0;
                 u32 hex_color = (edit_mode && ((u32) cursor == curr_pos + col)) ? COLOR_RED :
                     ((col >= marked0) && (col < marked1)) ? COLOR_MARKED : COLOR_HVHEX(col);
                 if (col < cutoff)
@@ -350,7 +376,7 @@ u32 HexViewer(const char* path) {
             else if (pad_state & BUTTON_RIGHT) offset += step_lr;
             else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
             else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
-            else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode = (mode + 1) % 4;
+            else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode++;
             else if (pad_state & BUTTON_A) edit_mode = true;
             else if (pad_state & (BUTTON_B|BUTTON_START)) break;
             else if (found_size && (pad_state & BUTTON_R1) && (pad_state & BUTTON_X)) {

@@ -10,6 +10,13 @@
 #define SCREEN_HEIGHT 240
 #define SCREEN_WIDTH_TOP 400
 #define SCREEN_WIDTH_BOT 320
+#ifdef FONT_6X10
+#define FONT_WIDTH_EXT  6
+#define FONT_HEIGHT_EXT 10
+#else
+#define FONT_WIDTH_EXT  8
+#define FONT_HEIGHT_EXT 8
+#endif
 
 #define RGB(r,g,b) (r<<24|b<<16|g<<8|r)
 

@@ -47,13 +47,13 @@ void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
 
 void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcolor)
 {
-    for (int yy = 0; yy < 8; yy++) {
+    for (int yy = 0; yy < FONT_HEIGHT; yy++) {
         int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
         int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
         u8* screenPos = screen + xDisplacement + yDisplacement;
 
-        u8 charPos = font[character * 8 + yy];
-        for (int xx = 7; xx >= 0; xx--) {
+        u8 charPos = font[character * FONT_HEIGHT + yy];
+        for (int xx = 7; xx >= (8 - FONT_WIDTH); xx--) {
             if ((charPos >> xx) & 1) {
                 *(screenPos + 0) = color >> 16;  // B
                 *(screenPos + 1) = color >> 8;   // G
@@ -71,7 +71,7 @@ void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcol
 void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor)
 {
     for (size_t i = 0; i < strlen(str); i++)
-        DrawCharacter(screen, str[i], x + i * 8, y, color, bgcolor);
+        DrawCharacter(screen, str[i], x + i * FONT_WIDTH, y, color, bgcolor);
 }
 
 void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *format, ...)
@@ -87,7 +87,7 @@ void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *f
 }
 
 u32 GetDrawStringHeight(const char* str) {
-    u32 height = 8;
+    u32 height = FONT_HEIGHT;
     for (char* lf = strchr(str, '\n'); (lf != NULL); lf = strchr(lf + 1, '\n'))
         height += 10;
     return height;
@@ -103,7 +103,7 @@ u32 GetDrawStringWidth(char* str) {
     }
     if ((u32) (str_end - old_lf) > width)
         width = str_end - old_lf;
-    width *= 8;
+    width *= FONT_WIDTH;
     return width;
 }
 
@@ -191,7 +191,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (2 * 10);
-    if (str_width < 18*8) str_width = 18 * 8;
+    if (str_width < 18 * FONT_WIDTH) str_width = 18 * FONT_WIDTH;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
@@ -246,7 +246,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (4*10);
-    if (str_width < 24 * 8) str_width = 24 * 8;
+    if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
@@ -293,7 +293,7 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
-    if (str_width < 24*8) str_width = 24 * 8;
+    if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;
@@ -341,7 +341,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (8*10);
-    if (str_width < (24*8)) str_width = 24 * 8;
+    if (str_width < (24 * FONT_WIDTH)) str_width = 24 * FONT_WIDTH;
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     

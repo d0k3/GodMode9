@@ -39,8 +39,18 @@ CFLAGS	+=	$(INCLUDE) -DEXEC_$(EXEC_METHOD) -DARM9
 
 CFLAGS	+=	-DBUILD_NAME="\"$(TARGET) (`date +'%Y/%m/%d'`)\""
 
-ifneq ($(strip $(THEME)),)
-CFLAGS	+=	-DUSE_THEME=\"\/$(THEME)\"
+ifeq ($(FONT),ORIG)
+CFLAGS	+=	-DFONT_ORIGINAL
+else ifeq ($(FONT),6x10)
+CFLAGS	+=	-DFONT_6X10
+else ifeq ($(FONT),ACORN)
+CFLAGS	+=	-DFONT_ACORN
+else
+CFLAGS	+=	-DFONT_ORIGINAL
+endif
+
+ifeq ($(MODE),safe)
+	CFLAGS += -DSAFEMODE
 endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
@@ -52,10 +62,6 @@ ifeq ($(EXEC_METHOD),GATEWAY)
 	LDFLAGS += --specs=../gateway.specs
 else ifeq ($(EXEC_METHOD),A9LH)
 	LDFLAGS += --specs=../a9lh.specs
-endif
-
-ifeq ($(MODE),safe)
-	CFLAGS += -DSAFEMODE
 endif
 
 LIBS	:=
