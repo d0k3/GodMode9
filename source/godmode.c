@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.6.1"
+#define VERSION "0.6.2"
 
 #define N_PANES 2
 #define IMG_DRV "789I"

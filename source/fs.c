@@ -45,7 +45,7 @@ bool InitExtFS() {
         snprintf(fsname, 7, "%lu:", i);
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
         if ((i == 7) && !fs_mounted[7] && (GetMountState() == IMG_RAMDRV)) {
-            f_mkfs("7:", 0, 0); // format ramdrive if required
+            f_mkfs("7:", FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE); // format ramdrive if required
             f_mount(NULL, fsname, 1);
             fs_mounted[7] = (f_mount(fs + 7, "7:", 1) == FR_OK);
         }
@@ -136,7 +136,7 @@ bool FormatSDCard(u32 hidden_mb) {
     // cluster size: auto (<= 4GB) / 32KiB (<= 8GB) / 64 KiB (> 8GB)
     f_mount(fs, "0:", 1);
     UINT c_size = (sd_size < 0x800000) ? 0 : (sd_size < 0x1000000) ? 32768 : 65536;
-    bool ret = (f_mkfs("0:", 0, c_size) == FR_OK) && (f_setlabel("0:GM9SD") == FR_OK);
+    bool ret = (f_mkfs("0:", FM_FAT32, c_size, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK) && (f_setlabel("0:GM9SD") == FR_OK);
     f_mount(NULL, "0:", 1);
     
     return ret;
@@ -317,7 +317,6 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
 size_t FileGetSize(const char* path) {
     if (PathToNumFS(path) >= 0) {
         FILINFO fno;
-        fno.lfname = NULL;
         if (f_stat(path, &fno) != FR_OK)
             return 0;
         return fno.fsize;
@@ -652,7 +651,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
 }
 
 bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
-    FILINFO fno = {.lfname = NULL};
+    FILINFO fno;
     bool ret = false;
     
     
@@ -715,14 +714,11 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
         if (f_opendir(&pdir, orig) != FR_OK)
             return false;
         *(fname++) = '/';
-        fno.lfname = fname;
-        fno.lfsize = 256 - (fname - orig);
         
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
-            if (fname[0] == 0)
-                strncpy(fname, fno.fname, 256 - (fname - orig));
+            strncpy(fname, fno.fname, 256 - (fname - orig));
             if (fno.fname[0] == 0) {
                 ret = true;
                 break;
@@ -827,7 +823,7 @@ bool PathMove(const char* destdir, const char* orig) {
 }
 
 bool PathDeleteWorker(char* fpath) {
-    FILINFO fno = {.lfname = NULL};
+    FILINFO fno;
     
     // this code handles directory content deletion
     if (f_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
@@ -838,14 +834,11 @@ bool PathDeleteWorker(char* fpath) {
         if (f_opendir(&pdir, fpath) != FR_OK)
             return false;
         *(fname++) = '/';
-        fno.lfname = fname;
-        fno.lfsize = fpath + 255 - fname;
         
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
-            if (fname[0] == 0)
-                strncpy(fname, fno.fname, fpath + 255 - fname);
+            strncpy(fname, fno.fname, fpath + 255 - fname);
             if (fno.fname[0] == 0) {
                 break;
             } else { // return value won't matter
@@ -1010,23 +1003,20 @@ bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path) {
     return true; // not much we can check here
 }
 
-bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recursive) {
+bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, bool recursive) {
     DIR pdir;
     FILINFO fno;
-    char* fname = fpath + strnlen(fpath, fsize - 1);
+    char* fname = fpath + strnlen(fpath, fnsize - 1);
     bool ret = false;
     
     if (f_opendir(&pdir, fpath) != FR_OK)
         return false;
     (fname++)[0] = '/';
-    fno.lfname = fname;
-    fno.lfsize = fsize - (fname - fpath);
     
     while (f_readdir(&pdir, &fno) == FR_OK) {
         if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
             continue; // filter out virtual entries
-        if (fname[0] == 0)
-            strncpy(fname, fno.fname, (fsize - 1) - (fname - fpath));
+        strncpy(fname, fno.fname, (fnsize - 1) - (fname - fpath));
         if (fno.fname[0] == 0) {
             ret = true;
             break;
@@ -1047,7 +1037,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fsize, bool recu
                 break;
         }
         if (recursive && (fno.fattrib & AM_DIR)) {
-            if (!GetDirContentsWorker(contents, fpath, fsize, recursive))
+            if (!GetDirContentsWorker(contents, fpath, fnsize, recursive))
                 break;
         }
     }
