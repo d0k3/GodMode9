@@ -6,8 +6,9 @@
 #include "nand.h"
 #include "virtual.h"
 #include "image.h"
+#include "store.h"
 
-#define VERSION "0.6.2"
+#define VERSION "0.6.3"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -544,13 +545,26 @@ u32 GodMode() {
         }
         
         // basic navigation commands
-        if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // one level up
-            strncpy(current_path, curr_entry->path, 256);
-            GetDirContents(current_dir, current_path);
-            if (*current_path && (current_dir->n_entries > 1)) {
-                cursor = 1;
-                scroll = 0;
-            } else cursor = 0;
+        if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
+            if (switched) { // search directory
+                char searchstr[256];
+                char namestr[20+1];
+                snprintf(searchstr, 256, "*.*");
+                TruncateString(namestr, curr_entry->name, 20, 8);
+                if (ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
+                    ShowString("Searching path, please wait...");
+                    snprintf(current_path, 256, "Z:");
+                    SearchDirContents(current_dir, curr_entry->path, searchstr, true);
+                    StoreDirContents(current_dir);
+                }
+            } else { // one level up
+                strncpy(current_path, curr_entry->path, 256);
+                GetDirContents(current_dir, current_path);
+                if (*current_path && (current_dir->n_entries > 1)) {
+                    cursor = 1;
+                    scroll = 0;
+                } else cursor = 0;
+            }
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             u32 file_type = IdentifyImage(curr_entry->path);
             bool injectable = (clipboard->n_entries == 1) &&

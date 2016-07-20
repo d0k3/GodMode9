@@ -90,6 +90,9 @@ bool DirCreate(const char* cpath, const char* dirname);
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();
 
+/** Search under a given path **/
+void SearchDirContents(DirStruct* contents, const char* path, const char* pattern, bool recursive);
+
 /** Get directory content under a given path **/
 void GetDirContents(DirStruct* contents, const char* path);
 

@@ -2,6 +2,7 @@
 #include "fs.h"
 #include "virtual.h"
 #include "image.h"
+#include "store.h"
 #include "sha.h"
 #include "sdmmc.h"
 #include "ff.h"
@@ -74,7 +75,7 @@ void DeinitSDCardFS() {
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
     if ((fsnum < 0) || (fsnum >= NORM_FS) || (path[1] != ':')) {
-        if (!GetVirtualSource(path)) ShowPrompt(false, "Invalid path (%s)", path);
+        if (!GetVirtualSource(path) && !IsStoredDrive(path)) ShowPrompt(false, "Invalid path (%s)", path);
         return -1;
     }
     return fsnum;
@@ -949,6 +950,34 @@ void SortDirStruct(DirStruct* contents) {
     }
 }
 
+// inspired by http://www.geeksforgeeks.org/wildcard-character-matching/
+bool MatchName(const char *pattern, const char *path) {
+    // handling non asterisk chars
+    for (; *pattern != '*'; pattern++, path++) {
+        if ((*pattern == '\0') && (*path == '\0')) {
+            return true; // end reached simultaneously, match found
+        } else if ((*pattern == '\0') || (*path == '\0')) {
+            return false; // end reached on only one, failure
+        } else if ((*pattern != '?') && (tolower(*pattern) != tolower(*path))) {
+            return false; // chars don't match, failure
+        }
+    }
+    // handling the asterisk (matches one or more chars in path)
+    if ((*(pattern+1) == '?') || (*(pattern+1) == '*')) {
+        return false; // stupid user shenanigans, failure
+    } else if (*path == '\0') {
+        return false; // asterisk, but end reached on path, failure
+    } else if (*(pattern+1) == '\0') {
+        return true; // nothing after the asterisk, match found
+    } else { // we couldn't really go without recursion here
+        for (path++; *path != '\0'; path++) {
+            if (MatchName(pattern + 1, path)) return true;
+        }
+    }
+    
+    return false;
+}
+
 bool GetRootDirContentsWorker(DirStruct* contents) {
     static const char* drvname[] = {
         "SDCARD",
@@ -986,11 +1015,12 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     return contents->n_entries;
 }
 
-bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path) {
+bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path, const char* pattern) {
     if (strchr(path, '/')) return false; // only top level paths
     for (u32 n = 0; (n < virtualFileList_size) && (contents->n_entries < MAX_ENTRIES); n++) {
         VirtualFile vfile;
         DirEntry* entry = &(contents->entry[contents->n_entries]);
+        if (pattern && !MatchName(pattern, virtualFileList[n])) continue;
         snprintf(entry->path, 256, "%s/%s", path, virtualFileList[n]);
         if (!FindVirtualFile(&vfile, entry->path, 0)) continue;
         entry->name = entry->path + strnlen(path, 256) + 1;
@@ -1003,7 +1033,7 @@ bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path) {
     return true; // not much we can check here
 }
 
-bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, bool recursive) {
+bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const char* pattern, bool recursive) {
     DIR pdir;
     FILINFO fno;
     char* fname = fpath + strnlen(fpath, fnsize - 1);
@@ -1020,7 +1050,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, bool rec
         if (fno.fname[0] == 0) {
             ret = true;
             break;
-        } else {
+        } else if (!pattern || MatchName(pattern, fname)) {
             DirEntry* entry = &(contents->entry[contents->n_entries]);
             strncpy(entry->path, fpath, 256);
             entry->name = entry->path + (fname - fpath);
@@ -1037,7 +1067,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, bool rec
                 break;
         }
         if (recursive && (fno.fattrib & AM_DIR)) {
-            if (!GetDirContentsWorker(contents, fpath, fnsize, recursive))
+            if (!GetDirContentsWorker(contents, fpath, fnsize, pattern, recursive))
                 break;
         }
     }
@@ -1046,7 +1076,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, bool rec
     return ret;
 }
 
-void GetDirContents(DirStruct* contents, const char* path) {
+void SearchDirContents(DirStruct* contents, const char* path, const char* pattern, bool recursive) {
     contents->n_entries = 0;
     if (!(*path)) { // root directory
         if (!GetRootDirContentsWorker(contents))
@@ -1060,16 +1090,20 @@ void GetDirContents(DirStruct* contents, const char* path) {
         contents->entry->size = 0;
         contents->n_entries = 1;
         if (GetVirtualSource(path)) {
-            if (!GetVirtualDirContentsWorker(contents, path))
+            if (!GetVirtualDirContentsWorker(contents, path, pattern))
                 contents->n_entries = 0;
         } else {
             char fpath[256]; // 256 is the maximum length of a full path
             strncpy(fpath, path, 256);
-            if (!GetDirContentsWorker(contents, fpath, 256, false))
+            if (!GetDirContentsWorker(contents, fpath, 256, pattern, recursive))
                 contents->n_entries = 0;
         }
         SortDirStruct(contents);
     }
+}
+
+void GetDirContents(DirStruct* contents, const char* path) {
+    SearchDirContents(contents, path, NULL, false);
 }
 
 uint64_t GetFreeSpace(const char* path)
