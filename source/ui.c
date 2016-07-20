@@ -400,7 +400,10 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
                 while (cursor_s >= inputstr_size)
                     cursor_s--;
                 cursor_a = -1;
-            } else if (resize == 1) inputstr[0] = alphabet[0];
+            } else if (resize == 1) {
+                inputstr[0] = alphabet[0];
+                cursor_a = 0;
+            }
         } else if (pad_state & BUTTON_Y) {
             if (resize && (inputstr_size < max_size - resize)) {
                 char* inputfrom = inputstr + cursor_s - (cursor_s % resize);

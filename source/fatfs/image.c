@@ -1,6 +1,6 @@
 #include "image.h"
 #include "platform.h"
-#include "fatfs/ff.h"
+#include "ff.h"
 
 #define RAMDRV_BUFFER_O3DS ((u8*)0x22200000) // in O3DS FCRAM
 #define RAMDRV_SIZE_O3DS (0x01C00000) // 28MB
