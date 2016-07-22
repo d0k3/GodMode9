@@ -127,7 +127,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
 }
 
 void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
-    const int str_width = (SCREEN_WIDTH_BOT-1) / FONT_WIDTH_EXT;
+    const int str_width = (SCREEN_WIDTH_BOT-3) / FONT_WIDTH_EXT;
     const u32 bar_height_min = 32;
     const u32 bar_width = 2;
     const u32 start_y = 2;
@@ -550,12 +550,13 @@ u32 GodMode() {
             if (switched) { // search directory
                 char searchstr[256];
                 char namestr[20+1];
-                snprintf(searchstr, 256, "*.*");
+                snprintf(searchstr, 256, "*");
                 TruncateString(namestr, curr_entry->name, 20, 8);
                 if (ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
                     ShowString("Searching path, please wait...");
                     snprintf(current_path, 256, "Z:");
                     SearchDirContents(current_dir, curr_entry->path, searchstr, true);
+                    ClearScreenF(true, false, COLOR_STD_BG);
                     StoreDirContents(current_dir);
                 }
             } else { // one level up
