@@ -491,7 +491,7 @@ u32 GodMode() {
     PaneData* pane = panedata;
     char current_path[256] = { 0x00 };
     
-    int mark_setting = -1;
+    int mark_next = -1;
     u32 last_clipboard_size = 0;
     u32 cursor = 0;
     u32 scroll = 0;
@@ -536,13 +536,14 @@ u32 GodMode() {
         if (cursor >= current_dir->n_entries) // cursor beyond allowed range
             cursor = current_dir->n_entries - 1;
         DirEntry* curr_entry = &(current_dir->entry[cursor]);
+        if ((mark_next >= 0) && (curr_entry->type != T_DOTDOT)) {
+            curr_entry->marked = mark_next;
+            mark_next = -2;
+        }
         DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
         DrawDirContents(current_dir, cursor, &scroll);
         u32 pad_state = InputWait();
         bool switched = (pad_state & BUTTON_R1);
-        if (!(*current_path) || switched || !(pad_state & BUTTON_L1)) {
-            mark_setting = -1;
-        }
         
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
@@ -681,8 +682,10 @@ u32 GodMode() {
             GetDirContents(current_dir, current_path);
             if (cursor >= current_dir->n_entries) cursor = 0;
         } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor down
+            if (pad_state & BUTTON_L1) mark_next = curr_entry->marked;
             cursor++;
         } else if ((pad_state & BUTTON_UP) && cursor) { // cursor up
+            if (pad_state & BUTTON_L1) mark_next = curr_entry->marked;
             cursor--;
         } else if (switched && (pad_state & (BUTTON_RIGHT|BUTTON_LEFT))) { // switch pane
             memcpy(pane->path, current_path, 256);  // store state in current pane
@@ -695,26 +698,23 @@ u32 GodMode() {
             cursor = pane->cursor;
             scroll = pane->scroll;
             GetDirContents(current_dir, current_path);
-        } else if ((pad_state & BUTTON_RIGHT) && (mark_setting < 0)) { // cursor down (quick)
+        } else if ((pad_state & BUTTON_RIGHT) && !(pad_state & BUTTON_L1)) { // cursor down (quick)
             cursor += quick_stp;
-        } else if ((pad_state & BUTTON_LEFT) && (mark_setting < 0)) { // cursor up (quick)
+        } else if ((pad_state & BUTTON_LEFT) && !(pad_state & BUTTON_L1)) { // cursor up (quick)
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
         } else if (pad_state & BUTTON_RIGHT) { // mark all entries
             for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 1;
-            mark_setting = 1;
+            mark_next = 1;
         } else if (pad_state & BUTTON_LEFT) { // unmark all entries
             for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
-            mark_setting = 0;
+            mark_next = 0;
         } else if (switched && (pad_state & BUTTON_L1)) { // switched L -> screenshot
             CreateScreenshot();
             ClearScreenF(true, true, COLOR_STD_BG);
-        } else if (*current_path && (pad_state & BUTTON_L1) && (curr_entry->type != T_DOTDOT)) { // unswitched L - mark/unmark single entry
-            if (mark_setting >= 0) {
-                curr_entry->marked = mark_setting;
-            } else {
-                curr_entry->marked ^= 0x1;
-                mark_setting = curr_entry->marked;
-            }
+        } else if (*current_path && (pad_state & BUTTON_L1) && (curr_entry->type != T_DOTDOT)) {
+            // unswitched L - mark/unmark single entry
+            if (mark_next < -1) mark_next = -1;
+            else curr_entry->marked ^= 0x1;
         } else if (pad_state & BUTTON_SELECT) { // clear/restore clipboard
             clipboard->n_entries = (clipboard->n_entries > 0) ? 0 : last_clipboard_size;
         }
