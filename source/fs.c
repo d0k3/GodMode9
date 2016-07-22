@@ -11,7 +11,7 @@
 #define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
 #define NORM_FS  10
-#define VIRT_FS  4
+#define VIRT_FS  5
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
@@ -985,10 +985,11 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP",
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
-        "MEMORY VIRTUAL"
+        "MEMORY VIRTUAL",
+        "LAST SEARCH"
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "S:", "E:", "I:", "M:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "S:", "E:", "I:", "M:", "Z:"
     };
     u32 n_entries = 0;
     
@@ -996,7 +997,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if ((pdrv < NORM_FS) && !fs_mounted[pdrv]) continue;
-        else if ((pdrv >= NORM_FS) && (!CheckVirtualDrive(drvnum[pdrv]))) continue;
+        else if ((pdrv >= NORM_FS) && (!CheckVirtualDrive(drvnum[pdrv])) && !(IsStoredDrive(drvnum[pdrv]))) continue;
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
@@ -1092,6 +1093,8 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         if (GetVirtualSource(path)) {
             if (!GetVirtualDirContentsWorker(contents, path, pattern))
                 contents->n_entries = 0;
+        } else if (IsStoredDrive(path)) {
+            GetStoredDirContents(contents);
         } else {
             char fpath[256]; // 256 is the maximum length of a full path
             strncpy(fpath, path, 256);
