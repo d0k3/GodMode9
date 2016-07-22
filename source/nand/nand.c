@@ -6,7 +6,7 @@
 #include "nand.h"
 #include "image.h"
 
-#define NAND_BUFFER ((u8*)0x21400000)
+#define NAND_BUFFER ((u8*)0x21300000)
 #define NAND_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 #define NAND_MIN_SECTORS ((GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800)
 

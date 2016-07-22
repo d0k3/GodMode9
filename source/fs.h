@@ -39,6 +39,9 @@ bool InitExtFS();
 void DeinitExtFS();
 void DeinitSDCardFS();
 
+/** Set search pattern / path for special Z: drive **/
+void SetFSSearch(const char* pattern, const char* path);
+
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();
 
@@ -110,6 +113,9 @@ int PathToNumFS(const char* path);
 
 /** Check if drive is mounted */
 bool IsMountedFS(const char* path);
+
+/** Check for soecial search drive **/
+bool IsSearchDrive(const char* path);
 
 /** Helper function for copying DirEntry structs */
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig);

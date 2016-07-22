@@ -2,7 +2,6 @@
 #include "fs.h"
 #include "virtual.h"
 #include "image.h"
-#include "store.h"
 #include "sha.h"
 #include "sdmmc.h"
 #include "ff.h"
@@ -27,6 +26,10 @@ static u32 write_permissions = PERM_BASE;
 
 // number of currently open file systems
 static bool fs_mounted[NORM_FS] = { false };
+
+// last search pattern & path
+static char search_pattern[256] = { 0 };
+static char search_path[256] = { 0 };
 
 bool InitSDCardFS() {
     #ifndef EXEC_GATEWAY
@@ -72,10 +75,17 @@ void DeinitSDCardFS() {
     }
 }
 
+void SetFSSearch(const char* pattern, const char* path) {
+    if (pattern && path) {
+        strncpy(search_pattern, pattern, 256);
+        strncpy(search_path, path, 256);
+    } else *search_pattern = *search_path = '\0';
+}
+
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
     if ((fsnum < 0) || (fsnum >= NORM_FS) || (path[1] != ':')) {
-        if (!GetVirtualSource(path) && !IsStoredDrive(path)) ShowPrompt(false, "Invalid path (%s)", path);
+        if (!GetVirtualSource(path) && !IsSearchDrive(path)) ShowPrompt(false, "Invalid path (%s)", path);
         return -1;
     }
     return fsnum;
@@ -84,6 +94,10 @@ int PathToNumFS(const char* path) {
 bool IsMountedFS(const char* path) {
     int fsnum = PathToNumFS(path);
     return ((fsnum >= 0) && (fsnum < NORM_FS)) ? fs_mounted[fsnum] : false;
+}
+
+bool IsSearchDrive(const char* path) {
+    return *search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0);
 }
 
 uint64_t GetSDCardSize() {
@@ -997,7 +1011,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if ((pdrv < NORM_FS) && !fs_mounted[pdrv]) continue;
-        else if ((pdrv >= NORM_FS) && (!CheckVirtualDrive(drvnum[pdrv])) && !(IsStoredDrive(drvnum[pdrv]))) continue;
+        else if ((pdrv >= NORM_FS) && (!CheckVirtualDrive(drvnum[pdrv])) && !(IsSearchDrive(drvnum[pdrv]))) continue;
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
@@ -1063,9 +1077,11 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
                 entry->size = fno.fsize;
             }
             entry->marked = 0;
-            contents->n_entries++;
-            if (contents->n_entries >= MAX_ENTRIES)
+            if (contents->n_entries >= MAX_ENTRIES) {
+                ret = true; // Too many entries, still okay
                 break;
+            }
+            contents->n_entries++;
         }
         if (recursive && (fno.fattrib & AM_DIR)) {
             if (!GetDirContentsWorker(contents, fpath, fnsize, pattern, recursive))
@@ -1093,8 +1109,6 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         if (GetVirtualSource(path)) {
             if (!GetVirtualDirContentsWorker(contents, path, pattern))
                 contents->n_entries = 0;
-        } else if (IsStoredDrive(path)) {
-            GetStoredDirContents(contents);
         } else {
             char fpath[256]; // 256 is the maximum length of a full path
             strncpy(fpath, path, 256);
@@ -1106,7 +1120,11 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
 }
 
 void GetDirContents(DirStruct* contents, const char* path) {
-    SearchDirContents(contents, path, NULL, false);
+    if (*search_pattern && *search_path && IsSearchDrive(path)) {
+        ShowString("Searching, please wait...");
+        SearchDirContents(contents, search_path, search_pattern, true);
+        ClearScreenF(true, false, COLOR_STD_BG);
+    } else SearchDirContents(contents, path, NULL, false);
 }
 
 uint64_t GetFreeSpace(const char* path)

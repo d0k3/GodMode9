@@ -6,9 +6,8 @@
 #include "nand.h"
 #include "virtual.h"
 #include "image.h"
-#include "store.h"
 
-#define VERSION "0.6.3"
+#define VERSION "0.6.4"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -93,6 +92,17 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         ResizeString(tempstr, bytestr, 20, 8, false);
     }
     DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
+    // path of file (if in search results)
+    if (IsSearchDrive(curr_path) && strrchr(curr_entry->path, '/')) {
+        char dirstr[256];
+        strncpy(dirstr, curr_entry->path, 256);
+        *(strrchr(dirstr, '/')+1) = '\0';
+        ResizeString(tempstr, dirstr, 20, 8, false);
+        DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, tempstr);
+    } else {
+        ResizeString(tempstr, "", 20, 8, false);
+        DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, tempstr);
+    }
     
     // right top - clipboard
     DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
@@ -107,7 +117,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[256];
-    snprintf(instr, 256, "%s%s\n%s%s%s%s%s%s",
+    snprintf(instr, 256, "%s%s\n%s%s%s%s%s%s%s",
         #ifndef SAFEMODE
         "GodMode9 Explorer v", VERSION, // generic start part
         #else
@@ -119,6 +129,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "R+Y - Unlock write permissions\nR+B - Unmount SD card\n"),
         (*curr_path) ? "" : ((GetMountState() == IMG_RAMDRV) ? "R+X - Unmount RAM drive\n" :
         (GetMountState()) ? "R+X - Unmount image\n" : "R+X - Mount RAM drive\n"),
+        (*curr_path) ? "R+A - Search directory\n" : "R+A - Search drive\n", 
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
@@ -547,17 +558,17 @@ u32 GodMode() {
         
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
-            if (switched) { // search directory
+            if (switched && !IsSearchDrive(curr_entry->path)) { // search directory
                 char searchstr[256];
                 char namestr[20+1];
                 snprintf(searchstr, 256, "*");
                 TruncateString(namestr, curr_entry->name, 20, 8);
                 if (ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
-                    ShowString("Searching path, please wait...");
+                    SetFSSearch(searchstr, curr_entry->path);
                     snprintf(current_path, 256, "Z:");
-                    SearchDirContents(current_dir, curr_entry->path, searchstr, true);
-                    ClearScreenF(true, false, COLOR_STD_BG);
-                    StoreDirContents(current_dir);
+                    GetDirContents(current_dir, current_path);
+                    cursor = 1;
+                    scroll = 0;
                 }
             } else { // one level up
                 strncpy(current_path, curr_entry->path, 256);
