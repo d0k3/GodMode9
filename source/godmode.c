@@ -569,6 +569,7 @@ u32 GodMode() {
                     SetFSSearch(searchstr, curr_entry->path);
                     snprintf(current_path, 256, "Z:");
                     GetDirContents(current_dir, current_path);
+                    if (current_dir->n_entries) ShowPrompt(false, "Found %lu results.", current_dir->n_entries - 1);
                     cursor = 1;
                     scroll = 0;
                 }
