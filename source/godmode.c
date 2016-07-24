@@ -59,7 +59,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     if (strncmp(curr_path, "", 256) != 0) {
         char bytestr0[32];
         char bytestr1[32];
-        TruncateString(tempstr, curr_path, 30, 8);
+        TruncateString(tempstr, curr_path, 240 / FONT_WIDTH_EXT, 8);
         DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
@@ -76,12 +76,12 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     else snprintf(tempstr, 63, "CURRENT");
     DrawStringF(TOP_SCREEN, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[%s]", tempstr);
     // file / entry name
-    ResizeString(tempstr, curr_entry->name, 20, 8, false);
+    ResizeString(tempstr, curr_entry->name, 160 / FONT_WIDTH_EXT, 8, false);
     u32 color_current = COLOR_ENTRY(curr_entry);
     DrawStringF(TOP_SCREEN, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
     // size (in Byte) or type desc
     if (curr_entry->type == T_DIR) {
-        ResizeString(tempstr, "(dir)", 20, 8, false);
+        ResizeString(tempstr, "(dir)", 160 / FONT_WIDTH_EXT, 8, false);
     } else if (curr_entry->type == T_DOTDOT) {
         snprintf(tempstr, 21, "%20s", "");
     } else {
@@ -89,7 +89,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         char bytestr[32];
         FormatNumber(numstr, curr_entry->size);
         snprintf(bytestr, 31, "%s Byte", numstr);
-        ResizeString(tempstr, bytestr, 20, 8, false);
+        ResizeString(tempstr, bytestr, 160 / FONT_WIDTH_EXT, 8, false);
     }
     DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
     // path of file (if in search results)
@@ -97,23 +97,25 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         char dirstr[256];
         strncpy(dirstr, curr_entry->path, 256);
         *(strrchr(dirstr, '/')+1) = '\0';
-        ResizeString(tempstr, dirstr, 20, 8, false);
+        ResizeString(tempstr, dirstr, 160 / FONT_WIDTH_EXT, 8, false);
         DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, tempstr);
     } else {
-        ResizeString(tempstr, "", 20, 8, false);
+        ResizeString(tempstr, "", 160 / FONT_WIDTH_EXT, 8, false);
         DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, tempstr);
     }
     
     // right top - clipboard
-    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT), info_start, COLOR_STD_FONT, COLOR_STD_BG, "%20s", (clipboard->n_entries) ? "[CLIPBOARD]" : "");
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 160, info_start, COLOR_STD_FONT, COLOR_STD_BG, "%*s", 160 / FONT_WIDTH_EXT,
+        (clipboard->n_entries) ? "[CLIPBOARD]" : "");
     for (u32 c = 0; c < n_cb_show; c++) {
         u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
-        ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", 20, 8, true);
-        DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT) - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
+        ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", 160 / FONT_WIDTH_EXT, 8, true);
+        DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 160 - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
     }
     *tempstr = '\0';
     if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - n_cb_show);
-    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - (20*FONT_WIDTH_EXT) - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%20s", tempstr);
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 160 - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG, "%*s",
+        160 / FONT_WIDTH_EXT, tempstr);
     
     // bottom: inctruction block
     char instr[256];
