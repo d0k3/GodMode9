@@ -46,7 +46,7 @@ void SetFSSearch(const char* pattern, const char* path);
 uint64_t GetSDCardSize();
 
 /** Format the SD card **/
-bool FormatSDCard(u32 hidden_mb);
+bool FormatSDCard(u64 hidden_mb);
 
 /** Check if writing to this path is allowed **/
 bool CheckWritePermissions(const char* path);

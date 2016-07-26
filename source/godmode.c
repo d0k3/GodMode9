@@ -205,7 +205,7 @@ u32 SdFormatMenu(void) {
     } while (emunand_size_mb > sdcard_size_mb);
     if (emunand_size_mb == (u64) -1) return 1;
     
-    if (!FormatSDCard((u32) emunand_size_mb)) {
+    if (!FormatSDCard(emunand_size_mb)) {
         ShowPrompt(false, "Format SD: failed!");
         return 1;
     }

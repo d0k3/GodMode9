@@ -30,7 +30,7 @@ INCLUDES	:=	source source/fatfs source/nand
 #---------------------------------------------------------------------------------
 ARCH	:=	-mthumb -mthumb-interwork -flto
 
-CFLAGS	:=	-g -Wall -Wextra -Wpedantic -pedantic -O2\
+CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -pedantic -O2\
 			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math -std=c99\
 			$(ARCH)

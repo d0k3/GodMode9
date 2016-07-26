@@ -105,7 +105,7 @@ uint64_t GetSDCardSize() {
     return (u64) getMMCDevice(1)->total_size * 512;
 }
 
-bool FormatSDCard(u32 hidden_mb) {
+bool FormatSDCard(u64 hidden_mb) {
     u8 mbr[0x200] = { 0 };
     u8 mbrdata[0x42] = {
         0x80, 0x01, 0x01, 0x00, 0x0C, 0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -115,22 +115,23 @@ bool FormatSDCard(u32 hidden_mb) {
         0x55, 0xAA
     };
     u32 sd_size = getMMCDevice(1)->total_size;
-    u32* fat_sector = (u32*) (mbrdata + 0x08);
-    u32* fat_size   = (u32*) (mbrdata + 0x0C);
-    u32* emu_sector = (u32*) (mbrdata + 0x18);
-    u32* emu_size   = (u32*) (mbrdata + 0x1C);
+    u32 emu_sector = 1;
+    u32 emu_size = (u32) ((hidden_mb * 1024 * 1024) / 512);
+    u32 fat_sector = align(emu_sector + emu_size, 0x2000); // align to 4MB
+    u32 fat_size = (fat_sector < sd_size) ? sd_size - fat_sector : 0;
     
-    *emu_sector = 1;
-    *emu_size = hidden_mb * (1024 * 1024) / 512;
-    *fat_sector = align(*emu_sector + *emu_size, 0x2000); // align to 4MB
-    if (sd_size < *fat_sector + 0x80000) { // minimum free space: 256MB
+    // FAT size check
+    if (fat_size < 0x80000) { // minimum free space: 256MB
         ShowPrompt(false, "ERROR: SD card is too small");
         return false;
     }
-    *fat_size = sd_size - *fat_sector;
-    sd_size = *fat_size;
+    sd_size = fat_size;
     
     // build the MBR
+    memcpy(mbrdata + 0x08, &fat_sector, 4);
+    memcpy(mbrdata + 0x0C, &fat_size, 4);
+    memcpy(mbrdata + 0x18, &emu_sector, 4);
+    memcpy(mbrdata + 0x1C, &emu_size, 4);
     memcpy(mbr + 0x1BE, mbrdata, 0x42);
     if (hidden_mb) memcpy(mbr, "GATEWAYNAND", 12);
     else memset(mbr + 0x1CE, 0, 0x10);
@@ -138,7 +139,7 @@ bool FormatSDCard(u32 hidden_mb) {
     // one last warning....
     if (!ShowUnlockSequence(3, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it.\n"))
         return false;
-    ShowString("Formatting SD, please wait...", hidden_mb); 
+    ShowString("Formatting SD, please wait..."); 
     
     // write the MBR to disk
     // !this assumes a fully deinitialized file system!

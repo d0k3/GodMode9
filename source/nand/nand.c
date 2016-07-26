@@ -126,13 +126,13 @@ bool InitNandCrypto(void)
     }
         
     // part #1: Get NAND CID, set up TWL/CTR counter
-    u8 NandCid[16];
+    u32 NandCid[4];
     u8 shasum[32];
     
-    sdmmc_get_cid( 1, (uint32_t*) NandCid);
-    sha_quick(shasum, NandCid, 16, SHA256_MODE);
+    sdmmc_get_cid( 1, NandCid);
+    sha_quick(shasum, (u8*) NandCid, 16, SHA256_MODE);
     memcpy(CtrNandCtr, shasum, 16);
-    sha_quick(shasum, NandCid, 16, SHA1_MODE);
+    sha_quick(shasum, (u8*) NandCid, 16, SHA1_MODE);
     for(u32 i = 0; i < 16; i++) // little endian and reversed order
         TwlNandCtr[i] = shasum[15-i];
     
@@ -146,10 +146,11 @@ bool InitNandCrypto(void)
         // thanks b1l1s & Normmatt
         // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
         const char* nintendo = "NINTENDO";
-        u32* TwlKeyXW = (u32*) TwlKeyX;
-        TwlKeyXW[0] = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
-        TwlKeyXW[3] = TwlCustId[1] ^ 0x08C267B7;
-        memcpy(TwlKeyX + 4, nintendo, 8);
+        u32 TwlKeyXW0 = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
+        u32 TwlKeyXW3 = TwlCustId[1] ^ 0x08C267B7;
+        memcpy(TwlKeyX +  4, nintendo, 8);
+        memcpy(TwlKeyX +  0, &TwlKeyXW0, 4);
+        memcpy(TwlKeyX + 12, &TwlKeyXW3, 4);
         
         // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
         u32 TwlKeyYW3 = 0xE1A00005;
