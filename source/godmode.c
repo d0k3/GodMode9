@@ -685,18 +685,24 @@ u32 GodMode() {
                 }
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
-            ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) { 
-            char old_path[256];
-            char* last_slash = strrchr(current_path, '/');
-            strncpy(old_path, current_path, 256);
-            if (last_slash) *last_slash = '\0'; 
-            else *current_path = '\0';
-            GetDirContents(current_dir, current_path);
-            if (*old_path && current_dir->n_entries) {
-                for (cursor = current_dir->n_entries - 1;
-                    (cursor > 0) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
-                if (*current_path && !cursor && (current_dir->n_entries > 1)) cursor = 1; // don't set it on the dotdot
-                scroll = 0;
+            ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) {
+            if (switched) { // use R+B to return to root fast
+                *current_path = '\0';
+                GetDirContents(current_dir, current_path);
+                cursor = scroll = 0;
+            } else {
+                char old_path[256];
+                char* last_slash = strrchr(current_path, '/');
+                strncpy(old_path, current_path, 256);
+                if (last_slash) *last_slash = '\0'; 
+                else *current_path = '\0';
+                GetDirContents(current_dir, current_path);
+                if (*old_path && current_dir->n_entries) {
+                    for (cursor = current_dir->n_entries - 1;
+                        (cursor > 0) && (strncmp(current_dir->entry[cursor].path, old_path, 256) != 0); cursor--);
+                    if (*current_path && !cursor && (current_dir->n_entries > 1)) cursor = 1; // don't set it on the dotdot
+                    scroll = 0;
+                }
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
             DeinitExtFS();
