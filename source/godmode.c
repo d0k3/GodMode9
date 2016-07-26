@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.6.4"
+#define VERSION "0.6.5"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -574,29 +574,46 @@ u32 GodMode() {
                     scroll = 0;
                 }
             } else { // one level up
-                strncpy(current_path, curr_entry->path, 256);
-                GetDirContents(current_dir, current_path);
-                if (*current_path && (current_dir->n_entries > 1)) {
-                    cursor = 1;
-                    scroll = 0;
-                } else cursor = 0;
+                u32 user_select = 1;
+                if (IsSearchDrive(current_path)) { // special menu for search drive
+                    const char* optionstr[2] = { "Open this folder", "Open containing folder" };
+                    char pathstr[32 + 1];
+                    TruncateString(pathstr, curr_entry->path, 32, 8);
+                    user_select = ShowSelectPrompt(2, optionstr, pathstr);
+                }
+                if (user_select) {
+                    strncpy(current_path, curr_entry->path, 256);
+                    if (user_select == 2) {
+                        char* last_slash = strrchr(current_path, '/');
+                        if (last_slash) *last_slash = '\0'; 
+                    } 
+                    GetDirContents(current_dir, current_path);
+                    if (*current_path && (current_dir->n_entries > 1)) {
+                        cursor = 1;
+                        scroll = 0;
+                    } else cursor = 0;
+                }
             }
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
+            char pathstr[32 + 1];
+            const char* optionstr[5];
+            u32 n_opt = 2;
+            
             u32 file_type = IdentifyImage(curr_entry->path);
-            bool injectable = (clipboard->n_entries == 1) &&
+            int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
                 (PathToNumFS(clipboard->entry[0].path) >= 0) &&
-                (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0);
-            char pathstr[32 + 1];
-            const char* optionstr[4];
-            u32 n_opt = 2;
+                (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ? (int) ++n_opt : -1;
+            int mountable = (file_type && (PathToNumFS(curr_entry->path) == 0)) ? (int) ++n_opt : -1;
+            int searchdrv = IsSearchDrive(current_path) ? (int) ++n_opt : -1;
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
             optionstr[0] = "Show in Hexeditor";
             optionstr[1] = "Calculate SHA-256";
-            if (injectable) optionstr[n_opt++] = "Inject data @offset";
-            if (file_type && (PathToNumFS(curr_entry->path) == 0))
-                optionstr[n_opt++] = (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
+            if (injectable) optionstr[injectable-1] = "Inject data @offset";
+            if (mountable) optionstr[mountable-1] =
+                (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
+            if (searchdrv) optionstr[searchdrv-1] = "Open containing folder";
             
             u32 user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
             if (user_select == 1) { // -> show in hex viewer
@@ -633,7 +650,16 @@ u32 GodMode() {
                     strncpy(pathstr_prev, pathstr, 32 + 1);
                     memcpy(sha256_prev, sha256, 32);
                 }
-            } else if ((!injectable && (user_select == 3)) || (user_select == 4)) { // -> mount as image
+            } else if ((int) user_select == injectable) { // -> inject data from clipboard
+                char origstr[18 + 1];
+                TruncateString(origstr, clipboard->entry[0].name, 18, 10);
+                u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
+                if (offset != (u64) -1) {
+                    if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
+                        ShowPrompt(false, "Failed injecting %s", origstr);
+                    clipboard->n_entries = 0;
+                }
+            } else if ((int) user_select == mountable) { // -> mount as image
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
@@ -649,14 +675,13 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
                     clipboard->n_entries = 0; // remove invalid clipboard stuff
-            } else if (injectable && (user_select == 3)) { // -> inject data from clipboard
-                char origstr[18 + 1];
-                TruncateString(origstr, clipboard->entry[0].name, 18, 10);
-                u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
-                if (offset != (u64) -1) {
-                    if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
-                        ShowPrompt(false, "Failed injecting %s", origstr);
-                    clipboard->n_entries = 0;
+            } else if ((int) user_select == searchdrv) { // -> search drive, open containing path
+                char* last_slash = strrchr(curr_entry->path, '/');
+                if (last_slash) {
+                    snprintf(current_path, last_slash - curr_entry->path + 1, "%s", curr_entry->path);
+                    GetDirContents(current_dir, current_path);
+                    cursor = 1;
+                    scroll = 0;
                 }
             }
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
