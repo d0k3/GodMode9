@@ -12,6 +12,9 @@
 #define NORM_FS  10
 #define VIRT_FS  5
 
+#define SKIP_CUR (1<<3)
+#define OVERWRITE_CUR (1<<4)
+
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
     {0, 1}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
@@ -508,7 +511,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     return ret;
 }
 
-bool PathCopyVirtual(const char* destdir, const char* orig) {
+bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
     char dest[256]; // maximum path name length in FAT
     char* oname = strrchr(orig, '/');
     char deststr[36 + 1];
@@ -618,9 +621,12 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
             return false;
         
         // check if destination exists
-        if (f_stat(dest, NULL) == FR_OK) {
-            const char* optionstr[3] = {"Choose new name", "Overwrite file", "Skip file"};
-            u32 user_select = ShowSelectPrompt(3, optionstr, "Destination already exists:\n%s", deststr);
+        if (flags && !(*flags & OVERWRITE_ALL) && f_stat(dest, NULL) == FR_OK) {
+            if (*flags & SKIP_ALL) return true;
+            const char* optionstr[5] =
+                {"Choose new name", "Overwrite file", "Skip file", "Overwrite all", "Skip all"};
+            u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
+                "Destination already exists:\n%s", deststr);
             if (user_select == 1) {
                 do {
                     char* dname = strrchr(dest, '/');
@@ -629,7 +635,17 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
                     if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
                         return false;
                 } while (f_stat(dest, NULL) == FR_OK);
-            } else if (user_select != 2) return (user_select == 3);
+            } else if (user_select == 3) {
+                *flags |= SKIP_CUR;
+                return true;
+            } else if (user_select == 4) {
+                *flags |= OVERWRITE_ALL;
+            } else if (user_select == 5) {
+                *flags |= SKIP_ALL;
+                return true;
+            } else if (user_select != 2) {
+                return false;
+            }
         }
         
         if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
@@ -666,11 +682,10 @@ bool PathCopyVirtual(const char* destdir, const char* orig) {
     return ret;
 }
 
-bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
+bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     FILINFO fno;
     bool ret = false;
-    
-    
+      
     if (f_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
         DIR tmp_dir; // check if root
         if (f_opendir(&tmp_dir, dest) != FR_OK) return false;
@@ -699,18 +714,32 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     }
     
     // check if destination exists
-    if (!overwrite && (f_stat(dest, NULL) == FR_OK)) {
-        const char* optionstr[3] = {"Choose new name", "Overwrite file(s)", "Skip file(s)"};
+    if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (f_stat(dest, NULL) == FR_OK)) {
+        if (*flags & SKIP_ALL) return true;
+        const char* optionstr[5] =
+            {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
         char namestr[36 + 1];
         TruncateString(namestr, dest, 36, 8);
-        u32 user_select = ShowSelectPrompt(3, optionstr, "Destination already exists:\n%s", namestr);
+        u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
+            "Destination already exists:\n%s", namestr);
         if (user_select == 1) {
             do {
                 if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
                     return false;
             } while (f_stat(dest, NULL) == FR_OK);
-        } else if (user_select != 2) return (user_select == 3);
-        overwrite = true;
+        } else if (user_select == 2) {
+            *flags |= OVERWRITE_CUR;
+        } else if (user_select == 3) {
+            *flags |= SKIP_CUR;
+            return true;
+        } else if (user_select == 4) {
+            *flags |= OVERWRITE_ALL;
+        } else if (user_select == 5) {
+            *flags |= SKIP_ALL;
+            return true;
+        } else {
+            return false;
+        }
     }
     
     // the copy process takes place here
@@ -738,7 +767,7 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
             if (fno.fname[0] == 0) {
                 ret = true;
                 break;
-            } else if (!PathCopyWorker(dest, orig, overwrite, move)) {
+            } else if (!PathCopyWorker(dest, orig, flags, move)) {
                 break;
             }
         }
@@ -802,27 +831,30 @@ bool PathCopyWorker(char* dest, char* orig, bool overwrite, bool move) {
     return ret;
 }
 
-bool PathCopy(const char* destdir, const char* orig) {
+bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
+        if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
         // users are inventive...
         if ((PathToNumFS(orig) > 0) && GetVirtualSource(destdir)) {
             ShowPrompt(false, "Only files from SD card are accepted");
             return false;
         }
-        return PathCopyVirtual(destdir, orig);
+        return PathCopyVirtual(destdir, orig, flags);
     } else {
         char fdpath[256]; // 256 is the maximum length of a full path
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
-        return PathCopyWorker(fdpath, fopath, false, false);
+        bool res = PathCopyWorker(fdpath, fopath, flags, false);
+        return res;
     }
 }
 
-bool PathMove(const char* destdir, const char* orig) {
+bool PathMove(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
     if (!CheckWritePermissions(orig)) return false;
+    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
         ShowPrompt(false, "Error: Moving virtual files not possible");
         return false;
@@ -832,8 +864,8 @@ bool PathMove(const char* destdir, const char* orig) {
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
         bool same_drv = (PathToNumFS(orig) == PathToNumFS(destdir));
-        bool res = PathCopyWorker(fdpath, fopath, false, same_drv);
-        if (res) PathDelete(orig);
+        bool res = PathCopyWorker(fdpath, fopath, flags, same_drv);
+        if (res && (!flags || !(*flags&(SKIP_CUR|SKIP_ALL)))) PathDelete(orig);
         return res;
     }
 }

@@ -118,8 +118,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         160 / FONT_WIDTH_EXT, tempstr);
     
     // bottom: inctruction block
-    char instr[256];
-    snprintf(instr, 256, "%s%s\n%s%s%s%s%s%s%s",
+    char instr[512];
+    snprintf(instr, 512, "%s%s\n%s%s%s%s%s%s%s",
         #ifndef SAFEMODE
         "GodMode9 Explorer v", VERSION, // generic start part
         #else
@@ -823,6 +823,7 @@ u32 GodMode() {
             } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
+                u32 flags = 0;
                 u32 user_select;
                 if (clipboard->n_entries == 1) {
                     char namestr[20+1];
@@ -835,11 +836,13 @@ u32 GodMode() {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
                         char namestr[36+1];
                         TruncateString(namestr, clipboard->entry[c].name, 36, 12);
-                        if ((user_select == 1) && !PathCopy(current_path, clipboard->entry[c].path)) {    
+                        flags &= ~ASK_ALL;
+                        if (c < clipboard->n_entries - 1) flags |= ASK_ALL;
+                        if ((user_select == 1) && !PathCopy(current_path, clipboard->entry[c].path, &flags)) {    
                             if (c + 1 < clipboard->n_entries) {
                                 if (!ShowPrompt(true, "Failed copying path:\n%s\nProcess remaining?", namestr)) break;
                             } else ShowPrompt(false, "Failed copying path:\n%s", namestr);
-                        } else if ((user_select == 2) && !PathMove(current_path, clipboard->entry[c].path)) {    
+                        } else if ((user_select == 2) && !PathMove(current_path, clipboard->entry[c].path, &flags)) {    
                             if (c + 1 < clipboard->n_entries) {
                                 if (!ShowPrompt(true, "Failed moving path:\n%s\nProcess remaining?", namestr)) break;
                             } else ShowPrompt(false, "Failed moving path:\n%s", namestr);

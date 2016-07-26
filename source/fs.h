@@ -21,6 +21,10 @@ typedef enum {
 #define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
 #define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY)
 
+#define ASK_ALL       (1<<0)
+#define SKIP_ALL      (1<<1)
+#define OVERWRITE_ALL (1<<2)
+
 typedef struct {
     char* name; // should point to the correct portion of the path
     char path[256];
@@ -76,10 +80,10 @@ u32 FileFindData(const char* path, u8* data, u32 size, u32 offset);
 bool FileInjectFile(const char* dest, const char* orig, u32 offset);
 
 /** Recursively copy a file or directory **/
-bool PathCopy(const char* destdir, const char* orig);
+bool PathCopy(const char* destdir, const char* orig, u32* flags);
 
 /** Recursively move a file or directory **/
-bool PathMove(const char* destdir, const char* orig);
+bool PathMove(const char* destdir, const char* orig, u32* flags);
 
 /** Recursively delete a file or directory **/
 bool PathDelete(const char* path);
