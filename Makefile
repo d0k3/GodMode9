@@ -23,7 +23,7 @@ endif
 BUILD		:=	build
 SOURCES		:=	source source/fatfs source/nand source/abstraction
 DATA		:=	data
-INCLUDES	:=	source source/fatfs source/nand
+INCLUDES	:=	source source/font source/fatfs source/nand
 
 #---------------------------------------------------------------------------------
 # options for code generation
