@@ -622,7 +622,10 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         
         // check if destination exists
         if (flags && !(*flags & OVERWRITE_ALL) && f_stat(dest, NULL) == FR_OK) {
-            if (*flags & SKIP_ALL) return true;
+            if (*flags & SKIP_ALL) {
+                *flags |= SKIP_CUR;
+                return true;
+            }
             const char* optionstr[5] =
                 {"Choose new name", "Overwrite file", "Skip file", "Overwrite all", "Skip all"};
             u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
@@ -641,7 +644,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
             } else if (user_select == 4) {
                 *flags |= OVERWRITE_ALL;
             } else if (user_select == 5) {
-                *flags |= SKIP_ALL;
+                *flags |= (SKIP_CUR|SKIP_ALL);
                 return true;
             } else if (user_select != 2) {
                 return false;
@@ -715,7 +718,10 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     
     // check if destination exists
     if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (f_stat(dest, NULL) == FR_OK)) {
-        if (*flags & SKIP_ALL) return true;
+        if (*flags & SKIP_ALL) {
+            *flags |= SKIP_CUR;
+            return true;
+        }
         const char* optionstr[5] =
             {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
         char namestr[36 + 1];
@@ -735,7 +741,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         } else if (user_select == 4) {
             *flags |= OVERWRITE_ALL;
         } else if (user_select == 5) {
-            *flags |= SKIP_ALL;
+            *flags |= (SKIP_CUR|SKIP_ALL);
             return true;
         } else {
             return false;
@@ -865,7 +871,7 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
         strncpy(fopath, orig, 255);
         bool same_drv = (PathToNumFS(orig) == PathToNumFS(destdir));
         bool res = PathCopyWorker(fdpath, fopath, flags, same_drv);
-        if (res && (!flags || !(*flags&(SKIP_CUR|SKIP_ALL)))) PathDelete(orig);
+        if (res && (!flags || !(*flags&SKIP_CUR))) PathDelete(orig);
         return res;
     }
 }
