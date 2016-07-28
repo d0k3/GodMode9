@@ -247,6 +247,7 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
 {
     u32 mode = (sector >= (0x0B100000 / 0x200)) ? AES_CNT_CTRNAND_MODE : AES_CNT_TWLNAND_MODE;
     u8 ctr[16] __attribute__((aligned(32)));
+    u32 blocks = count * (0x200 / 0x10);
     
     // copy NAND CTR and increment it
     memcpy(ctr, (sector >= (0x0B100000 / 0x200)) ? CtrNandCtr : TwlNandCtr, 16);
@@ -254,13 +255,7 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
     
     // decrypt the data
     use_aeskey(keyslot);
-    for (u32 s = 0; s < count; s++) {
-        for (u32 b = 0x0; b < 0x200; b += 0x10, buffer += 0x10) {
-            set_ctr(ctr);
-            aes_decrypt((void*) buffer, (void*) buffer, 1, mode);
-            add_ctr(ctr, 0x1);
-        }
-    }
+    ctr_decrypt((void*) buffer, (void*) buffer, blocks, mode, ctr);
 }
 
 void CryptSector0x96(u8* buffer, bool encrypt)
