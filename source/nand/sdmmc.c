@@ -274,7 +274,6 @@ int NO_INLINE sdmmc_nand_readsectors(uint32_t sector_no, uint32_t numsectors, ui
 	handelNAND.rData = out;
 	handelNAND.size = numsectors << 9;
 	sdmmc_send_command(&handelNAND,0x33C12,sector_no);
-	inittarget(&handelSD);
 	return geterror(&handelNAND);
 }
 
@@ -291,7 +290,6 @@ int NO_INLINE sdmmc_nand_writesectors(uint32_t sector_no, uint32_t numsectors, c
 	handelNAND.tData = in;
 	handelNAND.size = numsectors << 9;
 	sdmmc_send_command(&handelNAND,0x52C19,sector_no);
-	inittarget(&handelSD);
 	return geterror(&handelNAND);
 }
 
