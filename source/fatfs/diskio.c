@@ -52,9 +52,9 @@ FATpartition DriveInfo[11] = {
 };
 
 SubtypeDesc SubTypes[5] = {
-    { 0x05CAE5, 0x179F1B, 0x4 },        // O3DS CTRNAND
-    { 0x05CAD7, 0x20E969, 0x5 },        // N3DS CTRNAND
-    { 0x05CAD7, 0x20E969, 0x4 },        // N3DS CTRNAND (downgraded)
+    { 0x05C980, 0x17AE80, 0x4 },        // O3DS CTRNAND
+    { 0x05C980, 0x20F680, 0x5 },        // N3DS CTRNAND
+    { 0x05C980, 0x20F680, 0x4 },        // N3DS CTRNAND (downgraded)
     { 0x000097, 0x047DA9, 0x3 },        // TWLN
     { 0x04808D, 0x0105B3, 0x3 }         // TWLP
 };
