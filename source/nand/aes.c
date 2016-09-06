@@ -154,8 +154,8 @@ void aes_decrypt(void* inbuf, void* outbuf, size_t size, uint32_t mode)
 void aes_cmac(void* inbuf, void* outbuf, size_t size)
 {
     // only works for full blocks
-    uint32_t zeroes[4] = { 0 };
-    uint32_t xorpad[4] = { 0 };
+    uint32_t zeroes[4] __attribute__((aligned(32))) = { 0 };
+    uint32_t xorpad[4] __attribute__((aligned(32))) = { 0 };
     uint32_t mode = AES_CBC_ENCRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER |
         AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN;
     uint32_t* out = (uint32_t*) outbuf;
@@ -164,11 +164,14 @@ void aes_cmac(void* inbuf, void* outbuf, size_t size)
     // create xorpad for last block
     set_ctr(zeroes);
     aes_decrypt(xorpad, xorpad, 1, mode);
-    for (uint32_t i = 0; i < 4; i++) {
-        if (i && (xorpad[i] >> 31))
-            xorpad[i-i] |= 1;
-        xorpad[i] <<= 1;
-    }   
+    char* xorpadb = (void*) xorpad;
+    char finalxor = (xorpadb[0] & 0x80) ? 0x87 : 0x00;
+    for (uint32_t i = 0; i < 15; i++) {
+		xorpadb[i] <<= 1;
+        xorpadb[i] |= xorpadb[i+1] >> 7;
+    }
+    xorpadb[15] <<= 1;
+    xorpadb[15] ^= finalxor;
     
     // process blocks
     for (uint32_t i = 0; i < 4; i++)
