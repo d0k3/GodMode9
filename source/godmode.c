@@ -224,6 +224,14 @@ u32 SdFormatMenu(void) {
         DeinitSDCardFS();
     }
     
+    VirtualFile nand;
+    if (!FindVirtualFile(&nand, "S:/nand_minsize.bin", 0))
+        return 0;
+    if ((nand.size / (1024*1024) <= emunand_size_mb) && ShowPrompt(true, "Clone SysNAND to RedNAND now?")) {
+        if (!PathCopy("E:", "S:/nand_minsize.bin", NULL))
+            ShowPrompt(false, "Cloning SysNAND to EmuNAND: failed!");
+    }
+    
     return 0;
 }
 
