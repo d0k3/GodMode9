@@ -108,7 +108,7 @@ uint64_t GetSDCardSize() {
     return (u64) getMMCDevice(1)->total_size * 512;
 }
 
-bool FormatSDCard(u64 hidden_mb) {
+bool FormatSDCard(u64 hidden_mb, u32 cluster_size) {
     u8 mbr[0x200] = { 0 };
     u8 mbrdata[0x42] = {
         0x80, 0x01, 0x01, 0x00, 0x0C, 0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -152,9 +152,8 @@ bool FormatSDCard(u64 hidden_mb) {
     }
     
     // format the SD card
-    // cluster size: auto (<= 4GB) / 32KiB (<= 8GB) / 64 KiB (> 8GB)
     f_mount(fs, "0:", 1);
-    UINT c_size = (sd_size < 0x800000) ? 0 : (sd_size < 0x1000000) ? 32768 : 65536;
+    UINT c_size = cluster_size;
     bool ret = (f_mkfs("0:", FM_FAT32, c_size, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK) && (f_setlabel("0:GM9SD") == FR_OK);
     f_mount(NULL, "0:", 1);
     

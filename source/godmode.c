@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.6.6"
+#define VERSION "0.6.7"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -185,9 +185,13 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 
 u32 SdFormatMenu(void) {
     const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x3FF, 0x7FF };
-    const char* optionstr[6] = { "No EmuNAND", "O3DS NAND size", "N3DS NAND size", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
+    const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
+    const char* option_emunand_size[6] = { "No EmuNAND", "O3DS NAND size", "N3DS NAND size", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
+    const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" }; 
+    u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
     u64 emunand_size_mb = (u64) -1;
+    u32 user_select;
     
     // check actual SD card size
     sdcard_size_mb = GetSDCardSize() / 0x100000;
@@ -196,7 +200,7 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    u32 user_select = ShowSelectPrompt(6, optionstr, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
+    user_select = ShowSelectPrompt(6, option_emunand_size, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
     if (user_select && (user_select < 6)) {
         emunand_size_mb = emunand_size_table[user_select];
     } else if (user_select == 6) do {
@@ -205,7 +209,11 @@ u32 SdFormatMenu(void) {
     } while (emunand_size_mb > sdcard_size_mb);
     if (emunand_size_mb == (u64) -1) return 1;
     
-    if (!FormatSDCard(emunand_size_mb)) {
+    user_select = ShowSelectPrompt(4, option_cluster_size, "Format SD card (%lluMB)?\nChoose cluster size:", sdcard_size_mb);
+    if (!user_select) return 1;
+    else cluster_size = cluster_size_table[user_select];
+    
+    if (!FormatSDCard(emunand_size_mb, cluster_size)) {
         ShowPrompt(false, "Format SD: failed!");
         return 1;
     }
