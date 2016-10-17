@@ -906,7 +906,13 @@ u32 GodMode() {
         if (pad_state & BUTTON_START) {
             exit_mode = (switched || (pad_state & BUTTON_LEFT)) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
             break;
-        } 
+        } else if (pad_state & BUTTON_POWER) {
+            exit_mode = GODMODE_EXIT_POWEROFF;
+            break;
+        } else if (pad_state & BUTTON_HOME) {
+            exit_mode = GODMODE_EXIT_REBOOT;
+            break;
+        }
     }
     
     DeinitExtFS();

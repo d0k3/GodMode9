@@ -543,5 +543,5 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     
     last_prog_width = prog_width;
     
-    return !(~HID_STATE & BUTTON_B);
+    return !CheckButton(BUTTON_B);
 }
