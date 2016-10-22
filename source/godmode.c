@@ -7,7 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.6.7"
+#define VERSION "0.6.8"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -909,9 +909,16 @@ u32 GodMode() {
         } else if (pad_state & BUTTON_POWER) {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
-        } else if (pad_state & BUTTON_HOME) {
-            exit_mode = GODMODE_EXIT_REBOOT;
-            break;
+        } else if (pad_state & BUTTON_HOME) { // Home menu
+            const char* optionstr[2] = { "Poweroff system", "Reboot system" };
+            u32 user_select = ShowSelectPrompt(2, optionstr, "HOME button pressed.\nSelect action:" );
+            if (user_select == 1) { 
+                exit_mode = GODMODE_EXIT_POWEROFF;
+                break;
+            } else if (user_select == 2) { 
+                exit_mode = GODMODE_EXIT_REBOOT;
+                break;
+            }
         }
     }
     
