@@ -5,9 +5,10 @@
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
+#include "alias.h"
 #include "image.h"
 
-#define VERSION "0.6.8"
+#define VERSION "0.6.9"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -797,6 +798,8 @@ u32 GodMode() {
         } else if (!switched) { // standard unswitched command set
             if (GetVirtualSource(current_path) && (pad_state & BUTTON_X)) {
                 ShowPrompt(false, "Not allowed in virtual path");
+            } else if (CheckAliasDrive(current_path) && (pad_state & BUTTON_X)) {
+                ShowPrompt(false, "Not allowed in alias path");
             } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
                 for (u32 c = 0; c < current_dir->n_entries; c++)
@@ -836,6 +839,8 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries)
                     last_clipboard_size = clipboard->n_entries;
+            } else if (IsSearchDrive(current_path) && (pad_state & BUTTON_Y)) {
+                ShowPrompt(false, "Not allowed in search drive");
             } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
@@ -846,7 +851,7 @@ u32 GodMode() {
                     TruncateString(namestr, clipboard->entry[0].name, 20, 12);
                     snprintf(promptstr, 64, "Paste \"%s\" here?", namestr);
                 } else snprintf(promptstr, 64, "Paste %lu paths here?", clipboard->n_entries);
-                user_select = (!GetVirtualSource(clipboard->entry[0].path) && !GetVirtualSource(current_path)) ?
+                user_select = ((PathToNumFS(clipboard->entry[0].path) >= 0) && (PathToNumFS(current_path) >= 0)) ?
                     ShowSelectPrompt(2, optionstr, promptstr) : (ShowPrompt(true, promptstr) ? 1 : 0);
                 if (user_select) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
@@ -872,6 +877,8 @@ u32 GodMode() {
         } else { // switched command set
             if (GetVirtualSource(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
                 ShowPrompt(false, "Not allowed in virtual path");
+            } else if (CheckAliasDrive(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
+                ShowPrompt(false, "Not allowed in alias path");
             } else if ((pad_state & BUTTON_X) && (curr_entry->type != T_DOTDOT)) { // rename a file
                 char newname[256];
                 char namestr[20+1];

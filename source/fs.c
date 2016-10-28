@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "fs.h"
 #include "virtual.h"
+#include "alias.h"
 #include "image.h"
 #include "sha.h"
 #include "sdmmc.h"
@@ -10,7 +11,7 @@
 #define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
 
 #define NORM_FS  10
-#define VIRT_FS  5
+#define VIRT_FS  7
 
 #define SKIP_CUR (1<<3)
 #define OVERWRITE_CUR (1<<4)
@@ -35,11 +36,6 @@ static char search_pattern[256] = { 0 };
 static char search_path[256] = { 0 };
 
 bool InitSDCardFS() {
-    #ifndef EXEC_GATEWAY
-    // TODO: Magic?
-    *(u32*)0x10000020 = 0;
-    *(u32*)0x10000020 = 0x340;
-    #endif
     fs_mounted[0] = (f_mount(fs, "0:", 1) == FR_OK);
     return fs_mounted[0];
 }
@@ -57,10 +53,14 @@ bool InitExtFS() {
             fs_mounted[7] = (f_mount(fs + 7, "7:", 1) == FR_OK);
         }
     }
+    SetupNandSdDrive("A:", "0:", "1:/private/movable.sed", 0);
+    SetupNandSdDrive("B:", "0:", "4:/private/movable.sed", 1);
     return true;
 }
 
 void DeinitExtFS() {
+    SetupNandSdDrive(NULL, NULL, NULL, 0);
+    SetupNandSdDrive(NULL, NULL, NULL, 1);
     for (u32 i = NORM_FS - 1; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
@@ -88,7 +88,10 @@ void SetFSSearch(const char* pattern, const char* path) {
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
     if ((fsnum < 0) || (fsnum >= NORM_FS) || (path[1] != ':')) {
-        if (!GetVirtualSource(path) && !IsSearchDrive(path)) ShowPrompt(false, "Invalid path (%s)", path);
+        if (!GetVirtualSource(path) &&
+            !CheckAliasDrive(path) &&
+            !IsSearchDrive(path))
+            ShowPrompt(false, "Invalid path (%s)", path);
         return -1;
     }
     return fsnum;
@@ -281,7 +284,7 @@ bool GetTempFileName(char* path) {
     char* cc = tempname;
     // this does not try all permutations
     for (; (*cc <= 'Z') && (cc - tempname < 8); (*cc)++) {
-        if (f_stat(path, NULL) != FR_OK) break;
+        if (fa_stat(path, NULL) != FR_OK) break;
         if (*cc == 'Z') cc++;
     }
     return (cc - tempname < 8) ? true : false;
@@ -289,11 +292,10 @@ bool GetTempFileName(char* path) {
 
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
     if (!CheckWritePermissions(path)) return false;
-    if (PathToNumFS(path) >= 0) {
+    if ((PathToNumFS(path) >= 0) || (CheckAliasDrive(path))) {
         UINT bytes_written = 0;
         FIL file;
-        if (!CheckWritePermissions(path)) return false;
-        if (f_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
+        if (fa_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
             return false;
         f_lseek(&file, foffset);
         f_write(&file, data, size, &bytes_written);
@@ -310,10 +312,10 @@ bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, 
 
 size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
 {
-    if (PathToNumFS(path) >= 0) {
+    if ((PathToNumFS(path) >= 0) || (CheckAliasDrive(path))) {
         UINT bytes_read = 0;
         FIL file;
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fa_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return 0;
         f_lseek(&file, foffset);
         if (f_read(&file, data, size, &bytes_read) != FR_OK) {
@@ -333,9 +335,9 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
 }
 
 size_t FileGetSize(const char* path) {
-    if (PathToNumFS(path) >= 0) {
+    if ((PathToNumFS(path) >= 0) || (CheckAliasDrive(path))) {
         FILINFO fno;
-        if (f_stat(path, &fno) != FR_OK)
+        if (fa_stat(path, &fno) != FR_OK)
             return 0;
         return fno.fsize;
     } else if (GetVirtualSource(path)) {
@@ -372,14 +374,14 @@ bool FileGetSha256(const char* path, u8* sha256) {
         FIL file;
         size_t fsize;
         
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fa_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         fsize = f_size(&file);
         f_lseek(&file, 0);
         f_sync(&file);
         
         for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT bytes_read = 0;            
+            UINT bytes_read = 0;
             if (f_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
                 ret = false;
             if (!ShowProgress(pos + bytes_read, fsize, path))
@@ -451,7 +453,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         dsize = dvfile.size;
     } else {
         vdest = false;
-        if (f_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        if (fa_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
             return false;
         dsize = f_size(&dfile);
         f_lseek(&dfile, offset);
@@ -468,7 +470,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         osize = ovfile.size;
     } else {
         vorig = false;
-        if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+        if (fa_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
             if (!vdest) f_close(&dfile);
             return false;
         }
@@ -563,7 +565,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         FIL ofile;
         u32 osize;
         
-        if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fa_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         f_lseek(&ofile, 0);
         f_sync(&ofile);
@@ -620,7 +622,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
             return false;
         
         // check if destination exists
-        if (flags && !(*flags & OVERWRITE_ALL) && f_stat(dest, NULL) == FR_OK) {
+        if (flags && !(*flags & OVERWRITE_ALL) && fa_stat(dest, NULL) == FR_OK) {
             if (*flags & SKIP_ALL) {
                 *flags |= SKIP_CUR;
                 return true;
@@ -636,7 +638,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
                     dname++;
                     if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
                         return false;
-                } while (f_stat(dest, NULL) == FR_OK);
+                } while (fa_stat(dest, NULL) == FR_OK);
             } else if (user_select == 3) {
                 *flags |= SKIP_CUR;
                 return true;
@@ -650,7 +652,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
             }
         }
         
-        if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        if (fa_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
             return false;
         f_lseek(&dfile, 0);
         f_sync(&dfile);
@@ -688,12 +690,12 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     FILINFO fno;
     bool ret = false;
       
-    if (f_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
+    if (fa_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
         DIR tmp_dir; // check if root
-        if (f_opendir(&tmp_dir, dest) != FR_OK) return false;
+        if (fa_opendir(&tmp_dir, dest) != FR_OK) return false;
         f_closedir(&tmp_dir);
     } else if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
-    if (f_stat(orig, &fno) != FR_OK) return false; // origin does not exist
+    if (fa_stat(orig, &fno) != FR_OK) return false; // origin does not exist
 
     // build full destination path (on top of destination directory)
     char* oname = strrchr(orig, '/');
@@ -716,7 +718,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     }
     
     // check if destination exists
-    if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (f_stat(dest, NULL) == FR_OK)) {
+    if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (fa_stat(dest, NULL) == FR_OK)) {
         if (*flags & SKIP_ALL) {
             *flags |= SKIP_CUR;
             return true;
@@ -731,7 +733,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
             do {
                 if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
                     return false;
-            } while (f_stat(dest, NULL) == FR_OK);
+            } while (fa_stat(dest, NULL) == FR_OK);
         } else if (user_select == 2) {
             *flags |= OVERWRITE_CUR;
         } else if (user_select == 3) {
@@ -749,19 +751,19 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     
     // the copy process takes place here
     if (!ShowProgress(0, 0, orig)) return false;
-    if (move && f_stat(dest, NULL) != FR_OK) { // moving if dest not existing
+    if (move && fa_stat(dest, NULL) != FR_OK) { // moving if dest not existing
         ret = (f_rename(orig, dest) == FR_OK);
     } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
         
         // create the destination folder if it does not already exist
-        if ((f_opendir(&pdir, dest) != FR_OK) && (f_mkdir(dest) != FR_OK)) {
+        if ((fa_opendir(&pdir, dest) != FR_OK) && (f_mkdir(dest) != FR_OK)) {
             ShowPrompt(false, "Error: Overwriting file with dir");
             return false;
         } else f_closedir(&pdir);
         
-        if (f_opendir(&pdir, orig) != FR_OK)
+        if (fa_opendir(&pdir, orig) != FR_OK)
             return false;
         *(fname++) = '/';
         
@@ -778,7 +780,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
         f_closedir(&pdir);
     } else if (move) { // moving if destination exists
-        if (f_stat(dest, &fno) != FR_OK)
+        if (fa_stat(dest, &fno) != FR_OK)
             return false;
         if (fno.fattrib & AM_DIR) {
             ShowPrompt(false, "Error: Overwriting dir with file");
@@ -792,7 +794,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         FIL dfile;
         size_t fsize;
         
-        if (f_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fa_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         fsize = f_size(&ofile);
         if (GetFreeSpace(dest) < fsize) {
@@ -801,7 +803,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
             return false;
         }
         
-        if (f_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        if (fa_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
             ShowPrompt(false, "Error: Cannot create destination file");
             f_close(&ofile);
             return false;
@@ -860,8 +862,8 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
     if (!CheckWritePermissions(orig)) return false;
     if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
-    if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
-        ShowPrompt(false, "Error: Moving virtual files not possible");
+    if ((PathToNumFS(destdir) < 0) || (PathToNumFS(orig) < 0)) {
+        ShowPrompt(false, "Error: Moving is not possible here");
         return false;
     } else {
         char fdpath[256]; // 256 is the maximum length of a full path
@@ -879,12 +881,12 @@ bool PathDeleteWorker(char* fpath) {
     FILINFO fno;
     
     // this code handles directory content deletion
-    if (f_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
+    if (fa_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
     if (fno.fattrib & AM_DIR) { // process folder contents
         DIR pdir;
         char* fname = fpath + strnlen(fpath, 255);
         
-        if (f_opendir(&pdir, fpath) != FR_OK)
+        if (fa_opendir(&pdir, fpath) != FR_OK)
             return false;
         *(fname++) = '/';
         
@@ -928,7 +930,7 @@ bool PathRename(const char* path, const char* newname) {
         strncpy(temp, path, oldname - path);
         if (!GetTempFileName(temp)) return false;
         if (f_rename(path, temp) == FR_OK) {
-            if ((f_stat(npath, NULL) == FR_OK) || (f_rename(temp, npath) != FR_OK)) {
+            if ((fa_stat(npath, NULL) == FR_OK) || (f_rename(temp, npath) != FR_OK)) {
                 ShowPrompt(false, "Destination exists in folder");
                 f_rename(temp, path); // something went wrong - try renaming back
                 return false;
@@ -958,7 +960,7 @@ void CreateScreenshot() {
     
     for (; n < 1000; n++) {
         snprintf(filename, 16, "0:/snap%03i.bmp", (int) n);
-        if (f_stat(filename, NULL) != FR_OK) break;
+        if (fa_stat(filename, NULL) != FR_OK) break;
     }
     if (n >= 1000) return;
     
@@ -1036,12 +1038,13 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP",
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP",
+        "SYSNAND SD", "EMUNAND SD",
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
         "MEMORY VIRTUAL",
         "LAST SEARCH"
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "S:", "E:", "I:", "M:", "Z:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "A:", "B:", "S:", "E:", "I:", "M:", "Z:"
     };
     u32 n_entries = 0;
     
@@ -1049,7 +1052,8 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if ((pdrv < NORM_FS) && !fs_mounted[pdrv]) continue;
-        else if ((pdrv >= NORM_FS) && (!CheckVirtualDrive(drvnum[pdrv])) && !(IsSearchDrive(drvnum[pdrv]))) continue;
+        else if ((pdrv >= NORM_FS) && (!CheckAliasDrive(drvnum[pdrv])) &&
+            (!CheckVirtualDrive(drvnum[pdrv])) && !(IsSearchDrive(drvnum[pdrv]))) continue;
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
@@ -1092,7 +1096,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
     char* fname = fpath + strnlen(fpath, fnsize - 1);
     bool ret = false;
     
-    if (f_opendir(&pdir, fpath) != FR_OK)
+    if (fa_opendir(&pdir, fpath) != FR_OK)
         return false;
     (fname++)[0] = '/';
     
