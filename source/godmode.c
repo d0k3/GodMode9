@@ -566,6 +566,8 @@ u32 GodMode() {
         // basic sanity checking
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
             *current_path = '\0';
+            DeinitExtFS(); // deinit and...
+            InitExtFS(); // reinitialize extended file system
             GetDirContents(current_dir, current_path);
             cursor = 0;
             if (!current_dir->n_entries) { // should not happen, if it does fail gracefully
