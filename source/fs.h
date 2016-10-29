@@ -34,8 +34,9 @@ typedef enum {
 #define PERM_IMAGE      (1<<4)
 #define PERM_MEMORY     (1<<5)
 #define PERM_A9LH       ((1<<6) | PERM_SYSNAND)
+#define PERM_SDDATA    ((1<<7) | PERM_SDCARD)
 #define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
-#define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY)
+#define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY | PERM_SDDATA)
 
 // move / copy flags
 #define ASK_ALL       (1<<0)

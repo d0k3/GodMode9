@@ -208,13 +208,7 @@ bool CheckWritePermissions(const char* path) {
     int drvtype = DriveType(path);
     u32 perm;
     
-    if (drvtype & DRV_SDCARD) {
-        perm = PERM_SDCARD;
-        snprintf(area_name, 16, "the SD card");
-    } else if (drvtype & DRV_RAMDRIVE) {
-        perm = PERM_RAMDRIVE;
-        snprintf(area_name, 16, "the RAM drive");
-    } else if (drvtype & DRV_SYSNAND) {
+    if (drvtype & DRV_SYSNAND) {
         perm = PERM_SYSNAND;
         snprintf(area_name, 16, "the SysNAND");
         // check virtual file flags (if any)
@@ -232,6 +226,15 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
         snprintf(area_name, 16, "memory areas");
+    } else if ((drvtype & DRV_ALIAS) || (strncmp(path, "0:/Nintendo 3DS", 15) == 0)) {
+        perm = PERM_SDDATA;
+        snprintf(area_name, 16, "SD system data");
+    } else if (drvtype & DRV_SDCARD) {
+        perm = PERM_SDCARD;
+        snprintf(area_name, 16, "the SD card");
+    } else if (drvtype & DRV_RAMDRIVE) {
+        perm = PERM_RAMDRIVE;
+        snprintf(area_name, 16, "the RAM drive");
     } else {
         return false;
     }
@@ -271,6 +274,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             break;
         case PERM_IMAGE:
             if (!ShowUnlockSequence(2, "You want to enable image\nwriting permissions."))
+                return false;
+            break;
+        case PERM_SDDATA:
+            if (!ShowUnlockSequence(2, "You want to enable SD data\nwriting permissions."))
                 return false;
             break;
         #ifndef SAFEMODE
