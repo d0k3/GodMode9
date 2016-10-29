@@ -5,10 +5,9 @@
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
-#include "alias.h"
 #include "image.h"
 
-#define VERSION "0.6.9"
+#define VERSION "0.7.0"
 
 #define N_PANES 2
 #define IMG_DRV "789I"
@@ -85,7 +84,16 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         ResizeString(tempstr, "(dir)", 160 / FONT_WIDTH_EXT, 8, false);
     } else if (curr_entry->type == T_DOTDOT) {
         snprintf(tempstr, 21, "%20s", "");
-    } else {
+    } else if (curr_entry->type == T_ROOT) {
+        int drvtype = DriveType(curr_entry->path);
+        char drvstr[32];
+        snprintf(drvstr, 31, "(%s%s)", 
+            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMDrive" :
+            (drvtype & DRV_SYSNAND) ? "SysNAND" : (drvtype & DRV_EMUNAND) ? "EmuNAND" : (drvtype & DRV_IMAGE) ? "Image" :
+            (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" : (drvtype & DRV_SEARCH) ? "Search" : ""),
+            ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
+        ResizeString(tempstr, drvstr, 160 / FONT_WIDTH_EXT, 8, false);
+    }else {
         char numstr[32];
         char bytestr[32];
         FormatNumber(numstr, curr_entry->size);
@@ -553,6 +561,8 @@ u32 GodMode() {
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
     while (true) { // this is the main loop
+        int curr_drvtype = DriveType(current_path);
+        
         // basic sanity checking
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
             *current_path = '\0';
@@ -592,7 +602,7 @@ u32 GodMode() {
                 }
             } else { // one level up
                 u32 user_select = 1;
-                if (IsSearchDrive(current_path)) { // special menu for search drive
+                if (curr_drvtype & DRV_SEARCH) { // special menu for search drive
                     const char* optionstr[2] = { "Open this folder", "Open containing folder" };
                     char pathstr[32 + 1];
                     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -617,12 +627,13 @@ u32 GodMode() {
             u32 n_opt = 2;
             
             u32 file_type = IdentifyImage(curr_entry->path);
+            u32 file_drvtype = DriveType(curr_entry->path);
             int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
-                (PathToNumFS(clipboard->entry[0].path) >= 0) &&
+                (file_drvtype & DRV_FAT) &&
                 (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ? (int) ++n_opt : -1;
-            int mountable = (file_type && (PathToNumFS(curr_entry->path) == 0)) ? (int) ++n_opt : -1;
-            int searchdrv = IsSearchDrive(current_path) ? (int) ++n_opt : -1;
+            int mountable = (file_type && (file_drvtype & DRV_SDCARD)) ? (int) ++n_opt : -1;
+            int searchdrv = (curr_drvtype & DRV_SEARCH) ? (int) ++n_opt : -1;
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
             optionstr[0] = "Show in Hexeditor";
@@ -653,7 +664,7 @@ u32 GodMode() {
                     bool write_sha = false;
                     snprintf(sha_path, 256, "%s.sha", curr_entry->path);
                     have_sha = (FileGetData(sha_path, sha256_file, 32, 0) == 32);
-                    write_sha = !have_sha && (PathToNumFS(curr_entry->path) == 0); // writing only on SD
+                    write_sha = !have_sha && (file_drvtype & DRV_SDCARD); // writing only on SD
                     if (ShowPrompt(write_sha, "%s\n%016llX%016llX\n%016llX%016llX%s%s%s%s%s",
                         pathstr, getbe64(sha256 + 0), getbe64(sha256 + 8), getbe64(sha256 + 16), getbe64(sha256 + 24),
                         (have_sha) ? "\nSHA verification: " : "",
@@ -680,7 +691,7 @@ u32 GodMode() {
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
-                if (!mount_state || !(IsMountedFS("7:")|IsMountedFS("8:")|IsMountedFS("9:"))) {
+                if (!mount_state || !(DriveType("7:")||DriveType("8:")||DriveType("9:"))) {
                     ShowPrompt(false, "Mounting image: failed");
                     DeinitExtFS();
                     MountImage(NULL);
@@ -796,9 +807,9 @@ u32 GodMode() {
                 SetWritePermissions((GetWritePermissions() > PERM_BASE) ? PERM_BASE : PERM_ALL, false);
             }
         } else if (!switched) { // standard unswitched command set
-            if (GetVirtualSource(current_path) && (pad_state & BUTTON_X)) {
+            if ((curr_drvtype & DRV_VIRTUAL) && (pad_state & BUTTON_X)) {
                 ShowPrompt(false, "Not allowed in virtual path");
-            } else if (CheckAliasDrive(current_path) && (pad_state & BUTTON_X)) {
+            } else if ((curr_drvtype & DRV_ALIAS) && (pad_state & BUTTON_X)) {
                 ShowPrompt(false, "Not allowed in alias path");
             } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
@@ -839,7 +850,7 @@ u32 GodMode() {
                 }
                 if (clipboard->n_entries)
                     last_clipboard_size = clipboard->n_entries;
-            } else if (IsSearchDrive(current_path) && (pad_state & BUTTON_Y)) {
+            } else if ((curr_drvtype & DRV_SEARCH) && (pad_state & BUTTON_Y)) {
                 ShowPrompt(false, "Not allowed in search drive");
             } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
@@ -851,7 +862,7 @@ u32 GodMode() {
                     TruncateString(namestr, clipboard->entry[0].name, 20, 12);
                     snprintf(promptstr, 64, "Paste \"%s\" here?", namestr);
                 } else snprintf(promptstr, 64, "Paste %lu paths here?", clipboard->n_entries);
-                user_select = ((PathToNumFS(clipboard->entry[0].path) >= 0) && (PathToNumFS(current_path) >= 0)) ?
+                user_select = ((DriveType(clipboard->entry[0].path) & curr_drvtype & DRV_STDFAT)) ?
                     ShowSelectPrompt(2, optionstr, promptstr) : (ShowPrompt(true, promptstr) ? 1 : 0);
                 if (user_select) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
@@ -875,9 +886,9 @@ u32 GodMode() {
                 ClearScreenF(true, false, COLOR_STD_BG);
             }
         } else { // switched command set
-            if (GetVirtualSource(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
+            if ((curr_drvtype & DRV_VIRTUAL) && (pad_state & (BUTTON_X|BUTTON_Y))) {
                 ShowPrompt(false, "Not allowed in virtual path");
-            } else if (CheckAliasDrive(current_path) && (pad_state & (BUTTON_X|BUTTON_Y))) {
+            } else if ((curr_drvtype & DRV_ALIAS) && (pad_state & (BUTTON_X|BUTTON_Y))) {
                 ShowPrompt(false, "Not allowed in alias path");
             } else if ((pad_state & BUTTON_X) && (curr_entry->type != T_DOTDOT)) { // rename a file
                 char newname[256];

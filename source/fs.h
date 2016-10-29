@@ -11,6 +11,22 @@ typedef enum {
 
 #define MAX_ENTRIES 1024
 
+// primary drive types
+#define DRV_UNKNOWN     (0<<0)
+#define DRV_FAT         (1<<0)
+#define DRV_VIRTUAL     (1<<1)
+// secondary drive types
+#define DRV_SDCARD      (1<<3)
+#define DRV_SYSNAND     (1<<4)
+#define DRV_EMUNAND     (1<<5)
+#define DRV_IMAGE       (1<<6)
+#define DRV_RAMDRIVE    (1<<7)
+#define DRV_MEMORY      (1<<8)
+#define DRV_ALIAS       (1<<9)
+#define DRV_SEARCH      (1<<10)
+#define DRV_STDFAT      (1<<11) // standard FAT drive without limitiations
+
+// permission types
 #define PERM_SDCARD     (1<<0)
 #define PERM_RAMDRIVE   (1<<1)
 #define PERM_EMUNAND    (1<<2)
@@ -21,6 +37,7 @@ typedef enum {
 #define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
 #define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY)
 
+// move / copy flags
 #define ASK_ALL       (1<<0)
 #define SKIP_ALL      (1<<1)
 #define OVERWRITE_ALL (1<<2)
@@ -112,11 +129,8 @@ uint64_t GetTotalSpace(const char* path);
 /** Return the offset - in sectors - of the FAT partition on the drive **/
 uint64_t GetPartitionOffsetSector(const char* path);
 
-/** Helper function to get drive number from path */
-int PathToNumFS(const char* path);
-
-/** Check if drive is mounted */
-bool IsMountedFS(const char* path);
+/** Function to identify the type of a drive **/
+int DriveType(const char* path);
 
 /** Check for soecial search drive **/
 bool IsSearchDrive(const char* path);

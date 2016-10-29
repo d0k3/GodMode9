@@ -88,22 +88,56 @@ void SetFSSearch(const char* pattern, const char* path) {
 int PathToNumFS(const char* path) {
     int fsnum = *path - (int) '0';
     if ((fsnum < 0) || (fsnum >= NORM_FS) || (path[1] != ':')) {
-        if (!GetVirtualSource(path) &&
+        // this check is not required
+        /* if (!GetVirtualSource(path) &&
             !CheckAliasDrive(path) &&
             !IsSearchDrive(path))
-            ShowPrompt(false, "Invalid path (%s)", path);
+            ShowPrompt(false, "Invalid path (%s)", path); */
         return -1;
     }
     return fsnum;
 }
 
-bool IsMountedFS(const char* path) {
-    int fsnum = PathToNumFS(path);
-    return ((fsnum >= 0) && (fsnum < NORM_FS)) ? fs_mounted[fsnum] : false;
-}
-
 bool IsSearchDrive(const char* path) {
     return *search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0);
+}
+
+int DriveType(const char* path) {
+    int type = DRV_UNKNOWN;
+    int pdrv = PathToNumFS(path);
+    
+    if ((pdrv >= 0) && (pdrv < NORM_FS)) {
+        if (!fs_mounted[pdrv]) {
+            type = DRV_UNKNOWN;
+        } else if (pdrv == 0) {
+            type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
+        } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
+            type = DRV_FAT | DRV_RAMDRIVE | DRV_STDFAT;
+        } else if ((pdrv >= 1) && (pdrv <= 3)) {
+            type = DRV_FAT | DRV_SYSNAND | DRV_STDFAT;
+        } else if ((pdrv >= 4) && (pdrv <= 6)) {
+            type = DRV_FAT | DRV_EMUNAND | DRV_STDFAT;
+        }  else if ((pdrv >= 7) && (pdrv <= 9)) {
+            type = DRV_FAT | DRV_IMAGE | DRV_STDFAT;
+        }    
+    } else if (CheckVirtualDrive(path)) {
+        int vsrc = GetVirtualSource(path);
+        if (vsrc == VRT_SYSNAND) {
+            type = DRV_VIRTUAL | DRV_SYSNAND;
+        } else if (vsrc == VRT_EMUNAND) {
+            type = DRV_VIRTUAL | DRV_EMUNAND;
+        } else if (vsrc == VRT_IMGNAND) {
+            type = DRV_VIRTUAL | DRV_IMAGE;
+        } else if (vsrc == VRT_MEMORY) {
+            type = DRV_VIRTUAL | DRV_MEMORY;
+        } 
+    } else if (CheckAliasDrive(path)) {
+        type = DRV_FAT | DRV_ALIAS;
+    } else if (IsSearchDrive(path)) {
+        type = DRV_SEARCH;
+    }
+    
+    return type;
 }
 
 uint64_t GetSDCardSize() {
@@ -165,16 +199,16 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size) {
 
 bool CheckWritePermissions(const char* path) {
     char area_name[16];
-    int pdrv = PathToNumFS(path);
+    int drvtype = DriveType(path);
     u32 perm;
     
-    if (pdrv == 0) {
+    if (drvtype & DRV_SDCARD) {
         perm = PERM_SDCARD;
         snprintf(area_name, 16, "the SD card");
-    } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
+    } else if (drvtype & DRV_RAMDRIVE) {
         perm = PERM_RAMDRIVE;
         snprintf(area_name, 16, "the RAM drive");
-    } else if (((pdrv >= 1) && (pdrv <= 3)) || (GetVirtualSource(path) == VRT_SYSNAND)) {
+    } else if (drvtype & DRV_SYSNAND) {
         perm = PERM_SYSNAND;
         snprintf(area_name, 16, "the SysNAND");
         // check virtual file flags (if any)
@@ -183,13 +217,13 @@ bool CheckWritePermissions(const char* path) {
             perm = PERM_A9LH;
             snprintf(area_name, 16, "A9LH regions");
         }
-    } else if (((pdrv >= 4) && (pdrv <= 6)) || (GetVirtualSource(path) == VRT_EMUNAND)) {
+    } else if (drvtype & DRV_EMUNAND) {
         perm = PERM_EMUNAND;
         snprintf(area_name, 16, "the EmuNAND");
-    } else if (((pdrv >= 7) && (pdrv <= 9)) || (GetVirtualSource(path) == VRT_IMGNAND)) {
+    } else if (drvtype & DRV_IMAGE) {
         perm = PERM_IMAGE;
         snprintf(area_name, 16, "images");
-    } else if (GetVirtualSource(path) == VRT_MEMORY) {
+    } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
         snprintf(area_name, 16, "memory areas");
     } else {
@@ -291,8 +325,9 @@ bool GetTempFileName(char* path) {
 }
 
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
+    int drvtype = DriveType(path);
     if (!CheckWritePermissions(path)) return false;
-    if ((PathToNumFS(path) >= 0) || (CheckAliasDrive(path))) {
+    if (drvtype & DRV_FAT) {
         UINT bytes_written = 0;
         FIL file;
         if (fa_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
@@ -301,7 +336,7 @@ bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, 
         f_write(&file, data, size, &bytes_written);
         f_close(&file);
         return (bytes_written == size);
-    } else if (GetVirtualSource(path)) {
+    } else if (drvtype & DRV_VIRTUAL) {
         VirtualFile vfile;
         if (!FindVirtualFile(&vfile, path, 0))
             return 0;
@@ -310,9 +345,9 @@ bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, 
     return false;
 }
 
-size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
-{
-    if ((PathToNumFS(path) >= 0) || (CheckAliasDrive(path))) {
+size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
+    int drvtype = DriveType(path);
+    if (drvtype & DRV_FAT) {
         UINT bytes_read = 0;
         FIL file;
         if (fa_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
@@ -324,7 +359,7 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
         }
         f_close(&file);
         return bytes_read;
-    } else if (GetVirtualSource(path)) {
+    } else if (drvtype & DRV_VIRTUAL) {
         u32 bytes_read = 0;
         VirtualFile vfile;
         if (!FindVirtualFile(&vfile, path, 0))
@@ -335,12 +370,13 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset)
 }
 
 size_t FileGetSize(const char* path) {
-    if ((PathToNumFS(path) >= 0) || (CheckAliasDrive(path))) {
+    int drvtype = DriveType(path);
+    if (drvtype & DRV_FAT) {
         FILINFO fno;
         if (fa_stat(path, &fno) != FR_OK)
             return 0;
         return fno.fsize;
-    } else if (GetVirtualSource(path)) {
+    } else if (drvtype & DRV_VIRTUAL) {
         VirtualFile vfile;
         if (!FindVirtualFile(&vfile, path, 0))
             return 0;
@@ -354,7 +390,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
     
     sha_init(SHA256_MODE);
     ShowProgress(0, 0, path);
-    if (GetVirtualSource(path)) { // for virtual files
+    if (DriveType(path) & DRV_VIRTUAL) { // for virtual files
         VirtualFile vfile;
         u32 fsize;
         
@@ -446,7 +482,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     }
     
     // open destination
-    if (GetVirtualSource(dest)) {
+    if (DriveType(dest) & DRV_VIRTUAL) {
         vdest = true;
         if (!FindVirtualFile(&dvfile, dest, 0))
             return false;
@@ -461,7 +497,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     }
     
     // open origin
-    if (GetVirtualSource(orig)) {
+    if (DriveType(orig) & DRV_VIRTUAL) {
         vorig = true;
         if (!FindVirtualFile(&ovfile, orig, 0)) {
             if (!vdest) f_close(&dfile);
@@ -517,6 +553,8 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
     char* oname = strrchr(orig, '/');
     char deststr[36 + 1];
     char origstr[36 + 1];
+    int ddrvtype = DriveType(destdir);
+    int odrvtype = DriveType(orig);
     bool ret = true;
     
     if (oname == NULL) return false; // not a proper origin path
@@ -526,7 +564,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
     TruncateString(deststr, dest, 36, 8);
     TruncateString(origstr, orig, 36, 8);
     
-    if (GetVirtualSource(dest) && GetVirtualSource(orig)) { // virtual to virtual
+    if ((ddrvtype & DRV_VIRTUAL) && (odrvtype & DRV_VIRTUAL)) { // virtual to virtual
         VirtualFile dvfile;
         VirtualFile ovfile;
         u32 osize;
@@ -560,7 +598,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         }
         ShowProgress(1, 1, orig);
         InitExtFS();
-    } else if (GetVirtualSource(dest)) { // SD card to virtual (other FAT not allowed!)
+    } else if (ddrvtype & DRV_VIRTUAL) { // SD card to virtual (other FAT not allowed!)
         VirtualFile dvfile;
         FIL ofile;
         u32 osize;
@@ -613,7 +651,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         ShowProgress(1, 1, orig);
         f_close(&ofile);
         InitExtFS();
-    } else if (GetVirtualSource(orig)) { // virtual to any file system
+    } else if (odrvtype & DRV_VIRTUAL) { // virtual to any file system
         VirtualFile ovfile;
         FIL dfile;
         u32 osize;
@@ -841,9 +879,11 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
 bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
         if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
-    if (GetVirtualSource(destdir) || GetVirtualSource(orig)) {
+    int ddrvtype = DriveType(destdir);
+    int odrvtype = DriveType(orig);
+    if ((ddrvtype | odrvtype) & DRV_VIRTUAL) {
         // users are inventive...
-        if ((PathToNumFS(orig) > 0) && GetVirtualSource(destdir)) {
+        if (!(odrvtype & (DRV_SDCARD|DRV_VIRTUAL)) && (ddrvtype & DRV_VIRTUAL)) {
             ShowPrompt(false, "Only files from SD card are accepted");
             return false;
         }
@@ -862,7 +902,8 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
     if (!CheckWritePermissions(orig)) return false;
     if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
-    if ((PathToNumFS(destdir) < 0) || (PathToNumFS(orig) < 0)) {
+    // moving only for regular FAT drives (= not alias drives)
+    if (!(DriveType(destdir) & DriveType(orig) & DRV_STDFAT)) {
         ShowPrompt(false, "Error: Moving is not possible here");
         return false;
     } else {
@@ -1051,9 +1092,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     // virtual root objects hacked in
     for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
-        if ((pdrv < NORM_FS) && !fs_mounted[pdrv]) continue;
-        else if ((pdrv >= NORM_FS) && (!CheckAliasDrive(drvnum[pdrv])) &&
-            (!CheckVirtualDrive(drvnum[pdrv])) && !(IsSearchDrive(drvnum[pdrv]))) continue;
+        if (!DriveType(drvnum[pdrv])) continue; // drive not available
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
         snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
@@ -1148,7 +1187,7 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         contents->entry->type = T_DOTDOT;
         contents->entry->size = 0;
         contents->n_entries = 1;
-        if (GetVirtualSource(path)) {
+        if (DriveType(path) & DRV_VIRTUAL) {
             if (!GetVirtualDirContentsWorker(contents, path, pattern))
                 contents->n_entries = 0;
         } else {
@@ -1162,7 +1201,7 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
 }
 
 void GetDirContents(DirStruct* contents, const char* path) {
-    if (*search_pattern && *search_path && IsSearchDrive(path)) {
+    if (IsSearchDrive(path)) {
         ShowString("Searching, please wait...");
         SearchDirContents(contents, search_path, search_pattern, true);
         ClearScreenF(true, false, COLOR_STD_BG);
