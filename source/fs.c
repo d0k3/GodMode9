@@ -98,6 +98,12 @@ int PathToNumFS(const char* path) {
     return fsnum;
 }
 
+int PathToNumFSA(const char* path) {
+    char alias[256];
+    dealias_path(alias, path);
+    return PathToNumFS(alias);
+}
+
 bool IsSearchDrive(const char* path) {
     return *search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0);
 }
@@ -1213,7 +1219,7 @@ uint64_t GetFreeSpace(const char* path)
     DWORD free_clusters;
     FATFS *fs_ptr;
     char fsname[4] = { '\0' };
-    int pdrv = PathToNumFS(path);
+    int pdrv = PathToNumFSA(path);
     if (pdrv < 0) return 0;
     
     snprintf(fsname, 3, "%i:", pdrv);
@@ -1225,7 +1231,7 @@ uint64_t GetFreeSpace(const char* path)
 
 uint64_t GetTotalSpace(const char* path)
 {
-    int pdrv = PathToNumFS(path);
+    int pdrv = PathToNumFSA(path);
     if (pdrv < 0) return 0;
     
     return (uint64_t) (fs[pdrv].n_fatent - 2) * fs[pdrv].csize * _MAX_SS;
@@ -1233,7 +1239,7 @@ uint64_t GetTotalSpace(const char* path)
 
 uint64_t GetPartitionOffsetSector(const char* path)
 {
-    int pdrv = PathToNumFS(path);
+    int pdrv = PathToNumFSA(path);
     if (pdrv < 0) return -1;
     
     return (uint64_t) fs[pdrv].volbase;
