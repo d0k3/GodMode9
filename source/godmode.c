@@ -809,8 +809,6 @@ u32 GodMode() {
         } else if (!switched) { // standard unswitched command set
             if ((curr_drvtype & DRV_VIRTUAL) && (pad_state & BUTTON_X)) {
                 ShowPrompt(false, "Not allowed in virtual path");
-            } else if ((curr_drvtype & DRV_ALIAS) && (pad_state & BUTTON_X)) {
-                ShowPrompt(false, "Not allowed in alias path");
             } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
                 for (u32 c = 0; c < current_dir->n_entries; c++)
@@ -888,7 +886,7 @@ u32 GodMode() {
         } else { // switched command set
             if ((curr_drvtype & DRV_VIRTUAL) && (pad_state & (BUTTON_X|BUTTON_Y))) {
                 ShowPrompt(false, "Not allowed in virtual path");
-            } else if ((curr_drvtype & DRV_ALIAS) && (pad_state & (BUTTON_X|BUTTON_Y))) {
+            } else if ((curr_drvtype & DRV_ALIAS) && (pad_state & (BUTTON_X))) {
                 ShowPrompt(false, "Not allowed in alias path");
             } else if ((pad_state & BUTTON_X) && (curr_entry->type != T_DOTDOT)) { // rename a file
                 char newname[256];
