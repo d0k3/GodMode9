@@ -6,6 +6,15 @@
 #define SDCRYPT_BUFFER_SIZE (0x100000)
 
 #define NUM_ALIAS_DRV 2
+#define NUM_FILCRYPTINFO 16
+
+typedef struct {
+    FIL* fptr;
+    u8 ctr[16];
+    u8 keyy[16];
+} __attribute__((packed)) FilCryptInfo;
+
+static FilCryptInfo filcrypt[NUM_FILCRYPTINFO] = { 0 };
 
 char alias_drv[NUM_ALIAS_DRV]; // 1 char ASCII drive number of the alias drive / 0x00 if unused
 char alias_path[NUM_ALIAS_DRV][128]; // full path to resolve the alias into
@@ -31,86 +40,107 @@ void dealias_path (TCHAR* alias, const TCHAR* path) {
     else strncpy(alias, path, 256);
 }
 
-void fx_crypt(XFIL* xfp, void* buff, FSIZE_t off, UINT bt) {
+FilCryptInfo* fx_find_cryptinfo(FIL* fptr) {
+    FilCryptInfo* info = NULL;
+    
+    for (u32 i = 0; i < NUM_FILCRYPTINFO; i++) {
+        if (!info && !filcrypt[i].fptr) // use first free
+            info = &filcrypt[i];
+        if (fptr == filcrypt[i].fptr) {
+            info = &filcrypt[i];
+            break;
+        }
+    }
+    
+    return info;
+}
+
+void fx_crypt(FilCryptInfo* info, void* buff, FSIZE_t off, UINT bt) {
     u32 mode = AES_CNT_CTRNAND_MODE;
     u8 ctr[16] __attribute__((aligned(32)));
     u8 buff16[16];
     u8* buffer = buff;
     
     // copy CTR and increment it
-    memcpy(ctr, xfp->iv, 16);
+    memcpy(ctr, info->ctr, 16);
     add_ctr(ctr, off / 16);
     
     // setup the key
-    setup_aeskeyY(xfp->keyslot, xfp->keyy);
-    use_aeskey(xfp->keyslot);
+    setup_aeskeyY(0x34, info->keyy);
+    use_aeskey(0x34);
     
     // handle misaligned offset (at beginning)
     if (off % 16) {
-        memcpy(buff16 + (off % 16), buff, 16 - (off % 16));
+        memcpy(buff16 + (off % 16), buffer, 16 - (off % 16));
         ctr_decrypt(buff16, buff16, 1, mode, ctr);
-        bt -= 16 - (off % 16);
+        memcpy(buffer, buff16 + (off % 16), 16 - (off % 16));
         buffer += 16 - (off % 16);
+        bt -= 16 - (off % 16);
     }
     
     // de/encrypt the data
-    ctr_decrypt(buff, buff, bt / 16, mode, ctr);
-    bt -= 16 * (UINT) (bt / 16);
+    ctr_decrypt(buffer, buffer, bt / 16, mode, ctr);
     buffer += 16 * (UINT) (bt / 16);
+    bt -= 16 * (UINT) (bt / 16);
     
     // handle misaligned offset (at end)
     if (bt) {
-        memcpy(buff16, buff, bt);
+        memcpy(buff16, buffer, bt);
         ctr_decrypt(buff16, buff16, 1, mode, ctr);
+        memcpy(buffer, buff16, bt);
         buffer += bt;
         bt = 0;
     }
 }
 
-FRESULT fx_open (FIL* fp, XFIL* xfp, const TCHAR* path, BYTE mode) {
+FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode) {
     int num = alias_num(path);
-    xfp->keyslot = 0x40;
-    if (num >= 0) {
+    FilCryptInfo* info = fx_find_cryptinfo(fp);
+    if (info) info->fptr = NULL;
+    
+    if (info && (num >= 0)) {
         // get AES counter, see: http://www.3dbrew.org/wiki/Extdata#Encryption
         // path is the part of the full path after //Nintendo 3DS/<ID0>/<ID1>
         u8 hashstr[256];
         u8 sha256sum[32];
         u32 plen = 0;
         // poor man's UTF-8 -> UTF-16
-        for (u32 plen = 0; plen < 128; plen++) {
+        for (plen = 0; plen < 128; plen++) {
             hashstr[2*plen] = path[2 + plen];
             hashstr[2*plen+1] = 0;
-            if (path[plen] == 0) break;
+            if (path[2 + plen] == 0) break;
         }
         sha_quick(sha256sum, hashstr, (plen + 1) * 2, SHA256_MODE);
         for (u32 i = 0; i < 16; i++)
-            xfp->iv[i] = sha256sum[i] ^ sha256sum[i+16];
-        // copy over key, set keyslot
-        memcpy(xfp->keyy, sd_keyy[num], 16);
-        xfp->keyslot = 0x34;
+            info->ctr[i] = sha256sum[i] ^ sha256sum[i+16];
+        // copy over key, FIL pointer
+        memcpy(info->keyy, sd_keyy[num], 16);
+        info->fptr = fp;
     }
     
     return fa_open(fp, path, mode);
 }
 
-FRESULT fx_read (FIL* fp, XFIL* xfp, void* buff, UINT btr, UINT* br) {
+FRESULT fx_read (FIL* fp, void* buff, UINT btr, UINT* br) {
+    FilCryptInfo* info = fx_find_cryptinfo(fp);
     FSIZE_t off = f_tell(fp);
     FRESULT res = f_read(fp, buff, btr, br);
-    if (xfp && (xfp->keyslot < 0x40))
-        fx_crypt(xfp, buff, off, btr);
+    if (info && info->fptr)
+        fx_crypt(info, buff, off, btr);
     return res;
 }
 
-FRESULT fx_write (FIL* fp, XFIL* xfp, const void* buff, UINT btw, UINT* bw) {
+FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
+    FilCryptInfo* info = fx_find_cryptinfo(fp);
     FSIZE_t off = f_tell(fp);
     FRESULT res = FR_OK;
-    if (xfp && (xfp->keyslot < 0x40)) {
+    if (info && info->fptr) {
         *bw = 0;
         for (UINT p = 0; (p < btw) && (res == FR_OK); p += SDCRYPT_BUFFER_SIZE) {
             UINT pcount = min(SDCRYPT_BUFFER_SIZE, (btw - p));
             UINT bwl = 0;
             memcpy(SDCRYPT_BUFFER, (u8*) buff + p, pcount);
-            fx_crypt(xfp, SDCRYPT_BUFFER, off + p, pcount);
+            fx_crypt(info, SDCRYPT_BUFFER, off + p, pcount);
             res = f_write(fp, (const void*) SDCRYPT_BUFFER, pcount, &bwl);
             *bw += bwl;
         }

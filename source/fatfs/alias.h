@@ -3,17 +3,11 @@
 #include "common.h"
 #include "ff.h"
 
-typedef struct {
-    u8 iv[16];
-    u8 keyy[16];
-    u32 keyslot;
-} __attribute__((packed)) XFIL;
-
 // wrapper functions for ff.h
 // incomplete(!) extension to FatFS to support on-the-fly crypto & path aliases
-FRESULT fx_open (FIL* fp, XFIL* xfp, const TCHAR* path, BYTE mode);
-FRESULT fx_read (FIL* fp, XFIL* xfp, void* buff, UINT btr, UINT* br);
-FRESULT fx_write (FIL* fp, XFIL* xfp, const void* buff, UINT btw, UINT* bw);
+FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode);
+FRESULT fx_read (FIL* fp, void* buff, UINT btr, UINT* br);
+FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw);
 
 void dealias_path (TCHAR* alias, const TCHAR* path);
 FRESULT fa_open (FIL* fp, const TCHAR* path, BYTE mode);

@@ -343,10 +343,10 @@ bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, 
     if (drvtype & DRV_FAT) {
         UINT bytes_written = 0;
         FIL file;
-        if (fa_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
+        if (fx_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
             return false;
         f_lseek(&file, foffset);
-        f_write(&file, data, size, &bytes_written);
+        fx_write(&file, data, size, &bytes_written);
         f_close(&file);
         return (bytes_written == size);
     } else if (drvtype & DRV_VIRTUAL) {
@@ -363,10 +363,10 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
     if (drvtype & DRV_FAT) {
         UINT bytes_read = 0;
         FIL file;
-        if (fa_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return 0;
         f_lseek(&file, foffset);
-        if (f_read(&file, data, size, &bytes_read) != FR_OK) {
+        if (fx_read(&file, data, size, &bytes_read) != FR_OK) {
             f_close(&file);
             return 0;
         }
@@ -423,7 +423,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
         FIL file;
         size_t fsize;
         
-        if (fa_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         fsize = f_size(&file);
         f_lseek(&file, 0);
@@ -431,7 +431,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
         
         for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
-            if (f_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+            if (fx_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
                 ret = false;
             if (!ShowProgress(pos + bytes_read, fsize, path))
                 ret = false;
@@ -502,7 +502,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         dsize = dvfile.size;
     } else {
         vdest = false;
-        if (fa_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        if (fx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
             return false;
         dsize = f_size(&dfile);
         f_lseek(&dfile, offset);
@@ -519,7 +519,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         osize = ovfile.size;
     } else {
         vorig = false;
-        if (fa_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
             if (!vdest) f_close(&dfile);
             return false;
         }
@@ -542,12 +542,12 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
         UINT bytes_read = read_bytes;
         UINT bytes_written = read_bytes;
-        if ((!vorig && (f_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK)) ||
+        if ((!vorig && (fx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK)) ||
             (vorig && ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0))
             ret = false;
         if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
             ret = false;
-        if ((!vdest && (f_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)) ||
+        if ((!vdest && (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)) ||
             (vdest && WriteVirtualFile(&dvfile, MAIN_BUFFER, offset + pos, read_bytes, NULL) != 0))
             ret = false;
         if (bytes_read != bytes_written)
@@ -616,7 +616,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         FIL ofile;
         u32 osize;
         
-        if (fa_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         f_lseek(&ofile, 0);
         f_sync(&ofile);
@@ -654,7 +654,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         if (!ShowProgress(0, 0, orig)) ret = false;
         for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;           
-            if (f_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+            if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
                 ret = false;
             if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
                 ret = false;
@@ -703,7 +703,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
             }
         }
         
-        if (fa_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
             return false;
         f_lseek(&dfile, 0);
         f_sync(&dfile);
@@ -722,7 +722,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
                 ret = false;
             if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
                 ret = false;
-            if (f_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)
+            if (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)
                 ret = false;
             if (read_bytes != bytes_written)
                 ret = false;
@@ -845,7 +845,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         FIL dfile;
         size_t fsize;
         
-        if (fa_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
         fsize = f_size(&ofile);
         if (GetFreeSpace(dest) < fsize) {
@@ -854,7 +854,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
             return false;
         }
         
-        if (fa_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
             ShowPrompt(false, "Error: Cannot create destination file");
             f_close(&ofile);
             return false;
@@ -869,11 +869,11 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
-            if (f_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+            if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
                 ret = false;
             if (!ShowProgress(pos + (bytes_read / 2), fsize, orig))
                 ret = false;
-            if (f_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK)
+            if (fx_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK)
                 ret = false;
             if (bytes_read != bytes_written)
                 ret = false;
