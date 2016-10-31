@@ -13,6 +13,9 @@
 #ifdef FONT_6X10
 #define FONT_WIDTH_EXT  6
 #define FONT_HEIGHT_EXT 10
+#elif defined FONT_GB // special font width
+#define FONT_WIDTH_EXT 7
+#define FONT_HEIGHT_EXT 6
 #else
 #define FONT_WIDTH_EXT  8
 #define FONT_HEIGHT_EXT 8
