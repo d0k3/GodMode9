@@ -928,14 +928,32 @@ u32 GodMode() {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
         } else if (pad_state & BUTTON_HOME) { // Home menu
-            const char* optionstr[2] = { "Poweroff system", "Reboot system" };
-            u32 user_select = ShowSelectPrompt(2, optionstr, "HOME button pressed.\nSelect action:" );
+            const char* optionstr[3] = { "Poweroff system", "Reboot system", "SD format menu" };
+            u32 user_select = ShowSelectPrompt(3, optionstr, "HOME button pressed.\nSelect action:" );
             if (user_select == 1) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
                 break;
             } else if (user_select == 2) { 
                 exit_mode = GODMODE_EXIT_REBOOT;
                 break;
+            } else if (user_select == 3) {
+                DeinitExtFS();
+                if (GetMountState() != IMG_RAMDRV)
+                    MountImage(NULL);
+                DeinitSDCardFS();
+                clipboard->n_entries = 0;
+                memset(panedata, 0x00, N_PANES * sizeof(PaneData));
+                if (ShowPrompt(true, "SD card unmounted, enter format menu?"))
+                    SdFormatMenu();
+                while (!InitSDCardFS()) {
+                    if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
+                        return exit_mode;
+                }
+                ClearScreenF(true, false, COLOR_STD_BG);
+                InitEmuNandBase();
+                InitExtFS();
+                GetDirContents(current_dir, current_path);
+                if (cursor >= current_dir->n_entries) cursor = 0;
             }
         }
     }
