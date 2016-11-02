@@ -7,10 +7,9 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.7.2"
+#define VERSION "0.7.3"
 
 #define N_PANES 2
-#define IMG_DRV "789I"
 
 #define WORK_BUFFER     ((u8*)0x21100000)
 
@@ -690,6 +689,8 @@ u32 GodMode() {
                     clipboard->n_entries = 0;
                 }
             } else if ((int) user_select == mountable) { // -> mount as image
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
+                    clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
@@ -703,8 +704,6 @@ u32 GodMode() {
                     GetDirContents(current_dir, current_path);
                     cursor = 0;
                 }
-                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
-                    clipboard->n_entries = 0; // remove invalid clipboard stuff
             } else if ((int) user_select == searchdrv) { // -> search drive, open containing path
                 char* last_slash = strrchr(curr_entry->path, '/');
                 if (last_slash) {
@@ -735,11 +734,12 @@ u32 GodMode() {
                 }
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
+            if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
+                clipboard->n_entries = 0; // remove SD clipboard entries
             DeinitExtFS();
             if (GetMountState() != IMG_RAMDRV)
                 MountImage(NULL);
             DeinitSDCardFS();
-            clipboard->n_entries = 0;
             memset(panedata, 0x00, N_PANES * sizeof(PaneData));
             ShowString("SD card unmounted, you can eject now.\n \n<R+Y+\x1B> for format menu\n<A> to remount SD card");
             while (true) {
@@ -798,13 +798,13 @@ u32 GodMode() {
         // highly specific commands
         if (!*current_path) { // in the root folder...
             if (switched && (pad_state & BUTTON_X)) { // unmount image
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
+                    clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 DeinitExtFS();
                 if (!GetMountState()) MountRamDrive();
                 else MountImage(NULL);
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
-                if (clipboard->n_entries && (strcspn(clipboard->entry[0].path, IMG_DRV) == 0))
-                    clipboard->n_entries = 0; // remove invalid clipboard stuff
             } else if (switched && (pad_state & BUTTON_Y)) {
                 SetWritePermissions((GetWritePermissions() > PERM_BASE) ? PERM_BASE : PERM_ALL, false);
             }
@@ -937,6 +937,8 @@ u32 GodMode() {
                 exit_mode = GODMODE_EXIT_REBOOT;
                 break;
             } else if (user_select == 3) {
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
+                    clipboard->n_entries = 0; // remove SD clipboard entries
                 DeinitExtFS();
                 if (GetMountState() != IMG_RAMDRV)
                     MountImage(NULL);
