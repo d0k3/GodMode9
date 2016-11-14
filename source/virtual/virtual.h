@@ -18,6 +18,11 @@ static const char* virtualFileList[] = { // must have a match in virtualFileTemp
 };
 static const u32 virtualFileList_size = sizeof(virtualFileList) / sizeof(char*);
 
+// virtual file flag (subject to change):
+// bits 0...9  : reserved for NAND virtual sources and info
+// bits 10...19: reserved for other virtual sources
+// bits 20...24: reserved for external flags
+// bits 24...31: reserved for internal flags (different per source)
 typedef struct {
     const char name[32];
     u32 offset; // must be a multiple of 0x200
