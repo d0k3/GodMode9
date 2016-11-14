@@ -24,7 +24,7 @@ typedef enum {
 #define DRV_MEMORY      (1<<8)
 #define DRV_ALIAS       (1<<9)
 #define DRV_SEARCH      (1<<10)
-#define DRV_STDFAT      (1<<11) // standard FAT drive without limitiations
+#define DRV_STDFAT      (1<<11) // standard FAT drive without limitations
 
 // permission types
 #define PERM_SDCARD     (1<<0)
@@ -34,14 +34,14 @@ typedef enum {
 #define PERM_IMAGE      (1<<4)
 #define PERM_MEMORY     (1<<5)
 #define PERM_A9LH       ((1<<6) | PERM_SYSNAND)
-#define PERM_SDDATA    ((1<<7) | PERM_SDCARD)
+#define PERM_SDDATA     ((1<<7) | PERM_SDCARD)
 #define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
 #define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY | PERM_SDDATA)
 
 // move / copy flags
-#define ASK_ALL       (1<<0)
-#define SKIP_ALL      (1<<1)
-#define OVERWRITE_ALL (1<<2)
+#define ASK_ALL         (1<<0)
+#define SKIP_ALL        (1<<1)
+#define OVERWRITE_ALL   (1<<2)
 
 typedef struct {
     char* name; // should point to the correct portion of the path

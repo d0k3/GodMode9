@@ -21,9 +21,9 @@ ifeq ($(MODE),safe)
 	export TARGET	:=	SafeMode9
 endif
 BUILD		:=	build
-SOURCES		:=	source source/fatfs source/nand source/abstraction
+SOURCES		:=	source source/fatfs source/nand source/virtual source/abstraction
 DATA		:=	data
-INCLUDES	:=	source source/font source/fatfs source/nand
+INCLUDES	:=	source source/font source/fatfs source/nand source/virtual
 
 #---------------------------------------------------------------------------------
 # options for code generation
