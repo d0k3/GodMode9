@@ -26,7 +26,8 @@ typedef struct {
 
 u32 GetVirtualSource(const char* path);
 bool CheckVirtualDrive(const char* path);
-bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size);
+bool GetVirtualFile(VirtualFile* vfile, const char* path);
+bool FindVirtualFileBySize(VirtualFile* vfile, const char* path, u32 size);
 bool GetVirtualDirContents(DirStruct* contents, const char* path, const char* pattern);
 int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read);
 int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count, u32* bytes_written);

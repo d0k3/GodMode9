@@ -35,7 +35,7 @@ bool ReadVirtualDir(VirtualFile* vfile, u32 virtual_src) {
     return false;
 }
 
-bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size) {
+bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     // get / fix the name
     char* fname = strchr(path, '/');
     if (!fname) return false;
@@ -51,12 +51,29 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size) {
     ReadVirtualDir(NULL, virtual_src); // reset dir reader
     while (ReadVirtualDir(vfile, virtual_src)) {
         vfile->flags |= virtual_src; // add source flag
-        if (((strncasecmp(fname, vfile->name, 32) == 0) ||
-            (size && (vfile->size == size)))) // search by size should be a last resort solution
+        if (strncasecmp(fname, vfile->name, 32) == 0)
             return true; // file found
     }
     
-    // failed if arriving
+    // failed if arriving here
+    return false;
+}
+
+bool FindVirtualFileBySize(VirtualFile* vfile, const char* path, u32 size) {
+    // get virtual source
+    u32 virtual_src = 0;
+    virtual_src = GetVirtualSource(path);
+    if (!virtual_src) return false;
+    
+    // read virtual dir, match the path / size
+    ReadVirtualDir(NULL, virtual_src); // reset dir reader
+    while (ReadVirtualDir(vfile, virtual_src)) {
+        vfile->flags |= virtual_src; // add source flag
+        if (vfile->size == size) // search by size should be a last resort solution
+            return true; // file found
+    }
+    
+    // failed if arriving here
     return false;
 }
 

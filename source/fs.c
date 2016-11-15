@@ -213,7 +213,7 @@ bool CheckWritePermissions(const char* path) {
         snprintf(area_name, 16, "the SysNAND");
         // check virtual file flags (if any)
         VirtualFile vfile;
-        if (FindVirtualFile(&vfile, path, 0) && (vfile.flags & VFLAG_A9LH_AREA)) {
+        if (GetVirtualFile(&vfile, path) && (vfile.flags & VFLAG_A9LH_AREA)) {
             perm = PERM_A9LH;
             snprintf(area_name, 16, "A9LH regions");
         }
@@ -351,7 +351,7 @@ bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, 
         return (bytes_written == size);
     } else if (drvtype & DRV_VIRTUAL) {
         VirtualFile vfile;
-        if (!FindVirtualFile(&vfile, path, 0))
+        if (!GetVirtualFile(&vfile, path))
             return 0;
         return (WriteVirtualFile(&vfile, data, foffset, size, NULL) == 0);
     }
@@ -375,7 +375,7 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
     } else if (drvtype & DRV_VIRTUAL) {
         u32 bytes_read = 0;
         VirtualFile vfile;
-        if (!FindVirtualFile(&vfile, path, 0))
+        if (!GetVirtualFile(&vfile, path))
             return 0;
         return (ReadVirtualFile(&vfile, data, foffset, size, &bytes_read) == 0) ? bytes_read : 0;
     }
@@ -391,7 +391,7 @@ size_t FileGetSize(const char* path) {
         return fno.fsize;
     } else if (drvtype & DRV_VIRTUAL) {
         VirtualFile vfile;
-        if (!FindVirtualFile(&vfile, path, 0))
+        if (!GetVirtualFile(&vfile, path))
             return 0;
         return vfile.size;
     }
@@ -407,7 +407,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
         VirtualFile vfile;
         u32 fsize;
         
-        if (!FindVirtualFile(&vfile, path, 0))
+        if (!GetVirtualFile(&vfile, path))
             return false;
         fsize = vfile.size;
         
@@ -497,7 +497,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     // open destination
     if (DriveType(dest) & DRV_VIRTUAL) {
         vdest = true;
-        if (!FindVirtualFile(&dvfile, dest, 0))
+        if (!GetVirtualFile(&dvfile, dest))
             return false;
         dsize = dvfile.size;
     } else {
@@ -512,7 +512,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     // open origin
     if (DriveType(orig) & DRV_VIRTUAL) {
         vorig = true;
-        if (!FindVirtualFile(&ovfile, orig, 0)) {
+        if (!GetVirtualFile(&ovfile, orig)) {
             if (!vdest) f_close(&dfile);
             return false;
         }
@@ -582,9 +582,9 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         VirtualFile ovfile;
         u32 osize;
         
-        if (!FindVirtualFile(&dvfile, dest, 0))
+        if (!GetVirtualFile(&dvfile, dest))
             return false;
-        if (!FindVirtualFile(&ovfile, orig, 0))
+        if (!GetVirtualFile(&ovfile, orig))
             return false;
         osize = ovfile.size;
         if (dvfile.size != osize) { // almost impossible, but so what...
@@ -621,8 +621,8 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         f_lseek(&ofile, 0);
         f_sync(&ofile);
         osize = f_size(&ofile);
-        if (!FindVirtualFile(&dvfile, dest, 0)) {
-            if (!FindVirtualFile(&dvfile, dest, osize)) {
+        if (!GetVirtualFile(&dvfile, dest)) {
+            if (!FindVirtualFileBySize(&dvfile, dest, osize)) {
                 f_close(&ofile);
                 return false;
             }
@@ -669,7 +669,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         FIL dfile;
         u32 osize;
         
-        if (!FindVirtualFile(&ovfile, orig, 0))
+        if (!GetVirtualFile(&ovfile, orig))
             return false;
         
         // check if destination exists
