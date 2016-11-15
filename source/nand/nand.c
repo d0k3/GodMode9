@@ -111,7 +111,7 @@ bool InitNandCrypto(void)
 {   
     // part #0: KeyX / KeyY for secret sector 0x96
     // on a9lh this MUST be run before accessing the SHA register in any other way
-    if ((*(u32*) 0x101401C0) == 0) { // for a9lh
+    if (CheckA9lh()) { // for a9lh
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*)REG_SHAHASH, 32);
     } else {
@@ -138,7 +138,7 @@ bool InitNandCrypto(void)
     
     // part #2: TWL KEY
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-    if ((*(vu32*) 0x101401C0) == 0) { // only for a9lh
+    if (CheckA9lh()) { // only for a9lh
         u32* TwlCustId = (u32*) (0x01FFB808);
         u8 TwlKeyX[16];
         u8 TwlKeyY[16];
@@ -165,7 +165,7 @@ bool InitNandCrypto(void)
     // part #3: CTRNAND N3DS KEY
     // thanks AuroraWright and Gelex for advice on this
     // see: https://github.com/AuroraWright/Luma3DS/blob/master/source/crypto.c#L347
-    if ((*(vu32*) 0x101401C0) == 0) { // only for a9lh
+    if (CheckA9lh()) { // only for a9lh
         u8 ctr[16] __attribute__((aligned(32)));
         u8 keyY[16] __attribute__((aligned(32)));
         u8 header[0x200];
@@ -241,6 +241,11 @@ bool CheckSector0x96Crypto(void)
 {
     const u8 zeroes[32] = { 0 };
     return !(memcmp(OtpSha256, zeroes, 32) == 0);
+}
+
+bool CheckA9lh(void)
+{
+    return ((*(vu32*) 0x101401C0) == 0);
 }
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)

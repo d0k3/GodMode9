@@ -59,7 +59,7 @@ bool ReadVNandDir(VirtualFile* vfile, u32 nand_src) {
             continue; // keyslot 0x05 not properly set up
         if ((vfile->flags & VFLAG_NEEDS_OTP) && !CheckSector0x96Crypto())
             return false; // sector 0x96 crypto not set up
-        if (!(nand_src & VRT_SYSNAND) || (*(vu32*) 0x101401C0))
+        if (!(nand_src & VRT_SYSNAND) || !CheckA9lh())
             vfile->flags &= ~VFLAG_A9LH_AREA; // flag is meaningless outside of A9LH / SysNAND
         if (vfile->flags & VFLAG_NAND_SIZE) {
             if ((nand_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))

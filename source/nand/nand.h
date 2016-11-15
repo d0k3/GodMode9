@@ -13,6 +13,7 @@ bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, ch
 bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
+bool CheckA9lh(void);
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot);
 void CryptSector0x96(u8* buffer, bool encrypt);
