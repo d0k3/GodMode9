@@ -35,7 +35,7 @@ bool ReadVMemDir(VirtualFile* vfile) {
         
         // process special flag
         if ((vfile->flags & VFLAG_N3DS_ONLY) && (GetUnitPlatform() != PLATFORM_N3DS))
-            return false; // this is not on O3DS consoles
+            continue; // this is not on O3DS consoles
         
         // found if arriving here
         return true;
