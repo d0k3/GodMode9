@@ -1,15 +1,7 @@
 #pragma once
 
 #include "common.h"
-
-typedef enum {
-    T_ROOT,
-    T_DIR,
-    T_FILE,
-    T_DOTDOT
-} EntryType;
-
-#define MAX_ENTRIES 1024
+#include "dir.h"
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
@@ -42,19 +34,6 @@ typedef enum {
 #define ASK_ALL         (1<<0)
 #define SKIP_ALL        (1<<1)
 #define OVERWRITE_ALL   (1<<2)
-
-typedef struct {
-    char* name; // should point to the correct portion of the path
-    char path[256];
-    u64 size;
-    EntryType type;
-    u8 marked;
-} DirEntry;
-
-typedef struct {
-    u32 n_entries;
-    DirEntry entry[MAX_ENTRIES];
-} DirStruct;
 
 bool InitSDCardFS();
 bool InitExtFS();
@@ -133,8 +112,5 @@ uint64_t GetPartitionOffsetSector(const char* path);
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);
 
-/** Check for soecial search drive **/
+/** Check for special search drive **/
 bool IsSearchDrive(const char* path);
-
-/** Helper function for copying DirEntry structs */
-void DirEntryCpy(DirEntry* dest, const DirEntry* orig);

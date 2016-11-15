@@ -1029,63 +1029,6 @@ void CreateScreenshot() {
     FileSetData(filename, MAIN_BUFFER, 54 + (400 * 240 * 3 * 2), 0, true);
 }
 
-void DirEntryCpy(DirEntry* dest, const DirEntry* orig) {
-    memcpy(dest, orig, sizeof(DirEntry));
-    dest->name = dest->path + (orig->name - orig->path);
-}
-
-void SortDirStruct(DirStruct* contents) {
-    for (u32 s = 0; s < contents->n_entries; s++) {
-        DirEntry* cmp0 = &(contents->entry[s]);
-        DirEntry* min0 = cmp0;
-        if (cmp0->type == T_DOTDOT) continue;
-        for (u32 c = s + 1; c < contents->n_entries; c++) {
-            DirEntry* cmp1 = &(contents->entry[c]);
-            if (min0->type != cmp1->type) {
-                if (min0->type > cmp1->type)
-                    min0 = cmp1;
-                continue;
-            }
-            if (strncasecmp(min0->name, cmp1->name, 256) > 0)
-                min0 = cmp1;
-        }
-        if (min0 != cmp0) {
-            DirEntry swap; // swap entries and fix names
-            DirEntryCpy(&swap, cmp0);
-            DirEntryCpy(cmp0, min0);
-            DirEntryCpy(min0, &swap);
-        }
-    }
-}
-
-// inspired by http://www.geeksforgeeks.org/wildcard-character-matching/
-bool MatchName(const char *pattern, const char *path) {
-    // handling non asterisk chars
-    for (; *pattern != '*'; pattern++, path++) {
-        if ((*pattern == '\0') && (*path == '\0')) {
-            return true; // end reached simultaneously, match found
-        } else if ((*pattern == '\0') || (*path == '\0')) {
-            return false; // end reached on only one, failure
-        } else if ((*pattern != '?') && (tolower(*pattern) != tolower(*path))) {
-            return false; // chars don't match, failure
-        }
-    }
-    // handling the asterisk (matches one or more chars in path)
-    if ((*(pattern+1) == '?') || (*(pattern+1) == '*')) {
-        return false; // stupid user shenanigans, failure
-    } else if (*path == '\0') {
-        return false; // asterisk, but end reached on path, failure
-    } else if (*(pattern+1) == '\0') {
-        return true; // nothing after the asterisk, match found
-    } else { // we couldn't really go without recursion here
-        for (path++; *path != '\0'; path++) {
-            if (MatchName(pattern + 1, path)) return true;
-        }
-    }
-    
-    return false;
-}
-
 bool GetRootDirContentsWorker(DirStruct* contents) {
     static const char* drvname[] = {
         "SDCARD",
@@ -1103,7 +1046,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     u32 n_entries = 0;
     
     // virtual root objects hacked in
-    for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_ENTRIES); pdrv++) {
+    for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_DIR_ENTRIES); pdrv++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if (!DriveType(drvnum[pdrv])) continue; // drive not available
         memset(entry->path, 0x00, 64);
@@ -1122,24 +1065,6 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     contents->n_entries = n_entries;
     
     return contents->n_entries;
-}
-
-bool GetVirtualDirContentsWorker(DirStruct* contents, const char* path, const char* pattern) {
-    if (strchr(path, '/')) return false; // only top level paths
-    for (u32 n = 0; (n < virtualFileList_size) && (contents->n_entries < MAX_ENTRIES); n++) {
-        VirtualFile vfile;
-        DirEntry* entry = &(contents->entry[contents->n_entries]);
-        if (pattern && !MatchName(pattern, virtualFileList[n])) continue;
-        snprintf(entry->path, 256, "%s/%s", path, virtualFileList[n]);
-        if (!FindVirtualFile(&vfile, entry->path, 0)) continue;
-        entry->name = entry->path + strnlen(path, 256) + 1;
-        entry->size = vfile.size;
-        entry->type = T_FILE;
-        entry->marked = 0;
-        contents->n_entries++;
-    }
-    
-    return true; // not much we can check here
 }
 
 bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const char* pattern, bool recursive) {
@@ -1171,7 +1096,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
                 entry->size = fno.fsize;
             }
             entry->marked = 0;
-            if (contents->n_entries >= MAX_ENTRIES) {
+            if (contents->n_entries >= MAX_DIR_ENTRIES) {
                 ret = true; // Too many entries, still okay
                 break;
             }
@@ -1201,7 +1126,7 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         contents->entry->size = 0;
         contents->n_entries = 1;
         if (DriveType(path) & DRV_VIRTUAL) {
-            if (!GetVirtualDirContentsWorker(contents, path, pattern))
+            if (!GetVirtualDirContents(contents, path, pattern))
                 contents->n_entries = 0;
         } else {
             char fpath[256]; // 256 is the maximum length of a full path

@@ -19,27 +19,30 @@ static const VirtualFile vMemFileTemplates[] = {
     { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 }
 };
 
-bool FindVMemFile(VirtualFile* vfile, const char* name, u32 size) {
-    // parse the template list, get the correct one
-    u32 n_templates = sizeof(vMemFileTemplates) / sizeof(VirtualFile);
-    const VirtualFile* curr_template = NULL;
-    for (u32 i = 0; i < n_templates; i++) {
-        curr_template = &vMemFileTemplates[i];    
-        if (((strncasecmp(name, curr_template->name, 32) == 0) ||
-            (size && (curr_template->size == size)))) // search by size should be a last resort solution
-            break; 
-        curr_template = NULL;
+bool ReadVMemDir(VirtualFile* vfile) {
+    static int num = -1;
+    int n_templates = sizeof(vMemFileTemplates) / sizeof(VirtualFile);
+    const VirtualFile* templates = vMemFileTemplates;
+    
+    if (!vfile) { // NULL pointer -> reset dir reader / internal number
+        num = -1;
+        return true;
     }
-    if (!curr_template) return false;
     
-    // copy current template to vfile
-    memcpy(vfile, curr_template, sizeof(VirtualFile));
+    while (++num < n_templates) {
+        // copy current template to vfile
+        memcpy(vfile, templates + num, sizeof(VirtualFile));
+        
+        // process special flag
+        if ((vfile->flags & VFLAG_N3DS_ONLY) && (GetUnitPlatform() != PLATFORM_N3DS))
+            return false; // this is not on O3DS consoles
+        
+        // found if arriving here
+        return true;
+    }
+    if (num >= n_templates) return false;
     
-    // process special flag
-    if ((vfile->flags & VFLAG_N3DS_ONLY) && (GetUnitPlatform() != PLATFORM_N3DS))
-        return false; // this is not on O3DS consoles
-    
-    return true;
+    return false;
 }
 
 int ReadVMemFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {

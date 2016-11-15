@@ -34,41 +34,46 @@ bool CheckVNandDrive(u32 nand_src) {
     return GetNandSizeSectors(nand_src);
 }
 
-bool FindVNandFile(VirtualFile* vfile, u32 nand_src, const char* name, u32 size) {
-    // get virtual type (O3DS/N3DS/NO3DS)
-    u32 virtual_type = CheckNandType(nand_src);
-    // workaround if CheckNandType() comes up with no result (empty EmuNAND)
-    if (!virtual_type) virtual_type = (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
+bool ReadVNandDir(VirtualFile* vfile, u32 nand_src) {
+    static int num = -1;
+    int n_templates = sizeof(vNandFileTemplates) / sizeof(VirtualFile);
+    const VirtualFile* templates = vNandFileTemplates;
     
-    // parse the template list, get the correct one
-    u32 n_templates = sizeof(vNandFileTemplates) / sizeof(VirtualFile);
-    const VirtualFile* curr_template = NULL;
-    for (u32 i = 0; i < n_templates; i++) {
-        curr_template = &vNandFileTemplates[i];    
-        if ((curr_template->flags & virtual_type) && ((strncasecmp(name, curr_template->name, 32) == 0) ||
-            (size && (curr_template->size == size)))) // search by size should be a last resort solution
-            break; 
-        curr_template = NULL;
-    }
-    if (!curr_template) return false;
-    
-    // copy current template to vfile
-    memcpy(vfile, curr_template, sizeof(VirtualFile));
-    
-    // process special flags
-    if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
-        return false; // keyslot 0x05 not properly set up
-    if ((vfile->flags & VFLAG_NEEDS_OTP) && !CheckSector0x96Crypto())
-        return false; // sector 0x96 crypto not set up
-    if (!(nand_src & VRT_SYSNAND) || (*(vu32*) 0x101401C0))
-        vfile->flags &= ~VFLAG_A9LH_AREA; // flag is meaningless outside of A9LH / SysNAND
-    if (vfile->flags & VFLAG_NAND_SIZE) {
-        if ((nand_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
-            return false; // EmuNAND/ImgNAND is too small
-        vfile->size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
+    if (!vfile) { // NULL pointer -> reset dir reader / internal number
+        num = -1;
+        return true;
     }
     
-    return true;
+    while (++num < n_templates) { 
+        // get NAND type (O3DS/N3DS/NO3DS), workaround for empty EmuNAND
+        u32 nand_type = CheckNandType(nand_src);
+        if (!nand_type) nand_type = (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
+        
+        // copy current template to vfile
+        memcpy(vfile, templates + num, sizeof(VirtualFile));
+        
+        // process / check special flags
+        if (!(vfile->flags & nand_type))
+            continue; // virtual file has wrong NAND type
+        if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
+            continue; // keyslot 0x05 not properly set up
+        if ((vfile->flags & VFLAG_NEEDS_OTP) && !CheckSector0x96Crypto())
+            return false; // sector 0x96 crypto not set up
+        if (!(nand_src & VRT_SYSNAND) || (*(vu32*) 0x101401C0))
+            vfile->flags &= ~VFLAG_A9LH_AREA; // flag is meaningless outside of A9LH / SysNAND
+        if (vfile->flags & VFLAG_NAND_SIZE) {
+            if ((nand_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
+                continue; // EmuNAND/ImgNAND is too small
+            vfile->size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
+        }
+        
+        // found if arriving here
+        vfile->flags |= nand_src;
+        return true;
+    }
+    if (num >= n_templates) return false;
+    
+    return false;
 }
 
 int ReadVNandFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {

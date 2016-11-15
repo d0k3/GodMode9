@@ -26,8 +26,16 @@ bool CheckVirtualDrive(const char* path) {
     return virtual_src; // this is safe for SysNAND & memory
 }
 
-bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
-{
+bool ReadVirtualDir(VirtualFile* vfile, u32 virtual_src) {
+    if (virtual_src & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND)) {
+        return ReadVNandDir(vfile, virtual_src);
+    } else if (virtual_src & VRT_MEMORY) {
+        return ReadVMemDir(vfile);
+    }
+    return false;
+}
+
+bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size) {
     // get / fix the name
     char* fname = strchr(path, '/');
     if (!fname) return false;
@@ -39,17 +47,38 @@ bool FindVirtualFile(VirtualFile* vfile, const char* path, u32 size)
     if (!virtual_src || (fname - path != 3))
         return false;
     
-    // get virtual file struct from appropriate function
-    if (virtual_src & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND)) {
-        if (!FindVNandFile(vfile, virtual_src, fname, size)) return false;
-    } else if (virtual_src & VRT_MEMORY) {
-        if (!FindVMemFile(vfile, fname, size)) return false;
-    } else return false;
+    // read virtual dir, match the path / size
+    ReadVirtualDir(NULL, virtual_src); // reset dir reader
+    while (ReadVirtualDir(vfile, virtual_src)) {
+        vfile->flags |= virtual_src; // add source flag
+        if (((strncasecmp(fname, vfile->name, 32) == 0) ||
+            (size && (vfile->size == size)))) // search by size should be a last resort solution
+            return true; // file found
+    }
     
-    // add the virtual source to the virtual file flags
-    vfile->flags |= virtual_src;
+    // failed if arriving
+    return false;
+}
+
+bool GetVirtualDirContents(DirStruct* contents, const char* path, const char* pattern) {
+    u32 virtual_src = GetVirtualSource(path);
+    if (!virtual_src) return false; // not a virtual path
+    if (strchr(path, '/')) return false; // only top level paths
     
-    return true;
+    VirtualFile vfile;
+    ReadVirtualDir(NULL, virtual_src); // reset dir reader
+    while ((contents->n_entries < MAX_DIR_ENTRIES) && (ReadVirtualDir(&vfile, virtual_src))) {
+        DirEntry* entry = &(contents->entry[contents->n_entries]);
+        if (pattern && !MatchName(pattern, vfile.name)) continue;
+        snprintf(entry->path, 256, "%s/%s", path, vfile.name);
+        entry->name = entry->path + strnlen(path, 256) + 1;
+        entry->size = vfile.size;
+        entry->type = T_FILE;
+        entry->marked = 0;
+        contents->n_entries++;
+    }
+    
+    return true; // not much we can check here
 }
 
 int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read)
