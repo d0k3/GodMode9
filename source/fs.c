@@ -7,9 +7,6 @@
 #include "sdmmc.h"
 #include "ff.h"
 
-#define MAIN_BUFFER ((u8*)0x21200000)
-#define MAIN_BUFFER_SIZE (0x100000) // must be multiple of 0x200
-
 #define NORM_FS  10
 #define VIRT_FS  7
 

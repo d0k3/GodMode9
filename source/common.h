@@ -36,6 +36,27 @@
     ((((u64) getle32(d+4))<<32) | ((u64) getle32(d)))
 #define align(v,a) \
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
+    
+// GodMode9 version
+#define VERSION "0.7.4"
+
+// buffer area defines (in use by godmode.c)
+#define DIR_BUFFER          (0x21000000)
+#define WORK_BUFFER         ((u8*)0x21100000)
+#define DIR_BUFFER_SIZE     (0x100000)
+#define WORK_BUFFER_SIZE    (0x100000)
+// buffer area defines (in use by fs.c)
+#define MAIN_BUFFER         ((u8*)0x21200000)
+#define MAIN_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
+// buffer area defines (in use by nand.c)
+#define NAND_BUFFER         ((u8*)0x21300000)
+#define NAND_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
+// buffer area defines (in use by sddata.c)
+#define SDCRYPT_BUFFER      ((u8*)0x21400000)
+#define SDCRYPT_BUFFER_SIZE (0x100000)
+// buffer area defines (in use by cia.c)
+#define GAME_BUFFER         ((u8*)0x21500000)
+#define GAME_BUFFER_SIZE    (0x100000)
 
 inline u32 strchrcount(const char* str, char symbol) {
     u32 count = 0;

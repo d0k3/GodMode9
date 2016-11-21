@@ -7,11 +7,7 @@
 #include "virtual.h"
 #include "image.h"
 
-#define VERSION "0.7.3"
-
 #define N_PANES 2
-
-#define WORK_BUFFER     ((u8*)0x21100000)
 
 #define COLOR_TOP_BAR   ((GetWritePermissions() & (PERM_A9LH&~PERM_SYSNAND)) ? COLOR_DARKRED : (GetWritePermissions() & PERM_SYSNAND) ? COLOR_RED : (GetWritePermissions() & PERM_MEMORY) ? COLOR_BRIGHTBLUE : (GetWritePermissions() & (PERM_EMUNAND|PERM_IMAGE)) ? COLOR_BRIGHTYELLOW : GetWritePermissions() ? COLOR_BRIGHTGREEN : COLOR_WHITE)   
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
@@ -522,9 +518,9 @@ u32 GodMode() {
     u32 exit_mode = GODMODE_EXIT_REBOOT;
     
     // reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
-    static DirStruct* current_dir = (DirStruct*) 0x21000000;
-    static DirStruct* clipboard   = (DirStruct*) 0x21078000;
-    static PaneData* panedata     = (PaneData*)  0x210F0000;
+    static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
+    static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
+    static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
     PaneData* pane = panedata;
     char current_path[256] = { 0x00 };
     

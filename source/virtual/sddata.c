@@ -2,9 +2,6 @@
 #include "aes.h"
 #include "sha.h"
 
-#define SDCRYPT_BUFFER ((u8*)0x21400000)
-#define SDCRYPT_BUFFER_SIZE (0x100000)
-
 #define NUM_ALIAS_DRV 2
 #define NUM_FILCRYPTINFO 16
 
