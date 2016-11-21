@@ -85,7 +85,7 @@ void add_ctr(void* ctr, uint32_t carry)
     uint32_t sum;
     int32_t i;
 
-    for(i = 0; i < 4; i++) {
+    for(i=0; i < 4; i++) {
         counter[i] = ((uint32_t)outctr[i*4+0]<<24) | ((uint32_t)outctr[i*4+1]<<16) | ((uint32_t)outctr[i*4+2]<<8) | ((uint32_t)outctr[i*4+3]<<0);
     }
 
@@ -107,6 +107,46 @@ void add_ctr(void* ctr, uint32_t carry)
         outctr[i*4+1] = counter[i]>>16;
         outctr[i*4+2] = counter[i]>>8;
         outctr[i*4+3] = counter[i]>>0;
+    }
+}
+
+void ctr_decrypt_boffset(void *inbuf, void *outbuf, size_t size, size_t off, uint32_t mode, uint8_t *ctr)
+{
+    size_t bytes_left = size;
+    size_t off_fix = off % AES_BLOCK_SIZE;
+    uint8_t temp[AES_BLOCK_SIZE];
+    uint8_t ctr_local[16];
+    uint8_t *in  = inbuf;
+    uint8_t *out = outbuf;
+    uint32_t i;
+    
+    for (i=0; i<16; i++) // setup local ctr
+        ctr_local[i] = ctr[i];
+    add_ctr(ctr_local, off / AES_BLOCK_SIZE);
+    
+    if (off_fix) // handle misaligned offset (at beginning)
+    {
+        for (i=off_fix; i<AES_BLOCK_SIZE; i++)
+            temp[i] = *(in++);
+        ctr_decrypt(temp, temp, 1, mode, ctr_local);
+        for (i=off_fix; i<AES_BLOCK_SIZE; i++)
+            *(out++) = temp[i];
+        bytes_left -= AES_BLOCK_SIZE - off_fix;
+    }
+    
+    ctr_decrypt(in, out, bytes_left / AES_BLOCK_SIZE, mode, ctr_local);
+    in += AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+    out += AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+    bytes_left -= AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+    
+    if (bytes_left) // handle misaligned offset (at end)
+    {
+        for (i=0; i<bytes_left; i++)
+            temp[i] = *(in++);
+        ctr_decrypt(temp, temp, 1, mode, ctr_local);
+        for (i=0; i<bytes_left; i++)
+            *(out++) = temp[i];
+        bytes_left = 0;
     }
 }
 
