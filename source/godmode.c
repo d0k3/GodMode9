@@ -622,7 +622,7 @@ u32 GodMode() {
             const char* optionstr[5];
             u32 n_opt = 2;
             
-            u32 file_type = IdentifyImage(curr_entry->path);
+            u32 file_type = IdentifyFileType(curr_entry->path);
             u32 file_drvtype = DriveType(curr_entry->path);
             int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
