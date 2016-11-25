@@ -546,7 +546,6 @@ u32 GodMode() {
     if ((GetUnitPlatform() == PLATFORM_N3DS) && !CheckSlot0x05Crypto()) {
         if (!ShowPrompt(true, "Warning: slot0x05 crypto fail!\nCould not set up slot0x05keyY.\nContinue?")) {
             DeinitExtFS();
-            MountImage(NULL);
             DeinitSDCardFS();
             return exit_mode;
         }
@@ -733,8 +732,6 @@ u32 GodMode() {
             if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
                 clipboard->n_entries = 0; // remove SD clipboard entries
             DeinitExtFS();
-            if (GetMountState() != IMG_RAMDRV)
-                MountImage(NULL);
             DeinitSDCardFS();
             memset(panedata, 0x00, N_PANES * sizeof(PaneData));
             ShowString("SD card unmounted, you can eject now.\n \n<R+Y+\x1B> for format menu\n<A> to remount SD card");
@@ -936,8 +933,6 @@ u32 GodMode() {
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
                     clipboard->n_entries = 0; // remove SD clipboard entries
                 DeinitExtFS();
-                if (GetMountState() != IMG_RAMDRV)
-                    MountImage(NULL);
                 DeinitSDCardFS();
                 clipboard->n_entries = 0;
                 memset(panedata, 0x00, N_PANES * sizeof(PaneData));
@@ -957,7 +952,6 @@ u32 GodMode() {
     }
     
     DeinitExtFS();
-    MountImage(NULL);
     DeinitSDCardFS();
     
     return exit_mode;

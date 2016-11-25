@@ -69,6 +69,8 @@ void DeinitExtFS() {
 }
 
 void DeinitSDCardFS() {
+    if (GetMountState() != IMG_RAMDRV)
+        MountImage(NULL);
     if (fs_mounted[0]) {
         f_mount(NULL, "0:", 1);
         fs_mounted[0] = false;
