@@ -1,4 +1,5 @@
 #include "filetype.h"
+#include "cia.h"
 #include "ff.h"
 
 u32 IdentifyFileType(const char* path) {
@@ -29,6 +30,12 @@ u32 IdentifyFileType(const char* path) {
              (header[0x1BE + 0x4] == 0xB) || (header[0x1BE + 0x4] == 0xC) || (header[0x1BE + 0x4] == 0xE))) {
             return IMG_FAT; // this might be an MBR -> give it the benefit of doubt
         }
+    } else if (ValidateCiaHeader((CiaHeader*) header) == 0) {
+        // this only works because these functions ignore CIA content index
+        CiaInfo info;
+        GetCiaInfo(&info, (CiaHeader*) header);
+        if (fsize >= info.size_cia)
+            return GAME_CIA; // CIA file
     } // more to come
     
     return 0;

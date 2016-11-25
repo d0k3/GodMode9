@@ -5,6 +5,7 @@
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
+#include "vgame.h"
 #include "image.h"
 
 #define N_PANES 2
@@ -83,7 +84,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         int drvtype = DriveType(curr_entry->path);
         char drvstr[32];
         snprintf(drvstr, 31, "(%s%s)", 
-            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMDrive" :
+            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMDrive" : (drvtype & DRV_RAMDRIVE) ? "Game" :
             (drvtype & DRV_SYSNAND) ? "SysNAND" : (drvtype & DRV_EMUNAND) ? "EmuNAND" : (drvtype & DRV_IMAGE) ? "Image" :
             (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" : (drvtype & DRV_SEARCH) ? "Search" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
@@ -636,7 +637,9 @@ u32 GodMode() {
             optionstr[1] = "Calculate SHA-256";
             if (injectable) optionstr[injectable-1] = "Inject data @offset";
             if (mountable) optionstr[mountable-1] =
-                (file_type == IMG_NAND) ? "Mount as NAND image" : "Mount as FAT image";
+                (file_type == IMG_NAND) ? "Mount as NAND image" :
+                (file_type == IMG_FAT) ? "Mount as FAT image" :
+                (file_type == GAME_CIA) ? "Mount as CIA image" : ""; // !!! NCCH / NCSD
             if (searchdrv) optionstr[searchdrv-1] = "Open containing folder";
             
             u32 user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
@@ -683,7 +686,8 @@ u32 GodMode() {
                         ShowPrompt(false, "Failed injecting %s", origstr);
                     clipboard->n_entries = 0;
                 }
-            } else if ((int) user_select == mountable) { // -> mount as image
+            } else if (((int) user_select == mountable) && // -> mount as NAND / FAT image
+                ((file_type == IMG_NAND) || (file_type == IMG_FAT))) {
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 DeinitExtFS();
@@ -694,6 +698,17 @@ u32 GodMode() {
                     DeinitExtFS();
                     MountImage(NULL);
                     InitExtFS();
+                } else {
+                    *current_path = '\0';
+                    GetDirContents(current_dir, current_path);
+                    cursor = 0;
+                }
+            } else if ((int) user_select == mountable) { // -> mount as game image
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_GAME))
+                    clipboard->n_entries = 0; // remove last mounted game clipboard entries
+                if (!MountVGameFile(curr_entry->path)) {
+                    ShowPrompt(false, "Mounting game: failed");
+                    MountVGameFile(NULL);
                 } else {
                     *current_path = '\0';
                     GetDirContents(current_dir, current_path);

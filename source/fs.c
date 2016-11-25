@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "fs.h"
 #include "virtual.h"
+#include "vgame.h"
 #include "sddata.h"
 #include "image.h"
 #include "sha.h"
@@ -8,7 +9,7 @@
 #include "ff.h"
 
 #define NORM_FS  10
-#define VIRT_FS  7
+#define VIRT_FS  8
 
 #define SKIP_CUR (1<<3)
 #define OVERWRITE_CUR (1<<4)
@@ -71,6 +72,7 @@ void DeinitExtFS() {
 void DeinitSDCardFS() {
     if (GetMountState() != IMG_RAMDRV)
         MountImage(NULL);
+    MountVGameFile(NULL);
     if (fs_mounted[0]) {
         f_mount(NULL, "0:", 1);
         fs_mounted[0] = false;
@@ -135,6 +137,8 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_IMAGE;
         } else if (vsrc == VRT_MEMORY) {
             type = DRV_VIRTUAL | DRV_MEMORY;
+        } else if (vsrc == VRT_GAME) {
+            type = DRV_VIRTUAL | DRV_GAME;
         } 
     } else if (CheckAliasDrive(path)) {
         type = DRV_FAT | DRV_ALIAS;
@@ -225,6 +229,9 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
         snprintf(area_name, 16, "memory areas");
+    } else if (drvtype & DRV_GAME) {
+        perm = PERM_GAME;
+        snprintf(area_name, 16, "game images");
     } else if ((drvtype & DRV_ALIAS) || (strncmp(path, "0:/Nintendo 3DS", 15) == 0)) {
         perm = PERM_SDDATA;
         snprintf(area_name, 16, "SD system data");
@@ -297,6 +304,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
                 return false;
             break;
         default:
+            ShowPrompt(false, "Unlock write permission is not allowed.");
             return false;
             break;
         #else
@@ -1035,12 +1043,13 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP",
         "SYSNAND SD", "EMUNAND SD",
+        "GAME IMAGE",
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
         "MEMORY VIRTUAL",
         "LAST SEARCH"
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "A:", "B:", "S:", "E:", "I:", "M:", "Z:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "A:", "B:", "G:", "S:", "E:", "I:", "M:", "Z:"
     };
     u32 n_entries = 0;
     

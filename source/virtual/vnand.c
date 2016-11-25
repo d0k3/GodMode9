@@ -71,7 +71,6 @@ bool ReadVNandDir(VirtualFile* vfile, u32 nand_src) {
         vfile->flags |= nand_src;
         return true;
     }
-    if (num >= n_templates) return false;
     
     return false;
 }

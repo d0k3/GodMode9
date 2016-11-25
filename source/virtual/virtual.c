@@ -1,13 +1,15 @@
 #include "virtual.h"
 #include "vnand.h"
 #include "vmem.h"
+#include "vgame.h"
 
 typedef struct {
     char drv_letter;
     u32 virtual_src;
 } __attribute__((packed)) VirtualDrive;
 
-static const VirtualDrive virtualDrives[] = { {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'M', VRT_MEMORY} };
+static const VirtualDrive virtualDrives[] =
+    { {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'M', VRT_MEMORY}, {'G', VRT_GAME} };
 
 u32 GetVirtualSource(const char* path) {
     // check path validity
@@ -23,6 +25,8 @@ bool CheckVirtualDrive(const char* path) {
     u32 virtual_src = GetVirtualSource(path);
     if (virtual_src & (VRT_EMUNAND|VRT_IMGNAND))
         return CheckVNandDrive(virtual_src); // check virtual NAND drive for EmuNAND / ImgNAND
+    else if (virtual_src & VRT_GAME)
+        return CheckVGameDrive();
     return virtual_src; // this is safe for SysNAND & memory
 }
 
@@ -31,6 +35,10 @@ bool ReadVirtualDir(VirtualFile* vfile, u32 virtual_src) {
         return ReadVNandDir(vfile, virtual_src);
     } else if (virtual_src & VRT_MEMORY) {
         return ReadVMemDir(vfile);
+    } else if (virtual_src & VRT_MEMORY) {
+        return ReadVMemDir(vfile);
+    } else if (virtual_src & VRT_GAME) {
+        return ReadVGameDir(vfile, NULL);
     }
     return false;
 }
@@ -111,6 +119,8 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count,
         return ReadVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return ReadVMemFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_GAME) {
+        return ReadVGameFile(vfile, buffer, offset, count);
     }
     
     return -1;
@@ -129,7 +139,7 @@ int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32
         return WriteVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return WriteVMemFile(vfile, buffer, offset, count);
-    }
+    } // no write support for virtual game files
     
     return -1;
 }

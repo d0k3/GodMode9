@@ -40,7 +40,6 @@ bool ReadVMemDir(VirtualFile* vfile) {
         // found if arriving here
         return true;
     }
-    if (num >= n_templates) return false;
     
     return false;
 }

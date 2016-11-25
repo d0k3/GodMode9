@@ -38,7 +38,7 @@
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
     
 // GodMode9 version
-#define VERSION "0.7.5"
+#define VERSION "0.7.6"
 
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x21000000)
@@ -57,6 +57,9 @@
 // buffer area defines (in use by cia.c)
 #define GAME_BUFFER         ((u8*)0x21500000)
 #define GAME_BUFFER_SIZE    (0x100000)
+// buffer area defines (in use by vgame.c)
+#define VGAME_BUFFER        ((u8*)0x21600000)
+#define VGAME_BUFFER_SIZE   (0x100000)
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER_O3DS  ((u8*)0x22200000) // in O3DS FCRAM
 #define RAMDRV_SIZE_O3DS    (0x01C00000) // 28MB
