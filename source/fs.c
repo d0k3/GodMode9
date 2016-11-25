@@ -329,21 +329,6 @@ u32 GetWritePermissions() {
     return write_permissions;
 }
 
-bool GetTempFileName(char* path) {
-    // this assumes path is initialized with enough room
-    char* tempname = strrchr(path, '/');
-    if (!tempname) return false;
-    tempname++;
-    strncpy(tempname, "AAAAAAAA.TMP", 255 - (tempname - path));
-    char* cc = tempname;
-    // this does not try all permutations
-    for (; (*cc <= 'Z') && (cc - tempname < 8); (*cc)++) {
-        if (fa_stat(path, NULL) != FR_OK) break;
-        if (*cc == 'Z') cc++;
-    }
-    return (cc - tempname < 8) ? true : false;
-}
-
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
     int drvtype = DriveType(path);
     if (!CheckWritePermissions(path)) return false;
@@ -985,19 +970,7 @@ bool PathRename(const char* path, const char* newname) {
     strncpy(npath, path, oldname - path);
     strncpy(npath + (oldname - path), newname, 255 - (oldname - path));
     
-    FRESULT res = f_rename(path, npath);
-    if (res == FR_EXIST) { // new path already exists (possible LFN/case issue)
-        char temp[256];
-        strncpy(temp, path, oldname - path);
-        if (!GetTempFileName(temp)) return false;
-        if (f_rename(path, temp) == FR_OK) {
-            if ((fa_stat(npath, NULL) == FR_OK) || (f_rename(temp, npath) != FR_OK)) {
-                ShowPrompt(false, "Destination exists in folder");
-                f_rename(temp, path); // something went wrong - try renaming back
-                return false;
-            } else return true;
-        } else return false;
-    } else return (res == FR_OK) ? true : false;
+    return (f_rename(path, npath) == FR_OK);
 }
 
 bool DirCreate(const char* cpath, const char* dirname) {
