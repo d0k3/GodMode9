@@ -2,11 +2,6 @@
 #include "platform.h"
 #include "ff.h"
 
-#define RAMDRV_BUFFER_O3DS ((u8*)0x22200000) // in O3DS FCRAM
-#define RAMDRV_SIZE_O3DS (0x01C00000) // 28MB
-#define RAMDRV_BUFFER_N3DS ((u8*)0x28000000) // in N3DS FCRAM
-#define RAMDRV_SIZE_N3DS (0x08000000) // 128MB
-
 static u8* ramdrv_buffer = NULL;
 static u32 ramdrv_size = 0;
 

@@ -57,6 +57,11 @@
 // buffer area defines (in use by cia.c)
 #define GAME_BUFFER         ((u8*)0x21500000)
 #define GAME_BUFFER_SIZE    (0x100000)
+// buffer area defines (in use by image.c, for RAMdrive)
+#define RAMDRV_BUFFER_O3DS  ((u8*)0x22200000) // in O3DS FCRAM
+#define RAMDRV_SIZE_O3DS    (0x01C00000) // 28MB
+#define RAMDRV_BUFFER_N3DS  ((u8*)0x28000000) // in N3DS FCRAM
+#define RAMDRV_SIZE_N3DS    (0x08000000) // 128MB
 
 inline u32 strchrcount(const char* str, char symbol) {
     u32 count = 0;
