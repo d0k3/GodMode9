@@ -66,13 +66,18 @@ void DeinitExtFS() {
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = false;
         }
+        if ((i == 7) && (GetMountState() != IMG_RAMDRV)) { // unmount image
+            MountImage(NULL);
+            InitVGameDrive();
+        }
     }
 }
 
 void DeinitSDCardFS() {
-    if (GetMountState() != IMG_RAMDRV)
+    if (GetMountState() != IMG_RAMDRV) {
         MountImage(NULL);
-    MountVGameFile(NULL);
+        InitVGameDrive();
+    }
     if (fs_mounted[0]) {
         f_mount(NULL, "0:", 1);
         fs_mounted[0] = false;
@@ -138,7 +143,7 @@ int DriveType(const char* path) {
         } else if (vsrc == VRT_MEMORY) {
             type = DRV_VIRTUAL | DRV_MEMORY;
         } else if (vsrc == VRT_GAME) {
-            type = DRV_VIRTUAL | DRV_GAME;
+            type = DRV_VIRTUAL | DRV_GAME | DRV_IMAGE;
         } 
     } else if (CheckAliasDrive(path)) {
         type = DRV_FAT | DRV_ALIAS;
@@ -1015,14 +1020,14 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP",
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP",
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP",
-        "SYSNAND SD", "EMUNAND SD",
         "GAME IMAGE",
+        "SYSNAND SD", "EMUNAND SD",
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
         "MEMORY VIRTUAL",
         "LAST SEARCH"
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "A:", "B:", "G:", "S:", "E:", "I:", "M:", "Z:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "G:", "A:", "B:", "S:", "E:", "I:", "M:", "Z:"
     };
     u32 n_entries = 0;
     

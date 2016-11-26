@@ -8,38 +8,47 @@ static u32 ramdrv_size = 0;
 static FIL mount_file;
 static u32 mount_state = 0;
 
-int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
+
+int ReadImageBytes(u8* buffer, u32 offset, u32 count) {
     UINT bytes_read;
     UINT ret;
     if (!count) return -1;
     if (mount_state == IMG_RAMDRV) {
-        if ((sector + count) * 0x200 > ramdrv_size) return -1;
-        memcpy(buffer, ramdrv_buffer + (sector * 0x200), count * 0x200);
+        if ((offset + count) > ramdrv_size) return -1;
+        memcpy(buffer, ramdrv_buffer + (offset), count);
         return 0;
     }
     if (!mount_state) return FR_INVALID_OBJECT;
-    if (f_tell(&mount_file) != sector * 0x200) {
-        if (f_size(&mount_file) < sector * 0x200) return -1;
-        f_lseek(&mount_file, sector * 0x200); 
+    if (f_tell(&mount_file) != offset) {
+        if (f_size(&mount_file) < offset) return -1;
+        f_lseek(&mount_file, offset); 
     }
-    ret = f_read(&mount_file, buffer, count * 0x200, &bytes_read);
-    return (ret != 0) ? (int) ret : (bytes_read != count * 0x200) ? -1 : 0;
+    ret = f_read(&mount_file, buffer, count, &bytes_read);
+    return (ret != 0) ? (int) ret : (bytes_read != count) ? -1 : 0;
 }
 
-int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
+int WriteImageBytes(const u8* buffer, u32 offset, u32 count) {
     UINT bytes_written;
     UINT ret;
     if (!count) return -1;
     if (mount_state == IMG_RAMDRV) {
-        if ((sector + count) * 0x200 > ramdrv_size) return -1;
-        memcpy(ramdrv_buffer + (sector * 0x200), buffer, count * 0x200);
+        if ((offset + count) > ramdrv_size) return -1;
+        memcpy(ramdrv_buffer + (offset), buffer, count);
         return 0;
     }
     if (!mount_state) return FR_INVALID_OBJECT;
-    if (f_tell(&mount_file) != sector * 0x200)
-        f_lseek(&mount_file, sector * 0x200);
-    ret = f_write(&mount_file, buffer, count * 0x200, &bytes_written);
-    return (ret != 0) ? (int) ret : (bytes_written != count * 0x200) ? -1 : 0;
+    if (f_tell(&mount_file) != offset)
+        f_lseek(&mount_file, offset);
+    ret = f_write(&mount_file, buffer, count, &bytes_written);
+    return (ret != 0) ? (int) ret : (bytes_written != count) ? -1 : 0;
+}
+
+int ReadImageSectors(u8* buffer, u32 sector, u32 count) {
+    return ReadImageBytes(buffer, sector * 0x200, count * 0x200);
+}
+
+int WriteImageSectors(const u8* buffer, u32 sector, u32 count) {
+    return WriteImageBytes(buffer, sector * 0x200, count * 0x200);
 }
 
 int SyncImage(void) {
@@ -76,7 +85,6 @@ u32 MountImage(const char* path) {
         mount_state = 0;
     }
     if (!path || !type) return 0;
-    if ((type != IMG_FAT) && (type != IMG_NAND)) return 0;
     if (f_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
         return 0;
     f_lseek(&mount_file, 0);

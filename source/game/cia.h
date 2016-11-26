@@ -108,6 +108,7 @@ typedef struct {
     CiaHeader header;
     u8 header_padding[0x40 - (CIA_HEADER_SIZE % 0x40)];
     u8 cert[CIA_CERT_SIZE];
+    // cert is aligned and needs no padding
     Ticket ticket;
     u8 ticket_padding[0x40 - (CIA_TICKET_SIZE % 0x40)];
     TitleMetaData tmd;

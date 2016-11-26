@@ -4,7 +4,7 @@
 #include "filetype.h"
 #include "virtual.h"
 
-u32 MountVGameFile(const char* path);
+u32 InitVGameDrive(void);
 u32 CheckVGameDrive(void);
 
 bool ReadVGameDir(VirtualFile* vfile, const char* path);

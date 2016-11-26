@@ -686,29 +686,18 @@ u32 GodMode() {
                         ShowPrompt(false, "Failed injecting %s", origstr);
                     clipboard->n_entries = 0;
                 }
-            } else if (((int) user_select == mountable) && // -> mount as NAND / FAT image
-                ((file_type == IMG_NAND) || (file_type == IMG_FAT))) {
+            } else if ((int) user_select == mountable) { // -> mount file as image
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 DeinitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
-                if (!mount_state || !(DriveType("7:")||DriveType("8:")||DriveType("9:"))) {
+                InitVGameDrive();
+                if (!mount_state || !(DriveType("7:")||DriveType("8:")||DriveType("9:")||DriveType("G:"))) {
                     ShowPrompt(false, "Mounting image: failed");
                     DeinitExtFS();
-                    MountImage(NULL);
                     InitExtFS();
-                } else {
-                    *current_path = '\0';
-                    GetDirContents(current_dir, current_path);
-                    cursor = 0;
-                }
-            } else if ((int) user_select == mountable) { // -> mount as game image
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_GAME))
-                    clipboard->n_entries = 0; // remove last mounted game clipboard entries
-                if (!MountVGameFile(curr_entry->path)) {
-                    ShowPrompt(false, "Mounting game: failed");
-                    MountVGameFile(NULL);
+                    InitVGameDrive();
                 } else {
                     *current_path = '\0';
                     GetDirContents(current_dir, current_path);
@@ -808,9 +797,9 @@ u32 GodMode() {
             if (switched && (pad_state & BUTTON_X)) { // unmount image
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                DeinitExtFS();
                 if (!GetMountState()) MountRamDrive();
                 else MountImage(NULL);
+                DeinitExtFS();
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_Y)) {

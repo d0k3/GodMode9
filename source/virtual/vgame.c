@@ -1,4 +1,5 @@
 #include "vgame.h"
+#include "image.h"
 #include "game.h"
 #include "aes.h"
 #include "ff.h"
@@ -13,41 +14,38 @@
 #define NAME_CIA_META       "meta.bin"
 #define NAME_CIA_CONTENT    "%04X.%08lX.app" // index.id.app
 
-static FIL mount_file;
-static u32 mount_state = 0;
-
+static u32 vgame_type = 0;
 static VirtualFile* templates = (VirtualFile*) VGAME_BUFFER; // first 128kb reserved
 static int n_templates = -1;
 
 static CiaStub* cia = (CiaStub*) (VGAME_BUFFER + 0xF4000); // 48kB reserved - should be enough by far
-static u8 titlekey[16];
 
-u32 MountVGameFile(const char* path) {
-    u32 type = IdentifyFileType(path);
-    if (mount_state) {
-        f_close(&mount_file);
-        mount_state = 0;
-    }
-    if (!path || !type) return 0;
+u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
+    u32 type = GetMountState();
+    vgame_type = 0;
     if (type == GAME_CIA) { // for CIAs: load the CIA stub and keep it in memory
-        LoadCiaStub(cia, path);
-        GetTitleKey(titlekey, &(cia->ticket));
-    } else return 0; // NCSD / NCCH handling still required
-    if (f_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
-        return false;
-    f_lseek(&mount_file, false);
-    f_sync(&mount_file);
-    return (mount_state = type);
+        CiaInfo info;
+        if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
+            (ValidateCiaHeader(&(cia->header)) != 0) ||
+            (GetCiaInfo(&info, &(cia->header)) != 0) ||
+            (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
+            return 0;
+    } else if ((type == GAME_NCCH) || (type == GAME_NCSD)) {
+    } else return 0; // not a mounted game file
+    
+    vgame_type = type;
+    return type;
 }
 
 u32 CheckVGameDrive(void) {
-    return mount_state;
+    if (vgame_type != GetMountState()) vgame_type = 0; // very basic sanity check
+    return vgame_type;
 }
 
 bool BuildVGameCiaVDir(void) {
     CiaInfo info;
     
-    if ((mount_state != GAME_CIA) || (GetCiaInfo(&info, &(cia->header)) != 0))
+    if ((CheckVGameDrive() != GAME_CIA) || (GetCiaInfo(&info, &(cia->header)) != 0))
         return false; // safety check
     
     // header
@@ -153,16 +151,9 @@ bool ReadVGameDir(VirtualFile* vfile, const char* path) {
 }
 
 int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
-    UINT bytes_read;
-    UINT ret;
     u32 vfoffset = vfile->offset;
-    if (!count) return -1;
-    if (!mount_state) return FR_INVALID_OBJECT;
-    if (f_tell(&mount_file) != vfoffset + offset) {
-        if (f_size(&mount_file) < vfoffset + offset) return -1;
-        f_lseek(&mount_file, vfoffset + offset); 
-    }
-    ret = f_read(&mount_file, buffer, count, &bytes_read);
+    int ret = ReadImageBytes(buffer, vfoffset + offset, count);
+    if (ret != 0) return ret;
     /*if ((ret != 0) && (vfile->keyslot <= 0x40)) { // crypto
         // relies on first template being the header and everything aligned to AES_BLOCK_SIZE
         u32 offset_base = 0; // vfoffset - (*templates).offset;
@@ -174,5 +165,5 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
         ctr_decrypt_boffset(buffer, buffer, bytes_read, offset - offset_base,
             AES_CNT_TITLEKEY_DECRYPT_MODE, ctr);
     }*/
-    return (ret != 0) ? (int) ret : (bytes_read != count) ? -1 : 0;
+    return 0;
 }
