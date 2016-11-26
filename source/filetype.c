@@ -1,5 +1,5 @@
 #include "filetype.h"
-#include "cia.h"
+#include "game.h"
 #include "ff.h"
 
 u32 IdentifyFileType(const char* path) {
@@ -36,7 +36,10 @@ u32 IdentifyFileType(const char* path) {
         GetCiaInfo(&info, (CiaHeader*) header);
         if (fsize >= info.size_cia)
             return GAME_CIA; // CIA file
-    } // more to come
+    } else if (ValidateNcsdHeader((NcsdHeader*) header) == 0) {
+        if (fsize >= (((NcsdHeader*) header)->size * NCSD_MEDIA_UNIT))
+            return GAME_NCSD; // NCSD (".3DS") file
+    } // NCCH still missing
     
     return 0;
 }

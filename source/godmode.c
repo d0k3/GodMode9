@@ -639,7 +639,8 @@ u32 GodMode() {
             if (mountable) optionstr[mountable-1] =
                 (file_type == IMG_NAND) ? "Mount as NAND image" :
                 (file_type == IMG_FAT) ? "Mount as FAT image" :
-                (file_type == GAME_CIA) ? "Mount as CIA image" : ""; // !!! NCCH / NCSD
+                (file_type == GAME_CIA) ? "Mount as CIA image" :
+                (file_type == GAME_NCSD) ? "Mount as NCSD image" : ""; // !!! NCCH
             if (searchdrv) optionstr[searchdrv-1] = "Open containing folder";
             
             u32 user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);

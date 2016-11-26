@@ -14,10 +14,18 @@
 #define NAME_CIA_META       "meta.bin"
 #define NAME_CIA_CONTENT    "%04X.%08lX.app" // index.id.app
 
+#define NAME_NCSD_HEADER    "ncsd.bin"
+#define NAME_NCSD_CARDINFO  "cardinfo.bin"
+#define NAME_NCSD_DEVINFO   "devinfo.bin"
+#define NAME_NCSD_CONTENT   "cnt0.game.cxi", "cnt1.manual.cfa", "cnt2.dlp.cfa", \
+                            "cnt3.unk", "cnt4.unk", "cnt5.unk", \
+                            "cnt6.update_n3ds.cfa", "cnt7.update_o3ds.cfa"
+
 static u32 vgame_type = 0;
 static VirtualFile* templates = (VirtualFile*) VGAME_BUFFER; // first 128kb reserved
 static int n_templates = -1;
 
+static NcsdHeader* ncsd = (NcsdHeader*) (VGAME_BUFFER + 0xF3000); // needs only 512 byte
 static CiaStub* cia = (CiaStub*) (VGAME_BUFFER + 0xF4000); // 48kB reserved - should be enough by far
 
 u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
@@ -30,7 +38,11 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
             (GetCiaInfo(&info, &(cia->header)) != 0) ||
             (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
             return 0;
-    } else if ((type == GAME_NCCH) || (type == GAME_NCSD)) {
+    } else if (type == GAME_NCSD) {
+        if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
+            (ValidateNcsdHeader(ncsd) != 0))
+            return 0;
+    } else if (type == GAME_NCCH) {
     } else return 0; // not a mounted game file
     
     vgame_type = type;
@@ -42,6 +54,56 @@ u32 CheckVGameDrive(void) {
     return vgame_type;
 }
 
+bool BuildVGameNcsdVDir(void) {
+    const char* name_content[] = { NAME_NCSD_CONTENT };
+    
+    if (CheckVGameDrive() != GAME_NCSD)
+        return false; // safety check
+    
+    // header
+    strncpy(templates[n_templates].name, NAME_NCSD_HEADER, 32);
+    templates[n_templates].offset = 0;
+    templates[n_templates].size = 0x200;
+    templates[n_templates].keyslot = 0xFF;
+    templates[n_templates].flags = 0;
+    n_templates++;
+    
+    // card info header
+    if (ncsd->partitions[0].offset * NCSD_MEDIA_UNIT >= 0x1200) {
+        strncpy(templates[n_templates].name, NAME_NCSD_CARDINFO, 32);
+        templates[n_templates].offset = 0x200;
+        templates[n_templates].size = 0x1000;
+        templates[n_templates].keyslot = 0xFF;
+        templates[n_templates].flags = 0;
+        n_templates++;
+    }
+    
+    // dev info header
+    if (ncsd->partitions[0].offset * NCSD_MEDIA_UNIT >= 0x1500) {
+        strncpy(templates[n_templates].name, NAME_NCSD_DEVINFO, 32);
+        templates[n_templates].offset = 0x1200;
+        templates[n_templates].size = 0x300;
+        templates[n_templates].keyslot = 0xFF;
+        templates[n_templates].flags = 0;
+        n_templates++;
+    }
+    
+    // contents
+    for (u32 i = 0; i < 8; i++) {
+        NcchPartition* partition = ncsd->partitions + i;
+        if ((partition->offset == 0) && (partition->size == 0))
+            continue;
+        strncpy(templates[n_templates].name, name_content[i], 32);
+        templates[n_templates].offset = partition->offset * NCSD_MEDIA_UNIT;
+        templates[n_templates].size = partition->size * NCSD_MEDIA_UNIT;
+        templates[n_templates].keyslot = 0xFF; // even for encrypted stuff
+        templates[n_templates].flags = 0; // this handles encryption
+        n_templates++;
+    }
+    
+    return true;
+}
+    
 bool BuildVGameCiaVDir(void) {
     CiaInfo info;
     
@@ -129,6 +191,7 @@ bool BuildVGameCiaVDir(void) {
 }
 
 bool ReadVGameDir(VirtualFile* vfile, const char* path) {
+    
     (void) path; // not in use yet
     static int num = -1;
     
@@ -136,9 +199,11 @@ bool ReadVGameDir(VirtualFile* vfile, const char* path) {
         num = -1; // reset dir reader / internal number
         memset(templates, 0, sizeof(VirtualFile) * MAX_N_TEMPLATES);
         n_templates = 0;
-        if (!BuildVGameCiaVDir()) // NCCH / NCSD !!!
-            return false;
-        return true;
+        if ((vgame_type == GAME_CIA) && BuildVGameCiaVDir()) // for CIA
+            return true;
+        else if ((vgame_type == GAME_NCSD) && BuildVGameNcsdVDir()) // for NCSD
+            return true;
+        return false;
     }
     
     if (++num < n_templates) {
