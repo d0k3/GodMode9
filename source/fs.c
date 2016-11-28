@@ -129,7 +129,8 @@ int DriveType(const char* path) {
             type = DRV_FAT | DRV_SYSNAND | DRV_STDFAT;
         } else if ((pdrv >= 4) && (pdrv <= 6)) {
             type = DRV_FAT | DRV_EMUNAND | DRV_STDFAT;
-        }  else if ((pdrv >= 7) && (pdrv <= 9)) {
+        }  else if ((pdrv >= 7) && (pdrv <= 9) &&
+            ((GetMountState() == IMG_FAT) || (GetMountState() == IMG_NAND))) {
             type = DRV_FAT | DRV_IMAGE | DRV_STDFAT;
         }    
     } else if (CheckVirtualDrive(path)) {
