@@ -3,7 +3,7 @@
 #include "ff.h"
 
 u32 IdentifyFileType(const char* path) {
-    u8 header[0x200]; // minimum required size
+    u8 __attribute__((aligned(16))) header[0x200]; // minimum required size
     FIL file;
     if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 0;
@@ -37,9 +37,14 @@ u32 IdentifyFileType(const char* path) {
         if (fsize >= info.size_cia)
             return GAME_CIA; // CIA file
     } else if (ValidateNcsdHeader((NcsdHeader*) header) == 0) {
-        if (fsize >= (((NcsdHeader*) header)->size * NCSD_MEDIA_UNIT))
+        NcsdHeader* ncsd = (NcsdHeader*) header;
+        if (fsize >= (ncsd->size * NCSD_MEDIA_UNIT))
             return GAME_NCSD; // NCSD (".3DS") file
-    } // NCCH still missing
+    } else if (ValidateNcchHeader((NcchHeader*) header) == 0) {
+        NcchHeader* ncch = (NcchHeader*) header;
+        if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
+            return GAME_NCCH; // NCSD (".3DS") file
+    }
     
     return 0;
 }

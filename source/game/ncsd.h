@@ -2,15 +2,19 @@
 
 #include "common.h"
 
-#define NCSD_MEDIA_UNIT 0x200
+#define NCSD_MEDIA_UNIT     0x200
 
-// see: https://www.3dbrew.org/wiki/NCSD
+#define NCSD_CINFO_OFFSET   0x200
+#define NCSD_CINFO_SIZE     0x1000
+#define NCSD_DINFO_OFFSET   0x1200
+#define NCSD_DINFO_SIZE     0x300
+
 typedef struct {
 	u32 offset;
 	u32 size;
 } __attribute__((packed)) NcchPartition;
 
-// see: https://www.3dbrew.org/wiki/NCSD
+// see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
 typedef struct {
 	u8  signature[0x100];
 	u8  magic[4];
@@ -25,6 +29,6 @@ typedef struct {
 	u8  partition_flags[8];
 	u8  partitionId_table[8][8];
 	u8  reserved[0x40];
-} __attribute__((packed, aligned(16))) NcsdHeader;
+} __attribute__((packed)) NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);

@@ -15,8 +15,8 @@
 // virtual file flag (subject to change):
 // bits 0...9  : reserved for NAND virtual sources and info
 // bits 10...15: reserved for other virtual sources
-// bits 16...23: reserved for external flags
-// bits 24...31: reserved for internal flags (different per source)
+// bits 16...19: reserved for external flags
+// bits 20...31: reserved for internal flags (different per source)
 typedef struct {
     char name[32];
     u32 offset; // must be a multiple of 0x200 (for NAND access)
