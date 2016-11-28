@@ -901,8 +901,8 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     int odrvtype = DriveType(orig);
     if ((ddrvtype | odrvtype) & DRV_VIRTUAL) {
         // users are inventive...
-        if (!(odrvtype & (DRV_SDCARD|DRV_VIRTUAL)) && (ddrvtype & DRV_VIRTUAL)) {
-            ShowPrompt(false, "Only files from SD card are accepted");
+        if (!(odrvtype & (DRV_SDCARD|DRV_RAMDRIVE|DRV_VIRTUAL)) && (ddrvtype & DRV_VIRTUAL)) {
+            ShowPrompt(false, "Only files from SD card or\nramdrive are accepted");
             return false;
         }
         return PathCopyVirtual(destdir, orig, flags);
