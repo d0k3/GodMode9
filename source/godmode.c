@@ -704,6 +704,8 @@ u32 GodMode() {
                     *current_path = '\0';
                     GetDirContents(current_dir, current_path);
                     cursor = 0;
+                    for (u32 i = current_dir->n_entries - 1; i > 0; i--)
+                        if (strspn(current_dir->entry[i].path, "789GI") > 0) cursor = i;
                 }
             } else if ((int) user_select == searchdrv) { // -> search drive, open containing path
                 char* last_slash = strrchr(curr_entry->path, '/');
