@@ -8,6 +8,7 @@
 FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode);
 FRESULT fx_read (FIL* fp, void* buff, UINT btr, UINT* br);
 FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw);
+FRESULT fx_close (FIL* fp);
 
 void dealias_path (TCHAR* alias, const TCHAR* path);
 FRESULT fa_open (FIL* fp, const TCHAR* path, BYTE mode);

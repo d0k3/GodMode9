@@ -44,6 +44,7 @@ bool InitExtFS() {
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
+        if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
         if ((i == 7) && !fs_mounted[7] && (GetMountState() == IMG_RAMDRV)) {
             f_mkfs("7:", FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE); // format ramdrive if required
@@ -345,7 +346,7 @@ bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, 
             return false;
         f_lseek(&file, foffset);
         fx_write(&file, data, size, &bytes_written);
-        f_close(&file);
+        fx_close(&file);
         return (bytes_written == size);
     } else if (drvtype & DRV_VIRTUAL) {
         VirtualFile vfile;
@@ -365,10 +366,10 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
             return 0;
         f_lseek(&file, foffset);
         if (fx_read(&file, data, size, &bytes_read) != FR_OK) {
-            f_close(&file);
+            fx_close(&file);
             return 0;
         }
-        f_close(&file);
+        fx_close(&file);
         return bytes_read;
     } else if (drvtype & DRV_VIRTUAL) {
         u32 bytes_read = 0;
@@ -435,7 +436,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
                 ret = false;
             sha_update(MAIN_BUFFER, bytes_read);
         }
-        f_close(&file);
+        fx_close(&file);
     }
     ShowProgress(1, 1, path);
     sha_get(sha256);
@@ -511,14 +512,14 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     if (DriveType(orig) & DRV_VIRTUAL) {
         vorig = true;
         if (!GetVirtualFile(&ovfile, orig)) {
-            if (!vdest) f_close(&dfile);
+            if (!vdest) fx_close(&dfile);
             return false;
         }
         osize = ovfile.size;
     } else {
         vorig = false;
         if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
-            if (!vdest) f_close(&dfile);
+            if (!vdest) fx_close(&dfile);
             return false;
         }
         osize = f_size(&ofile);
@@ -529,8 +530,8 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     // check file limits
     if (offset + osize > dsize) {
         ShowPrompt(false, "Operation would write beyond end of file");
-        if (!vdest) f_close(&dfile);
-        if (!vorig) f_close(&ofile);
+        if (!vdest) fx_close(&dfile);
+        if (!vorig) fx_close(&ofile);
         return false;
     }
     
@@ -553,8 +554,8 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     }
     ShowProgress(1, 1, orig);
     
-    if (!vdest) f_close(&dfile);
-    if (!vorig) f_close(&ofile);
+    if (!vdest) fx_close(&dfile);
+    if (!vorig) fx_close(&ofile);
     
     return ret;
 }
@@ -622,11 +623,11 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         if (!GetVirtualFile(&dvfile, dest)) {
             VirtualDir vdir;
             if (!GetVirtualDir(&vdir, destdir)) {
-                f_close(&ofile);
+                fx_close(&ofile);
                 return false;
             } else while (true) {
                 if (!ReadVirtualDir(&dvfile, &vdir)) {
-                    f_close(&ofile);
+                    fx_close(&ofile);
                     return false;
                 }
                 if (dvfile.size == osize) // search by size should be a last resort solution
@@ -634,7 +635,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
             }
             snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
             if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", deststr, dest)) {
-                f_close(&ofile);
+                fx_close(&ofile);
                 return false;
             }
             TruncateString(deststr, dest, 36, 8);
@@ -646,12 +647,12 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
             FormatBytes(dsizestr, dvfile.size);
             if (dvfile.size > osize) {
                 if (!ShowPrompt(true, "File smaller than available space:\n%s (%s)\n%s (%s)\nContinue?", origstr, osizestr, deststr, dsizestr)) {
-                    f_close(&ofile);
+                    fx_close(&ofile);
                     return false;
                 }
             } else {
                 ShowPrompt(false, "File bigger than available space:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
-                f_close(&ofile);
+                fx_close(&ofile);
                 return false;
             }
         }
@@ -668,7 +669,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
                 ret = false;
         }
         ShowProgress(1, 1, orig);
-        f_close(&ofile);
+        fx_close(&ofile);
         InitExtFS();
     } else if (odrvtype & DRV_VIRTUAL) { // virtual to any file system
         VirtualFile ovfile;
@@ -716,7 +717,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         osize = ovfile.size;
         if (GetFreeSpace(dest) < osize) {
             ShowPrompt(false, "Error: File is too big for destination");
-            f_close(&dfile);
+            fx_close(&dfile);
             return false;
         }
         
@@ -734,7 +735,7 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
                 ret = false;
         }
         ShowProgress(1, 1, orig);
-        f_close(&dfile);
+        fx_close(&dfile);
         if (!ret) f_unlink(dest);
     } else {
         return false;
@@ -856,13 +857,13 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         fsize = f_size(&ofile);
         if (GetFreeSpace(dest) < fsize) {
             ShowPrompt(false, "Error: File is too big for destination");
-            f_close(&ofile);
+            fx_close(&ofile);
             return false;
         }
         
         if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
             ShowPrompt(false, "Error: Cannot create destination file");
-            f_close(&ofile);
+            fx_close(&ofile);
             return false;
         }
         
@@ -886,8 +887,8 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
         ShowProgress(1, 1, orig);
         
-        f_close(&ofile);
-        f_close(&dfile);
+        fx_close(&ofile);
+        fx_close(&dfile);
         if (!ret) f_unlink(dest);
     }
     

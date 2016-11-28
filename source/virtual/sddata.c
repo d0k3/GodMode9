@@ -112,6 +112,12 @@ FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
     return res;
 }
 
+FRESULT fx_close (FIL* fp) {
+    FilCryptInfo* info = fx_find_cryptinfo(fp);
+    if (info) memset(info, 0, sizeof(FilCryptInfo));
+    return f_close(fp);
+}
+
 FRESULT fa_open (FIL* fp, const TCHAR* path, BYTE mode) {
     TCHAR alias[256];
     dealias_path(alias, path);
