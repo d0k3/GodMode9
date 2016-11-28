@@ -105,25 +105,6 @@ bool GetVirtualDir(VirtualDir* vdir, const char* path) {
     return GetVirtualFile(&vfile, path) && OpenVirtualDir(vdir, &vfile);
 }
 
-// hacky solution, actually ignores path
-bool FindVirtualFileBySize(VirtualFile* vfile, const char* path, u32 size) {
-    // get virtual source
-    u32 virtual_src = 0;
-    virtual_src = GetVirtualSource(path);
-    if (!virtual_src) return false;
-    
-    VirtualDir vdir; // read virtual root dir, match size
-    OpenVirtualRoot(&vdir, virtual_src); // get dir reader object
-    while (ReadVirtualDir(vfile, &vdir)) {
-        vfile->flags |= virtual_src; // add source flag
-        if (vfile->size == size) // search by size should be a last resort solution
-            return true; // file found
-    }
-    
-    // failed if arriving here
-    return false;
-}
-
 bool GetVirtualDirContents(DirStruct* contents, const char* path, const char* pattern) {
     u32 virtual_src = GetVirtualSource(path);
     if (!virtual_src) return false; // not a virtual path

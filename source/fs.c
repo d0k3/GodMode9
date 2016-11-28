@@ -619,9 +619,17 @@ bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
         f_sync(&ofile);
         osize = f_size(&ofile);
         if (!GetVirtualFile(&dvfile, dest)) {
-            if (!FindVirtualFileBySize(&dvfile, dest, osize)) {
+            VirtualDir vdir;
+            if (!GetVirtualDir(&vdir, destdir)) {
                 f_close(&ofile);
                 return false;
+            } else while (true) {
+                if (!ReadVirtualDir(&dvfile, &vdir)) {
+                    f_close(&ofile);
+                    return false;
+                }
+                if (dvfile.size == osize) // search by size should be a last resort solution
+                    break; // file found
             }
             snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
             if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", deststr, dest)) {
