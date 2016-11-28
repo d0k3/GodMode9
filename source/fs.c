@@ -39,14 +39,17 @@ bool InitSDCardFS() {
 }
 
 bool InitExtFS() {
+    u32 mount_state = GetMountState();
+    u32 last_fs = (mount_state == IMG_NAND) ? NORM_FS :
+        ((mount_state == IMG_FAT) || (mount_state == IMG_RAMDRV)) ? NORM_FS - 2 : NORM_FS - 3;
     if (!fs_mounted[0])
         return false;
-    for (u32 i = 1; i < NORM_FS; i++) {
+    for (u32 i = 1; i < last_fs; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
         if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
-        if ((i == 7) && !fs_mounted[7] && (GetMountState() == IMG_RAMDRV)) {
+        if ((i == 7) && !fs_mounted[7] && (mount_state == IMG_RAMDRV)) {
             f_mkfs("7:", FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE); // format ramdrive if required
             f_mount(NULL, fsname, 1);
             fs_mounted[7] = (f_mount(fs + 7, "7:", 1) == FR_OK);
