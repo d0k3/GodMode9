@@ -45,6 +45,9 @@
 #define NAME_NCCH_LOGO      "logo.bin"
 #define NAME_NCCH_EXEFS     "exefs.bin"
 #define NAME_NCCH_ROMFS     "romfs.bin"
+#define NAME_NCCH_EXEFSDIR  "exefs"
+#define NAME_NCCH_ROMFSDIR  "romfs"
+
 
 static u32 vgame_type = 0;
 static u32 base_vdir = 0;
@@ -67,6 +70,25 @@ static NcsdHeader* ncsd = (NcsdHeader*) (VGAME_BUFFER + 0xF3000); // 512 byte re
 static NcchHeader* ncch = (NcchHeader*) (VGAME_BUFFER + 0xF3200); // 512 byte reserved
 static ExeFsHeader* exefs = (ExeFsHeader*) (VGAME_BUFFER + 0xF3400); // 512 byte reserved
 
+bool BuildVGameExeFsDir(void) {
+    VirtualFile* templates = templates_exefs;
+    u32 n = 0;
+    
+    for (u32 i = 0; i < 10; i++) {
+        ExeFsFileHeader* file = exefs->files + i;
+        if (file->size == 0) continue;
+        strncpy(templates[n].name, file->name, 32);
+        templates[n].offset = offset_exefs + sizeof(ExeFsHeader) + file->offset;
+        templates[n].size = file->size;
+        templates[n].keyslot = 0xFF; // needs to be handled
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    n_templates_exefs = n;
+    return true;
+}
+
 bool BuildVGameNcchDir(void) {
     VirtualFile* templates = templates_ncch;
     u32 n = 0;
@@ -85,7 +107,7 @@ bool BuildVGameNcchDir(void) {
         templates[n].offset = offset_ncch + NCCH_EXTHDR_OFFSET;
         templates[n].size = NCCH_EXTHDR_SIZE;
         templates[n].keyslot = 0xFF; // crypto ?
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_EXTHDR;
         n++;
     }
     
@@ -114,9 +136,15 @@ bool BuildVGameNcchDir(void) {
         strncpy(templates[n].name, NAME_NCCH_EXEFS, 32);
         templates[n].offset = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_exefs * NCCH_MEDIA_UNIT;
-        templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].keyslot = 0xFF; // crypto ?
+        templates[n].flags = VFLAG_EXEFS;
         n++;
+        if (!NCCH_ENCRYPTED(ncch)) {
+            memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
+            strncpy(templates[n].name, NAME_NCCH_EXEFSDIR, 32);
+            templates[n].flags |= VFLAG_DIR;
+            n++;
+        }
     }
     
     // romfs
@@ -124,8 +152,8 @@ bool BuildVGameNcchDir(void) {
         strncpy(templates[n].name, NAME_NCCH_ROMFS, 32);
         templates[n].offset = offset_ncch + (ncch->offset_romfs * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_romfs * NCCH_MEDIA_UNIT;
-        templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].keyslot = 0xFF; // crypto ?
+        templates[n].flags = VFLAG_ROMFS;
         n++;
     }
     
@@ -357,6 +385,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
                 (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
                 return false;
             offset_exefs = vdir->offset;
+            if (!BuildVGameExeFsDir()) return false;
         }
     }
     
