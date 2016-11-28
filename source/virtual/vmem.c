@@ -19,19 +19,13 @@ static const VirtualFile vMemFileTemplates[] = {
     { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 }
 };
 
-bool ReadVMemDir(VirtualFile* vfile) {
-    static int num = -1;
+bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
     int n_templates = sizeof(vMemFileTemplates) / sizeof(VirtualFile);
     const VirtualFile* templates = vMemFileTemplates;
     
-    if (!vfile) { // NULL pointer -> reset dir reader / internal number
-        num = -1;
-        return true;
-    }
-    
-    while (++num < n_templates) {
+    while (++vdir->index < n_templates) {
         // copy current template to vfile
-        memcpy(vfile, templates + num, sizeof(VirtualFile));
+        memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
         
         // process special flag
         if ((vfile->flags & VFLAG_N3DS_ONLY) && (GetUnitPlatform() != PLATFORM_N3DS))

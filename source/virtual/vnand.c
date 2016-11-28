@@ -34,23 +34,18 @@ bool CheckVNandDrive(u32 nand_src) {
     return GetNandSizeSectors(nand_src);
 }
 
-bool ReadVNandDir(VirtualFile* vfile, u32 nand_src) {
-    static int num = -1;
+bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
     int n_templates = sizeof(vNandFileTemplates) / sizeof(VirtualFile);
     const VirtualFile* templates = vNandFileTemplates;
+    u32 nand_src = vdir->virtual_src;
     
-    if (!vfile) { // NULL pointer -> reset dir reader / internal number
-        num = -1;
-        return true;
-    }
-    
-    while (++num < n_templates) { 
+    while (++vdir->index < n_templates) { 
         // get NAND type (O3DS/N3DS/NO3DS), workaround for empty EmuNAND
         u32 nand_type = CheckNandType(nand_src);
         if (!nand_type) nand_type = (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
         
         // copy current template to vfile
-        memcpy(vfile, templates + num, sizeof(VirtualFile));
+        memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
         
         // process / check special flags
         if (!(vfile->flags & nand_type))
