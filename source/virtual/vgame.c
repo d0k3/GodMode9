@@ -61,9 +61,11 @@ static int n_templates_ncsd  = -1;
 static int n_templates_ncch  = -1;
 static int n_templates_exefs = -1;
 
-static u32 offset_ncch = 0;
-static u32 offset_exefs = 0;
-static u32 offset_romfs = 0;
+static u64 offset_cia   = (u64) -1;
+static u64 offset_ncsd  = (u64) -1;
+static u64 offset_ncch  = (u64) -1;
+static u64 offset_exefs = (u64) -1;
+static u64 offset_romfs = (u64) -1;
 
 static CiaStub* cia = (CiaStub*) (VGAME_BUFFER + 0xF4000); // 48kB reserved - should be enough by far
 static NcsdHeader* ncsd = (NcsdHeader*) (VGAME_BUFFER + 0xF3000); // 512 byte reserved
@@ -319,33 +321,16 @@ bool BuildVGameCiaDir(void) {
 
 u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     u32 type = GetMountState();
+    
     vgame_type = 0;
-    offset_ncch = 0;
-    offset_exefs = 0;
-    offset_romfs = 0;
-    if (type == GAME_CIA) { // for CIAs: load the CIA stub and keep it in memory
-        CiaInfo info;
-        if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
-            (ValidateCiaHeader(&(cia->header)) != 0) ||
-            (GetCiaInfo(&info, &(cia->header)) != 0) ||
-            (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
-            return 0;
-        if (!BuildVGameCiaDir()) return 0;
-        base_vdir = VDIR_CIA;
-    } else if (type == GAME_NCSD) {
-        if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
-            (ValidateNcsdHeader(ncsd) != 0))
-            return 0;
-        if (!BuildVGameNcsdDir()) return 0;
-        base_vdir = VDIR_NCSD;
-    } else if (type == GAME_NCCH) {
-        if ((ReadImageBytes((u8*) ncch, 0, sizeof(NcchHeader)) != 0) ||
-            (ValidateNcchHeader(ncch) != 0))
-            return 0;
-        if (!BuildVGameNcchDir()) return 0;
-        base_vdir = VDIR_NCCH;
-        offset_ncch = 0;
-    } else return 0; // not a mounted game file
+    offset_cia   = (u64) -1;
+    offset_ncsd  = (u64) -1;
+    offset_ncch  = (u64) -1;
+    offset_exefs = (u64) -1;
+    offset_romfs = (u64) -1;
+    
+    base_vdir = (type == GAME_CIA) ? VDIR_CIA : (type == GAME_NCSD) ? VDIR_NCSD : (type == GAME_NCCH) ? VDIR_NCCH : 0;
+    if (!base_vdir) return 0;
     
     vgame_type = type;
     return type;
@@ -357,54 +342,68 @@ u32 CheckVGameDrive(void) {
 }
 
 bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
+    // build vdir object
     vdir->index = -1;
     vdir->virtual_src = VRT_GAME;
     if (!ventry) { // root dir
         vdir->offset = 0;
         vdir->size = GetMountSize();
         vdir->flags = VFLAG_DIR|base_vdir;
-        // base dir is already in memory -> done
     } else { // non root dir
         if (!(ventry->flags & VFLAG_DIR) || !(ventry->flags & VDIR_GAME))
             return false;
         vdir->offset = ventry->offset;
         vdir->size = ventry->size;
         vdir->flags = ventry->flags;
-        // build directories where required
-        u32 curr_vdir = vdir->flags & VDIR_GAME;
-        if ((curr_vdir == VDIR_NCCH) && (offset_ncch != vdir->offset)) {
-            if ((ReadImageBytes((u8*) ncch, vdir->offset, sizeof(NcchHeader)) != 0) ||
-                (ValidateNcchHeader(ncch) != 0))
-                return false;
-            offset_ncch = vdir->offset;
-            if (!BuildVGameNcchDir()) return false;
-        } else if ((curr_vdir == VDIR_EXEFS) && (offset_exefs != vdir->offset)) {
-            if ((ReadImageBytes((u8*) exefs, vdir->offset, sizeof(ExeFsHeader)) != 0) ||
-                (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
-                return false;
-            offset_exefs = vdir->offset;
-            if (!BuildVGameExeFsDir()) return false;
-        }
+    }
+    
+    // build directories where required
+    if ((vdir->flags & VDIR_CIA) && (offset_cia != vdir->offset)) {
+        CiaInfo info;
+        if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
+            (ValidateCiaHeader(&(cia->header)) != 0) ||
+            (GetCiaInfo(&info, &(cia->header)) != 0) ||
+            (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
+            return false;
+        offset_cia = vdir->offset; // always zero(!)
+        if (!BuildVGameCiaDir()) return false;
+    } else if ((vdir->flags & VDIR_NCSD) && (offset_ncsd != vdir->offset)) {
+        if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
+            (ValidateNcsdHeader(ncsd) != 0))
+            return 0;
+        offset_ncsd = vdir->offset; // always zero(!)
+        if (!BuildVGameNcsdDir()) return 0;
+    } else if ((vdir->flags & VDIR_NCCH) && (offset_ncch != vdir->offset)) {
+        if ((ReadImageBytes((u8*) ncch, vdir->offset, sizeof(NcchHeader)) != 0) ||
+            (ValidateNcchHeader(ncch) != 0))
+            return false;
+        offset_ncch = vdir->offset;
+        if (!BuildVGameNcchDir()) return false;
+    } else if ((vdir->flags & VDIR_EXEFS) && (offset_exefs != vdir->offset)) {
+        if ((ReadImageBytes((u8*) exefs, vdir->offset, sizeof(ExeFsHeader)) != 0) ||
+            (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
+            return false;
+        offset_exefs = vdir->offset;
+        if (!BuildVGameExeFsDir()) return false;
     }
     
     return true; // error (should not happen)
 }
 
 bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
-    u32 curr_vdir = vdir->flags & VDIR_GAME;
     VirtualFile* templates;
     int n = 0;
     
-    if (curr_vdir == VDIR_CIA) {
+    if (vdir->flags & VDIR_CIA) {
         templates = templates_cia;
         n = n_templates_cia;
-    } else if (curr_vdir == VDIR_NCSD) {
+    } else if (vdir->flags & VDIR_NCSD) {
         templates = templates_ncsd;
         n = n_templates_ncsd;
-    } else if (curr_vdir == VDIR_NCCH) {
+    } else if (vdir->flags & VDIR_NCCH) {
         templates = templates_ncch;
         n = n_templates_ncch;
-    } else if (curr_vdir == VDIR_EXEFS) {
+    } else if (vdir->flags & VDIR_EXEFS) {
         templates = templates_exefs;
         n = n_templates_exefs;
     }
