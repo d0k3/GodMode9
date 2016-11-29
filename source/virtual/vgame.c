@@ -77,7 +77,7 @@ bool BuildVGameExeFsDir(void) {
     for (u32 i = 0; i < 10; i++) {
         ExeFsFileHeader* file = exefs->files + i;
         if (file->size == 0) continue;
-        strncpy(templates[n].name, file->name, 32);
+        snprintf(templates[n].name, 32, "%.8s", file->name);
         templates[n].offset = offset_exefs + sizeof(ExeFsHeader) + file->offset;
         templates[n].size = file->size;
         templates[n].keyslot = 0xFF; // needs to be handled
@@ -345,8 +345,6 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
         if (!BuildVGameNcchDir()) return 0;
         base_vdir = VDIR_NCCH;
         offset_ncch = 0;
-        offset_exefs = ncch->offset_exefs * NCCH_MEDIA_UNIT;
-        offset_romfs = ncch->offset_romfs * NCCH_MEDIA_UNIT;
     } else return 0; // not a mounted game file
     
     vgame_type = type;
