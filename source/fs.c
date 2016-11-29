@@ -221,6 +221,11 @@ bool CheckWritePermissions(const char* path) {
     int drvtype = DriveType(path);
     u32 perm;
     
+    // check mounted image write permissions
+    if ((drvtype & DRV_IMAGE) && !CheckWritePermissions(GetMountPath()))
+        return false; // endless loop when mounted file inside image, but not possible
+    
+    // check drive type, get permission type
     if (drvtype & DRV_SYSNAND) {
         perm = PERM_SYSNAND;
         snprintf(area_name, 16, "the SysNAND");
@@ -233,15 +238,15 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_EMUNAND) {
         perm = PERM_EMUNAND;
         snprintf(area_name, 16, "the EmuNAND");
+    } else if (drvtype & DRV_GAME) {
+        perm = PERM_GAME;
+        snprintf(area_name, 16, "game images");
     } else if (drvtype & DRV_IMAGE) {
         perm = PERM_IMAGE;
         snprintf(area_name, 16, "images");
     } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
         snprintf(area_name, 16, "memory areas");
-    } else if (drvtype & DRV_GAME) {
-        perm = PERM_GAME;
-        snprintf(area_name, 16, "game images");
     } else if ((drvtype & DRV_ALIAS) || (strncmp(path, "0:/Nintendo 3DS", 15) == 0)) {
         perm = PERM_SDDATA;
         snprintf(area_name, 16, "SD system data");
@@ -292,9 +297,9 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             if (!ShowUnlockSequence(2, "You want to enable image\nwriting permissions."))
                 return false;
             break;
-        case PERM_SDDATA:
-            if (!ShowUnlockSequence(2, "You want to enable SD data\nwriting permissions."))
-                return false;
+        case PERM_GAME:
+            ShowPrompt(false, "Unlock write permission for\ngame images is not allowed.");
+            return false;
             break;
         #ifndef SAFEMODE
         case PERM_SYSNAND:
@@ -307,6 +312,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             break;
         case PERM_MEMORY:
             if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\nWriting to certain areas may\nlead to unexpected results."))
+                return false;
+            break;
+        case PERM_SDDATA:
+            if (!ShowUnlockSequence(2, "You want to enable SD data\nwriting permissions."))
                 return false;
             break;
         case PERM_ALL:

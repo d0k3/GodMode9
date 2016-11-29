@@ -1,4 +1,5 @@
 #include "image.h"
+#include "sddata.h"
 #include "platform.h"
 #include "ff.h"
 
@@ -7,6 +8,8 @@ static u32 ramdrv_size = 0;
 
 static FIL mount_file;
 static u32 mount_state = 0;
+
+static char mount_path[256] = { 0 };
 
 
 int ReadImageBytes(u8* buffer, u32 offset, u32 count) {
@@ -23,7 +26,7 @@ int ReadImageBytes(u8* buffer, u32 offset, u32 count) {
         if (f_size(&mount_file) < offset) return -1;
         f_lseek(&mount_file, offset); 
     }
-    ret = f_read(&mount_file, buffer, count, &bytes_read);
+    ret = fx_read(&mount_file, buffer, count, &bytes_read);
     return (ret != 0) ? (int) ret : (bytes_read != count) ? -1 : 0;
 }
 
@@ -39,7 +42,7 @@ int WriteImageBytes(const u8* buffer, u32 offset, u32 count) {
     if (!mount_state) return FR_INVALID_OBJECT;
     if (f_tell(&mount_file) != offset)
         f_lseek(&mount_file, offset);
-    ret = f_write(&mount_file, buffer, count, &bytes_written);
+    ret = fx_write(&mount_file, buffer, count, &bytes_written);
     return (ret != 0) ? (int) ret : (bytes_written != count) ? -1 : 0;
 }
 
@@ -65,9 +68,13 @@ u32 GetMountState(void) {
     return mount_state;
 }
 
+const char* GetMountPath(void) {
+    return mount_path;
+}
+
 u32 MountRamDrive(void) {
     if (mount_state && (mount_state != IMG_RAMDRV))
-        f_close(&mount_file);
+        fx_close(&mount_file);
     if (GetUnitPlatform() == PLATFORM_3DS) {
         ramdrv_buffer = RAMDRV_BUFFER_O3DS;
         ramdrv_size = RAMDRV_SIZE_O3DS;
@@ -75,19 +82,22 @@ u32 MountRamDrive(void) {
         ramdrv_buffer = RAMDRV_BUFFER_N3DS;
         ramdrv_size = RAMDRV_SIZE_N3DS;
     }
+    *mount_path = 0;
     return (mount_state = IMG_RAMDRV);
 }
 
 u32 MountImage(const char* path) {
-    u32 type = IdentifyFileType(path);
+    u32 type = (path) ? IdentifyFileType(path) : 0;
     if (mount_state) {
-        if (mount_state != IMG_RAMDRV) f_close(&mount_file);
+        if (mount_state != IMG_RAMDRV) fx_close(&mount_file);
         mount_state = 0;
+        *mount_path = 0;
     }
-    if (!path || !type) return 0;
-    if (f_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+    if (!type) return 0;
+    if (fx_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
         return 0;
     f_lseek(&mount_file, 0);
     f_sync(&mount_file);
+    strncpy(mount_path, path, 255);
     return (mount_state = type);
 }

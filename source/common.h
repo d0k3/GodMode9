@@ -38,7 +38,7 @@
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
     
 // GodMode9 version
-#define VERSION "0.7.8"
+#define VERSION "0.7.9"
 
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x21000000)

@@ -1,21 +1,22 @@
 #include "filetype.h"
+#include "sddata.h"
 #include "game.h"
 #include "ff.h"
 
 u32 IdentifyFileType(const char* path) {
     u8 __attribute__((aligned(16))) header[0x200]; // minimum required size
     FIL file;
-    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 0;
     f_lseek(&file, 0);
     f_sync(&file);
     UINT fsize = f_size(&file);
     UINT bytes_read;
-    if ((f_read(&file, header, 0x200, &bytes_read) != FR_OK) || (bytes_read != 0x200)) {
-        f_close(&file);
+    if ((fx_read(&file, header, 0x200, &bytes_read) != FR_OK) || (bytes_read != 0x200)) {
+        fx_close(&file);
         return 0;
     }
-    f_close(&file);
+    fx_close(&file);
     
     if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
         (getbe64(header + 0x108) == (u64) 0) && (fsize >= 0x8FC8000)) {

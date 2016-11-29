@@ -628,8 +628,11 @@ u32 GodMode() {
             int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
                 (file_drvtype & DRV_FAT) &&
-                (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ? (int) ++n_opt : -1;
-            int mountable = (file_type && (file_drvtype & DRV_SDCARD)) ? (int) ++n_opt : -1;
+                (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
+                (int) ++n_opt : -1;
+            int mountable = (file_type && (file_drvtype & DRV_FAT) &&
+                !(file_drvtype & (DRV_IMAGE|DRV_RAMDRIVE))) ?
+                (int) ++n_opt : -1;
             int searchdrv = (curr_drvtype & DRV_SEARCH) ? (int) ++n_opt : -1;
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -692,6 +695,7 @@ u32 GodMode() {
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 DeinitExtFS();
+                InitExtFS();
                 u32 mount_state = MountImage(curr_entry->path);
                 InitExtFS();
                 InitVGameDrive();
