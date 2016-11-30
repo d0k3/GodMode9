@@ -12,7 +12,7 @@ static u32 mount_state = 0;
 static char mount_path[256] = { 0 };
 
 
-int ReadImageBytes(u8* buffer, u32 offset, u32 count) {
+int ReadImageBytes(u8* buffer, u64 offset, u64 count) {
     UINT bytes_read;
     UINT ret;
     if (!count) return -1;
@@ -30,7 +30,7 @@ int ReadImageBytes(u8* buffer, u32 offset, u32 count) {
     return (ret != 0) ? (int) ret : (bytes_read != count) ? -1 : 0;
 }
 
-int WriteImageBytes(const u8* buffer, u32 offset, u32 count) {
+int WriteImageBytes(const u8* buffer, u64 offset, u64 count) {
     UINT bytes_written;
     UINT ret;
     if (!count) return -1;
