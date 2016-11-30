@@ -84,7 +84,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         int drvtype = DriveType(curr_entry->path);
         char drvstr[32];
         snprintf(drvstr, 31, "(%s%s)", 
-            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMDrive" : (drvtype & DRV_RAMDRIVE) ? "Game" :
+            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMDrive" : (drvtype & DRV_GAME) ? "Game" :
             (drvtype & DRV_SYSNAND) ? "SysNAND" : (drvtype & DRV_EMUNAND) ? "EmuNAND" : (drvtype & DRV_IMAGE) ? "Image" :
             (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" : (drvtype & DRV_SEARCH) ? "Search" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
@@ -692,18 +692,12 @@ u32 GodMode() {
                     clipboard->n_entries = 0;
                 }
             } else if ((int) user_select == mountable) { // -> mount file as image
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                DeinitExtFS();
-                InitExtFS();
-                u32 mount_state = MountImage(curr_entry->path);
-                InitExtFS();
-                InitVGameDrive();
-                if (!mount_state || !(DriveType("7:")||DriveType("8:")||DriveType("9:")||DriveType("G:"))) {
+                InitImgFS(curr_entry->path);
+                if (!(DriveType("7:")||DriveType("8:")||DriveType("9:")||DriveType("G:"))) {
                     ShowPrompt(false, "Mounting image: failed");
-                    DeinitExtFS();
-                    InitExtFS();
-                    InitVGameDrive();
+                    InitImgFS(NULL);
                 } else {
                     *current_path = '\0';
                     GetDirContents(current_dir, current_path);
@@ -803,12 +797,10 @@ u32 GodMode() {
         // highly specific commands
         if (!*current_path) { // in the root folder...
             if (switched && (pad_state & BUTTON_X)) { // unmount image
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                if (!GetMountState()) MountRamDrive();
-                else MountImage(NULL);
-                DeinitExtFS();
-                InitExtFS();
+                if (!GetMountState()) InitRamDriveFS();
+                else InitImgFS(NULL);
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_Y)) {
                 SetWritePermissions((GetWritePermissions() > PERM_BASE) ? PERM_BASE : PERM_ALL, false);

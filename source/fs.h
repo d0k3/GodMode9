@@ -39,6 +39,8 @@
 
 bool InitSDCardFS();
 bool InitExtFS();
+bool InitImgFS(const char* path);
+bool InitRamDriveFS();
 void DeinitExtFS();
 void DeinitSDCardFS();
 
