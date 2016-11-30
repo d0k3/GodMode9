@@ -120,6 +120,19 @@ void DeinitSDCardFS() {
     }
 }
 
+void DismountDriveType(u32 type) { // careful with this - no safety checks
+    if (type & DriveType(GetMountPath()))
+        InitImgFS(NULL); // image is mounted from type -> unmount image drive, too
+    for (u32 i = NORM_FS - 1; i > 0; i--) {
+        char fsname[8];
+        snprintf(fsname, 7, "%lu:", i);
+        if (!fs_mounted[i] || !(type & DriveType(fsname)))
+            continue;
+        f_mount(NULL, fsname, 1);
+        fs_mounted[i] = false;
+    }
+}
+
 void SetFSSearch(const char* pattern, const char* path) {
     if (pattern && path) {
         strncpy(search_pattern, pattern, 256);
@@ -604,186 +617,195 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     return ret;
 }
 
-bool PathCopyVirtual(const char* destdir, const char* orig, u32* flags) {
-    char dest[256]; // maximum path name length in FAT
-    char* oname = strrchr(orig, '/');
-    char deststr[36 + 1];
-    char origstr[36 + 1];
-    int ddrvtype = DriveType(destdir);
-    int odrvtype = DriveType(orig);
+bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
+    VirtualFile dvfile;
+    VirtualFile ovfile;
     bool ret = true;
     
+    char dest[256]; // maximum path name length in FAT
+    char* oname = strrchr(orig, '/');
     if (oname == NULL) return false; // not a proper origin path
-    oname++;
-    snprintf(dest, 255, "%s/%s", destdir, oname);
+    snprintf(dest, 255, "%s/%s", destdir, (++oname));
     
+    char deststr[36 + 1];
+    char origstr[36 + 1];
     TruncateString(deststr, dest, 36, 8);
     TruncateString(origstr, orig, 36, 8);
     
-    if ((ddrvtype & DRV_VIRTUAL) && (odrvtype & DRV_VIRTUAL)) { // virtual to virtual
-        VirtualFile dvfile;
-        VirtualFile ovfile;
-        u32 osize;
-        
-        if (!GetVirtualFile(&dvfile, dest))
-            return false;
-        if (!GetVirtualFile(&ovfile, orig))
-            return false;
-        osize = ovfile.size;
-        if (dvfile.size != osize) { // almost impossible, but so what...
-            ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
-            return false;
-        }
-        if (strncmp(dest, orig, 256) == 0) { // destination == origin
-            ShowPrompt(false, "Origin equals destination:\n%s\n%s", origstr, deststr);
-            return false;
-        }
-        if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
-            dvfile.keyslot = ovfile.keyslot = 0xFF;
-        
-        DeinitExtFS();
-        if (!ShowProgress(0, 0, orig)) ret = false;
-        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
-            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-                ret = false;
-            if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
-                ret = false;
-            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-                ret = false;
-        }
-        ShowProgress(1, 1, orig);
-        InitExtFS();
-    } else if (ddrvtype & DRV_VIRTUAL) { // SD card to virtual (other FAT not allowed!)
-        VirtualFile dvfile;
-        FIL ofile;
-        u32 osize;
-        
-        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            return false;
-        f_lseek(&ofile, 0);
-        f_sync(&ofile);
-        osize = f_size(&ofile);
-        if (!GetVirtualFile(&dvfile, dest)) {
-            VirtualDir vdir;
-            if (!GetVirtualDir(&vdir, destdir)) {
-                fx_close(&ofile);
-                return false;
-            } else while (true) {
-                if (!ReadVirtualDir(&dvfile, &vdir)) {
-                    fx_close(&ofile);
-                    return false;
-                }
-                if (dvfile.size == osize) // search by size should be a last resort solution
-                    break; // file found
-            }
-            snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
-            if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", deststr, dest)) {
-                fx_close(&ofile);
-                return false;
-            }
-            TruncateString(deststr, dest, 36, 8);
-        }
-        if (dvfile.size != osize) {
-            char osizestr[32];
-            char dsizestr[32];
-            FormatBytes(osizestr, osize);
-            FormatBytes(dsizestr, dvfile.size);
-            if (dvfile.size > osize) {
-                if (!ShowPrompt(true, "File smaller than available space:\n%s (%s)\n%s (%s)\nContinue?", origstr, osizestr, deststr, dsizestr)) {
-                    fx_close(&ofile);
-                    return false;
-                }
-            } else {
-                ShowPrompt(false, "File bigger than available space:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
-                fx_close(&ofile);
-                return false;
-            }
-        }
-        
-        DeinitExtFS();
-        if (!ShowProgress(0, 0, orig)) ret = false;
-        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT bytes_read = 0;           
-            if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
-                ret = false;
-            if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
-                ret = false;
-            if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, bytes_read, NULL) != 0)
-                ret = false;
-        }
-        ShowProgress(1, 1, orig);
-        fx_close(&ofile);
-        InitExtFS();
-    } else if (odrvtype & DRV_VIRTUAL) { // virtual to any file system
-        VirtualFile ovfile;
-        FIL dfile;
-        u32 osize;
-        
-        if (!GetVirtualFile(&ovfile, orig))
-            return false;
-        
-        // check if destination exists
-        if (flags && !(*flags & OVERWRITE_ALL) && fa_stat(dest, NULL) == FR_OK) {
-            if (*flags & SKIP_ALL) {
-                *flags |= SKIP_CUR;
-                return true;
-            }
-            const char* optionstr[5] =
-                {"Choose new name", "Overwrite file", "Skip file", "Overwrite all", "Skip all"};
-            u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
-                "Destination already exists:\n%s", deststr);
-            if (user_select == 1) {
-                do {
-                    char* dname = strrchr(dest, '/');
-                    if (dname == NULL) return false;
-                    dname++;
-                    if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
-                        return false;
-                } while (fa_stat(dest, NULL) == FR_OK);
-            } else if (user_select == 3) {
-                *flags |= SKIP_CUR;
-                return true;
-            } else if (user_select == 4) {
-                *flags |= OVERWRITE_ALL;
-            } else if (user_select == 5) {
-                *flags |= (SKIP_CUR|SKIP_ALL);
-                return true;
-            } else if (user_select != 2) {
-                return false;
-            }
-        }
-        
-        if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
-            return false;
-        f_lseek(&dfile, 0);
-        f_sync(&dfile);
-        osize = ovfile.size;
-        if (GetFreeSpace(dest) < osize) {
-            ShowPrompt(false, "Error: File is too big for destination");
-            fx_close(&dfile);
-            return false;
-        }
-        
-        if (!ShowProgress(0, 0, orig)) ret = false;
-        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
-            UINT bytes_written = 0;
-            if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-                ret = false;
-            if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
-                ret = false;
-            if (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)
-                ret = false;
-            if (read_bytes != bytes_written)
-                ret = false;
-        }
-        ShowProgress(1, 1, orig);
-        fx_close(&dfile);
-        if (!ret) f_unlink(dest);
-    } else {
+    if (!GetVirtualFile(&dvfile, dest) || !GetVirtualFile(&ovfile, orig))
+        return false;
+    u32 osize = ovfile.size;
+    if (dvfile.size != osize) { // almost impossible, but so what...
+        ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
+        return false;
+    } else if (strncmp(dest, orig, 256) == 0) { // destination == origin
+        ShowPrompt(false, "Origin equals destination:\n%s\n%s", origstr, deststr);
         return false;
     }
+    if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
+        dvfile.keyslot = ovfile.keyslot = 0xFF;
+    
+    // unmount critical NAND drives
+    DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
+    if (!ShowProgress(0, 0, orig)) ret = false;
+    for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
+        if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
+            ret = false;
+        if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
+            ret = false;
+        if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
+            ret = false;
+    }
+    ShowProgress(1, 1, orig);
+    InitExtFS();
+    
+    return ret;
+}
+
+bool PathCopyFatToVrt(const char* destdir, const char* orig) {
+    VirtualFile dvfile;
+    FIL ofile;
+    bool ret = true;
+    
+    char dest[256]; // maximum path name length in FAT
+    char* oname = strrchr(orig, '/');
+    if (oname == NULL) return false; // not a proper origin path
+    snprintf(dest, 255, "%s/%s", destdir, (++oname));
+    
+    // FAT file size
+    FILINFO fno;
+    if (fa_stat(orig, &fno) != FR_OK) return false; // file does not exist
+    u32 osize = fno.fsize;
+    
+    // virtual file
+    if (!GetVirtualFile(&dvfile, dest)) {
+        VirtualDir vdir;
+        if (!GetVirtualDir(&vdir, destdir)) return false;
+        while (true) { // search by size should be a last resort solution
+            if (!ReadVirtualDir(&dvfile, &vdir))
+                return false;
+            if (dvfile.size == osize) 
+                break; // file found
+        }
+        if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", dest, dvfile.name))
+            return false;
+    } else if (dvfile.size != osize) { // handling for differing sizes
+        char deststr[36 + 1];
+        char origstr[36 + 1];
+        char osizestr[32];
+        char dsizestr[32];
+        TruncateString(deststr, dest, 36, 8);
+        TruncateString(origstr, orig, 36, 8);
+        FormatBytes(osizestr, osize);
+        FormatBytes(dsizestr, dvfile.size);
+        if (dvfile.size > osize) {
+            if (!ShowPrompt(true, "File smaller than available space:\n%s (%s)\n%s (%s)\nContinue?", origstr, osizestr, deststr, dsizestr))
+                return false;
+        } else {
+            ShowPrompt(false, "File bigger than available space:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
+                return false;
+        }
+    }
+    
+    // FAT file
+    if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return false;
+    f_lseek(&ofile, 0);
+    f_sync(&ofile);
+    
+    // unmount critical NAND drives
+    DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
+    if (!ShowProgress(0, 0, orig)) ret = false;
+    for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT bytes_read = 0;           
+        if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+            ret = false;
+        if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
+            ret = false;
+        if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, bytes_read, NULL) != 0)
+            ret = false;
+    }
+    ShowProgress(1, 1, orig);
+    fx_close(&ofile);
+    InitExtFS();
+    
+    return ret;
+}
+
+bool PathCopyVrtToFat(const char* destdir, const char* orig, u32* flags) {
+    VirtualFile ovfile;
+    FIL dfile;
+    bool ret = true;
+    
+    char dest[256]; // maximum path name length in FAT
+    char* oname = strrchr(orig, '/');
+    if (oname == NULL) return false; // not a proper origin path
+    snprintf(dest, 255, "%s/%s", destdir, (++oname));
+    
+    if (!GetVirtualFile(&ovfile, orig))
+        return false;
+    
+    // check if destination exists
+    if (flags && !(*flags & OVERWRITE_ALL) && fa_stat(dest, NULL) == FR_OK) {
+        if (*flags & SKIP_ALL) {
+            *flags |= SKIP_CUR;
+            return true;
+        }
+        char deststr[36 + 1];
+        TruncateString(deststr, dest, 36, 8);
+        const char* optionstr[5] =
+            {"Choose new name", "Overwrite file", "Skip file", "Overwrite all", "Skip all"};
+        u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
+            "Destination already exists:\n%s", deststr);
+        if (user_select == 1) {
+            do {
+                char* dname = strrchr(dest, '/');
+                if (dname == NULL) return false;
+                dname++;
+                if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
+                    return false;
+            } while (fa_stat(dest, NULL) == FR_OK);
+        } else if (user_select == 3) {
+            *flags |= SKIP_CUR;
+            return true;
+        } else if (user_select == 4) {
+            *flags |= OVERWRITE_ALL;
+        } else if (user_select == 5) {
+            *flags |= (SKIP_CUR|SKIP_ALL);
+            return true;
+        } else if (user_select != 2) {
+            return false;
+        }
+    }
+    
+    if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        return false;
+    f_lseek(&dfile, 0);
+    f_sync(&dfile);
+    u32 osize = ovfile.size;
+    if (GetFreeSpace(dest) < osize) {
+        ShowPrompt(false, "Error: File is too big for destination");
+        fx_close(&dfile);
+        return false;
+    }
+    
+    if (!ShowProgress(0, 0, orig)) ret = false;
+    for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
+        UINT bytes_written = 0;
+        if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
+            ret = false;
+        if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
+            ret = false;
+        if (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)
+            ret = false;
+        if (read_bytes != bytes_written)
+            ret = false;
+    }
+    ShowProgress(1, 1, orig);
+    fx_close(&dfile);
+    if (!ret) f_unlink(dest);
     
     return ret;
 }
@@ -945,20 +967,23 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
         if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     int ddrvtype = DriveType(destdir);
     int odrvtype = DriveType(orig);
-    if ((ddrvtype | odrvtype) & DRV_VIRTUAL) {
-        // users are inventive...
-        if (!(odrvtype & (DRV_SDCARD|DRV_RAMDRIVE|DRV_VIRTUAL)) && (ddrvtype & DRV_VIRTUAL)) {
-            ShowPrompt(false, "Only files from SD card or\nramdrive are accepted");
-            return false;
-        }
-        return PathCopyVirtual(destdir, orig, flags);
-    } else {
+    if (!((ddrvtype|odrvtype) & DRV_VIRTUAL)) { // standard FAT to FAT copy
         char fdpath[256]; // 256 is the maximum length of a full path
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
         bool res = PathCopyWorker(fdpath, fopath, flags, false);
         return res;
+    } else if ((ddrvtype&odrvtype) & DRV_VIRTUAL) { // virtual to virtual copy
+        return PathCopyVrtToVrt(destdir, orig);
+    } else if (odrvtype & DRV_VIRTUAL) { // virtual to FAT copy
+        return PathCopyVrtToFat(destdir, orig, flags);
+    } else { // FAT to virtual copy
+        if (!(odrvtype & (DRV_SDCARD|DRV_RAMDRIVE))) {
+            ShowPrompt(false, "Only files from SD card or\nramdrive are accepted");
+            return false;
+        }
+        return PathCopyFatToVrt(destdir, orig);
     }
 }
 
