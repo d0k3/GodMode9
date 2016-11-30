@@ -90,7 +90,9 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     for (name = strtok(lpath + 3, "/"); name && vdir.virtual_src; name = strtok(NULL, "/")) {
         while (true) {
             if (!ReadVirtualDir(vfile, &vdir)) return false;
-            if (strncasecmp(name, vfile->name, 32) == 0)
+            if ((virtual_src != VRT_GAME) && (strncasecmp(name, vfile->name, 32) == 0))
+                break; // entry found
+            if ((virtual_src == VRT_GAME) && MatchVGameFilename(name, vfile, 256))
                 break; // entry found
         }
         if (!OpenVirtualDir(&vdir, vfile))
@@ -115,8 +117,15 @@ bool GetVirtualDirContents(DirStruct* contents, const char* path, const char* pa
         return false; // get dir reader object
     while ((contents->n_entries < MAX_DIR_ENTRIES) && (ReadVirtualDir(&vfile, &vdir))) {
         DirEntry* entry = &(contents->entry[contents->n_entries]);
-        if (pattern && !MatchName(pattern, vfile.name)) continue;
-        snprintf(entry->path, 256, "%s/%s", path, vfile.name);
+        if (!(vfile.flags & VRT_GAME)) {
+            if (pattern && !MatchName(pattern, vfile.name)) continue;
+            snprintf(entry->path, 256, "%s/%s", path, vfile.name);
+        } else {
+            char name[256];
+            if (!GetVGameFilename(name, &vfile, 256)) return false;
+            if (pattern && !MatchName(pattern, name)) continue;
+            snprintf(entry->path, 256, "%s/%s", path, name);
+        }
         entry->name = entry->path + strnlen(path, 256) + 1;
         entry->size = vfile.size;
         entry->type = (vfile.flags & VFLAG_DIR) ? T_DIR : T_FILE;

@@ -4,19 +4,21 @@
 #include "aes.h"
 #include "ff.h"
 
-#define VFLAG_EXTHDR        (1<<26)
-#define VFLAG_CIA           (1<<27) // unused, see below
-#define VFLAG_NCSD          (1<<28) // unused, see below
-#define VFLAG_NCCH          (1<<29)
-#define VFLAG_EXEFS         (1<<30)
-#define VFLAG_ROMFS         (1<<31)
+#define VFLAG_EXTHDR        (1<<25)
+#define VFLAG_CIA           (1<<26) // unused, see below
+#define VFLAG_NCSD          (1<<27) // unused, see below
+#define VFLAG_NCCH          (1<<28)
+#define VFLAG_EXEFS         (1<<29)
+#define VFLAG_ROMFS         (1<<30)
+#define VFLAG_LV3           (1<<31)
 
 #define VDIR_CIA            VFLAG_CIA
 #define VDIR_NCSD           VFLAG_NCSD
 #define VDIR_NCCH           VFLAG_NCCH
 #define VDIR_EXEFS          VFLAG_EXEFS
 #define VDIR_ROMFS          VFLAG_ROMFS
-#define VDIR_GAME           (VDIR_CIA|VDIR_NCSD|VDIR_NCCH|VDIR_EXEFS|VDIR_ROMFS)
+#define VDIR_LV3            VFLAG_LV3
+#define VDIR_GAME           (VDIR_CIA|VDIR_NCSD|VDIR_NCCH|VDIR_EXEFS|VDIR_ROMFS|VDIR_LV3)
 
 #define MAX_N_TEMPLATES 2048 // this leaves us with enough room (128kB reserved)
 
@@ -52,10 +54,10 @@
 static u32 vgame_type = 0;
 static u32 base_vdir = 0;
 
-static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 116kb reserved (enough for ~2000 entries)
-static VirtualFile* templates_ncsd  = (VirtualFile*) VGAME_BUFFER + 0x1D000; // 4kb reserved (enough for ~80 entries)
-static VirtualFile* templates_ncch  = (VirtualFile*) VGAME_BUFFER + 0x1E000; // 4kb reserved (enough for ~80 entries)
-static VirtualFile* templates_exefs = (VirtualFile*) VGAME_BUFFER + 0x1F000; // 4kb reserved (enough for ~80 entries)
+static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 52kb reserved (enough for 950 entries)
+static VirtualFile* templates_ncsd  = (VirtualFile*) VGAME_BUFFER + 0xE800; // 2kb reserved (enough for 36 entries)
+static VirtualFile* templates_ncch  = (VirtualFile*) VGAME_BUFFER + 0xF000; // 2kb reserved (enough for 36 entries)
+static VirtualFile* templates_exefs = (VirtualFile*) VGAME_BUFFER + 0xF800; // 2kb reserved (enough for 36 entries)
 static int n_templates_cia   = -1;
 static int n_templates_ncsd  = -1;
 static int n_templates_ncch  = -1;
@@ -66,11 +68,15 @@ static u64 offset_ncsd  = (u64) -1;
 static u64 offset_ncch  = (u64) -1;
 static u64 offset_exefs = (u64) -1;
 static u64 offset_romfs = (u64) -1;
+static u64 offset_lv3   = (u64) -1;
+static u64 offset_lv3fd = (u64) -1;
 
-static CiaStub* cia = (CiaStub*) (VGAME_BUFFER + 0xF4000); // 48kB reserved - should be enough by far
-static NcsdHeader* ncsd = (NcsdHeader*) (VGAME_BUFFER + 0xF3000); // 512 byte reserved
-static NcchHeader* ncch = (NcchHeader*) (VGAME_BUFFER + 0xF3200); // 512 byte reserved
-static ExeFsHeader* exefs = (ExeFsHeader*) (VGAME_BUFFER + 0xF3400); // 512 byte reserved
+static CiaStub* cia = (CiaStub*) (VGAME_BUFFER + 0x10000); // 62.5kB reserved - should be enough by far
+static NcsdHeader* ncsd = (NcsdHeader*) (VGAME_BUFFER + 0x1FA00); // 512 byte reserved
+static NcchHeader* ncch = (NcchHeader*) (VGAME_BUFFER + 0x1FC00); // 512 byte reserved
+static ExeFsHeader* exefs = (ExeFsHeader*) (VGAME_BUFFER + 0x1FE00); // 512 byte reserved
+static u8* romfslv3 = (u8*) (VGAME_BUFFER + 0x20000); // 1920kB reserved
+static RomFsLv3Index lv3idx;
 
 bool BuildVGameExeFsDir(void) {
     VirtualFile* templates = templates_exefs;
@@ -157,6 +163,12 @@ bool BuildVGameNcchDir(void) {
         templates[n].keyslot = 0xFF; // crypto ?
         templates[n].flags = VFLAG_ROMFS;
         n++;
+        if (!NCCH_ENCRYPTED(ncch)) {
+            memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
+            strncpy(templates[n].name, NAME_NCCH_ROMFSDIR, 32);
+            templates[n].flags |= VFLAG_DIR;
+            n++;
+        }
     }
     
     n_templates_ncch = n;
@@ -328,6 +340,8 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_ncch  = (u64) -1;
     offset_exefs = (u64) -1;
     offset_romfs = (u64) -1;
+    offset_lv3   = (u64) -1;
+    offset_lv3fd = (u64) -1;
     
     base_vdir = (type == GAME_CIA) ? VDIR_CIA : (type == GAME_NCSD) ? VDIR_NCSD : (type == GAME_NCCH) ? VDIR_NCCH : 0;
     if (!base_vdir) return 0;
@@ -385,9 +399,110 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             return false;
         offset_exefs = vdir->offset;
         if (!BuildVGameExeFsDir()) return false;
+    } else if ((vdir->flags & VDIR_ROMFS) && (offset_romfs != vdir->offset)) {
+        // validate romFS magic
+        u8 magic[] = { ROMFS_MAGIC };
+        u8 header[sizeof(magic)];
+        if ((ReadImageBytes(header, vdir->offset, sizeof(magic)) != 0) ||
+            (memcmp(magic, header, sizeof(magic)) != 0))
+            return false;
+        // validate lv3 header
+        RomFsLv3Header* lv3 = (RomFsLv3Header*) romfslv3;
+        for (u32 i = 1; i < 8; i++) {
+            offset_lv3 = vdir->offset + (i*OFFSET_LV3);
+            if (ReadImageBytes(romfslv3, offset_lv3, sizeof(RomFsLv3Header)) != 0)
+                return false;
+            if (ValidateLv3Header(lv3, VGAME_BUFFER_SIZE - 0x20000) == 0)
+                break;
+            offset_lv3 = (u64) -1;
+        }
+        if ((offset_lv3 == (u64) -1) || (ReadImageBytes(romfslv3, offset_lv3, lv3->offset_filedata) != 0))
+            return false;
+        offset_lv3fd = offset_lv3 + lv3->offset_filedata;
+        offset_romfs = vdir->offset;
+        BuildLv3Index(&lv3idx, romfslv3);
+    }
+    
+    // for romfs dir: switch to lv3 dir object 
+    if (vdir->flags & VDIR_ROMFS) {
+        vdir->index = -1;
+        vdir->offset = 0;
+        vdir->size = 0;
+        vdir->flags &= ~VDIR_ROMFS;
+        vdir->flags |= VDIR_LV3;
     }
     
     return true; // error (should not happen)
+}
+
+bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
+    BuildLv3Index(&lv3idx, romfslv3);
+    vfile->flags = VFLAG_LV3;
+    
+    // start from parent dir object
+    if (vdir->index == -1) vdir->index = 0; 
+    
+    // first child dir object, skip if not available
+    if (vdir->index == 0) {
+        RomFsLv3DirMeta* parent = LV3_GET_DIR(vdir->offset, &lv3idx);
+        if (!parent) return false;
+        if (parent->offset_child != (u32) -1) {
+            vdir->offset = (u64) parent->offset_child;
+            vdir->index = 1;
+            vfile->flags |= VFLAG_DIR;
+            vfile->offset = vdir->offset;
+            return true;
+        } else vdir->index = 2;
+    }
+    
+    // parse sibling dirs
+    if (vdir->index == 1) {
+        RomFsLv3DirMeta* current = LV3_GET_DIR(vdir->offset, &lv3idx);
+        if (!current) return false;
+        if (current->offset_sibling != (u32) -1) {
+            vdir->offset = (u64) current->offset_sibling;
+            vfile->flags |= VFLAG_DIR;
+            vfile->offset = vdir->offset;
+            return true;
+        } else if (current->offset_parent != (u32) -1) {
+            vdir->offset = (u64) current->offset_parent;
+            vdir->index = 2;
+        } else return false;
+    }
+    
+    // first child file object, skip if not available
+    if (vdir->index == 2) {
+        RomFsLv3DirMeta* parent = LV3_GET_DIR(vdir->offset, &lv3idx);
+        if (!parent) return false;
+        if (parent->offset_file != (u32) -1) {
+            vdir->offset = (u64) parent->offset_file;
+            vdir->index = 3;
+            RomFsLv3FileMeta* lv3file = LV3_GET_FILE(vdir->offset, &lv3idx);
+            if (!lv3file) return false;
+            vfile->offset = vdir->offset;
+            vfile->size = lv3file->size_data;
+            return true;
+        } else vdir->index = 4;
+    }
+    
+    // parse sibling files
+    if (vdir->index == 3) {
+        RomFsLv3FileMeta* current = LV3_GET_FILE(vdir->offset, &lv3idx);
+        if (!current) return false;
+        if (current->offset_sibling != (u32) -1) {
+            vdir->offset = current->offset_sibling;
+            RomFsLv3FileMeta* lv3file = LV3_GET_FILE(vdir->offset, &lv3idx);
+            if (!lv3file) return false;
+            vfile->offset = vdir->offset;
+            vfile->size = lv3file->size_data;
+            return true;
+        } else if (current->offset_parent != (u32) -1) {
+            vdir->offset = current->offset_parent;
+            vdir->index = 4;
+        } else return false;
+    }
+    
+    return false;
 }
 
 bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
@@ -406,6 +521,8 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     } else if (vdir->flags & VDIR_EXEFS) {
         templates = templates_exefs;
         n = n_templates_exefs;
+    } else if (vdir->flags & VDIR_LV3) {
+        return ReadVGameDirLv3(vfile, vdir);
     }
     
     if (++vdir->index < n) {
@@ -419,6 +536,12 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
 
 int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
     u32 vfoffset = vfile->offset;
+    if (vfile->flags & VFLAG_LV3) {
+        RomFsLv3FileMeta* lv3file;
+        if (vfile->flags & VFLAG_DIR) return -1;
+        lv3file = LV3_GET_FILE(vfile->offset, &lv3idx);
+        vfoffset = offset_lv3fd + lv3file->offset_data;
+    }
     int ret = ReadImageBytes(buffer, vfoffset + offset, count);
     if (ret != 0) return ret;
     /*if ((ret != 0) && (vfile->keyslot <= 0x40)) { // crypto
@@ -433,4 +556,37 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
             AES_CNT_TITLEKEY_DECRYPT_MODE, ctr);
     }*/
     return 0;
+}
+
+bool GetVGameFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
+    if (!(vfile->flags & VFLAG_LV3)) {
+        snprintf(name, n_chars, "%s", vfile->name);
+        return true;
+    }
+    
+    u16* wname = NULL;
+    u32 name_len = 0;
+    
+    if (vfile->flags & VFLAG_DIR) {
+        RomFsLv3DirMeta* dirmeta = LV3_GET_DIR(vfile->offset, &lv3idx);
+        if (!dirmeta) return false;
+        wname = dirmeta->wname;
+        name_len = dirmeta->name_len / 2;
+    } else {
+        RomFsLv3FileMeta* filemeta = LV3_GET_FILE(vfile->offset, &lv3idx);
+        if (!filemeta) return false;
+        wname = filemeta->wname;
+        name_len = filemeta->name_len / 2;
+    }
+    memset(name, 0, n_chars);
+    for (u32 i = 0; (i < (n_chars-1)) && (i < name_len); i++)
+        name[i] = wname[i]; // poor mans UTF-16 -> UTF-8
+    
+    return true;
+}
+
+bool MatchVGameFilename(const char* name, const VirtualFile* vfile, u32 n_chars) {
+    char vg_name[256];
+    if (!GetVGameFilename(vg_name, vfile, 256)) return false;
+    return (strncasecmp(name, vg_name, n_chars) == 0);
 }

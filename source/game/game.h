@@ -5,3 +5,4 @@
 #include "ncsd.h"
 #include "ncch.h"
 #include "exefs.h"
+#include "romfs.h"

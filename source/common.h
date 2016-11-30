@@ -59,7 +59,7 @@
 #define GAME_BUFFER_SIZE    (0x100000)
 // buffer area defines (in use by vgame.c)
 #define VGAME_BUFFER        ((u8*)0x21600000)
-#define VGAME_BUFFER_SIZE   (0x100000)
+#define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER_O3DS  ((u8*)0x22200000) // in O3DS FCRAM
 #define RAMDRV_SIZE_O3DS    (0x01C00000) // 28MB
