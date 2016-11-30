@@ -23,13 +23,13 @@ u32 GetCiaInfo(CiaInfo* info, CiaHeader* header) {
     info->offset_tmd = info->offset_ticket + align(header->size_ticket, 64);
     info->offset_content = info->offset_tmd + align(header->size_tmd, 64);
     info->offset_meta = (header->size_meta) ? info->offset_content + align(header->size_content, 64) : 0;
-    info->offset_ticktmd = info->offset_ticket;
     info->offset_content_list = info->offset_tmd + sizeof(TitleMetaData);
     
-    info->size_ticktmd = info->offset_content - info->offset_ticket;
     info->size_content_list = info->size_tmd - sizeof(TitleMetaData);
     info->size_cia = (header->size_meta) ? info->offset_meta + info->size_meta :
         info->offset_content + info->size_content;
+        
+    info->max_contents = (info->size_tmd - sizeof(TitleMetaData)) /  sizeof(TmdContentChunk);
     
     return 0;
 }

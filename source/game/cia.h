@@ -124,7 +124,6 @@ typedef struct { // first 0x20 bytes are identical with CIA header
     u32 size_tmd;
     u32 size_meta;
     u64 size_content;
-    u32 size_ticktmd;
     u32 size_content_list;
     u64 size_cia;
     u32 offset_cert;
@@ -132,8 +131,8 @@ typedef struct { // first 0x20 bytes are identical with CIA header
     u32 offset_tmd;
     u32 offset_content;
     u32 offset_meta;
-    u32 offset_ticktmd;
     u32 offset_content_list;
+    u32 max_contents;
 } __attribute__((packed)) CiaInfo;
 
 typedef struct {
