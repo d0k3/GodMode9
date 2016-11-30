@@ -675,7 +675,7 @@ u32 GodMode() {
                         (have_sha) ? ((memcmp(sha256, sha256_file, 32) == 0) ? "passed!" : "failed!") : "",
                         (memcmp(sha256, sha256_prev, 32) == 0) ? "\n \nIdentical with previous file:\n" : "",
                         (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "",
-                        (write_sha) ? "\n \nWrite .SHA file?" : "") && !have_sha) {
+                        (write_sha) ? "\n \nWrite .SHA file?" : "") && !have_sha && write_sha) {
                         FileSetData(sha_path, sha256, 32, 0, true);
                         GetDirContents(current_dir, current_path);
                     }
