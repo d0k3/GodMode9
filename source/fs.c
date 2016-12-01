@@ -1194,12 +1194,13 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         contents->entry->type = T_DOTDOT;
         contents->entry->size = 0;
         contents->n_entries = 1;
+        // search the path
+        char fpath[256]; // 256 is the maximum length of a full path
+        strncpy(fpath, path, 256);
         if (DriveType(path) & DRV_VIRTUAL) {
-            if (!GetVirtualDirContents(contents, path, pattern))
+            if (!GetVirtualDirContents(contents, fpath, 256, pattern, recursive))
                 contents->n_entries = 0;
         } else {
-            char fpath[256]; // 256 is the maximum length of a full path
-            strncpy(fpath, path, 256);
             if (!GetDirContentsWorker(contents, fpath, 256, pattern, recursive))
                 contents->n_entries = 0;
         }

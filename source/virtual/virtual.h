@@ -47,7 +47,7 @@ bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry);
 
 bool GetVirtualFile(VirtualFile* vfile, const char* path);
 bool GetVirtualDir(VirtualDir* vdir, const char* path);
-bool GetVirtualDirContents(DirStruct* contents, const char* path, const char* pattern);
+bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const char* pattern, bool recursive);
 
 int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read);
 int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count, u32* bytes_written);

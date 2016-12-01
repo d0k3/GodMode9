@@ -107,30 +107,34 @@ bool GetVirtualDir(VirtualDir* vdir, const char* path) {
     return GetVirtualFile(&vfile, path) && OpenVirtualDir(vdir, &vfile);
 }
 
-bool GetVirtualDirContents(DirStruct* contents, const char* path, const char* pattern) {
-    u32 virtual_src = GetVirtualSource(path);
-    if (!virtual_src) return false; // not a virtual path
-    
+bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const char* pattern, bool recursive) {
     VirtualDir vdir;
     VirtualFile vfile;
-    if (!GetVirtualDir(&vdir, path))
+    char* fname = fpath + strnlen(fpath, fnsize - 1);
+    (fname++)[0] = '/';
+    if (!GetVirtualDir(&vdir, fpath))
         return false; // get dir reader object
     while ((contents->n_entries < MAX_DIR_ENTRIES) && (ReadVirtualDir(&vfile, &vdir))) {
         DirEntry* entry = &(contents->entry[contents->n_entries]);
         if (!(vfile.flags & VRT_GAME)) {
-            if (pattern && !MatchName(pattern, vfile.name)) continue;
-            snprintf(entry->path, 256, "%s/%s", path, vfile.name);
+            strncpy(fname, vfile.name, (fnsize - 1) - (fname - fpath));
         } else {
             char name[256];
             if (!GetVGameFilename(name, &vfile, 256)) return false;
-            if (pattern && !MatchName(pattern, name)) continue;
-            snprintf(entry->path, 256, "%s/%s", path, name);
+            strncpy(fname, name, (fnsize - 1) - (fname - fpath));
         }
-        entry->name = entry->path + strnlen(path, 256) + 1;
-        entry->size = vfile.size;
-        entry->type = (vfile.flags & VFLAG_DIR) ? T_DIR : T_FILE;
-        entry->marked = 0;
-        contents->n_entries++;
+        if (!pattern || MatchName(pattern, fname)) {
+            strncpy(entry->path, fpath, 256);
+            entry->name = entry->path + (fname - fpath);
+            entry->size = vfile.size;
+            entry->type = (vfile.flags & VFLAG_DIR) ? T_DIR : T_FILE;
+            entry->marked = 0;
+            contents->n_entries++;
+        }
+        if (recursive && (vfile.flags & VFLAG_DIR)) {
+            if (!GetVirtualDirContents(contents, fpath, fnsize, pattern, recursive))
+                break;
+        }   
     }
     
     return true; // not much we can check here
