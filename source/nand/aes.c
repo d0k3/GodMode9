@@ -126,18 +126,23 @@ void ctr_decrypt_boffset(void *inbuf, void *outbuf, size_t size, size_t off, uin
     
     if (off_fix) // handle misaligned offset (at beginning)
     {
-        for (i=off_fix; i<AES_BLOCK_SIZE; i++)
+        uint32_t last_byte = ((off_fix + bytes_left) >= AES_BLOCK_SIZE) ?
+            AES_BLOCK_SIZE : off_fix + bytes_left;
+        for (i=off_fix; i<last_byte; i++)
             temp[i] = *(in++);
         ctr_decrypt(temp, temp, 1, mode, ctr_local);
-        for (i=off_fix; i<AES_BLOCK_SIZE; i++)
+        for (i=off_fix; i<last_byte; i++)
             *(out++) = temp[i];
-        bytes_left -= AES_BLOCK_SIZE - off_fix;
+        bytes_left -= last_byte - off_fix;
     }
     
-    ctr_decrypt(in, out, bytes_left / AES_BLOCK_SIZE, mode, ctr_local);
-    in += AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
-    out += AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
-    bytes_left -= AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+    if (bytes_left >= AES_BLOCK_SIZE)
+    {
+        ctr_decrypt(in, out, bytes_left / AES_BLOCK_SIZE, mode, ctr_local);
+        in += AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+        out += AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+        bytes_left -= AES_BLOCK_SIZE * (uint32_t) (bytes_left / AES_BLOCK_SIZE);
+    }
     
     if (bytes_left) // handle misaligned offset (at end)
     {
