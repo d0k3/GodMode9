@@ -12,15 +12,16 @@
 
 #define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_MEMORY|VRT_GAME)
 
-#define VFLAG_A9LH_AREA (1<<20)
-#define VFLAG_DIR       (1<<21)
-#define VFLAG_ROOT      (1<<22)
+#define VFLAG_DIR       (1<<16)
+#define VFLAG_ROOT      (1<<17)
+#define VFLAG_A9LH_AREA (1<<18)
+#define VFLAG_LV3       (1<<19)
 
 // virtual file flag (subject to change):
 // bits 0...9  : reserved for NAND virtual sources and info
 // bits 10...15: reserved for other virtual sources
-// bits 16...19: reserved for external flags
-// bits 20...31: reserved for internal flags (different per source)
+// bits 16...23: reserved for external flags
+// bits 24...31: reserved for internal flags (different per source)
 typedef struct {
     char name[32];
     u64 offset; // must be a multiple of 0x200 (for NAND access)

@@ -4,21 +4,13 @@
 #include "aes.h"
 #include "ff.h"
 
-#define VFLAG_EXTHDR        (1<<25)
-#define VFLAG_CIA           (1<<26) // unused, see below
-#define VFLAG_NCSD          (1<<27) // unused, see below
-#define VFLAG_NCCH          (1<<28)
-#define VFLAG_EXEFS         (1<<29)
-#define VFLAG_ROMFS         (1<<30)
-#define VFLAG_LV3           (1<<31)
-
-#define VDIR_CIA            VFLAG_CIA
-#define VDIR_NCSD           VFLAG_NCSD
-#define VDIR_NCCH           VFLAG_NCCH
-#define VDIR_EXEFS          VFLAG_EXEFS
-#define VDIR_ROMFS          VFLAG_ROMFS
-#define VDIR_LV3            VFLAG_LV3
-#define VDIR_GAME           (VDIR_CIA|VDIR_NCSD|VDIR_NCCH|VDIR_EXEFS|VDIR_ROMFS|VDIR_LV3)
+#define VFLAG_EXTHDR        (1<<26)
+#define VFLAG_CIA           (1<<27)
+#define VFLAG_NCSD          (1<<28)
+#define VFLAG_NCCH          (1<<29)
+#define VFLAG_EXEFS         (1<<30)
+#define VFLAG_ROMFS         (1<<31)
+#define VFLAG_GAMEDIR       (VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3)
 
 #define MAX_N_TEMPLATES 2048 // this leaves us with enough room (128kB reserved)
 
@@ -343,7 +335,7 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_lv3   = (u64) -1;
     offset_lv3fd = (u64) -1;
     
-    base_vdir = (type == GAME_CIA) ? VDIR_CIA : (type == GAME_NCSD) ? VDIR_NCSD : (type == GAME_NCCH) ? VDIR_NCCH : 0;
+    base_vdir = (type == GAME_CIA) ? VFLAG_CIA : (type == GAME_NCSD) ? VFLAG_NCSD : (type == GAME_NCCH) ? VFLAG_NCCH : 0;
     if (!base_vdir) return 0;
     
     vgame_type = type;
@@ -364,7 +356,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         vdir->size = GetMountSize();
         vdir->flags = VFLAG_DIR|base_vdir;
     } else { // non root dir
-        if (!(ventry->flags & VFLAG_DIR) || !(ventry->flags & VDIR_GAME))
+        if (!(ventry->flags & VFLAG_DIR) || !(ventry->flags & VFLAG_GAMEDIR))
             return false;
         vdir->offset = ventry->offset;
         vdir->size = ventry->size;
@@ -372,7 +364,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
     }
     
     // build directories where required
-    if ((vdir->flags & VDIR_CIA) && (offset_cia != vdir->offset)) {
+    if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
         CiaInfo info;
         if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
             (ValidateCiaHeader(&(cia->header)) != 0) ||
@@ -381,25 +373,25 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             return false;
         offset_cia = vdir->offset; // always zero(!)
         if (!BuildVGameCiaDir()) return false;
-    } else if ((vdir->flags & VDIR_NCSD) && (offset_ncsd != vdir->offset)) {
+    } else if ((vdir->flags & VFLAG_NCSD) && (offset_ncsd != vdir->offset)) {
         if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
             (ValidateNcsdHeader(ncsd) != 0))
             return 0;
         offset_ncsd = vdir->offset; // always zero(!)
         if (!BuildVGameNcsdDir()) return 0;
-    } else if ((vdir->flags & VDIR_NCCH) && (offset_ncch != vdir->offset)) {
+    } else if ((vdir->flags & VFLAG_NCCH) && (offset_ncch != vdir->offset)) {
         if ((ReadImageBytes((u8*) ncch, vdir->offset, sizeof(NcchHeader)) != 0) ||
             (ValidateNcchHeader(ncch) != 0))
             return false;
         offset_ncch = vdir->offset;
         if (!BuildVGameNcchDir()) return false;
-    } else if ((vdir->flags & VDIR_EXEFS) && (offset_exefs != vdir->offset)) {
+    } else if ((vdir->flags & VFLAG_EXEFS) && (offset_exefs != vdir->offset)) {
         if ((ReadImageBytes((u8*) exefs, vdir->offset, sizeof(ExeFsHeader)) != 0) ||
             (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
             return false;
         offset_exefs = vdir->offset;
         if (!BuildVGameExeFsDir()) return false;
-    } else if ((vdir->flags & VDIR_ROMFS) && (offset_romfs != vdir->offset)) {
+    } else if ((vdir->flags & VFLAG_ROMFS) && (offset_romfs != vdir->offset)) {
         // validate romFS magic
         u8 magic[] = { ROMFS_MAGIC };
         u8 header[sizeof(magic)];
@@ -424,12 +416,12 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
     }
     
     // for romfs dir: switch to lv3 dir object 
-    if (vdir->flags & VDIR_ROMFS) {
+    if (vdir->flags & VFLAG_ROMFS) {
         vdir->index = -1;
         vdir->offset = 0;
         vdir->size = 0;
-        vdir->flags &= ~VDIR_ROMFS;
-        vdir->flags |= VDIR_LV3;
+        vdir->flags &= ~VFLAG_ROMFS;
+        vdir->flags |= VFLAG_LV3;
     }
     
     return true; // error (should not happen)
@@ -509,19 +501,19 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     VirtualFile* templates;
     int n = 0;
     
-    if (vdir->flags & VDIR_CIA) {
+    if (vdir->flags & VFLAG_CIA) {
         templates = templates_cia;
         n = n_templates_cia;
-    } else if (vdir->flags & VDIR_NCSD) {
+    } else if (vdir->flags & VFLAG_NCSD) {
         templates = templates_ncsd;
         n = n_templates_ncsd;
-    } else if (vdir->flags & VDIR_NCCH) {
+    } else if (vdir->flags & VFLAG_NCCH) {
         templates = templates_ncch;
         n = n_templates_ncch;
-    } else if (vdir->flags & VDIR_EXEFS) {
+    } else if (vdir->flags & VFLAG_EXEFS) {
         templates = templates_exefs;
         n = n_templates_exefs;
-    } else if (vdir->flags & VDIR_LV3) {
+    } else if (vdir->flags & VFLAG_LV3) {
         return ReadVGameDirLv3(vfile, vdir);
     }
     
@@ -558,11 +550,9 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
     return 0;
 }
 
-bool GetVGameFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
-    if (!(vfile->flags & VFLAG_LV3)) {
-        snprintf(name, n_chars, "%s", vfile->name);
-        return true;
-    }
+bool GetVGameLv3Filename(char* name, const VirtualFile* vfile, u32 n_chars) {
+    if (!(vfile->flags & VFLAG_LV3))
+        return false;
     
     u16* wname = NULL;
     u32 name_len = 0;
@@ -585,8 +575,8 @@ bool GetVGameFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     return true;
 }
 
-bool MatchVGameFilename(const char* name, const VirtualFile* vfile, u32 n_chars) {
-    char vg_name[256];
-    if (!GetVGameFilename(vg_name, vfile, 256)) return false;
-    return (strncasecmp(name, vg_name, n_chars) == 0);
+bool MatchVGameLv3Filename(const char* name, const VirtualFile* vfile, u32 n_chars) {
+    char lv3_name[256];
+    if (!GetVGameLv3Filename(lv3_name, vfile, 256)) return false;
+    return (strncasecmp(name, lv3_name, n_chars) == 0);
 }

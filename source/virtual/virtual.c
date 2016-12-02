@@ -90,9 +90,8 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     for (name = strtok(lpath + 3, "/"); name && vdir.virtual_src; name = strtok(NULL, "/")) {
         while (true) {
             if (!ReadVirtualDir(vfile, &vdir)) return false;
-            if ((virtual_src != VRT_GAME) && (strncasecmp(name, vfile->name, 32) == 0))
-                break; // entry found
-            if ((virtual_src == VRT_GAME) && MatchVGameFilename(name, vfile, 256))
+            if ((!(vfile->flags & VFLAG_LV3) && (strncasecmp(name, vfile->name, 32) == 0)) ||
+                ((vfile->flags & VFLAG_LV3) && MatchVGameLv3Filename(name, vfile, 256)))
                 break; // entry found
         }
         if (!OpenVirtualDir(&vdir, vfile))
@@ -137,8 +136,8 @@ bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const c
 }
 
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
-    if (!(vfile->flags & VRT_GAME)) strncpy(name, vfile->name, n_chars);
-    else if (!GetVGameFilename(name, vfile, 256)) return false;
+    if (!(vfile->flags & VFLAG_LV3)) strncpy(name, vfile->name, n_chars);
+    else if (!GetVGameLv3Filename(name, vfile, 256)) return false;
     return true;
 }
 
