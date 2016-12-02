@@ -849,6 +849,8 @@ u32 GodMode() {
                     last_clipboard_size = clipboard->n_entries;
             } else if ((curr_drvtype & DRV_SEARCH) && (pad_state & BUTTON_Y)) {
                 ShowPrompt(false, "Not allowed in search drive");
+            } else if ((curr_drvtype & DRV_GAME) && (pad_state & BUTTON_Y)) {
+                ShowPrompt(false, "Not allowed in virtual game path");
             } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
