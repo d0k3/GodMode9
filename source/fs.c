@@ -10,7 +10,7 @@
 
 #define NORM_FS  10
 #define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  8
+#define VIRT_FS  9
 
 #define SKIP_CUR (1<<3)
 #define OVERWRITE_CUR (1<<4)
@@ -190,6 +190,8 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_EMUNAND;
         } else if (vsrc == VRT_IMGNAND) {
             type = DRV_VIRTUAL | DRV_IMAGE;
+        } else if (vsrc == VRT_XORPAD) {
+            type = DRV_VIRTUAL | DRV_XORPAD;
         } else if (vsrc == VRT_MEMORY) {
             type = DRV_VIRTUAL | DRV_MEMORY;
         } else if (vsrc == VRT_GAME) {
@@ -286,6 +288,9 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_GAME) {
         perm = PERM_GAME;
         snprintf(area_name, 16, "game images");
+    } else if (drvtype & DRV_XORPAD) {
+        perm = PERM_XORPAD;
+        snprintf(area_name, 16, "XORpads");
     } else if (drvtype & DRV_IMAGE) {
         perm = PERM_IMAGE;
         snprintf(area_name, 16, "images");
@@ -344,6 +349,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             break;
         case PERM_GAME:
             ShowPrompt(false, "Unlock write permission for\ngame images is not allowed.");
+            return false;
+            break;
+        case PERM_XORPAD:
+            ShowPrompt(false, "Unlock write permission for\nXORpad drive is not allowed.");
             return false;
             break;
         #ifndef SAFEMODE
@@ -1147,11 +1156,12 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         "GAME IMAGE",
         "SYSNAND SD", "EMUNAND SD",
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL",
+        "NAND XORPADS",
         "MEMORY VIRTUAL",
         "LAST SEARCH"
     };
     static const char* drvnum[] = {
-        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "G:", "A:", "B:", "S:", "E:", "I:", "M:", "Z:"
+        "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "G:", "A:", "B:", "S:", "E:", "I:", "X:", "M:", "Z:"
     };
     u32 n_entries = 0;
     

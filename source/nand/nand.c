@@ -362,6 +362,8 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src
     } else if (nand_src == NAND_SYSNAND) { // SysNAND
         int errorcode = sdmmc_nand_readsectors(sector, count, buffer);
         if (errorcode) return errorcode;   
+    } else if (nand_src == NAND_ZERONAND) { // zero NAND (good for XORpads)
+        memset(buffer, 0, count * 0x200);
     } else {
         return -1;
     }
@@ -425,10 +427,14 @@ u64 GetNandSizeSectors(u32 nand_src)
         u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? sysnand_sectors : NAND_MIN_SECTORS;
         if (emunand_max_sectors >= sysnand_sectors) return sysnand_sectors;
         else return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
-    } else if (nand_src == NAND_IMGNAND) {
+    } else if (nand_src == NAND_IMGNAND) { // for images
         u32 img_sectors = (GetMountState() == IMG_NAND) ? GetMountSize() / 0x200 : 0;
         return (img_sectors >= sysnand_sectors) ? sysnand_sectors : (img_sectors >= NAND_MIN_SECTORS) ? NAND_MIN_SECTORS : 0;
-    } else return sysnand_sectors; // for SysNAND
+    } else if (nand_src == NAND_SYSNAND) { // for SysNAND
+        return sysnand_sectors;
+    }
+    
+    return 0;
 }
 
 bool InitEmuNandBase(void)

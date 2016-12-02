@@ -84,9 +84,10 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         int drvtype = DriveType(curr_entry->path);
         char drvstr[32];
         snprintf(drvstr, 31, "(%s%s)", 
-            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMDrive" : (drvtype & DRV_GAME) ? "Game" :
+            ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMdrive" : (drvtype & DRV_GAME) ? "Game" :
             (drvtype & DRV_SYSNAND) ? "SysNAND" : (drvtype & DRV_EMUNAND) ? "EmuNAND" : (drvtype & DRV_IMAGE) ? "Image" :
-            (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" : (drvtype & DRV_SEARCH) ? "Search" : ""),
+            (drvtype & DRV_XORPAD) ? "XORpad" : (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" :
+            (drvtype & DRV_SEARCH) ? "Search" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
         ResizeString(tempstr, drvstr, 160 / FONT_WIDTH_EXT, 8, false);
     }else {
@@ -851,6 +852,8 @@ u32 GodMode() {
                 ShowPrompt(false, "Not allowed in search drive");
             } else if ((curr_drvtype & DRV_GAME) && (pad_state & BUTTON_Y)) {
                 ShowPrompt(false, "Not allowed in virtual game path");
+            } else if ((curr_drvtype & DRV_XORPAD) && (pad_state & BUTTON_Y)) {
+                ShowPrompt(false, "Not allowed in XORpad drive");
             } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];

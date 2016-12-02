@@ -9,7 +9,7 @@ typedef struct {
 } __attribute__((packed)) VirtualDrive;
 
 static const VirtualDrive virtualDrives[] =
-    { {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'M', VRT_MEMORY}, {'G', VRT_GAME} };
+    { {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, {'M', VRT_MEMORY}, {'G', VRT_GAME} };
 
 u32 GetVirtualSource(const char* path) {
     // check path validity
@@ -33,7 +33,7 @@ bool CheckVirtualDrive(const char* path) {
 bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
     u32 virtual_src = vdir->virtual_src;
     bool ret = false;
-    if (virtual_src & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND)) {
+    if (virtual_src & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD)) {
         ret = ReadVNandDir(vfile, vdir);
     } else if (virtual_src & VRT_MEMORY) {
         ret = ReadVMemDir(vfile, vdir);
@@ -150,7 +150,7 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count,
         count = vfile->size - offset;
     if (bytes_read) *bytes_read = count;
     
-    if (vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND)) {
+    if (vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD)) {
         return ReadVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return ReadVMemFile(vfile, buffer, offset, count);

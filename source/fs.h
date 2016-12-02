@@ -8,10 +8,11 @@
 #define DRV_FAT         (1<<0)
 #define DRV_VIRTUAL     (1<<1)
 // secondary drive types
-#define DRV_SDCARD      (1<<3)
-#define DRV_SYSNAND     (1<<4)
-#define DRV_EMUNAND     (1<<5)
-#define DRV_IMAGE       (1<<6)
+#define DRV_SDCARD      (1<<2)
+#define DRV_SYSNAND     (1<<3)
+#define DRV_EMUNAND     (1<<4)
+#define DRV_IMAGE       (1<<5)
+#define DRV_XORPAD      (1<<6)
 #define DRV_RAMDRIVE    (1<<7)
 #define DRV_MEMORY      (1<<8)
 #define DRV_GAME        (1<<9)
@@ -27,8 +28,9 @@
 #define PERM_IMAGE      (1<<4)
 #define PERM_MEMORY     (1<<5)
 #define PERM_GAME       (1<<6) // can't be enabled, placeholder
-#define PERM_A9LH       ((1<<7) | PERM_SYSNAND)
-#define PERM_SDDATA     ((1<<8) | PERM_SDCARD)
+#define PERM_XORPAD     (1<<7) // can't be enabled, placeholder
+#define PERM_A9LH       ((1<<8) | PERM_SYSNAND)
+#define PERM_SDDATA     ((1<<9) | PERM_SDCARD)
 #define PERM_BASE       (PERM_SDCARD | PERM_RAMDRIVE)
 #define PERM_ALL        (PERM_SDCARD | PERM_RAMDRIVE | PERM_EMUNAND | PERM_SYSNAND | PERM_IMAGE | PERM_MEMORY | PERM_SDDATA)
 

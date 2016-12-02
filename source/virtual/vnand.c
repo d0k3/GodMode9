@@ -47,6 +47,12 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         // copy current template to vfile
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
         
+        // XORpad drive handling
+        if (nand_src == VRT_XORPAD) {
+            snprintf(vfile->name, 32, "%s.xorpad", templates[vdir->index].name);
+            if ((vfile->keyslot == 0x11) || (vfile->keyslot >= 0x40)) continue;
+        }
+        
         // process / check special flags
         if (!(vfile->flags & nand_type))
             continue; // virtual file has wrong NAND type
@@ -57,7 +63,7 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         if (!(nand_src & VRT_SYSNAND) || !CheckA9lh())
             vfile->flags &= ~VFLAG_A9LH_AREA; // flag is meaningless outside of A9LH / SysNAND
         if (vfile->flags & VFLAG_NAND_SIZE) {
-            if ((nand_src != NAND_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
+            if ((nand_src != VRT_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
                 continue; // EmuNAND/ImgNAND is too small
             vfile->size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
         }
@@ -71,11 +77,11 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
 }
 
 int ReadVNandFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
-    u32 nand_src = vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND);
+    u32 nand_src = vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD);
     return ReadNandBytes(buffer, vfile->offset + offset, count, vfile->keyslot, nand_src);
 }
 
 int WriteVNandFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count) {
-    u32 nand_dst = vfile->flags & (VRT_SYSNAND | VRT_EMUNAND | VRT_IMGNAND);
+    u32 nand_dst = vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD);
     return WriteNandBytes(buffer, vfile->offset + offset, count, vfile->keyslot, nand_dst);
 }
