@@ -275,6 +275,74 @@ void CryptSector0x96(u8* buffer, bool encrypt)
         aes_decrypt((void*) buffer, (void*) buffer, 1, mode);
 }
 
+int ReadNandBytes(u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_src)
+{
+    if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
+        // simple wrapper function for ReadNandSectors(...)
+        return ReadNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_src);
+    } else { // misaligned data -> -___-
+        u8 l_buffer[0x200];
+        int errorcode = 0;
+        if (offset % 0x200) { // handle misaligned offset
+            u32 offset_fix = 0x200 - (offset % 0x200);
+            errorcode = ReadNandSectors(l_buffer, offset / 0x200, 1, keyslot, nand_src);
+            if (errorcode != 0) return errorcode;
+            memcpy(buffer, l_buffer + 0x200 - offset_fix, min(offset_fix, count));
+            if (count <= offset_fix) return 0;
+            offset += offset_fix;
+            buffer += offset_fix;
+            count -= offset_fix;
+        } // offset is now aligned and part of the data is read
+        if (count >= 0x200) { // otherwise this is misaligned and will be handled below
+            errorcode = ReadNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_src);
+            if (errorcode != 0) return errorcode;
+        }
+        if (count % 0x200) { // handle misaligned count
+            u32 count_fix = count % 0x200;
+            errorcode = ReadNandSectors(l_buffer, (offset + count) / 0x200, 1, keyslot, nand_src);
+            if (errorcode != 0) return errorcode;
+            memcpy(buffer + count - count_fix, l_buffer, count_fix);
+        }
+        return errorcode;
+    }
+}
+
+int WriteNandBytes(const u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_dst)
+{
+    if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
+        // simple wrapper function for WriteNandSectors(...)
+        return WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
+    } else { // misaligned data -> -___-
+        u8 l_buffer[0x200];
+        int errorcode = 0;
+        if (offset % 0x200) { // handle misaligned offset
+            u32 offset_fix = 0x200 - (offset % 0x200);
+            errorcode = ReadNandSectors(l_buffer, offset / 0x200, 1, keyslot, nand_dst);
+            if (errorcode != 0) return errorcode;
+            memcpy(l_buffer + 0x200 - offset_fix, buffer, min(offset_fix, count));
+            errorcode = WriteNandSectors((const u8*) l_buffer, offset / 0x200, 1, keyslot, nand_dst);
+            if (errorcode != 0) return errorcode;
+            if (count <= offset_fix) return 0;
+            offset += offset_fix;
+            buffer += offset_fix;
+            count -= offset_fix;
+        } // offset is now aligned and part of the data is written
+        if (count >= 0x200) { // otherwise this is misaligned and will be handled below
+            errorcode = WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
+            if (errorcode != 0) return errorcode;
+        }
+        if (count % 0x200) { // handle misaligned count
+            u32 count_fix = count % 0x200;
+            errorcode = ReadNandSectors(l_buffer, (offset + count) / 0x200, 1, keyslot, nand_dst);
+            if (errorcode != 0) return errorcode;
+            memcpy(l_buffer, buffer + count - count_fix, count_fix);
+            errorcode = WriteNandSectors((const u8*) l_buffer, (offset + count) / 0x200, 1, keyslot, nand_dst);
+            if (errorcode != 0) return errorcode;
+        }
+        return errorcode;
+    }
+}
+
 int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
 {
     if (!count) return 0; // <--- just to be safe
