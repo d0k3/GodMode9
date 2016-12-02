@@ -88,11 +88,16 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     VirtualDir vdir;
     if (!OpenVirtualRoot(&vdir, virtual_src)) return false;
     for (name = strtok(lpath + 3, "/"); name && vdir.virtual_src; name = strtok(NULL, "/")) {
-        while (true) {
-            if (!ReadVirtualDir(vfile, &vdir)) return false;
-            if ((!(vfile->flags & VFLAG_LV3) && (strncasecmp(name, vfile->name, 32) == 0)) ||
-                ((vfile->flags & VFLAG_LV3) && MatchVGameLv3Filename(name, vfile, 256)))
-                break; // entry found
+        if (!(vdir.flags & VFLAG_LV3)) { // standard method
+            while (true) {
+                if (!ReadVirtualDir(vfile, &vdir)) return false;
+                if ((!(vfile->flags & VFLAG_LV3) && (strncasecmp(name, vfile->name, 32) == 0)) ||
+                    ((vfile->flags & VFLAG_LV3) && MatchVGameLv3Filename(name, vfile, 256)))
+                    break; // entry found
+            }
+        } else { // use lv3 hashes for quicker search
+            if (!FindVirtualFileInLv3Dir(vfile, &vdir, name))
+                return false;
         }
         if (!OpenVirtualDir(&vdir, vfile))
             vdir.virtual_src = 0;

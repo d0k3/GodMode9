@@ -550,6 +550,28 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
     return 0;
 }
 
+bool FindVirtualFileInLv3Dir(VirtualFile* vfile, const VirtualDir* vdir, const char* name) {
+    vfile->name[0] = '\0';
+    vfile->flags = vdir->flags & ~VFLAG_DIR;
+    
+    RomFsLv3FileMeta* lv3file = GetLv3FileMeta(name, vdir->offset, &lv3idx);
+    if (lv3file) {
+        vfile->offset = ((u8*) lv3file) - ((u8*) lv3idx.filemeta);
+        vfile->size = lv3file->size_data;
+        return true;
+    }
+    
+    RomFsLv3DirMeta* lv3dir = GetLv3DirMeta(name, vdir->offset, &lv3idx);
+    if (lv3dir) {
+        vfile->offset = ((u8*) lv3dir) - ((u8*) lv3idx.dirmeta);
+        vfile->size = 0;
+        vfile->flags |= VFLAG_DIR;
+        return true;
+    }
+    
+    return false;
+}
+
 bool GetVGameLv3Filename(char* name, const VirtualFile* vfile, u32 n_chars) {
     if (!(vfile->flags & VFLAG_LV3))
         return false;
