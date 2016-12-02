@@ -116,13 +116,9 @@ bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const c
         return false; // get dir reader object
     while ((contents->n_entries < MAX_DIR_ENTRIES) && (ReadVirtualDir(&vfile, &vdir))) {
         DirEntry* entry = &(contents->entry[contents->n_entries]);
-        if (!(vfile.flags & VRT_GAME)) {
-            strncpy(fname, vfile.name, (fnsize - 1) - (fname - fpath));
-        } else {
-            char name[256];
-            if (!GetVGameFilename(name, &vfile, 256)) return false;
-            strncpy(fname, name, (fnsize - 1) - (fname - fpath));
-        }
+        char name[256];
+        GetVirtualFilename(name, &vfile, 256);
+        strncpy(fname, name, (fnsize - 1) - (fname - fpath));
         if (!pattern || MatchName(pattern, fname)) {
             strncpy(entry->path, fpath, 256);
             entry->name = entry->path + (fname - fpath);
@@ -140,7 +136,13 @@ bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const c
     return true; // not much we can check here
 }
 
-int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read)
+bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
+    if (!(vfile->flags & VRT_GAME)) strncpy(name, vfile->name, n_chars);
+    else if (!GetVGameFilename(name, vfile, 256)) return false;
+    return true;
+}
+
+int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read) /// (u64) !!!!
 {
     // basic check of offset / count
     if (offset >= vfile->size)
