@@ -40,6 +40,10 @@
 // GodMode9 version
 #define VERSION "0.8.2"
 
+// input / output paths
+#define INPUT_PATHS     "0:", "0:/files9", "0:/Decrypt9"
+#define OUTPUT_PATH     "0:/gm9out"
+
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x21000000)
 #define WORK_BUFFER         ((u8*)0x21100000)

@@ -1,5 +1,6 @@
 #include "fs.h"
 #include "platform.h"
+#include "keydb.h"
 #include "aes.h"
 #include "sha.h"
 #include "sdmmc.h"
@@ -38,73 +39,6 @@ static u8 OtpSha256[32] = { 0 };
 
 static u32 emunand_base_sector = 0x000000;
 
-bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, char* id)
-{
-    char path[256]; // should be enough
-    u8 key_magic[16];
-    u8 buffer[32];
-    u8* key = buffer + 16;
-    bool found = false;
-    
-    // check the obvious
-    if (keyslot >= 0x40)
-        return false; // invalid keyslot
-    if ((type != 'X') && (type != 'Y') && (type != 'N'))
-        return false; // invalid keytype 
-    
-    // search 'aeskeydb.bin' file - setup
-    snprintf(path, 256, "%s/aeskeydb.bin", folder);
-    memset(key_magic, 0x00, 16);
-    key_magic[0] = keyslot;
-    key_magic[1] = type;
-    if (id) strncpy((char*) key_magic + 2, id, 10);
-    
-    // try to find key in 'aeskeydb.bin' file
-    for (u32 p = 0; FileGetData(path, buffer, 32, p) == 32; p += 32) {
-        if (memcmp(buffer, key_magic, 12) == 0) {
-            found = true;
-            break;
-        }
-    }
-    if (found && buffer[15]) { // encrypted key -> decrypt first
-        u8 ctr[16] __attribute__((aligned(32)));
-        u8 keyY[16] __attribute__((aligned(32)));
-        memset(ctr, 0x00, 16);
-        memset(keyY, 0x00, 16);
-        memcpy(ctr, key_magic, 12);
-        setup_aeskeyY(0x2C, keyY);
-        use_aeskey(0x2C);
-        set_ctr(ctr);
-        aes_decrypt((void*) key, (void*) key, 1, AES_CNT_CTRNAND_MODE);
-    }
-    
-    // try legacy slot0x??Key?.bin file
-    if (!found) {
-        snprintf(path, 256, "%s/slot0x%02XKey%.10s.bin", folder, (unsigned int) keyslot,
-            (id) ? id : (type == 'X') ? "X" : (type == 'Y') ? "Y" : "");
-        if (FileGetData(path, key, 16, 0) == 16)
-            found = true;
-    }
-    
-    // out of options here
-    if (!found) return false;
-    
-    // now, setup the key
-    if (type == 'X') { // keyX
-        setup_aeskeyX(keyslot, key);
-    } else if (type == 'Y') { // keyY
-        setup_aeskeyY(keyslot, key);
-    } else { // normalKey
-        setup_aeskey(keyslot, key);
-    }
-    use_aeskey(keyslot);
-    
-    // return the key if memory provided
-    if (keydata) memcpy(keydata, key, 16);
-    
-    return true;
-}
-
 bool InitNandCrypto(void)
 {   
     // part #0: KeyX / KeyY for secret sector 0x96
@@ -113,14 +47,16 @@ bool InitNandCrypto(void)
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*)REG_SHAHASH, 32);
     } else {
+        const char* base[] = { INPUT_PATHS };
+        char path[64];
         u8 otp[0x100];
-        if ((FileGetData("0:/otp.bin", otp, 0x100, 0) == 0x100) ||
-            (FileGetData("0:/otp0x108.bin", otp, 0x100, 0) == 0x100) ||
-            (FileGetData("0:/Decrypt9/otp.bin", otp, 0x100, 0) == 0x100) ||
-            (FileGetData("0:/Decrypt9/otp0x108.bin", otp, 0x100, 0) == 0x100) ||
-            (FileGetData("0:/files9/otp.bin", otp, 0x100, 0) == 0x100) ||
-            (FileGetData("0:/files9/otp0x108.bin", otp, 0x100, 0) == 0x100))
-            sha_quick(OtpSha256, otp, 0x90, SHA256_MODE);
+        for (u32 i = 0; i < 2 * (sizeof(base)/sizeof(char*)); i++) {
+            snprintf(path, 64, "%s/%s", base[i/2], (i%2) ? "otp0x108.bin" : "otp.bin");
+            if (FileGetData(path, otp, 0x100, 0) == 0x100) {
+                sha_quick(OtpSha256, otp, 0x90, SHA256_MODE);
+                break;
+            }
+        }
     }
         
     // part #1: Get NAND CID, set up TWL/CTR counter
@@ -207,9 +143,7 @@ bool InitNandCrypto(void)
         }
         
         if ((memcmp(shasum, slot0x05KeyY_sha256, 32) != 0) && // last resort
-            (!LoadKeyFromFile("0:", slot0x05KeyY, 0x05, 'Y', NULL)) &&
-            (!LoadKeyFromFile("0:/Decrypt9", slot0x05KeyY, 0x05, 'Y', NULL)) &&
-            (!LoadKeyFromFile("0:/files9", slot0x05KeyY, 0x05, 'Y', NULL))) {};
+            (LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL) != 0)) {};
     }
     
     return true;

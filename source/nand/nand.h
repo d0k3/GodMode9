@@ -10,7 +10,6 @@
 #define NAND_TYPE_N3DS  (1<<5)
 #define NAND_TYPE_NO3DS (1<<6)
 
-bool LoadKeyFromFile(const char* folder, u8* keydata, u32 keyslot, char type, char* id);
 bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
