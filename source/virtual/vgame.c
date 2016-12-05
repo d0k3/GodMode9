@@ -4,6 +4,7 @@
 #include "aes.h"
 #include "ff.h"
 
+#define VFLAG_EXEFS_FILE    (1<<25)
 #define VFLAG_EXTHDR        (1<<26)
 #define VFLAG_CIA           (1<<27)
 #define VFLAG_NCSD          (1<<28)
@@ -20,18 +21,15 @@
 #define NAME_CIA_TMD        "tmd.bin"
 #define NAME_CIA_TMDCHUNK   "tmdchunks.bin"
 #define NAME_CIA_META       "meta.bin"
-#define NAME_CIA_CONTENT    "%04X.%08lX.app" // index.id.app
-#define NAME_CIA_DIR        "%04X.%08lX" // index.id
+#define NAME_CIA_CONTENT    "%04X.%08lX%s" // index.id(.ext)
 
 #define NAME_NCSD_HEADER    "ncsd.bin"
 #define NAME_NCSD_CARDINFO  "cardinfo.bin"
 #define NAME_NCSD_DEVINFO   "devinfo.bin"
-#define NAME_NCSD_CONTENT   "cnt0.game.cxi", "cnt1.manual.cfa", "cnt2.dlp.cfa", \
-                            "cnt3.unk", "cnt4.unk", "cnt5.unk", \
-                            "cnt6.update_n3ds.cfa", "cnt7.update_o3ds.cfa"
-#define NAME_NCSD_DIR       "cnt0.game", "cnt1.manual", "cnt2.dlp", \
-                            "cnt3", "cnt4", "cnt5", \
-                            "cnt6.update_n3ds", "cnt7.update_o3ds"
+#define NAME_NCSD_TYPES     "game", "manual", "dlp", \
+                            "unk", "unk", "unk", \
+                            "update_n3ds", "update_o3ds"
+#define NAME_NCSD_CONTENT   "content%lu.%s%s" // content?.type(.ext)
 
 #define NAME_NCCH_HEADER    "ncch.bin"
 #define NAME_NCCH_EXTHEADER "extheader.bin"
@@ -80,8 +78,8 @@ bool BuildVGameExeFsDir(void) {
         snprintf(templates[n].name, 32, "%.8s", file->name);
         templates[n].offset = offset_exefs + sizeof(ExeFsHeader) + file->offset;
         templates[n].size = file->size;
-        templates[n].keyslot = 0xFF; // needs to be handled
-        templates[n].flags = 0;
+        templates[n].keyslot = NCCH_ENCRYPTED(ncch) ? 0x2C : 0xFF; // actual keyslot may be different
+        templates[n].flags = VFLAG_EXEFS_FILE;
         n++;
     }
     
@@ -92,6 +90,9 @@ bool BuildVGameExeFsDir(void) {
 bool BuildVGameNcchDir(void) {
     VirtualFile* templates = templates_ncch;
     u32 n = 0;
+    
+    // NCCH crypto
+    bool ncch_crypto = (CheckNcchCrypto(ncch) == 0);
     
     // header
     strncpy(templates[n].name, NAME_NCCH_HEADER, 32);
@@ -106,7 +107,7 @@ bool BuildVGameNcchDir(void) {
         strncpy(templates[n].name, NAME_NCCH_EXTHEADER, 32);
         templates[n].offset = offset_ncch + NCCH_EXTHDR_OFFSET;
         templates[n].size = NCCH_EXTHDR_SIZE;
-        templates[n].keyslot = 0xFF; // crypto ?
+        templates[n].keyslot = ncch_crypto ? 0x2C : 0xFF;
         templates[n].flags = VFLAG_EXTHDR;
         n++;
     }
@@ -136,10 +137,10 @@ bool BuildVGameNcchDir(void) {
         strncpy(templates[n].name, NAME_NCCH_EXEFS, 32);
         templates[n].offset = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_exefs * NCCH_MEDIA_UNIT;
-        templates[n].keyslot = 0xFF; // crypto ?
+        templates[n].keyslot = ncch_crypto ? 0x2C : 0xFF; // real slot may be something else
         templates[n].flags = VFLAG_EXEFS;
         n++;
-        if (!NCCH_ENCRYPTED(ncch)) {
+        if (!NCCH_ENCRYPTED(ncch) || ncch_crypto) {
             memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
             strncpy(templates[n].name, NAME_NCCH_EXEFSDIR, 32);
             templates[n].flags |= VFLAG_DIR;
@@ -152,10 +153,10 @@ bool BuildVGameNcchDir(void) {
         strncpy(templates[n].name, NAME_NCCH_ROMFS, 32);
         templates[n].offset = offset_ncch + (ncch->offset_romfs * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_romfs * NCCH_MEDIA_UNIT;
-        templates[n].keyslot = 0xFF; // crypto ?
+        templates[n].keyslot = ncch_crypto ? 0x2C : 0xFF; // real slot may be something else
         templates[n].flags = VFLAG_ROMFS;
         n++;
-        if (!NCCH_ENCRYPTED(ncch)) {
+        if (!NCCH_ENCRYPTED(ncch) || ncch_crypto) {
             memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
             strncpy(templates[n].name, NAME_NCCH_ROMFSDIR, 32);
             templates[n].flags |= VFLAG_DIR;
@@ -168,8 +169,7 @@ bool BuildVGameNcchDir(void) {
 }
     
 bool BuildVGameNcsdDir(void) {
-    const char* name_content[] = { NAME_NCSD_CONTENT };
-    const char* name_dir[] = { NAME_NCSD_DIR };
+    const char* name_type[] = { NAME_NCSD_TYPES };
     VirtualFile* templates = templates_ncsd;
     u32 n = 0;
     
@@ -206,14 +206,14 @@ bool BuildVGameNcsdDir(void) {
         NcchPartition* partition = ncsd->partitions + i;
         if ((partition->offset == 0) && (partition->size == 0))
             continue;
-        strncpy(templates[n].name, name_content[i], 32);
+        snprintf(templates[n].name, 32, NAME_NCSD_CONTENT, i, name_type[i], ".app");
         templates[n].offset = partition->offset * NCSD_MEDIA_UNIT;
         templates[n].size = partition->size * NCSD_MEDIA_UNIT;
         templates[n].keyslot = 0xFF; // not encrypted
         templates[n].flags = VFLAG_NCCH;
         n++;
         memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
-        strncpy(templates[n].name, name_dir[i], 32);
+        snprintf(templates[n].name, 32, NAME_NCSD_CONTENT, i, name_type[i], "");
         templates[n].flags |= VFLAG_DIR;
         n++;
     }
@@ -302,7 +302,7 @@ bool BuildVGameCiaDir(void) {
                 is_ncch = (ValidateNcchHeader(&ncch) == 0);
             }
             snprintf(templates[n].name, 32, NAME_CIA_CONTENT,
-                getbe16(content_list[i].index), getbe32(content_list[i].id));
+                getbe16(content_list[i].index), getbe32(content_list[i].id), ".app");
             templates[n].offset = next_offset;
             templates[n].size = size;
             templates[n].keyslot = 0xFF; // even for encrypted stuff
@@ -310,8 +310,8 @@ bool BuildVGameCiaDir(void) {
             n++;
             if (is_ncch) {
                 memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
-                snprintf(templates[n].name, 32, NAME_CIA_DIR,
-                    getbe16(content_list[i].index), getbe32(content_list[i].id));
+                snprintf(templates[n].name, 32, NAME_CIA_CONTENT,
+                    getbe16(content_list[i].index), getbe32(content_list[i].id), "");
                 templates[n].flags |= VFLAG_DIR;
                 n++;
             }
@@ -345,6 +345,14 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
 u32 CheckVGameDrive(void) {
     if (vgame_type != GetMountState()) vgame_type = 0; // very basic sanity check
     return vgame_type;
+}
+
+int ReadNcchImageBytes(u8* buffer, u64 offset, u64 count) {
+    int ret = ReadImageBytes(buffer, offset, count);
+    if ((offset_ncch == (u64) -1) || (ret != 0)) return ret;
+    if (NCCH_ENCRYPTED(ncch) && (DecryptNcch(buffer, offset - offset_ncch, count, ncch,
+        (offset_exefs == (u64) -1) ? NULL : exefs) != 0)) return -1;
+    return 0;
 }
 
 bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
@@ -385,8 +393,14 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             return false;
         offset_ncch = vdir->offset;
         if (!BuildVGameNcchDir()) return false;
+        u32 ncch_offset_exefs = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
+        if ((ReadNcchImageBytes((u8*) exefs, ncch_offset_exefs, sizeof(ExeFsHeader)) != 0) ||
+            (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
+            return false;
+        offset_exefs = ncch_offset_exefs;
+        if (!BuildVGameExeFsDir()) return false;
     } else if ((vdir->flags & VFLAG_EXEFS) && (offset_exefs != vdir->offset)) {
-        if ((ReadImageBytes((u8*) exefs, vdir->offset, sizeof(ExeFsHeader)) != 0) ||
+        if ((ReadNcchImageBytes((u8*) exefs, vdir->offset, sizeof(ExeFsHeader)) != 0) ||
             (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
             return false;
         offset_exefs = vdir->offset;
@@ -395,20 +409,20 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         // validate romFS magic
         u8 magic[] = { ROMFS_MAGIC };
         u8 header[sizeof(magic)];
-        if ((ReadImageBytes(header, vdir->offset, sizeof(magic)) != 0) ||
+        if ((ReadNcchImageBytes(header, vdir->offset, sizeof(magic)) != 0) ||
             (memcmp(magic, header, sizeof(magic)) != 0))
             return false;
         // validate lv3 header
         RomFsLv3Header* lv3 = (RomFsLv3Header*) romfslv3;
         for (u32 i = 1; i < 8; i++) {
             offset_lv3 = vdir->offset + (i*OFFSET_LV3);
-            if (ReadImageBytes(romfslv3, offset_lv3, sizeof(RomFsLv3Header)) != 0)
+            if (ReadNcchImageBytes(romfslv3, offset_lv3, sizeof(RomFsLv3Header)) != 0)
                 return false;
             if (ValidateLv3Header(lv3, VGAME_BUFFER_SIZE - 0x20000) == 0)
                 break;
             offset_lv3 = (u64) -1;
         }
-        if ((offset_lv3 == (u64) -1) || (ReadImageBytes(romfslv3, offset_lv3, lv3->offset_filedata) != 0))
+        if ((offset_lv3 == (u64) -1) || (ReadNcchImageBytes(romfslv3, offset_lv3, lv3->offset_filedata) != 0))
             return false;
         offset_lv3fd = offset_lv3 + lv3->offset_filedata;
         offset_romfs = vdir->offset;
@@ -430,6 +444,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
 bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
     BuildLv3Index(&lv3idx, romfslv3);
     vfile->flags = VFLAG_LV3;
+    vfile->keyslot = NCCH_ENCRYPTED(ncch) ? 0x2C : 0xFF; // actual keyslot may be different
     
     // start from parent dir object
     if (vdir->index == -1) vdir->index = 0; 
@@ -534,38 +549,29 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
         lv3file = LV3_GET_FILE(vfile->offset, &lv3idx);
         vfoffset = offset_lv3fd + lv3file->offset_data;
     }
-    int ret = ReadImageBytes(buffer, vfoffset + offset, count);
-    if (ret != 0) return ret;
-    /*if ((ret != 0) && (vfile->keyslot <= 0x40)) { // crypto
-        // relies on first template being the header and everything aligned to AES_BLOCK_SIZE
-        u32 offset_base = 0; // vfoffset - (*templates).offset;
-        u8 ctr[16] = { 0 };
-        ctr[0] = (vfile->index & 0xFF);
-        ctr[1] = (vfile->index >> 8);
-        setup_aeskeyY(0x11, titlekey);
-        use_aeskey(0x11);
-        ctr_decrypt_boffset(buffer, buffer, bytes_read, offset - offset_base,
-            AES_CNT_TITLEKEY_DECRYPT_MODE, ctr);
-    }*/
-    return 0;
+    if (NCCH_ENCRYPTED(ncch) && (vfile->keyslot < 0x40) &&
+        (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH)))
+        return ReadNcchImageBytes(buffer, vfoffset + offset, count);
+    else return ReadImageBytes(buffer, vfoffset + offset, count);
 }
 
 bool FindVirtualFileInLv3Dir(VirtualFile* vfile, const VirtualDir* vdir, const char* name) {
     vfile->name[0] = '\0';
     vfile->flags = vdir->flags & ~VFLAG_DIR;
-    
-    RomFsLv3FileMeta* lv3file = GetLv3FileMeta(name, vdir->offset, &lv3idx);
-    if (lv3file) {
-        vfile->offset = ((u8*) lv3file) - ((u8*) lv3idx.filemeta);
-        vfile->size = lv3file->size_data;
-        return true;
-    }
+    vfile->keyslot = NCCH_ENCRYPTED(ncch) ? 0x2C : 0xFF; // actual keyslot may be different
     
     RomFsLv3DirMeta* lv3dir = GetLv3DirMeta(name, vdir->offset, &lv3idx);
     if (lv3dir) {
         vfile->offset = ((u8*) lv3dir) - ((u8*) lv3idx.dirmeta);
         vfile->size = 0;
         vfile->flags |= VFLAG_DIR;
+        return true;
+    }
+    
+    RomFsLv3FileMeta* lv3file = GetLv3FileMeta(name, vdir->offset, &lv3idx);
+    if (lv3file) {
+        vfile->offset = ((u8*) lv3file) - ((u8*) lv3idx.filemeta);
+        vfile->size = lv3file->size_data;
         return true;
     }
     

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "exefs.h"
 
 #define NCCH_MEDIA_UNIT 0x200
 
@@ -33,7 +34,7 @@ typedef struct {
     u64 partitionId;
     u16 makercode;
     u16 version;
-    u8  hash_seed[0x4];
+    u32 hash_seed;
     u64 programId;
     u8  reserved0[0x10];
     u8  hash_logo[0x20];
@@ -59,3 +60,5 @@ typedef struct {
 } __attribute__((packed)) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
+u32 CheckNcchCrypto(NcchHeader* ncch);
+u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs);
