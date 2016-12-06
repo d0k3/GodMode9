@@ -284,6 +284,7 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src
         int errorcode = 0;
         if ((sector == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
             errorcode = sdmmc_sdcard_readsectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, buffer);
+            if ((keyslot < 0x40) && (keyslot != 0x11) && !errorcode) CryptNand(buffer, 0, 1, keyslot);
             sector = 1;
             count--;
             buffer += 0x200;
