@@ -87,7 +87,7 @@ FRESULT fx_read (FIL* fp, void* buff, UINT btr, UINT* br) {
     if (info && info->fptr) {
         setup_aeskeyY(0x34, info->keyy);
         use_aeskey(0x34);
-        ctr_decrypt_boffset(buff, buff, btr, off, AES_CNT_CTRNAND_MODE, info->ctr);
+        ctr_decrypt_byte(buff, buff, btr, off, AES_CNT_CTRNAND_MODE, info->ctr);
     }
     return res;
 }
@@ -104,7 +104,7 @@ FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
             UINT pcount = min(SDCRYPT_BUFFER_SIZE, (btw - p));
             UINT bwl = 0;
             memcpy(SDCRYPT_BUFFER, (u8*) buff + p, pcount);
-            ctr_decrypt_boffset(SDCRYPT_BUFFER, SDCRYPT_BUFFER, pcount, off + p, AES_CNT_CTRNAND_MODE, info->ctr);
+            ctr_decrypt_byte(SDCRYPT_BUFFER, SDCRYPT_BUFFER, pcount, off + p, AES_CNT_CTRNAND_MODE, info->ctr);
             res = f_write(fp, (const void*) SDCRYPT_BUFFER, pcount, &bwl);
             *bw += bwl;
         }

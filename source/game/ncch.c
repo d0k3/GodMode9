@@ -217,7 +217,7 @@ u32 DecryptNcchSection(u8* data, u32 offset_data, u32 size_data,
     u8 ctr[16];
     GetNcchCtr(ctr, ncch, snum);
     if (SetNcchKey(ncch, keyid) != 0) return 1;
-    ctr_decrypt_boffset(data_i, data_i, size_i, offset_i + offset_ctr, mode, ctr);
+    ctr_decrypt_byte(data_i, data_i, size_i, offset_i + offset_ctr, mode, ctr);
     
     return 0;
 }

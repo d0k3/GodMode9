@@ -46,15 +46,15 @@ extern "C" {
 #define AES_CNT_ECB_DECRYPT_MODE (AES_ECB_DECRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
 #define AES_CNT_ECB_ENCRYPT_MODE (AES_ECB_ENCRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
 
-void setup_aeskeyX(uint8_t keyslot, void* keyx);
-void setup_aeskeyY(uint8_t keyslot, void* keyy);
-void setup_aeskey(uint8_t keyslot, void* keyy);
+void setup_aeskeyX(uint8_t keyslot, const void* keyx);
+void setup_aeskeyY(uint8_t keyslot, const void* keyy);
+void setup_aeskey(uint8_t keyslot, const void* keyy);
 void use_aeskey(uint32_t keyno);
 void set_ctr(void* iv);
 void add_ctr(void* ctr, uint32_t carry);
 void aes_decrypt(void* inbuf, void* outbuf, size_t size, uint32_t mode);
 void ctr_decrypt(void* inbuf, void* outbuf, size_t size, uint32_t mode, uint8_t *ctr);
-void ctr_decrypt_boffset(void *inbuf, void *outbuf, size_t size, size_t off, uint32_t mode, uint8_t *ctr);
+void ctr_decrypt_byte(void *inbuf, void *outbuf, size_t size, size_t off, uint32_t mode, uint8_t *ctr);
 void aes_cmac(void* inbuf, void* outbuf, size_t size);
 void aes_fifos(void* inbuf, void* outbuf, size_t blocks);
 void set_aeswrfifo(uint32_t value);
