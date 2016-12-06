@@ -45,7 +45,7 @@ u32 ValidateNcchHeader(NcchHeader* header) {
 u32 GetNcchCtr(u8* ctr, NcchHeader* ncch, u8 section) {
     memset(ctr, 0x00, 16);
     if (ncch->version == 1) {
-        memcpy(ctr, &(ncch->programId), 8);
+        memcpy(ctr, &(ncch->partitionId), 8);
         if (section == 1) { // ExtHeader ctr
             add_ctr(ctr, NCCH_EXTHDR_OFFSET); 
         } else if (section == 2) { // ExeFS ctr
@@ -55,7 +55,7 @@ u32 GetNcchCtr(u8* ctr, NcchHeader* ncch, u8 section) {
         }
     } else {
         for (u32 i = 0; i < 8; i++)
-            ctr[i] = ((u8*) &(ncch->programId))[7-i];
+            ctr[i] = ((u8*) &(ncch->partitionId))[7-i];
         ctr[8] = section;
     }
     
@@ -188,8 +188,7 @@ u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
 }
 
 u32 CheckNcchCrypto(NcchHeader* ncch) {
-    return (!NCCH_ENCRYPTED(ncch)) ? 1 :
-        ((SetNcchKey(ncch, 0) == 0) && (SetNcchKey(ncch, 1) == 0)) ? 0 : 1;
+    return ((SetNcchKey(ncch, 0) == 0) && (SetNcchKey(ncch, 1) == 0)) ? 0 : 1;
 }
 
 u32 DecryptNcchSection(u8* data, u32 offset_data, u32 size_data,
@@ -241,30 +240,37 @@ u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* e
     }
     
     // exthdr handling
-    if (DecryptNcchSection(data, offset, size,
-        NCCH_EXTHDR_OFFSET,
-        NCCH_EXTHDR_SIZE,
-        0, ncch, 1, 0) != 0) return 1;
-    
-    // exefs header handling
-    if (DecryptNcchSection(data, offset, size,
-        ncch->offset_exefs * NCCH_MEDIA_UNIT,
-        0x200, 0, ncch, 2, 0) != 0) return 1;
-    
-    // exefs file handling
-    if (exefs) for (u32 i = 0; i < 10; i++) {
-        ExeFsFileHeader* file = exefs->files + i;
+    if (ncch->size_exthdr) {
         if (DecryptNcchSection(data, offset, size,
-            (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset,
-            file->size, 0x200 + file->offset,
-            ncch, 2, EXEFS_KEYID(file->name)) != 0) return 1;
+            NCCH_EXTHDR_OFFSET,
+            NCCH_EXTHDR_SIZE,
+            0, ncch, 1, 0) != 0) return 1;
+    }
+    
+    // exefs handling
+    if (ncch->size_exefs) {
+        // exefs header handling
+        if (DecryptNcchSection(data, offset, size,
+            ncch->offset_exefs * NCCH_MEDIA_UNIT,
+            0x200, 0, ncch, 2, 0) != 0) return 1;
+        
+        // exefs file handling
+        if (exefs) for (u32 i = 0; i < 10; i++) {
+            ExeFsFileHeader* file = exefs->files + i;
+            if (DecryptNcchSection(data, offset, size,
+                (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset,
+                file->size, 0x200 + file->offset,
+                ncch, 2, EXEFS_KEYID(file->name)) != 0) return 1;
+        }
     }
     
     // romfs handling
-    if (DecryptNcchSection(data, offset, size,
-        ncch->offset_romfs * NCCH_MEDIA_UNIT,
-        ncch->size_romfs * NCCH_MEDIA_UNIT,
-        0, ncch, 3, 1) != 0) return 1;
+    if (ncch->size_romfs) {
+        if (DecryptNcchSection(data, offset, size,
+            ncch->offset_romfs * NCCH_MEDIA_UNIT,
+            ncch->size_romfs * NCCH_MEDIA_UNIT,
+            0, ncch, 3, 1) != 0) return 1;
+    }
         
     return 0;
 }

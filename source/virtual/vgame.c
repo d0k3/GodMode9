@@ -393,12 +393,14 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             return false;
         offset_ncch = vdir->offset;
         if (!BuildVGameNcchDir()) return false;
-        u32 ncch_offset_exefs = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
-        if ((ReadNcchImageBytes((u8*) exefs, ncch_offset_exefs, sizeof(ExeFsHeader)) != 0) ||
-            (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
-            return false;
-        offset_exefs = ncch_offset_exefs;
-        if (!BuildVGameExeFsDir()) return false;
+        if (ncch->size_exefs) {
+            u32 ncch_offset_exefs = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
+            if ((ReadNcchImageBytes((u8*) exefs, ncch_offset_exefs, sizeof(ExeFsHeader)) != 0) ||
+                (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
+                return false;
+            offset_exefs = ncch_offset_exefs;
+            if (!BuildVGameExeFsDir()) return false;
+        }
     } else if ((vdir->flags & VFLAG_EXEFS) && (offset_exefs != vdir->offset)) {
         if ((ReadNcchImageBytes((u8*) exefs, vdir->offset, sizeof(ExeFsHeader)) != 0) ||
             (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
