@@ -6,6 +6,7 @@
 void setup_aeskeyX(uint8_t keyslot, void* keyx)
 {
     uint32_t * _keyx = (uint32_t*)keyx;
+    *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
     if (keyslot > 3) {
         *REG_AESKEYXFIFO = _keyx[0];
@@ -25,6 +26,7 @@ void setup_aeskeyX(uint8_t keyslot, void* keyx)
 void setup_aeskeyY(uint8_t keyslot, void* keyy)
 {
     uint32_t * _keyy = (uint32_t*)keyy;
+    *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
     if (keyslot > 3) {
         *REG_AESKEYYFIFO = _keyy[0];
@@ -44,6 +46,7 @@ void setup_aeskeyY(uint8_t keyslot, void* keyy)
 void setup_aeskey(uint8_t keyslot, void* key)
 {
     uint32_t * _key = (uint32_t*)key;
+    *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
     if (keyslot > 3) {
         *REG_AESKEYFIFO = _key[0];
