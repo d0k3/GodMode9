@@ -466,7 +466,6 @@ size_t FileGetSize(const char* path) {
 bool FileGetSha256(const char* path, u8* sha256) {
     bool ret = true;
     
-    sha_init(SHA256_MODE);
     ShowProgress(0, 0, path);
     if (DriveType(path) & DRV_VIRTUAL) { // for virtual files
         VirtualFile vfile;
@@ -476,6 +475,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
             return false;
         fsize = vfile.size;
         
+        sha_init(SHA256_MODE);
         for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, fsize - pos);
             if (ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
@@ -484,6 +484,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
                 ret = false;
             sha_update(MAIN_BUFFER, read_bytes);
         }
+        sha_get(sha256);
     } else { // for regular FAT files
         FIL file;
         size_t fsize;
@@ -493,7 +494,8 @@ bool FileGetSha256(const char* path, u8* sha256) {
         fsize = f_size(&file);
         f_lseek(&file, 0);
         f_sync(&file);
-        
+
+        sha_init(SHA256_MODE);
         for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             if (fx_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
@@ -502,10 +504,10 @@ bool FileGetSha256(const char* path, u8* sha256) {
                 ret = false;
             sha_update(MAIN_BUFFER, bytes_read);
         }
+        sha_get(sha256);
         fx_close(&file);
     }
     ShowProgress(1, 1, path);
-    sha_get(sha256);
     
     return ret;
 }
