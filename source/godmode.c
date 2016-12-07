@@ -269,6 +269,12 @@ u32 HexViewer(const char* path) {
     u32 edit_start;
     int cursor = 0;
     
+    static bool show_instr = true;
+    if (show_instr) { // show one time instructions
+        ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
+        show_instr = false;
+    }
+    
     memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     
     while (true) {
@@ -515,6 +521,40 @@ u32 HexViewer(const char* path) {
     return 0;
 }
 
+u32 Sha256Calculator(const char* path) {
+    u32 drvtype = DriveType(path);
+    char pathstr[32 + 1];
+    u8 sha256[32];
+    TruncateString(pathstr, path, 32, 8);
+    if (!FileGetSha256(path, sha256)) {
+        ShowPrompt(false, "Calculating SHA-256: failed!");
+        return 1;
+    } else {
+        static char pathstr_prev[32 + 1] = { 0 };
+        static u8 sha256_prev[32] = { 0 };
+        char sha_path[256];
+        u8 sha256_file[32];
+        
+        snprintf(sha_path, 256, "%s.sha", path);
+        bool have_sha = (FileGetData(sha_path, sha256_file, 32, 0) == 32);
+        bool write_sha = !have_sha && (drvtype & DRV_SDCARD); // writing only on SD
+        if (ShowPrompt(write_sha, "%s\n%016llX%016llX\n%016llX%016llX%s%s%s%s%s",
+            pathstr, getbe64(sha256 + 0), getbe64(sha256 + 8), getbe64(sha256 + 16), getbe64(sha256 + 24),
+            (have_sha) ? "\nSHA verification: " : "",
+            (have_sha) ? ((memcmp(sha256, sha256_file, 32) == 0) ? "passed!" : "failed!") : "",
+            (memcmp(sha256, sha256_prev, 32) == 0) ? "\n \nIdentical with previous file:\n" : "",
+            (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "",
+            (write_sha) ? "\n \nWrite .SHA file?" : "") && !have_sha && write_sha) {
+            FileSetData(sha_path, sha256, 32, 0, true);
+        }
+        
+        strncpy(pathstr_prev, pathstr, 32 + 1);
+        memcpy(sha256_prev, sha256, 32);
+    }
+    
+    return 0;
+}
+
 u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
@@ -622,68 +662,42 @@ u32 GodMode() {
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             char pathstr[32 + 1];
             const char* optionstr[5];
-            u32 n_opt = 2;
+            u32 n_opt = 0;
             
-            u32 file_type = IdentifyFileType(curr_entry->path);
-            u32 file_drvtype = DriveType(curr_entry->path);
+            u32 filetype = IdentifyFileType(curr_entry->path);
+            u32 drvtype = DriveType(curr_entry->path);
+            
+            int mountable = (filetype && (drvtype & DRV_FAT) &&
+                !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE))) ?
+                (int) ++n_opt : -1;
+            int hexviewer = (int) ++n_opt;
+            int calcsha = (int) ++n_opt;
             int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
-                (file_drvtype & DRV_FAT) &&
+                (drvtype & DRV_FAT) &&
                 (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
-                (int) ++n_opt : -1;
-            int mountable = (file_type && (file_drvtype & DRV_FAT) &&
-                !(file_drvtype & (DRV_IMAGE|DRV_RAMDRIVE))) ?
                 (int) ++n_opt : -1;
             int searchdrv = (curr_drvtype & DRV_SEARCH) ? (int) ++n_opt : -1;
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
-            optionstr[0] = "Show in Hexeditor";
-            optionstr[1] = "Calculate SHA-256";
+            optionstr[hexviewer-1] = "Show in Hexeditor";
+            optionstr[calcsha-1] = "Calculate SHA-256";
             if (injectable) optionstr[injectable-1] = "Inject data @offset";
             if (mountable) optionstr[mountable-1] =
-                (file_type == IMG_NAND) ? "Mount as NAND image" :
-                (file_type == IMG_FAT) ? "Mount as FAT image" :
-                (file_type == GAME_CIA) ? "Mount as CIA image" :
-                (file_type == GAME_NCSD) ? "Mount as NCSD image" :
-                (file_type == GAME_NCCH) ? "Mount as NCCH image" : "???";
+                (filetype == IMG_NAND) ? "Mount as NAND image" :
+                (filetype == IMG_FAT) ? "Mount as FAT image" :
+                (filetype == GAME_CIA) ? "Mount as CIA image" :
+                (filetype == GAME_NCSD) ? "Mount as NCSD image" :
+                (filetype == GAME_NCCH) ? "Mount as NCCH image" : "???";
             if (searchdrv) optionstr[searchdrv-1] = "Open containing folder";
             
-            u32 user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
-            if (user_select == 1) { // -> show in hex viewer
-                static bool show_instr = true;
-                if (show_instr) {
-                    ShowPrompt(false, "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n");
-                    show_instr = false;
-                }
+            int user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
+            if (user_select == hexviewer) { // -> show in hex viewer
                 HexViewer(curr_entry->path);
-            } else if (user_select == 2) { // -> calculate SHA-256
-                u8 sha256[32];
-                if (!FileGetSha256(curr_entry->path, sha256)) {
-                    ShowPrompt(false, "Calculating SHA-256: failed!");
-                } else {
-                    static char pathstr_prev[32 + 1] = { 0 };
-                    static u8 sha256_prev[32] = { 0 };
-                    char sha_path[256];
-                    u8 sha256_file[32];
-                    bool have_sha = false;
-                    bool write_sha = false;
-                    snprintf(sha_path, 256, "%s.sha", curr_entry->path);
-                    have_sha = (FileGetData(sha_path, sha256_file, 32, 0) == 32);
-                    write_sha = !have_sha && (file_drvtype & DRV_SDCARD); // writing only on SD
-                    if (ShowPrompt(write_sha, "%s\n%016llX%016llX\n%016llX%016llX%s%s%s%s%s",
-                        pathstr, getbe64(sha256 + 0), getbe64(sha256 + 8), getbe64(sha256 + 16), getbe64(sha256 + 24),
-                        (have_sha) ? "\nSHA verification: " : "",
-                        (have_sha) ? ((memcmp(sha256, sha256_file, 32) == 0) ? "passed!" : "failed!") : "",
-                        (memcmp(sha256, sha256_prev, 32) == 0) ? "\n \nIdentical with previous file:\n" : "",
-                        (memcmp(sha256, sha256_prev, 32) == 0) ? pathstr_prev : "",
-                        (write_sha) ? "\n \nWrite .SHA file?" : "") && !have_sha && write_sha) {
-                        FileSetData(sha_path, sha256, 32, 0, true);
-                        GetDirContents(current_dir, current_path);
-                    }
-                    strncpy(pathstr_prev, pathstr, 32 + 1);
-                    memcpy(sha256_prev, sha256, 32);
-                }
-            } else if ((int) user_select == injectable) { // -> inject data from clipboard
+            } else if (user_select == calcsha) { // -> calculate SHA-256
+                Sha256Calculator(curr_entry->path);
+                GetDirContents(current_dir, current_path);
+            } else if (user_select == injectable) { // -> inject data from clipboard
                 char origstr[18 + 1];
                 TruncateString(origstr, clipboard->entry[0].name, 18, 10);
                 u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
@@ -692,7 +706,7 @@ u32 GodMode() {
                         ShowPrompt(false, "Failed injecting %s", origstr);
                     clipboard->n_entries = 0;
                 }
-            } else if ((int) user_select == mountable) { // -> mount file as image
+            } else if (user_select == mountable) { // -> mount file as image
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 InitImgFS(curr_entry->path);
@@ -706,7 +720,7 @@ u32 GodMode() {
                     for (u32 i = current_dir->n_entries - 1; i > 0; i--)
                         if (strspn(current_dir->entry[i].path, "789GI") > 0) cursor = i;
                 }
-            } else if ((int) user_select == searchdrv) { // -> search drive, open containing path
+            } else if (user_select == searchdrv) { // -> search drive, open containing path
                 char* last_slash = strrchr(curr_entry->path, '/');
                 if (last_slash) {
                     snprintf(current_path, last_slash - curr_entry->path + 1, "%s", curr_entry->path);
