@@ -24,7 +24,7 @@ u32 IdentifyFileType(const char* path) {
     } else if (getbe16(header + 0x1FE) == 0x55AA) { // migt be FAT or MBR
         if ((strncmp((char*) header + 0x36, "FAT12   ", 8) == 0) || (strncmp((char*) header + 0x36, "FAT16   ", 8) == 0) ||
             (strncmp((char*) header + 0x36, "FAT     ", 8) == 0) || (strncmp((char*) header + 0x52, "FAT32   ", 8) == 0) ||
-            ((getle64(header + 0x36) == 0) && (getle16(header + 0x0B) == 0x20))) { // last one is a special case for public.sav
+            ((getle64(header + 0x36) == 0) && (getle16(header + 0x0B) == 0x200))) { // last one is a special case for public.sav
             return IMG_FAT; // this is an actual FAT header
         } else if (((getle32(header + 0x1BE + 0x8) + getle32(header + 0x1BE + 0xC)) < (fsize / 0x200)) && // check file size
             (getle32(header + 0x1BE + 0x8) > 0) && (getle32(header + 0x1BE + 0xC) >= 0x800) && // check first partition sanity
