@@ -244,8 +244,8 @@ u32 SdFormatMenu(void) {
 u32 HexViewer(const char* path) {
     static const u32 max_data = (SCREEN_HEIGHT / 8) * 16;
     static u32 mode = 0;
-    u8* data = WORK_BUFFER;
-    u8* bottom_cpy = WORK_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
+    u8* data = TEMP_BUFFER;
+    u8* bottom_cpy = TEMP_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
     u32 fsize = FileGetSize(path);
     
     bool dual_screen;
@@ -264,8 +264,8 @@ u32 HexViewer(const char* path) {
     
     static const u32 edit_bsize = 0x4000; // should be multiple of 0x200 * 2
     bool edit_mode = false;
-    u8* edit_buffer = WORK_BUFFER;
-    u8* edit_buffer_cpy = WORK_BUFFER + edit_bsize;
+    u8* edit_buffer = TEMP_BUFFER;
+    u8* edit_buffer_cpy = TEMP_BUFFER + edit_bsize;
     u32 edit_start;
     int cursor = 0;
     
@@ -478,7 +478,7 @@ u32 HexViewer(const char* path) {
                 if (diffs && ShowPrompt(true, "You made edits in %i place(s).\nWrite changes to file?", diffs))
                     if (!FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start, false))
                         ShowPrompt(false, "Failed writing to file!");
-                data = WORK_BUFFER;
+                data = TEMP_BUFFER;
                 last_offset = (u32) -1; // force reload from file
             } else if (pad_state & BUTTON_A) {
                 if (pad_state & BUTTON_DOWN) data[cursor]--;

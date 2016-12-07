@@ -46,10 +46,13 @@
 
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x21000000)
-#define WORK_BUFFER         ((u8*)0x21100000)
 #define DIR_BUFFER_SIZE     (0x100000)
-#define WORK_BUFFER_SIZE    (0x100000)
-// buffer area defines (in use by fs.c)
+// buffer area defines (temporary, in use by various functions)
+//  -> godmode.c hexviewer
+//  -> ncch.c seed setup
+#define TEMP_BUFFER         ((u8*)0x21100000)
+#define TEMP_BUFFER_SIZE    (0x100000)
+// buffer area defines (in use by fs.c and gameio.c)
 #define MAIN_BUFFER         ((u8*)0x21200000)
 #define MAIN_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
 // buffer area defines (in use by nand.c)
@@ -58,11 +61,8 @@
 // buffer area defines (in use by sddata.c)
 #define SDCRYPT_BUFFER      ((u8*)0x21400000)
 #define SDCRYPT_BUFFER_SIZE (0x100000)
-// buffer area defines (in use by cia.c)
-#define GAME_BUFFER         ((u8*)0x21500000)
-#define GAME_BUFFER_SIZE    (0x100000)
 // buffer area defines (in use by vgame.c)
-#define VGAME_BUFFER        ((u8*)0x21600000)
+#define VGAME_BUFFER        ((u8*)0x21500000)
 #define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER_O3DS  ((u8*)0x22200000) // in O3DS FCRAM

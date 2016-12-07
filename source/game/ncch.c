@@ -97,7 +97,7 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
             nand_drv[i], sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
             
         // check seedsave for seed
-        u8* seedsave = (u8*) GAME_BUFFER;
+        u8* seedsave = (u8*) TEMP_BUFFER;
         if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             continue;
         f_read(&file, seedsave, 0x200, &btr);
@@ -124,11 +124,11 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     // not found -> try seeddb.bin
     const char* base[] = { INPUT_PATHS };
     for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
-        SeedInfo* seeddb = (SeedInfo*) GAME_BUFFER;
+        SeedInfo* seeddb = (SeedInfo*) TEMP_BUFFER;
         snprintf(path, 128, "%s/%s", base[i], SEEDDB_NAME);
         if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             continue;
-        f_read(&file, seeddb, GAME_BUFFER_SIZE, &btr);
+        f_read(&file, seeddb, TEMP_BUFFER_SIZE, &btr);
         f_close(&file);
         if (seeddb->n_entries > (btr - 16) / 32)
             continue; // filesize / seeddb size mismatch
