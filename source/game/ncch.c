@@ -172,12 +172,18 @@ u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
     
     // key Y for seed and non seed
     if (keyid && (ncch->flags[7] & 0x20)) { // seed crypto
-        u8 keydata[16+16];
-        u8 seedkeyY[16+16];
-        memcpy(keydata, ncch->signature, 16);
-        if (GetNcchSeed(keydata + 16, ncch) != 0)
-            return 1;
-        sha_quick(seedkeyY, keydata, 32, SHA256_MODE);
+        static u8 seedkeyY[16+16] = { 0 };
+        static u8 lsignature[16] = { 0 };
+        static u64 ltitleId = 0;
+        if ((memcmp(lsignature, ncch->signature, 16) != 0) || (ltitleId != ncch->programId)) {
+            u8 keydata[16+16];
+            memcpy(keydata, ncch->signature, 16);
+            if (GetNcchSeed(keydata + 16, ncch) != 0)
+                return 1;
+            sha_quick(seedkeyY, keydata, 32, SHA256_MODE);
+            memcpy(lsignature, ncch->signature, 16);
+            ltitleId = ncch->programId;
+        }
         setup_aeskeyY(keyslot, seedkeyY);
     } else { // no seed crypto
         setup_aeskeyY(keyslot, ncch->signature);
