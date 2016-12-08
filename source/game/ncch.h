@@ -57,7 +57,7 @@ typedef struct {
     u8  reserved3[0x4];
     u8  hash_exefs[0x20];
     u8  hash_romfs[0x20];
-} __attribute__((packed)) NcchHeader;
+} __attribute__((packed, aligned(16))) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
 u32 SetupNcchCrypto(NcchHeader* ncch);

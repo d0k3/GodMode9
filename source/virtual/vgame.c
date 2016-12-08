@@ -61,10 +61,10 @@ static u64 offset_romfs = (u64) -1;
 static u64 offset_lv3   = (u64) -1;
 static u64 offset_lv3fd = (u64) -1;
 
-static CiaStub* cia = (CiaStub*) (VGAME_BUFFER + 0x10000); // 62.5kB reserved - should be enough by far
-static NcsdHeader* ncsd = (NcsdHeader*) (VGAME_BUFFER + 0x1FA00); // 512 byte reserved
-static NcchHeader* ncch = (NcchHeader*) (VGAME_BUFFER + 0x1FC00); // 512 byte reserved
-static ExeFsHeader* exefs = (ExeFsHeader*) (VGAME_BUFFER + 0x1FE00); // 512 byte reserved
+static CiaStub* cia = (CiaStub*) (void*) (VGAME_BUFFER + 0x10000); // 62.5kB reserved - should be enough by far
+static NcsdHeader* ncsd = (NcsdHeader*) (void*) (VGAME_BUFFER + 0x1FA00); // 512 byte reserved
+static NcchHeader* ncch = (NcchHeader*) (void*) (VGAME_BUFFER + 0x1FC00); // 512 byte reserved
+static ExeFsHeader* exefs = (ExeFsHeader*) (void*) (VGAME_BUFFER + 0x1FE00); // 512 byte reserved
 static u8* romfslv3 = (u8*) (VGAME_BUFFER + 0x20000); // 1920kB reserved
 static RomFsLv3Index lv3idx;
 

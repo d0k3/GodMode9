@@ -172,7 +172,7 @@ u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
     
     // key Y for seed and non seed
     if (keyid && (ncch->flags[7] & 0x20)) { // seed crypto
-        static u8 seedkeyY[16+16] = { 0 };
+        static u8 seedkeyY[16+16] __attribute__((aligned(32))) = { 0 };
         static u8 lsignature[16] = { 0 };
         static u64 ltitleId = 0;
         if ((memcmp(lsignature, ncch->signature, 16) != 0) || (ltitleId != ncch->programId)) {

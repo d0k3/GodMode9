@@ -4,7 +4,7 @@
 #include "ff.h"
 
 u32 IdentifyFileType(const char* path) {
-    u8 __attribute__((aligned(16))) header[0x200]; // minimum required size
+    u8 header[0x200] __attribute__((aligned(32))); // minimum required size
     FIL file;
     if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 0;
@@ -32,18 +32,18 @@ u32 IdentifyFileType(const char* path) {
              (header[0x1BE + 0x4] == 0xB) || (header[0x1BE + 0x4] == 0xC) || (header[0x1BE + 0x4] == 0xE))) {
             return IMG_FAT; // this might be an MBR -> give it the benefit of doubt
         }
-    } else if (ValidateCiaHeader((CiaHeader*) header) == 0) {
+    } else if (ValidateCiaHeader((CiaHeader*) (void*) header) == 0) {
         // this only works because these functions ignore CIA content index
         CiaInfo info;
         GetCiaInfo(&info, (CiaHeader*) header);
         if (fsize >= info.size_cia)
             return GAME_CIA; // CIA file
-    } else if (ValidateNcsdHeader((NcsdHeader*) header) == 0) {
-        NcsdHeader* ncsd = (NcsdHeader*) header;
+    } else if (ValidateNcsdHeader((NcsdHeader*) (void*) header) == 0) {
+        NcsdHeader* ncsd = (NcsdHeader*) (void*) header;
         if (fsize >= (ncsd->size * NCSD_MEDIA_UNIT))
             return GAME_NCSD; // NCSD (".3DS") file
-    } else if (ValidateNcchHeader((NcchHeader*) header) == 0) {
-        NcchHeader* ncch = (NcchHeader*) header;
+    } else if (ValidateNcchHeader((NcchHeader*) (void*) header) == 0) {
+        NcchHeader* ncch = (NcchHeader*) (void*) header;
         if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
             return GAME_NCCH; // NCSD (".3DS") file
     }

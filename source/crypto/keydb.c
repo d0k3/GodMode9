@@ -160,7 +160,7 @@ u32 CheckKeySlot(u32 keyslot, char type)
 u32 LoadKeyFromFile(u8* key, u32 keyslot, char type, char* id)
 {
     const char* base[] = { INPUT_PATHS };
-    u8 keystore[16] = {0};
+    u8 keystore[16] __attribute__((aligned(32))) = {0};
     bool found = false;
     
     // use keystore if key == NULL

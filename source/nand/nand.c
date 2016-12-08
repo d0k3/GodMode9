@@ -74,8 +74,8 @@ bool InitNandCrypto(void)
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
     if (CheckA9lh()) { // only for a9lh
         u32* TwlCustId = (u32*) (0x01FFB808);
-        u8 TwlKeyX[16];
-        u8 TwlKeyY[16];
+        u8 TwlKeyX[16] __attribute__((aligned(32)));
+        u8 TwlKeyY[16] __attribute__((aligned(32)));
         
         // thanks b1l1s & Normmatt
         // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
