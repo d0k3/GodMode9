@@ -700,7 +700,9 @@ u32 GodMode() {
                 (filetype == GAME_NCCH) ? "Mount as NCCH image" : "???";
             if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
             
-            int user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
+            int user_select = 0;
+            if (!FileCheck(curr_entry->path)) ShowPrompt(false, "%s\nFile is currently locked", pathstr);
+            else user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
             if (user_select == hexviewer) { // -> show in hex viewer
                 HexViewer(curr_entry->path);
             } else if (user_select == calcsha) { // -> calculate SHA-256

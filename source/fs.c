@@ -402,6 +402,15 @@ u32 GetWritePermissions() {
     return write_permissions;
 }
 
+bool FileCheck(const char* path) {
+    FIL file;
+    if (PathToNumFSA(path) < 0) return true;
+    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
+        f_close(&file);
+        return true;
+    } else return false;
+}
+
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
     int drvtype = DriveType(path);
     if (!CheckWritePermissions(path)) return false;

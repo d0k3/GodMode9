@@ -64,6 +64,9 @@ bool SetWritePermissions(u32 perm, bool add_perm);
 /** Get write permissions */
 u32 GetWritePermissions();
 
+/** True if file exists and is not locked, false otherwise **/
+bool FileCheck(const char* path);
+
 /** Create / open file and write the provided data to it **/
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create);
 
