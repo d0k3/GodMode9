@@ -94,7 +94,8 @@ u32 MountImage(const char* path) {
         *mount_path = 0;
     }
     if (!type) return 0;
-    if (fx_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+    if ((fx_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK) &&
+        (fx_open(&mount_file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK))
         return 0;
     f_lseek(&mount_file, 0);
     f_sync(&mount_file);
