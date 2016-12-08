@@ -536,8 +536,9 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     }
     DrawRectangle(TOP_SCREEN, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
     
-    TruncateString(tempstr, opstr, (bar_width / FONT_WIDTH_EXT) - 7, 8);
-    snprintf(progstr, 64, "%s (%lu%%)", tempstr, prog_percent);
+    TruncateString(progstr, opstr, (bar_width / FONT_WIDTH_EXT) - 7, 8);
+    snprintf(tempstr, 64, "%s (%lu%%)", progstr, prog_percent);
+    ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
     DrawString(TOP_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     DrawString(TOP_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
     

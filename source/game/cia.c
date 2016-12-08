@@ -85,6 +85,12 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     return 0;
 }
 
+u32 GetCiaCtr(u8* ctr, TmdContentChunk* chunk) {
+    memset(ctr, 0, 16);
+    memcpy(ctr, chunk->index, 2);
+    return 0;
+}
+
 u32 BuildCiaCert(u8* ciacert) {
     const u8 cert_hash_expected[0x20] = {
         0xC7, 0x2E, 0x1C, 0xA5, 0x61, 0xDC, 0x9B, 0xC8, 0x05, 0x58, 0x58, 0x9C, 0x63, 0x08, 0x1C, 0x8A,
@@ -165,30 +171,13 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
     return 0;
 }
 
-u32 LoadCiaStub(CiaStub* stub, const char* path) {
-    FIL file;
-    UINT bytes_read;
-    CiaInfo info;
-    
-    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
-    
-    // first 0x20 byte of CIA header
-    f_lseek(&file, 0);
-    if ((f_read(&file, stub, 0x20, &bytes_read) != FR_OK) || (bytes_read != 0x20) ||
-        (ValidateCiaHeader(&(stub->header)) != 0)) {
-        f_close(&file);
-        return 1;
-    }
-    GetCiaInfo(&info, &(stub->header));
-    
-    // everything up till content offset
-    f_lseek(&file, 0);
-    if ((f_read(&file, stub, info.offset_content, &bytes_read) != FR_OK) || (bytes_read != info.offset_content)) {
-        f_close(&file);
-        return 1;
-    }
-    
-    f_close(&file);
+u32 DecryptCiaContent(u8* data, u32 size, u8* ctr, const u8* titlekey) {
+    // WARNING: size and offset of data have to be a multiple of 16
+    u8 tik[16] __attribute__((aligned(32)));
+    u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;
+    memcpy(tik, titlekey, 16);
+    setup_aeskey(0x11, tik);
+    use_aeskey(0x11);
+    cbc_decrypt(data, data, size / 16, mode, ctr);
     return 0;
 }

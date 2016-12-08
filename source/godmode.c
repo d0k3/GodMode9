@@ -2,6 +2,7 @@
 #include "ui.h"
 #include "hid.h"
 #include "fs.h"
+#include "gameio.h"
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
@@ -660,35 +661,44 @@ u32 GodMode() {
             }
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
             char pathstr[32 + 1];
-            const char* optionstr[5];
-            u32 n_opt = 0;
+            const char* optionstr[8];
+            int n_opt = 0;
             
             u32 filetype = IdentifyFileType(curr_entry->path);
             u32 drvtype = DriveType(curr_entry->path);
             
             int mountable = (filetype && (drvtype & DRV_FAT) &&
                 !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE))) ?
-                (int) ++n_opt : -1;
-            int hexviewer = (int) ++n_opt;
-            int calcsha = (int) ++n_opt;
+                ++n_opt : -1;
+            int hexviewer = ++n_opt;
+            int calcsha = ++n_opt;
+            int verificable = ((filetype == GAME_CIA) || (filetype == GAME_NCSD) ||
+                (filetype == GAME_NCCH)) ? ++n_opt : -1;
             int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
                 (drvtype & DRV_FAT) &&
                 (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
                 (int) ++n_opt : -1;
-            int searchdrv = (curr_drvtype & DRV_SEARCH) ? (int) ++n_opt : -1;
+            int searchdrv = (curr_drvtype & DRV_SEARCH) ? ++n_opt : -1;
+            
+            u32 n_marked = 0;
+            if (curr_entry->marked) {
+                for (u32 i = 0; i < current_dir->n_entries; i++) 
+                    if (current_dir->entry[i].marked) n_marked++;
+            }
             
             TruncateString(pathstr, curr_entry->path, 32, 8);
             optionstr[hexviewer-1] = "Show in Hexeditor";
             optionstr[calcsha-1] = "Calculate SHA-256";
-            if (injectable) optionstr[injectable-1] = "Inject data @offset";
-            if (mountable) optionstr[mountable-1] =
+            if (verificable > 0) optionstr[verificable-1] = "Verify game image";
+            if (injectable > 0) optionstr[injectable-1] = "Inject data @offset";
+            if (mountable > 0) optionstr[mountable-1] =
                 (filetype == IMG_NAND) ? "Mount as NAND image" :
                 (filetype == IMG_FAT) ? "Mount as FAT image" :
                 (filetype == GAME_CIA) ? "Mount as CIA image" :
                 (filetype == GAME_NCSD) ? "Mount as NCSD image" :
                 (filetype == GAME_NCCH) ? "Mount as NCCH image" : "???";
-            if (searchdrv) optionstr[searchdrv-1] = "Open containing folder";
+            if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
             
             int user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
             if (user_select == hexviewer) { // -> show in hex viewer
@@ -696,6 +706,33 @@ u32 GodMode() {
             } else if (user_select == calcsha) { // -> calculate SHA-256
                 Sha256Calculator(curr_entry->path);
                 GetDirContents(current_dir, current_path);
+            } else if (user_select == verificable) { // -> verify game file
+                if ((n_marked > 1) && ShowPrompt(true, "Try to verify all %lu selected files?", n_marked)) {
+                    u32 n_success = 0;
+                    u32 n_other = 0; 
+                    u32 n_processed = 0;
+                    for (u32 i = 0; i < current_dir->n_entries; i++) {
+                        const char* path = current_dir->entry[i].path;
+                        if (!current_dir->entry[i].marked) 
+                            continue;
+                        if (IdentifyFileType(path) != filetype) {
+                            n_other++;
+                            continue;
+                        }
+                        if ((filetype != GAME_CIA) && !ShowProgress(n_processed++, n_marked, path)) break;
+                        if (VerifyGameFile(path) == 0) n_success++;
+                        else if (filetype != GAME_CIA) ShowProgress(0, 0, path); // redraw progress bar
+                        current_dir->entry[i].marked = false;
+                    }
+                    if (filetype != GAME_CIA) ShowProgress(1, 1, ""); // CIA verification has progress bar handling
+                    if (n_other) ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu not of same type",
+                        n_success, n_marked, n_other, n_marked);
+                    else ShowPrompt(false, "%lu/%lu files verified ok", n_success, n_marked); 
+                } else {
+                    ShowString("%s\nVerifying file, please wait...", pathstr);
+                    u32 result = VerifyGameFile(curr_entry->path);
+                    ShowPrompt(false, "%s\nVerification %s", pathstr, (result == 0) ? "success" : "failed");
+                }
             } else if (user_select == injectable) { // -> inject data from clipboard
                 char origstr[18 + 1];
                 TruncateString(origstr, clipboard->entry[0].name, 18, 10);
