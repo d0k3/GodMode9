@@ -752,11 +752,17 @@ u32 GodMode() {
                     ShowPrompt(false, "Mounting image: failed");
                     InitImgFS(NULL);
                 } else {
+                    cursor = 0;
                     *current_path = '\0';
                     GetDirContents(current_dir, current_path);
-                    cursor = 0;
-                    for (u32 i = current_dir->n_entries - 1; i > 0; i--)
-                        if (strspn(current_dir->entry[i].path, "789GI") > 0) cursor = i;
+                    for (u32 i = 0; i < current_dir->n_entries; i++) {
+                        if (strspn(current_dir->entry[i].path, "789GI") == 0)
+                            continue;
+                        strncpy(current_path, current_dir->entry[i].path, 256);
+                        GetDirContents(current_dir, current_path);
+                        cursor = 1;
+                        break;
+                    }
                 }
             } else if (user_select == searchdrv) { // -> search drive, open containing path
                 char* last_slash = strrchr(curr_entry->path, '/');
