@@ -193,8 +193,9 @@ u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
     return 0;
 }
 
-u32 CheckNcchCrypto(NcchHeader* ncch) {
-    return ((SetNcchKey(ncch, 0) == 0) && (SetNcchKey(ncch, 1) == 0)) ? 0 : 1;
+u32 SetupNcchCrypto(NcchHeader* ncch) {
+    return (!NCCH_ENCRYPTED(ncch) ||
+        ((SetNcchKey(ncch, 0) == 0) && (SetNcchKey(ncch, 1) == 0))) ? 0 : 1;
 }
 
 u32 DecryptNcchSection(u8* data, u32 offset_data, u32 size_data,

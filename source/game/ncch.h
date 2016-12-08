@@ -60,5 +60,5 @@ typedef struct {
 } __attribute__((packed)) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
-u32 CheckNcchCrypto(NcchHeader* ncch);
+u32 SetupNcchCrypto(NcchHeader* ncch);
 u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs);

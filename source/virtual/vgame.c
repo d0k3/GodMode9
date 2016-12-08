@@ -92,7 +92,7 @@ bool BuildVGameNcchDir(void) {
     u32 n = 0;
     
     // NCCH crypto
-    bool ncch_crypto = (CheckNcchCrypto(ncch) == 0);
+    bool ncch_crypto = (NCCH_ENCRYPTED(ncch)) && (SetupNcchCrypto(ncch) == 0);
     
     // header
     strncpy(templates[n].name, NAME_NCCH_HEADER, 32);
