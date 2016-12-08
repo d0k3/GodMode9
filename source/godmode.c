@@ -5,7 +5,6 @@
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
-#include "vgame.h"
 #include "image.h"
 
 #define N_PANES 2
@@ -202,7 +201,7 @@ u32 SdFormatMenu(void) {
     // check actual SD card size
     sdcard_size_mb = GetSDCardSize() / 0x100000;
     if (!sdcard_size_mb) {
-        ShowPrompt(false, "ERROR: SD card not detected.");
+        ShowPrompt(false, "Error: SD card not detected.");
         return 1;
     }
     

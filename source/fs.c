@@ -228,7 +228,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size) {
     
     // FAT size check
     if (fat_size < 0x80000) { // minimum free space: 256MB
-        ShowPrompt(false, "ERROR: SD card is too small");
+        ShowPrompt(false, "Error: SD card is too small");
         return false;
     }
     sd_size = fat_size;
@@ -250,7 +250,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size) {
     // write the MBR to disk
     // !this assumes a fully deinitialized file system!
     if ((sdmmc_sdcard_init() != 0) || (sdmmc_sdcard_writesectors(0, 1, mbr) != 0)) {
-        ShowPrompt(false, "ERROR: SD card i/o failure");
+        ShowPrompt(false, "Error: SD card i/o failure");
         return false;
     }
     
