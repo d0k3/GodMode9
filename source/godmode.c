@@ -692,11 +692,13 @@ u32 GodMode() {
             if (verificable > 0) optionstr[verificable-1] = "Verify game image";
             if (injectable > 0) optionstr[injectable-1] = "Inject data @offset";
             if (mountable > 0) optionstr[mountable-1] =
-                (filetype == IMG_NAND) ? "Mount as NAND image" :
-                (filetype == IMG_FAT) ? "Mount as FAT image" :
-                (filetype == GAME_CIA) ? "Mount as CIA image" :
-                (filetype == GAME_NCSD) ? "Mount as NCSD image" :
-                (filetype == GAME_NCCH) ? "Mount as NCCH image" : "???";
+                (filetype == IMG_NAND  ) ? "Mount as NAND image"  :
+                (filetype == IMG_FAT   ) ? "Mount as FAT image"   :
+                (filetype == GAME_CIA  ) ? "Mount as CIA image"   :
+                (filetype == GAME_NCSD ) ? "Mount as NCSD image"  :
+                (filetype == GAME_NCCH ) ? "Mount as NCCH image"  :
+                (filetype == GAME_EXEFS) ? "Mount as EXEFS image" :
+                (filetype == GAME_ROMFS) ? "Mount as ROMFS image" : "???";
             if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
             
             int user_select = 0;

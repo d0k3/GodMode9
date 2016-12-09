@@ -78,7 +78,8 @@ bool BuildVGameExeFsDir(void) {
         snprintf(templates[n].name, 32, "%.8s", file->name);
         templates[n].offset = offset_exefs + sizeof(ExeFsHeader) + file->offset;
         templates[n].size = file->size;
-        templates[n].keyslot = NCCH_ENCRYPTED(ncch) ? 0x2C : 0xFF; // actual keyslot may be different
+        templates[n].keyslot = ((offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch)) ?
+            0x2C : 0xFF; // actual keyslot may be different
         templates[n].flags = VFLAG_EXEFS_FILE;
         n++;
     }
@@ -335,7 +336,12 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_lv3   = (u64) -1;
     offset_lv3fd = (u64) -1;
     
-    base_vdir = (type == GAME_CIA) ? VFLAG_CIA : (type == GAME_NCSD) ? VFLAG_NCSD : (type == GAME_NCCH) ? VFLAG_NCCH : 0;
+    base_vdir =
+        (type == GAME_CIA  ) ? VFLAG_CIA   :
+        (type == GAME_NCSD ) ? VFLAG_NCSD  :
+        (type == GAME_NCCH ) ? VFLAG_NCCH  :
+        (type == GAME_EXEFS) ? VFLAG_EXEFS :
+        (type == GAME_ROMFS) ? VFLAG_ROMFS : 0;
     if (!base_vdir) return 0;
     
     vgame_type = type;
@@ -446,7 +452,8 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
 bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
     BuildLv3Index(&lv3idx, romfslv3);
     vfile->flags = VFLAG_LV3;
-    vfile->keyslot = NCCH_ENCRYPTED(ncch) ? 0x2C : 0xFF; // actual keyslot may be different
+    vfile->keyslot = ((offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch)) ? 
+        0x2C : 0xFF; // actual keyslot may be different
     
     // start from parent dir object
     if (vdir->index == -1) vdir->index = 0; 
@@ -551,7 +558,7 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
         lv3file = LV3_GET_FILE(vfile->offset, &lv3idx);
         vfoffset = offset_lv3fd + lv3file->offset_data;
     }
-    if (NCCH_ENCRYPTED(ncch) && (vfile->keyslot < 0x40) &&
+    if ((vfile->keyslot < 0x40) && (offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch) && 
         (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH)))
         return ReadNcchImageBytes(buffer, vfoffset + offset, count);
     else return ReadImageBytes(buffer, vfoffset + offset, count);
@@ -560,7 +567,8 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
 bool FindVirtualFileInLv3Dir(VirtualFile* vfile, const VirtualDir* vdir, const char* name) {
     vfile->name[0] = '\0';
     vfile->flags = vdir->flags & ~VFLAG_DIR;
-    vfile->keyslot = NCCH_ENCRYPTED(ncch) ? 0x2C : 0xFF; // actual keyslot may be different
+    vfile->keyslot = ((offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch)) ?
+        0x2C : 0xFF; // actual keyslot may be different
     
     RomFsLv3DirMeta* lv3dir = GetLv3DirMeta(name, vdir->offset, &lv3idx);
     if (lv3dir) {

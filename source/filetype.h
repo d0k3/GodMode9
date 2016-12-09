@@ -9,10 +9,10 @@
 #define GAME_NCSD  (1<<3)
 #define GAME_NCCH  (1<<4)
 #define GAME_TMD   (1<<5)
-// #define GAME_EXEFS (1<<6)
-// #define GAME_ROMFS (1<<7)
+#define GAME_EXEFS (1<<6)
+#define GAME_ROMFS (1<<7)
 
-#define FTYPE_MOUNTABLE     (IMG_FAT|IMG_NAND|GAME_CIA|GAME_NCSD|GAME_NCCH)
+#define FTYPE_MOUNTABLE     (IMG_FAT|IMG_NAND|GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_EXEFS|GAME_ROMFS)
 #define FYTPE_VERIFICABLE   (GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_TMD)
 
 u32 IdentifyFileType(const char* path);

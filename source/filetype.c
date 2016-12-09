@@ -5,6 +5,8 @@
 
 u32 IdentifyFileType(const char* path) {
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
+    const u8 romfs_magic[] = { ROMFS_MAGIC };
+    
     FIL file;
     if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 0;
@@ -46,6 +48,10 @@ u32 IdentifyFileType(const char* path) {
         NcchHeader* ncch = (NcchHeader*) (void*) header;
         if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
             return GAME_NCCH; // NCSD (".3DS") file
+    } else if (ValidateExeFsHeader((ExeFsHeader*) (void*) header, fsize) == 0) {
+        return GAME_EXEFS; // ExeFS file
+    } else if (memcmp(header, romfs_magic, sizeof(romfs_magic)) == 0) {
+        return GAME_ROMFS; // RomFS file (check could be better)
     } else if (strncmp(CIA_TMD_ISSUER, (char*) (header + 0x140), 0x40) == 0) {
         if (fsize >= CIA_TMD_SIZE_N(getbe16(header + 0x1DE)))
             return GAME_TMD; // TMD file

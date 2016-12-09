@@ -24,9 +24,10 @@ This tool would not have been possible without the help of numerous people. Than
 * **Archshift**, for providing the base project infrastructure
 * **Normmatt**, for sdmmc.c / sdmmc.h
 * **Cha(N)**, **Kane49**, and all other FatFS contributors for FatFS
-* **b1l1s**, for helping me figure out A9LH compatibility
+* **SciResM** for helping me figure out RomFS 
+* **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **dark_samus** for the new 6x10 font and help on various things
-* **Al3x_10m**, **Supster131** and all other fearless testers
+* **Al3x_10m**, **Supster131**, **imanoob**, **Kasher_CS** and all other fearless testers
 * The fine folks on **freenode #Cakey**
 * Everyone I possibly forgot, if you think you deserve to be mentioned, just contact me!
