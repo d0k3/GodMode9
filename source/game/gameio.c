@@ -197,7 +197,26 @@ u32 LoadCiaStub(CiaStub* stub, const char* path) {
     return 0;
 }
 
-u32 VerifyCiaContent(const char* path, u64 offset, TmdContentChunk* chunk, const u8* titlekey) {
+u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
+    FIL file;
+    UINT btr;
+    
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    
+    // full TMD file
+    f_lseek(&file, 0);
+    if ((fx_read(&file, tmd, CIA_TMD_SIZE_MAX, &btr) != FR_OK) ||
+        (btr < CIA_TMD_SIZE_N(getbe16(tmd->content_count)))) {
+        fx_close(&file);
+        return 1;
+    }
+    
+    fx_close(&file);
+    return 0;
+}
+
+u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const u8* titlekey) {
     u8 hash[32];
     u8 ctr[16];
     FIL file;
@@ -206,6 +225,7 @@ u32 VerifyCiaContent(const char* path, u64 offset, TmdContentChunk* chunk, const
     u64 size = getbe64(chunk->size);
     bool encrypted = getbe16(chunk->type) & 0x1;
     
+    if (!ShowProgress(0, 0, path)) return 1;
     if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     if (offset + size > f_size(&file)) {
@@ -214,9 +234,8 @@ u32 VerifyCiaContent(const char* path, u64 offset, TmdContentChunk* chunk, const
     }
     f_lseek(&file, offset);
     
-    GetCiaCtr(ctr, chunk);
+    GetTmdCtr(ctr, chunk);
     sha_init(SHA256_MODE);
-    ShowProgress(0, 0, path);
     for (u32 i = 0; i < size; i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
         UINT bytes_read;
@@ -253,12 +272,50 @@ u32 VerifyCiaFile(const char* path) {
     u64 next_offset = info.offset_content;
     for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
-        if (VerifyCiaContent(path, next_offset, chunk, titlekey) != 0) {
+        if (VerifyTmdContent(path, next_offset, chunk, titlekey) != 0) {
             ShowPrompt(false, "%s\nID %08lX (%08llX@%08llX)\nVerification failed",
                 pathstr, getbe32(chunk->id), getbe64(chunk->size), next_offset, i);
             return 1;
         }
         next_offset += getbe64(chunk->size);
+    }
+    
+    return 0;
+}
+
+u32 VerifyTmdFile(const char* path) {
+    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+    TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
+    
+    // path string
+    char pathstr[32 + 1];
+    TruncateString(pathstr, path, 32, 8);
+    
+    // content path string
+    char path_content[256];
+    char* name_content;
+    strncpy(path_content, path, 256);
+    name_content = strrchr(path_content, '/');
+    if (!name_content) return 1; // will not happen
+    name_content++;
+    
+    // load TMD file
+    if (LoadTmdFile(tmd, path) != 0) {
+        ShowPrompt(false, "%s\nError: TMD probably corrupted", pathstr);
+        return 1;
+    }
+    
+    // verify contents
+    u32 content_count = getbe16(tmd->content_count);
+    for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+        TmdContentChunk* chunk = &(content_list[i]);
+        chunk->type[1] &= ~0x01; // remove crypto flag
+        snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(chunk->id));
+        TruncateString(pathstr, path_content, 32, 8);
+        if (VerifyTmdContent(path_content, 0, chunk, NULL) != 0) {
+            ShowPrompt(false, "%s\nVerification failed", pathstr);
+            return 1;
+        }
     }
     
     return 0;
@@ -272,5 +329,7 @@ u32 VerifyGameFile(const char* path) {
         return VerifyNcsdFile(path);
     else if (filetype == GAME_NCCH)
         return VerifyNcchFile(path, 0, 0);
+    else if (filetype == GAME_TMD)
+        return VerifyTmdFile(path);
     else return 1;
 }

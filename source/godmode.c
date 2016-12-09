@@ -667,13 +667,12 @@ u32 GodMode() {
             u32 filetype = IdentifyFileType(curr_entry->path);
             u32 drvtype = DriveType(curr_entry->path);
             
-            int mountable = (filetype && (drvtype & DRV_FAT) &&
+            int mountable = ((filetype & FTYPE_MOUNTABLE) && (drvtype & DRV_FAT) &&
                 !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE))) ?
                 ++n_opt : -1;
             int hexviewer = ++n_opt;
             int calcsha = ++n_opt;
-            int verificable = ((filetype == GAME_CIA) || (filetype == GAME_NCSD) ||
-                (filetype == GAME_NCCH)) ? ++n_opt : -1;
+            int verificable = (filetype & FYTPE_VERIFICABLE) ? ++n_opt : -1;
             int injectable = ((clipboard->n_entries == 1) &&
                 (clipboard->entry[0].type == T_FILE) &&
                 (drvtype & DRV_FAT) &&
@@ -721,12 +720,15 @@ u32 GodMode() {
                             n_other++;
                             continue;
                         }
-                        if ((filetype != GAME_CIA) && !ShowProgress(n_processed++, n_marked, path)) break;
-                        if (VerifyGameFile(path) == 0) n_success++;
-                        else if (filetype != GAME_CIA) ShowProgress(0, 0, path); // redraw progress bar
+                        if (!(filetype & (GAME_CIA|GAME_TMD)) &&
+                            !ShowProgress(n_processed++, n_marked, path)) break;
                         current_dir->entry[i].marked = false;
+                        if (VerifyGameFile(path) == 0) n_success++;
+                        else { // on failure: set cursor on failed title, break;
+                            cursor = i;
+                            break;
+                        }
                     }
-                    if (filetype != GAME_CIA) ShowProgress(1, 1, ""); // CIA verification has progress bar handling
                     if (n_other) ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu not of same type",
                         n_success, n_marked, n_other, n_marked);
                     else ShowPrompt(false, "%lu/%lu files verified ok", n_success, n_marked); 

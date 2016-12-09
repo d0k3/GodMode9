@@ -85,7 +85,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     return 0;
 }
 
-u32 GetCiaCtr(u8* ctr, TmdContentChunk* chunk) {
+u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk) {
     memset(ctr, 0, 16);
     memcpy(ctr, chunk->index, 2);
     return 0;
@@ -136,7 +136,7 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     // fill ticket values
     memcpy(ticket->sig_type, sig_type, 4);
     memset(ticket->signature, 0xFF, 0x100);
-    snprintf((char*) ticket->issuer, 0x40, "Root-CA00000003-XS0000000c");
+    snprintf((char*) ticket->issuer, 0x40, CIA_TICKET_ISSUER);
     memset(ticket->ecdsa, 0xFF, 0x3C);
     ticket->version = 0x01;
     memset(ticket->titlekey, 0xFF, 16);
@@ -157,7 +157,7 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
     // file TMD values
     memcpy(tmd->sig_type, sig_type, 4);
     memset(tmd->signature, 0xFF, 0x100);
-    snprintf((char*) tmd->issuer, 0x40, "Root-CA00000003-CP0000000b");
+    snprintf((char*) tmd->issuer, 0x40, CIA_TMD_ISSUER);
     tmd->version = 0x01;
     memcpy(tmd->title_id, title_id, 8);
     tmd->title_type[3] = 0x40; // whatever

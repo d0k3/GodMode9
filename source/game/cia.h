@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#define CIA_TICKET_ISSUER   "Root-CA00000003-XS0000000c"
+#define CIA_TMD_ISSUER      "Root-CA00000003-CP0000000b"
+
 #define CIA_MAX_CONTENTS    (100+1) // theme CIAs contain maximum 100 themes + 1 index content
 #define CIA_HEADER_SIZE     sizeof(CiaHeader)
 #define CIA_CERT_SIZE       0xA00
@@ -9,6 +12,7 @@
 #define CIA_TICKET_SIZE     sizeof(Ticket)
 #define CIA_TMD_SIZE_MIN    sizeof(TitleMetaData)
 #define CIA_TMD_SIZE_MAX    (sizeof(TitleMetaData) + (CIA_MAX_CONTENTS*sizeof(TmdContentChunk)))
+#define CIA_TMD_SIZE_N(n)   (sizeof(TitleMetaData) + (n*sizeof(TmdContentChunk)))
 
 // see: https://www.3dbrew.org/wiki/CIA#Meta
 typedef struct {
@@ -147,7 +151,7 @@ u32 ValidateCiaHeader(CiaHeader* header);
 u32 GetCiaInfo(CiaInfo* info, CiaHeader* header);
 u32 GetCiaContentInfo(CiaContentInfo* contents, TitleMetaData* tmd);
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
-u32 GetCiaCtr(u8* ctr, TmdContentChunk* chunk);
+u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);
 
 u32 BuildCiaCert(u8* ciacert);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);

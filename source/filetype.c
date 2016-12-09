@@ -46,6 +46,9 @@ u32 IdentifyFileType(const char* path) {
         NcchHeader* ncch = (NcchHeader*) (void*) header;
         if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
             return GAME_NCCH; // NCSD (".3DS") file
+    } else if (strncmp(CIA_TMD_ISSUER, (char*) (header + 0x140), 0x40) == 0) {
+        if (fsize >= CIA_TMD_SIZE_N(getbe16(header + 0x1DE)))
+            return GAME_TMD; // TMD file
     }
     
     return 0;
