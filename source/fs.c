@@ -405,8 +405,8 @@ u32 GetWritePermissions() {
 bool FileCheck(const char* path) {
     FIL file;
     if (PathToNumFSA(path) < 0) return true;
-    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-        f_close(&file);
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
+        fx_close(&file);
         return true;
     } else return false;
 }
