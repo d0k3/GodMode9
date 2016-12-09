@@ -20,3 +20,15 @@ u32 ValidateNcsdHeader(NcsdHeader* header) {
      
     return 0;
 }
+
+u32 GetNcsdTrimmedSize(NcsdHeader* header) {
+    u32 data_units = 0;
+    for (u32 i = 0; i < 8; i++) {
+        NcchPartition* partition = header->partitions + i;
+        u32 partition_end = partition->offset + partition->size;
+        if (!partition->size) continue;
+        data_units = (partition_end > data_units) ? partition_end : data_units;
+    }
+    
+    return data_units * NCSD_MEDIA_UNIT;
+}

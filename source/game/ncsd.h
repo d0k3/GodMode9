@@ -32,3 +32,4 @@ typedef struct {
 } __attribute__((packed)) NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
+u32 GetNcsdTrimmedSize(NcsdHeader* header);

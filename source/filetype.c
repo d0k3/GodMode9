@@ -40,7 +40,7 @@ u32 IdentifyFileType(const char* path) {
             return GAME_CIA; // CIA file
     } else if (ValidateNcsdHeader((NcsdHeader*) (void*) header) == 0) {
         NcsdHeader* ncsd = (NcsdHeader*) (void*) header;
-        if (fsize >= (ncsd->size * NCSD_MEDIA_UNIT))
+        if (fsize >= GetNcsdTrimmedSize(ncsd))
             return GAME_NCSD; // NCSD (".3DS") file
     } else if (ValidateNcchHeader((NcchHeader*) (void*) header) == 0) {
         NcchHeader* ncch = (NcchHeader*) (void*) header;
