@@ -2,7 +2,6 @@
 #include "image.h"
 #include "game.h"
 #include "aes.h"
-#include "ff.h"
 
 #define VFLAG_EXEFS_FILE    (1<<25)
 #define VFLAG_EXTHDR        (1<<26)

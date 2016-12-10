@@ -5,7 +5,7 @@
 #include "fsdrive.h"
 #include "fsutil.h"
 #include "fsperm.h"
-#include "gameio.h"
+#include "gameutil.h"
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"

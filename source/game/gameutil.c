@@ -1,4 +1,4 @@
-#include "gameio.h"
+#include "gameutil.h"
 #include "game.h"
 #include "ui.h"
 #include "filetype.h"

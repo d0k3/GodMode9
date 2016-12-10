@@ -50,9 +50,10 @@
 // buffer area defines (temporary, in use by various functions)
 //  -> godmode.c hexviewer
 //  -> ncch.c seed setup
+//  -> gameutil.c various temporary stuff
 #define TEMP_BUFFER         ((u8*)0x21100000)
 #define TEMP_BUFFER_SIZE    (0x100000)
-// buffer area defines (in use by fs.c and gameio.c)
+// buffer area defines (in use by fsutil.c, fsinit.c and gameutil.c)
 #define MAIN_BUFFER         ((u8*)0x21200000)
 #define MAIN_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
 // buffer area defines (in use by nand.c)
