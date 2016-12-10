@@ -1,4 +1,4 @@
-#include "dir.h"
+#include "fsdir.h"
 
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig) {
     memcpy(dest, orig, sizeof(DirEntry));

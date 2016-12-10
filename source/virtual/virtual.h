@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.h"
-#include "dir.h"
+#include "fsdir.h"
 #include "nand.h"
 
 #define VRT_SYSNAND NAND_SYSNAND

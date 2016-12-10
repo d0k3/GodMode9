@@ -1,7 +1,10 @@
 #include "godmode.h"
 #include "ui.h"
 #include "hid.h"
-#include "fs.h"
+#include "fsinit.h"
+#include "fsdrive.h"
+#include "fsutil.h"
+#include "fsperm.h"
 #include "gameio.h"
 #include "platform.h"
 #include "nand.h"
@@ -99,7 +102,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     }
     DrawStringF(TOP_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
     // path of file (if in search results)
-    if (IsSearchDrive(curr_path) && strrchr(curr_entry->path, '/')) {
+    if ((DriveType(curr_path) & DRV_SEARCH) && strrchr(curr_entry->path, '/')) {
         char dirstr[256];
         strncpy(dirstr, curr_entry->path, 256);
         *(strrchr(dirstr, '/')+1) = '\0';
@@ -625,7 +628,7 @@ u32 GodMode() {
         
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
-            if (switched && !IsSearchDrive(curr_entry->path)) { // search directory
+            if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
                 char searchstr[256];
                 char namestr[20+1];
                 snprintf(searchstr, 256, "*");

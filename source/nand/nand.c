@@ -1,10 +1,11 @@
-#include "fs.h"
+#include "nand.h"
+#include "fsdrive.h"
+#include "fsutil.h"
 #include "platform.h"
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
 #include "sdmmc.h"
-#include "nand.h"
 #include "image.h"
 
 #define NAND_MIN_SECTORS ((GetUnitPlatform() == PLATFORM_N3DS) ? 0x26C000 : 0x1D7800)
