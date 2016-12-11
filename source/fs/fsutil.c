@@ -194,21 +194,37 @@ bool FileGetSha256(const char* path, u8* sha256) {
     return ret;
 }
 
-u32 FileFindData(const char* path, u8* data, u32 size, u32 offset) {
+u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
+    int drvtype = DriveType(path);
     u32 found = (u32) -1;
     u32 fsize = FileGetSize(path);
     
+    // open FAT / virtual file
+    FIL file; // only used on FAT drives
+    VirtualFile vfile; // only used on virtual drives
+    if (((drvtype & DRV_FAT) && (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)) ||
+        ((drvtype & DRV_VIRTUAL) && !GetVirtualFile(&vfile, path))) return found;
+    
+    // main routine
     for (u32 pass = 0; pass < 2; pass++) {
         bool show_progress = false;
-        u32 pos = (pass == 0) ? offset : 0;
-        u32 search_end = (pass == 0) ? fsize : offset + size;
+        u32 pos = (pass == 0) ? offset_file : 0;
+        u32 search_end = (pass == 0) ? fsize : offset_file + size_data;
         search_end = (search_end > fsize) ? fsize : search_end;
-        for (; (pos < search_end) && (found == (u32) -1); pos += MAIN_BUFFER_SIZE - (size - 1)) {
+        for (; (pos < search_end) && (found == (u32) -1); pos += MAIN_BUFFER_SIZE - (size_data - 1)) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, search_end - pos);
-            if (FileGetData(path, MAIN_BUFFER, read_bytes, pos) != read_bytes)
-                break;
-            for (u32 i = 0; i + size <= read_bytes; i++) {
-                if (memcmp(MAIN_BUFFER + i, data, size) == 0) {
+            if (drvtype & DRV_FAT) {
+                UINT btr;
+                f_lseek(&file, pos);
+                if ((fx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes))
+                    break;
+            } else {
+                u32 btr;
+                if ((ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, &btr) != 0) || (btr != read_bytes))
+                    break;
+            }
+            for (u32 i = 0; i + size_data <= read_bytes; i++) {
+                if (memcmp(MAIN_BUFFER + i, data, size_data) == 0) {
                     found = pos + i;
                     break;
                 }
@@ -221,6 +237,7 @@ u32 FileFindData(const char* path, u8* data, u32 size, u32 offset) {
                 break;
         }
     }
+    if (drvtype & DRV_FAT) fx_close(&file);
     
     return found;
 }
