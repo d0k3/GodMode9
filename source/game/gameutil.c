@@ -44,84 +44,6 @@ u32 CheckNcchFileHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, N
     return (memcmp(hash, expected, 32) == 0) ? 0 : 1;
 }
 
-u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
-    NcchHeader ncch;
-    ExeFsHeader exefs;
-    FIL file;
-    
-    char pathstr[32 + 1];
-    TruncateString(pathstr, path, 32, 8);
-    
-    // open file, get NCCH, ExeFS header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
-    f_lseek(&file, offset);
-    
-    if (GetNcchFileHeaders(&ncch, &exefs, &file) != 0) {
-        if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
-        fx_close(&file);
-        return 1;
-    }
-    
-    // size checks
-    if (!size) size = f_size(&file) - offset;
-    if ((f_size(&file) < offset) || (size < ncch.size * NCCH_MEDIA_UNIT)) {
-        if (!offset) ShowPrompt(false, "%s\nError: File is too small", pathstr);
-        fx_close(&file);
-        return 1;
-    }
-    
-    // check / setup crypto
-    if (SetupNcchCrypto(&ncch) != 0) {
-        if (!offset) ShowPrompt(false, "%s\nError: Crypto not set up", pathstr);
-        fx_close(&file);
-        return 1;
-    }
-    
-    u32 ver_exthdr = 0;
-    u32 ver_exefs = 0;
-    u32 ver_romfs = 0;
-    
-    // base hash check for extheader
-    if (ncch.size_exthdr > 0) {
-        f_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
-        ver_exthdr = CheckNcchFileHash(ncch.hash_exthdr, &file, 0x400, offset, &ncch, &exefs);
-    }
-    
-    // base hash check for exefs
-    if (ncch.size_exefs > 0) {
-        f_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
-        ver_exefs = CheckNcchFileHash(ncch.hash_exefs, &file, ncch.size_exefs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs);
-    }
-    
-    // base hash check for romfs
-    if (ncch.size_romfs > 0) {
-        f_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
-        ver_romfs = CheckNcchFileHash(ncch.hash_romfs, &file, ncch.size_romfs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs);
-    }
-    
-    // thorough exefs verification
-    if (ncch.size_exefs > 0) {
-        for (u32 i = 0; !ver_exefs && (i < 10); i++) {
-            ExeFsFileHeader* exefile = exefs.files + i;
-            u8* hash = exefs.hashes[9 - i];
-            if (!exefile->size) continue;
-            f_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset);
-            ver_exefs = CheckNcchFileHash(hash, &file, exefile->size, offset, &ncch, &exefs);
-        }
-    }
-    
-    if (!offset && (ver_exthdr|ver_exefs|ver_romfs)) { // verification summary
-        ShowPrompt(false, "%s\nNCCH verification failed:\nExtHdr/ExeFS/RomFS: %s/%s/%s", pathstr,
-            (!ncch.size_exthdr) ? "-" : (ver_exthdr == 0) ? "ok" : "fail",
-            (!ncch.size_exefs) ? "-" : (ver_exefs == 0) ? "ok" : "fail",
-            (!ncch.size_romfs) ? "-" : (ver_romfs == 0) ? "ok" : "fail");
-    }
-    
-    fx_close(&file);
-    return ver_exthdr|ver_exefs|ver_romfs;
-}
-
 u32 LoadNcsdHeader(NcsdHeader* ncsd, const char* path) {
     FIL file;
     UINT btr;
@@ -136,35 +58,6 @@ u32 LoadNcsdHeader(NcsdHeader* ncsd, const char* path) {
         return 1;
     }
     fx_close(&file);
-    
-    return 0;
-}
-
-u32 VerifyNcsdFile(const char* path) {
-    NcsdHeader ncsd;
-    
-    // path string
-    char pathstr[32 + 1];
-    TruncateString(pathstr, path, 32, 8);
-    
-    // load NCSD header
-    if (LoadNcsdHeader(&ncsd, path) != 0) {
-        ShowPrompt(false, "%s\nError: Not a NCSD file", pathstr);
-        return 1;
-    }
-    
-    // validate NCSD contents
-    for (u32 i = 0; i < 8; i++) {
-        NcchPartition* partition = ncsd.partitions + i;
-        u32 offset = partition->offset * NCSD_MEDIA_UNIT;
-        u32 size = partition->size * NCSD_MEDIA_UNIT;
-        if (!size) continue;
-        if (VerifyNcchFile(path, offset, size) != 0) {
-            ShowPrompt(false, "%s\nContent%lu (%08lX@%08lX):\nVerification failed",
-                pathstr, i, size, offset, i);
-            return 1;
-        }
-    }
     
     return 0;
 }
@@ -248,6 +141,113 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
     fx_close(&file);
     
     return memcmp(hash, expected, 32);
+}
+
+u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
+    NcchHeader ncch;
+    ExeFsHeader exefs;
+    FIL file;
+    
+    char pathstr[32 + 1];
+    TruncateString(pathstr, path, 32, 8);
+    
+    // open file, get NCCH, ExeFS header
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    f_lseek(&file, offset);
+    
+    if (GetNcchFileHeaders(&ncch, &exefs, &file) != 0) {
+        if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
+        fx_close(&file);
+        return 1;
+    }
+    
+    // size checks
+    if (!size) size = f_size(&file) - offset;
+    if ((f_size(&file) < offset) || (size < ncch.size * NCCH_MEDIA_UNIT)) {
+        if (!offset) ShowPrompt(false, "%s\nError: File is too small", pathstr);
+        fx_close(&file);
+        return 1;
+    }
+    
+    // check / setup crypto
+    if (SetupNcchCrypto(&ncch) != 0) {
+        if (!offset) ShowPrompt(false, "%s\nError: Crypto not set up", pathstr);
+        fx_close(&file);
+        return 1;
+    }
+    
+    u32 ver_exthdr = 0;
+    u32 ver_exefs = 0;
+    u32 ver_romfs = 0;
+    
+    // base hash check for extheader
+    if (ncch.size_exthdr > 0) {
+        f_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
+        ver_exthdr = CheckNcchFileHash(ncch.hash_exthdr, &file, 0x400, offset, &ncch, &exefs);
+    }
+    
+    // base hash check for exefs
+    if (ncch.size_exefs > 0) {
+        f_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
+        ver_exefs = CheckNcchFileHash(ncch.hash_exefs, &file, ncch.size_exefs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs);
+    }
+    
+    // base hash check for romfs
+    if (ncch.size_romfs > 0) {
+        f_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
+        ver_romfs = CheckNcchFileHash(ncch.hash_romfs, &file, ncch.size_romfs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs);
+    }
+    
+    // thorough exefs verification
+    if (ncch.size_exefs > 0) {
+        for (u32 i = 0; !ver_exefs && (i < 10); i++) {
+            ExeFsFileHeader* exefile = exefs.files + i;
+            u8* hash = exefs.hashes[9 - i];
+            if (!exefile->size) continue;
+            f_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset);
+            ver_exefs = CheckNcchFileHash(hash, &file, exefile->size, offset, &ncch, &exefs);
+        }
+    }
+    
+    if (!offset && (ver_exthdr|ver_exefs|ver_romfs)) { // verification summary
+        ShowPrompt(false, "%s\nNCCH verification failed:\nExtHdr/ExeFS/RomFS: %s/%s/%s", pathstr,
+            (!ncch.size_exthdr) ? "-" : (ver_exthdr == 0) ? "ok" : "fail",
+            (!ncch.size_exefs) ? "-" : (ver_exefs == 0) ? "ok" : "fail",
+            (!ncch.size_romfs) ? "-" : (ver_romfs == 0) ? "ok" : "fail");
+    }
+    
+    fx_close(&file);
+    return ver_exthdr|ver_exefs|ver_romfs;
+}
+
+u32 VerifyNcsdFile(const char* path) {
+    NcsdHeader ncsd;
+    
+    // path string
+    char pathstr[32 + 1];
+    TruncateString(pathstr, path, 32, 8);
+    
+    // load NCSD header
+    if (LoadNcsdHeader(&ncsd, path) != 0) {
+        ShowPrompt(false, "%s\nError: Not a NCSD file", pathstr);
+        return 1;
+    }
+    
+    // validate NCSD contents
+    for (u32 i = 0; i < 8; i++) {
+        NcchPartition* partition = ncsd.partitions + i;
+        u32 offset = partition->offset * NCSD_MEDIA_UNIT;
+        u32 size = partition->size * NCSD_MEDIA_UNIT;
+        if (!size) continue;
+        if (VerifyNcchFile(path, offset, size) != 0) {
+            ShowPrompt(false, "%s\nContent%lu (%08lX@%08lX):\nVerification failed",
+                pathstr, i, size, offset, i);
+            return 1;
+        }
+    }
+    
+    return 0;
 }
 
 u32 VerifyCiaFile(const char* path) {

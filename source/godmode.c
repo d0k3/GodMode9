@@ -6,6 +6,7 @@
 #include "fsutil.h"
 #include "fsperm.h"
 #include "gameutil.h"
+#include "filetype.h"
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
