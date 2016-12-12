@@ -1,4 +1,5 @@
 #include "ncsd.h"
+#include "ncch.h"
 
 u32 ValidateNcsdHeader(NcsdHeader* header) {
     u8 zeroes[16] = { 0 };
@@ -32,3 +33,41 @@ u32 GetNcsdTrimmedSize(NcsdHeader* header) {
     
     return data_units * NCSD_MEDIA_UNIT;
 }
+
+// on the fly decryptor for NCSD
+u32 DecryptNcsdSequential(u8* data, u32 offset_data, u32 size_data) {
+    // warning: this will only work for sequential processing
+    static NcsdHeader ncsd;
+    
+    // fetch ncsd header from data
+    if ((offset_data == 0) && (size_data >= sizeof(NcsdHeader)))
+        memcpy(&ncsd, data, sizeof(NcsdHeader));
+    
+    for (u32 i = 0; i < 8; i++) {
+        NcchPartition* partition = ncsd.partitions + i;
+        u32 offset_p = partition->offset * NCSD_MEDIA_UNIT;
+        u32 size_p = partition->size * NCSD_MEDIA_UNIT;
+        // check if partition in data
+        if ((offset_p >= offset_data + size_data) ||
+            (offset_data >= offset_p + size_p) ||
+            !size_p) {
+            continue; // section not in data
+        }
+        // determine data / offset / size
+        u8* data_i = data;
+        u32 offset_i = 0;
+        u32 size_i = size_p;
+        if (offset_p < offset_data)
+            offset_i = offset_data - offset_p;
+        else data_i = data + (offset_p - offset_data);
+        size_i = size_p - offset_i;
+        if (size_i > size_data - (data_i - data))
+            size_i = size_data - (data_i - data);
+        // decrypt ncch segment
+        if (DecryptNcchSequential(data_i, offset_i, size_i) != 0)
+            return 1;
+    }
+    
+    return 0;
+}
+

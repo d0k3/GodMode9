@@ -91,6 +91,20 @@ u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk) {
     return 0;
 }
 
+u32 FixTmdHashes(TitleMetaData* tmd) {
+    TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
+    u32 content_count = getbe16(tmd->content_count);
+    // recalculate content info hashes
+    for (u32 i = 0, kc = 0; i < 64 && kc < content_count; i++) {
+        TmdContentInfo* info = tmd->contentinfo + i;
+        u32 k = getbe16(info->cmd_count);
+        sha_quick(info->hash, content_list + kc, k * sizeof(TmdContentChunk), SHA256_MODE);
+        kc += k;
+    }
+    sha_quick(tmd->contentinfo_hash, (u8*)tmd->contentinfo, 64 * sizeof(TmdContentInfo), SHA256_MODE);
+    return 0;
+}
+
 u32 BuildCiaCert(u8* ciacert) {
     const u8 cert_hash_expected[0x20] = {
         0xC7, 0x2E, 0x1C, 0xA5, 0x61, 0xDC, 0x9B, 0xC8, 0x05, 0x58, 0x58, 0x9C, 0x63, 0x08, 0x1C, 0x8A,
@@ -171,7 +185,7 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
     return 0;
 }
 
-u32 DecryptCiaContent(u8* data, u32 size, u8* ctr, const u8* titlekey) {
+u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey) {
     // WARNING: size and offset of data have to be a multiple of 16
     u8 tik[16] __attribute__((aligned(32)));
     u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;

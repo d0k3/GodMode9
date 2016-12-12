@@ -8,7 +8,7 @@
 #define NCCH_EXTHDR_SIZE 0x800 // NCCH header says 0x400, which is not the full thing
 #define NCCH_EXTHDR_OFFSET 0x200
 
-#define NCCH_ENCRYPTED(ncch) (!(ncch->flags[7] & 0x04))
+#define NCCH_ENCRYPTED(ncch) (!((ncch)->flags[7] & 0x04))
 
 // see: https://www.3dbrew.org/wiki/NCCH/Extended_Header
 // very limited, contains only required stuff
@@ -62,3 +62,4 @@ typedef struct {
 u32 ValidateNcchHeader(NcchHeader* header);
 u32 SetupNcchCrypto(NcchHeader* ncch);
 u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs);
+u32 DecryptNcchSequential(u8* data, u32 offset, u32 size);

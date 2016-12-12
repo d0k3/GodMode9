@@ -260,7 +260,7 @@ u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* e
         if (DecryptNcchSection(data, offset, size,
             ncch->offset_exefs * NCCH_MEDIA_UNIT,
             0x200, 0, ncch, 2, 0) != 0) return 1;
-        
+            
         // exefs file handling
         if (exefs) for (u32 i = 0; i < 10; i++) {
             ExeFsFileHeader* file = exefs->files + i;
@@ -280,4 +280,36 @@ u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* e
     }
         
     return 0;
+}
+
+// on the fly decryptor for NCCH - sequential
+u32 DecryptNcchSequential(u8* data, u32 offset, u32 size) {
+    // warning: this will only work for sequential processing
+    // unexpected results otherwise
+    static NcchHeader ncch = { 0 };
+    static ExeFsHeader exefs = { 0 };
+    static ExeFsHeader* exefsptr = NULL;
+    
+    // fetch ncch header from data
+    if ((offset == 0) && (size >= sizeof(NcchHeader))) {
+        memcpy(&ncch, data, sizeof(NcchHeader));
+        exefsptr = NULL;
+    }
+    
+    // fetch exefs header from data
+    if (!exefsptr) {
+        u32 offset_exefs = ncch.offset_exefs * NCCH_MEDIA_UNIT;
+        if ((offset <= offset_exefs) &&
+            ((offset + size) >= offset_exefs + sizeof(ExeFsHeader))) {
+            if (DecryptNcch(data, offset, offset_exefs + sizeof(ExeFsHeader) - offset, &ncch, NULL) != 0)
+                return 1;
+            memcpy(&exefs, data + offset_exefs - offset, sizeof(ExeFsHeader));
+            size -= offset_exefs + sizeof(ExeFsHeader) - offset;
+            data += offset_exefs + sizeof(ExeFsHeader) - offset;
+            offset = offset_exefs + sizeof(ExeFsHeader);
+            exefsptr = &exefs;
+        }
+    }
+    
+    return DecryptNcch(data, offset, size, &ncch, exefsptr);
 }

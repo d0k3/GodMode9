@@ -152,6 +152,7 @@ u32 GetCiaInfo(CiaInfo* info, CiaHeader* header);
 u32 GetCiaContentInfo(CiaContentInfo* contents, TitleMetaData* tmd);
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);
+u32 FixTmdHashes(TitleMetaData* tmd);
 
 u32 BuildCiaCert(u8* ciacert);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
@@ -160,4 +161,4 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents);
 /*u32 BuildCiaMeta(Ncch ncch);
 u32 InsertCiaContent(const char* path, const char* content, bool encrypt);*/
 
-u32 DecryptCiaContent(u8* data, u32 size, u8* ctr, const u8* titlekey);
+u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey);

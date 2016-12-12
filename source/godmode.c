@@ -559,6 +559,196 @@ u32 Sha256Calculator(const char* path) {
     return 0;
 }
 
+u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* current_dir, DirStruct* clipboard) {
+    DirEntry* curr_entry = &(current_dir->entry[*cursor]);
+    const char* optionstr[8];
+    
+    u32 filetype = IdentifyFileType(curr_entry->path);
+    u32 drvtype = DriveType(curr_entry->path);
+    
+    // special stuff, only available on FAT drives (see int special below)
+    bool mountable = ((filetype & FTYPE_MOUNTABLE) && !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE)));
+    bool verificable = (filetype & FYTPE_VERIFICABLE);
+    bool decryptable = (filetype & FYTPE_DECRYPTABLE);
+    bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
+    
+    char pathstr[32 + 1];
+    TruncateString(pathstr, curr_entry->path, 32, 8);
+    if (!FileCheck(curr_entry->path)) ShowPrompt(false, "%s\nFile is currently locked", pathstr);
+    
+    // main menu processing
+    int n_opt = 0;
+    int special = (filetype && (drvtype & DRV_FAT)) ? ++n_opt : -1;
+    int hexviewer = ++n_opt;
+    int calcsha = ++n_opt;
+    int inject = ((clipboard->n_entries == 1) &&
+        (clipboard->entry[0].type == T_FILE) &&
+        (drvtype & DRV_FAT) &&
+        (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
+        (int) ++n_opt : -1;
+    int searchdrv = (drvtype & DRV_SEARCH) ? ++n_opt : -1;
+    if (special > 0) optionstr[special-1] =
+        (filetype == IMG_NAND  ) ? "Mount as NAND image"   :
+        (filetype == IMG_FAT   ) ? "Mount as FAT image"    :
+        (filetype == GAME_CIA  ) ? "CIA image options..."  :
+        (filetype == GAME_NCSD ) ? "NCSD image options..." :
+        (filetype == GAME_NCCH ) ? "NCCH image options..." :
+        (filetype == GAME_EXEFS) ? "Mount as EXEFS image"  :
+        (filetype == GAME_ROMFS) ? "Mount as ROMFS image"  :
+        (filetype == GAME_TMD)   ? "Verify TMD file" : "???";
+    optionstr[hexviewer-1] = "Show in Hexeditor";
+    optionstr[calcsha-1] = "Calculate SHA-256";
+    if (inject > 0) optionstr[inject-1] = "Inject data @offset";
+    if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
+    
+    int user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
+    if (user_select == hexviewer) { // -> show in hex viewer
+        HexViewer(curr_entry->path);
+        return 0;
+    } else if (user_select == calcsha) { // -> calculate SHA-256
+        Sha256Calculator(curr_entry->path);
+        GetDirContents(current_dir, current_path);
+        return 0;
+    } else if (user_select == inject) { // -> inject data from clipboard
+        char origstr[18 + 1];
+        TruncateString(origstr, clipboard->entry[0].name, 18, 10);
+        u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
+        if (offset != (u64) -1) {
+            if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
+                ShowPrompt(false, "Failed injecting %s", origstr);
+            clipboard->n_entries = 0;
+        }
+        return 0;
+    } else if (user_select == searchdrv) { // -> search drive, open containing path
+        char* last_slash = strrchr(curr_entry->path, '/');
+        if (last_slash) {
+            snprintf(current_path, last_slash - curr_entry->path + 1, "%s", curr_entry->path);
+            GetDirContents(current_dir, current_path);
+            *cursor = 1;
+            *scroll = 0;
+        }
+        return 0;
+    } else if (user_select != special) {
+        return 1;
+    }
+    
+    // stuff for special menu starts here
+    n_opt = 0;
+    int mount = (mountable) ? ++n_opt : -1;
+    int decrypt = (decryptable) ? ++n_opt : -1;
+    int decrypt_inplace = (decryptable_inplace) ? ++n_opt : -1;
+    int verify = (verificable) ? ++n_opt : -1;
+    if (mount > 0) optionstr[mount-1] = "Mount image to drive";
+    if (decrypt > 0) optionstr[decrypt-1] = "Decrypt file (SD output)";
+    if (decrypt_inplace > 0) optionstr[decrypt_inplace-1] = "Decrypt file (inplace)";
+    if (verify > 0) optionstr[verify-1] = "Verify file";
+    
+    u32 n_marked = 0;
+    if (curr_entry->marked) {
+        for (u32 i = 0; i < current_dir->n_entries; i++) 
+            if (current_dir->entry[i].marked) n_marked++;
+    }
+    
+    // auto select when there is only one option
+    user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+    if (user_select == mount) { // -> mount file as image
+        if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
+            clipboard->n_entries = 0; // remove last mounted image clipboard entries
+        InitImgFS(curr_entry->path);
+        if (!(DriveType("7:")||DriveType("8:")||DriveType("9:")||DriveType("G:"))) {
+            ShowPrompt(false, "Mounting image: failed");
+            InitImgFS(NULL);
+        } else {
+            *cursor = 0;
+            *current_path = '\0';
+            GetDirContents(current_dir, current_path);
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                if (strspn(current_dir->entry[i].path, "789GI") == 0)
+                    continue;
+                strncpy(current_path, current_dir->entry[i].path, 256);
+                GetDirContents(current_dir, current_path);
+                *cursor = 1;
+                *scroll = 0;
+                break;
+            }
+        }
+        return 0;
+    } else if ((user_select == decrypt) || (user_select == decrypt_inplace)) { // -> decrypt game file
+        bool inplace = (user_select == decrypt_inplace);
+        if ((n_marked > 1) && ShowPrompt(true, "Try to decrypt all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_unencrypted = 0;
+            u32 n_other = 0;
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (IdentifyFileType(path) != filetype) {
+                    n_other++;
+                    continue;
+                }
+                if (CheckEncryptedGameFile(path) != 0) {
+                    n_unencrypted++;
+                    continue;
+                }
+                current_dir->entry[i].marked = false;
+                if (DecryptGameFile(path, inplace) == 0) n_success++;
+                else { // on failure: set cursor on failed title, break;
+                    *cursor = i;
+                    break;
+                }
+            }
+            if (n_other || n_unencrypted) {
+                ShowPrompt(false, "%lu/%lu files decrypted ok\n%lu/%lu not encrypted\n%lu/%lu not of same type",
+                n_success, n_marked, n_unencrypted, n_marked, n_other, n_marked);
+            } else ShowPrompt(false, "%lu/%lu files decrypted ok", n_success, n_marked);
+            if (!inplace && n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
+        } else {
+            if (CheckEncryptedGameFile(curr_entry->path) != 0) {
+                ShowPrompt(false, "%s\nFile is not encrypted", pathstr);
+            } else {
+                u32 ret = DecryptGameFile(curr_entry->path, inplace);
+                if (inplace || (ret != 0)) ShowPrompt(false, "%s\nDecryption %s", pathstr, (ret == 0) ? "success" : "failed");
+                else ShowPrompt(false, "%s\nDecrypted to %s", pathstr, OUTPUT_PATH);
+            }
+        }
+        return 0;
+    } else if (user_select == verify) { // -> verify game file
+        if ((n_marked > 1) && ShowPrompt(true, "Try to verify all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0; 
+            u32 n_processed = 0;
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (IdentifyFileType(path) != filetype) {
+                    n_other++;
+                    continue;
+                }
+                if (!(filetype & (GAME_CIA|GAME_TMD)) &&
+                    !ShowProgress(n_processed++, n_marked, path)) break;
+                current_dir->entry[i].marked = false;
+                if (VerifyGameFile(path) == 0) n_success++;
+                else { // on failure: set *cursor on failed title, break;
+                    *cursor = i;
+                    break;
+                }
+            }
+            if (n_other) ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu not of same type",
+                n_success, n_marked, n_other, n_marked);
+            else ShowPrompt(false, "%lu/%lu files verified ok", n_success, n_marked); 
+        } else {
+            ShowString("%s\nVerifying file, please wait...", pathstr);
+            ShowPrompt(false, "%s\nVerification %s", pathstr,
+                (VerifyGameFile(curr_entry->path) == 0) ? "success" : "failed");
+        }
+        return 0;
+    }
+    
+    return 1;
+}
+
 u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
@@ -664,123 +854,7 @@ u32 GodMode() {
                 }
             }
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
-            char pathstr[32 + 1];
-            const char* optionstr[8];
-            int n_opt = 0;
-            
-            u32 filetype = IdentifyFileType(curr_entry->path);
-            u32 drvtype = DriveType(curr_entry->path);
-            
-            int mountable = ((filetype & FTYPE_MOUNTABLE) && (drvtype & DRV_FAT) &&
-                !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE))) ?
-                ++n_opt : -1;
-            int hexviewer = ++n_opt;
-            int calcsha = ++n_opt;
-            int verificable = (filetype & FYTPE_VERIFICABLE) ? ++n_opt : -1;
-            int injectable = ((clipboard->n_entries == 1) &&
-                (clipboard->entry[0].type == T_FILE) &&
-                (drvtype & DRV_FAT) &&
-                (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
-                (int) ++n_opt : -1;
-            int searchdrv = (curr_drvtype & DRV_SEARCH) ? ++n_opt : -1;
-            
-            u32 n_marked = 0;
-            if (curr_entry->marked) {
-                for (u32 i = 0; i < current_dir->n_entries; i++) 
-                    if (current_dir->entry[i].marked) n_marked++;
-            }
-            
-            TruncateString(pathstr, curr_entry->path, 32, 8);
-            optionstr[hexviewer-1] = "Show in Hexeditor";
-            optionstr[calcsha-1] = "Calculate SHA-256";
-            if (verificable > 0) optionstr[verificable-1] = "Verify game image";
-            if (injectable > 0) optionstr[injectable-1] = "Inject data @offset";
-            if (mountable > 0) optionstr[mountable-1] =
-                (filetype == IMG_NAND  ) ? "Mount as NAND image"  :
-                (filetype == IMG_FAT   ) ? "Mount as FAT image"   :
-                (filetype == GAME_CIA  ) ? "Mount as CIA image"   :
-                (filetype == GAME_NCSD ) ? "Mount as NCSD image"  :
-                (filetype == GAME_NCCH ) ? "Mount as NCCH image"  :
-                (filetype == GAME_EXEFS) ? "Mount as EXEFS image" :
-                (filetype == GAME_ROMFS) ? "Mount as ROMFS image" : "???";
-            if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
-            
-            int user_select = 0;
-            if (!FileCheck(curr_entry->path)) ShowPrompt(false, "%s\nFile is currently locked", pathstr);
-            else user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
-            if (user_select == hexviewer) { // -> show in hex viewer
-                HexViewer(curr_entry->path);
-            } else if (user_select == calcsha) { // -> calculate SHA-256
-                Sha256Calculator(curr_entry->path);
-                GetDirContents(current_dir, current_path);
-            } else if (user_select == verificable) { // -> verify game file
-                if ((n_marked > 1) && ShowPrompt(true, "Try to verify all %lu selected files?", n_marked)) {
-                    u32 n_success = 0;
-                    u32 n_other = 0; 
-                    u32 n_processed = 0;
-                    for (u32 i = 0; i < current_dir->n_entries; i++) {
-                        const char* path = current_dir->entry[i].path;
-                        if (!current_dir->entry[i].marked) 
-                            continue;
-                        if (IdentifyFileType(path) != filetype) {
-                            n_other++;
-                            continue;
-                        }
-                        if (!(filetype & (GAME_CIA|GAME_TMD)) &&
-                            !ShowProgress(n_processed++, n_marked, path)) break;
-                        current_dir->entry[i].marked = false;
-                        if (VerifyGameFile(path) == 0) n_success++;
-                        else { // on failure: set cursor on failed title, break;
-                            cursor = i;
-                            break;
-                        }
-                    }
-                    if (n_other) ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu not of same type",
-                        n_success, n_marked, n_other, n_marked);
-                    else ShowPrompt(false, "%lu/%lu files verified ok", n_success, n_marked); 
-                } else {
-                    ShowString("%s\nVerifying file, please wait...", pathstr);
-                    u32 result = VerifyGameFile(curr_entry->path);
-                    ShowPrompt(false, "%s\nVerification %s", pathstr, (result == 0) ? "success" : "failed");
-                }
-            } else if (user_select == injectable) { // -> inject data from clipboard
-                char origstr[18 + 1];
-                TruncateString(origstr, clipboard->entry[0].name, 18, 10);
-                u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
-                if (offset != (u64) -1) {
-                    if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
-                        ShowPrompt(false, "Failed injecting %s", origstr);
-                    clipboard->n_entries = 0;
-                }
-            } else if (user_select == mountable) { // -> mount file as image
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
-                    clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                InitImgFS(curr_entry->path);
-                if (!(DriveType("7:")||DriveType("8:")||DriveType("9:")||DriveType("G:"))) {
-                    ShowPrompt(false, "Mounting image: failed");
-                    InitImgFS(NULL);
-                } else {
-                    cursor = 0;
-                    *current_path = '\0';
-                    GetDirContents(current_dir, current_path);
-                    for (u32 i = 0; i < current_dir->n_entries; i++) {
-                        if (strspn(current_dir->entry[i].path, "789GI") == 0)
-                            continue;
-                        strncpy(current_path, current_dir->entry[i].path, 256);
-                        GetDirContents(current_dir, current_path);
-                        cursor = 1;
-                        break;
-                    }
-                }
-            } else if (user_select == searchdrv) { // -> search drive, open containing path
-                char* last_slash = strrchr(curr_entry->path, '/');
-                if (last_slash) {
-                    snprintf(current_path, last_slash - curr_entry->path + 1, "%s", curr_entry->path);
-                    GetDirContents(current_dir, current_path);
-                    cursor = 1;
-                    scroll = 0;
-                }
-            }
+            FileHandlerMenu(current_path, &cursor, &scroll, current_dir, clipboard); // processed externally
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) {
             if (switched) { // use R+B to return to root fast
