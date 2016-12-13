@@ -9,6 +9,7 @@
 
 #include "diskio.h"		/* FatFs lower layer API */
 #include "image.h"
+#include "ramdrive.h"
 #include "nand.h"
 #include "sdmmc.h"
 
@@ -18,6 +19,7 @@
 #define TYPE_IMGNAND    NAND_IMGNAND
 #define TYPE_SDCARD     (1<<4)
 #define TYPE_IMAGE      (1<<5)
+#define TYPE_RAMDRV     (1<<6)
 
 #define SUBTYPE_CTRN    0
 #define SUBTYPE_CTRN_N  1
@@ -37,7 +39,7 @@ typedef struct {
     BYTE  keyslot;
 } SubtypeDesc;
 
-FATpartition DriveInfo[11] = {
+FATpartition DriveInfo[12] = {
     { TYPE_SDCARD,  SUBTYPE_NONE },     // 0 - SDCARD
     { TYPE_SYSNAND, SUBTYPE_CTRN },     // 1 - SYSNAND CTRNAND
     { TYPE_SYSNAND, SUBTYPE_TWLN },     // 2 - SYSNAND TWLN
@@ -48,7 +50,8 @@ FATpartition DriveInfo[11] = {
     { TYPE_IMGNAND, SUBTYPE_CTRN },     // 7 - IMGNAND CTRNAND
     { TYPE_IMGNAND, SUBTYPE_TWLN },     // 8 - IMGNAND TWLN
     { TYPE_IMGNAND, SUBTYPE_TWLP },     // 9 - IMGNAND TWLP
-    { TYPE_IMAGE,   SUBTYPE_NONE }      // X - IMAGE
+    { TYPE_IMAGE,   SUBTYPE_NONE },     // X - IMAGE
+    { TYPE_RAMDRV,  SUBTYPE_NONE }      // Y - RAMDRIVE
 };
 
 SubtypeDesc SubTypes[5] = {
@@ -75,7 +78,7 @@ static inline BYTE get_partition_type(
 )
 {
     if ((pdrv >= 7) && !nand_type_img) // special handling for FAT images
-        return (pdrv == 7) ? TYPE_IMAGE : TYPE_NONE;
+        return (pdrv == 7) ? TYPE_IMAGE : (pdrv == 9) ? TYPE_RAMDRV : TYPE_NONE;
     return DriveInfo[pdrv].type;
 }
 
@@ -140,10 +143,12 @@ DSTATUS disk_initialize (
         if (!nand_type_emu) return STA_NOINIT|STA_NODISK;
     } else if (pdrv < 10) {
         UINT mount_state = GetMountState();
-        if ((mount_state != IMG_NAND) && (mount_state != IMG_FAT) && (mount_state != IMG_RAMDRV))
-            return STA_NOINIT|STA_NODISK;
-        nand_type_img = CheckNandType(NAND_IMGNAND);
-        if ((!nand_type_img) && (pdrv != 7)) return STA_NOINIT|STA_NODISK;
+        nand_type_img = (mount_state == IMG_NAND) ? CheckNandType(NAND_IMGNAND) : 0;
+        if (!nand_type_img) {
+            if ((pdrv == 7) && (mount_state != IMG_FAT)) return STA_NOINIT|STA_NODISK;
+            else if (pdrv == 8) return STA_NOINIT|STA_NODISK;
+            else if (pdrv == 9) InitRamDrive();
+        }
     }
 	return RES_OK;
 }
@@ -171,6 +176,9 @@ DRESULT disk_read (
             return RES_PARERR;
     } else if (type == TYPE_IMAGE) {
         if (ReadImageSectors(buff, sector, count))
+            return RES_PARERR;
+    } else if (type == TYPE_RAMDRV) {
+        if (ReadRamDriveSectors(buff, sector, count))
             return RES_PARERR;
     } else {
         SubtypeDesc* subtype = get_subtype_desc(pdrv);
@@ -208,6 +216,9 @@ DRESULT disk_write (
             return RES_PARERR;
     } else if (type == TYPE_IMAGE) {
         if (WriteImageSectors(buff, sector, count))
+            return RES_PARERR;
+    } else if (type == TYPE_RAMDRV) {
+        if (WriteRamDriveSectors(buff, sector, count))
             return RES_PARERR;
     } else {
         SubtypeDesc* subtype = get_subtype_desc(pdrv);
@@ -249,12 +260,14 @@ DRESULT disk_ioctl (
                 *((DWORD*) buff) = getMMCDevice(1)->total_size;
             } else if (type == TYPE_IMAGE) { // FAT image
                 *((DWORD*) buff) = GetMountSize() / 0x200;
+            } else if (type == TYPE_RAMDRV) { // RAM drive
+                *((DWORD*) buff) = GetRamDriveSize() / 0x200;
             } else if (type != TYPE_NONE) { // NAND
                 *((DWORD*) buff) = get_subtype_desc(pdrv)->size;
             }
             return RES_OK;
         case GET_BLOCK_SIZE:
-            *((DWORD*) buff) = (type == TYPE_IMAGE) ? 0x1 : 0x2000;
+            *((DWORD*) buff) = ((type == TYPE_IMAGE) || (type == TYPE_RAMDRV)) ? 0x1 : 0x2000;
             return RES_OK;
         case CTRL_SYNC:
             if ((type == TYPE_IMAGE) || (type == TYPE_IMGNAND))

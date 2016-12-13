@@ -21,7 +21,7 @@ int DriveType(const char* path) {
     } else if ((pdrv >= 0) && (pdrv < NORM_FS)) {
         if (pdrv == 0) {
             type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
-        } else if ((pdrv == 7) && (GetMountState() == IMG_RAMDRV)) {
+        } else if ((pdrv == 9) && (GetMountState() != IMG_NAND)) {
             type = DRV_FAT | DRV_RAMDRIVE | DRV_STDFAT;
         } else if ((pdrv >= 1) && (pdrv <= 3)) {
             type = DRV_FAT | DRV_SYSNAND | DRV_STDFAT;
@@ -69,9 +69,10 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         if (!DriveType(drvnum[pdrv])) continue; // drive not available
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
-        if ((pdrv == 7) && ((GetMountState() == IMG_FAT) || (GetMountState() == IMG_RAMDRV))) 
-            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], // FAT image / RAM drive special handling
-                (GetMountState() == IMG_FAT) ? "FAT IMAGE" : "RAMDRIVE");
+        if ((pdrv == 7) && (GetMountState() == IMG_FAT)) // FAT image handling
+            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], "FAT IMAGE");
+        else if ((pdrv == 9) && (GetMountState() != IMG_NAND)) // RAM drive handling
+            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], "RAMDRIVE");
         else if (pdrv == 10) // Game drive special handling
             snprintf(entry->path + 4, 32, "[%s] %s %s", drvnum[pdrv],
                 (GetMountState() == GAME_CIA  ) ? "CIA"   :

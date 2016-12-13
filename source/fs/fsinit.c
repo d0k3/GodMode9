@@ -25,6 +25,11 @@ bool InitExtFS() {
         snprintf(fsname, 7, "%lu:", i);
         if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
+        if (!fs_mounted[i] && (i == NORM_FS - 1) && (GetMountState() != IMG_NAND)) {
+            f_mkfs(fsname, FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE); // format ramdrive if required
+            f_mount(NULL, fsname, 1);
+            fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
+        }
     }
     SetupNandSdDrive("A:", "0:", "1:/private/movable.sed", 0);
     SetupNandSdDrive("B:", "0:", "4:/private/movable.sed", 1);
@@ -53,23 +58,6 @@ bool InitImgFS(const char* path) {
     return true;
 }
 
-bool InitRamDriveFS() {
-    u32 pdrv = NORM_FS - IMGN_FS;
-    char fsname[8];
-    snprintf(fsname, 7, "%lu:", pdrv);
-    
-    InitImgFS(NULL);
-    MountRamDrive();
-    fs_mounted[pdrv] = (f_mount(fs + pdrv, fsname, 1) == FR_OK);
-    if (!fs_mounted[pdrv] && (GetMountState() == IMG_RAMDRV)) {
-        f_mkfs(fsname, FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE); // format ramdrive if required
-        f_mount(NULL, fsname, 1);
-        fs_mounted[pdrv] = (f_mount(fs + pdrv, fsname, 1) == FR_OK);
-    }
-    
-    return true;
-}
-
 void DeinitExtFS() {
     SetupNandSdDrive(NULL, NULL, NULL, 0);
     SetupNandSdDrive(NULL, NULL, NULL, 1);
@@ -80,7 +68,7 @@ void DeinitExtFS() {
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = false;
         }
-        if ((i == NORM_FS - IMGN_FS) && (GetMountState() != IMG_RAMDRV)) { // unmount image
+        if (i == NORM_FS - IMGN_FS) { // unmount image
             MountImage(NULL);
             InitVGameDrive();
         }
@@ -88,10 +76,8 @@ void DeinitExtFS() {
 }
 
 void DeinitSDCardFS() {
-    if (GetMountState() != IMG_RAMDRV) {
-        MountImage(NULL);
-        InitVGameDrive();
-    }
+    MountImage(NULL);
+    InitVGameDrive();
     if (fs_mounted[0]) {
         f_mount(NULL, "0:", 1);
         fs_mounted[0] = false;

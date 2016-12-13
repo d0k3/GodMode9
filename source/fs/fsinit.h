@@ -12,9 +12,6 @@ bool InitExtFS();
 // mount and init image file system
 bool InitImgFS(const char* path);
 
-// init RAM drive filesystem (unmounts image)
-bool InitRamDriveFS();
-
 // deinitialize external filesystem
 void DeinitExtFS();
 

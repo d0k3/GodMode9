@@ -139,8 +139,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
         ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\nR+B - Unmount SD card\n" :
         "R+Y - Unlock write permissions\nR+B - Unmount SD card\n"),
-        (*curr_path) ? "" : ((GetMountState() == IMG_RAMDRV) ? "R+X - Unmount RAM drive\n" :
-        (GetMountState()) ? "R+X - Unmount image\n" : "R+X - Mount RAM drive\n"),
+        (*curr_path) ? "" : "R+X - Reinit filesystem\n",
         (*curr_path) ? "R+A - Search directory\n" : "R+A - Search drive\n", 
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
@@ -652,10 +651,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     // auto select when there is only one option
     user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
     if (user_select == mount) { // -> mount file as image
-        if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
+        if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
         InitImgFS(curr_entry->path);
-        if (!(DriveType("7:")||DriveType("8:")||DriveType("9:")||DriveType("G:"))) {
+        if (!(DriveType("7:")||DriveType("G:"))) {
             ShowPrompt(false, "Mounting image: failed");
             InitImgFS(NULL);
         } else {
@@ -663,7 +662,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             *current_path = '\0';
             GetDirContents(current_dir, current_path);
             for (u32 i = 0; i < current_dir->n_entries; i++) {
-                if (strspn(current_dir->entry[i].path, "789GI") == 0)
+                if (strspn(current_dir->entry[i].path, "7GI") == 0)
                     continue;
                 strncpy(current_path, current_dir->entry[i].path, 256);
                 GetDirContents(current_dir, current_path);
@@ -937,11 +936,14 @@ u32 GodMode() {
 
         // highly specific commands
         if (!*current_path) { // in the root folder...
-            if (switched && (pad_state & BUTTON_X)) { // unmount image
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_IMAGE|DRV_RAMDRIVE)))
+            if (switched && (pad_state & BUTTON_X)) { // reinit file system / unmount image
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                if (!GetMountState()) InitRamDriveFS();
-                else InitImgFS(NULL);
+                DeinitExtFS();
+                DeinitSDCardFS();
+                InitSDCardFS();
+                InitExtFS();
+                ClearScreenF(false, true, COLOR_STD_BG);
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_Y)) {
                 SetWritePermissions((GetWritePermissions() > PERM_BASE) ? PERM_BASE : PERM_ALL, false);
