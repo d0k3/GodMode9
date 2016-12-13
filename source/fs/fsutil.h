@@ -17,8 +17,8 @@ uint64_t GetSDCardSize();
 /** Format the SD card **/
 bool FormatSDCard(u64 hidden_mb, u32 cluster_size);
 
-/** True if file exists and is not locked, false otherwise **/
-bool FileCheck(const char* path);
+/** Check for file lock, offer to unlock if possible **/
+bool FileUnlock(const char* path);
 
 /** Create / open file and write the provided data to it **/
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create);

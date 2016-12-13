@@ -38,7 +38,7 @@ bool InitExtFS() {
 
 bool InitImgFS(const char* path) {
     // deinit image filesystem
-    for (u32 i = NORM_FS - 1; i >= NORM_FS - IMGN_FS; i--) {
+    for (u32 i = (GetMountState() == IMG_NAND) ? NORM_FS - 1 : NORM_FS - IMGN_FS; i >= NORM_FS - IMGN_FS; i--) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
         if (!fs_mounted[i]) continue;
@@ -53,6 +53,7 @@ bool InitImgFS(const char* path) {
     for (u32 i = NORM_FS - IMGN_FS; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
+        if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
     }
     return true;

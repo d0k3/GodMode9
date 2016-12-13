@@ -4,6 +4,7 @@
 #include "fsperm.h"
 #include "sddata.h"
 #include "virtual.h"
+#include "image.h"
 #include "sha.h"
 #include "sdmmc.h"
 #include "ff.h"
@@ -75,13 +76,21 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size) {
     return ret;
 }
 
-bool FileCheck(const char* path) {
+bool FileUnlock(const char* path) {
     FIL file;
     if (!(DriveType(path) & DRV_FAT)) return true; // can't really check this
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-        fx_close(&file);
-        return true;
-    } else return false;
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+        char pathstr[32 + 1];
+        TruncateString(pathstr, path, 32, 8);
+        if (GetMountState() && (strncmp(path, GetMountPath(), 256) == 0) && 
+            (ShowPrompt(true, "%s\nFile is currently mounted.\nUnmount to unlock?", pathstr))) {
+            InitImgFS(NULL);
+            if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+                return false;
+        } else return false;
+    }
+    fx_close(&file);
+    return true;
 }
 
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
@@ -285,7 +294,8 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         osize = ovfile.size;
     } else {
         vorig = false;
-        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+        if ((fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
+            (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))) {
             if (!vdest) fx_close(&dfile);
             return false;
         }
@@ -419,8 +429,10 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig) {
     }
     
     // FAT file
-    if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if ((fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
+        (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))) {
         return false;
+    }
     f_lseek(&ofile, 0);
     f_sync(&ofile);
     
@@ -676,8 +688,12 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         FIL dfile;
         size_t fsize;
         
-        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            return false;
+        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+            if (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
+                return false;
+            ShowProgress(0, 0, orig); // reinit progress bar
+        }
+        
         fsize = f_size(&ofile);
         if (GetFreeSpace(dest) < fsize) {
             ShowPrompt(false, "Error: File is too big for destination");

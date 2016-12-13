@@ -573,7 +573,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
-    if (!FileCheck(curr_entry->path)) ShowPrompt(false, "%s\nFile is currently locked", pathstr);
+    
+    // check for file lock
+    if (!FileUnlock(curr_entry->path)) return 1;
     
     // main menu processing
     int n_opt = 0;
@@ -891,7 +893,7 @@ u32 GodMode() {
                 if (InitSDCardFS()) break;
                 ShowString("Reinitialising SD card failed!\n \n<R+Y+\x1B> for format menu\n<A> to retry, <B> to reboot");
             }
-            ClearScreenF(true, false, COLOR_STD_BG);
+            ClearScreenF(true, true, COLOR_STD_BG);
             InitEmuNandBase();
             InitExtFS();
             GetDirContents(current_dir, current_path);
@@ -1093,7 +1095,7 @@ u32 GodMode() {
                     if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
                         return exit_mode;
                 }
-                ClearScreenF(true, false, COLOR_STD_BG);
+                ClearScreenF(true, true, COLOR_STD_BG);
                 InitEmuNandBase();
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
