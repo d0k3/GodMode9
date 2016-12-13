@@ -1,6 +1,7 @@
 #include "gameutil.h"
 #include "game.h"
 #include "ui.h"
+#include "fsperm.h"
 #include "filetype.h"
 #include "sddata.h"
 #include "aes.h"
@@ -13,7 +14,7 @@ u32 GetOutputPath(char* dest, const char* path, const char* ext) {
         u32 tid_high, tid_low, app_id;
         char drv;
         if ((sscanf(path, "%c:/title/%08lx/%08lx/content/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&
-            (strnlen(path, 256) == 2 + 1 + 5 + + 1 + 8 + 1 + 8 + 1 + 7 + 1 + 8 + 1 + 3)) { // confused? ^_^
+            (strnlen(path, 256) == (1+1+1) + (5+1) + (8+1) + (8+1) + (7+1) + (8+1+3))) { // confused? ^_^
             if (!ext) snprintf(dest, 256, "%s/%08lx%08lx.%08lx.app", OUTPUT_PATH, tid_high, tid_low, app_id);
             else snprintf(dest, 256, "%s/%08lx%08lx.%s", OUTPUT_PATH, tid_high, tid_low, ext);
             return 0;
@@ -23,11 +24,13 @@ u32 GetOutputPath(char* dest, const char* path, const char* ext) {
     // handling for everything else
     char* name = strrchr(path, '/');
     if (!name) return 1;
-    snprintf(dest, 256, "%s/%s%s%s", OUTPUT_PATH, ++name, ext ? "." : "", ext ? ext : "");
-    
-    // ensure the output dir exists
-    if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
-        return 1;
+    snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
+    if (ext) { // replace extension
+        char* dot = strrchr(dest, '.');
+        if (!dot || ((dot - dest) <= (int) strnlen(OUTPUT_PATH, 256) + 1))
+            dot = dest + strnlen(dest, 256);
+        snprintf(dot, 8, ".%s", ext);
+    }
     
     return 0;
 }
@@ -580,6 +583,15 @@ u32 DecryptGameFile(const char* path, bool inplace) {
     if (!inplace) {
         if (GetOutputPath(dest, path, NULL) != 0) return 1;
         destptr = dest;
+    }
+    
+    if (!CheckWritePermissions(destptr))
+        return 1;
+    
+    if (!inplace) {
+        // ensure the output dir exists
+        if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
+            return 1;
     }
     
     if (filetype & GAME_CIA)
