@@ -97,7 +97,7 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
             nand_drv[i], sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
             
         // check seedsave for seed
-        u8* seedsave = (u8*) TEMP_BUFFER;
+        u8* seedsave = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
         if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             continue;
         f_read(&file, seedsave, 0x200, &btr);
@@ -124,11 +124,11 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     // not found -> try seeddb.bin
     const char* base[] = { INPUT_PATHS };
     for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
-        SeedInfo* seeddb = (SeedInfo*) TEMP_BUFFER;
+        SeedInfo* seeddb = (SeedInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
         snprintf(path, 128, "%s/%s", base[i], SEEDDB_NAME);
         if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             continue;
-        f_read(&file, seeddb, TEMP_BUFFER_SIZE, &btr);
+        f_read(&file, seeddb, TEMP_BUFFER_SIZE / 2, &btr);
         f_close(&file);
         if (seeddb->n_entries > (btr - 16) / 32)
             continue; // filesize / seeddb size mismatch
@@ -288,20 +288,25 @@ u32 DecryptNcchSequential(u8* data, u32 offset, u32 size) {
     // unexpected results otherwise
     static NcchHeader ncch = { 0 };
     static ExeFsHeader exefs = { 0 };
+    static NcchHeader* ncchptr = NULL;
     static ExeFsHeader* exefsptr = NULL;
     
     // fetch ncch header from data
     if ((offset == 0) && (size >= sizeof(NcchHeader))) {
         memcpy(&ncch, data, sizeof(NcchHeader));
+        ncchptr = (ValidateNcchHeader(&ncch) == 0) ? &ncch : NULL;
         exefsptr = NULL;
     }
     
+    // safety check, ncch pointer
+    if (!ncchptr) return 1;
+    
     // fetch exefs header from data
     if (!exefsptr) {
-        u32 offset_exefs = ncch.offset_exefs * NCCH_MEDIA_UNIT;
+        u32 offset_exefs = ncchptr->offset_exefs * NCCH_MEDIA_UNIT;
         if ((offset <= offset_exefs) &&
             ((offset + size) >= offset_exefs + sizeof(ExeFsHeader))) {
-            if (DecryptNcch(data, offset, offset_exefs + sizeof(ExeFsHeader) - offset, &ncch, NULL) != 0)
+            if (DecryptNcch(data, offset, offset_exefs + sizeof(ExeFsHeader) - offset, ncchptr, NULL) != 0)
                 return 1;
             memcpy(&exefs, data + offset_exefs - offset, sizeof(ExeFsHeader));
             size -= offset_exefs + sizeof(ExeFsHeader) - offset;
@@ -311,5 +316,5 @@ u32 DecryptNcchSequential(u8* data, u32 offset, u32 size) {
         }
     }
     
-    return DecryptNcch(data, offset, size, &ncch, exefsptr);
+    return DecryptNcch(data, offset, size, ncchptr, exefsptr);
 }

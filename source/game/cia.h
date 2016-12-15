@@ -2,8 +2,10 @@
 
 #include "common.h"
 
-#define CIA_TICKET_ISSUER   "Root-CA00000003-XS0000000c"
-#define CIA_TMD_ISSUER      "Root-CA00000003-CP0000000b"
+#define CIA_TICKET_ISSUER       "Root-CA00000003-XS0000000c"
+#define CIA_TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
+#define CIA_TMD_ISSUER          "Root-CA00000003-CP0000000b"
+#define CIA_SIG_TYPE            0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
 
 #define CIA_MAX_CONTENTS    (100+1) // theme CIAs contain maximum 100 themes + 1 index content
 #define CIA_HEADER_SIZE     sizeof(CiaHeader)
@@ -153,12 +155,14 @@ u32 GetCiaContentInfo(CiaContentInfo* contents, TitleMetaData* tmd);
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);
 u32 FixTmdHashes(TitleMetaData* tmd);
+u32 FixCiaHeaderForTmd(CiaHeader* header, TitleMetaData* tmd);
+Ticket* ParseForTicket(u8* data, u32 size, u8* title_id);
 
 u32 BuildCiaCert(u8* ciacert);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents);
-
-/*u32 BuildCiaMeta(Ncch ncch);
-u32 InsertCiaContent(const char* path, const char* content, bool encrypt);*/
+u32 BuildCiaMeta(CiaMeta* meta, u8* exthdr, u8* smdh);
+u32 BuildCiaHeader(CiaHeader* header);
 
 u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey);
+u32 EncryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey);

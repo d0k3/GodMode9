@@ -50,6 +50,7 @@
 // buffer area defines (temporary, in use by various functions)
 //  -> godmode.c hexviewer
 //  -> ncch.c seed setup
+//  -> cia.c ticket / titlekey setup
 //  -> gameutil.c various temporary stuff
 #define TEMP_BUFFER         ((u8*)0x21100000)
 #define TEMP_BUFFER_SIZE    (0x100000)

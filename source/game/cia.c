@@ -1,7 +1,26 @@
 #include "cia.h"
+#include "ncch.h"
+#include "exefs.h"
 #include "ff.h"
+#include "sddata.h"
 #include "aes.h"
 #include "sha.h"
+
+#define TIKDB_NAME_ENC "encTitleKeys.bin"
+#define TIKDB_NAME_DEC "decTitleKeys.bin"
+
+typedef struct {
+    u32 commonkey_idx;
+    u8  reserved[4];
+    u8  title_id[8];
+    u8  titlekey[16];
+} __attribute__((packed)) TitleKeyEntry;
+
+typedef struct {
+    u32 n_entries;
+    u8  reserved[12];
+    TitleKeyEntry entries[256]; // this number is only a placeholder
+} __attribute__((packed)) TitleKeysInfo;
 
 u32 ValidateCiaHeader(CiaHeader* header) {
     if ((header->size_header != CIA_HEADER_SIZE) ||
@@ -50,9 +69,9 @@ u32 GetCiaContentInfo(CiaContentInfo* contents, TitleMetaData* tmd) {
     return 0;
 }
 
-u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
+u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt) {
     // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
-    static const u8 common_keyy[6][16] = {
+    static const u8 common_keyy[6][16] __attribute__((aligned(16))) = {
         {0xD0, 0x7B, 0x33, 0x7F, 0x9C, 0xA4, 0x38, 0x59, 0x32, 0xA2, 0xE2, 0x57, 0x23, 0x23, 0x2E, 0xB9} , // 0 - eShop Titles
         {0x0C, 0x76, 0x72, 0x30, 0xF0, 0x99, 0x8F, 0x1C, 0x46, 0x82, 0x82, 0x02, 0xFA, 0xAC, 0xBE, 0x4C} , // 1 - System Titles
         {0xC4, 0x75, 0xCB, 0x3A, 0xB8, 0xC7, 0x88, 0xBB, 0x57, 0x5E, 0x12, 0xA1, 0x09, 0x07, 0xB8, 0xA4} , // 2
@@ -61,7 +80,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
         {0x5E, 0x66, 0x99, 0x8A, 0xB4, 0xE8, 0x93, 0x16, 0x06, 0x85, 0x0F, 0xD7, 0xA1, 0x6D, 0xD7, 0x55} , // 5
     };
     // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/dev.h#L21
-    /* static const u8 common_key_devkit[6][16] = { // unused atm!
+    /* static const u8 common_key_devkit[6][16] __attribute__((aligned(16))) = { // unused atm!
         {0x55, 0xA3, 0xF8, 0x72, 0xBD, 0xC8, 0x0C, 0x55, 0x5A, 0x65, 0x43, 0x81, 0x13, 0x9E, 0x15, 0x3B} , // 0 - eShop Titles
         {0x44, 0x34, 0xED, 0x14, 0x82, 0x0C, 0xA1, 0xEB, 0xAB, 0x82, 0xC1, 0x6E, 0x7B, 0xEF, 0x0C, 0x25} , // 1 - System Titles
         {0xF6, 0x2E, 0x3F, 0x95, 0x8E, 0x28, 0xA2, 0x1F, 0x28, 0x9E, 0xEC, 0x71, 0xA8, 0x66, 0x29, 0xDC} , // 2
@@ -70,18 +89,29 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
         {0xAA, 0xDA, 0x4C, 0xA8, 0xF6, 0xE5, 0xA9, 0x77, 0xE0, 0xA0, 0xF9, 0xE4, 0x76, 0xCF, 0x0D, 0x63} , // 5
     };*/
     
-    // setup key 0x3D
-    if (ticket->commonkey_idx >= 6) return 1;
-    setup_aeskeyY(0x3D, (void*) common_keyy[ticket->commonkey_idx >= 6]);
-    use_aeskey(0x3D);
-    
-    // grab and decrypt the titlekey
+    u32 mode = (encrypt) ? AES_CNT_TITLEKEY_ENCRYPT_MODE : AES_CNT_TITLEKEY_DECRYPT_MODE;
     u8 ctr[16] = { 0 };
-    memcpy(ctr, ticket->title_id, 8);
-    memcpy(titlekey, ticket->titlekey, 16);
-    set_ctr(ctr);
-    aes_decrypt(titlekey, titlekey, 1, AES_CNT_TITLEKEY_DECRYPT_MODE);
     
+    // setup key 0x3D // ctr
+    if (tik->commonkey_idx >= 6) return 1;
+    setup_aeskeyY(0x3D, (void*) common_keyy[tik->commonkey_idx]);
+    use_aeskey(0x3D);
+    memcpy(ctr, tik->title_id, 8);
+    set_ctr(ctr);
+    
+    // decrypt / encrypt the titlekey
+    aes_decrypt(tik->titlekey, tik->titlekey, 1, mode);
+    return 0;
+}
+
+u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
+    TitleKeyEntry tik = { 0 };
+    memcpy(tik.title_id, ticket->title_id, 8);
+    memcpy(tik.titlekey, ticket->titlekey, 16);
+    tik.commonkey_idx = ticket->commonkey_idx;
+    
+    if (CryptTitleKey(&tik, false) != 0) return 0;
+    memcpy(titlekey, tik.titlekey, 16);
     return 0;
 }
 
@@ -103,6 +133,35 @@ u32 FixTmdHashes(TitleMetaData* tmd) {
     }
     sha_quick(tmd->contentinfo_hash, (u8*)tmd->contentinfo, 64 * sizeof(TmdContentInfo), SHA256_MODE);
     return 0;
+}
+
+u32 FixCiaHeaderForTmd(CiaHeader* header, TitleMetaData* tmd) {
+    TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
+    u32 content_count = getbe16(tmd->content_count);
+    header->size_content = 0;
+    header->size_tmd = CIA_TMD_SIZE_N(content_count);
+    memset(header->content_index, 0, sizeof(header->content_index));
+    for (u32 i = 0; i < content_count; i++) {
+        u16 index = getbe16(content_list[i].index);
+        header->size_content += getbe64(content_list[i].size);
+        header->content_index[index/8] |= (1 << (7-(index%8)));
+    }
+    return 0;
+}
+
+Ticket* ParseForTicket(u8* data, u32 size, u8* title_id) {
+    const u8 magic[] = { CIA_SIG_TYPE };
+    for (u32 i = 0; i + sizeof(Ticket) <= size; i++) {
+        Ticket* ticket = (Ticket*) (data + i);
+        if ((memcmp(ticket->sig_type, magic, sizeof(magic)) != 0) ||
+            ((strncmp((char*) ticket->issuer, CIA_TICKET_ISSUER, 0x40) != 0) &&
+            (strncmp((char*) ticket->issuer, CIA_TICKET_ISSUER_DEV, 0x40) != 0)))
+            continue; // magics not found
+        if (title_id && (memcmp(title_id, ticket->title_id, 8) != 0))
+            continue; // title id not matching
+        return ticket;
+    }
+    return NULL;
 }
 
 u32 BuildCiaCert(u8* ciacert) {
@@ -137,7 +196,7 @@ u32 BuildCiaCert(u8* ciacert) {
 }
 
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
-    const u8 sig_type[4] =  { 0x00, 0x01, 0x00, 0x04 }; // RSA_2048 SHA256
+    const u8 sig_type[4] =  { CIA_SIG_TYPE }; // RSA_2048 SHA256
     const u8 ticket_cnt_index[] = { // whatever this is
         0x00, 0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0xAC, 0x00, 0x00, 0x00, 0x14, 0x00, 0x01, 0x00, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x84,
@@ -155,19 +214,51 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     ticket->version = 0x01;
     memset(ticket->titlekey, 0xFF, 16);
     memcpy(ticket->title_id, title_id, 8);
-    ticket->commonkey_idx = 0x01;
+    ticket->commonkey_idx = 0x00; // eshop
     ticket->audit = 0x01; // whatever
     memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
+    
+    // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
+    for (u32 enc = 0; enc <= 1; enc++) {
+        const char* base[] = { INPUT_PATHS };
+        bool found = false;
+        for (u32 i = 0; (i < (sizeof(base)/sizeof(char*))) && !found; i++) {
+            TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
+            char path[64];
+            FIL file;
+            UINT btr;
+            
+            snprintf(path, 64, "%s/%s", base[i], (enc) ? TIKDB_NAME_ENC : TIKDB_NAME_DEC);
+            if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+                continue;
+            f_read(&file, tikdb, TEMP_BUFFER_SIZE / 2, &btr);
+            f_close(&file);
+            if (tikdb->n_entries > (btr - 16) / 32)
+                continue; // filesize / titlekey db size mismatch
+            for (u32 t = 0; t < tikdb->n_entries; t++) {
+                TitleKeyEntry* tik = tikdb->entries + t;
+                if (memcmp(title_id, tik->title_id, 8) != 0)
+                    continue;
+                if (!enc && (CryptTitleKey(tik, true) != 0)) // encrypt the key first
+                    continue;
+                memcpy(ticket->titlekey, tik->titlekey, 16);
+                ticket->commonkey_idx = tik->commonkey_idx;
+                found = true; // found, inserted
+                break;
+            } 
+        }
+        if (found) break;
+    }
     
     return 0;
 }
 
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
-    const u8 sig_type[4] =  { 0x00, 0x01, 0x00, 0x04 }; // RSA_2048 SHA256
+    const u8 sig_type[4] =  { CIA_SIG_TYPE };
     // safety check: number of contents
-    if (n_contents > 64) return 1; // !!!
+    if (n_contents > CIA_MAX_CONTENTS) return 1; // !!!
     // set TMD all zero for a clean start
-    memset(tmd, 0x00, sizeof(TitleMetaData) + (n_contents * sizeof(TmdContentChunk)));
+    memset(tmd, 0x00, CIA_TMD_SIZE_N(n_contents));
     // file TMD values
     memcpy(tmd->sig_type, sig_type, 4);
     memset(tmd->signature, 0xFF, 0x100);
@@ -185,6 +276,29 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
     return 0;
 }
 
+u32 BuildCiaMeta(CiaMeta* meta, u8* exthdr, u8* smdh) {
+    // init metadata with all zeroes and core version
+    memset(meta, 0x00, sizeof(CiaMeta));
+    meta->core_version = 2;
+    // copy dependencies from extheader
+    if (exthdr) memcpy(meta->dependencies, exthdr + 0x40, sizeof(meta->dependencies));
+    // copy smdh (icon file in exefs)
+    if (smdh) memcpy(meta->smdh, smdh, sizeof(meta->smdh));
+    return 0;
+}
+
+u32 BuildCiaHeader(CiaHeader* header) {
+    memset(header, 0, sizeof(CiaHeader));
+    // sizes in header - fill only known sizes, others zero
+    header->size_header = sizeof(CiaHeader);
+    header->size_cert = CIA_CERT_SIZE;
+    header->size_ticket = sizeof(Ticket);
+    header->size_tmd = 0;
+    header->size_meta = 0;
+    header->size_content = 0;
+    return 0;
+}
+
 u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey) {
     // WARNING: size and offset of data have to be a multiple of 16
     u8 tik[16] __attribute__((aligned(32)));
@@ -193,5 +307,16 @@ u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey)
     setup_aeskey(0x11, tik);
     use_aeskey(0x11);
     cbc_decrypt(data, data, size / 16, mode, ctr);
+    return 0;
+}
+
+u32 EncryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey) {
+    // WARNING: size and offset of data have to be a multiple of 16
+    u8 tik[16] __attribute__((aligned(32)));
+    u32 mode = AES_CNT_TITLEKEY_ENCRYPT_MODE;
+    memcpy(tik, titlekey, 16);
+    setup_aeskey(0x11, tik);
+    use_aeskey(0x11);
+    cbc_encrypt(data, data, size / 16, mode, ctr);
     return 0;
 }

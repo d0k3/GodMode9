@@ -570,6 +570,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool verificable = (filetype & FYTPE_VERIFICABLE);
     bool decryptable = (filetype & FYTPE_DECRYPTABLE);
     bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
+    bool buildable = (filetype & FTYPE_BUILDABLE);
+    bool buildable_legit = (filetype & FTYPE_BUILDABLE_L);
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -596,7 +598,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype == GAME_NCCH ) ? "NCCH image options..." :
         (filetype == GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype == GAME_ROMFS) ? "Mount as ROMFS image"  :
-        (filetype == GAME_TMD)   ? "Verify TMD file" : "???";
+        (filetype == GAME_TMD)   ? "TMD file options..." : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
@@ -638,10 +640,14 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int mount = (mountable) ? ++n_opt : -1;
     int decrypt = (decryptable) ? ++n_opt : -1;
     int decrypt_inplace = (decryptable_inplace) ? ++n_opt : -1;
+    int build = (buildable) ? ++n_opt : -1;
+    int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (decrypt > 0) optionstr[decrypt-1] = "Decrypt file (SD output)";
     if (decrypt_inplace > 0) optionstr[decrypt_inplace-1] = "Decrypt file (inplace)";
+    if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
+    if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
     
     u32 n_marked = 0;
@@ -712,6 +718,36 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 if (inplace || (ret != 0)) ShowPrompt(false, "%s\nDecryption %s", pathstr, (ret == 0) ? "success" : "failed");
                 else ShowPrompt(false, "%s\nDecrypted to %s", pathstr, OUTPUT_PATH);
             }
+        }
+        return 0;
+    } else if ((user_select == build) || (user_select == build_legit)) { // -> build CIA
+        bool force_legit = (user_select == build_legit);
+        if ((n_marked > 1) && ShowPrompt(true, "Try to process all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0; 
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (IdentifyFileType(path) != filetype) {
+                    n_other++;
+                    continue;
+                }
+                current_dir->entry[i].marked = false;
+                if (BuildCiaFromGameFile(path, force_legit) == 0) n_success++;
+                else { // on failure: set *cursor on failed title, break;
+                    *cursor = i;
+                    break;
+                }
+            }
+            if (n_other) ShowPrompt(false, "%lu/%lu CIAs built ok\n%lu/%lu not of same type",
+                n_success, n_marked, n_other, n_marked);
+            else ShowPrompt(false, "%lu/%lu CIAs built ok", n_success, n_marked);
+            if (n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
+        } else {
+            if (BuildCiaFromGameFile(curr_entry->path, force_legit) == 0)
+                ShowPrompt(false, "%s\nCIA built to %s", pathstr, OUTPUT_PATH);
+            else ShowPrompt(false, "%s\nCIA build failed", pathstr);
         }
         return 0;
     } else if (user_select == verify) { // -> verify game file

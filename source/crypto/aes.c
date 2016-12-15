@@ -171,6 +171,27 @@ void cbc_decrypt(void *inbuf, void *outbuf, size_t size, uint32_t mode, uint8_t 
     }
 }
 
+void cbc_encrypt(void *inbuf, void *outbuf, size_t size, uint32_t mode, uint8_t *ctr)
+{
+    size_t blocks_left = size;
+    size_t blocks;
+    uint8_t *in  = inbuf;
+    uint8_t *out = outbuf;
+    uint32_t i;
+
+    while (blocks_left)
+    {
+        set_ctr(ctr);
+        blocks = (blocks_left >= 0xFFFF) ? 0xFFFF : blocks_left;
+        aes_decrypt(in, out, blocks, mode);
+        for (i=0; i<AES_BLOCK_SIZE; i++)
+            ctr[i] = in[((blocks - 1) * AES_BLOCK_SIZE) + i];
+        in += blocks * AES_BLOCK_SIZE;
+        out += blocks * AES_BLOCK_SIZE;
+        blocks_left -= blocks;
+    }
+}
+
 void ctr_decrypt_byte(void *inbuf, void *outbuf, size_t size, size_t off, uint32_t mode, uint8_t *ctr)
 {
     size_t bytes_left = size;
