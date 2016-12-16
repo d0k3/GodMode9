@@ -1,11 +1,12 @@
 #pragma once
 
 #include "common.h"
+#include "ticket.h"
 
-#define CIA_TICKET_ISSUER       "Root-CA00000003-XS0000000c"
-#define CIA_TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
-#define CIA_TMD_ISSUER          "Root-CA00000003-CP0000000b"
-#define CIA_SIG_TYPE            0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
+#define TICKET_ISSUER       "Root-CA00000003-XS0000000c"
+#define TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
+#define TMD_ISSUER          "Root-CA00000003-CP0000000b"
+#define TMD_SIG_TYPE        0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
 
 #define CIA_MAX_CONTENTS    (100+1) // theme CIAs contain maximum 100 themes + 1 index content
 #define CIA_HEADER_SIZE     sizeof(CiaHeader)
@@ -24,37 +25,6 @@ typedef struct {
     u8  reserved1[0xFC];
     u8  smdh[0x36C0]; // from ExeFS
 } __attribute__((packed)) CiaMeta;
-
-// from: https://github.com/profi200/Project_CTR/blob/02159e17ee225de3f7c46ca195ff0f9ba3b3d3e4/ctrtool/tik.h#L15-L39
-typedef struct {
-    u8 sig_type[4];
-	u8 signature[0x100];
-	u8 padding1[0x3C];
-	u8 issuer[0x40];
-	u8 ecdsa[0x3C];
-    u8 version;
-    u8 ca_crl_version;
-    u8 signer_crl_version;
-	u8 titlekey[0x10];
-	u8 reserved0;
-	u8 ticket_id[8];
-	u8 console_id[4];
-	u8 title_id[8];
-	u8 sys_access[2];
-	u8 ticket_version[2];
-	u8 time_mask[4];
-	u8 permit_mask[4];
-	u8 title_export;
-	u8 commonkey_idx;
-    u8 reserved1[0x2A];
-    u8 eshop_id[4];
-    u8 reserved2;
-    u8 audit;
-	u8 content_permissions[0x40];
-	u8 reserved3[2];
-	u8 timelimits[0x40];
-    u8 content_index[0xAC];
-} __attribute__((packed)) Ticket;
 
 // from: https://github.com/profi200/Project_CTR/blob/02159e17ee225de3f7c46ca195ff0f9ba3b3d3e4/ctrtool/tmd.h#L18-L59;
 typedef struct {
@@ -141,25 +111,13 @@ typedef struct { // first 0x20 bytes are identical with CIA header
     u32 max_contents;
 } __attribute__((packed)) CiaInfo;
 
-typedef struct {
-    u64 offset;
-    u64 size;
-    u32 id;
-    u32 index;
-    u8  encrypted;
-} __attribute__((packed)) CiaContentInfo;
-
 u32 ValidateCiaHeader(CiaHeader* header);
 u32 GetCiaInfo(CiaInfo* info, CiaHeader* header);
-u32 GetCiaContentInfo(CiaContentInfo* contents, TitleMetaData* tmd);
-u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);
 u32 FixTmdHashes(TitleMetaData* tmd);
 u32 FixCiaHeaderForTmd(CiaHeader* header, TitleMetaData* tmd);
-Ticket* ParseForTicket(u8* data, u32 size, u8* title_id);
 
 u32 BuildCiaCert(u8* ciacert);
-u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents);
 u32 BuildCiaMeta(CiaMeta* meta, u8* exthdr, u8* smdh);
 u32 BuildCiaHeader(CiaHeader* header);

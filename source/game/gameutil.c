@@ -180,7 +180,7 @@ u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
 }
 
 u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
-    const u8 magic[] = { CIA_SIG_TYPE };
+    const u8 magic[] = { TMD_SIG_TYPE };
     FIL file;
     UINT btr;
     
@@ -218,31 +218,6 @@ u32 WriteCiaStub(CiaStub* stub, const char* path) {
     
     fx_close(&file);
     return 0;
-}
-
-u32 SearchTicket(Ticket* ticket, const char* path, u8* title_id, bool force_legit) {
-    FIL db;
-    UINT btr;
-    
-    if (f_open(&db, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
-    f_lseek(&db, 0);
-    
-    u32 fsize = f_size(&db);
-    u32 offset = 0;
-    Ticket* tick = NULL;
-    ShowProgress(0, 0, path);
-    while (!tick && (f_read(&db, MAIN_BUFFER, MAIN_BUFFER_SIZE, &btr) == FR_OK) && (btr > 0)) {
-        offset += (btr == MAIN_BUFFER_SIZE) ? MAIN_BUFFER_SIZE - (sizeof(Ticket) - 1) : btr;
-        if (!ShowProgress(offset, fsize, path)) break;
-        f_lseek(&db, offset);
-        tick = ParseForTicket(MAIN_BUFFER, btr, title_id);
-        if (tick && force_legit && (getbe64(tick->ticket_id) == 0))
-            tick = NULL;
-    }
-    if (tick) memcpy(ticket, tick, sizeof(Ticket));
-    
-    return (tick) ? 0 : 1;
 }
 
 u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const u8* titlekey) {
@@ -771,6 +746,9 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     CiaStub* cia = (CiaStub*) TEMP_BUFFER;
     CiaMeta* meta = (CiaMeta*) (TEMP_BUFFER + sizeof(CiaStub));
     
+    // Init progress bar
+    if (!ShowProgress(0, 0, path_tmd)) return 1;
+    
     // build the CIA stub
     memset(cia, 0, sizeof(CiaStub));
     if ((BuildCiaHeader(&(cia->header)) != 0) ||
@@ -790,18 +768,17 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     if (!content_count) return 1;
     
     // get (legit) ticket
-    const char* path_db = ((*path_tmd == 'B') || (*path_tmd == '4')) ?
-        "4:/dbs/ticket.db" : "1:/dbs/ticket.db"; // EmuNAND / SysNAND
-    const u8 titlekey_placeholder[16] = { 0xFF };
     Ticket* ticket = &(cia->ticket);
-    if (force_legit && (SearchTicket(ticket, path_db, title_id, true) != 0)) {
-        ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
-        return 1;
-    } else if ((memcmp(ticket->titlekey, titlekey_placeholder, 16) == 0) &&
-        (SearchTicket(ticket, path_db, title_id, false) == 0)) {
-        // ticket placeholder found, try to find ticket
-        // if ticket found: wipe private data
-        if (getbe32(ticket->console_id) || getbe32(ticket->eshop_id)) {
+    bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
+    if (force_legit) {
+        if (GetTicket(ticket, title_id, true, src_emunand) != 0) {
+            ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
+            return 1;
+        }
+    } else {
+        if ((GetTicket(ticket, title_id, false, src_emunand) == 0) &&
+            (getbe32(ticket->console_id) || getbe32(ticket->eshop_id))) {
+            // if ticket found: wipe private data
             memset(ticket->console_id, 0, 4); // zero out console id
             memset(ticket->eshop_id, 0, 4); // zero out eshop id
             memset(ticket->ticket_id, 0, 8); // zero out ticket id
