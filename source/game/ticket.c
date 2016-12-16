@@ -106,33 +106,12 @@ u32 GetTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
     return (found) ? 0 : 1;
 }
 
-u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
-    const u8 sig_type[4] =  { TICKET_SIG_TYPE }; // RSA_2048 SHA256
-    const u8 ticket_cnt_index[] = { // whatever this is
-        0x00, 0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0xAC, 0x00, 0x00, 0x00, 0x14, 0x00, 0x01, 0x00, 0x14,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x84,
-        0x00, 0x00, 0x00, 0x84, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-    };
-    // set ticket all zero for a clean start
-    memset(ticket, 0x00, sizeof(Ticket));
-    // fill ticket values
-    memcpy(ticket->sig_type, sig_type, 4);
-    memset(ticket->signature, 0xFF, 0x100);
-    snprintf((char*) ticket->issuer, 0x40, TICKET_ISSUER);
-    memset(ticket->ecdsa, 0xFF, 0x3C);
-    ticket->version = 0x01;
-    memset(ticket->titlekey, 0xFF, 16);
-    memcpy(ticket->title_id, title_id, 8);
-    ticket->commonkey_idx = 0x00; // eshop
-    ticket->audit = 0x01; // whatever
-    memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
-    
+u32 SearchTitleKeysBin(Ticket* ticket, u8* title_id) {
+    bool found = false;
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
-    for (u32 enc = 0; enc <= 1; enc++) {
+    // when found, add it to the ticket
+    for (u32 enc = 0; (enc <= 1) && !found; enc++) {
         const char* base[] = { INPUT_PATHS };
-        bool found = false;
         for (u32 i = 0; (i < (sizeof(base)/sizeof(char*))) && !found; i++) {
             TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
             char path[64];
@@ -158,8 +137,33 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
                 break;
             } 
         }
-        if (found) break;
     }
+    
+    return (found) ? 0 : 1;
+}
+
+u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
+    const u8 sig_type[4] =  { TICKET_SIG_TYPE }; // RSA_2048 SHA256
+    const u8 ticket_cnt_index[] = { // whatever this is
+        0x00, 0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0xAC, 0x00, 0x00, 0x00, 0x14, 0x00, 0x01, 0x00, 0x14,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x84,
+        0x00, 0x00, 0x00, 0x84, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    };
+    // set ticket all zero for a clean start
+    memset(ticket, 0x00, sizeof(Ticket));
+    // fill ticket values
+    memcpy(ticket->sig_type, sig_type, 4);
+    memset(ticket->signature, 0xFF, 0x100);
+    snprintf((char*) ticket->issuer, 0x40, TICKET_ISSUER);
+    memset(ticket->ecdsa, 0xFF, 0x3C);
+    ticket->version = 0x01;
+    memset(ticket->titlekey, 0xFF, 16);
+    memcpy(ticket->title_id, title_id, 8);
+    ticket->commonkey_idx = 0x00; // eshop
+    ticket->audit = 0x01; // whatever
+    memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
     
     return 0;
 }

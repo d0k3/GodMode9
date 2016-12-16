@@ -776,7 +776,8 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
             return 1;
         }
     } else {
-        if ((GetTicket(ticket, title_id, false, src_emunand) == 0) &&
+        if ((SearchTitleKeysBin(ticket, title_id) != 0) && 
+            (GetTicket(ticket, title_id, false, src_emunand) == 0) &&
             (getbe32(ticket->console_id) || getbe32(ticket->eshop_id))) {
             // if ticket found: wipe private data
             memset(ticket->console_id, 0, 4); // zero out console id
@@ -793,12 +794,6 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     if (!name_content) return 1; // will not happen
     name_content++;
     
-    // try to build metadata
-    if (content_count) {
-        snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(content_list->id));
-        if (LoadNcchMeta(meta, path_content, 0) != 0) meta = NULL;
-    } else meta = NULL;
-    
     // insert contents
     u8 titlekey[16] = { 0xFF };
     if ((GetTitleKey(titlekey, &(cia->ticket)) != 0) && force_legit) return 1;
@@ -811,9 +806,12 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
         }
     }
     
-    // try to insert meta, but ignore result
-    if (meta && (InsertCiaMeta(path_cia, meta) == 0))
-        cia->header.size_meta = CIA_META_SIZE;
+    // try to build & insert meta, but ignore result
+    if (content_count) {
+        snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(content_list->id));
+        if ((LoadNcchMeta(meta, path_content, 0) == 0) && (InsertCiaMeta(path_cia, meta) == 0))
+            cia->header.size_meta = CIA_META_SIZE;
+    }
     
     // write the CIA stub (take #2)
     if ((FixTmdHashes(tmd) != 0) || (WriteCiaStub(cia, path_cia) != 0))
@@ -828,7 +826,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     u32 ret = 0;
     
     // destination path
-    if (GetOutputPath(dest, path, "cia") != 0) return 1;
+    if (GetOutputPath(dest, path, force_legit ? "legit.cia" : "cia") != 0) return 1;
     if (!CheckWritePermissions(dest)) return 1;
     
     // ensure the output dir exists
@@ -840,8 +838,8 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
         ret = BuildCiaFromTmdFile(path, dest, force_legit);
     else ret = 1;
     
-    // if (ret != 0) // try to get rid of the borked file
-    //    f_unlink(dest);
+    if (ret != 0) // try to get rid of the borked file
+        f_unlink(dest);
     
     return ret;
 }

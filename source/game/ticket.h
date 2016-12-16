@@ -46,4 +46,5 @@ typedef struct {
 u32 ValidateTicket(Ticket* ticket);
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 u32 GetTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand);
+u32 SearchTitleKeysBin(Ticket* ticket, u8* title_id);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
