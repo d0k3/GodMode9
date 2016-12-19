@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#define TICKET_SIZE         sizeof(Ticket)
+
 #define TICKET_ISSUER       "Root-CA00000003-XS0000000c"
 #define TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
 #define TICKET_SIG_TYPE     0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256

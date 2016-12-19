@@ -41,7 +41,7 @@ u32 IdentifyFileType(const char* path) {
     } else if (memcmp(header, romfs_magic, sizeof(romfs_magic)) == 0) {
         return GAME_ROMFS; // RomFS file (check could be better)
     } else if (strncmp(TMD_ISSUER, (char*) (header + 0x140), 0x40) == 0) {
-        if (fsize >= CIA_TMD_SIZE_N(getbe16(header + 0x1DE)))
+        if (fsize >= TMD_SIZE_N(getbe16(header + 0x1DE)))
             return GAME_TMD; // TMD file
     }
     

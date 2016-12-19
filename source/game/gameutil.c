@@ -209,9 +209,9 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     
     // full TMD file
     f_lseek(&file, 0);
-    if ((fx_read(&file, tmd, CIA_TMD_SIZE_MAX, &btr) != FR_OK) ||
+    if ((fx_read(&file, tmd, TMD_SIZE_MAX, &btr) != FR_OK) ||
         (memcmp(tmd->sig_type, magic, sizeof(magic)) != 0) ||
-        (btr < CIA_TMD_SIZE_N(getbe16(tmd->content_count)))) {
+        (btr < TMD_SIZE_N(getbe16(tmd->content_count)))) {
         fx_close(&file);
         return 1;
     }
@@ -401,7 +401,7 @@ u32 VerifyCiaFile(const char* path) {
     // verify contents
     u32 content_count = getbe16(cia->tmd.content_count);
     u64 next_offset = info.offset_content;
-    for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         if (VerifyTmdContent(path, next_offset, chunk, titlekey) != 0) {
             ShowPrompt(false, "%s\nID %08lX (%08llX@%08llX)\nVerification failed",
@@ -438,7 +438,7 @@ u32 VerifyTmdFile(const char* path) {
     
     // verify contents
     u32 content_count = getbe16(tmd->content_count);
-    for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         chunk->type[1] &= ~0x01; // remove crypto flag
         snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(chunk->id));
@@ -515,7 +515,7 @@ u32 CheckEncryptedCiaFile(const char* path) {
     // check for encryption in CIA contents
     u32 content_count = getbe16(cia->tmd.content_count);
     u64 next_offset = info.offset_content;
-    for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         if ((getbe16(chunk->type) & 0x1) || (CheckEncryptedNcchFile(path, next_offset) == 0))
             return 0; // encryption found
@@ -641,7 +641,7 @@ u32 DecryptCiaFile(const char* orig, const char* dest) {
     // decrypt CIA contents
     u32 content_count = getbe16(cia->tmd.content_count);
     u64 next_offset = info.offset_content;
-    for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         u64 size = getbe64(chunk->size);
         if (DecryptNcchNcsdFile(orig, dest, GAME_CIA, next_offset, size, chunk, titlekey) != 0)
@@ -820,7 +820,7 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     // insert contents
     u8 titlekey[16] = { 0xFF };
     if ((GetTitleKey(titlekey, &(cia->ticket)) != 0) && force_legit) return 1;
-    for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(chunk->id));
         if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false) != 0) {

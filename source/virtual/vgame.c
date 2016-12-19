@@ -293,7 +293,7 @@ bool BuildVGameCiaDir(void) {
         TmdContentChunk* content_list = cia->content_list;
         u32 content_count = getbe16(cia->tmd.content_count);
         u64 next_offset = info.offset_content;
-        for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
+        for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
             u64 size = getbe64(content_list[i].size);
             bool is_ncch = false; // is unencrypted NCCH?
             if (!(getbe16(content_list[i].type) & 0x1)) {
