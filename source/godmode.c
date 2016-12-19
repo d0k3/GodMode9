@@ -46,7 +46,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     u32 state_curr =
         ((*curr_path) ? (1<<0) : 0) |
         ((clipboard->n_entries) ? (1<<1) : 0) |
-        (GetMountState()<<2) |
+        ((CheckSDMountState()) ? (1<<2) : 0) |
+        ((GetMountState()) ? (1<<3) : 0) |
         (curr_pane<<4);
     
     if (state_prev != state_curr) {
@@ -129,7 +130,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[512];
-    snprintf(instr, 512, "%s%s\n%s%s%s%s%s%s%s",
+    snprintf(instr, 512, "%s%s\n%s%s%s%s%s%s%s%s",
         #ifndef SAFEMODE
         "GodMode9 Explorer v", VERSION, // generic start part
         #else
@@ -137,9 +138,9 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         #endif
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
-        ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\nR+B - Unmount SD card\n" :
-        "R+Y - Unlock write permissions\nR+B - Unmount SD card\n"),
-        (*curr_path) ? "" : "R+X - Reinit filesystem\n",
+        ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\n" : "R+Y - Unlock write permissions\n"),
+        (*curr_path) ? "" : (CheckSDMountState()) ? "R+B - Unmount SD card\n" : "R+B - Remount SD card\n",
+        (*curr_path) ? "" : (GetMountState()) ? "R+X - Unmount image\n" : "",
         (*curr_path) ? "R+A - Search directory\n" : "R+A - Search drive\n", 
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
@@ -569,7 +570,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     u32 drvtype = DriveType(curr_entry->path);
     
     // special stuff, only available on FAT drives (see int special below)
-    bool mountable = ((filetype & FTYPE_MOUNTABLE) && !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE)));
+    bool mountable = ((filetype & FTYPE_MOUNTABLE) && !(drvtype & DRV_IMAGE));
     bool verificable = (filetype & FYTPE_VERIFICABLE);
     bool decryptable = (filetype & FYTPE_DECRYPTABLE);
     bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
@@ -808,8 +809,13 @@ u32 GodMode() {
         return exit_mode;
     }
     while (!InitSDCardFS()) {
-        if (!ShowPrompt(true, "Initialising SD card failed! Retry?"))
-            return exit_mode;
+        const char* optionstr[] = { "Retry initialising", "Poweroff system", "Reboot system", "No SD mode (exp.)", "SD format menu" };
+        u32 user_select = ShowSelectPrompt(5, optionstr, "Initialising SD card failed!\nSelect action:" );
+        if (user_select == 2) return GODMODE_EXIT_POWEROFF;
+        else if (user_select == 3) return GODMODE_EXIT_REBOOT;
+        else if (user_select == 4) break;
+        else if (user_select == 5) SdFormatMenu();
+        ClearScreenF(true, true, COLOR_STD_BG);
     }
     InitEmuNandBase();
     InitNandCrypto();
@@ -913,21 +919,15 @@ u32 GodMode() {
                 }
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
-            if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
-                clipboard->n_entries = 0; // remove SD clipboard entries
             DeinitExtFS();
-            DeinitSDCardFS();
-            memset(panedata, 0x00, N_PANES * sizeof(PaneData));
-            ShowString("SD card unmounted, you can eject now.\n \n<R+Y+\x1B> for format menu\n<A> to remount SD card");
-            while (true) {
-                u32 pad_choice = InputWait();
-                if ((pad_choice & (BUTTON_R1|BUTTON_Y|BUTTON_LEFT)) == (BUTTON_R1|BUTTON_Y|BUTTON_LEFT))
-                    SdFormatMenu();
-                else if ((pad_choice & BUTTON_B) && InitSDCardFS()) break;
-                else if (pad_choice & (BUTTON_B|BUTTON_START)) return exit_mode;
-                else if (!(pad_choice & BUTTON_A)) continue;
-                if (InitSDCardFS()) break;
-                ShowString("Reinitialising SD card failed!\n \n<R+Y+\x1B> for format menu\n<A> to retry, <B> to reboot");
+            if (!CheckSDMountState()) {
+                while (!InitSDCardFS() &&
+                    ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
+            } else {
+                DeinitSDCardFS();
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) &
+                    (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
+                    clipboard->n_entries = 0; // remove SD clipboard entries
             }
             ClearScreenF(true, true, COLOR_STD_BG);
             InitEmuNandBase();
@@ -974,13 +974,10 @@ u32 GodMode() {
 
         // highly specific commands
         if (!*current_path) { // in the root folder...
-            if (switched && (pad_state & BUTTON_X)) { // reinit file system / unmount image
+            if (switched && (pad_state & BUTTON_X)) { // unmount image
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                DeinitExtFS();
-                DeinitSDCardFS();
-                InitSDCardFS();
-                InitExtFS();
+                InitImgFS(NULL);
                 ClearScreenF(false, true, COLOR_STD_BG);
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_Y)) {
@@ -1110,7 +1107,7 @@ u32 GodMode() {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
         } else if (pad_state & BUTTON_HOME) { // Home menu
-            const char* optionstr[3] = { "Poweroff system", "Reboot system", "SD format menu" };
+            const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu" };
             u32 user_select = ShowSelectPrompt(3, optionstr, "HOME button pressed.\nSelect action:" );
             if (user_select == 1) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
@@ -1118,24 +1115,22 @@ u32 GodMode() {
             } else if (user_select == 2) { 
                 exit_mode = GODMODE_EXIT_REBOOT;
                 break;
-            } else if (user_select == 3) {
+            } else if (user_select == 3) { // format SD card
+                bool sd_state = CheckSDMountState();
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
                     clipboard->n_entries = 0; // remove SD clipboard entries
                 DeinitExtFS();
                 DeinitSDCardFS();
-                clipboard->n_entries = 0;
-                memset(panedata, 0x00, N_PANES * sizeof(PaneData));
-                if (ShowPrompt(true, "SD card unmounted, enter format menu?"))
-                    SdFormatMenu();
-                while (!InitSDCardFS()) {
-                    if (!ShowPrompt(true, "Reinitialising SD card failed! Retry?"))
-                        return exit_mode;
+                if ((SdFormatMenu() == 0) || sd_state) {;
+                    while (!InitSDCardFS() &&
+                        ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
                 }
                 ClearScreenF(true, true, COLOR_STD_BG);
                 InitEmuNandBase();
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
-                if (cursor >= current_dir->n_entries) cursor = 0;
+                if (cursor >= current_dir->n_entries)
+                    cursor = current_dir->n_entries - 1;
             }
         }
     }

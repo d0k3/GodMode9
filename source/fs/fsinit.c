@@ -18,8 +18,6 @@ bool InitSDCardFS() {
 }
 
 bool InitExtFS() {
-    if (!fs_mounted[0])
-        return false;
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
@@ -62,6 +60,7 @@ bool InitImgFS(const char* path) {
 void DeinitExtFS() {
     SetupNandSdDrive(NULL, NULL, NULL, 0);
     SetupNandSdDrive(NULL, NULL, NULL, 1);
+    InitImgFS(NULL);
     for (u32 i = NORM_FS - 1; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
@@ -69,26 +68,21 @@ void DeinitExtFS() {
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = false;
         }
-        if (i == NORM_FS - IMGN_FS) { // unmount image
-            MountImage(NULL);
-            InitVGameDrive();
-        }
     }
 }
 
 void DeinitSDCardFS() {
-    MountImage(NULL);
-    InitVGameDrive();
-    if (fs_mounted[0]) {
-        f_mount(NULL, "0:", 1);
-        fs_mounted[0] = false;
-    }
+    DismountDriveType(DRV_SDCARD|DRV_EMUNAND);
 }
 
 void DismountDriveType(u32 type) { // careful with this - no safety checks
     if (type & DriveType(GetMountPath()))
         InitImgFS(NULL); // image is mounted from type -> unmount image drive, too
-    for (u32 i = NORM_FS - 1; i > 0; i--) {
+    if (type & DRV_SDCARD) {
+        SetupNandSdDrive(NULL, NULL, NULL, 0);
+        SetupNandSdDrive(NULL, NULL, NULL, 1);
+    }
+    for (u32 i = 0; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
         if (!fs_mounted[i] || !(type & DriveType(fsname)))
@@ -96,6 +90,10 @@ void DismountDriveType(u32 type) { // careful with this - no safety checks
         f_mount(NULL, fsname, 1);
         fs_mounted[i] = false;
     }
+}
+
+bool CheckSDMountState(void) {
+    return fs_mounted[0] || fs_mounted[4] || fs_mounted[5] || fs_mounted[6];
 }
 
 int GetMountedFSNum(const char* path) {
