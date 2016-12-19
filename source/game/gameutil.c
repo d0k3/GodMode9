@@ -44,7 +44,7 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
         return 1;
     
     if (exthdr) {
-        if(!ncch->size_exthdr) return 1;
+        if (!ncch->size_exthdr) return 1;
         f_lseek(file, offset_ncch + NCCH_EXTHDR_OFFSET);
         if ((fx_read(file, exthdr, NCCH_EXTHDR_SIZE, &btr) != FR_OK) ||
             (DecryptNcch((u8*) exthdr, NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_SIZE, ncch, NULL) != 0))
@@ -285,10 +285,17 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     // open file, get NCCH, ExeFS header
     if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, offset);
     
-    if (GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0) {
+    f_lseek(&file, offset);
+    if (GetNcchHeaders(&ncch, NULL, NULL, &file) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
+        fx_close(&file);
+        return 1;
+    }
+    
+    f_lseek(&file, offset);
+    if (ncch.size_exefs && (GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0)) {
+        if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
         fx_close(&file);
         return 1;
     }
