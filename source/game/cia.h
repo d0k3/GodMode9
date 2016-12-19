@@ -118,8 +118,8 @@ u32 FixTmdHashes(TitleMetaData* tmd);
 u32 FixCiaHeaderForTmd(CiaHeader* header, TitleMetaData* tmd);
 
 u32 BuildCiaCert(u8* ciacert);
-u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents);
-u32 BuildCiaMeta(CiaMeta* meta, u8* exthdr, u8* smdh);
+u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size);
+u32 BuildCiaMeta(CiaMeta* meta, void* exthdr, void* smdh);
 u32 BuildCiaHeader(CiaHeader* header);
 
 u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey);

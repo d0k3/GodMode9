@@ -35,7 +35,7 @@ u32 GetOutputPath(char* dest, const char* path, const char* ext) {
     return 0;
 }
 
-u32 GetNcchHeaders(NcchHeader* ncch, ExeFsHeader* exefs, FIL* file) {
+u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file) {
     u32 offset_ncch = f_tell(file);
     UINT btr;
     
@@ -43,7 +43,16 @@ u32 GetNcchHeaders(NcchHeader* ncch, ExeFsHeader* exefs, FIL* file) {
         (ValidateNcchHeader(ncch) != 0))
         return 1;
     
-    if (exefs && ncch->size_exefs) {
+    if (exthdr) {
+        if(!ncch->size_exthdr) return 1;
+        f_lseek(file, offset_ncch + NCCH_EXTHDR_OFFSET);
+        if ((fx_read(file, exthdr, NCCH_EXTHDR_SIZE, &btr) != FR_OK) ||
+            (DecryptNcch((u8*) exthdr, NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_SIZE, ncch, NULL) != 0))
+            return 1;
+    }
+    
+    if (exefs) {
+        if (!ncch->size_exefs) return 1;
         u32 offset_exefs = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
         f_lseek(file, offset_exefs);
         if ((fx_read(file, exefs, sizeof(ExeFsHeader), &btr) != FR_OK) ||
@@ -70,6 +79,22 @@ u32 CheckNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, NcchH
     sha_get(hash);
     
     return (memcmp(hash, expected, 32) == 0) ? 0 : 1;
+}
+
+u32 LoadNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, const char* path, u32 offset) {
+    FIL file;
+    
+    // open file, get NCCH header
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    f_lseek(&file, offset);
+    if (GetNcchHeaders(ncch, exthdr, exefs, &file) != 0) {
+        fx_close(&file);
+        return 1;
+    }
+    fx_close(&file);
+    
+    return 0;
 }
 
 u32 LoadNcsdHeader(NcsdHeader* ncsd, const char* path) {
@@ -118,65 +143,60 @@ u32 LoadCiaStub(CiaStub* stub, const char* path) {
     return 0;
 }
 
-u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
+u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u32 size_max) {
     NcchHeader ncch;
     ExeFsHeader exefs;
     FIL file;
     UINT btr;
     u32 ret = 0;
     
-    // this uses the meta builder function only in part
-    if (BuildCiaMeta(meta, NULL, NULL) != 0) return 1;
-    
     // open file, get NCCH, ExeFS header
     if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     f_lseek(&file, offset);
-    if (GetNcchHeaders(&ncch, &exefs, &file) != 0) {
+    if ((GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0) ||
+        (!ncch.size_exefs)) {
         fx_close(&file);
         return 1;
     }
     
-    // dependencies
-    if (ncch.size_exthdr > 0) {
-        u8* dep = meta->dependencies;
-        u32 size_dep = sizeof(meta->dependencies);
-        f_lseek(&file, offset + NCCH_EXTHDR_OFFSET + 0x40); // offset to dependencies
-        if ((fx_read(&file, dep, size_dep, &btr) != FR_OK) ||
-            (DecryptNcch(dep, NCCH_EXTHDR_OFFSET + 0x40, size_dep, &ncch, NULL) != 0) ||
-            (btr != size_dep)) {
+    // load file from exefs
+    ExeFsFileHeader* exefile = NULL;
+    for (u32 i = 0; i < 10; i++) {
+        u32 size = exefs.files[i].size;
+        if (!size || (size > size_max)) continue;
+        char* exename = exefs.files[i].name;
+        if (strncmp(name, exename, 8) == 0) {
+            exefile = exefs.files + i;
+            break;
+        }
+    }
+    if (exefile) {
+        u32 size_exefile = exefile->size;
+        u32 offset_exefile = (ncch.offset_exefs * NCCH_MEDIA_UNIT) + sizeof(ExeFsHeader) + exefile->offset;
+        f_lseek(&file, offset + offset_exefile); // offset to file
+        if ((fx_read(&file, data, size_exefile, &btr) != FR_OK) ||
+            (DecryptNcch(data, offset_exefile, size_exefile, &ncch, &exefs) != 0) ||
+            (btr != size_exefile)) {
             ret = 1;
         }
     } else ret = 1;
     
-    // smdh from exefs
-    if (ncch.size_exefs > 0) {
-        ExeFsFileHeader* icon = NULL;
-        u32 size_smdh = sizeof(meta->smdh);
-        for (u32 i = 0; i < 10; i++) {
-            u32 size = exefs.files[i].size;
-            if (!size || (size > size_smdh)) continue;
-            char* name = exefs.files[i].name;
-            if (strncmp(name, "icon", 8) == 0) {
-                icon = exefs.files + i;
-                break;
-            }
-        }
-        if (icon) {
-            u32 size_icon = icon->size;
-            u32 offset_icon = (ncch.offset_exefs * NCCH_MEDIA_UNIT) + sizeof(ExeFsHeader) + icon->offset;
-            u8* smdh = meta->smdh;
-            f_lseek(&file, offset + offset_icon); // offset to icon
-            if ((fx_read(&file, smdh, size_icon, &btr) != FR_OK) ||
-                (DecryptNcch(smdh, offset_icon, size_icon, &ncch, &exefs) != 0) ||
-                (btr != size_icon)) {
-                ret = 1;
-            }
-        } else ret = 1;
-    } else ret = 1;
-    
     fx_close(&file);
     return ret;
+}
+
+u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
+    NcchHeader ncch;
+    NcchExtHeader exthdr;
+    
+    // get dependencies from exthdr, icon from exeFS
+    if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path, offset) != 0) ||
+        (BuildCiaMeta(meta, &exthdr, NULL) != 0) ||
+        (LoadExeFsFile(meta->smdh, path, offset, "icon", sizeof(meta->smdh))))
+        return 1;
+        
+    return 0;
 }
 
 u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
@@ -267,7 +287,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
         return 1;
     f_lseek(&file, offset);
     
-    if (GetNcchHeaders(&ncch, &exefs, &file) != 0) {
+    if (GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
         fx_close(&file);
         return 1;
@@ -669,7 +689,7 @@ u32 DecryptGameFile(const char* path, bool inplace) {
 }
 
 u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset, u32 size,
-    TmdContentChunk* chunk, const u8* titlekey, bool force_legit) {
+    TmdContentChunk* chunk, const u8* titlekey, bool force_legit, bool cxi_fix) {
     // crypto types
     bool ncch_crypto = (!force_legit && (CheckEncryptedNcchFile(path_content, offset) == 0));
     bool cia_crypto = (force_legit && (getbe16(chunk->type) & 0x01));
@@ -683,7 +703,9 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     if (fx_open(&ofile, path_content, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     f_lseek(&ofile, offset);
-    fsize = f_size(&ofile); // for progress bar
+    fsize = f_size(&ofile);
+    if (offset > fsize) return 1;
+    if (!size) size = fsize - offset;
     if (fx_open(&dfile, path_cia, FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
         fx_close(&ofile);
         return 1;
@@ -703,12 +725,13 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     u8 ctr[16];
     u32 ret = 0;
     GetTmdCtr(ctr, chunk);
-    sha_init(SHA256_MODE);
     if (!ShowProgress(0, 0, path_content)) ret = 1;
     for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
         if (fx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
         if (ncch_crypto && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ret = 1;
+        if ((i == 0) && cxi_fix && (SetNcchSdFlag(MAIN_BUFFER) != 0)) ret = 1;
+        if (i == 0) sha_init(SHA256_MODE);
         sha_update(MAIN_BUFFER, read_bytes);
         if (cia_crypto && (EncryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey) != 0)) ret = 1;
         if (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
@@ -800,7 +823,7 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     for (u32 i = 0; (i < content_count) && (i < CIA_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(chunk->id));
-        if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit) != 0) {
+        if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false) != 0) {
             ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
             return 1;
         }
@@ -820,6 +843,125 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     return 0;
 }
 
+u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
+    CiaStub* cia = (CiaStub*) TEMP_BUFFER;
+    CiaMeta* meta = (CiaMeta*) (void*) (cia + 1);
+    NcchExtHeader* exthdr = (NcchExtHeader*) (void*) (meta + 1);
+    NcchHeader ncch;
+    u8 title_id[8];
+    u32 save_size = 0;
+    
+    // Init progress bar
+    if (!ShowProgress(0, 0, path_ncch)) return 1;
+    
+    // load NCCH header / extheader, get save size && title id
+    if (LoadNcchHeaders(&ncch, exthdr, NULL, path_ncch, 0) == 0) {
+        save_size = getle32(exthdr->sys_info);
+    } else {
+        exthdr = NULL;
+        if (LoadNcchHeaders(&ncch, NULL, NULL, path_ncch, 0) != 0) return 1;
+    }
+    for (u32 i = 0; i < 8; i++)
+        title_id[i] = (ncch.programId >> ((7-i)*8)) & 0xFF;
+    
+    // build the CIA stub
+    memset(cia, 0, sizeof(CiaStub));
+    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+        (BuildCiaCert(cia->cert) != 0) ||
+        (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size)) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_cia) != 0)) {
+        return 1;
+    }
+    
+    // insert NCCH content
+    TmdContentChunk* chunk = cia->content_list;
+    memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
+    if (InsertCiaContent(path_cia, path_ncch, 0, 0, chunk, NULL, false, true) != 0)
+        return 1;
+    
+    // optional stuff (proper titlekey / meta data)
+    SearchTitleKeysBin((&cia->ticket), title_id);
+    if (exthdr && (BuildCiaMeta(meta, exthdr, NULL) == 0) &&
+        (LoadExeFsFile(meta->smdh, path_ncch, 0, "icon", sizeof(meta->smdh)) == 0) &&
+        (InsertCiaMeta(path_cia, meta) == 0))
+        cia->header.size_meta = CIA_META_SIZE;
+    
+    // write the CIA stub (take #2)
+    if ((FixTmdHashes(&(cia->tmd)) != 0) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_cia) != 0))
+        return 1;
+    
+    return 0;
+}
+
+u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
+    CiaStub* cia = (CiaStub*) TEMP_BUFFER;
+    CiaMeta* meta = (CiaMeta*) (void*) (cia + 1);
+    NcchExtHeader* exthdr = (NcchExtHeader*) (void*) (meta + 1);
+    NcsdHeader ncsd;
+    NcchHeader ncch;
+    u8 title_id[8];
+    u32 save_size = 0;
+    
+    // Init progress bar
+    if (!ShowProgress(0, 0, path_ncsd)) return 1;
+    
+    // load NCSD header, get content count, title id
+    u32 content_count = 0;
+    if (LoadNcsdHeader(&ncsd, path_ncsd) != 0) return 1;
+    for (u32 i = 0; i < 3; i++)
+        if (ncsd.partitions[i].size) content_count++;
+    for (u32 i = 0; i < 8; i++)
+        title_id[i] = (ncsd.mediaId >> ((7-i)*8)) & 0xFF;
+    
+    // load first content NCCH / extheader
+    if (LoadNcchHeaders(&ncch, exthdr, NULL, path_ncsd, NCSD_CNT0_OFFSET) != 0)
+        return 1;
+    save_size = getle32(exthdr->sys_info);
+    
+    // build the CIA stub
+    memset(cia, 0, sizeof(CiaStub));
+    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+        (BuildCiaCert(cia->cert) != 0) ||
+        (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size)) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_cia) != 0)) {
+        return 1;
+    }
+    
+    // insert NCSD content
+    TmdContentChunk* chunk = cia->content_list;
+    for (u32 i = 0; i < 3; i++) {
+        NcchPartition* partition = ncsd.partitions + i;
+        u32 offset = partition->offset * NCSD_MEDIA_UNIT;
+        u32 size = partition->size * NCSD_MEDIA_UNIT;
+        if (!size) continue;
+        memset(chunk, 0, sizeof(TmdContentChunk));
+        chunk->id[3] = chunk->index[1] = i;
+        if (InsertCiaContent(path_cia, path_ncsd, offset, size, chunk++, NULL, false, (i == 0)) != 0)
+            return 1;
+    }
+    
+    // optional stuff (proper titlekey / meta data)
+    SearchTitleKeysBin(&(cia->ticket), title_id);
+    if ((BuildCiaMeta(meta, exthdr, NULL) == 0) &&
+        (LoadExeFsFile(meta->smdh, path_ncsd, NCSD_CNT0_OFFSET, "icon", sizeof(meta->smdh)) == 0) &&
+        (InsertCiaMeta(path_cia, meta) == 0))
+        cia->header.size_meta = CIA_META_SIZE;
+    
+    // write the CIA stub (take #2)
+    if ((FixTmdHashes(&(cia->tmd)) != 0) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_cia) != 0))
+        return 1;
+    
+    return 0;
+}
+
 u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     u32 filetype = IdentifyFileType(path);
     char dest[256];
@@ -828,6 +970,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     // destination path
     if (GetOutputPath(dest, path, force_legit ? "legit.cia" : "cia") != 0) return 1;
     if (!CheckWritePermissions(dest)) return 1;
+    f_unlink(dest); // remove the file if it already exists
     
     // ensure the output dir exists
     if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
@@ -836,6 +979,10 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     // build CIA from game file
     if (filetype & GAME_TMD)
         ret = BuildCiaFromTmdFile(path, dest, force_legit);
+    else if (filetype & GAME_NCCH)
+        ret = BuildCiaFromNcchFile(path, dest);
+    else if (filetype & GAME_NCSD)
+        ret = BuildCiaFromNcsdFile(path, dest);
     else ret = 1;
     
     if (ret != 0) // try to get rid of the borked file

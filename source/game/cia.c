@@ -102,7 +102,7 @@ u32 BuildCiaCert(u8* ciacert) {
     return 0;
 }
 
-u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
+u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size) {
     const u8 sig_type[4] =  { TMD_SIG_TYPE };
     // safety check: number of contents
     if (n_contents > CIA_MAX_CONTENTS) return 1; // !!!
@@ -115,7 +115,7 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
     tmd->version = 0x01;
     memcpy(tmd->title_id, title_id, 8);
     tmd->title_type[3] = 0x40; // whatever
-    memset(tmd->save_size, 0x00, 4); // placeholder
+    for (u32 i = 0; i < 4; i++) tmd->save_size[i] = (save_size >> (i*8)) & 0xFF; // little endian?
     tmd->content_count[1] = (u8) n_contents;
     memset(tmd->contentinfo_hash, 0xFF, 0x20); // placeholder (hash)
     tmd->contentinfo[0].cmd_count[1] = (u8) n_contents;
@@ -125,12 +125,12 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents) {
     return 0;
 }
 
-u32 BuildCiaMeta(CiaMeta* meta, u8* exthdr, u8* smdh) {
+u32 BuildCiaMeta(CiaMeta* meta, void* exthdr, void* smdh) {
     // init metadata with all zeroes and core version
     memset(meta, 0x00, sizeof(CiaMeta));
     meta->core_version = 2;
     // copy dependencies from extheader
-    if (exthdr) memcpy(meta->dependencies, exthdr + 0x40, sizeof(meta->dependencies));
+    if (exthdr) memcpy(meta->dependencies, ((NcchExtHeader*) exthdr)->dependencies, sizeof(meta->dependencies));
     // copy smdh (icon file in exefs)
     if (smdh) memcpy(meta->smdh, smdh, sizeof(meta->smdh));
     return 0;

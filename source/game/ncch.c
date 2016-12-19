@@ -318,3 +318,22 @@ u32 DecryptNcchSequential(u8* data, u32 offset, u32 size) {
     
     return DecryptNcch(data, offset, size, ncchptr, exefsptr);
 }
+
+u32 SetNcchSdFlag(u8* data) { // data must be at least 0x600 byte and start with NCCH header
+    NcchHeader* ncch = (NcchHeader*) (void*) data;
+    NcchExtHeader* exthdr = (NcchExtHeader*) (void*) (data + NCCH_EXTHDR_OFFSET);
+    NcchExtHeader exthdr_dec;
+    
+    if ((ValidateNcchHeader(ncch) != 0) || (!ncch->size_exthdr))
+        return 0; // no extheader
+    memcpy(&exthdr_dec, exthdr, sizeof(NcchExtHeader));
+    if (DecryptNcch((u8*) &exthdr_dec, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), ncch, NULL) != 0)
+        return 1;
+    if (exthdr_dec.flag & (1<<1)) return 0; // flag already set
+    
+    exthdr_dec.flag |= (1<<1);
+    exthdr->flag ^= (1<<1);
+    sha_quick(ncch->hash_exthdr, &exthdr_dec, 0x400, SHA256_MODE);
+    
+    return 0;
+}

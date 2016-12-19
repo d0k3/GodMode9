@@ -562,6 +562,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     const char* optionstr[8];
     
+    // check for file lock
+    if (!FileUnlock(curr_entry->path)) return 1;
+    
     u32 filetype = IdentifyFileType(curr_entry->path);
     u32 drvtype = DriveType(curr_entry->path);
     
@@ -575,9 +578,6 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
-    
-    // check for file lock
-    if (!FileUnlock(curr_entry->path)) return 1;
     
     // main menu processing
     int n_opt = 0;

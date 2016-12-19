@@ -8,6 +8,7 @@
 #define NCSD_CINFO_SIZE     0x1000
 #define NCSD_DINFO_OFFSET   0x1200
 #define NCSD_DINFO_SIZE     0x300
+#define NCSD_CNT0_OFFSET    0x4000
 
 typedef struct {
 	u32 offset;

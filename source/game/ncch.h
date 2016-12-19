@@ -14,16 +14,16 @@
 // very limited, contains only required stuff
 typedef struct {
     char name[8];
-    u8   reserved[0x5];
-    u8   flag; // bit 1 for SD
-    u32  remaster_version;
-    u8   sci_data[0x30];
-    u8   dependencies[0x180];
-    u8   sys_info[0x40];
-    u8   aci_data[0x200];
-    u8   signature[0x100];
-    u8   public_key[0x100];
-    u8   aci_limit_data[0x200];
+    u8  reserved[0x5];
+    u8  flag; // bit 1 for SD
+    u16 remaster_version;
+    u8  sci_data[0x30];
+    u8  dependencies[0x180];
+    u8  sys_info[0x40];
+    u8  aci_data[0x200];
+    u8  signature[0x100];
+    u8  public_key[0x100];
+    u8  aci_limit_data[0x200];
 } __attribute__((packed)) NcchExtHeader;
 
 // see: https://www.3dbrew.org/wiki/NCCH#NCCH_Header
@@ -63,3 +63,4 @@ u32 ValidateNcchHeader(NcchHeader* header);
 u32 SetupNcchCrypto(NcchHeader* ncch);
 u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs);
 u32 DecryptNcchSequential(u8* data, u32 offset, u32 size);
+u32 SetNcchSdFlag(u8* data);
