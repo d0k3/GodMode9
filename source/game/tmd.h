@@ -11,6 +11,8 @@
 #define TMD_ISSUER          "Root-CA00000003-CP0000000b"
 #define TMD_SIG_TYPE        0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
 
+#define DLC_TID_HIGH        0x00, 0x04, 0x00, 0x8C // title id high for DLC
+
 // from: https://github.com/profi200/Project_CTR/blob/02159e17ee225de3f7c46ca195ff0f9ba3b3d3e4/ctrtool/tmd.h#L18-L59;
 typedef struct {
 	u8 id[4];

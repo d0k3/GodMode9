@@ -422,6 +422,7 @@ u32 VerifyCiaFile(const char* path) {
 }
 
 u32 VerifyTmdFile(const char* path) {
+    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
     
@@ -445,10 +446,12 @@ u32 VerifyTmdFile(const char* path) {
     
     // verify contents
     u32 content_count = getbe16(tmd->content_count);
+    bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         chunk->type[1] &= ~0x01; // remove crypto flag
-        snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(chunk->id));
+        snprintf(name_content, 256 - (name_content - path_content),
+            (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         TruncateString(pathstr, path_content, 32, 8);
         if (VerifyTmdContent(path_content, 0, chunk, NULL) != 0) {
             ShowPrompt(false, "%s\nVerification failed", pathstr);
@@ -773,6 +776,7 @@ u32 InsertCiaMeta(const char* path_cia, CiaMeta* meta) {
 }
 
 u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_legit) {
+    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     CiaStub* cia = (CiaStub*) TEMP_BUFFER;
     CiaMeta* meta = (CiaMeta*) (TEMP_BUFFER + sizeof(CiaStub));
     
@@ -795,6 +799,7 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     TmdContentChunk* content_list = cia->content_list;
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = tmd->title_id;
+    bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     if (!content_count) return 1;
     
     // get (legit) ticket
@@ -829,7 +834,8 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     if ((GetTitleKey(titlekey, &(cia->ticket)) != 0) && force_legit) return 1;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
-        snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(chunk->id));
+        snprintf(name_content, 256 - (name_content - path_content),
+            (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false) != 0) {
             ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
             return 1;
