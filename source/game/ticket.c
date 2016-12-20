@@ -70,43 +70,38 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     return 0;
 }
 
-u32 GetTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
+u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
+    const char* path_db = TICKDB_PATH(emunand); // EmuNAND / SysNAND
     const u32 area_offsets[] = { TICKDB_AREA_OFFSETS };
-    const char* path_db = emunand ? "4:/dbs/ticket.db" : "1:/dbs/ticket.db"; // EmuNAND / SysNAND
     u8 data[0x400];
     FIL file;
     UINT btr;
     
-    // find active partition / offset
+    // parse file, sector by sector
     if (f_open(&file, path_db, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, 0);
-    if (f_read(&file, data, 0x200, &btr) != FR_OK) {
-        f_close(&file);
-        return 1;
-    }
-    f_lseek(&file, (getle32(data + 0x130)) ? area_offsets[1] : area_offsets[0]);
-    
-    // parse file, sector by sector
     bool found = false;
-    for (u32 i = 0; !found && (i < TICKDB_AREA_SIZE); i++) {
-        Ticket* tick = (Ticket*) (data + 0x18);
-        if (f_read(&file, data, 0x200, &btr) != FR_OK) break;
-        if ((getle32(data + 0x10) == 0) || (getle32(data + 0x14) != sizeof(Ticket))) continue;
-        if (ValidateTicket(tick) != 0) continue; // partial ticket only
-        if (f_read(&file, data + 0x200, 0x200, &btr) != FR_OK) break; i++; // read the remainder of the ticket
-        if (memcmp(title_id, tick->title_id, 8) != 0) continue; // title id not matching
-        if (force_legit && (getbe64(tick->ticket_id) == 0)) continue; // legit check
-        memcpy(ticket, tick, sizeof(Ticket));
-        found = true;
-        break;
+    for (u32 p = 0; p < 2; p++) {
+        u32 area_offset = area_offsets[p];
+        for (u32 i = 0; !found && (i < TICKDB_AREA_SIZE); i += 0x200) {
+            Ticket* tick = (Ticket*) (data + 0x18);
+            f_lseek(&file, area_offset + i);
+            if ((f_read(&file, data, 0x400, &btr) != FR_OK) || (btr != 0x400)) break;
+            if ((getle32(data + 0x10) == 0) || (getle32(data + 0x14) != sizeof(Ticket))) continue;
+            if (ValidateTicket(tick) != 0) continue; // ticket not validated
+            if (memcmp(title_id, tick->title_id, 8) != 0) continue; // title id not matching
+            if (force_legit && (getbe64(tick->ticket_id) == 0)) continue; // legit check
+            memcpy(ticket, tick, sizeof(Ticket));
+            found = true;
+            break;
+        }
     }
-    
     f_close(&file);
+    
     return (found) ? 0 : 1;
 }
 
-u32 SearchTitleKeysBin(Ticket* ticket, u8* title_id) {
+u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     bool found = false;
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
     // when found, add it to the ticket

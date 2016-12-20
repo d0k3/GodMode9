@@ -801,13 +801,13 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     Ticket* ticket = &(cia->ticket);
     bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
     if (force_legit) {
-        if (GetTicket(ticket, title_id, true, src_emunand) != 0) {
+        if (FindTicket(ticket, title_id, true, src_emunand) != 0) {
             ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
             return 1;
         }
     } else {
-        if ((SearchTitleKeysBin(ticket, title_id) != 0) && 
-            (GetTicket(ticket, title_id, false, src_emunand) == 0) &&
+        if ((FindTitleKey(ticket, title_id) != 0) && 
+            (FindTicket(ticket, title_id, false, src_emunand) == 0) &&
             (getbe32(ticket->console_id) || getbe32(ticket->eshop_id))) {
             // if ticket found: wipe private data
             memset(ticket->console_id, 0, 4); // zero out console id
@@ -889,7 +889,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
         return 1;
     
     // optional stuff (proper titlekey / meta data)
-    SearchTitleKeysBin((&cia->ticket), title_id);
+    FindTitleKey((&cia->ticket), title_id);
     if (exthdr && (BuildCiaMeta(meta, exthdr, NULL) == 0) &&
         (LoadExeFsFile(meta->smdh, path_ncch, 0, "icon", sizeof(meta->smdh)) == 0) &&
         (InsertCiaMeta(path_cia, meta) == 0))
@@ -954,7 +954,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     }
     
     // optional stuff (proper titlekey / meta data)
-    SearchTitleKeysBin(&(cia->ticket), title_id);
+    FindTitleKey(&(cia->ticket), title_id);
     if ((BuildCiaMeta(meta, exthdr, NULL) == 0) &&
         (LoadExeFsFile(meta->smdh, path_ncsd, NCSD_CNT0_OFFSET, "icon", sizeof(meta->smdh)) == 0) &&
         (InsertCiaMeta(path_cia, meta) == 0))

@@ -590,7 +590,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (drvtype & DRV_FAT) &&
         (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
         (int) ++n_opt : -1;
-    int searchdrv = (drvtype & DRV_SEARCH) ? ++n_opt : -1;
+    int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
     if (special > 0) optionstr[special-1] =
         (filetype == IMG_NAND  ) ? "Mount as NAND image"   :
         (filetype == IMG_FAT   ) ? "Mount as FAT image"    :
