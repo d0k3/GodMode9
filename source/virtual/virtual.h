@@ -40,7 +40,6 @@ typedef struct {
     u64 offset;
     u64 size;
     u32 flags;
-    u32 virtual_src;
 } __attribute__((packed)) VirtualDir;
 
 u32 GetVirtualSource(const char* path);

@@ -37,7 +37,7 @@ bool CheckVNandDrive(u32 nand_src) {
 bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
     int n_templates = sizeof(vNandFileTemplates) / sizeof(VirtualFile);
     const VirtualFile* templates = vNandFileTemplates;
-    u32 nand_src = vdir->virtual_src;
+    u32 nand_src = vdir->flags & VRT_SOURCE;
     
     while (++vdir->index < n_templates) { 
         // get NAND type (O3DS/N3DS/NO3DS), workaround for empty EmuNAND

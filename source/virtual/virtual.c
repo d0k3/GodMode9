@@ -34,7 +34,7 @@ bool CheckVirtualDrive(const char* path) {
 }
 
 bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
-    u32 virtual_src = vdir->virtual_src;
+    u32 virtual_src = vdir->flags & VRT_SOURCE;
     bool ret = false;
     if (virtual_src & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD)) {
         ret = ReadVNandDir(vfile, vdir);
@@ -57,7 +57,6 @@ bool OpenVirtualRoot(VirtualDir* vdir, u32 virtual_src) {
     }
     vdir->index = -1;
     vdir->flags |= VFLAG_DIR|virtual_src;
-    vdir->virtual_src = virtual_src;
     return true;
 }
 
@@ -74,7 +73,6 @@ bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry) {
         vdir->flags = ventry->flags;
     }
     vdir->flags |= virtual_src;
-    vdir->virtual_src = virtual_src;
     return true;
 }
 
@@ -96,7 +94,7 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     char* name;
     VirtualDir vdir;
     if (!OpenVirtualRoot(&vdir, virtual_src)) return false;
-    for (name = strtok(lpath + 3, "/"); name && vdir.virtual_src; name = strtok(NULL, "/")) {
+    for (name = strtok(lpath + 3, "/"); name && vdir.flags; name = strtok(NULL, "/")) {
         if (!(vdir.flags & VFLAG_LV3)) { // standard method
             while (true) {
                 if (!ReadVirtualDir(vfile, &vdir)) return false;
@@ -109,7 +107,7 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
                 return false;
         }
         if (!OpenVirtualDir(&vdir, vfile))
-            vdir.virtual_src = 0;
+            vdir.flags = 0;
     }
     
     return (name == NULL); // if name is NULL, this succeeded

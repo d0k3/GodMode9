@@ -363,7 +363,6 @@ int ReadNcchImageBytes(u8* buffer, u64 offset, u64 count) {
 bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
     // build vdir object
     vdir->index = -1;
-    vdir->virtual_src = VRT_GAME;
     if (!ventry) { // root dir
         vdir->offset = 0;
         vdir->size = GetMountSize();
