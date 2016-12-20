@@ -1,13 +1,12 @@
 #include "fsinit.h"
 #include "fsdrive.h"
 #include "virtual.h"
-#include "vgame.h"
 #include "sddata.h"
 #include "image.h"
 #include "ff.h"
 
 // don't use this area for anything else!
-static FATFS* fs = (FATFS*)0x20316000;
+static FATFS* fs = (FATFS*) 0x20316000;
 
 // currently open file systems
 static bool fs_mounted[NORM_FS] = { false };
@@ -45,7 +44,7 @@ bool InitImgFS(const char* path) {
     }
     // (re)mount image, done if path == NULL
     MountImage(path);
-    InitVGameDrive();
+    InitVirtualImageDrive();
     if (!GetMountState()) return false;
     // reinit image filesystem
     for (u32 i = NORM_FS - IMGN_FS; i < NORM_FS; i++) {

@@ -8,8 +8,7 @@ typedef struct {
     u32 virtual_src;
 } __attribute__((packed)) VirtualDrive;
 
-static const VirtualDrive virtualDrives[] =
-    { {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, {'M', VRT_MEMORY}, {'G', VRT_GAME} };
+static const VirtualDrive virtualDrives[] = { VRT_DRIVES };
 
 u32 GetVirtualSource(const char* path) {
     // check path validity
@@ -19,6 +18,10 @@ u32 GetVirtualSource(const char* path) {
     for (u32 i = 0; i < (sizeof(virtualDrives) / sizeof(VirtualDrive)); i++)
         if (*path == virtualDrives[i].drv_letter) return virtualDrives[i].virtual_src;
     return 0;
+}
+
+bool InitVirtualImageDrive(void) {
+    return InitVGameDrive();
 }
 
 bool CheckVirtualDrive(const char* path) {
@@ -62,8 +65,14 @@ bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry) {
     u32 virtual_src = ventry->flags & VRT_SOURCE;
     if (ventry->flags & VFLAG_ROOT)
         return OpenVirtualRoot(vdir, virtual_src);
-    if (!(virtual_src & VRT_GAME)) return false; // no subdirs in other virtual sources
-    if (!OpenVGameDir(vdir, ventry)) return false;
+    if (virtual_src & VRT_GAME) {
+        if (!OpenVGameDir(vdir, ventry)) return false;
+    } else {
+        vdir->index = -1;
+        vdir->offset = ventry->offset;
+        vdir->size = ventry->size;
+        vdir->flags = ventry->flags;
+    }
     vdir->flags |= virtual_src;
     vdir->virtual_src = virtual_src;
     return true;
@@ -146,8 +155,7 @@ bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     return true;
 }
 
-int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read) /// (u64) !!!!
-{
+int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count, u32* bytes_read) {
     // basic check of offset / count
     if (offset >= vfile->size)
         return 0;
@@ -166,8 +174,7 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count,
     return -1;
 }
 
-int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count, u32* bytes_written)
-{
+int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count, u32* bytes_written) {
     // basic check of offset / count
     if (offset >= vfile->size)
         return 0;

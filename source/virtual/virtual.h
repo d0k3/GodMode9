@@ -18,6 +18,9 @@
 #define VFLAG_A9LH_AREA (1<<18)
 #define VFLAG_LV3       (1<<19)
 
+#define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, \
+                    {'X', VRT_XORPAD }, {'M', VRT_MEMORY}, {'G', VRT_GAME}
+
 // virtual file flag (subject to change):
 // bits 0...9  : reserved for NAND virtual sources and info
 // bits 10...15: reserved for other virtual sources
@@ -41,6 +44,7 @@ typedef struct {
 } __attribute__((packed)) VirtualDir;
 
 u32 GetVirtualSource(const char* path);
+bool InitVirtualImageDrive(void);
 bool CheckVirtualDrive(const char* path);
 
 bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir);
