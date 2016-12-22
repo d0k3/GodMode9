@@ -44,9 +44,9 @@ static u32 vgame_type = 0;
 static u32 base_vdir = 0;
 
 static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 52kb reserved (enough for 950 entries)
-static VirtualFile* templates_ncsd  = (VirtualFile*) VGAME_BUFFER + 0xE800; // 2kb reserved (enough for 36 entries)
-static VirtualFile* templates_ncch  = (VirtualFile*) VGAME_BUFFER + 0xF000; // 2kb reserved (enough for 36 entries)
-static VirtualFile* templates_exefs = (VirtualFile*) VGAME_BUFFER + 0xF800; // 2kb reserved (enough for 36 entries)
+static VirtualFile* templates_ncsd  = (VirtualFile*) (VGAME_BUFFER + 0xE800); // 2kb reserved (enough for 36 entries)
+static VirtualFile* templates_ncch  = (VirtualFile*) (VGAME_BUFFER + 0xF000); // 2kb reserved (enough for 36 entries)
+static VirtualFile* templates_exefs = (VirtualFile*) (VGAME_BUFFER + 0xF800); // 2kb reserved (enough for 36 entries)
 static int n_templates_cia   = -1;
 static int n_templates_ncsd  = -1;
 static int n_templates_ncch  = -1;
