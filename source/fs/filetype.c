@@ -1,7 +1,6 @@
 #include "filetype.h"
 #include "fsutil.h"
 #include "game.h"
-#include "firm.h"
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };

@@ -38,7 +38,7 @@
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
     
 // GodMode9 version
-#define VERSION "0.9.0"
+#define VERSION "0.9.1"
 
 // input / output paths
 #define INPUT_PATHS     "0:", "0:/files9", "0:/Decrypt9"

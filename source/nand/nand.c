@@ -111,7 +111,7 @@ bool InitNandCrypto(void)
         ReadNandSectors(header, 0x58980 + (offsetSection2 / 0x200), 1, 0x06, NAND_SYSNAND);
         memcpy(keyY, header + 0x10, 0x10); // 0x15 keyY
         
-        // try FRIM90 & FIRM81 offsets, search for the key
+        // try FIRM90 & FIRM81 offsets, search for the key
         for (u32 fver = 0; fver < 2; fver++) {
             static u32 offset0x05KeyY[2] = { 0x0EB014, 0x0EB24C };
             u32 offset = offset0x05KeyY[fver];

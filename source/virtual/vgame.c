@@ -3,6 +3,8 @@
 #include "game.h"
 #include "aes.h"
 
+#define VFLAG_FIRM_ARM9     (1<<23)
+#define VFLAG_FIRM          (1<<24)
 #define VFLAG_EXEFS_FILE    (1<<25)
 #define VFLAG_EXTHDR        (1<<26)
 #define VFLAG_CIA           (1<<27)
@@ -10,9 +12,12 @@
 #define VFLAG_NCCH          (1<<29)
 #define VFLAG_EXEFS         (1<<30)
 #define VFLAG_ROMFS         (1<<31)
-#define VFLAG_GAMEDIR       (VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3)
+#define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3)
 
-#define MAX_N_TEMPLATES 2048 // this leaves us with enough room (128kB reserved)
+#define NAME_FIRM_HEADER    "header.bin"
+#define NAME_FIRM_ARM9BIN   "arm9dec.bin"
+#define NAME_FIRM_SECTION   "section%lu.%s.bin" // number.arm9/.arm11
+#define NAME_FIRM_NCCH      "%016llX.%.8s%s" // name.title_id(.ext)
 
 #define NAME_CIA_HEADER     "header.bin"
 #define NAME_CIA_CERT       "cert.bin"
@@ -43,15 +48,19 @@
 static u32 vgame_type = 0;
 static u32 base_vdir = 0;
 
-static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 52kb reserved (enough for 950 entries)
+static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 56kb reserved (enough for 1024 entries)
+static VirtualFile* templates_firm  = (VirtualFile*) (VGAME_BUFFER + 0xE000); // 2kb reserved (enough for 36 entries)
 static VirtualFile* templates_ncsd  = (VirtualFile*) (VGAME_BUFFER + 0xE800); // 2kb reserved (enough for 36 entries)
 static VirtualFile* templates_ncch  = (VirtualFile*) (VGAME_BUFFER + 0xF000); // 2kb reserved (enough for 36 entries)
 static VirtualFile* templates_exefs = (VirtualFile*) (VGAME_BUFFER + 0xF800); // 2kb reserved (enough for 36 entries)
 static int n_templates_cia   = -1;
+static int n_templates_firm  = -1;
 static int n_templates_ncsd  = -1;
 static int n_templates_ncch  = -1;
 static int n_templates_exefs = -1;
 
+static u64 offset_firm  = (u64) -1;
+static u64 offset_a9bin = (u64) -1;
 static u64 offset_cia   = (u64) -1;
 static u64 offset_ncsd  = (u64) -1;
 static u64 offset_ncch  = (u64) -1;
@@ -60,12 +69,31 @@ static u64 offset_romfs = (u64) -1;
 static u64 offset_lv3   = (u64) -1;
 static u64 offset_lv3fd = (u64) -1;
 
-static CiaStub* cia = (CiaStub*) (void*) (VGAME_BUFFER + 0x10000); // 62.5kB reserved - should be enough by far
+static CiaStub* cia = (CiaStub*) (void*) (VGAME_BUFFER + 0x10000); // 61.5kB reserved - should be enough by far
+static FirmA9LHeader* a9l = (FirmA9LHeader*) (void*) (VGAME_BUFFER + 0x1F600); // 512 byte reserved
+static FirmHeader* firm = (FirmHeader*) (void*) (VGAME_BUFFER + 0x1F800); // 512 byte reserved
 static NcsdHeader* ncsd = (NcsdHeader*) (void*) (VGAME_BUFFER + 0x1FA00); // 512 byte reserved
 static NcchHeader* ncch = (NcchHeader*) (void*) (VGAME_BUFFER + 0x1FC00); // 512 byte reserved
 static ExeFsHeader* exefs = (ExeFsHeader*) (void*) (VGAME_BUFFER + 0x1FE00); // 512 byte reserved
 static u8* romfslv3 = (u8*) (VGAME_BUFFER + 0x20000); // 1920kB reserved
 static RomFsLv3Index lv3idx;
+
+int ReadFirmImageBytes(u8* buffer, u64 offset, u64 count) {
+    int ret = ReadImageBytes(buffer, offset, count);
+    if ((offset_a9bin == (u64) -1) || (ret != 0)) return ret;
+    if (DecryptFirm(buffer, offset, count, firm, a9l) != 0)
+        return -1;
+    return 0;
+}
+
+int ReadNcchImageBytes(u8* buffer, u64 offset, u64 count) {
+    int ret = (offset_a9bin == (u64) - 1) ? ReadImageBytes(buffer, offset, count) : 
+        ReadFirmImageBytes(buffer, offset, count);
+    if ((offset_ncch == (u64) -1) || (ret != 0)) return ret;
+    if (NCCH_ENCRYPTED(ncch) && (DecryptNcch(buffer, offset - offset_ncch, count, ncch,
+        (offset_exefs == (u64) -1) ? NULL : exefs) != 0)) return -1;
+    return 0;
+}
 
 bool BuildVGameExeFsDir(void) {
     VirtualFile* templates = templates_exefs;
@@ -221,7 +249,7 @@ bool BuildVGameNcsdDir(void) {
     n_templates_ncsd = n;
     return true;
 }
-#include "ui.h"
+
 bool BuildVGameCiaDir(void) {
     CiaInfo info;
     VirtualFile* templates = templates_cia;
@@ -323,10 +351,100 @@ bool BuildVGameCiaDir(void) {
     return true;
 }
 
+bool BuildVGameFirmDir(void) {
+    VirtualFile* templates = templates_firm;
+    u32 n = 0;
+    
+    // header
+    strncpy(templates[n].name, NAME_FIRM_HEADER, 32);
+    templates[n].offset = 0;
+    templates[n].size = 0x200;
+    templates[n].keyslot = 0xFF;
+    templates[n].flags = 0;
+    n++;
+    
+    // arm9 binary (only for encrypted)
+    if (offset_a9bin != (u64) -1) {
+        strncpy(templates[n].name, NAME_FIRM_ARM9BIN, 32);
+        templates[n].offset = offset_a9bin;
+        templates[n].size = GetArm9BinarySize(a9l);
+        templates[n].keyslot = 0x15;
+        templates[n].flags = VFLAG_FIRM_ARM9;
+        n++;
+    }
+    
+    // section binaries & NCCHs
+    for (u32 i = 0; i < 4; i++) {
+        FirmSectionHeader* section = firm->sections + i;
+        if (!section->size) continue;
+        snprintf(templates[n].name, 32, NAME_FIRM_SECTION, i, (section->type == 0) ? "arm9" : "arm11");
+        templates[n].offset = section->offset;
+        templates[n].size = section->size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+        if (section->type == 0) { // ARM9 section, search for Process9
+            u8* buffer = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
+            u32 buffer_size = TEMP_BUFFER_SIZE/4;
+            NcchHeader* p9_ncch;
+            char name[8];
+            u32 offset_p9 = 0;
+            for (u32 p = 0; (p < section->size) && (!offset_p9); p += buffer_size) {
+                u32 btr = min(buffer_size, (section->size - p));
+                if (ReadFirmImageBytes(buffer, section->offset + p, btr) != 0) break;
+                for (u32 s = 0; (s < btr) && (!offset_p9); s += 0x10) {
+                    p9_ncch = (NcchHeader*) (void*) (buffer + s);
+                    if ((ValidateNcchHeader(p9_ncch) == 0) &&
+                        (ReadFirmImageBytes((u8*) name, section->offset + p + s + 0x200, 8) == 0))
+                        offset_p9 = section->offset + p + s;
+                }
+            }
+            
+            if (offset_p9) {
+                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch->programId, name, ".app");
+                templates[n].offset = offset_p9;
+                templates[n].size = p9_ncch->size * NCCH_MEDIA_UNIT;
+                templates[n].keyslot = (offset_a9bin == (u64) -1) ? 0xFF : 0x15;
+                templates[n].flags = VFLAG_NCCH;
+                n++;
+                memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
+                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch->programId, name, "");
+                templates[n].flags |= VFLAG_DIR;
+                n++;
+            }
+        } else if (section->type == 1) { // ARM11 section, search for modules
+            NcchHeader firm_ncch;
+            for (u32 p = 0; p < section->size; p += firm_ncch.size * NCCH_MEDIA_UNIT) {
+                char name[8];
+                if ((ReadImageBytes((u8*) &firm_ncch, section->offset + p, 0x200) != 0) ||
+                    (ReadImageBytes((u8*) name, section->offset + p + 0x200, 0x8) != 0) ||
+                    (ValidateNcchHeader(&firm_ncch) != 0))
+                    break;
+                
+                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, ".app");
+                templates[n].offset = section->offset + p;
+                templates[n].size = firm_ncch.size * NCCH_MEDIA_UNIT;
+                templates[n].keyslot = 0xFF;
+                templates[n].flags = VFLAG_NCCH;
+                n++;
+                memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
+                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, "");
+                templates[n].flags |= VFLAG_DIR;
+                n++;
+            }
+        }
+    }
+    
+    n_templates_firm = n;
+    return true;
+}
+
 u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     u32 type = GetMountState();
     
     vgame_type = 0;
+    offset_firm  = (u64) -1;
+    offset_a9bin = (u64) -1;
     offset_cia   = (u64) -1;
     offset_ncsd  = (u64) -1;
     offset_ncch  = (u64) -1;
@@ -336,6 +454,7 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_lv3fd = (u64) -1;
     
     base_vdir =
+        (type == SYS_FIRM  ) ? VFLAG_FIRM  :
         (type == GAME_CIA  ) ? VFLAG_CIA   :
         (type == GAME_NCSD ) ? VFLAG_NCSD  :
         (type == GAME_NCCH ) ? VFLAG_NCCH  :
@@ -350,14 +469,6 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
 u32 CheckVGameDrive(void) {
     if (vgame_type != GetMountState()) vgame_type = 0; // very basic sanity check
     return vgame_type;
-}
-
-int ReadNcchImageBytes(u8* buffer, u64 offset, u64 count) {
-    int ret = ReadImageBytes(buffer, offset, count);
-    if ((offset_ncch == (u64) -1) || (ret != 0)) return ret;
-    if (NCCH_ENCRYPTED(ncch) && (DecryptNcch(buffer, offset - offset_ncch, count, ncch,
-        (offset_exefs == (u64) -1) ? NULL : exefs) != 0)) return -1;
-    return 0;
 }
 
 bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
@@ -376,7 +487,17 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
     }
     
     // build directories where required
-    if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
+    if ((vdir->flags & VFLAG_FIRM) && (offset_firm != vdir->offset)) {
+        if ((ReadImageBytes((u8*) firm, 0, sizeof(FirmHeader)) != 0) ||
+            (ValidateFirmHeader(firm) != 0)) return false;
+        offset_firm = vdir->offset;
+        FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
+        if (arm9s && (ReadImageBytes((u8*) a9l, arm9s->offset, sizeof(FirmA9LHeader)) == 0) &&
+            (ValidateFirmA9LHeader(a9l) == 0) &&
+            (SetupArm9BinaryCrypto(a9l)))
+            offset_a9bin = arm9s->offset + ARM9BIN_OFFSET;
+        if (!BuildVGameFirmDir()) return false;
+    } if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
         CiaInfo info;
         if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
             (ValidateCiaHeader(&(cia->header)) != 0) ||
@@ -388,11 +509,12 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
     } else if ((vdir->flags & VFLAG_NCSD) && (offset_ncsd != vdir->offset)) {
         if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
             (ValidateNcsdHeader(ncsd) != 0))
-            return 0;
+            return false;
         offset_ncsd = vdir->offset; // always zero(!)
-        if (!BuildVGameNcsdDir()) return 0;
+        if (!BuildVGameNcsdDir()) return false;
     } else if ((vdir->flags & VFLAG_NCCH) && (offset_ncch != vdir->offset)) {
-        if ((ReadImageBytes((u8*) ncch, vdir->offset, sizeof(NcchHeader)) != 0) ||
+        offset_ncch = (u64) -1;
+        if ((ReadNcchImageBytes((u8*) ncch, vdir->offset, sizeof(NcchHeader)) != 0) ||
             (ValidateNcchHeader(ncch) != 0))
             return false;
         offset_ncch = vdir->offset;
@@ -523,7 +645,10 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     VirtualFile* templates;
     int n = 0;
     
-    if (vdir->flags & VFLAG_CIA) {
+    if (vdir->flags & VFLAG_FIRM) {
+        templates = templates_firm;
+        n = n_templates_firm;
+    } else if (vdir->flags & VFLAG_CIA) {
         templates = templates_cia;
         n = n_templates_cia;
     } else if (vdir->flags & VFLAG_NCSD) {
@@ -556,9 +681,10 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
         lv3file = LV3_GET_FILE(vfile->offset, &lv3idx);
         vfoffset = offset_lv3fd + lv3file->offset_data;
     }
-    if ((vfile->keyslot < 0x40) && (offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch) && 
-        (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH)))
+    if (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH))
         return ReadNcchImageBytes(buffer, vfoffset + offset, count);
+    else if (vfile->flags & VFLAG_FIRM_ARM9)
+        return ReadFirmImageBytes(buffer, vfoffset + offset, count);
     else return ReadImageBytes(buffer, vfoffset + offset, count);
 }
 

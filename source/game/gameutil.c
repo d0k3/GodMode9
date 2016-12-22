@@ -1,6 +1,5 @@
 #include "gameutil.h"
 #include "game.h"
-#include "firm.h"
 #include "ui.h"
 #include "fsperm.h"
 #include "filetype.h"

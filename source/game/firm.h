@@ -44,8 +44,11 @@ typedef struct {
 
 u32 ValidateFirmHeader(FirmHeader* header);
 u32 ValidateFirmA9LHeader(FirmA9LHeader* header);
-FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm);
 
+FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm);
+u32 GetArm9BinarySize(FirmA9LHeader* a9l);
+
+u32 SetupArm9BinaryCrypto(FirmA9LHeader* header);
 u32 DecryptA9LHeader(FirmA9LHeader* header);
 u32 DecryptFirm(u8* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeader* a9l);
 u32 DecryptArm9Binary(u8* data, u32 offset, u32 size, FirmA9LHeader* a9l);
