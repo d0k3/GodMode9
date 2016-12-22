@@ -3674,7 +3674,7 @@ FRESULT f_sync (
 	FATFS *fs;
 	DWORD tm;
 	BYTE *dir;
-	DEF_NAMBUF
+	// DEF_NAMBUF
 
 
 	res = validate(&fp->obj, &fs);	/* Check validity of the file object */
