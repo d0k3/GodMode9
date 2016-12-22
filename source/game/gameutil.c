@@ -1,5 +1,6 @@
 #include "gameutil.h"
 #include "game.h"
+#include "firm.h"
 #include "ui.h"
 #include "fsperm.h"
 #include "filetype.h"
@@ -462,6 +463,48 @@ u32 VerifyTmdFile(const char* path) {
     return 0;
 }
 
+u32 VerifyFirmFile(const char* path) {
+    FirmHeader header;
+    FIL file;
+    UINT btr;
+    
+    // open file, get FIRM header
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    f_lseek(&file, 0);
+    if ((fx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
+        (ValidateFirmHeader(&header) != 0)) {
+        fx_close(&file);
+        return 1;
+    }
+    
+    // hash verify all available sections
+    for (u32 i = 0; i < 4; i++) {
+        FirmSectionHeader* section = header.sections + i;
+        u32 size = section->size;
+        if (!size) continue;
+        f_lseek(&file, section->offset);
+        sha_init(SHA256_MODE);
+        for (u32 i = 0; i < size; i += MAIN_BUFFER_SIZE) {
+            u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
+            fx_read(&file, MAIN_BUFFER, read_bytes, &btr);
+            sha_update(MAIN_BUFFER, read_bytes);
+        }
+        u8 hash[0x20];
+        sha_get(hash);
+        if (memcmp(hash, section->hash, 0x20) != 0) {
+            char pathstr[32 + 1];
+            TruncateString(pathstr, path, 32, 8);
+            ShowPrompt(false, "%s\nSection %u hash mismatch", pathstr, i);
+            fx_close(&file);
+            return 1;
+        }
+    }
+    fx_close(&file);
+    
+    return 0;
+}
+
 u32 VerifyGameFile(const char* path) {
     u32 filetype = IdentifyFileType(path);
     if (filetype == GAME_CIA)
@@ -472,25 +515,15 @@ u32 VerifyGameFile(const char* path) {
         return VerifyNcchFile(path, 0, 0);
     else if (filetype == GAME_TMD)
         return VerifyTmdFile(path);
+    else if (filetype == SYS_FIRM)
+        return VerifyFirmFile(path);
     else return 1;
 }
 
 u32 CheckEncryptedNcchFile(const char* path, u32 offset) {
     NcchHeader ncch;
-    FIL file;
-    UINT btr;
-    
-    // open file, get NCCH header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (LoadNcchHeaders(&ncch, NULL, NULL, path, offset) != 0)
         return 1;
-    f_lseek(&file, offset);
-    if ((fx_read(&file, &ncch, sizeof(NcchHeader), &btr) != FR_OK) ||
-        (ValidateNcchHeader(&ncch) != 0)) {
-        fx_close(&file);
-        return 1;
-    }
-    fx_close(&file);
-    
     return (NCCH_ENCRYPTED(&ncch)) ? 0 : 1;
 }
 
@@ -535,6 +568,37 @@ u32 CheckEncryptedCiaFile(const char* path) {
     return 1;
 }
 
+u32 CheckEncryptedFirmFile(const char* path) {
+    FirmHeader header;
+    FIL file;
+    UINT btr;
+    
+    // open file, get FIRM header
+    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    f_lseek(&file, 0);
+    if ((fx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
+        (ValidateFirmHeader(&header) != 0)) {
+        fx_close(&file);
+        return 1;
+    }
+    
+    // check ARM9 binary for ARM9 loader
+    FirmSectionHeader* arm9s = FindFirmArm9Section(&header);
+    if (arm9s) {
+        FirmA9LHeader a9l;
+        f_lseek(&file, arm9s->offset);
+        if ((fx_read(&file, &a9l, sizeof(FirmA9LHeader), &btr) == FR_OK) &&
+            (ValidateFirmA9LHeader(&a9l) == 0)) {
+            fx_close(&file);
+            return 0;
+        }
+    }
+    
+    fx_close(&file);
+    return 1;
+}
+
 u32 CheckEncryptedGameFile(const char* path) {
     u32 filetype = IdentifyFileType(path);
     if (filetype == GAME_CIA)
@@ -543,10 +607,12 @@ u32 CheckEncryptedGameFile(const char* path) {
         return CheckEncryptedNcsdFile(path);
     else if (filetype == GAME_NCCH)
         return CheckEncryptedNcchFile(path, 0);
+    else if (filetype == SYS_FIRM)
+        return CheckEncryptedFirmFile(path);
     else return 1;
 }
 
-u32 DecryptNcchNcsdFile(const char* orig, const char* dest, u32 mode,
+u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
     u32 offset, u32 size, TmdContentChunk* chunk, const u8* titlekey) { // this line only for CIA contents
     // this will do a simple copy for unencrypted files
     bool inplace = (strncmp(orig, dest, 256) == 0);
@@ -576,14 +642,15 @@ u32 DecryptNcchNcsdFile(const char* orig, const char* dest, u32 mode,
     if (!size) size = fsize;
     
     u32 ret = 0;
-    if (mode & (GAME_NCCH|GAME_NCSD)) { // for NCCH / NCSD files
-        if (!ShowProgress(offset, fsize, dest)) ret = 1;
+    if (!ShowProgress(offset, fsize, dest)) ret = 1;
+    if (mode & (GAME_NCCH|GAME_NCSD|SYS_FIRM)) { // for NCCH / NCSD / FIRM files 
         for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
             if (fx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (((mode & GAME_NCCH) && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
-                ((mode & GAME_NCSD) && (DecryptNcsdSequential(MAIN_BUFFER, i, read_bytes) != 0)))
+                ((mode & GAME_NCSD) && (DecryptNcsdSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
+                ((mode & SYS_FIRM) && (DecryptFirmSequential(MAIN_BUFFER, i, read_bytes) != 0)))
                 ret = 1;
             if (inplace) f_lseek(ofp, f_tell(ofp) - read_bytes);
             if (fx_write(dfp, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
@@ -591,7 +658,6 @@ u32 DecryptNcchNcsdFile(const char* orig, const char* dest, u32 mode,
             if (!ShowProgress(offset + i + read_bytes, fsize, dest)) ret = 1;
         }
     } else if (mode & GAME_CIA) { // for NCCHs inside CIAs
-        if (!ShowProgress(offset, fsize, dest)) ret = 1;
         bool cia_crypto = getbe16(chunk->type) & 0x1;
         bool ncch_crypto; // find out by decrypting the NCCH header
         UINT bytes_read, bytes_written;
@@ -654,7 +720,7 @@ u32 DecryptCiaFile(const char* orig, const char* dest) {
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         u64 size = getbe64(chunk->size);
-        if (DecryptNcchNcsdFile(orig, dest, GAME_CIA, next_offset, size, chunk, titlekey) != 0)
+        if (DecryptNcchNcsdFirmFile(orig, dest, GAME_CIA, next_offset, size, chunk, titlekey) != 0)
             return 1;
         next_offset += size;
     }
@@ -663,6 +729,65 @@ u32 DecryptCiaFile(const char* orig, const char* dest) {
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, dest) != 0)) return 1;
     
+    return 0;
+}
+
+u32 DecryptFirmFile(const char* orig, const char* dest) {
+    const u8 dec_magic[] = { 'D', 'E', 'C', '\0' }; // insert to decrypted firms
+    FirmHeader firm;
+    FIL file;
+    UINT btr;
+    
+    // actual decryption
+    if (DecryptNcchNcsdFirmFile(orig, dest, SYS_FIRM, 0, 0, NULL, NULL) != 0)
+        return 1;
+    
+    // open destination file, get FIRM header
+    if (fx_open(&file, dest, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    f_lseek(&file, 0);
+    if ((fx_read(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) ||
+        (ValidateFirmHeader(&firm) != 0)) {
+        fx_close(&file);
+        return 1;
+    }
+    
+    // find ARM9 section
+    FirmSectionHeader* arm9s = FindFirmArm9Section(&firm);
+    if (!arm9s || !arm9s->size) return 1;
+    
+    // decrypt ARM9 loader header
+    FirmA9LHeader a9l;
+    f_lseek(&file, arm9s->offset);
+    if ((fx_read(&file, &a9l, sizeof(FirmA9LHeader), &btr) != FR_OK) ||
+        (DecryptA9LHeader(&a9l) != 0) || (f_lseek(&file, arm9s->offset) != FR_OK) ||
+        (fx_write(&file, &a9l, sizeof(FirmA9LHeader), &btr) != FR_OK)) {
+        fx_close(&file);
+        return 1;
+    }
+    
+    // calculate new hash for ARM9 section 
+    f_lseek(&file, arm9s->offset);
+    sha_init(SHA256_MODE);
+    for (u32 i = 0; i < arm9s->size; i += MAIN_BUFFER_SIZE) {
+        u32 read_bytes = min(MAIN_BUFFER_SIZE, (arm9s->size - i));
+        if ((fx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes)) {
+            fx_close(&file);
+            return 1;
+        }
+        sha_update(MAIN_BUFFER, read_bytes);
+    }
+    sha_get(arm9s->hash);
+    
+    // write back FIRM header
+    f_lseek(&file, 0);
+    memcpy(firm.dec_magic, dec_magic, sizeof(dec_magic));
+    if (fx_write(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) {
+        fx_close(&file);
+        return 1;
+    }
+    
+    fx_close(&file);
     return 0;
 }
 
@@ -688,8 +813,10 @@ u32 DecryptGameFile(const char* path, bool inplace) {
     
     if (filetype & GAME_CIA)
         ret = DecryptCiaFile(path, destptr);
+    else if (filetype & SYS_FIRM)
+        ret = DecryptFirmFile(path, destptr);
     else if (filetype & (GAME_NCCH|GAME_NCSD))
-        ret = DecryptNcchNcsdFile(path, destptr, filetype, 0, 0, NULL, NULL);
+        ret = DecryptNcchNcsdFirmFile(path, destptr, filetype, 0, 0, NULL, NULL);
     else ret = 1;
     
     if (!inplace && (ret != 0))

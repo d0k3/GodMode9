@@ -599,7 +599,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype == GAME_NCCH ) ? "NCCH image options..." :
         (filetype == GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype == GAME_ROMFS) ? "Mount as ROMFS image"  :
-        (filetype == GAME_TMD)   ? "TMD file options..." : "???";
+        (filetype == GAME_TMD)   ? "TMD file options..."   :
+        (filetype == SYS_FIRM)   ? "FIRM image options..." : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
