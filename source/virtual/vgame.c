@@ -494,7 +494,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
         if (arm9s && (ReadImageBytes((u8*) a9l, arm9s->offset, sizeof(FirmA9LHeader)) == 0) &&
             (ValidateFirmA9LHeader(a9l) == 0) &&
-            (SetupArm9BinaryCrypto(a9l)))
+            ((SetupArm9BinaryCrypto(a9l)) == 0))
             offset_a9bin = arm9s->offset + ARM9BIN_OFFSET;
         if (!BuildVGameFirmDir()) return false;
     } if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
@@ -683,7 +683,7 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
     }
     if (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH))
         return ReadNcchImageBytes(buffer, vfoffset + offset, count);
-    else if (vfile->flags & VFLAG_FIRM_ARM9)
+    else if (offset_a9bin != (u64) -1)
         return ReadFirmImageBytes(buffer, vfoffset + offset, count);
     else return ReadImageBytes(buffer, vfoffset + offset, count);
 }
