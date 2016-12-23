@@ -41,7 +41,7 @@
 #define VERSION "0.9.1"
 
 // input / output paths
-#define INPUT_PATHS     "0:", "0:/files9", "0:/Decrypt9"
+#define INPUT_PATHS     "0:", "0:/files9", "1:/rw/files9"
 #define OUTPUT_PATH     "0:/gm9out"
 
 // buffer area defines (in use by godmode.c)
