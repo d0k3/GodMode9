@@ -5,7 +5,11 @@ GodMode9 is a full access file browser for the Nintendo 3DS console, giving you 
 
 
 ## Warning
-__This is powerful stuff__, but precautions are taken so you don't accidentially damage the filesystem of your console. The write permissions system protects you by providing warnings and forces you to enter an unlock sequence for enabling write permissions. It is not possible to overwrite or modify any important stuff without such unlock sequences. After unlocking write permissions (accidential unlock is impossible), on SysNAND, any writing change to your CTRNAND can result in a brick (still recoverable via A9LH). Writing changes to your TWLN partition can lead to a partial brick, leading to your console not being able to run DSiWare / DS cartridges anymore. If you unlock the A9LH write permission, you are also able to overwrite and remove the A9LH installation in your system, which allows you to full brick your console (in that case, only recoverable via hardmod). As always, be smart, keep backups, just to be safe.
+__This is powerful stuff__, but precautions are taken so you don't accidentially damage the filesystem of your console. The write permissions system protects you by providing warnings and forces you to enter an unlock sequence for enabling write permissions. It is not possible to overwrite or modify any important stuff without such unlock sequences and it is not possible to accidentially unlock something.
+
+After unlocking write permissions on SysNAND, any writing change to your CTRNAND can result in a brick (still recoverable via A9LH). Writing changes to your TWLN partition can lead to a partial brick, leading to your console not being able to run DSiWare / DS cartridges anymore. If you unlock the A9LH write permission, you are able to overwrite and remove the A9LH installation in your system, which allows you to full brick your console (in that case, only recoverable via hardmod).
+
+__As always, be smart, keep backups, just to be safe__.
 
 
 ## What you can do with GodMode9
