@@ -989,8 +989,10 @@ u32 GodMode() {
                 ShowPrompt(false, "Not allowed in virtual path");
             } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
-                for (u32 c = 0; c < current_dir->n_entries; c++)
-                    if (current_dir->entry[c].marked) n_marked++;
+                if (curr_entry->marked) {
+                    for (u32 c = 0; c < current_dir->n_entries; c++)
+                        if (current_dir->entry[c].marked) n_marked++;
+                }
                 if (n_marked) {
                     if (ShowPrompt(true, "Delete %u path(s)?", n_marked)) {
                         u32 n_errors = 0;
