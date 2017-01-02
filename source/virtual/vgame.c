@@ -3,6 +3,7 @@
 #include "game.h"
 #include "aes.h"
 
+#define VFLAG_FIRM_SECTION  (1<<22)
 #define VFLAG_FIRM_ARM9     (1<<23)
 #define VFLAG_FIRM          (1<<24)
 #define VFLAG_EXEFS_FILE    (1<<25)
@@ -381,7 +382,7 @@ bool BuildVGameFirmDir(void) {
         templates[n].offset = section->offset;
         templates[n].size = section->size;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_FIRM_SECTION;
         n++;
         if (section->type == 0) { // ARM9 section, search for Process9
             u8* buffer = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
@@ -683,7 +684,7 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
     }
     if (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH))
         return ReadNcchImageBytes(buffer, vfoffset + offset, count);
-    else if (offset_a9bin != (u64) -1)
+    else if ((offset_a9bin != (u64) -1) && !(vfile->flags & VFLAG_FIRM_SECTION))
         return ReadFirmImageBytes(buffer, vfoffset + offset, count);
     else return ReadImageBytes(buffer, vfoffset + offset, count);
 }
