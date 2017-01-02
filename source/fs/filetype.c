@@ -1,5 +1,6 @@
 #include "filetype.h"
 #include "fsutil.h"
+#include "fatmbr.h"
 #include "game.h"
 
 u32 IdentifyFileType(const char* path) {
@@ -12,17 +13,13 @@ u32 IdentifyFileType(const char* path) {
     if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
         (getbe64(header + 0x108) == (u64) 0) && (fsize >= 0x8FC8000)) {
         return IMG_NAND; // NAND image
-    } else if (getbe16(header + 0x1FE) == 0x55AA) { // migt be FAT or MBR
-        if ((strncmp((char*) header + 0x36, "FAT12   ", 8) == 0) || (strncmp((char*) header + 0x36, "FAT16   ", 8) == 0) ||
-            (strncmp((char*) header + 0x36, "FAT     ", 8) == 0) || (strncmp((char*) header + 0x52, "FAT32   ", 8) == 0) ||
-            ((getle64(header + 0x36) == 0) && (getle16(header + 0x0B) == 0x200))) { // last one is a special case for public.sav
-            return IMG_FAT; // this is an actual FAT header
-        } else if (((getle32(header + 0x1BE + 0x8) + getle32(header + 0x1BE + 0xC)) < (fsize / 0x200)) && // check file size
-            (getle32(header + 0x1BE + 0x8) > 0) && (getle32(header + 0x1BE + 0xC) >= 0x800) && // check first partition sanity
-            ((header[0x1BE + 0x4] == 0x1) || (header[0x1BE + 0x4] == 0x4) || (header[0x1BE + 0x4] == 0x6) || // filesystem type
-             (header[0x1BE + 0x4] == 0xB) || (header[0x1BE + 0x4] == 0xC) || (header[0x1BE + 0x4] == 0xE))) {
-            return IMG_FAT; // this might be an MBR -> give it the benefit of doubt
-        }
+    } else if (ValidateFatHeader(header) == 0) {
+        return IMG_FAT; // FAT image file
+    } else if (ValidateMbrHeader((MbrHeader*) (void*) header) == 0) {
+        MbrHeader* mbr = (MbrHeader*) (void*) header;
+        MbrPartitionInfo* partition0 = mbr->partitions;
+        if ((partition0->sector + partition0->count) <= (fsize / 0x200)) // size check
+            return IMG_FAT; // possibly an MBR -> also treat as FAT image
     } else if (ValidateCiaHeader((CiaHeader*) (void*) header) == 0) {
         // this only works because these functions ignore CIA content index
         CiaInfo info;

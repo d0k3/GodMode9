@@ -6,6 +6,7 @@
 #include "fsutil.h"
 #include "fsperm.h"
 #include "gameutil.h"
+#include "nandutil.h"
 #include "filetype.h"
 #include "platform.h"
 #include "nand.h"
@@ -576,6 +577,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
     bool buildable = (filetype & FTYPE_BUILDABLE);
     bool buildable_legit = (filetype & FTYPE_BUILDABLE_L);
+    bool restorable = CheckA9lh() && (filetype & FTYPE_RESTORABLE);
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -592,7 +594,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (int) ++n_opt : -1;
     int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
     if (special > 0) optionstr[special-1] =
-        (filetype == IMG_NAND  ) ? "Mount as NAND image"   :
+        (filetype == IMG_NAND  ) ? "NAND image options..." :
         (filetype == IMG_FAT   ) ? "Mount as FAT image"    :
         (filetype == GAME_CIA  ) ? "CIA image options..."  :
         (filetype == GAME_NCSD ) ? "NCSD image options..." :
@@ -640,12 +642,14 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     // stuff for special menu starts here
     n_opt = 0;
     int mount = (mountable) ? ++n_opt : -1;
+    int restore = (restorable) ? ++n_opt : -1;
     int decrypt = (decryptable) ? ++n_opt : -1;
     int decrypt_inplace = (decryptable_inplace) ? ++n_opt : -1;
     int build = (buildable) ? ++n_opt : -1;
     int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
+    if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (decrypt > 0) optionstr[decrypt-1] = "Decrypt file (SD output)";
     if (decrypt_inplace > 0) optionstr[decrypt_inplace-1] = "Decrypt file (inplace)";
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
@@ -752,7 +756,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             else ShowPrompt(false, "%s\nCIA build failed", pathstr);
         }
         return 0;
-    } else if (user_select == verify) { // -> verify game file
+    } else if (user_select == verify) { // -> verify game / nand file
         if ((n_marked > 1) && ShowPrompt(true, "Try to verify all %lu selected files?", n_marked)) {
             u32 n_success = 0;
             u32 n_other = 0; 
@@ -768,7 +772,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 if (!(filetype & (GAME_CIA|GAME_TMD)) &&
                     !ShowProgress(n_processed++, n_marked, path)) break;
                 current_dir->entry[i].marked = false;
-                if (VerifyGameFile(path) == 0) n_success++;
+                if (filetype & IMG_NAND) {
+                    if (ValidateNandDump(path) == 0) n_success++;
+                } else if (VerifyGameFile(path) == 0) n_success++;
                 else { // on failure: set *cursor on failed title, break;
                     *cursor = i;
                     break;
@@ -779,10 +785,16 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             else ShowPrompt(false, "%lu/%lu files verified ok", n_success, n_marked); 
         } else {
             ShowString("%s\nVerifying file, please wait...", pathstr);
-            ShowPrompt(false, "%s\nVerification %s", pathstr,
+            if (filetype & IMG_NAND) {
+                ShowPrompt(false, "%s\nNAND validation %s", pathstr,
+                    (ValidateNandDump(curr_entry->path) == 0) ? "success" : "failed");
+            } else ShowPrompt(false, "%s\nVerification %s", pathstr,
                 (VerifyGameFile(curr_entry->path) == 0) ? "success" : "failed");
         }
         return 0;
+    } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
+        ShowPrompt(false, "%s\nNAND restore %s", pathstr,
+            (SafeRestoreNandDump(curr_entry->path) == 0) ? "success" : "failed");
     }
     
     return 1;

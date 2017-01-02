@@ -10,6 +10,9 @@
 #define NAND_TYPE_N3DS  (1<<5)
 #define NAND_TYPE_NO3DS (1<<6)
 
+#define NAND_MIN_SECTORS_O3DS 0x1D7800
+#define NAND_MIN_SECTORS_N3DS 0x26C000
+
 bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
@@ -23,6 +26,7 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 src);
 int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 dest);
 
 u64 GetNandSizeSectors(u32 src);
+u32 CheckNandHeader(u8* header);
 u32 CheckNandType(u32 src);
 
 bool InitEmuNandBase(void);
