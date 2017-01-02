@@ -27,7 +27,8 @@ static const VirtualFile vNandFileTemplates[] = {
     { "nand_minsize.bin" , 0x00000000, 0x3AF00000, 0xFF, VFLAG_ON_O3DS | VFLAG_A9LH_AREA },
     { "nand_minsize.bin" , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_A9LH_AREA },
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND | VFLAG_A9LH_AREA },
-    { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND | VFLAG_A9LH_AREA }
+    { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND | VFLAG_A9LH_AREA },
+    { "unused.bin"       , 0x00000200, 0x00012A00, 0xFF, VFLAG_ON_NAND }
 };
 
 bool CheckVNandDrive(u32 nand_src) {
