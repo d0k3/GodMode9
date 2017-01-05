@@ -44,5 +44,5 @@ u32 FixAgbSaveCmac(u32 nand_dst) {
     // https://www.3dbrew.org/wiki/CONFIG_Registers#CFG_BOOTENV
     *(u32*) 0x10010000 = 0x7;
     
-    return (WriteNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_dst) != 0) ? 0 : 1;
+    return (WriteNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_dst) == 0) ? 0 : 1;
 }
