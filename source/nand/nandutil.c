@@ -20,8 +20,8 @@ u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
 }
 
 u32 ValidateNandDump(const char* path) {
-    const u32 mbr_sectors[] = { TWL_OFFSET, CTR_OFFSET };
-    const u32 firm_sectors[] = { FIRM_OFFSETS };
+    const u32 mbr_sectors[] = { SECTOR_TWL, SECTOR_CTR };
+    const u32 firm_sectors[] = { SECTOR_FIRM0, SECTOR_FIRM1 };
     u8 buffer[0x200];
     FirmHeader firm;
     MbrHeader mbr;
