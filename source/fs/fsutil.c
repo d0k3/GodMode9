@@ -750,9 +750,9 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
             PathCopyWorker(fdpath, fopath, flags, false);
         return res;
     } else if (!(odrvtype & DRV_VIRTUAL)) { // FAT to virtual
-        if (!(odrvtype & (DRV_SDCARD|DRV_RAMDRIVE))) {
-            ShowPrompt(false, "Only files from SD card or\nramdrive are accepted");
-            return false;
+        if (odrvtype & ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
+            ShowPrompt(false, "Copy operation is not allowed");
+            return false; // prevent illegal operations
         }
         return PathCopyFatToVrt(destdir, orig);
     } else return PathCopyVrtToVrt(destdir, orig); // virtual to virtual
