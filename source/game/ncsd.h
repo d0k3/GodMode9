@@ -33,5 +33,5 @@ typedef struct {
 } __attribute__((packed)) NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
-u32 GetNcsdTrimmedSize(NcsdHeader* header);
+u64 GetNcsdTrimmedSize(NcsdHeader* header);
 u32 DecryptNcsdSequential(u8* data, u32 offset_data, u32 size_data);

@@ -10,16 +10,17 @@
 #define VRT_XORPAD  NAND_ZERONAND
 #define VRT_MEMORY  (1<<10)
 #define VRT_GAME    (1<<11)
+#define VRT_CART    (1<<12)
 
-#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME)
+#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_CART)
 
 #define VFLAG_DIR       (1<<16)
 #define VFLAG_ROOT      (1<<17)
 #define VFLAG_A9LH_AREA (1<<18)
 #define VFLAG_LV3       (1<<19)
 
-#define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, \
-                    {'X', VRT_XORPAD }, {'M', VRT_MEMORY}, {'G', VRT_GAME}
+#define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
+                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'C', VRT_CART}
 
 // virtual file flag (subject to change):
 // bits 0...9  : reserved for NAND virtual sources and info

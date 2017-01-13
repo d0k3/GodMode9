@@ -5,7 +5,7 @@
 
 #define NORM_FS  10
 #define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  9
+#define VIRT_FS  10
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
@@ -20,9 +20,10 @@
 #define DRV_RAMDRIVE    (1<<7)
 #define DRV_MEMORY      (1<<8)
 #define DRV_GAME        (1<<9)
-#define DRV_ALIAS       (1<<10)
-#define DRV_SEARCH      (1<<11)
-#define DRV_STDFAT      (1<<12) // standard FAT drive without limitations
+#define DRV_CART        (1<<10)
+#define DRV_ALIAS       (1<<11)
+#define DRV_SEARCH      (1<<12)
+#define DRV_STDFAT      (1<<13) // standard FAT drive without limitations
 
 #define FS_DRVNAME \
         "SDCARD", \
@@ -31,13 +32,14 @@
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP", \
         "GAME IMAGE", \
         "SYSNAND SD", "EMUNAND SD", \
+        "GAMECART", \
         "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL", \
         "NAND XORPADS", \
         "MEMORY VIRTUAL", \
         "LAST SEARCH" \
         
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "G:", "A:", "B:", "S:", "E:", "I:", "X:", "M:", "Z:"
+    "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "G:", "A:", "B:", "C:", "S:", "E:", "I:", "X:", "M:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);

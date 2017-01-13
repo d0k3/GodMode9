@@ -2,6 +2,7 @@
 #include "vnand.h"
 #include "vmem.h"
 #include "vgame.h"
+#include "vcart.h"
 
 typedef struct {
     char drv_letter;
@@ -30,7 +31,7 @@ bool CheckVirtualDrive(const char* path) {
         return CheckVNandDrive(virtual_src); // check virtual NAND drive for EmuNAND / ImgNAND
     else if (virtual_src & VRT_GAME)
         return CheckVGameDrive();
-    return virtual_src; // this is safe for SysNAND & memory
+    return virtual_src; // this is safe for SysNAND, memory & cart
 }
 
 bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
@@ -42,6 +43,8 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
         ret = ReadVMemDir(vfile, vdir);
     } else if (virtual_src & VRT_GAME) {
         ret = ReadVGameDir(vfile, vdir);
+    } else if (virtual_src & VRT_CART) {
+        ret = ReadVCartDir(vfile, vdir);
     }
     vfile->flags |= virtual_src; // add source flag
     return ret;
@@ -167,6 +170,8 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count,
         return ReadVMemFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_GAME) {
         return ReadVGameFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_CART) {
+        return ReadVCartFile(vfile, buffer, offset, count);
     }
     
     return -1;
@@ -184,7 +189,7 @@ int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32
         return WriteVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return WriteVMemFile(vfile, buffer, offset, count);
-    } // no write support for virtual game files
+    } // no write support for virtual game / cart files
     
     return -1;
 }

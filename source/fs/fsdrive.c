@@ -45,6 +45,8 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_MEMORY;
         } else if (vsrc == VRT_GAME) {
             type = DRV_VIRTUAL | DRV_GAME | DRV_IMAGE;
+        } else if (vsrc == VRT_CART) {
+            type = DRV_VIRTUAL | DRV_CART;
         } 
     }
     

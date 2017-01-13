@@ -32,6 +32,9 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_GAME) {
         perm = PERM_GAME;
         snprintf(area_name, 16, "game images");
+    } else if (drvtype & DRV_CART) {
+        perm = PERM_CART;
+        snprintf(area_name, 16, "gamecarts");
     } else if (drvtype & DRV_XORPAD) {
         perm = PERM_XORPAD;
         snprintf(area_name, 16, "XORpads");

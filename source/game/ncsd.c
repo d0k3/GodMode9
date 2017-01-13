@@ -22,7 +22,7 @@ u32 ValidateNcsdHeader(NcsdHeader* header) {
     return 0;
 }
 
-u32 GetNcsdTrimmedSize(NcsdHeader* header) {
+u64 GetNcsdTrimmedSize(NcsdHeader* header) {
     u32 data_units = 0;
     for (u32 i = 0; i < 8; i++) {
         NcchPartition* partition = header->partitions + i;
