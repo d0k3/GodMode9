@@ -29,7 +29,7 @@ typedef struct {
 	u8  sector_zero_offset[0x4];
 	u8  partition_flags[8];
 	u8  partitionId_table[8][8];
-	u8  reserved[0x40];
+	u8  reserved[0x30];
 } __attribute__((packed)) NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
