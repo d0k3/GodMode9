@@ -572,21 +572,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     u32 filetype = IdentifyFileType(curr_entry->path);
     u32 drvtype = DriveType(curr_entry->path);
     
-    // special stuff, only available on FAT drives (see int special below)
+    // special stuff, only available for known filetypes (see int special below)
     bool mountable = ((filetype & FTYPE_MOUNTABLE) && !(drvtype & DRV_IMAGE));
     bool verificable = (filetype & FYTPE_VERIFICABLE);
     bool decryptable = (filetype & FYTPE_DECRYPTABLE);
     bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
     bool buildable = (filetype & FTYPE_BUILDABLE);
     bool buildable_legit = (filetype & FTYPE_BUILDABLE_L);
-    bool restorable = CheckA9lh() && (filetype & FTYPE_RESTORABLE);
+    bool restorable = (CheckA9lh() && (filetype & FTYPE_RESTORABLE) && !(drvtype & DRV_SYSNAND));
+    bool special_opt = mountable || verificable || decryptable || decryptable_inplace ||
+        buildable || buildable_legit || restorable;
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
     
     // main menu processing
     int n_opt = 0;
-    int special = (filetype && (drvtype & DRV_FAT)) ? ++n_opt : -1;
+    int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
     int calcsha = ++n_opt;
     int inject = ((clipboard->n_entries == 1) &&

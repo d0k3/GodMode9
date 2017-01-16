@@ -3,10 +3,9 @@
 #include "ui.h"
 #include "fsperm.h"
 #include "filetype.h"
-#include "sddata.h"
 #include "aes.h"
 #include "sha.h"
-#include "ff.h"
+#include "vff.h"
 
 u32 GetOutputPath(char* dest, const char* path, const char* ext) {
     // special handling for input from title directories (somewhat hacky)
@@ -36,17 +35,17 @@ u32 GetOutputPath(char* dest, const char* path, const char* ext) {
 }
 
 u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file) {
-    u32 offset_ncch = f_tell(file);
+    u32 offset_ncch = fvx_tell(file);
     UINT btr;
     
-    if ((fx_read(file, ncch, sizeof(NcchHeader), &btr) != FR_OK) ||
+    if ((fvx_read(file, ncch, sizeof(NcchHeader), &btr) != FR_OK) ||
         (ValidateNcchHeader(ncch) != 0))
         return 1;
     
     if (exthdr) {
         if (!ncch->size_exthdr) return 1;
-        f_lseek(file, offset_ncch + NCCH_EXTHDR_OFFSET);
-        if ((fx_read(file, exthdr, NCCH_EXTHDR_SIZE, &btr) != FR_OK) ||
+        fvx_lseek(file, offset_ncch + NCCH_EXTHDR_OFFSET);
+        if ((fvx_read(file, exthdr, NCCH_EXTHDR_SIZE, &btr) != FR_OK) ||
             (DecryptNcch((u8*) exthdr, NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_SIZE, ncch, NULL) != 0))
             return 1;
     }
@@ -54,8 +53,8 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
     if (exefs) {
         if (!ncch->size_exefs) return 1;
         u32 offset_exefs = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
-        f_lseek(file, offset_exefs);
-        if ((fx_read(file, exefs, sizeof(ExeFsHeader), &btr) != FR_OK) ||
+        fvx_lseek(file, offset_exefs);
+        if ((fvx_read(file, exefs, sizeof(ExeFsHeader), &btr) != FR_OK) ||
             (DecryptNcch((u8*) exefs, ncch->offset_exefs * NCCH_MEDIA_UNIT, sizeof(ExeFsHeader), ncch, NULL) != 0) ||
             (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
             return 1;
@@ -65,14 +64,14 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
 }
 
 u32 CheckNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, NcchHeader* ncch, ExeFsHeader* exefs) {
-    u32 offset_data = f_tell(file) - offset_ncch;
+    u32 offset_data = fvx_tell(file) - offset_ncch;
     u8 hash[32];
     
     sha_init(SHA256_MODE);
     for (u32 i = 0; i < size_data; i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (size_data - i));
         UINT bytes_read;
-        fx_read(file, MAIN_BUFFER, read_bytes, &bytes_read);
+        fvx_read(file, MAIN_BUFFER, read_bytes, &bytes_read);
         DecryptNcch(MAIN_BUFFER, offset_data + i, read_bytes, ncch, exefs);
         sha_update(MAIN_BUFFER, read_bytes);
     }
@@ -85,14 +84,14 @@ u32 LoadNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs,
     FIL file;
     
     // open file, get NCCH header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, offset);
+    fvx_lseek(&file, offset);
     if (GetNcchHeaders(ncch, exthdr, exefs, &file) != 0) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
-    fx_close(&file);
+    fvx_close(&file);
     
     return 0;
 }
@@ -102,15 +101,15 @@ u32 LoadNcsdHeader(NcsdHeader* ncsd, const char* path) {
     UINT btr;
     
     // open file, get NCSD header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, 0);
-    if ((fx_read(&file, ncsd, sizeof(NcsdHeader), &btr) != FR_OK) ||
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, ncsd, sizeof(NcsdHeader), &btr) != FR_OK) ||
         (ValidateNcsdHeader(ncsd) != 0)) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
-    fx_close(&file);
+    fvx_close(&file);
     
     return 0;
 }
@@ -120,26 +119,26 @@ u32 LoadCiaStub(CiaStub* stub, const char* path) {
     UINT btr;
     CiaInfo info;
     
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
     // first 0x20 byte of CIA header
-    f_lseek(&file, 0);
-    if ((fx_read(&file, stub, 0x20, &btr) != FR_OK) || (btr != 0x20) ||
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, stub, 0x20, &btr) != FR_OK) || (btr != 0x20) ||
         (ValidateCiaHeader(&(stub->header)) != 0)) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     GetCiaInfo(&info, &(stub->header));
     
     // everything up till content offset
-    f_lseek(&file, 0);
-    if ((fx_read(&file, stub, info.offset_content, &btr) != FR_OK) || (btr != info.offset_content)) {
-        fx_close(&file);
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, stub, info.offset_content, &btr) != FR_OK) || (btr != info.offset_content)) {
+        fvx_close(&file);
         return 1;
     }
     
-    fx_close(&file);
+    fvx_close(&file);
     return 0;
 }
 
@@ -151,12 +150,12 @@ u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u3
     u32 ret = 0;
     
     // open file, get NCCH, ExeFS header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, offset);
+    fvx_lseek(&file, offset);
     if ((GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0) ||
         (!ncch.size_exefs)) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
@@ -174,15 +173,15 @@ u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u3
     if (exefile) {
         u32 size_exefile = exefile->size;
         u32 offset_exefile = (ncch.offset_exefs * NCCH_MEDIA_UNIT) + sizeof(ExeFsHeader) + exefile->offset;
-        f_lseek(&file, offset + offset_exefile); // offset to file
-        if ((fx_read(&file, data, size_exefile, &btr) != FR_OK) ||
+        fvx_lseek(&file, offset + offset_exefile); // offset to file
+        if ((fvx_read(&file, data, size_exefile, &btr) != FR_OK) ||
             (DecryptNcch(data, offset_exefile, size_exefile, &ncch, &exefs) != 0) ||
             (btr != size_exefile)) {
             ret = 1;
         }
     } else ret = 1;
     
-    fx_close(&file);
+    fvx_close(&file);
     return ret;
 }
 
@@ -204,19 +203,19 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     FIL file;
     UINT btr;
     
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
     // full TMD file
-    f_lseek(&file, 0);
-    if ((fx_read(&file, tmd, TMD_SIZE_MAX, &btr) != FR_OK) ||
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, tmd, TMD_SIZE_MAX, &btr) != FR_OK) ||
         (memcmp(tmd->sig_type, magic, sizeof(magic)) != 0) ||
         (btr < TMD_SIZE_N(getbe16(tmd->content_count)))) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
-    fx_close(&file);
+    fvx_close(&file);
     return 0;
 }
 
@@ -228,15 +227,15 @@ u32 WriteCiaStub(CiaStub* stub, const char* path) {
     GetCiaInfo(&info, &(stub->header));
     
     // everything up till content offset
-    if (fx_open(&file, path, FA_WRITE | FA_OPEN_ALWAYS) != FR_OK)
+    if (fvx_open(&file, path, FA_WRITE | FA_OPEN_ALWAYS) != FR_OK)
         return 1;
-    f_lseek(&file, 0);
-    if ((fx_write(&file, stub, info.offset_content, &btw) != FR_OK) || (btw != info.offset_content)) {
-        fx_close(&file);
+    fvx_lseek(&file, 0);
+    if ((fvx_write(&file, stub, info.offset_content, &btw) != FR_OK) || (btw != info.offset_content)) {
+        fvx_close(&file);
         return 1;
     }
     
-    fx_close(&file);
+    fvx_close(&file);
     return 0;
 }
 
@@ -250,26 +249,26 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
     bool encrypted = getbe16(chunk->type) & 0x1;
     
     if (!ShowProgress(0, 0, path)) return 1;
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    if (offset + size > f_size(&file)) {
-        fx_close(&file);
+    if (offset + size > fvx_size(&file)) {
+        fvx_close(&file);
         return 1;
     }
-    f_lseek(&file, offset);
+    fvx_lseek(&file, offset);
     
     GetTmdCtr(ctr, chunk);
     sha_init(SHA256_MODE);
     for (u32 i = 0; i < size; i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
         UINT bytes_read;
-        fx_read(&file, MAIN_BUFFER, read_bytes, &bytes_read);
+        fvx_read(&file, MAIN_BUFFER, read_bytes, &bytes_read);
         if (encrypted) DecryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey);
         sha_update(MAIN_BUFFER, read_bytes);
         if (!ShowProgress(i + read_bytes, size, path)) break;
     }
     sha_get(hash);
-    fx_close(&file);
+    fvx_close(&file);
     
     return memcmp(hash, expected, 32);
 }
@@ -283,35 +282,35 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     TruncateString(pathstr, path, 32, 8);
     
     // open file, get NCCH, ExeFS header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
-    f_lseek(&file, offset);
+    fvx_lseek(&file, offset);
     if (GetNcchHeaders(&ncch, NULL, NULL, &file) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
-    f_lseek(&file, offset);
+    fvx_lseek(&file, offset);
     if (ncch.size_exefs && (GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0)) {
         if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
     // size checks
-    if (!size) size = f_size(&file) - offset;
-    if ((f_size(&file) < offset) || (size < ncch.size * NCCH_MEDIA_UNIT)) {
+    if (!size) size = fvx_size(&file) - offset;
+    if ((fvx_size(&file) < offset) || (size < ncch.size * NCCH_MEDIA_UNIT)) {
         if (!offset) ShowPrompt(false, "%s\nError: File is too small", pathstr);
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
     // check / setup crypto
     if (SetupNcchCrypto(&ncch) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Crypto not set up", pathstr);
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
@@ -321,19 +320,19 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     
     // base hash check for extheader
     if (ncch.size_exthdr > 0) {
-        f_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
+        fvx_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
         ver_exthdr = CheckNcchHash(ncch.hash_exthdr, &file, 0x400, offset, &ncch, NULL);
     }
     
     // base hash check for exefs
     if (ncch.size_exefs > 0) {
-        f_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
+        fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
         ver_exefs = CheckNcchHash(ncch.hash_exefs, &file, ncch.size_exefs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs);
     }
     
     // base hash check for romfs
     if (ncch.size_romfs > 0) {
-        f_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
+        fvx_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
         ver_romfs = CheckNcchHash(ncch.hash_romfs, &file, ncch.size_romfs_hash * NCCH_MEDIA_UNIT, offset, &ncch, NULL);
     }
     
@@ -343,7 +342,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
             ExeFsFileHeader* exefile = exefs.files + i;
             u8* hash = exefs.hashes[9 - i];
             if (!exefile->size) continue;
-            f_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset);
+            fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset);
             ver_exefs = CheckNcchHash(hash, &file, exefile->size, offset, &ncch, &exefs);
         }
     }
@@ -355,7 +354,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
             (!ncch.size_romfs) ? "-" : (ver_romfs == 0) ? "ok" : "fail");
     }
     
-    fx_close(&file);
+    fvx_close(&file);
     return ver_exthdr|ver_exefs|ver_romfs;
 }
 
@@ -468,12 +467,12 @@ u32 VerifyFirmFile(const char* path) {
     UINT btr;
     
     // open file, get FIRM header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, 0);
-    if ((fx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
         (ValidateFirmHeader(&header) != 0)) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
@@ -482,11 +481,11 @@ u32 VerifyFirmFile(const char* path) {
         FirmSectionHeader* section = header.sections + i;
         u32 size = section->size;
         if (!size) continue;
-        f_lseek(&file, section->offset);
+        fvx_lseek(&file, section->offset);
         sha_init(SHA256_MODE);
         for (u32 i = 0; i < size; i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
-            fx_read(&file, MAIN_BUFFER, read_bytes, &btr);
+            fvx_read(&file, MAIN_BUFFER, read_bytes, &btr);
             sha_update(MAIN_BUFFER, read_bytes);
         }
         u8 hash[0x20];
@@ -495,11 +494,11 @@ u32 VerifyFirmFile(const char* path) {
             char pathstr[32 + 1];
             TruncateString(pathstr, path, 32, 8);
             ShowPrompt(false, "%s\nSection %u hash mismatch", pathstr, i);
-            fx_close(&file);
+            fvx_close(&file);
             return 1;
         }
     }
-    fx_close(&file);
+    fvx_close(&file);
     
     return 0;
 }
@@ -573,12 +572,12 @@ u32 CheckEncryptedFirmFile(const char* path) {
     UINT btr;
     
     // open file, get FIRM header
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, 0);
-    if ((fx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
         (ValidateFirmHeader(&header) != 0)) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
@@ -586,15 +585,15 @@ u32 CheckEncryptedFirmFile(const char* path) {
     FirmSectionHeader* arm9s = FindFirmArm9Section(&header);
     if (arm9s) {
         FirmA9LHeader a9l;
-        f_lseek(&file, arm9s->offset);
-        if ((fx_read(&file, &a9l, sizeof(FirmA9LHeader), &btr) == FR_OK) &&
+        fvx_lseek(&file, arm9s->offset);
+        if ((fvx_read(&file, &a9l, sizeof(FirmA9LHeader), &btr) == FR_OK) &&
             (ValidateFirmA9LHeader(&a9l) == 0)) {
-            fx_close(&file);
+            fvx_close(&file);
             return 0;
         }
     }
     
-    fx_close(&file);
+    fvx_close(&file);
     return 1;
 }
 
@@ -623,21 +622,21 @@ u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
     
     // open file(s)
     if (inplace) {
-        if (fx_open(ofp, orig, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        if (fvx_open(ofp, orig, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
             return 1;
-        f_lseek(ofp, offset);
+        fvx_lseek(ofp, offset);
     } else {
-        if (fx_open(ofp, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        if (fvx_open(ofp, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return 1;
-        if (fx_open(dfp, dest, FA_WRITE | (offset ? FA_OPEN_ALWAYS : FA_CREATE_ALWAYS)) != FR_OK) {
-            fx_close(ofp);
+        if (fvx_open(dfp, dest, FA_WRITE | (offset ? FA_OPEN_ALWAYS : FA_CREATE_ALWAYS)) != FR_OK) {
+            fvx_close(ofp);
             return 1;
         }
-        f_lseek(ofp, offset);
-        f_lseek(dfp, offset);
+        fvx_lseek(ofp, offset);
+        fvx_lseek(dfp, offset);
     }
     
-    fsize = f_size(ofp); // for progress bar
+    fsize = fvx_size(ofp); // for progress bar
     if (!size) size = fsize;
     
     u32 ret = 0;
@@ -646,13 +645,13 @@ u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
         for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
-            if (fx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
+            if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (((mode & GAME_NCCH) && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
                 ((mode & GAME_NCSD) && (DecryptNcsdSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
                 ((mode & SYS_FIRM) && (DecryptFirmSequential(MAIN_BUFFER, i, read_bytes) != 0)))
                 ret = 1;
-            if (inplace) f_lseek(ofp, f_tell(ofp) - read_bytes);
-            if (fx_write(dfp, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
+            if (inplace) fvx_lseek(ofp, fvx_tell(ofp) - read_bytes);
+            if (fvx_write(dfp, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
             if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
             if (!ShowProgress(offset + i + read_bytes, fsize, dest)) ret = 1;
         }
@@ -663,7 +662,7 @@ u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
         u8 ctr[16];
         
         GetTmdCtr(ctr, chunk); // NCCH crypto?
-        if (fx_read(ofp, MAIN_BUFFER, sizeof(NcchHeader), &bytes_read) != FR_OK) ret = 1;
+        if (fvx_read(ofp, MAIN_BUFFER, sizeof(NcchHeader), &bytes_read) != FR_OK) ret = 1;
         if (cia_crypto) DecryptCiaContentSequential(MAIN_BUFFER, sizeof(NcchHeader), ctr, titlekey);
         ncch_crypto = ((ValidateNcchHeader((NcchHeader*) (void*) MAIN_BUFFER) == 0) &&
             NCCH_ENCRYPTED((NcchHeader*) (void*) MAIN_BUFFER));
@@ -671,15 +670,15 @@ u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
             ret = 1;
         
         GetTmdCtr(ctr, chunk);
-        f_lseek(ofp, offset);
+        fvx_lseek(ofp, offset);
         sha_init(SHA256_MODE);
         for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
-            if (fx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
+            if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (cia_crypto && (DecryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey) != 0)) ret = 1;
             if (ncch_crypto && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ret = 1;
-            if (inplace) f_lseek(ofp, f_tell(ofp) - read_bytes);
-            if (fx_write(dfp, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
+            if (inplace) fvx_lseek(ofp, fvx_tell(ofp) - read_bytes);
+            if (fvx_write(dfp, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
             sha_update(MAIN_BUFFER, read_bytes);
             if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
             if (!ShowProgress(offset + i + read_bytes, fsize, dest)) ret = 1;
@@ -688,8 +687,8 @@ u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
         chunk->type[1] &= ~0x01;
     }
     
-    fx_close(ofp);
-    if (!inplace) fx_close(dfp);
+    fvx_close(ofp);
+    if (!inplace) fvx_close(dfp);
     
     return ret;
 }
@@ -742,12 +741,12 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
         return 1;
     
     // open destination file, get FIRM header
-    if (fx_open(&file, dest, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, dest, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&file, 0);
-    if ((fx_read(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) ||
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) ||
         (ValidateFirmHeader(&firm) != 0)) {
-        fx_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
@@ -757,21 +756,21 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     
     // decrypt ARM9 loader header
     FirmA9LHeader a9l;
-    f_lseek(&file, arm9s->offset);
-    if ((fx_read(&file, &a9l, sizeof(FirmA9LHeader), &btr) != FR_OK) ||
-        (DecryptA9LHeader(&a9l) != 0) || (f_lseek(&file, arm9s->offset) != FR_OK) ||
-        (fx_write(&file, &a9l, sizeof(FirmA9LHeader), &btr) != FR_OK)) {
-        fx_close(&file);
+    fvx_lseek(&file, arm9s->offset);
+    if ((fvx_read(&file, &a9l, sizeof(FirmA9LHeader), &btr) != FR_OK) ||
+        (DecryptA9LHeader(&a9l) != 0) || (fvx_lseek(&file, arm9s->offset) != FR_OK) ||
+        (fvx_write(&file, &a9l, sizeof(FirmA9LHeader), &btr) != FR_OK)) {
+        fvx_close(&file);
         return 1;
     }
     
     // calculate new hash for ARM9 section 
-    f_lseek(&file, arm9s->offset);
+    fvx_lseek(&file, arm9s->offset);
     sha_init(SHA256_MODE);
     for (u32 i = 0; i < arm9s->size; i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (arm9s->size - i));
-        if ((fx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes)) {
-            fx_close(&file);
+        if ((fvx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes)) {
+            fvx_close(&file);
             return 1;
         }
         sha_update(MAIN_BUFFER, read_bytes);
@@ -779,14 +778,14 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     sha_get(arm9s->hash);
     
     // write back FIRM header
-    f_lseek(&file, 0);
+    fvx_lseek(&file, 0);
     memcpy(firm.dec_magic, dec_magic, sizeof(dec_magic));
-    if (fx_write(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) {
-        fx_close(&file);
+    if (fvx_write(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) {
+        fvx_close(&file);
         return 1;
     }
     
-    fx_close(&file);
+    fvx_close(&file);
     return 0;
 }
 
@@ -836,25 +835,25 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     FIL dfile;
     FSIZE_t fsize;
     UINT bytes_read, bytes_written;
-    if (fx_open(&ofile, path_content, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&ofile, path_content, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    f_lseek(&ofile, offset);
-    fsize = f_size(&ofile);
+    fvx_lseek(&ofile, offset);
+    fsize = fvx_size(&ofile);
     if (offset > fsize) return 1;
     if (!size) size = fsize - offset;
-    if (fx_open(&dfile, path_cia, FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
-        fx_close(&ofile);
+    if (fvx_open(&dfile, path_cia, FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
+        fvx_close(&ofile);
         return 1;
     }
     
     // check if NCCH crypto is available
     if (ncch_crypto) {
         NcchHeader ncch;
-        if ((fx_read(&ofile, &ncch, sizeof(NcchHeader), &bytes_read) != FR_OK) ||
+        if ((fvx_read(&ofile, &ncch, sizeof(NcchHeader), &bytes_read) != FR_OK) ||
             (ValidateNcchHeader(&ncch) != 0) ||
             (SetupNcchCrypto(&ncch) != 0))
             ncch_crypto = false;
-        f_lseek(&ofile, offset);
+        fvx_lseek(&ofile, offset);
     }
     
     // main loop starts here
@@ -864,21 +863,21 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     if (!ShowProgress(0, 0, path_content)) ret = 1;
     for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
-        if (fx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
+        if (fvx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
         if (ncch_crypto && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ret = 1;
         if ((i == 0) && cxi_fix && (SetNcchSdFlag(MAIN_BUFFER) != 0)) ret = 1;
         if (i == 0) sha_init(SHA256_MODE);
         sha_update(MAIN_BUFFER, read_bytes);
         if (cia_crypto && (EncryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey) != 0)) ret = 1;
-        if (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
+        if (fvx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
         if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
         if (!ShowProgress(offset + i + read_bytes, fsize, path_content)) ret = 1;
     }
     u8 hash[0x20];
     sha_get(hash);
     
-    fx_close(&ofile);
-    fx_close(&dfile);
+    fvx_close(&ofile);
+    fvx_close(&dfile);
     
     // force legit?
     if (force_legit && (memcmp(hash, chunk->hash, 0x20) != 0)) return 1;
@@ -894,10 +893,10 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
 u32 InsertCiaMeta(const char* path_cia, CiaMeta* meta) {
     FIL file;
     UINT btw;
-    if (fx_open(&file, path_cia, FA_WRITE | FA_OPEN_APPEND) != FR_OK)
+    if (fvx_open(&file, path_cia, FA_WRITE | FA_OPEN_APPEND) != FR_OK)
         return 1;
-    bool res = ((fx_write(&file, meta, CIA_META_SIZE, &btw) == FR_OK) && (btw == CIA_META_SIZE));
-    fx_close(&file);
+    bool res = ((fvx_write(&file, meta, CIA_META_SIZE, &btw) == FR_OK) && (btw == CIA_META_SIZE));
+    fvx_close(&file);
     return (res) ? 0 : 1;
 }
 

@@ -5,15 +5,15 @@
 #include "fsperm.h"
 #include "sha.h"
 #include "ui.h"
-#include "ff.h"
+#include "vff.h"
 
 u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
     u32 offset = sector * 0x200;
     u32 size = count * 0x200;
     UINT btr;
-    if ((f_tell(file) != offset) && (f_lseek(file, offset) != FR_OK))
+    if ((fvx_tell(file) != offset) && (fvx_lseek(file, offset) != FR_OK))
         return 1; // seek failed
-    if ((f_read(file, buffer, size, &btr) != FR_OK) || (btr != size))
+    if ((fvx_read(file, buffer, size, &btr) != FR_OK) || (btr != size))
         return 1; // read failed
     if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
     return 0;
@@ -33,21 +33,21 @@ u32 ValidateNandDump(const char* path) {
     TruncateString(pathstr, path, 32, 8);
     
     // open file
-    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
     // check NAND header
     if ((ReadNandFile(&file, buffer, 0, 1, 0xFF) != 0) ||
         ((nand_type = CheckNandHeader(buffer)) == 0)) { // zero means header not recognized
         ShowPrompt(false, "%s\nHeader does not belong to device", pathstr);
-        f_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
     // check size
-    if (f_size(&file) < ((nand_type == NAND_TYPE_O3DS) ? NAND_MIN_SECTORS_O3DS : NAND_MIN_SECTORS_N3DS)) {
+    if (fvx_size(&file) < ((nand_type == NAND_TYPE_O3DS) ? NAND_MIN_SECTORS_O3DS : NAND_MIN_SECTORS_N3DS)) {
         ShowPrompt(false, "%s\nNAND dump misses data", pathstr);
-        f_close(&file);
+        fvx_close(&file);
         return 1;
     }
     
@@ -58,7 +58,7 @@ u32 ValidateNandDump(const char* path) {
         if ((ReadNandFile(&file, &mbr, mbr_sectors[i], 1, keyslot) != 0) ||
             (ValidateMbrHeader(&mbr) != 0)) {
             ShowPrompt(false, "%s\nError: %s MBR is corrupt", pathstr, section_type);
-            f_close(&file);
+            fvx_close(&file);
             return 1; // impossible to happen
         }
         for (u32 p = 0; p < 4; p++) {
@@ -67,7 +67,7 @@ u32 ValidateNandDump(const char* path) {
             if ((ReadNandFile(&file, buffer, mbr_sectors[i] + p_sector, 1, keyslot) != 0) ||
                 (ValidateFatHeader(buffer) != 0)) {
                 ShowPrompt(false, "%s\nError: %s partition%u is corrupt", pathstr, section_type, p);
-                f_close(&file);
+                fvx_close(&file);
                 return 1;
             }
         }
@@ -80,7 +80,7 @@ u32 ValidateNandDump(const char* path) {
             (ValidateFirmHeader(&firm) != 0) ||
             (getbe32(firm.dec_magic) != 0)) { // decrypted firms are not allowed
             ShowPrompt(false, "%s\nError: FIRM%u header is corrupt", pathstr, i);
-            f_close(&file);
+            fvx_close(&file);
             return 1;
         }
         // hash verify all available sections
@@ -101,7 +101,7 @@ u32 ValidateNandDump(const char* path) {
             sha_get(hash);
             if (memcmp(hash, section->hash, 0x20) != 0) {
                 ShowPrompt(false, "%s\nFIRM%u/%u hash mismatch", pathstr, i, s);
-                f_close(&file);
+                fvx_close(&file);
                 return 1;
             }
         }
@@ -125,9 +125,9 @@ u32 SafeRestoreNandDump(const char* path) {
     if (!SetWritePermissions(PERM_SYSNAND, true)) return 1;
     
     // open file, get size
-    if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    u32 fsize = f_size(&file);
+    u32 fsize = fvx_size(&file);
     safe_sectors[(sizeof(safe_sectors) / sizeof(u32)) - 1] = fsize / 0x200;
     
     // main processing loop
@@ -136,17 +136,17 @@ u32 SafeRestoreNandDump(const char* path) {
     for (u32 p = 0; p < sizeof(safe_sectors) / sizeof(u32); p += 2) {
         u32 sector0 = safe_sectors[p];
         u32 sector1 = safe_sectors[p+1];
-        f_lseek(&file, sector0 * 0x200);
+        fvx_lseek(&file, sector0 * 0x200);
         for (u32 s = sector0; (s < sector1) && (ret == 0); s += MAIN_BUFFER_SIZE / 0x200) {
             UINT btr;
             u32 count = min(MAIN_BUFFER_SIZE / 0x200, (sector1 - s));
-            if (f_read(&file, MAIN_BUFFER, count * 0x200, &btr) != FR_OK) ret = 1;
+            if (fvx_read(&file, MAIN_BUFFER, count * 0x200, &btr) != FR_OK) ret = 1;
             if (WriteNandSectors(MAIN_BUFFER, s, count, 0xFF, NAND_SYSNAND)) ret = 1;
             if (btr != count * 0x200) ret = 1;
             if (!ShowProgress(s + count, fsize / 0x200, path)) ret = 1;
         }            
     }
-    f_close(&file);
+    fvx_close(&file);
     
     return ret;
 }
