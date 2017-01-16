@@ -1146,9 +1146,9 @@ u32 GodMode() {
                 InitEmuNandBase();
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
-                if (cursor >= current_dir->n_entries)
-                    cursor = current_dir->n_entries - 1;
             }
+        } else if ((pad_state & (CART_INSERT|CART_EJECT)) && (curr_drvtype & DRV_CART)) {
+            GetDirContents(current_dir, current_path); // refresh cart dir contents
         }
     }
     

@@ -3,6 +3,7 @@
 #include "common.h"
 
 #define HID_STATE (~(*(volatile u32*)0x10146000) & BUTTON_ANY)
+#define CART_STATE (~(*(volatile u8*)0x10000010) & 0x1)
 
 
 #define BUTTON_A      (1 << 0)
@@ -20,9 +21,11 @@
 #define BUTTON_ANY    0x00000FFF
 #define BUTTON_ARROW  (BUTTON_RIGHT|BUTTON_LEFT|BUTTON_UP|BUTTON_DOWN)
 
-// special buttons
+// special buttons / cart handling
 #define BUTTON_POWER  (1 << 12)
 #define BUTTON_HOME   (1 << 13)
+#define CART_INSERT   (1 << 14)
+#define CART_EJECT    (1 << 15)
 
 u32 InputWait();
 bool CheckButton(u32 button);

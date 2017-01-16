@@ -5,11 +5,15 @@
 u32 InputWait() {
     static u64 delay = 0;
     u32 pad_state_old = HID_STATE;
+    u32 cart_state_old = CART_STATE;
     delay = (delay) ? 72 : 128;
     timer_start();
     while (true) {
         u32 pad_state = HID_STATE;
         if (!(pad_state & BUTTON_ANY)) { // no buttons pressed
+            u32 cart_state = CART_STATE;
+            if (cart_state != cart_state_old)
+                return cart_state ? CART_INSERT : CART_EJECT;
             u32 special_key = i2cReadRegister(I2C_DEV_MCU, 0x10);
             if (special_key == 0x01)
                 return pad_state | BUTTON_POWER;
