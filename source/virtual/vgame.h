@@ -15,3 +15,5 @@ int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count);
 bool FindVirtualFileInLv3Dir(VirtualFile* vfile, const VirtualDir* vdir, const char* name);
 bool GetVGameLv3Filename(char* name, const VirtualFile* vfile, u32 n_chars);
 bool MatchVGameLv3Filename(const char* name, const VirtualFile* vfile, u32 n_chars);
+
+u64 GetVGameDriveSize(void);

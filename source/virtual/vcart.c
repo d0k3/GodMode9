@@ -44,3 +44,7 @@ int ReadVCartFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
         return ReadCartPrivateHeader(buffer, offset, count, cdata);
     else return ReadCartBytes(buffer, offset, count, cdata);
 }
+
+u64 GetVCartDriveSize(void) {
+    return cart_init ? cdata->cart_size : 0;
+}

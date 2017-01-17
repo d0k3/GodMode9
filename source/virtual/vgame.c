@@ -743,3 +743,7 @@ bool MatchVGameLv3Filename(const char* name, const VirtualFile* vfile, u32 n_cha
     if (!GetVGameLv3Filename(lv3_name, vfile, 256)) return false;
     return (strncasecmp(name, lv3_name, n_chars) == 0);
 }
+
+u64 GetVGameDriveSize(void) {
+    return (vgame_type) ? GetMountSize() : 0;
+}

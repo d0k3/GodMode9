@@ -194,7 +194,8 @@ uint64_t GetFreeSpace(const char* path)
 uint64_t GetTotalSpace(const char* path)
 {
     FATFS* fsobj = GetMountedFSObject(path);
-    return (fsobj) ? ((uint64_t) (fsobj->n_fatent - 2) * fsobj->csize * _MAX_SS) : 0;
+    return (fsobj) ? ((uint64_t) (fsobj->n_fatent - 2) * fsobj->csize * _MAX_SS) :
+        GetVirtualDriveSize(path);
 }
 
 uint64_t GetPartitionOffsetSector(const char* path)

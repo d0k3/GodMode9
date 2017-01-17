@@ -97,3 +97,7 @@ int WriteVNandFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 c
     if ((res == 0) && (vfile->flags & VFLAG_GBA_VC)) res = FixAgbSaveCmac(nand_dst);
     return res;
 }
+
+u64 GetVNandDriveSize(u32 nand_src) {
+    return GetNandSizeSectors(nand_src) * 0x200;
+}

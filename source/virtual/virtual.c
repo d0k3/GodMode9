@@ -193,3 +193,14 @@ int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32
     
     return -1;
 }
+
+u64 GetVirtualDriveSize(const char* path) {
+    u32 virtual_src = GetVirtualSource(path);
+    if (virtual_src & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND))
+        return GetVNandDriveSize(virtual_src);
+    else if (virtual_src & VRT_GAME)
+        return GetVGameDriveSize();
+    else if (virtual_src & VRT_CART)
+        return GetVCartDriveSize();
+    return 0;
+}
