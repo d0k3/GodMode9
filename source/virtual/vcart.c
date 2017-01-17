@@ -4,14 +4,19 @@
 #define VFLAG_PRIV_HDR  (1<<31)
 
 static CartData* cdata = (CartData*) VCART_BUFFER; // 128kB reserved (~64kB required)
+static bool cart_init = false;
+
+u32 InitVCartDrive(void) {
+    cart_init = (InitCardRead(cdata) == 0);
+    return cart_init ? cdata->cart_id : 0;
+}
 
 bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
-    if ((vdir->index < 0) &&
-        (CheckCartId(cdata->cart_id) != 0) &&
-        (InitCardRead(cdata) != 0))
-        return false;
+    if ((vdir->index < 0) && !cart_init)
+        InitVCartDrive();
     
     if (++vdir->index < 3) {
+        if (!cart_init) return false;
         char name[24];
         GetCartName(name, cdata);
         memset(vfile, 0, sizeof(VirtualFile));

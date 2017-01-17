@@ -11,6 +11,7 @@
 #include "platform.h"
 #include "nand.h"
 #include "virtual.h"
+#include "vcart.h"
 #include "image.h"
 
 #define N_PANES 2
@@ -1160,8 +1161,11 @@ u32 GodMode() {
                     InitExtFS();
                 }
             }
-        } else if ((pad_state & (CART_INSERT|CART_EJECT)) && (curr_drvtype & DRV_CART)) {
-            GetDirContents(current_dir, current_path); // refresh cart dir contents
+        } else if (pad_state & (CART_INSERT|CART_EJECT)) {
+            if (!InitVCartDrive() && (pad_state & CART_INSERT)) // reinit virtual cart drive
+                ShowPrompt(false, "Cart init failed!");
+            if (!(*current_path) || (curr_drvtype & DRV_CART))
+                GetDirContents(current_dir, current_path); // refresh dir contents
         }
     }
     

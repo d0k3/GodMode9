@@ -52,12 +52,6 @@ u32 GetCartName(char* name, CartData* cdata) {
     } else return 1;
 }
 
-u32 CheckCartId(u32 cart_id) {
-    if (!CART_INSERTED) return 0xFFFFFFFF;
-    u32 curr_cart_id = Cart_GetID();
-    return (curr_cart_id == cart_id) ? 0 : curr_cart_id;
-}
-
 u32 InitCardRead(CartData* cdata) {
     memset(cdata, 0x00, sizeof(CartData));
     cdata->cart_type = CART_NONE;

@@ -21,7 +21,6 @@ typedef struct {
 } __attribute__((packed)) CartData;
 
 u32 GetCartName(char* name, CartData* cdata);
-u32 CheckCartId(u32 cart_id);
 u32 InitCardRead(CartData* cdata);
 u32 ReadCartSectors(u8* buffer, u32 sector, u32 count, CartData* cdata);
 u32 ReadCartBytes(u8* buffer, u32 offset, u32 count, CartData* cdata);
