@@ -834,7 +834,7 @@ u32 GodMode() {
         else if (user_select == 5) SdFormatMenu();
         ClearScreenF(true, true, COLOR_STD_BG);
     }
-    InitEmuNandBase();
+    InitEmuNandBase(true);
     InitNandCrypto();
     InitExtFS();
     
@@ -947,7 +947,7 @@ u32 GodMode() {
                     clipboard->n_entries = 0; // remove SD clipboard entries
             }
             ClearScreenF(true, true, COLOR_STD_BG);
-            InitEmuNandBase();
+            InitEmuNandBase(true);
             InitExtFS();
             GetDirContents(current_dir, current_path);
             if (cursor >= current_dir->n_entries) cursor = 0;
@@ -1128,8 +1128,9 @@ u32 GodMode() {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
         } else if (pad_state & BUTTON_HOME) { // Home menu
-            const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu" };
-            u32 user_select = ShowSelectPrompt(3, optionstr, "HOME button pressed.\nSelect action:" );
+            const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu", "Switch EmuNAND" };
+            u32 user_select = ShowSelectPrompt(CheckMultiEmuNand() ? 4 : 3, optionstr,
+                "HOME button pressed.\nSelect action:" );
             if (user_select == 1) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
                 break;
@@ -1147,9 +1148,17 @@ u32 GodMode() {
                         ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
                 }
                 ClearScreenF(true, true, COLOR_STD_BG);
-                InitEmuNandBase();
+                InitEmuNandBase(true);
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
+            } else if (user_select == 4) { // switch EmuNAND offset
+                while (ShowPrompt(true, "Current EmuNAND offset is %06X.\nSwitch to next offset?", GetEmuNandBase())) {
+                    if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_EMUNAND))
+                        clipboard->n_entries = 0; // remove SD clipboard entries
+                    DismountDriveType(DRV_EMUNAND);
+                    InitEmuNandBase(false);
+                    InitExtFS();
+                }
             }
         } else if ((pad_state & (CART_INSERT|CART_EJECT)) && (curr_drvtype & DRV_CART)) {
             GetDirContents(current_dir, current_path); // refresh cart dir contents

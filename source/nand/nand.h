@@ -50,4 +50,6 @@ u64 GetNandSizeSectors(u32 src);
 u32 CheckNandHeader(u8* header);
 u32 CheckNandType(u32 src);
 
-bool InitEmuNandBase(void);
+bool CheckMultiEmuNand(void);
+u32 InitEmuNandBase(bool reset);
+u32 GetEmuNandBase(void);

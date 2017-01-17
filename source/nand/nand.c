@@ -393,10 +393,9 @@ u64 GetNandSizeSectors(u32 nand_src)
     if (nand_src == NAND_EMUNAND) { // for EmuNAND
         u32 partition_offset = GetPartitionOffsetSector("0:");
         u32 emunand_max_sectors = (partition_offset >= (emunand_base_sector + 1)) ? // +1 for safety
-            partition_offset - (emunand_base_sector + 1) : 0; 
-        u32 emunand_min_sectors = (emunand_base_sector % 0x200000 == 0) ? sysnand_sectors : NAND_MIN_SECTORS;
-        if (emunand_max_sectors >= sysnand_sectors) return sysnand_sectors;
-        else return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
+            partition_offset - (emunand_base_sector + 1) : 0;
+        u32 emunand_min_sectors = (emunand_base_sector % 0x2000 == 0) ? sysnand_sectors : NAND_MIN_SECTORS;
+        return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
     } else if (nand_src == NAND_IMGNAND) { // for images
         u32 img_sectors = (GetMountState() == IMG_NAND) ? GetMountSize() / 0x200 : 0;
         return (img_sectors >= sysnand_sectors) ? sysnand_sectors : (img_sectors >= NAND_MIN_SECTORS) ? NAND_MIN_SECTORS : 0;
@@ -407,15 +406,43 @@ u64 GetNandSizeSectors(u32 nand_src)
     return 0;
 }
 
-bool InitEmuNandBase(void)
+bool CheckMultiEmuNand(void)
 {
+    // this only checks for the theoretical possibility
+    return (GetPartitionOffsetSector("0:") >= (u64) (align(NAND_MIN_SECTORS + 1, 0x2000) * 2));
+}
+
+u32 InitEmuNandBase(bool reset)
+{
+    if (!reset) {
+        u32 last_valid = emunand_base_sector;
+        
+        // legacy type multiNAND
+        u32 legacy_sectors = (getMMCDevice(0)->total_size > 0x200000) ? 0x400000 : 0x200000;
+        emunand_base_sector += legacy_sectors - (emunand_base_sector % legacy_sectors);
+        if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
+            return emunand_base_sector; // GW type EmuNAND
+        emunand_base_sector++;
+        if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
+            return emunand_base_sector; // RedNAND type EmuNAND
+        
+        // compact type multiNAND
+        if (last_valid % 0x2000 == 1) {
+            u32 compact_sectors = align(NAND_MIN_SECTORS + 1, 0x2000);
+            emunand_base_sector = last_valid + compact_sectors;
+            if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
+                return emunand_base_sector;
+        }
+    }
+    
     emunand_base_sector = 0x000000; // GW type EmuNAND
-    if (CheckNandType(NAND_EMUNAND))
-        return true;
+    if (!CheckNandType(NAND_EMUNAND))
+        emunand_base_sector = 0x000001; // RedNAND type EmuNAND
     
-    emunand_base_sector = 0x000001; // RedNAND type EmuNAND
-    if (CheckNandType(NAND_EMUNAND))
-        return true;
-    
-    return false;
+    return emunand_base_sector;
+}
+
+u32 GetEmuNandBase(void)
+{
+    return emunand_base_sector;
 }
