@@ -15,7 +15,7 @@
 uint64_t GetSDCardSize();
 
 /** Format the SD card **/
-bool FormatSDCard(u64 hidden_mb, u32 cluster_size);
+bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label);
 
 /** Check for file lock, offer to unlock if possible **/
 bool FileUnlock(const char* path);

@@ -199,7 +199,8 @@ u32 SdFormatMenu(void) {
     const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x3FF, 0x7FF };
     const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
     const char* option_emunand_size[6] = { "No EmuNAND", "O3DS NAND size", "N3DS NAND size", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
-    const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" }; 
+    const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
+    char label[16] = "0:GM9SD";
     u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
     u64 emunand_size_mb = (u64) -1;
@@ -225,7 +226,10 @@ u32 SdFormatMenu(void) {
     if (!user_select) return 1;
     else cluster_size = cluster_size_table[user_select];
     
-    if (!FormatSDCard(emunand_size_mb, cluster_size)) {
+    if (!ShowStringPrompt(label + 2, 9, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
+        return 1;
+    
+    if (!FormatSDCard(emunand_size_mb, cluster_size, label)) {
         ShowPrompt(false, "Format SD: failed!");
         return 1;
     }
