@@ -183,7 +183,7 @@ void NTR_DecryptSecureArea (u32 aGameCode, u32* pCardHash, int nCardHash, u32* p
 u32 NTR_GetIDSafe (u32 flags, const u8* command, u32 Delay)
 {
     u32 data = 0;
-    Delay = ((Delay & 0x3fff) * 1000) / 0x83;
+    Delay = 2* (((Delay & 0x3fff) * 1000) / 0x83);
     ioDelay (Delay);
     cardWriteCommand(command);
     REG_NTRCARDROMCNT = flags | NTRCARD_BLK_SIZE(7);
@@ -202,7 +202,7 @@ u32 NTR_GetIDSafe (u32 flags, const u8* command, u32 Delay)
 
 void NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd, u32 Delay)
 {
-    Delay = ((Delay & 0x3fff) * 1000) / 0x83;
+    Delay = 2 * (((Delay & 0x3fff) * 1000) / 0x83);
     ioDelay (Delay);
     cardPolledTransfer (flags, buffer, length, pcmd);
 }
