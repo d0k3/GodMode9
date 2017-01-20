@@ -59,12 +59,15 @@ You may use this under the terms of the GNU General Public License GPL v2 or und
 ## Credits
 This tool would not have been possible without the help of numerous people. Thanks go to...
 * **Archshift**, for providing the base project infrastructure
-* **Normmatt**, for sdmmc.c / sdmmc.h
+* **Normmatt**, for sdmmc.c / sdmmc.h and gamecart code
 * **Cha(N)**, **Kane49**, and all other FatFS contributors for FatFS
 * **SciResM** for helping me figure out RomFS 
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **dark_samus** for the new 6x10 font and help on various things
+* **WinterMute** and **YodaDaCoda** for help testing DSi cart dumping
 * **Al3x_10m**, **Supster131**, **imanoob**, **Kasher_CS** and all other fearless testers
+* **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * The fine folks on **freenode #Cakey**
+* All **[3dbrew.org](https://www.3dbrew.org/wiki/Main_Page) editors**
 * Everyone I possibly forgot, if you think you deserve to be mentioned, just contact me!
