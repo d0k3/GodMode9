@@ -160,14 +160,14 @@ bool FileGetSha256(const char* path, u8* sha256) {
     ShowProgress(0, 0, path);
     if (DriveType(path) & DRV_VIRTUAL) { // for virtual files
         VirtualFile vfile;
-        u32 fsize;
+        u64 fsize;
         
         if (!GetVirtualFile(&vfile, path))
             return false;
         fsize = vfile.size;
         
         sha_init(SHA256_MODE);
-        for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+        for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, fsize - pos);
             if (ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
                 ret = false;
@@ -178,7 +178,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
         sha_get(sha256);
     } else { // for regular FAT files
         FIL file;
-        size_t fsize;
+        u64 fsize;
         
         if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             return false;
@@ -187,7 +187,7 @@ bool FileGetSha256(const char* path, u8* sha256) {
         f_sync(&file);
 
         sha_init(SHA256_MODE);
-        for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+        for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             if (fx_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
                 ret = false;
@@ -205,8 +205,8 @@ bool FileGetSha256(const char* path, u8* sha256) {
 
 u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
     int drvtype = DriveType(path);
-    u32 found = (u32) -1;
-    u32 fsize = FileGetSize(path);
+    u64 found = (u64) -1;
+    u64 fsize = FileGetSize(path);
     
     // open FAT / virtual file
     FIL file; // only used on FAT drives
@@ -217,10 +217,10 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
     // main routine
     for (u32 pass = 0; pass < 2; pass++) {
         bool show_progress = false;
-        u32 pos = (pass == 0) ? offset_file : 0;
-        u32 search_end = (pass == 0) ? fsize : offset_file + size_data;
+        u64 pos = (pass == 0) ? offset_file : 0;
+        u64 search_end = (pass == 0) ? fsize : offset_file + size_data;
         search_end = (search_end > fsize) ? fsize : search_end;
-        for (; (pos < search_end) && (found == (u32) -1); pos += MAIN_BUFFER_SIZE - (size_data - 1)) {
+        for (; (pos < search_end) && (found == (u64) -1); pos += MAIN_BUFFER_SIZE - (size_data - 1)) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, search_end - pos);
             if (drvtype & DRV_FAT) {
                 UINT btr;
@@ -238,7 +238,7 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
                     break;
                 }
             }
-            if (!show_progress && (found == (u32) -1) && (pos + read_bytes < fsize)) {
+            if (!show_progress && (found == (u64) -1) && (pos + read_bytes < fsize)) {
                 ShowProgress(0, 0, path);
                 show_progress = true;
             }
@@ -256,8 +256,8 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     VirtualFile ovfile;
     FIL ofile;
     FIL dfile;
-    size_t osize;
-    size_t dsize;
+    u64 osize;
+    u64 dsize;
     
     bool vdest;
     bool vorig;
@@ -314,7 +314,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     
     ret = true;
     ShowProgress(0, 0, orig);
-    for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+    for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
         UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
         UINT bytes_read = read_bytes;
         UINT bytes_written = read_bytes;
@@ -354,7 +354,7 @@ bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
     
     if (!GetVirtualFile(&dvfile, dest) || !GetVirtualFile(&ovfile, orig))
         return false;
-    u32 osize = ovfile.size;
+    u64 osize = ovfile.size;
     if (dvfile.size != osize) { // almost impossible, but so what...
         ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
         return false;
@@ -368,7 +368,7 @@ bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
     // unmount critical NAND drives
     DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
     if (!ShowProgress(0, 0, orig)) ret = false;
-    for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+    for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
         UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
         if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
             ret = false;
@@ -396,7 +396,7 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig) {
     // FAT file size
     FILINFO fno;
     if (fa_stat(orig, &fno) != FR_OK) return false; // file does not exist
-    u32 osize = fno.fsize;
+    u64 osize = fno.fsize;
     
     // virtual file
     if (!GetVirtualFile(&dvfile, dest)) {
@@ -439,7 +439,7 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig) {
     // unmount critical NAND drives
     DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
     if (!ShowProgress(0, 0, orig)) ret = false;
-    for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+    for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
         UINT bytes_read = 0;           
         if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
             ret = false;
@@ -541,7 +541,7 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         }
     } else { // copying files
         FIL dfile;
-        u32 osize = vfile.size;
+        u64 osize = vfile.size;
     
         if (GetFreeSpace(dest) < osize) {
             ShowPrompt(false, "Error: File is too big for destination");
@@ -556,7 +556,7 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         f_sync(&dfile);
     
         ret = true;
-        for (size_t pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
+        for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
             UINT bytes_written = 0;
             if (ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
@@ -686,7 +686,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     } else { // copying files
         FIL ofile;
         FIL dfile;
-        size_t fsize;
+        u64 fsize;
         
         if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
             if (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
@@ -713,7 +713,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         f_sync(&ofile);
         
         ret = true;
-        for (size_t pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+        for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
             if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
