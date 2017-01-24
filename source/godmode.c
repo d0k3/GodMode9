@@ -591,11 +591,18 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
     
+    u32 n_marked = 0;
+    if (curr_entry->marked) {
+        for (u32 i = 0; i < current_dir->n_entries; i++) 
+            if (current_dir->entry[i].marked) n_marked++;
+    }
+    
     // main menu processing
     int n_opt = 0;
     int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
     int calcsha = ++n_opt;
+    int copystd = (strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
     int inject = ((clipboard->n_entries == 1) &&
         (clipboard->entry[0].type == T_FILE) &&
         (drvtype & DRV_FAT) &&
@@ -614,6 +621,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype == SYS_FIRM)   ? "FIRM image options..." : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
+    if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
     if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
     
@@ -624,6 +632,32 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     } else if (user_select == calcsha) { // -> calculate SHA-256
         Sha256Calculator(curr_entry->path);
         GetDirContents(current_dir, current_path);
+        return 0;
+    } else if (user_select == copystd) { // -> copy to OUTPUT_PATH
+        u32 flags = 0;
+        if ((n_marked > 1) && ShowPrompt(true, "Copy all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                flags |= ASK_ALL;
+                current_dir->entry[i].marked = false;
+                if (PathCopy(OUTPUT_PATH, path, &flags)) n_success++;
+                else { // on failure: set cursor on failed title, break;
+                    char currstr[20+1];
+                    TruncateString(currstr, clipboard->entry[0].name, 20, 12);
+                    ShowPrompt(false, "%s\nFailed copying file", currstr);
+                    *cursor = i;
+                    break;
+                }
+            }
+            if (n_success) ShowPrompt(false, "%lu files copied to %s", n_success, OUTPUT_PATH);
+        } else {
+            if (!PathCopy(OUTPUT_PATH, curr_entry->path, &flags))
+                ShowPrompt(false, "%s\nFailed copying file", pathstr);
+            else ShowPrompt(false, "%s\nCopied to %s", pathstr, OUTPUT_PATH);
+        }
         return 0;
     } else if (user_select == inject) { // -> inject data from clipboard
         char origstr[18 + 1];
@@ -664,12 +698,6 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
-    
-    u32 n_marked = 0;
-    if (curr_entry->marked) {
-        for (u32 i = 0; i < current_dir->n_entries; i++) 
-            if (current_dir->entry[i].marked) n_marked++;
-    }
     
     // auto select when there is only one option
     user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
