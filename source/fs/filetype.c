@@ -2,6 +2,7 @@
 #include "fsutil.h"
 #include "fatmbr.h"
 #include "game.h"
+#include "chainload.h"
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
@@ -9,9 +10,9 @@ u32 IdentifyFileType(const char* path) {
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
     size_t fsize = FileGetSize(path);
     char* fname = strrchr(path, '/');
-    if (fname == NULL) return 0; // not a proper  path
-    fname++;
-    if (FileGetData(path, header, 0x200, 0) < fsize) return 0;
+    char* ext = (fname) ? strrchr(++fname, '.') : NULL;
+    if (ext) ext++;
+    if (FileGetData(path, header, 0x200, 0) < ((fsize > 0x200) ? 0x200 : fsize)) return 0;
     
     if (fsize >= 0x200) {
         if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
@@ -51,8 +52,12 @@ u32 IdentifyFileType(const char* path) {
     }
     if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) (void*) header)) &&
-        (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
-        return MISC_NINFO; // ncchinfo.bin file
+        fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
+        return BIN_NCCHNFO; // ncchinfo.bin file
+    #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
+    } else if ((fsize <= PAYLOAD_MAX_SIZE) && (strncasecmp(ext, "bin", 4) == 0)) {
+        return BIN_LAUNCH; // assume it's an ARM9 payload
+    #endif
     }
     
     return 0;
