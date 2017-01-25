@@ -11,7 +11,7 @@ u32 IdentifyFileType(const char* path) {
     char* fname = strrchr(path, '/');
     if (fname == NULL) return 0; // not a proper  path
     fname++;
-    if (FileGetData(path, header, 0x200, 0) < fsize) return 0;
+    if (FileGetData(path, header, 0x200, 0) < 0x200) return 0;
     
     if (fsize >= 0x200) {
         if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
@@ -53,6 +53,12 @@ u32 IdentifyFileType(const char* path) {
         (GetNcchInfoVersion((NcchInfoHeader*) (void*) header)) &&
         (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return MISC_NINFO; // ncchinfo.bin file
+    }
+
+    int path_len = strnlen(path, 0x100);
+    if (!strncasecmp(path + path_len - 4, ".bin", 4)) {
+        return SYS_LAUNCH; // In the event that it's nothing special but ends with '.bin',
+                           // assume it's an ARM9 payload
     }
     
     return 0;
