@@ -1128,3 +1128,51 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     
     return ret;
 }
+
+u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
+    FIL fp_info;
+    FIL fp_xorpad;
+    UINT bt;
+    
+    if (!CheckWritePermissions(destdir)) return 1;
+    
+    NcchInfoHeader info;
+    u32 version = 0;
+    u32 entry_size = 0;
+    u32 ret = 0;
+    if (fvx_open(&fp_info, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    fvx_lseek(&fp_info, 0);
+    if ((fvx_read(&fp_info, &info, sizeof(NcchInfoHeader), &bt) != FR_OK) ||
+        (bt != sizeof(NcchInfoHeader))) {
+        fvx_close(&fp_info);
+        return 1;
+    }
+    version = GetNcchInfoVersion(&info);
+    entry_size = (version == 3) ? NCCHINFO_V3_SIZE : sizeof(NcchInfoEntry);
+    if (!version) ret = 1;
+    for (u32 i = 0; (i < info.n_entries) && (ret == 0); i++) {
+        NcchInfoEntry entry;
+        if ((fvx_read(&fp_info, &entry, entry_size, &bt) != FR_OK) ||
+            (bt != entry_size)) ret = 1;
+        if (FixNcchInfoEntry(&entry, version) != 0) ret = 1;
+        if (ret != 0) break;
+        
+        char dest[256]; // 256 is the maximum length of a full path
+        snprintf(dest, 256, "%s/%s", destdir, entry.filename);
+        if (fvx_open(&fp_xorpad, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+            ret = 1;
+        if (!ShowProgress(0, 0, entry.filename)) ret = 1;
+        for (u64 p = 0; (p < entry.size_b) && (ret == 0); p += MAIN_BUFFER_SIZE) {
+            UINT create_bytes = min(MAIN_BUFFER_SIZE, entry.size_b - p);
+            if (BuildNcchInfoXorpad(MAIN_BUFFER, &entry, create_bytes, p) != 0) ret = 1;
+            if (fvx_write(&fp_xorpad, MAIN_BUFFER, create_bytes, &bt) != FR_OK) ret = 1;
+            if (!ShowProgress(p + create_bytes, entry.size_b, entry.filename)) ret = 1;
+        }
+        fvx_close(&fp_xorpad);
+        if (ret != 0) f_unlink(dest); // get rid of the borked file
+    }
+    
+    fvx_close(&fp_info);
+    return ret;
+}

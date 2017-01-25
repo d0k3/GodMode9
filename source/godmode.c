@@ -12,6 +12,7 @@
 #include "nand.h"
 #include "virtual.h"
 #include "vcart.h"
+#include "ncchinfo.h"
 #include "image.h"
 
 #define N_PANES 2
@@ -577,6 +578,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     u32 filetype = IdentifyFileType(curr_entry->path);
     u32 drvtype = DriveType(curr_entry->path);
     
+    bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
+    
     // special stuff, only available for known filetypes (see int special below)
     bool mountable = ((filetype & FTYPE_MOUNTABLE) && !(drvtype & DRV_IMAGE));
     bool verificable = (filetype & FYTPE_VERIFICABLE);
@@ -585,8 +588,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool buildable = (filetype & FTYPE_BUILDABLE);
     bool buildable_legit = (filetype & FTYPE_BUILDABLE_L);
     bool restorable = (CheckA9lh() && (filetype & FTYPE_RESTORABLE) && !(drvtype & DRV_SYSNAND));
+    bool xorpadable = (filetype & FTYPE_XORPAD);
     bool special_opt = mountable || verificable || decryptable || decryptable_inplace ||
-        buildable || buildable_legit || restorable;
+        buildable || buildable_legit || restorable || xorpadable;
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -602,7 +606,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
     int calcsha = ++n_opt;
-    int copystd = (strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
+    int copystd = (!in_output_path) ? ++n_opt : -1;
     int inject = ((clipboard->n_entries == 1) &&
         (clipboard->entry[0].type == T_FILE) &&
         (drvtype & DRV_FAT) &&
@@ -618,7 +622,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype == GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype == GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype == GAME_TMD)   ? "TMD file options..."   :
-        (filetype == SYS_FIRM)   ? "FIRM image options..." : "???";
+        (filetype == SYS_FIRM)   ? "FIRM image options..." :
+        (filetype == MISC_NINFO) ? "NCCHinfo options..." : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
@@ -691,6 +696,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int build = (buildable) ? ++n_opt : -1;
     int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
+    int xorpad = (xorpadable) ? ++n_opt : -1;
+    int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (decrypt > 0) optionstr[decrypt-1] = "Decrypt file (SD output)";
@@ -698,6 +705,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
+    if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
+    if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     
     // auto select when there is only one option
     user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
@@ -787,10 +796,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 n_success, n_marked, n_other, n_marked);
             else ShowPrompt(false, "%lu/%lu CIAs built ok", n_success, n_marked);
             if (n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
+            if (n_success && in_output_path) GetDirContents(current_dir, current_path);
         } else {
-            if (BuildCiaFromGameFile(curr_entry->path, force_legit) == 0)
+            if (BuildCiaFromGameFile(curr_entry->path, force_legit) == 0) {
                 ShowPrompt(false, "%s\nCIA built to %s", pathstr, OUTPUT_PATH);
-            else ShowPrompt(false, "%s\nCIA build failed", pathstr);
+                if (in_output_path) GetDirContents(current_dir, current_path);
+            } else ShowPrompt(false, "%s\nCIA build failed", pathstr);
         }
         return 0;
     } else if (user_select == verify) { // -> verify game / nand file
@@ -832,6 +843,21 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
             (SafeRestoreNandDump(curr_entry->path) == 0) ? "success" : "failed");
+    } else if ((user_select == xorpad) || (user_select == xorpad_inplace)) {
+        bool inplace = (user_select == xorpad_inplace);
+        bool success = (BuildNcchInfoXorpads((inplace) ? current_path : OUTPUT_PATH, curr_entry->path) == 0);
+        ShowPrompt(false, "%s\nNCCHinfo padgen %s%s", pathstr,
+            (success) ? "success" : "failed", 
+            (!success || inplace) ? "" : "\nOutput dir: " OUTPUT_PATH);
+        GetDirContents(current_dir, current_path);
+        for (; *cursor < current_dir->n_entries; (*cursor)++) {
+            curr_entry = &(current_dir->entry[*cursor]);
+            if (strncasecmp(curr_entry->name, NCCHINFO_NAME, 32) == 0) break;
+        }
+        if (*cursor >= current_dir->n_entries) {
+            *scroll = 0;
+            *cursor = 1;
+        }
     }
     
     return 1;

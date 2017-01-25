@@ -60,6 +60,7 @@ typedef struct {
 } __attribute__((packed, aligned(16))) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
+u32 SetNcchKey(NcchHeader* ncch, u32 keyid);
 u32 SetupNcchCrypto(NcchHeader* ncch);
 u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs);
 u32 DecryptNcchSequential(u8* data, u32 offset, u32 size);
