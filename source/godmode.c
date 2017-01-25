@@ -589,8 +589,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool buildable_legit = (filetype & FTYPE_BUILDABLE_L);
     bool restorable = (CheckA9lh() && (filetype & FTYPE_RESTORABLE) && !(drvtype & DRV_SYSNAND));
     bool xorpadable = (filetype & FTYPE_XORPAD);
+    bool launchable = (filetype & FTYPE_PAYLOAD);
     bool special_opt = mountable || verificable || decryptable || decryptable_inplace ||
-        buildable || buildable_legit || restorable || xorpadable;
+        buildable || buildable_legit || restorable || xorpadable || launchable;
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -623,7 +624,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype == GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype == GAME_TMD)   ? "TMD file options..."   :
         (filetype == SYS_FIRM)   ? "FIRM image options..." :
-        (filetype == MISC_NINFO) ? "NCCHinfo options..." : "???";
+        (filetype == MISC_NINFO) ? "NCCHinfo options..."   :
+        (filetype == SYS_LAUNCH) ? "A9 payload options..." : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
@@ -698,6 +700,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int verify = (verificable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
+    int launch = (launchable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (decrypt > 0) optionstr[decrypt-1] = "Decrypt file (SD output)";
@@ -707,6 +710,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (verify > 0) optionstr[verify-1] = "Verify file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
+    if (launch > 0) optionstr[launch-1] = "Launch ARM9 payload";
     
     // auto select when there is only one option
     user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
@@ -857,6 +861,20 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (*cursor >= current_dir->n_entries) {
             *scroll = 0;
             *cursor = 1;
+        }
+    } else if ((user_select == launch)) {
+        if (ShowPrompt(true, "Are you sure you want to launch %s?", pathstr)) {
+            size_t payload_size = FileGetSize(pathstr);
+            if (payload_size > 0xFFFE0) {
+                ShowPrompt(false, "ERROR: Payload can't fit in memory! (%d KiB)", payload_size >> 10);
+                return 1;
+            }
+            if (FileGetData(pathstr, (u8*)RAMDRV_BUFFER_O3DS, payload_size, 0) < payload_size) {
+                ShowPrompt(false, "Critical error while loading payload...");
+                PowerOff();
+            }
+            Chainload((u8*)RAMDRV_BUFFER_O3DS, payload_size);
+            while(1);
         }
     }
     
