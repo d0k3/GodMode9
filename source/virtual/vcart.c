@@ -24,7 +24,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
         
         if (vdir->index == 2) { // private header
             if (!(cdata->cart_type & CART_CTR)) return false;
-            snprintf(vfile->name, 32, "%s-private.bin", name);
+            snprintf(vfile->name, 32, "%s-priv.bin", name);
             vfile->size = PRIV_HDR_SIZE;
             vfile->flags = VFLAG_PRIV_HDR;
         } else {

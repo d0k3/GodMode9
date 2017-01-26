@@ -12,7 +12,9 @@
 typedef struct {
     NcsdHeader ncsd;
     u32 card2_offset;
-    u8  cinfo[0x1000 - (0x200 + sizeof(u32))];
+    u8  cinfo0[0x312 - (0x200 + sizeof(u32))];
+    u32 rom_version;
+    u8  cinfo1[0x1000 - (0x312 + sizeof(u32))];
     NcchHeader ncch;
     u8  padding[0x3000 - 0x200];
     u8  private[PRIV_HDR_SIZE];
@@ -42,12 +44,12 @@ u32 GetCartName(char* name, CartData* cdata) {
     if (cdata->cart_type & CART_CTR) {
         CartDataCtr* cdata_i = (CartDataCtr*)(void*) cdata;
         NcsdHeader* ncsd = &(cdata_i->ncsd);
-        snprintf(name, 24, "%016llX", ncsd->mediaId);
+        snprintf(name, 24, "%016llX_v%02lu", ncsd->mediaId, cdata_i->rom_version);
         return 0;
     }  else if (cdata->cart_type & CART_NTR) {
         CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)(void*) cdata;
         TwlHeader* nds = &(cdata_i->ntr_header);
-        snprintf(name, 24, "%.12s.%.6s%02X", nds->game_title, nds->game_code, nds->rom_version);
+        snprintf(name, 24, "%.12s_%.6s_%02u", nds->game_title, nds->game_code, nds->rom_version);
         return 0;
     } else return 1;
 }
