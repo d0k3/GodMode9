@@ -616,17 +616,17 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (int) ++n_opt : -1;
     int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
     if (special > 0) optionstr[special-1] =
-        (filetype == IMG_NAND  ) ? "NAND image options..." :
-        (filetype == IMG_FAT   ) ? "Mount as FAT image"    :
-        (filetype == GAME_CIA  ) ? "CIA image options..."  :
-        (filetype == GAME_NCSD ) ? "NCSD image options..." :
-        (filetype == GAME_NCCH ) ? "NCCH image options..." :
-        (filetype == GAME_EXEFS) ? "Mount as EXEFS image"  :
-        (filetype == GAME_ROMFS) ? "Mount as ROMFS image"  :
-        (filetype == GAME_TMD)   ? "TMD file options..."   :
-        (filetype == SYS_FIRM)   ? "FIRM image options..." :
-        (filetype == BIN_NCCHNFO) ? "NCCHinfo options..."   :
-        (filetype == BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
+        (filetype & IMG_NAND  ) ? "NAND image options..." :
+        (filetype & IMG_FAT   ) ? "Mount as FAT image"    :
+        (filetype & GAME_CIA  ) ? "CIA image options..."  :
+        (filetype & GAME_NCSD ) ? "NCSD image options..." :
+        (filetype & GAME_NCCH ) ? "NCCH image options..." :
+        (filetype & GAME_EXEFS) ? "Mount as EXEFS image"  :
+        (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
+        (filetype & GAME_TMD)   ? "TMD file options..."   :
+        (filetype & SYS_FIRM)   ? "FIRM image options..." :
+        (filetype & BIN_NCCHNFO) ? "NCCHinfo options..."   :
+        (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;

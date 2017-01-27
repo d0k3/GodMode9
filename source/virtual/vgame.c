@@ -455,12 +455,12 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_lv3fd = (u64) -1;
     
     base_vdir =
-        (type == SYS_FIRM  ) ? VFLAG_FIRM  :
-        (type == GAME_CIA  ) ? VFLAG_CIA   :
-        (type == GAME_NCSD ) ? VFLAG_NCSD  :
-        (type == GAME_NCCH ) ? VFLAG_NCCH  :
-        (type == GAME_EXEFS) ? VFLAG_EXEFS :
-        (type == GAME_ROMFS) ? VFLAG_ROMFS : 0;
+        (type & SYS_FIRM  ) ? VFLAG_FIRM  :
+        (type & GAME_CIA  ) ? VFLAG_CIA   :
+        (type & GAME_NCSD ) ? VFLAG_NCSD  :
+        (type & GAME_NCCH ) ? VFLAG_NCCH  :
+        (type & GAME_EXEFS) ? VFLAG_EXEFS :
+        (type & GAME_ROMFS) ? VFLAG_ROMFS : 0;
     if (!base_vdir) return 0;
     
     vgame_type = type;

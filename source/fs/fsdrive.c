@@ -21,14 +21,14 @@ int DriveType(const char* path) {
     } else if ((pdrv >= 0) && (pdrv < NORM_FS)) {
         if (pdrv == 0) {
             type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
-        } else if ((pdrv == 9) && (GetMountState() != IMG_NAND)) {
+        } else if ((pdrv == 9) && !(GetMountState() & IMG_NAND)) {
             type = DRV_FAT | DRV_RAMDRIVE | DRV_STDFAT;
         } else if ((pdrv >= 1) && (pdrv <= 3)) {
             type = DRV_FAT | DRV_SYSNAND | DRV_STDFAT;
         } else if ((pdrv >= 4) && (pdrv <= 6)) {
             type = DRV_FAT | DRV_EMUNAND | DRV_STDFAT;
         }  else if ((pdrv >= 7) && (pdrv <= 9) &&
-            ((GetMountState() == IMG_FAT) || (GetMountState() == IMG_NAND))) {
+            (GetMountState() & (IMG_FAT|IMG_NAND))) {
             type = DRV_FAT | DRV_IMAGE | DRV_STDFAT;
         }    
     } else if (CheckVirtualDrive(path)) {
@@ -71,18 +71,18 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         if (!DriveType(drvnum[pdrv])) continue; // drive not available
         memset(entry->path, 0x00, 64);
         snprintf(entry->path + 0,  4, drvnum[pdrv]);
-        if ((pdrv == 7) && (GetMountState() == IMG_FAT)) // FAT image handling
+        if ((pdrv == 7) && (GetMountState() & IMG_FAT)) // FAT image handling
             snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], "FAT IMAGE");
-        else if ((pdrv == 9) && (GetMountState() != IMG_NAND)) // RAM drive handling
+        else if ((pdrv == 9) && !(GetMountState() & IMG_NAND)) // RAM drive handling
             snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], "RAMDRIVE");
         else if (pdrv == 10) // Game drive special handling
             snprintf(entry->path + 4, 32, "[%s] %s %s", drvnum[pdrv],
-                (GetMountState() == GAME_CIA  ) ? "CIA"   :
-                (GetMountState() == GAME_NCSD ) ? "NCSD"  :
-                (GetMountState() == GAME_NCCH ) ? "NCCH"  :
-                (GetMountState() == GAME_EXEFS) ? "EXEFS" :
-                (GetMountState() == GAME_ROMFS) ? "ROMFS" :
-                (GetMountState() == SYS_FIRM)   ? "FIRM" : "UNK", drvname[pdrv]);
+                (GetMountState() & GAME_CIA  ) ? "CIA"   :
+                (GetMountState() & GAME_NCSD ) ? "NCSD"  :
+                (GetMountState() & GAME_NCCH ) ? "NCCH"  :
+                (GetMountState() & GAME_EXEFS) ? "EXEFS" :
+                (GetMountState() & GAME_ROMFS) ? "ROMFS" :
+                (GetMountState() & SYS_FIRM)   ? "FIRM" : "UNK", drvname[pdrv]);
         else snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
         entry->name = entry->path + 4;
         entry->size = GetTotalSpace(entry->path);

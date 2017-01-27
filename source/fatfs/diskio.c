@@ -143,9 +143,9 @@ DSTATUS disk_initialize (
         if (!nand_type_emu) return STA_NOINIT|STA_NODISK;
     } else if (pdrv < 10) {
         UINT mount_state = GetMountState();
-        nand_type_img = (mount_state == IMG_NAND) ? CheckNandType(NAND_IMGNAND) : 0;
+        nand_type_img = (mount_state & IMG_NAND) ? CheckNandType(NAND_IMGNAND) : 0;
         if (!nand_type_img) {
-            if ((pdrv == 7) && (mount_state != IMG_FAT)) return STA_NOINIT|STA_NODISK;
+            if ((pdrv == 7) && !(mount_state & IMG_FAT)) return STA_NOINIT|STA_NODISK;
             else if (pdrv == 8) return STA_NOINIT|STA_NODISK;
             else if (pdrv == 9) InitRamDrive();
         }

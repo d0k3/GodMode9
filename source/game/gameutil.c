@@ -505,15 +505,15 @@ u32 VerifyFirmFile(const char* path) {
 
 u32 VerifyGameFile(const char* path) {
     u32 filetype = IdentifyFileType(path);
-    if (filetype == GAME_CIA)
+    if (filetype & GAME_CIA)
         return VerifyCiaFile(path);
-    else if (filetype == GAME_NCSD)
+    else if (filetype & GAME_NCSD)
         return VerifyNcsdFile(path);
-    else if (filetype == GAME_NCCH)
+    else if (filetype & GAME_NCCH)
         return VerifyNcchFile(path, 0, 0);
-    else if (filetype == GAME_TMD)
+    else if (filetype & GAME_TMD)
         return VerifyTmdFile(path);
-    else if (filetype == SYS_FIRM)
+    else if (filetype & SYS_FIRM)
         return VerifyFirmFile(path);
     else return 1;
 }
@@ -599,13 +599,13 @@ u32 CheckEncryptedFirmFile(const char* path) {
 
 u32 CheckEncryptedGameFile(const char* path) {
     u32 filetype = IdentifyFileType(path);
-    if (filetype == GAME_CIA)
+    if (filetype & GAME_CIA)
         return CheckEncryptedCiaFile(path);
-    else if (filetype == GAME_NCSD)
+    else if (filetype & GAME_NCSD)
         return CheckEncryptedNcsdFile(path);
-    else if (filetype == GAME_NCCH)
+    else if (filetype & GAME_NCCH)
         return CheckEncryptedNcchFile(path, 0);
-    else if (filetype == SYS_FIRM)
+    else if (filetype & SYS_FIRM)
         return CheckEncryptedFirmFile(path);
     else return 1;
 }
