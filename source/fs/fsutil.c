@@ -3,6 +3,7 @@
 #include "fsdrive.h"
 #include "fsperm.h"
 #include "sddata.h"
+#include "vff.h"
 #include "virtual.h"
 #include "image.h"
 #include "sha.h"
@@ -94,48 +95,16 @@ bool FileUnlock(const char* path) {
 }
 
 bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
-    int drvtype = DriveType(path);
+    UINT bw;
     if (!CheckWritePermissions(path)) return false;
-    if (drvtype & DRV_FAT) {
-        UINT bytes_written = 0;
-        FIL file;
-        if (fx_open(&file, path, FA_WRITE | (create ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS)) != FR_OK)
-            return false;
-        f_lseek(&file, foffset);
-        fx_write(&file, data, size, &bytes_written);
-        fx_close(&file);
-        return (bytes_written == size);
-    } else if (drvtype & DRV_VIRTUAL) {
-        VirtualFile vfile;
-        if (!GetVirtualFile(&vfile, path))
-            return 0;
-        return (WriteVirtualFile(&vfile, data, foffset, size, NULL) == 0);
-    }
-    return false;
+    if ((DriveType(path) & DRV_FAT) && create) f_unlink(path);
+    return (fvx_qwrite(path, data, foffset, size, &bw) == FR_OK) && (bw == size);
 }
 
 size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
-    int drvtype = DriveType(path);
-    if (drvtype & DRV_FAT) {
-        UINT bytes_read = 0;
-        FIL file;
-        if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            return 0;
-        f_lseek(&file, foffset);
-        if (fx_read(&file, data, size, &bytes_read) != FR_OK) {
-            fx_close(&file);
-            return 0;
-        }
-        fx_close(&file);
-        return bytes_read;
-    } else if (drvtype & DRV_VIRTUAL) {
-        u32 bytes_read = 0;
-        VirtualFile vfile;
-        if (!GetVirtualFile(&vfile, path))
-            return 0;
-        return (ReadVirtualFile(&vfile, data, foffset, size, &bytes_read) == 0) ? bytes_read : 0;
-    }
-    return 0;
+    UINT br;
+    if (fvx_qread(path, data, foffset, size, &br) != FR_OK) br = 0;
+    return br;
 }
 
 size_t FileGetSize(const char* path) {
@@ -156,63 +125,37 @@ size_t FileGetSize(const char* path) {
 
 bool FileGetSha256(const char* path, u8* sha256) {
     bool ret = true;
+    FIL file;
+    u64 fsize;
     
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return false;
+    fsize = fvx_size(&file);
+    fvx_lseek(&file, 0);
     ShowProgress(0, 0, path);
-    if (DriveType(path) & DRV_VIRTUAL) { // for virtual files
-        VirtualFile vfile;
-        u64 fsize;
-        
-        if (!GetVirtualFile(&vfile, path))
-            return false;
-        fsize = vfile.size;
-        
-        sha_init(SHA256_MODE);
-        for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT read_bytes = min(MAIN_BUFFER_SIZE, fsize - pos);
-            if (ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-                ret = false;
-            if (!ShowProgress(pos + read_bytes, fsize, path))
-                ret = false;
-            sha_update(MAIN_BUFFER, read_bytes);
-        }
-        sha_get(sha256);
-    } else { // for regular FAT files
-        FIL file;
-        u64 fsize;
-        
-        if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            return false;
-        fsize = f_size(&file);
-        f_lseek(&file, 0);
-        f_sync(&file);
-
-        sha_init(SHA256_MODE);
-        for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT bytes_read = 0;
-            if (fx_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
-                ret = false;
-            if (!ShowProgress(pos + bytes_read, fsize, path))
-                ret = false;
-            sha_update(MAIN_BUFFER, bytes_read);
-        }
-        sha_get(sha256);
-        fx_close(&file);
+    sha_init(SHA256_MODE);
+    for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT bytes_read = 0;
+        if (fvx_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+            ret = false;
+        if (!ShowProgress(pos + bytes_read, fsize, path))
+            ret = false;
+        sha_update(MAIN_BUFFER, bytes_read);
     }
+    sha_get(sha256);
+    fvx_close(&file);
     ShowProgress(1, 1, path);
     
     return ret;
 }
 
 u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
-    int drvtype = DriveType(path);
+    FIL file; // used for FAT & virtual
     u64 found = (u64) -1;
     u64 fsize = FileGetSize(path);
     
-    // open FAT / virtual file
-    FIL file; // only used on FAT drives
-    VirtualFile vfile; // only used on virtual drives
-    if (((drvtype & DRV_FAT) && (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)) ||
-        ((drvtype & DRV_VIRTUAL) && !GetVirtualFile(&vfile, path))) return found;
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return found;
     
     // main routine
     for (u32 pass = 0; pass < 2; pass++) {
@@ -222,16 +165,10 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
         search_end = (search_end > fsize) ? fsize : search_end;
         for (; (pos < search_end) && (found == (u64) -1); pos += MAIN_BUFFER_SIZE - (size_data - 1)) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, search_end - pos);
-            if (drvtype & DRV_FAT) {
-                UINT btr;
-                f_lseek(&file, pos);
-                if ((fx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes))
-                    break;
-            } else {
-                u32 btr;
-                if ((ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, &btr) != 0) || (btr != read_bytes))
-                    break;
-            }
+            UINT btr;
+            fvx_lseek(&file, pos);
+            if ((fvx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes))
+                break;
             for (u32 i = 0; i + size_data <= read_bytes; i++) {
                 if (memcmp(MAIN_BUFFER + i, data, size_data) == 0) {
                     found = pos + i;
@@ -246,21 +183,16 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
                 break;
         }
     }
-    if (drvtype & DRV_FAT) fx_close(&file);
+    fvx_close(&file);
     
     return found;
 }
 
 bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
-    VirtualFile dvfile;
-    VirtualFile ovfile;
     FIL ofile;
     FIL dfile;
     u64 osize;
     u64 dsize;
-    
-    bool vdest;
-    bool vorig;
     bool ret;
     
     if (!CheckWritePermissions(dest)) return false;
@@ -269,46 +201,24 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         return false;
     }
     
-    // open destination
-    if (DriveType(dest) & DRV_VIRTUAL) {
-        vdest = true;
-        if (!GetVirtualFile(&dvfile, dest))
-            return false;
-        dsize = dvfile.size;
-    } else {
-        vdest = false;
-        if (fx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
-            return false;
-        dsize = f_size(&dfile);
-        f_lseek(&dfile, offset);
-        f_sync(&dfile);
+    // open destination / origin
+    if (fvx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        return false;
+    if ((fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
+        (!FileUnlock(orig) || (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))) {
+        fvx_close(&dfile);
+        return false;
     }
-    
-    // open origin
-    if (DriveType(orig) & DRV_VIRTUAL) {
-        vorig = true;
-        if (!GetVirtualFile(&ovfile, orig)) {
-            if (!vdest) fx_close(&dfile);
-            return false;
-        }
-        osize = ovfile.size;
-    } else {
-        vorig = false;
-        if ((fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
-            (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))) {
-            if (!vdest) fx_close(&dfile);
-            return false;
-        }
-        osize = f_size(&ofile);
-        f_lseek(&ofile, 0);
-        f_sync(&ofile);
-    }
+    fvx_lseek(&dfile, offset);
+    fvx_lseek(&ofile, 0);
+    dsize = fvx_size(&dfile);
+    osize = f_size(&ofile);
     
     // check file limits
     if (offset + osize > dsize) {
         ShowPrompt(false, "Operation would write beyond end of file");
-        if (!vdest) fx_close(&dfile);
-        if (!vorig) fx_close(&ofile);
+        fvx_close(&dfile);
+        fvx_close(&ofile);
         return false;
     }
     
@@ -318,21 +228,19 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
         UINT bytes_read = read_bytes;
         UINT bytes_written = read_bytes;
-        if ((!vorig && (fx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK)) ||
-            (vorig && ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0))
+        if (fvx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) {
             ret = false;
-        if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
-            ret = false;
-        if ((!vdest && (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)) ||
-            (vdest && WriteVirtualFile(&dvfile, MAIN_BUFFER, offset + pos, read_bytes, NULL) != 0))
-            ret = false;
-        if (bytes_read != bytes_written)
+            break;
+        }
+        if ((!ShowProgress(pos + (bytes_read / 2), osize, orig)) ||
+            (fvx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ||
+            (bytes_read != bytes_written))
             ret = false;
     }
     ShowProgress(1, 1, orig);
     
-    if (!vdest) fx_close(&dfile);
-    if (!vorig) fx_close(&ofile);
+    fvx_close(&dfile);
+    fvx_close(&ofile);
     
     return ret;
 }

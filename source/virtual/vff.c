@@ -65,3 +65,41 @@ FRESULT fvx_sync (FIL* fp) {
     #endif
     return f_sync( fp );
 }
+
+FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* br) {
+    FIL fp;
+    FRESULT res;
+    
+    res = fvx_open(&fp, path, FA_READ | FA_OPEN_EXISTING);
+    if (res != FR_OK) return res;
+    
+    res = fvx_lseek(&fp, ofs);
+    if (res != FR_OK) {
+        fvx_close(&fp);
+        return res;
+    }
+    
+    res = fvx_read(&fp, buff, btr, br);
+    fvx_close(&fp);
+    
+    return res;
+}
+
+FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, UINT* bw) {
+    FIL fp;
+    FRESULT res;
+    
+    res = fvx_open(&fp, path, FA_WRITE | FA_OPEN_ALWAYS);
+    if (res != FR_OK) return res;
+    
+    res = fvx_lseek(&fp, ofs);
+    if (res != FR_OK) {
+        fvx_close(&fp);
+        return res;
+    }
+    
+    res = fvx_write(&fp, buff, btw, bw);
+    fvx_close(&fp);
+    
+    return res;
+}
