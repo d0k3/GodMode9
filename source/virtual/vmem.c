@@ -16,7 +16,10 @@ static const VirtualFile vMemFileTemplates[] = {
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, 0 },
     // { "otp.mem"          , 0x10012000, 0x00000108, 0xFF, 0 },
     // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
-    { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 }
+    { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 },
+    #ifdef EXEC_A9LH
+    { "godmode9.bin"     , 0x23F00000, 0x00040000, 0xFF, 0 } // arbitrary size
+    #endif
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
