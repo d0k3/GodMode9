@@ -9,6 +9,7 @@
 
 #include "font.h"
 #include "ui.h"
+#include "timer.h"
 #include "hid.h"
 
 #define STRBUF_SIZE 512 // maximum size of the string buffer
@@ -529,7 +530,18 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     char tempstr[64];
     char progstr[64];
     
-    if (!current || last_prog_width > prog_width) { 
+    static u64 last_sec_remain = 0;
+    if (!current) {
+        timer_start();
+        last_sec_remain = 0;
+    }
+    u64 sec_elapsed = (total > 0) ? timer_sec() : 0;
+    u64 sec_total = (current > 0) ? (sec_elapsed * total) / current : 0;
+    u64 sec_remain = ((2 * last_sec_remain) + (sec_total - sec_elapsed)) / 3;
+    if (sec_remain >= 60 * 60) sec_remain = 60 * 60 - 1;
+    last_sec_remain = sec_remain;
+    
+    if (!current || last_prog_width > prog_width) {
         ClearScreenF(true, false, COLOR_STD_BG);
         DrawRectangle(TOP_SCREEN, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_STD_FONT);
         DrawRectangle(TOP_SCREEN, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
@@ -540,6 +552,12 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     snprintf(tempstr, 64, "%s (%lu%%)", progstr, prog_percent);
     ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
     DrawString(TOP_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    if (sec_elapsed >= 1) {
+        snprintf(tempstr, 16, "ETA %02llum%02llus", sec_remain / 60, sec_remain % 60);
+        ResizeString(progstr, tempstr, 16, 8, true);
+        DrawString(TOP_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
+            bar_pos_y - 10 - 1, COLOR_STD_FONT, COLOR_STD_BG);
+    }
     DrawString(TOP_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
     
     last_prog_width = prog_width;
