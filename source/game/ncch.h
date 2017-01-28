@@ -9,6 +9,16 @@
 #define NCCH_EXTHDR_OFFSET 0x200
 
 #define NCCH_ENCRYPTED(ncch) (!((ncch)->flags[7] & 0x04))
+#define NCCH_IS_CXI(ncch) ((ncch)->flags[5] & 0x02)
+
+#define NCCH_GET_CRYPTO(ncch) (((ncch)->flags[3] << 8) | (ncch)->flags[7])
+#define NCCH_NOCRYPTO 0x0004
+
+// wrapper defines
+#define DecryptNcch(data, offset, size, ncch, exefs) CryptNcch(data, offset, size, ncch, exefs, NCCH_NOCRYPTO)
+#define EncryptNcch(data, offset, size, ncch, exefs, crypto) CryptNcch(data, offset, size, ncch, exefs, crypto)
+#define DecryptNcchSequential(data, offset, size) CryptNcchSequential(data, offset, size, NCCH_NOCRYPTO)
+#define EncryptNcchSequential(data, offset, size, crypto) CryptNcchSequential(data, offset, size, crypto)
 
 // see: https://www.3dbrew.org/wiki/NCCH/Extended_Header
 // very limited, contains only required stuff
@@ -60,8 +70,8 @@ typedef struct {
 } __attribute__((packed, aligned(16))) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
-u32 SetNcchKey(NcchHeader* ncch, u32 keyid);
+u32 SetNcchKey(NcchHeader* ncch, u16 crypt_to, u32 keyid);
 u32 SetupNcchCrypto(NcchHeader* ncch);
-u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs);
-u32 DecryptNcchSequential(u8* data, u32 offset, u32 size);
+u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);
+u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypto);
 u32 SetNcchSdFlag(u8* data);

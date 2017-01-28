@@ -148,14 +148,16 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     return 1;
 }
 
-u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
-    u32 keyslot = (!keyid || !ncch->flags[3]) ? 0x2C : // standard / secure3 / secure4 / 7.x crypto
-        (ncch->flags[3] == 0x0A) ? 0x18 : (ncch->flags[3] == 0x0B) ? 0x1B : 0x25;
+u32 SetNcchKey(NcchHeader* ncch, u16 crypt_to, u32 keyid) {
+    u8 flags3 = (crypt_to & 0x04) ? ncch->flags[3] : (crypt_to >> 8) & 0xFF;
+    u8 flags7 = (crypt_to & 0x04) ? ncch->flags[7] : crypt_to & 0xFF;
+    u32 keyslot = (!keyid || !flags3) ? 0x2C : // standard / secure3 / secure4 / 7.x crypto
+        (flags3 == 0x0A) ? 0x18 : (flags3 == 0x0B) ? 0x1B : 0x25;
         
-    if (!NCCH_ENCRYPTED(ncch))
+    if (flags7 & 0x04)
         return 1;
     
-    if (ncch->flags[7] & 0x01) { // fixed key crypto
+    if (flags7 & 0x01) { // fixed key crypto
         // from https://github.com/profi200/Project_CTR/blob/master/makerom/pki/dev.h
         u8 zeroKey[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // zero key
@@ -171,7 +173,7 @@ u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
         return 1;
     
     // key Y for seed and non seed
-    if (keyid && (ncch->flags[7] & 0x20)) { // seed crypto
+    if (keyid && (flags7 & 0x20)) { // seed crypto
         static u8 seedkeyY[16+16] __attribute__((aligned(32))) = { 0 };
         static u8 lsignature[16] = { 0 };
         static u64 ltitleId = 0;
@@ -195,11 +197,11 @@ u32 SetNcchKey(NcchHeader* ncch, u32 keyid) {
 
 u32 SetupNcchCrypto(NcchHeader* ncch) {
     return (!NCCH_ENCRYPTED(ncch) ||
-        ((SetNcchKey(ncch, 0) == 0) && (SetNcchKey(ncch, 1) == 0))) ? 0 : 1;
+        ((SetNcchKey(ncch, NCCH_NOCRYPTO, 0) == 0) && (SetNcchKey(ncch, NCCH_NOCRYPTO, 1) == 0))) ? 0 : 1;
 }
 
-u32 DecryptNcchSection(u8* data, u32 offset_data, u32 size_data,
-    u32 offset_section, u32 size_section, u32 offset_ctr, NcchHeader* ncch, u32 snum, u32 keyid) {
+u32 CryptNcchSection(u8* data, u32 offset_data, u32 size_data, u32 offset_section, u32 size_section,
+    u32 offset_ctr, NcchHeader* ncch, u32 snum, u16 crypto, u32 keyid) {
     const u32 mode = AES_CNT_CTRNAND_MODE;
     
     // check if section in data
@@ -223,67 +225,70 @@ u32 DecryptNcchSection(u8* data, u32 offset_data, u32 size_data,
     // actual decryption stuff
     u8 ctr[16];
     GetNcchCtr(ctr, ncch, snum);
-    if (SetNcchKey(ncch, keyid) != 0) return 1;
+    if (SetNcchKey(ncch, crypto, keyid) != 0) return 1;
     ctr_decrypt_byte(data_i, data_i, size_i, offset_i + offset_ctr, mode, ctr);
     
     return 0;
 }
 
-// on the fly decryptor for NCCH
-u32 DecryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs) {
+// on the fly de-/encryptor for NCCH
+u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto) {
     const u32 offset_flag3 = 0x188 + 3;
     const u32 offset_flag7 = 0x188 + 7;
     
     // check for encryption
-    if (!NCCH_ENCRYPTED(ncch))
-        return 0;
+    if (((!NCCH_ENCRYPTED(ncch)) && (crypto & 0x04)) ||
+        (crypto == NCCH_GET_CRYPTO(ncch)))
+        return 0; // desired end result already met
+    else if ((NCCH_ENCRYPTED(ncch)) && !(crypto & 0x04)) 
+        return 1; // encrypted differently
     
     // ncch flags handling
     if ((offset <= offset_flag3) && (offset + size > offset_flag3))
-        data[offset_flag3 - offset] = 0;
+        data[offset_flag3 - offset] = (crypto >> 8);
     if ((offset <= offset_flag7) && (offset + size > offset_flag7)) {
-        data[offset_flag7 - offset] &= ~(0x01|0x20);
-        data[offset_flag7 - offset] |= 0x04;
+        data[offset_flag7 - offset] &= ~(0x01|0x20|0x04);
+        data[offset_flag7 - offset] |= (crypto & (0x01|0x20|0x04));
     }
     
     // exthdr handling
     if (ncch->size_exthdr) {
-        if (DecryptNcchSection(data, offset, size,
+        if (CryptNcchSection(data, offset, size,
             NCCH_EXTHDR_OFFSET,
             NCCH_EXTHDR_SIZE,
-            0, ncch, 1, 0) != 0) return 1;
+            0, ncch, 1, crypto, 0) != 0) return 1;
     }
     
     // exefs handling
     if (ncch->size_exefs) {
         // exefs header handling
-        if (DecryptNcchSection(data, offset, size,
+        if (CryptNcchSection(data, offset, size,
             ncch->offset_exefs * NCCH_MEDIA_UNIT,
-            0x200, 0, ncch, 2, 0) != 0) return 1;
+            0x200, 0, ncch, 2, crypto, 0) != 0) return 1;
             
         // exefs file handling
         if (exefs) for (u32 i = 0; i < 10; i++) {
             ExeFsFileHeader* file = exefs->files + i;
-            if (DecryptNcchSection(data, offset, size,
+            if (CryptNcchSection(data, offset, size,
                 (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset,
                 file->size, 0x200 + file->offset,
-                ncch, 2, EXEFS_KEYID(file->name)) != 0) return 1;
+                ncch, 2, crypto, EXEFS_KEYID(file->name)) != 0) return 1;
         }
     }
     
     // romfs handling
     if (ncch->size_romfs) {
-        if (DecryptNcchSection(data, offset, size,
+        if (CryptNcchSection(data, offset, size,
             ncch->offset_romfs * NCCH_MEDIA_UNIT,
             ncch->size_romfs * NCCH_MEDIA_UNIT,
-            0, ncch, 3, 1) != 0) return 1;
+            0, ncch, 3, crypto, 1) != 0) return 1;
     }
-        
+    
     return 0;
 }
 
-// on the fly decryptor for NCCH - sequential
-u32 DecryptNcchSequential(u8* data, u32 offset, u32 size) {
+// on the fly de- / encryptor for NCCH - sequential
+u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypto) {
     // warning: this will only work for sequential processing
     // unexpected results otherwise
     static NcchHeader ncch = { 0 };
@@ -302,21 +307,20 @@ u32 DecryptNcchSequential(u8* data, u32 offset, u32 size) {
     if (!ncchptr) return 1;
     
     // fetch exefs header from data
-    if (!exefsptr) {
+    if (ncchptr->offset_exefs && !exefsptr) {
         u32 offset_exefs = ncchptr->offset_exefs * NCCH_MEDIA_UNIT;
         if ((offset <= offset_exefs) &&
             ((offset + size) >= offset_exefs + sizeof(ExeFsHeader))) {
-            if (DecryptNcch(data, offset, offset_exefs + sizeof(ExeFsHeader) - offset, ncchptr, NULL) != 0)
-                return 1;
             memcpy(&exefs, data + offset_exefs - offset, sizeof(ExeFsHeader));
-            size -= offset_exefs + sizeof(ExeFsHeader) - offset;
-            data += offset_exefs + sizeof(ExeFsHeader) - offset;
-            offset = offset_exefs + sizeof(ExeFsHeader);
+            if ((NCCH_ENCRYPTED(ncchptr)) && 
+                (DecryptNcch((u8*) &exefs, offset_exefs, sizeof(ExeFsHeader), ncchptr, NULL) != 0))
+                return 1;
+            if (ValidateExeFsHeader(&exefs, 0) != 0) return 1;
             exefsptr = &exefs;
         }
     }
     
-    return DecryptNcch(data, offset, size, ncchptr, exefsptr);
+    return CryptNcch(data, offset, size, ncchptr, exefsptr, crypto);
 }
 
 u32 SetNcchSdFlag(u8* data) { // data must be at least 0x600 byte and start with NCCH header
