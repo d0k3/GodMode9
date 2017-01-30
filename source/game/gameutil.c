@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "fsperm.h"
 #include "filetype.h"
+#include "platform.h"
 #include "aes.h"
 #include "sha.h"
 #include "vff.h"
@@ -610,7 +611,7 @@ u32 CheckEncryptedGameFile(const char* path) {
     else return 1;
 }
 
-u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
+u32 CryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode, u16 crypto, // crypto only relevant for NCCH
     u32 offset, u32 size, TmdContentChunk* chunk, const u8* titlekey) { // this line only for CIA contents
     // this will do a simple copy for unencrypted files
     bool inplace = (strncmp(orig, dest, 256) == 0);
@@ -646,7 +647,7 @@ u32 DecryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode,
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
             if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
-            if (((mode & GAME_NCCH) && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
+            if (((mode & GAME_NCCH) && (CryptNcchSequential(MAIN_BUFFER, i, read_bytes, crypto) != 0)) ||
                 ((mode & GAME_NCSD) && (DecryptNcsdSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
                 ((mode & SYS_FIRM) && (DecryptFirmSequential(MAIN_BUFFER, i, read_bytes) != 0)))
                 ret = 1;
@@ -718,7 +719,7 @@ u32 DecryptCiaFile(const char* orig, const char* dest) {
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         u64 size = getbe64(chunk->size);
-        if (DecryptNcchNcsdFirmFile(orig, dest, GAME_CIA, next_offset, size, chunk, titlekey) != 0)
+        if (CryptNcchNcsdFirmFile(orig, dest, GAME_CIA, NCCH_NOCRYPTO, next_offset, size, chunk, titlekey) != 0)
             return 1;
         next_offset += size;
     }
@@ -737,7 +738,7 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     UINT btr;
     
     // actual decryption
-    if (DecryptNcchNcsdFirmFile(orig, dest, SYS_FIRM, 0, 0, NULL, NULL) != 0)
+    if (CryptNcchNcsdFirmFile(orig, dest, SYS_FIRM, NCCH_NOCRYPTO, 0, 0, NULL, NULL) != 0)
         return 1;
     
     // open destination file, get FIRM header
@@ -814,7 +815,7 @@ u32 DecryptGameFile(const char* path, bool inplace) {
     else if (filetype & SYS_FIRM)
         ret = DecryptFirmFile(path, destptr);
     else if (filetype & (GAME_NCCH|GAME_NCSD))
-        ret = DecryptNcchNcsdFirmFile(path, destptr, filetype, 0, 0, NULL, NULL);
+        ret = CryptNcchNcsdFirmFile(path, destptr, filetype, NCCH_NOCRYPTO, 0, 0, NULL, NULL);
     else ret = 1;
     
     if (!inplace && (ret != 0))
@@ -1174,5 +1175,94 @@ u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
     }
     
     fvx_close(&fp_info);
+    return ret;
+}
+
+u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
+    const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
+    const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x00027300, 0 };
+    NcchHeader ncch;
+    
+    // check input file
+    if ((LoadNcchHeaders(&ncch, NULL, NULL, path, 0) != 0) ||
+        (NCCH_ENCRYPTED(&ncch)) || !(NCCH_IS_CXI(&ncch)))
+        return 1;
+        
+    // write permissions
+    if (!CheckWritePermissions(destdrv))
+        return 1;
+    
+    // get H&S title id low
+    u32 tidlow_hs = 0;
+    for (char secchar = 'C'; secchar >= 'A'; secchar--) {
+        char path_secinfo[32];
+        u8 secinfo[0x111];
+        u32 region = 0xFF;
+        UINT br;
+        snprintf(path_secinfo, 32, "%s/rw/sys/SecureInfo_%c", destdrv, secchar);
+        if ((fvx_qread(path_secinfo, secinfo, 0, 0x111, &br) != FR_OK) ||
+            (br != 0x111))
+            continue;
+        region = secinfo[0x100];
+        if (region >= sizeof(tidlow_hs_o3ds) / sizeof(u32)) continue;
+        tidlow_hs = (GetUnitPlatform() == PLATFORM_3DS) ?
+            tidlow_hs_o3ds[region] : tidlow_hs_n3ds[region];
+        break;
+    }
+    if (!tidlow_hs) return 1;
+    
+    // build paths
+    char path_tmd[64];
+    char path_cxi[64];
+    char path_bak[64];
+    snprintf(path_tmd, 64, "%s/title/00040010/%08lx/content/00000000.tmd", destdrv, tidlow_hs);
+    
+    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+    if (LoadTmdFile(tmd, path_tmd) != 0) return 1;
+    if (!getbe16(tmd->content_count)) return 1;
+    snprintf(path_cxi, 64, "%s/title/00040010/%08lx/content/%08lX.app", destdrv, tidlow_hs, getbe32(chunk->id));
+    snprintf(path_bak, 64, "%s/title/00040010/%08lx/content/%08lX.bak", destdrv, tidlow_hs, getbe32(chunk->id));
+    
+    // check crypto, get sig
+    u64 tid_hs = ((u64) 0x00040010 << 32) | tidlow_hs;
+    u16 crypto = NCCH_NOCRYPTO;
+    u8 sig[0x100];
+    if ((LoadNcchHeaders(&ncch, NULL, NULL, path_cxi, 0) != 0) || (SetupNcchCrypto(&ncch) != 0) ||
+        !(NCCH_IS_CXI(&ncch)) || (ncch.programId != tid_hs) || (ncch.partitionId != tid_hs))
+        return 1;
+    crypto = NCCH_GET_CRYPTO(&ncch);
+    memcpy(sig, ncch.signature, 0x100);
+    
+    // make a backup copy if there is not already one (point of no return)
+    if (f_stat(path_bak, NULL) != FR_OK) {
+        if (f_rename(path_cxi, path_bak) != FR_OK) return 1;
+    } else f_unlink(path_cxi);
+    
+    // copy the source CXI
+    u32 ret = 0;
+    if (CryptNcchNcsdFirmFile(path, path_cxi, GAME_NCCH, NCCH_NOCRYPTO, 0, 0, NULL, NULL) != 0)
+        ret = 1;
+    
+    // fix up the injected H&S NCCH header (copy H&S signature, title ID) 
+    if ((ret == 0) && (LoadNcchHeaders(&ncch, NULL, NULL, path_cxi, 0) == 0)) {
+        UINT bw;
+        ncch.programId = tid_hs;
+        ncch.partitionId = tid_hs;
+        memcpy(ncch.signature, sig, 0x100);
+        if ((fvx_qwrite(path_cxi, &ncch, 0, sizeof(NcchHeader), &bw) != FR_OK) ||
+            (bw != sizeof(NcchHeader)))
+            ret = 1;
+    } else ret = 1;
+    
+    // encrypt the CXI in place
+    if (CryptNcchNcsdFirmFile(path_cxi, path_cxi, GAME_NCCH, crypto, 0, 0, NULL, NULL) != 0)
+        ret = 1;
+    
+    if (ret != 0) { // try recover
+        f_unlink(path_cxi);
+        f_rename(path_bak, path_cxi);
+    }
+    
     return ret;
 }

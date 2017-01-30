@@ -582,17 +582,18 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
     
     // special stuff, only available for known filetypes (see int special below)
-    bool mountable = ((filetype & FTYPE_MOUNTABLE) && !(drvtype & DRV_IMAGE));
-    bool verificable = (filetype & FYTPE_VERIFICABLE);
-    bool decryptable = (filetype & FYTPE_DECRYPTABLE);
+    bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & DRV_IMAGE));
+    bool verificable = (FYTPE_VERIFICABLE(filetype));
+    bool decryptable = (FYTPE_DECRYPTABLE(filetype));
     bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
-    bool buildable = (filetype & FTYPE_BUILDABLE);
-    bool buildable_legit = (filetype & FTYPE_BUILDABLE_L);
-    bool restorable = (CheckA9lh() && (filetype & FTYPE_RESTORABLE) && !(drvtype & DRV_SYSNAND));
-    bool xorpadable = (filetype & FTYPE_XORPAD);
-    bool launchable = ((filetype & FTYPE_PAYLOAD) && (drvtype & DRV_FAT));
+    bool buildable = (FTYPE_BUILDABLE(filetype));
+    bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
+    bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
+    bool restorable = (FTYPE_RESTORABLE(filetype) && CheckA9lh() && !(drvtype & DRV_SYSNAND));
+    bool xorpadable = (FTYPE_XORPAD(filetype));
+    bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
     bool special_opt = mountable || verificable || decryptable || decryptable_inplace ||
-        buildable || buildable_legit || restorable || xorpadable || launchable;
+        buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable;
     
     char pathstr[32 + 1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -699,6 +700,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int build = (buildable) ? ++n_opt : -1;
     int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
+    int hsinject = (hsinjectable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     int launch = (launchable) ? ++n_opt : -1;
@@ -709,6 +711,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
+    if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
@@ -845,6 +848,22 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 (VerifyGameFile(curr_entry->path) == 0) ? "success" : "failed");
         }
         return 0;
+    } else if (user_select == hsinject) { // -> Inject to Health & Safety
+        char* destdrv[2] = { NULL };
+        n_opt = 0;
+        if (DriveType("1:")) {
+            optionstr[n_opt] = "SysNAND H&S inject";
+            destdrv[n_opt++] = "1:";
+        }
+        if (DriveType("4:")) {
+            optionstr[n_opt] = "EmuNAND H&S inject";
+            destdrv[n_opt++] = "4:";
+        }
+        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+        if (user_select) {
+            ShowPrompt(false, "%s\nH&S inject %s", pathstr,
+                (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+        }
     } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
             (SafeRestoreNandDump(curr_entry->path) == 0) ? "success" : "failed");
