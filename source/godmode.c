@@ -884,7 +884,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         }
     } else if ((user_select == launch)) {
         size_t payload_size = FileGetSize(curr_entry->path);
-        if (ShowPrompt(true, "%s (%dkB)\nLaunch as arm9 payload?", pathstr, payload_size / 1024)) {
+        if (ShowUnlockSequence(3, "%s (%dkB)\nLaunch as arm9 payload?", pathstr, payload_size / 1024)) {
             if (FileGetData(curr_entry->path, TEMP_BUFFER, payload_size, 0) == payload_size) {
                 Chainload(TEMP_BUFFER, payload_size);
                 while(1);
