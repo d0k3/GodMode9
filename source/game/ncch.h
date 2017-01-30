@@ -11,8 +11,8 @@
 #define NCCH_ENCRYPTED(ncch) (!((ncch)->flags[7] & 0x04))
 #define NCCH_IS_CXI(ncch) ((ncch)->flags[5] & 0x02)
 
-#define NCCH_GET_CRYPTO(ncch) (((ncch)->flags[3] << 8) | (ncch)->flags[7])
 #define NCCH_NOCRYPTO 0x0004
+#define NCCH_GET_CRYPTO(ncch) (!NCCH_ENCRYPTED(ncch) ? NCCH_NOCRYPTO : (((ncch)->flags[3] << 8) | ((ncch)->flags[7]&(0x01|0x20))))
 
 // wrapper defines
 #define DecryptNcch(data, offset, size, ncch, exefs) CryptNcch(data, offset, size, ncch, exefs, NCCH_NOCRYPTO)
@@ -70,8 +70,8 @@ typedef struct {
 } __attribute__((packed, aligned(16))) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
-u32 SetNcchKey(NcchHeader* ncch, u16 crypt_to, u32 keyid);
-u32 SetupNcchCrypto(NcchHeader* ncch);
+u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid);
+u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to);
 u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);
 u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypto);
 u32 SetNcchSdFlag(u8* data);

@@ -48,7 +48,7 @@ u32 BuildNcchInfoXorpad(u8* buffer, NcchInfoEntry* entry, u32 size, u32 offset) 
     ncch.flags[3] = (u8) entry->ncchFlag3;
     ncch.flags[7] = (u8) (entry->ncchFlag7 & ~0x04);
     ncch.programId = ncch.partitionId = entry->titleId;
-    if (SetNcchKey(&ncch, NCCH_NOCRYPTO, 1) != 0)
+    if (SetNcchKey(&ncch, NCCH_GET_CRYPTO(&ncch), 1) != 0)
         return 1;
     
     // write xorpad

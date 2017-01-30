@@ -148,9 +148,9 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     return 1;
 }
 
-u32 SetNcchKey(NcchHeader* ncch, u16 crypt_to, u32 keyid) {
-    u8 flags3 = (crypt_to & 0x04) ? ncch->flags[3] : (crypt_to >> 8) & 0xFF;
-    u8 flags7 = (crypt_to & 0x04) ? ncch->flags[7] : crypt_to & 0xFF;
+u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid) {
+    u8 flags3 = (crypto >> 8) & 0xFF;
+    u8 flags7 = crypto & 0xFF;
     u32 keyslot = (!keyid || !flags3) ? 0x2C : // standard / secure3 / secure4 / 7.x crypto
         (flags3 == 0x0A) ? 0x18 : (flags3 == 0x0B) ? 0x1B : 0x25;
         
@@ -195,13 +195,20 @@ u32 SetNcchKey(NcchHeader* ncch, u16 crypt_to, u32 keyid) {
     return 0;
 }
 
-u32 SetupNcchCrypto(NcchHeader* ncch) {
-    return (!NCCH_ENCRYPTED(ncch) ||
-        ((SetNcchKey(ncch, NCCH_NOCRYPTO, 0) == 0) && (SetNcchKey(ncch, NCCH_NOCRYPTO, 1) == 0))) ? 0 : 1;
+// this is used to force and check crypto setup
+// (also prevents SHA register usage later on) 
+u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to) {
+    u16 crypt_from = NCCH_GET_CRYPTO(ncch);
+    u32 res_from = ((crypt_from & NCCH_NOCRYPTO) ||
+        ((SetNcchKey(ncch, crypt_from, 0) == 0) && (SetNcchKey(ncch, crypt_from, 1) == 0))) ? 0 : 1;
+    u32 res_to = ((crypt_to & NCCH_NOCRYPTO) ||
+        ((SetNcchKey(ncch, crypt_to, 0) == 0) && (SetNcchKey(ncch, crypt_to, 1) == 0))) ? 0 : 1;
+    return res_from | res_to;
 }
 
 u32 CryptNcchSection(u8* data, u32 offset_data, u32 size_data, u32 offset_section, u32 size_section,
-    u32 offset_ctr, NcchHeader* ncch, u32 snum, u16 crypto, u32 keyid) {
+    u32 offset_ctr, NcchHeader* ncch, u32 snum, u16 crypt_to, u32 keyid) {
+    u16 crypt_from = NCCH_GET_CRYPTO(ncch);
     const u32 mode = AES_CNT_CTRNAND_MODE;
     
     // check if section in data
@@ -225,30 +232,34 @@ u32 CryptNcchSection(u8* data, u32 offset_data, u32 size_data, u32 offset_sectio
     // actual decryption stuff
     u8 ctr[16];
     GetNcchCtr(ctr, ncch, snum);
-    if (SetNcchKey(ncch, crypto, keyid) != 0) return 1;
-    ctr_decrypt_byte(data_i, data_i, size_i, offset_i + offset_ctr, mode, ctr);
+    if (!(crypt_from & NCCH_NOCRYPTO)) {
+        if (SetNcchKey(ncch, crypt_from, keyid) != 0) return 1;
+        ctr_decrypt_byte(data_i, data_i, size_i, offset_i + offset_ctr, mode, ctr);
+    }
+    if (!(crypt_to & NCCH_NOCRYPTO)) {
+        if (SetNcchKey(ncch, crypt_to, keyid) != 0) return 1;
+        ctr_decrypt_byte(data_i, data_i, size_i, offset_i + offset_ctr, mode, ctr);
+    }
     
     return 0;
 }
 
 // on the fly de-/encryptor for NCCH
-u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto) {
+u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypt_to) {
     const u32 offset_flag3 = 0x188 + 3;
     const u32 offset_flag7 = 0x188 + 7;
+    u16 crypt_from = NCCH_GET_CRYPTO(ncch);
     
     // check for encryption
-    if (((!NCCH_ENCRYPTED(ncch)) && (crypto & 0x04)) ||
-        (crypto == NCCH_GET_CRYPTO(ncch)))
+    if ((crypt_to & crypt_from & NCCH_NOCRYPTO) || (crypt_to == crypt_from))
         return 0; // desired end result already met
-    else if ((NCCH_ENCRYPTED(ncch)) && !(crypto & 0x04)) 
-        return 1; // encrypted differently
     
     // ncch flags handling
     if ((offset <= offset_flag3) && (offset + size > offset_flag3))
-        data[offset_flag3 - offset] = (crypto >> 8);
+        data[offset_flag3 - offset] = (crypt_to >> 8);
     if ((offset <= offset_flag7) && (offset + size > offset_flag7)) {
         data[offset_flag7 - offset] &= ~(0x01|0x20|0x04);
-        data[offset_flag7 - offset] |= (crypto & (0x01|0x20|0x04));
+        data[offset_flag7 - offset] |= (crypt_to & (0x01|0x20|0x04));
     }
     
     // exthdr handling
@@ -256,7 +267,7 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
         if (CryptNcchSection(data, offset, size,
             NCCH_EXTHDR_OFFSET,
             NCCH_EXTHDR_SIZE,
-            0, ncch, 1, crypto, 0) != 0) return 1;
+            0, ncch, 1, crypt_to, 0) != 0) return 1;
     }
     
     // exefs handling
@@ -264,7 +275,7 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
         // exefs header handling
         if (CryptNcchSection(data, offset, size,
             ncch->offset_exefs * NCCH_MEDIA_UNIT,
-            0x200, 0, ncch, 2, crypto, 0) != 0) return 1;
+            0x200, 0, ncch, 2, crypt_to, 0) != 0) return 1;
             
         // exefs file handling
         if (exefs) for (u32 i = 0; i < 10; i++) {
@@ -272,7 +283,7 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
             if (CryptNcchSection(data, offset, size,
                 (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset,
                 file->size, 0x200 + file->offset,
-                ncch, 2, crypto, EXEFS_KEYID(file->name)) != 0) return 1;
+                ncch, 2, crypt_to, EXEFS_KEYID(file->name)) != 0) return 1;
         }
     }
     
@@ -281,14 +292,14 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
         if (CryptNcchSection(data, offset, size,
             ncch->offset_romfs * NCCH_MEDIA_UNIT,
             ncch->size_romfs * NCCH_MEDIA_UNIT,
-            0, ncch, 3, crypto, 1) != 0) return 1;
+            0, ncch, 3, crypt_to, 1) != 0) return 1;
     }
     
     return 0;
 }
 
 // on the fly de- / encryptor for NCCH - sequential
-u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypto) {
+u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypt_to) {
     // warning: this will only work for sequential processing
     // unexpected results otherwise
     static NcchHeader ncch = { 0 };
@@ -320,7 +331,7 @@ u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypto) {
         }
     }
     
-    return CryptNcch(data, offset, size, ncchptr, exefsptr, crypto);
+    return CryptNcch(data, offset, size, ncchptr, exefsptr, crypt_to);
 }
 
 u32 SetNcchSdFlag(u8* data) { // data must be at least 0x600 byte and start with NCCH header

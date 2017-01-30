@@ -37,7 +37,7 @@ u32 IdentifyFileType(const char* path) {
                 return GAME_NCSD; // NCSD (".3DS") file
         } else if (ValidateNcchHeader((NcchHeader*) (void*) header) == 0) {
             NcchHeader* ncch = (NcchHeader*) (void*) header;
-            u32 type = GAME_NCCH | (NCCH_IS_CXI(ncch) ? FLAG_CXI : 0) | (NCCH_ENCRYPTED(ncch) ? FLAG_ENCRYPTED : 0);
+            u32 type = GAME_NCCH | (NCCH_IS_CXI(ncch) ? FLAG_CXI : 0);
             if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
                 return type; // NCCH (".APP") file
         } else if (ValidateExeFsHeader((ExeFsHeader*) (void*) header, fsize) == 0) {

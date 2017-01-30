@@ -309,7 +309,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     }
     
     // check / setup crypto
-    if (SetupNcchCrypto(&ncch) != 0) {
+    if (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Crypto not set up", pathstr);
         fvx_close(&file);
         return 1;
@@ -722,12 +722,12 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
         UINT bytes_read, bytes_written;
         u8 ctr[16];
         
+        NcchHeader* ncch = (NcchHeader*) (void*) MAIN_BUFFER;
         GetTmdCtr(ctr, chunk); // NCCH crypto?
         if (fvx_read(ofp, MAIN_BUFFER, sizeof(NcchHeader), &bytes_read) != FR_OK) ret = 1;
         if (cia_crypto) DecryptCiaContentSequential(MAIN_BUFFER, sizeof(NcchHeader), ctr, titlekey);
-        ncch_crypto = ((ValidateNcchHeader((NcchHeader*) (void*) MAIN_BUFFER) == 0) &&
-            NCCH_ENCRYPTED((NcchHeader*) (void*) MAIN_BUFFER));
-        if (ncch_crypto && (SetupNcchCrypto((NcchHeader*) (void*) MAIN_BUFFER) != 0))
+        ncch_crypto = ((ValidateNcchHeader(ncch) == 0) && NCCH_ENCRYPTED(ncch));
+        if (ncch_crypto && (SetupNcchCrypto(ncch, NCCH_NOCRYPTO) != 0))
             ret = 1;
         
         GetTmdCtr(ctr, chunk);
@@ -912,7 +912,7 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
         NcchHeader ncch;
         if ((fvx_read(&ofile, &ncch, sizeof(NcchHeader), &bytes_read) != FR_OK) ||
             (ValidateNcchHeader(&ncch) != 0) ||
-            (SetupNcchCrypto(&ncch) != 0))
+            (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0))
             ncch_crypto = false;
         fvx_lseek(&ofile, offset);
     }
@@ -1243,9 +1243,9 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x00027300, 0 };
     NcchHeader ncch;
     
-    // check input file
+    // check input file / crypto
     if ((LoadNcchHeaders(&ncch, NULL, NULL, path, 0) != 0) ||
-        (NCCH_ENCRYPTED(&ncch)) || !(NCCH_IS_CXI(&ncch)))
+        !(NCCH_IS_CXI(&ncch)) || (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0))
         return 1;
         
     // write permissions
@@ -1288,8 +1288,9 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     u64 tid_hs = ((u64) 0x00040010 << 32) | tidlow_hs;
     u16 crypto = NCCH_NOCRYPTO;
     u8 sig[0x100];
-    if ((LoadNcchHeaders(&ncch, NULL, NULL, path_cxi, 0) != 0) || (SetupNcchCrypto(&ncch) != 0) ||
-        !(NCCH_IS_CXI(&ncch)) || (ncch.programId != tid_hs) || (ncch.partitionId != tid_hs))
+    if ((LoadNcchHeaders(&ncch, NULL, NULL, path_cxi, 0) != 0) ||
+        (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0) || !(NCCH_IS_CXI(&ncch)) ||
+        (ncch.programId != tid_hs) || (ncch.partitionId != tid_hs))
         return 1;
     crypto = NCCH_GET_CRYPTO(&ncch);
     memcpy(sig, ncch.signature, 0x100);
