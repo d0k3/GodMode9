@@ -6,4 +6,5 @@
 #include "exefs.h"
 #include "romfs.h"
 #include "firm.h"
+#include "boss.h"
 #include "ncchinfo.h"

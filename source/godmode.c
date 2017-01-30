@@ -625,8 +625,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype & GAME_TMD)   ? "TMD file options..."   :
+        (filetype & GAME_BOSS)  ? "BOSS file options..."  :
         (filetype & SYS_FIRM)   ? "FIRM image options..." :
-        (filetype & BIN_NCCHNFO) ? "NCCHinfo options..."   :
+        (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";

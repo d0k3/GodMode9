@@ -51,7 +51,10 @@ u32 IdentifyFileType(const char* path) {
             return SYS_FIRM; // FIRM file
         }
     }
-    if ((fsize > sizeof(NcchInfoHeader)) &&
+    if ((fsize > sizeof(BossHeader)) &&
+        (ValidateBossHeader((BossHeader*) (void*) header, fsize) == 0)) {
+        return GAME_BOSS; // BOSS (SpotPass) file
+    } else if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) (void*) header)) &&
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file

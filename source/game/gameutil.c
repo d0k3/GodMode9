@@ -504,6 +504,48 @@ u32 VerifyFirmFile(const char* path) {
     return 0;
 }
 
+u32 VerifyBossFile(const char* path) {
+    BossHeader* boss = (BossHeader*) TEMP_BUFFER;
+    u8* payload_hdr = MAIN_BUFFER;
+    u8* payload = MAIN_BUFFER + BOSS_SIZE_PAYLOAD_HEADER;
+    u32 payload_size;
+    bool encrypted = false;
+    
+    char pathstr[32 + 1];
+    TruncateString(pathstr, path, 32, 8);
+    
+    // read file header
+    UINT btr;
+    if ((fvx_qread(path, boss, 0, sizeof(BossHeader), &btr) != FR_OK) ||
+        (btr != sizeof(BossHeader)) || (ValidateBossHeader(boss, 0) != 0)) {
+        ShowPrompt(false, "%s\nError: Not a BOSS file", pathstr);
+        return 1;
+    }
+    
+    // get / check size
+    payload_size = getbe32(boss->filesize) - sizeof(BossHeader);
+    if ((payload_size + BOSS_SIZE_PAYLOAD_HEADER > MAIN_BUFFER_SIZE) || !payload_size)
+        return 1;
+    
+    // check if encrypted, decrypt if required
+    encrypted = (CheckBossEncrypted(boss) == 0);
+    if (encrypted) CryptBoss((u8*) boss, 0, sizeof(BossHeader), boss);
+    
+    // actual hash calculation & compare
+    u8 hash[32];
+    memset(MAIN_BUFFER, 0, MAIN_BUFFER_SIZE);
+    GetBossPayloadHashHeader(payload_hdr, boss);
+    fvx_qread(path, payload, sizeof(BossHeader), payload_size, &btr);
+    if (encrypted) CryptBoss(payload, sizeof(BossHeader), payload_size, boss);
+    sha_quick(hash, MAIN_BUFFER, payload_size + BOSS_SIZE_PAYLOAD_HEADER, SHA256_MODE);
+    if (memcmp(hash, boss->hash_payload, 0x20) != 0) {
+        ShowPrompt(false, "%s\nBOSS payload hash mismatch", pathstr);
+        return 1;
+    }
+    
+    return 0;
+}
+
 u32 VerifyGameFile(const char* path) {
     u32 filetype = IdentifyFileType(path);
     if (filetype & GAME_CIA)
@@ -514,6 +556,8 @@ u32 VerifyGameFile(const char* path) {
         return VerifyNcchFile(path, 0, 0);
     else if (filetype & GAME_TMD)
         return VerifyTmdFile(path);
+    else if (filetype & GAME_BOSS)
+        return VerifyBossFile(path);
     else if (filetype & SYS_FIRM)
         return VerifyFirmFile(path);
     else return 1;
@@ -598,6 +642,19 @@ u32 CheckEncryptedFirmFile(const char* path) {
     return 1;
 }
 
+u32 CheckEncryptedBossFile(const char* path) {
+    BossHeader* boss = (BossHeader*) TEMP_BUFFER;
+    UINT btr;
+    
+    // get boss header
+    if ((fvx_qread(path, boss, 0, sizeof(BossHeader), &btr) != FR_OK) ||
+        (btr != sizeof(BossHeader))) {
+        return 1;
+    }
+    
+    return CheckBossEncrypted(boss);
+}
+
 u32 CheckEncryptedGameFile(const char* path) {
     u32 filetype = IdentifyFileType(path);
     if (filetype & GAME_CIA)
@@ -606,12 +663,14 @@ u32 CheckEncryptedGameFile(const char* path) {
         return CheckEncryptedNcsdFile(path);
     else if (filetype & GAME_NCCH)
         return CheckEncryptedNcchFile(path, 0);
+    else if (filetype & GAME_BOSS)
+        return CheckEncryptedBossFile(path);
     else if (filetype & SYS_FIRM)
         return CheckEncryptedFirmFile(path);
     else return 1;
 }
 
-u32 CryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode, u16 crypto, // crypto only relevant for NCCH
+u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 crypto, // crypto only relevant for NCCH
     u32 offset, u32 size, TmdContentChunk* chunk, const u8* titlekey) { // this line only for CIA contents
     // this will do a simple copy for unencrypted files
     bool inplace = (strncmp(orig, dest, 256) == 0);
@@ -642,13 +701,14 @@ u32 CryptNcchNcsdFirmFile(const char* orig, const char* dest, u32 mode, u16 cryp
     
     u32 ret = 0;
     if (!ShowProgress(offset, fsize, dest)) ret = 1;
-    if (mode & (GAME_NCCH|GAME_NCSD|SYS_FIRM)) { // for NCCH / NCSD / FIRM files 
+    if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM)) { // for NCCH / NCSD / FIRM files 
         for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
             if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (((mode & GAME_NCCH) && (CryptNcchSequential(MAIN_BUFFER, i, read_bytes, crypto) != 0)) ||
                 ((mode & GAME_NCSD) && (DecryptNcsdSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
+                ((mode & GAME_BOSS) && (CryptBossSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
                 ((mode & SYS_FIRM) && (DecryptFirmSequential(MAIN_BUFFER, i, read_bytes) != 0)))
                 ret = 1;
             if (inplace) fvx_lseek(ofp, fvx_tell(ofp) - read_bytes);
@@ -719,7 +779,7 @@ u32 DecryptCiaFile(const char* orig, const char* dest) {
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         u64 size = getbe64(chunk->size);
-        if (CryptNcchNcsdFirmFile(orig, dest, GAME_CIA, NCCH_NOCRYPTO, next_offset, size, chunk, titlekey) != 0)
+        if (CryptNcchNcsdBossFirmFile(orig, dest, GAME_CIA, NCCH_NOCRYPTO, next_offset, size, chunk, titlekey) != 0)
             return 1;
         next_offset += size;
     }
@@ -738,7 +798,7 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     UINT btr;
     
     // actual decryption
-    if (CryptNcchNcsdFirmFile(orig, dest, SYS_FIRM, NCCH_NOCRYPTO, 0, 0, NULL, NULL) != 0)
+    if (CryptNcchNcsdBossFirmFile(orig, dest, SYS_FIRM, 0, 0, 0, NULL, NULL) != 0)
         return 1;
     
     // open destination file, get FIRM header
@@ -814,8 +874,8 @@ u32 DecryptGameFile(const char* path, bool inplace) {
         ret = DecryptCiaFile(path, destptr);
     else if (filetype & SYS_FIRM)
         ret = DecryptFirmFile(path, destptr);
-    else if (filetype & (GAME_NCCH|GAME_NCSD))
-        ret = CryptNcchNcsdFirmFile(path, destptr, filetype, NCCH_NOCRYPTO, 0, 0, NULL, NULL);
+    else if (filetype & (GAME_NCCH|GAME_NCSD|GAME_BOSS))
+        ret = CryptNcchNcsdBossFirmFile(path, destptr, filetype, NCCH_NOCRYPTO, 0, 0, NULL, NULL);
     else ret = 1;
     
     if (!inplace && (ret != 0))
@@ -1239,9 +1299,9 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
         if (f_rename(path_cxi, path_bak) != FR_OK) return 1;
     } else f_unlink(path_cxi);
     
-    // copy the source CXI
+    // copy / decrypt the source CXI
     u32 ret = 0;
-    if (CryptNcchNcsdFirmFile(path, path_cxi, GAME_NCCH, NCCH_NOCRYPTO, 0, 0, NULL, NULL) != 0)
+    if (CryptNcchNcsdBossFirmFile(path, path_cxi, GAME_NCCH, NCCH_NOCRYPTO, 0, 0, NULL, NULL) != 0)
         ret = 1;
     
     // fix up the injected H&S NCCH header (copy H&S signature, title ID) 
@@ -1256,10 +1316,10 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     } else ret = 1;
     
     // encrypt the CXI in place
-    if (CryptNcchNcsdFirmFile(path_cxi, path_cxi, GAME_NCCH, crypto, 0, 0, NULL, NULL) != 0)
+    if (CryptNcchNcsdBossFirmFile(path_cxi, path_cxi, GAME_NCCH, crypto, 0, 0, NULL, NULL) != 0)
         ret = 1;
     
-    if (ret != 0) { // try recover
+    if (ret != 0) { // in case of failure: try recover
         f_unlink(path_cxi);
         f_rename(path_bak, path_cxi);
     }
