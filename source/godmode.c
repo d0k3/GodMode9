@@ -571,7 +571,7 @@ u32 Sha256Calculator(const char* path) {
 
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* current_dir, DirStruct* clipboard) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
-    const char* optionstr[8];
+    const char* optionstr[16];
     
     // check for file lock
     if (!FileUnlock(curr_entry->path)) return 1;
@@ -585,14 +585,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & DRV_IMAGE));
     bool verificable = (FYTPE_VERIFICABLE(filetype));
     bool decryptable = (FYTPE_DECRYPTABLE(filetype));
-    bool decryptable_inplace = (decryptable && (drvtype & (DRV_SDCARD|DRV_RAMDRIVE)));
+    bool encryptable = (FYTPE_ENCRYPTABLE(filetype));
+    bool cryptable_inplace = ((encryptable||decryptable) && (drvtype & DRV_FAT));
     bool buildable = (FTYPE_BUILDABLE(filetype));
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && CheckA9lh() && !(drvtype & DRV_SYSNAND));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
-    bool special_opt = mountable || verificable || decryptable || decryptable_inplace ||
+    bool special_opt = mountable || verificable || decryptable || encryptable || 
         buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable;
     
     char pathstr[32 + 1];
@@ -697,7 +698,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int mount = (mountable) ? ++n_opt : -1;
     int restore = (restorable) ? ++n_opt : -1;
     int decrypt = (decryptable) ? ++n_opt : -1;
-    int decrypt_inplace = (decryptable_inplace) ? ++n_opt : -1;
+    int encrypt = (encryptable) ? ++n_opt : -1;
     int build = (buildable) ? ++n_opt : -1;
     int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
@@ -707,8 +708,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int launch = (launchable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
-    if (decrypt > 0) optionstr[decrypt-1] = "Decrypt file (SD output)";
-    if (decrypt_inplace > 0) optionstr[decrypt_inplace-1] = "Decrypt file (inplace)";
+    if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
+    if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
@@ -741,17 +742,24 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             }
         }
         return 0;
-    } else if ((user_select == decrypt) || (user_select == decrypt_inplace)) { // -> decrypt game file
-        bool inplace = (user_select == decrypt_inplace);
-        if ((n_marked > 1) && ShowPrompt(true, "Try to decrypt all %lu selected files?", n_marked)) {
+    } else if (user_select == decrypt) { // -> decrypt game file
+        if (cryptable_inplace) {
+            optionstr[0] = "Decrypt to " OUTPUT_PATH;
+            optionstr[1] = "Decrypt inplace";
+            user_select = (int) ShowSelectPrompt(2, optionstr, pathstr);
+        } else user_select = 1;
+        bool inplace = (user_select == 2);
+        if (!user_select) { // do nothing when no choice is made
+        } else if ((n_marked > 1) && ShowPrompt(true, "Try to decrypt all %lu selected files?", n_marked)) {
             u32 n_success = 0;
             u32 n_unencrypted = 0;
             u32 n_other = 0;
+            ShowString("Trying to decrypt %lu files...", n_marked);
             for (u32 i = 0; i < current_dir->n_entries; i++) {
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked) 
                     continue;
-                if (IdentifyFileType(path) != filetype) {
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
                     n_other++;
                     continue;
                 }
@@ -760,7 +768,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     continue;
                 }
                 current_dir->entry[i].marked = false;
-                if (DecryptGameFile(path, inplace) == 0) n_success++;
+                if (CryptGameFile(path, inplace, false) == 0) n_success++;
                 else { // on failure: set cursor on failed title, break;
                     *cursor = i;
                     break;
@@ -768,17 +776,55 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             }
             if (n_other || n_unencrypted) {
                 ShowPrompt(false, "%lu/%lu files decrypted ok\n%lu/%lu not encrypted\n%lu/%lu not of same type",
-                n_success, n_marked, n_unencrypted, n_marked, n_other, n_marked);
+                    n_success, n_marked, n_unencrypted, n_marked, n_other, n_marked);
             } else ShowPrompt(false, "%lu/%lu files decrypted ok", n_success, n_marked);
             if (!inplace && n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
         } else {
             if (CheckEncryptedGameFile(curr_entry->path) != 0) {
                 ShowPrompt(false, "%s\nFile is not encrypted", pathstr);
             } else {
-                u32 ret = DecryptGameFile(curr_entry->path, inplace);
+                u32 ret = CryptGameFile(curr_entry->path, inplace, false);
                 if (inplace || (ret != 0)) ShowPrompt(false, "%s\nDecryption %s", pathstr, (ret == 0) ? "success" : "failed");
                 else ShowPrompt(false, "%s\nDecrypted to %s", pathstr, OUTPUT_PATH);
             }
+        }
+        return 0;
+    } else if (user_select == encrypt) { // -> encrypt game file
+        if (cryptable_inplace) {
+            optionstr[0] = "Encrypt to " OUTPUT_PATH;
+            optionstr[1] = "Encrypt inplace";
+            user_select = (int) ShowSelectPrompt(2, optionstr, pathstr);
+        } else user_select = 1;
+        bool inplace = (user_select == 2);
+        if (!user_select) { // do nothing when no choice is made
+        } else if ((n_marked > 1) && ShowPrompt(true, "Try to encrypt all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0;
+            ShowString("Trying to encrypt %lu files...", n_marked);
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
+                    n_other++;
+                    continue;
+                }
+                current_dir->entry[i].marked = false;
+                if (CryptGameFile(path, inplace, true) == 0) n_success++;
+                else { // on failure: set cursor on failed title, break;
+                    *cursor = i;
+                    break;
+                }
+            }
+            if (n_other) {
+                ShowPrompt(false, "%lu/%lu files encrypted ok\n%lu/%lu not of same type",
+                    n_success, n_marked, n_other, n_marked);
+            } else ShowPrompt(false, "%lu/%lu files encrypted ok", n_success, n_marked);
+            if (!inplace && n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
+        } else {
+            u32 ret = CryptGameFile(curr_entry->path, inplace, true);
+            if (inplace || (ret != 0)) ShowPrompt(false, "%s\nEncryption %s", pathstr, (ret == 0) ? "success" : "failed");
+            else ShowPrompt(false, "%s\nEncrypted to %s", pathstr, OUTPUT_PATH);
         }
         return 0;
     } else if ((user_select == build) || (user_select == build_legit)) { // -> build CIA
@@ -790,7 +836,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked) 
                     continue;
-                if (IdentifyFileType(path) != filetype) {
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
                     n_other++;
                     continue;
                 }
@@ -822,7 +868,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked) 
                     continue;
-                if (IdentifyFileType(path) != filetype) {
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
                     n_other++;
                     continue;
                 }

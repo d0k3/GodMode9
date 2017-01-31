@@ -10,6 +10,10 @@
 #define NCSD_DINFO_SIZE     0x300
 #define NCSD_CNT0_OFFSET    0x4000
 
+// wrapper defines
+#define DecryptNcsdSequential(data, offset, size) CryptNcsdSequential(data, offset, size, NCCH_NOCRYPTO)
+#define EncryptNcsdSequential(data, offset, size, crypto) CryptNcsdSequential(data, offset, size, crypto)
+
 typedef struct {
 	u32 offset;
 	u32 size;
@@ -34,4 +38,4 @@ typedef struct {
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
 u64 GetNcsdTrimmedSize(NcsdHeader* header);
-u32 DecryptNcsdSequential(u8* data, u32 offset_data, u32 size_data);
+u32 CryptNcsdSequential(u8* data, u32 offset_data, u32 size_data, u16 crypto);

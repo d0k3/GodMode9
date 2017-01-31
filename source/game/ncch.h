@@ -11,7 +11,8 @@
 #define NCCH_ENCRYPTED(ncch) (!((ncch)->flags[7] & 0x04))
 #define NCCH_IS_CXI(ncch) ((ncch)->flags[5] & 0x02)
 
-#define NCCH_NOCRYPTO 0x0004
+#define NCCH_NOCRYPTO  0x0004
+#define NCCH_STDCRYPTO 0x0000
 #define NCCH_GET_CRYPTO(ncch) (!NCCH_ENCRYPTED(ncch) ? NCCH_NOCRYPTO : (((ncch)->flags[3] << 8) | ((ncch)->flags[7]&(0x01|0x20))))
 
 // wrapper defines

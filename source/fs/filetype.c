@@ -59,7 +59,7 @@ u32 IdentifyFileType(const char* path) {
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
-    } else if ((fsize <= PAYLOAD_MAX_SIZE) && (strncasecmp(ext, "bin", 4) == 0)) {
+    } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload
     #endif
     }

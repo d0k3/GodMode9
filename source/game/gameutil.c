@@ -8,6 +8,10 @@
 #include "sha.h"
 #include "vff.h"
 
+// use NCCH crypto defines for everything 
+#define CRYPTO_DECRYPT  NCCH_NOCRYPTO
+#define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
+
 u32 GetOutputPath(char* dest, const char* path, const char* ext) {
     // special handling for input from title directories (somewhat hacky)
     if ((strspn(path, "AB147") > 0) && (strncmp(path + 1, ":/title/", 8) == 0)) {
@@ -670,7 +674,7 @@ u32 CheckEncryptedGameFile(const char* path) {
     else return 1;
 }
 
-u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 crypto, // crypto only relevant for NCCH
+u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 crypto,
     u32 offset, u32 size, TmdContentChunk* chunk, const u8* titlekey) { // this line only for CIA contents
     // this will do a simple copy for unencrypted files
     bool inplace = (strncmp(orig, dest, 256) == 0);
@@ -679,6 +683,14 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     FIL* ofp = &ofile;
     FIL* dfp = (inplace) ? &ofile : &dfile;
     FSIZE_t fsize;
+    
+    // FIRM encryption is not possible (yet)
+    if ((mode & SYS_FIRM) && (crypto != CRYPTO_DECRYPT))
+        return 1;
+    
+    // check for BOSS crypto
+    bool crypt_boss = ((mode & GAME_BOSS) && (CheckEncryptedBossFile(orig) == 0));
+    crypt_boss = ((mode & GAME_BOSS) && (crypt_boss == (crypto == CRYPTO_DECRYPT)));
     
     // open file(s)
     if (inplace) {
@@ -701,14 +713,14 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     
     u32 ret = 0;
     if (!ShowProgress(offset, fsize, dest)) ret = 1;
-    if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM)) { // for NCCH / NCSD / FIRM files 
+    if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM)) { // for NCCH / NCSD / BOSS / FIRM files
         for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
             if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (((mode & GAME_NCCH) && (CryptNcchSequential(MAIN_BUFFER, i, read_bytes, crypto) != 0)) ||
-                ((mode & GAME_NCSD) && (DecryptNcsdSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
-                ((mode & GAME_BOSS) && (CryptBossSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
+                ((mode & GAME_NCSD) && (CryptNcsdSequential(MAIN_BUFFER, i, read_bytes, crypto) != 0)) ||
+                ((mode & GAME_BOSS) && crypt_boss && (CryptBossSequential(MAIN_BUFFER, i, read_bytes) != 0)) ||
                 ((mode & SYS_FIRM) && (DecryptFirmSequential(MAIN_BUFFER, i, read_bytes) != 0)))
                 ret = 1;
             if (inplace) fvx_lseek(ofp, fvx_tell(ofp) - read_bytes);
@@ -726,8 +738,8 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
         GetTmdCtr(ctr, chunk); // NCCH crypto?
         if (fvx_read(ofp, MAIN_BUFFER, sizeof(NcchHeader), &bytes_read) != FR_OK) ret = 1;
         if (cia_crypto) DecryptCiaContentSequential(MAIN_BUFFER, sizeof(NcchHeader), ctr, titlekey);
-        ncch_crypto = ((ValidateNcchHeader(ncch) == 0) && NCCH_ENCRYPTED(ncch));
-        if (ncch_crypto && (SetupNcchCrypto(ncch, NCCH_NOCRYPTO) != 0))
+        ncch_crypto = ((ValidateNcchHeader(ncch) == 0) && (NCCH_ENCRYPTED(ncch) || !(crypto & NCCH_NOCRYPTO)));
+        if (ncch_crypto && (SetupNcchCrypto(ncch, crypto) != 0))
             ret = 1;
         
         GetTmdCtr(ctr, chunk);
@@ -737,7 +749,7 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (cia_crypto && (DecryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey) != 0)) ret = 1;
-            if (ncch_crypto && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ret = 1;
+            if (ncch_crypto && (CryptNcchSequential(MAIN_BUFFER, i, read_bytes, crypto) != 0)) ret = 1;
             if (inplace) fvx_lseek(ofp, fvx_tell(ofp) - read_bytes);
             if (fvx_write(dfp, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
             sha_update(MAIN_BUFFER, read_bytes);
@@ -754,7 +766,7 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     return ret;
 }
 
-u32 DecryptCiaFile(const char* orig, const char* dest) {
+u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
     bool inplace = (strncmp(orig, dest, 256) == 0);
     CiaStub* cia = (CiaStub*) TEMP_BUFFER;
     CiaInfo info;
@@ -779,7 +791,7 @@ u32 DecryptCiaFile(const char* orig, const char* dest) {
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         u64 size = getbe64(chunk->size);
-        if (CryptNcchNcsdBossFirmFile(orig, dest, GAME_CIA, NCCH_NOCRYPTO, next_offset, size, chunk, titlekey) != 0)
+        if (CryptNcchNcsdBossFirmFile(orig, dest, GAME_CIA, crypto, next_offset, size, chunk, titlekey) != 0)
             return 1;
         next_offset += size;
     }
@@ -798,7 +810,7 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     UINT btr;
     
     // actual decryption
-    if (CryptNcchNcsdBossFirmFile(orig, dest, SYS_FIRM, 0, 0, 0, NULL, NULL) != 0)
+    if (CryptNcchNcsdBossFirmFile(orig, dest, SYS_FIRM, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0)
         return 1;
     
     // open destination file, get FIRM header
@@ -850,8 +862,9 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     return 0;
 }
 
-u32 DecryptGameFile(const char* path, bool inplace) {
+u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     u32 filetype = IdentifyFileType(path);
+    u16 crypto = encrypt ? CRYPTO_ENCRYPT : CRYPTO_DECRYPT;
     char dest[256];
     char* destptr = (char*) path;
     u32 ret = 0;
@@ -871,11 +884,11 @@ u32 DecryptGameFile(const char* path, bool inplace) {
     }
     
     if (filetype & GAME_CIA)
-        ret = DecryptCiaFile(path, destptr);
+        ret = CryptCiaFile(path, destptr, crypto);
     else if (filetype & SYS_FIRM)
         ret = DecryptFirmFile(path, destptr);
     else if (filetype & (GAME_NCCH|GAME_NCSD|GAME_BOSS))
-        ret = CryptNcchNcsdBossFirmFile(path, destptr, filetype, NCCH_NOCRYPTO, 0, 0, NULL, NULL);
+        ret = CryptNcchNcsdBossFirmFile(path, destptr, filetype, crypto, 0, 0, NULL, NULL);
     else ret = 1;
     
     if (!inplace && (ret != 0))
@@ -1302,7 +1315,7 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     
     // copy / decrypt the source CXI
     u32 ret = 0;
-    if (CryptNcchNcsdBossFirmFile(path, path_cxi, GAME_NCCH, NCCH_NOCRYPTO, 0, 0, NULL, NULL) != 0)
+    if (CryptNcchNcsdBossFirmFile(path, path_cxi, GAME_NCCH, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0)
         ret = 1;
     
     // fix up the injected H&S NCCH header (copy H&S signature, title ID) 

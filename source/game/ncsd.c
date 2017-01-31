@@ -35,7 +35,7 @@ u64 GetNcsdTrimmedSize(NcsdHeader* header) {
 }
 
 // on the fly decryptor for NCSD
-u32 DecryptNcsdSequential(u8* data, u32 offset_data, u32 size_data) {
+u32 CryptNcsdSequential(u8* data, u32 offset_data, u32 size_data, u16 crypto) {
     // warning: this will only work for sequential processing
     static NcsdHeader ncsd;
     
@@ -64,7 +64,7 @@ u32 DecryptNcsdSequential(u8* data, u32 offset_data, u32 size_data) {
         if (size_i > size_data - (data_i - data))
             size_i = size_data - (data_i - data);
         // decrypt ncch segment
-        if (DecryptNcchSequential(data_i, offset_i, size_i) != 0)
+        if (CryptNcchSequential(data_i, offset_i, size_i, crypto) != 0)
             return 1;
     }
     
