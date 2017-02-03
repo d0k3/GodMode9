@@ -537,7 +537,7 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     }
     u64 sec_elapsed = (total > 0) ? timer_sec() : 0;
     u64 sec_total = (current > 0) ? (sec_elapsed * total) / current : 0;
-    u64 sec_remain = ((2 * last_sec_remain) + (sec_total - sec_elapsed)) / 3;
+    u64 sec_remain = (!last_sec_remain) ? (sec_total - sec_elapsed) : ((last_sec_remain + (sec_total - sec_elapsed) + 1) / 2);
     if (sec_remain >= 60 * 60) sec_remain = 60 * 60 - 1;
     last_sec_remain = sec_remain;
     
