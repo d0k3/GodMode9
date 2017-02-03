@@ -32,7 +32,7 @@ _start:
     mcr p15, 0, r5, c5, c0, 3 @ write instruction access
 
     @ Sets MPU permissions and cache settings
-    ldr r0, =0xFFFF001D	@ ffff0000 32k  | bootrom (unprotected part)
+    ldr r0, =0xFFFF001F	@ ffff0000 64k  | bootrom (unprotected / protected)
     ldr r1, =0x3000801B	@ 30000000 16k  | dtcm
     ldr r2, =0x01FF801D	@ 01ff8000 32k  | itcm
     ldr r3, =0x08000029	@ 08000000 2M   | arm9 mem (O3DS / N3DS) 
