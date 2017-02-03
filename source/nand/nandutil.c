@@ -77,7 +77,7 @@ u32 ValidateNandDump(const char* path) {
     for (u32 i = 0; i < sizeof(firm_sectors) / sizeof(u32); i++) {
         u32 keyslot = 0x06;
         if ((ReadNandFile(&file, &firm, firm_sectors[i], 1, keyslot) != 0) ||
-            (ValidateFirmHeader(&firm) != 0) ||
+            (ValidateFirmHeader(&firm, 0) != 0) ||
             (getbe32(firm.dec_magic) != 0)) { // decrypted firms are not allowed
             ShowPrompt(false, "%s\nError: FIRM%u header is corrupt", pathstr, i);
             fvx_close(&file);

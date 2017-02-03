@@ -7,6 +7,7 @@
 #define SECTOR_NAME "sector0x96.bin"
 #define SECRET_NAME "secret_sector.bin"
 
+#define FIRM_MAX_SIZE  0x400000 // 4MB, due to FIRM partition size
 #define ARM9BIN_OFFSET 0x800
 
 // see: https://www.3dbrew.org/wiki/FIRM#Firmware_Section_Headers
@@ -42,7 +43,7 @@ typedef struct {
     u8  padding[0x1A0];
 } __attribute__((packed, aligned(16))) FirmA9LHeader;
 
-u32 ValidateFirmHeader(FirmHeader* header);
+u32 ValidateFirmHeader(FirmHeader* header, u32 data_size);
 u32 ValidateFirmA9LHeader(FirmA9LHeader* header);
 
 FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm);

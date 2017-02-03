@@ -8,9 +8,23 @@
 // 0 -> pre 9.5 / 1 -> 9.5 / 2 -> post 9.5
 #define A9L_CRYPTO_TYPE(hdr) ((hdr->k9l[3] == 0xFF) ? 0 : (hdr->k9l[3] == '1') ? 1 : 2)
 
-u32 ValidateFirmHeader(FirmHeader* header) {
+u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
     u8 magic[] = { FIRM_MAGIC };
-    return memcmp(header->magic, magic, sizeof(magic)); // duh
+    if (memcmp(header->magic, magic, sizeof(magic)) != 0)
+        return 1;
+    
+    u32 firm_size = sizeof(FirmHeader);
+    for (u32 i = 0; i < 4; i++) {
+        FirmSectionHeader* section = header->sections + i;
+        if (!section->size) continue;
+        if (section->offset < firm_size) return 1;
+        firm_size = section->offset + section->size;
+    }
+    
+    if ((firm_size > FIRM_MAX_SIZE) || (data_size && (firm_size > data_size)))
+        return 1;
+    
+    return 0;
 }
 
 u32 ValidateFirmA9LHeader(FirmA9LHeader* header) {
@@ -18,9 +32,7 @@ u32 ValidateFirmA9LHeader(FirmA9LHeader* header) {
         0x0A, 0x85, 0x20, 0x14, 0x8F, 0x7E, 0xB7, 0x21, 0xBF, 0xC6, 0xC8, 0x82, 0xDF, 0x37, 0x06, 0x3C,
         0x0E, 0x05, 0x1D, 0x1E, 0xF3, 0x41, 0xE9, 0x80, 0x1E, 0xC9, 0x97, 0x82, 0xA0, 0x84, 0x43, 0x08
     };
-    u8 hash[0x20];
-    sha_quick(hash, header->keyX0x15, 0x10, SHA256_MODE);
-    return memcmp(hash, enckeyX0x15hash, 0x20);
+    return sha_cmp(enckeyX0x15hash, header->keyX0x15, 0x10, SHA256_MODE);
 }
 
 FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm) {
@@ -194,7 +206,7 @@ u32 DecryptFirmSequential(u8* data, u32 offset, u32 size) {
     // fetch firm header from data
     if ((offset == 0) && (size >= sizeof(FirmHeader))) {
         memcpy(&firm, data, sizeof(FirmHeader));
-        firmptr = (ValidateFirmHeader(&firm) == 0) ? &firm : NULL;
+        firmptr = (ValidateFirmHeader(&firm, 0) == 0) ? &firm : NULL;
         arm9s = (firmptr) ? FindFirmArm9Section(firmptr) : NULL;
         a9lptr = NULL;
     }

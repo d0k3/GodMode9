@@ -36,3 +36,9 @@ void sha_quick(void* res, const void* src, u32 size, u32 mode) {
     sha_update(src, size);
     sha_get(res);
 }
+
+int sha_cmp(const void* sha, const void* src, u32 size, u32 mode) {
+    u8 res[0x20];
+    sha_quick(res, src, size, mode);
+    return memcmp(sha, res, 0x20);
+}

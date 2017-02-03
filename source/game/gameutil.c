@@ -471,12 +471,15 @@ u32 VerifyFirmFile(const char* path) {
     FIL file;
     UINT btr;
     
+    char pathstr[32 + 1];
+    TruncateString(pathstr, path, 32, 8);
+    
     // open file, get FIRM header
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     fvx_lseek(&file, 0);
     if ((fvx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
-        (ValidateFirmHeader(&header) != 0)) {
+        (ValidateFirmHeader(&header, fvx_size(&file)) != 0)) {
         fvx_close(&file);
         return 1;
     }
@@ -496,14 +499,31 @@ u32 VerifyFirmFile(const char* path) {
         u8 hash[0x20];
         sha_get(hash);
         if (memcmp(hash, section->hash, 0x20) != 0) {
-            char pathstr[32 + 1];
-            TruncateString(pathstr, path, 32, 8);
             ShowPrompt(false, "%s\nSection %u hash mismatch", pathstr, i);
             fvx_close(&file);
             return 1;
         }
     }
     fvx_close(&file);
+    
+    // check arm11 / arm9 entrypoints
+    int section_arm11 = -1;
+    int section_arm9 = -1;
+    for (u32 i = 0; i < 4; i++) {
+        FirmSectionHeader* section = header.sections + i;
+        if ((header.entry_arm11 >= section->address) &&
+            (header.entry_arm11 < section->address + section->size))
+            section_arm11 = i;
+        if ((header.entry_arm9 >= section->address) &&
+            (header.entry_arm9 < section->address + section->size))
+            section_arm9 = i;
+    }
+    
+    // sections for arm11 / arm9 entrypoints not found?
+    if ((section_arm11 < 0) || (section_arm9 < 0)) {
+        ShowPrompt(false, "%s\nARM11/ARM9 entrypoint not found", pathstr);
+        return 1;
+    }
     
     return 0;
 }
@@ -625,7 +645,7 @@ u32 CheckEncryptedFirmFile(const char* path) {
         return 1;
     fvx_lseek(&file, 0);
     if ((fvx_read(&file, &header, sizeof(FirmHeader), &btr) != FR_OK) ||
-        (ValidateFirmHeader(&header) != 0)) {
+        (ValidateFirmHeader(&header, fvx_size(&file)) != 0)) {
         fvx_close(&file);
         return 1;
     }
@@ -714,7 +734,7 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     u32 ret = 0;
     if (!ShowProgress(offset, fsize, dest)) ret = 1;
     if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM)) { // for NCCH / NCSD / BOSS / FIRM files
-        for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
+        for (u64 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
             if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
@@ -745,7 +765,7 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
         GetTmdCtr(ctr, chunk);
         fvx_lseek(ofp, offset);
         sha_init(SHA256_MODE);
-        for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
+        for (u64 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             if (fvx_read(ofp, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
             if (cia_crypto && (DecryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey) != 0)) ret = 1;
@@ -818,7 +838,7 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
         return 1;
     fvx_lseek(&file, 0);
     if ((fvx_read(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) ||
-        (ValidateFirmHeader(&firm) != 0)) {
+        (ValidateFirmHeader(&firm, fvx_size(&file)) != 0)) {
         fvx_close(&file);
         return 1;
     }

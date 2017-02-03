@@ -6,8 +6,8 @@
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
-    const u8 firm_magic[] = { FIRM_MAGIC };
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
+    void* data = (void*) header;
     size_t fsize = FileGetSize(path);
     char* fname = strrchr(path, '/');
     char* ext = (fname) ? strrchr(++fname, '.') : NULL;
@@ -20,42 +20,42 @@ u32 IdentifyFileType(const char* path) {
             return IMG_NAND; // NAND image
         } else if (ValidateFatHeader(header) == 0) {
             return IMG_FAT; // FAT image file
-        } else if (ValidateMbrHeader((MbrHeader*) (void*) header) == 0) {
-            MbrHeader* mbr = (MbrHeader*) (void*) header;
+        } else if (ValidateMbrHeader((MbrHeader*) data) == 0) {
+            MbrHeader* mbr = (MbrHeader*) data;
             MbrPartitionInfo* partition0 = mbr->partitions;
             if ((partition0->sector + partition0->count) <= (fsize / 0x200)) // size check
                 return IMG_FAT; // possibly an MBR -> also treat as FAT image
-        } else if (ValidateCiaHeader((CiaHeader*) (void*) header) == 0) {
+        } else if (ValidateCiaHeader((CiaHeader*) data) == 0) {
             // this only works because these functions ignore CIA content index
             CiaInfo info;
             GetCiaInfo(&info, (CiaHeader*) header);
             if (fsize >= info.size_cia)
                 return GAME_CIA; // CIA file
-        } else if (ValidateNcsdHeader((NcsdHeader*) (void*) header) == 0) {
-            NcsdHeader* ncsd = (NcsdHeader*) (void*) header;
+        } else if (ValidateNcsdHeader((NcsdHeader*) data) == 0) {
+            NcsdHeader* ncsd = (NcsdHeader*) data;
             if (fsize >= GetNcsdTrimmedSize(ncsd))
                 return GAME_NCSD; // NCSD (".3DS") file
-        } else if (ValidateNcchHeader((NcchHeader*) (void*) header) == 0) {
-            NcchHeader* ncch = (NcchHeader*) (void*) header;
+        } else if (ValidateNcchHeader((NcchHeader*) data) == 0) {
+            NcchHeader* ncch = (NcchHeader*) data;
             u32 type = GAME_NCCH | (NCCH_IS_CXI(ncch) ? FLAG_CXI : 0);
             if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
                 return type; // NCCH (".APP") file
-        } else if (ValidateExeFsHeader((ExeFsHeader*) (void*) header, fsize) == 0) {
+        } else if (ValidateExeFsHeader((ExeFsHeader*) data, fsize) == 0) {
             return GAME_EXEFS; // ExeFS file (false positives possible)
         } else if (memcmp(header, romfs_magic, sizeof(romfs_magic)) == 0) {
             return GAME_ROMFS; // RomFS file (check could be better)
         } else if (strncmp(TMD_ISSUER, (char*) (header + 0x140), 0x40) == 0) {
             if (fsize >= TMD_SIZE_N(getbe16(header + 0x1DE)))
                 return GAME_TMD; // TMD file
-        } else if (memcmp(header, firm_magic, sizeof(firm_magic)) == 0) {
+        } else if (ValidateFirmHeader((FirmHeader*) data, fsize) == 0) {
             return SYS_FIRM; // FIRM file
         }
     }
     if ((fsize > sizeof(BossHeader)) &&
-        (ValidateBossHeader((BossHeader*) (void*) header, fsize) == 0)) {
+        (ValidateBossHeader((BossHeader*) data, fsize) == 0)) {
         return GAME_BOSS; // BOSS (SpotPass) file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&
-        (GetNcchInfoVersion((NcchInfoHeader*) (void*) header)) &&
+        (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE

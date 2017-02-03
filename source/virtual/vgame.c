@@ -490,7 +490,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
     // build directories where required
     if ((vdir->flags & VFLAG_FIRM) && (offset_firm != vdir->offset)) {
         if ((ReadImageBytes((u8*) firm, 0, sizeof(FirmHeader)) != 0) ||
-            (ValidateFirmHeader(firm) != 0)) return false;
+            (ValidateFirmHeader(firm, 0) != 0)) return false;
         offset_firm = vdir->offset;
         FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
         if (arm9s && (ReadImageBytes((u8*) a9l, arm9s->offset, sizeof(FirmA9LHeader)) == 0) &&
