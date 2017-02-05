@@ -63,11 +63,13 @@ FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode) {
         u8 hashstr[256];
         u8 sha256sum[32];
         u32 plen = 0;
-        // poor man's UTF-8 -> UTF-16
+        // poor man's UTF-8 -> UTF-16 / uppercase -> lowercase
         for (plen = 0; plen < 128; plen++) {
-            hashstr[2*plen] = path[2 + plen];
+            u8 symbol = path[2 + plen];
+            if ((symbol >= 'A') && (symbol <= 'Z')) symbol += ('a' - 'A');
+            hashstr[2*plen] = symbol;
             hashstr[2*plen+1] = 0;
-            if (path[2 + plen] == 0) break;
+            if (symbol == 0) break;
         }
         sha_quick(sha256sum, hashstr, (plen + 1) * 2, SHA256_MODE);
         for (u32 i = 0; i < 16; i++)
