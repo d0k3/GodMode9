@@ -17,10 +17,26 @@ u32 GetOutputPath(char* dest, const char* path, const char* ext) {
     if ((strspn(path, "AB147") > 0) && (strncmp(path + 1, ":/title/", 8) == 0)) {
         u32 tid_high, tid_low, app_id;
         char drv;
-        if ((sscanf(path, "%c:/title/%08lx/%08lx/content/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&
-            (strnlen(path, 256) == (1+1+1) + (5+1) + (8+1) + (8+1) + (7+1) + (8+1+3))) { // confused? ^_^
+        if (((sscanf(path, "%c:/title/%08lx/%08lx/content/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&
+             (strnlen(path, 256) == (1+1+1) + (5+1) + (8+1) + (8+1) + (7+1) + (8+1+3))) ||
+            ((sscanf(path, "%c:/title/%08lx/%08lx/content/00000000/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&
+             (strnlen(path, 256) == (1+1+1) + (5+1) + (8+1) + (8+1) + (7+1) + (8+1) + (8+1+3)))) { // confused? ^_^
             if (!ext) snprintf(dest, 256, "%s/%08lx%08lx.%08lx.app", OUTPUT_PATH, tid_high, tid_low, app_id);
             else snprintf(dest, 256, "%s/%08lx%08lx.%s", OUTPUT_PATH, tid_high, tid_low, ext);
+            return 0;
+        }
+    }
+    
+    // tmd file handling (outside of title dirs, still hacky)
+    if (ext && (strnlen(path, 256) >= 3) && (strncasecmp(path + strnlen(path, 256) - 3, "tmd", 3)) == 0) {
+        // minimum size TMD
+        const u8 magic[] = { TMD_SIG_TYPE };
+        TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+        UINT br;
+        if ((fvx_qread(path, tmd, 0, TMD_SIZE_MIN, &br) == FR_OK) &&
+            (memcmp(tmd->sig_type, magic, sizeof(magic)) == 0) &&
+            (br == TMD_SIZE_MIN)) {
+            snprintf(dest, 256, "%s/%016llx.%s", OUTPUT_PATH, getbe64(tmd->title_id), ext);
             return 0;
         }
     }
@@ -33,7 +49,7 @@ u32 GetOutputPath(char* dest, const char* path, const char* ext) {
         char* dot = strrchr(dest, '.');
         if (!dot || ((dot - dest) <= (int) strnlen(OUTPUT_PATH, 256) + 1))
             dot = dest + strnlen(dest, 256);
-        snprintf(dot, 8, ".%s", ext);
+        snprintf(dot, 16, ".%s", ext);
     }
     
     return 0;
