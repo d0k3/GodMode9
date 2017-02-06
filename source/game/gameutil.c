@@ -205,22 +205,32 @@ u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
 
 u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     const u8 magic[] = { TMD_SIG_TYPE };
-    FIL file;
-    UINT btr;
-    
-    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
+    UINT br;
     
     // full TMD file
-    fvx_lseek(&file, 0);
-    if ((fvx_read(&file, tmd, TMD_SIZE_MAX, &btr) != FR_OK) ||
+    if ((fvx_qread(path, tmd, 0, TMD_SIZE_MAX, &br) != FR_OK) ||
         (memcmp(tmd->sig_type, magic, sizeof(magic)) != 0) ||
-        (btr < TMD_SIZE_N(getbe16(tmd->content_count)))) {
-        fvx_close(&file);
+        (br < TMD_SIZE_N(getbe16(tmd->content_count))))
         return 1;
-    }
     
-    fvx_close(&file);
+    return 0;
+}
+
+u32 LoadCdnTicketFile(Ticket* ticket, const char* path) {
+    // path may be to any file in dir
+    char path_cetk[256];
+    char* name_cetk;
+    strncpy(path_cetk, path, 256);
+    name_cetk = strrchr(path_cetk, '/');
+    if (!name_cetk) return 1; // will not happen
+    name_cetk++;
+    snprintf(name_cetk, 256 - (name_cetk - path_cetk), "cetk");
+    
+    // load and check ticket
+    UINT br;
+    if ((fvx_qread(path_cetk, ticket, 0, TICKET_SIZE, &br) != FR_OK) || (br != TICKET_SIZE) ||
+        (ValidateTicket(ticket) != 0)) return 1;
+        
     return 0;
 }
 
@@ -425,10 +435,12 @@ u32 VerifyCiaFile(const char* path) {
     return 0;
 }
 
-u32 VerifyTmdFile(const char* path) {
+u32 VerifyTmdFile(const char* path, bool cdn) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
+    Ticket* ticket = (Ticket*) (TEMP_BUFFER + TMD_SIZE_MAX);
+    u8 titlekey[0x10];
     
     // path string
     char pathstr[32 + 1];
@@ -448,16 +460,26 @@ u32 VerifyTmdFile(const char* path) {
         return 1;
     }
     
+    if (cdn) { // load / build ticket (for titlekey / CDN only)
+        if (!((LoadCdnTicketFile(ticket, path) == 0) ||
+             ((BuildFakeTicket(ticket, tmd->title_id) == 0) &&
+             (FindTitleKey(ticket, tmd->title_id) == 0))) ||
+            (GetTitleKey(titlekey, ticket) != 0)) {
+            ShowPrompt(false, "%s\nError: CDN titlekey not found", pathstr);
+            return 1;
+        }
+    }
+    
     // verify contents
     u32 content_count = getbe16(tmd->content_count);
-    bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
+    bool dlc = !cdn && (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
-        chunk->type[1] &= ~0x01; // remove crypto flag
+        if (!cdn) chunk->type[1] &= ~0x01; // remove crypto flag
         snprintf(name_content, 256 - (name_content - path_content),
-            (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+            (cdn) ? "%08lx" : (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         TruncateString(pathstr, path_content, 32, 8);
-        if (VerifyTmdContent(path_content, 0, chunk, NULL) != 0) {
+        if (VerifyTmdContent(path_content, 0, chunk, titlekey) != 0) {
             ShowPrompt(false, "%s\nVerification failed", pathstr);
             return 1;
         }
@@ -579,7 +601,7 @@ u32 VerifyGameFile(const char* path) {
     else if (filetype & GAME_NCCH)
         return VerifyNcchFile(path, 0, 0);
     else if (filetype & GAME_TMD)
-        return VerifyTmdFile(path);
+        return VerifyTmdFile(path, filetype & FLAG_NUSCDN);
     else if (filetype & GAME_BOSS)
         return VerifyBossFile(path);
     else if (filetype & SYS_FIRM)
