@@ -7,6 +7,7 @@
 #define TMD_SIZE_MIN        sizeof(TitleMetaData)
 #define TMD_SIZE_MAX        (sizeof(TitleMetaData) + (TMD_MAX_CONTENTS*sizeof(TmdContentChunk)))
 #define TMD_SIZE_N(n)       (sizeof(TitleMetaData) + (n*sizeof(TmdContentChunk)))
+#define TMD_CDNCERT_SIZE    0x700
 
 #define TMD_ISSUER          "Root-CA00000003-CP0000000b"
 #define TMD_SIG_TYPE        0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256

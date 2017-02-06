@@ -16,6 +16,7 @@
 #define BIN_LAUNCH  (1<<11)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
+#define FLAG_NUSCDN (1<<30)
 #define FLAG_CXI    (1<<31)
 
 #define FTYPE_MOUNTABLE(tp)     (tp&(IMG_FAT|IMG_NAND|GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_EXEFS|GAME_ROMFS|SYS_FIRM))

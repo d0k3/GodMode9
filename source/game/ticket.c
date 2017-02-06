@@ -65,7 +65,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     memcpy(tik.titlekey, ticket->titlekey, 16);
     tik.commonkey_idx = ticket->commonkey_idx;
     
-    if (CryptTitleKey(&tik, false) != 0) return 0;
+    if (CryptTitleKey(&tik, false) != 0) return 1;
     memcpy(titlekey, tik.titlekey, 16);
     return 0;
 }

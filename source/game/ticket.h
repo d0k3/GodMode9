@@ -3,6 +3,7 @@
 #include "common.h"
 
 #define TICKET_SIZE         sizeof(Ticket)
+#define TICKET_CDNCERT_SIZE 0x700
 
 #define TICKET_ISSUER       "Root-CA00000003-XS0000000c"
 #define TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
