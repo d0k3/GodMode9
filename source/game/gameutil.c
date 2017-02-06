@@ -940,11 +940,11 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
 }
 
 u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset, u32 size,
-    TmdContentChunk* chunk, const u8* titlekey, bool force_legit, bool cxi_fix) {
-    // crypto types
-    bool ncch_crypto = (!force_legit && (CheckEncryptedNcchFile(path_content, offset) == 0));
-    bool cia_crypto = (force_legit && (getbe16(chunk->type) & 0x01));
-    if (!cia_crypto) chunk->type[1] &= ~0x01; // remove crypto flag
+    TmdContentChunk* chunk, const u8* titlekey, bool force_legit, bool cxi_fix, bool cdn_decrypt) {
+    // crypto types / ctr
+    bool ncch_decrypt = !force_legit;
+    bool cia_encrypt = (force_legit && (getbe16(chunk->type) & 0x01));
+    if (!cia_encrypt) chunk->type[1] &= ~0x01; // remove crypto flag
     
     // open file(s)
     FIL ofile;
@@ -963,28 +963,34 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     }
     
     // check if NCCH crypto is available
-    if (ncch_crypto) {
+    if (ncch_decrypt) {
         NcchHeader ncch;
+        u8 ctr[16];
+        GetTmdCtr(ctr, chunk);
         if ((fvx_read(&ofile, &ncch, sizeof(NcchHeader), &bytes_read) != FR_OK) ||
+            (cdn_decrypt && (DecryptCiaContentSequential((u8*) &ncch, 0x200, ctr, titlekey) != 0)) || 
             (ValidateNcchHeader(&ncch) != 0) ||
             (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0))
-            ncch_crypto = false;
+            ncch_decrypt = false;
         fvx_lseek(&ofile, offset);
     }
     
     // main loop starts here
-    u8 ctr[16];
+    u8 ctr_in[16];
+    u8 ctr_out[16];
     u32 ret = 0;
-    GetTmdCtr(ctr, chunk);
+    GetTmdCtr(ctr_in, chunk);
+    GetTmdCtr(ctr_out, chunk);
     if (!ShowProgress(0, 0, path_content)) ret = 1;
     for (u32 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
         u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
         if (fvx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ret = 1;
-        if (ncch_crypto && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ret = 1;
+        if (cdn_decrypt && (DecryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr_in, titlekey) != 0)) ret = 1;
+        if (ncch_decrypt && (DecryptNcchSequential(MAIN_BUFFER, i, read_bytes) != 0)) ret = 1;
         if ((i == 0) && cxi_fix && (SetNcchSdFlag(MAIN_BUFFER) != 0)) ret = 1;
         if (i == 0) sha_init(SHA256_MODE);
         sha_update(MAIN_BUFFER, read_bytes);
-        if (cia_crypto && (EncryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr, titlekey) != 0)) ret = 1;
+        if (cia_encrypt && (EncryptCiaContentSequential(MAIN_BUFFER, read_bytes, ctr_out, titlekey) != 0)) ret = 1;
         if (fvx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ret = 1;
         if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
         if (!ShowProgress(offset + i + read_bytes, fsize, path_content)) ret = 1;
@@ -1016,7 +1022,7 @@ u32 InsertCiaMeta(const char* path_cia, CiaMeta* meta) {
     return (res) ? 0 : 1;
 }
 
-u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_legit) {
+u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_legit, bool cdn) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     CiaStub* cia = (CiaStub*) TEMP_BUFFER;
     CiaMeta* meta = (CiaMeta*) (TEMP_BUFFER + sizeof(CiaStub));
@@ -1040,15 +1046,22 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     TmdContentChunk* content_list = cia->content_list;
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = tmd->title_id;
-    bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
+    bool dlc = !cdn && (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     if (!content_count) return 1;
     
     // get (legit) ticket
     Ticket* ticket = &(cia->ticket);
     bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
     if (force_legit) {
-        if (FindTicket(ticket, title_id, true, src_emunand) != 0) {
+        if ((cdn && (LoadCdnTicketFile(ticket, path_tmd) != 0)) ||
+            (!cdn && (FindTicket(ticket, title_id, true, src_emunand) != 0))) {
             ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
+            return 1;
+        }
+    } else if (cdn) {
+        if ((LoadCdnTicketFile(ticket, path_tmd) != 0) &&
+            (FindTitleKey(ticket, title_id) != 0)) {
+            ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
             return 1;
         }
     } else {
@@ -1076,15 +1089,22 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_l
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         snprintf(name_content, 256 - (name_content - path_content),
-            (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-        if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false) != 0) {
+            (cdn) ? "%08lx" : (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+        if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false, cdn) != 0) {
             ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
             return 1;
         }
     }
     
     // try to build & insert meta, but ignore result
-    if (content_count) {
+    if (content_count && cdn) {
+        if (!force_legit || !(getbe16(content_list->type) & 0x01)) {
+            CiaInfo info;
+            GetCiaInfo(&info, &(cia->header));
+            if ((LoadNcchMeta(meta, path_cia, info.offset_content) == 0) && (InsertCiaMeta(path_cia, meta) == 0))
+                cia->header.size_meta = CIA_META_SIZE;
+        }
+    } else if (content_count) {
         snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(content_list->id));
         if ((LoadNcchMeta(meta, path_content, 0) == 0) && (InsertCiaMeta(path_cia, meta) == 0))
             cia->header.size_meta = CIA_META_SIZE;
@@ -1132,7 +1152,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     // insert NCCH content
     TmdContentChunk* chunk = cia->content_list;
     memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
-    if (InsertCiaContent(path_cia, path_ncch, 0, 0, chunk, NULL, false, true) != 0)
+    if (InsertCiaContent(path_cia, path_ncch, 0, 0, chunk, NULL, false, true, false) != 0)
         return 1;
     
     // optional stuff (proper titlekey / meta data)
@@ -1196,7 +1216,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
         if (!size) continue;
         memset(chunk, 0, sizeof(TmdContentChunk));
         chunk->id[3] = chunk->index[1] = i;
-        if (InsertCiaContent(path_cia, path_ncsd, offset, size, chunk++, NULL, false, (i == 0)) != 0)
+        if (InsertCiaContent(path_cia, path_ncsd, offset, size, chunk++, NULL, false, (i == 0), false) != 0)
             return 1;
     }
     
@@ -1232,7 +1252,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     
     // build CIA from game file
     if (filetype & GAME_TMD)
-        ret = BuildCiaFromTmdFile(path, dest, force_legit);
+        ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & FLAG_NUSCDN);
     else if (filetype & GAME_NCCH)
         ret = BuildCiaFromNcchFile(path, dest);
     else if (filetype & GAME_NCSD)
