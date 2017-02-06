@@ -59,3 +59,4 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand);
 u32 FindTitleKey(Ticket* ticket, u8* title_id);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
+u32 BuildTicketCert(u8* tickcert);

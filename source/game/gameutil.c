@@ -440,7 +440,7 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
     Ticket* ticket = (Ticket*) (TEMP_BUFFER + TMD_SIZE_MAX);
-    u8 titlekey[0x10];
+    u8 titlekey[0x10] = { 0xFF };
     
     // path string
     char pathstr[32 + 1];

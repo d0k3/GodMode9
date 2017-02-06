@@ -1,5 +1,6 @@
 #include "ticket.h"
 #include "aes.h"
+#include "sha.h"
 #include "ff.h"
 
 typedef struct {
@@ -159,6 +160,35 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     ticket->commonkey_idx = 0x00; // eshop
     ticket->audit = 0x01; // whatever
     memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
+    
+    return 0;
+}
+
+u32 BuildTicketCert(u8* tickcert) {
+    const u8 cert_hash_expected[0x20] = {
+        0xDC, 0x15, 0x3C, 0x2B, 0x8A, 0x0A, 0xC8, 0x74, 0xA9, 0xDC, 0x78, 0x61, 0x0E, 0x6A, 0x8F, 0xE3, 
+        0xE6, 0xB1, 0x34, 0xD5, 0x52, 0x88, 0x73, 0xC9, 0x61, 0xFB, 0xC7, 0x95, 0xCB, 0x47, 0xE6, 0x97
+    };
+    
+    // open certs.db file on SysNAND
+    FIL db;
+    UINT bytes_read;
+    if (f_open(&db, "1:/dbs/certs.db", FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    // grab Ticket cert from 3 offsets
+    f_lseek(&db, 0x3F10);
+    f_read(&db, tickcert + 0x000, 0x300, &bytes_read);
+    f_lseek(&db, 0x0C10);
+    f_read(&db, tickcert + 0x300, 0x1F0, &bytes_read);
+    f_lseek(&db, 0x3A00);
+    f_read(&db, tickcert + 0x4F0, 0x210, &bytes_read);
+    f_close(&db);
+    
+    // check the certificate hash
+    u8 cert_hash[0x20];
+    sha_quick(cert_hash, tickcert, TICKET_CDNCERT_SIZE, SHA256_MODE);
+    if (memcmp(cert_hash, cert_hash_expected, 0x20) != 0)
+        return 1;
     
     return 0;
 }
