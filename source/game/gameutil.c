@@ -729,6 +729,8 @@ u32 CheckEncryptedGameFile(const char* path) {
         return CheckEncryptedBossFile(path);
     else if (filetype & SYS_FIRM)
         return CheckEncryptedFirmFile(path);
+    else if (filetype & GAME_NUSCDN)
+        return 0; // these should always be encrypted
     else return 1;
 }
 
@@ -767,7 +769,8 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     }
     
     fsize = fvx_size(ofp); // for progress bar
-    if (!size) size = fsize;
+    if (fsize < offset) return 1;
+    if (!size) size = fsize - offset;
     
     u32 ret = 0;
     if (!ShowProgress(offset, fsize, dest)) ret = 1;
@@ -786,7 +789,7 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
             if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
             if (!ShowProgress(offset + i + read_bytes, fsize, dest)) ret = 1;
         }
-    } else if (mode & GAME_CIA) { // for NCCHs inside CIAs
+    } else if (mode & (GAME_CIA|GAME_NUSCDN)) { // for NCCHs inside CIAs
         bool cia_crypto = getbe16(chunk->type) & 0x1;
         bool ncch_crypto; // find out by decrypting the NCCH header
         UINT bytes_read, bytes_written;
@@ -920,6 +923,70 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     return 0;
 }
 
+u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
+    bool inplace = (strncmp(orig, dest, 256) == 0);
+    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+    TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
+    Ticket* ticket = (Ticket*) (TEMP_BUFFER + TMD_SIZE_MAX);
+    u8 titlekey[0x10] = { 0xFF };
+    u32 cnt_id;
+    
+    // try to load TMD file
+    char path_tmd[256];
+    char* name_tmd;
+    strncpy(path_tmd, orig, 256);
+    name_tmd = strrchr(path_tmd, '/');
+    if (!name_tmd) return 1; // will not happen
+    name_tmd++;
+    snprintf(name_tmd, 256 - (name_tmd - path_tmd), "tmd");
+    if (LoadTmdFile(tmd, path_tmd) != 0) tmd = NULL;
+    
+    // load or build ticket
+    if (LoadCdnTicketFile(ticket, orig) != 0) {
+        if (!tmd || (BuildFakeTicket(ticket, tmd->title_id) != 0)) return 1;
+        if (FindTitleKey(ticket, tmd->title_id) != 0) return 1;
+    }
+    
+    // get titlekey
+    if (GetTitleKey(titlekey, ticket) != 0)
+        return 1;
+    
+    // get content id
+    char* fname;
+    fname = strrchr(orig, '/');
+    if (!fname) return 1; // will not happen
+    if (sscanf(++fname, "%08lx", &cnt_id) != 1)
+        return 1; // this won't either
+    
+    // find (build fake) content chunk
+    TmdContentChunk* chunk = NULL;
+    if (!tmd) {
+        chunk = content_list;
+        memset(chunk, 0, sizeof(TmdContentChunk));
+        chunk->type[1] = 0x01; // encrypted 
+    } else {
+        u32 content_count = getbe16(tmd->content_count);
+        for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
+            chunk = &(content_list[i]);
+            if (getbe32(chunk->id) == cnt_id) break;
+            chunk = NULL;
+        }
+        if (!chunk || !(getbe16(chunk->type) & 0x01)) return 1;
+    }
+    
+    // actual crypto
+    if (CryptNcchNcsdBossFirmFile(orig, dest, GAME_NUSCDN, crypto, 0, 0, chunk, titlekey) != 0)
+        return 1;
+    
+    if (inplace && tmd) {
+        UINT bw; // in that case, write the change to the TMD file, too
+        u32 offset = ((u8*) chunk) - ((u8*) tmd);
+        fvx_qwrite(path_tmd, chunk, offset, sizeof(TmdContentChunk), &bw);
+    }
+    
+    return 0;
+}
+
 u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     u32 filetype = IdentifyFileType(path);
     u16 crypto = encrypt ? CRYPTO_ENCRYPT : CRYPTO_DECRYPT;
@@ -943,6 +1010,8 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     
     if (filetype & GAME_CIA)
         ret = CryptCiaFile(path, destptr, crypto);
+    else if (filetype & GAME_NUSCDN)
+        ret = CryptCdnFile(path, destptr, crypto);
     else if (filetype & SYS_FIRM)
         ret = DecryptFirmFile(path, destptr);
     else if (filetype & (GAME_NCCH|GAME_NCSD|GAME_BOSS))

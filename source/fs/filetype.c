@@ -11,6 +11,7 @@ u32 IdentifyFileType(const char* path) {
     size_t fsize = FileGetSize(path);
     char* fname = strrchr(path, '/');
     char* ext = (fname) ? strrchr(++fname, '.') : NULL;
+    u32 id = 0;
     if (ext) ext++;
     if (FileGetData(path, header, 0x200, 0) < ((fsize > 0x200) ? 0x200 : fsize)) return 0;
     
@@ -49,6 +50,8 @@ u32 IdentifyFileType(const char* path) {
                 return GAME_TMD | FLAG_NUSCDN; // TMD file from NUS/CDN
             else if (fsize >= TMD_SIZE_N(getbe16(header + 0x1DE)))
                 return GAME_TMD; // TMD file
+        } else if (ValidateTicket((Ticket*) data) == 0) {
+            return GAME_TICKET; // Ticket file (not used for anything right now)
         } else if (ValidateFirmHeader((FirmHeader*) data, fsize) == 0) {
             return SYS_FIRM; // FIRM file
         }
@@ -60,6 +63,16 @@ u32 IdentifyFileType(const char* path) {
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
+    } else if ((strnlen(fname, 16) == 8) && (sscanf(fname, "%08lx", &id) == 1)) {
+        char path_cdn[256];
+        char* name_cdn = path_cdn + (fname - path);
+        strncpy(path_cdn, path, 256);
+        strncpy(name_cdn, "tmd", 4);
+        if (FileGetSize(path_cdn) > 0)
+            return GAME_NUSCDN;
+        strncpy(name_cdn, "cetk", 5);
+        if (FileGetSize(path_cdn) > 0)
+            return GAME_NUSCDN;
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload

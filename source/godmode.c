@@ -627,6 +627,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype & GAME_TMD)   ? "TMD file options..."   :
         (filetype & GAME_BOSS)  ? "BOSS file options..."  :
+        (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & SYS_FIRM)   ? "FIRM image options..." :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
