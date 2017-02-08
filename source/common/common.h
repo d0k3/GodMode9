@@ -52,6 +52,7 @@
 //  -> ncch.c seed setup
 //  -> cia.c ticket / titlekey setup
 //  -> gameutil.c various temporary stuff
+//  -> nandcmac.c for processing agbsave
 #define TEMP_BUFFER         ((u8*)0x21100000)
 #define TEMP_BUFFER_SIZE    (0x100000)
 // buffer area defines (in use by fsutil.c, fsinit.c and gameutil.c)

@@ -12,6 +12,7 @@
 #include "nand.h"
 #include "virtual.h"
 #include "vcart.h"
+#include "nandcmac.h"
 #include "ncchinfo.h"
 #include "image.h"
 #include "chainload.h"
@@ -569,6 +570,28 @@ u32 Sha256Calculator(const char* path) {
     return 0;
 }
 
+u32 CmacCalculator(const char* path) {
+    char pathstr[32 + 1];
+    u8 cmac[16];
+    TruncateString(pathstr, path, 32, 8);
+    if (CalculateFileCmac(path, cmac) != 0) {
+        ShowPrompt(false, "Calculating CMAC: failed!");
+        return 1;
+    } else {
+        u8 cmac_file[16];
+        bool identical = ((ReadFileCmac(path, cmac_file) == 0) && (memcmp(cmac, cmac_file, 16) == 0));
+        if (ShowPrompt(!identical, "%s\n%016llX%016llX\n%s%s%s",
+            pathstr, getbe64(cmac + 0), getbe64(cmac + 8),
+            "CMAC verification: ", (identical) ? "passed!" : "failed!",
+            (!identical) ? "\n \nFix CMAC in file?" : "") &&
+            !identical && (WriteFileCmac(path, cmac_file) != 0)) {
+            ShowPrompt(false, "Fixing CMAC: failed!");
+        }
+    }
+    
+    return 0;
+}
+
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* current_dir, DirStruct* clipboard) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     const char* optionstr[16];
@@ -586,7 +609,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool verificable = (FYTPE_VERIFICABLE(filetype));
     bool decryptable = (FYTPE_DECRYPTABLE(filetype));
     bool encryptable = (FYTPE_ENCRYPTABLE(filetype));
-    bool cryptable_inplace = ((encryptable||decryptable) && (drvtype & DRV_FAT));
+    bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool buildable = (FTYPE_BUILDABLE(filetype));
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
@@ -596,7 +619,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool special_opt = mountable || verificable || decryptable || encryptable || 
         buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable;
     
-    char pathstr[32 + 1];
+    char pathstr[48];
     TruncateString(pathstr, curr_entry->path, 32, 8);
     
     u32 n_marked = 0;
@@ -610,6 +633,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
     int calcsha = ++n_opt;
+    int calccmac = (CheckCmacPath(curr_entry->path) == 0) ? ++n_opt : -1;
     int copystd = (!in_output_path) ? ++n_opt : -1;
     int inject = ((clipboard->n_entries == 1) &&
         (clipboard->entry[0].type == T_FILE) &&
@@ -633,6 +657,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
+    optionstr[calccmac-1] = "Calculate CMAC";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
     if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
@@ -645,6 +670,48 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         Sha256Calculator(curr_entry->path);
         GetDirContents(current_dir, current_path);
         return 0;
+    } else if (user_select == calccmac) { // -> calculate CMAC
+        optionstr[0] = "Check only current CMAC";
+        optionstr[1] = "Verify CMAC for all files";
+        optionstr[2] = "Fix CMAC for all files";
+        user_select = (n_marked > 1) ? ShowSelectPrompt(3, optionstr, "%s\n%(lu files selected)", pathstr, n_marked) : 1;
+        if (user_select == 1) {
+            CmacCalculator(curr_entry->path);
+            return 0;
+        } else if ((user_select == 2) || (user_select == 3)) {
+            bool fix = (user_select == 3);
+            u32 n_processed = 0;
+            u32 n_success = 0;
+            u32 n_fixed = 0;
+            u32 n_nocmac = 0;
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) continue;
+                if (!ShowProgress(n_processed++, n_marked, path)) break;
+                if (CheckCmacPath(path) != 0) {
+                    n_nocmac++;
+                    continue;
+                }
+                current_dir->entry[i].marked = false;
+                else if (fix && (FixFileCmac(path) == 0)) n_fixed++;
+                else { // on failure: set cursor on failed file
+                    *cursor = i;
+                    continue;
+                }
+                if (CheckFileCmac(path) == 0) n_success++;
+            }
+            if (n_fixed) {
+                if (n_nocmac) ShowPrompt(false, "%lu/%lu/%lu files ok/fixed/total\n%lu/%lu have no CMAC",
+                    n_success, n_fixed, n_marked, n_nocmac, n_marked);
+                 else ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu files fixed",
+                    n_success, n_marked, n_fixed, n_marked);
+            } else {
+                if (n_nocmac) ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu have no CMAC",
+                    n_success, n_marked, n_nocmac, n_marked);
+                else ShowPrompt(false, "%lu/%lu files verified ok", n_success, n_marked);
+            }
+            return 0;
+        }
     } else if (user_select == copystd) { // -> copy to OUTPUT_PATH
         u32 flags = 0;
         if ((n_marked > 1) && ShowPrompt(true, "Copy all %lu selected files?", n_marked)) {
@@ -869,12 +936,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked) 
                     continue;
+                if (!(filetype & (GAME_CIA|GAME_TMD)) &&
+                    !ShowProgress(n_processed++, n_marked, path)) break;
                 if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
                     n_other++;
                     continue;
                 }
-                if (!(filetype & (GAME_CIA|GAME_TMD)) &&
-                    !ShowProgress(n_processed++, n_marked, path)) break;
                 current_dir->entry[i].marked = false;
                 if (filetype & IMG_NAND) {
                     if (ValidateNandDump(path) == 0) n_success++;

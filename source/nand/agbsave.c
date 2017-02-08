@@ -15,6 +15,7 @@ u32 CheckAgbSaveCmac(u32 nand_src) {
     AgbSave* agbsave = (AgbSave*) NAND_BUFFER;
     if ((ReadNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_src) != 0) ||
         (memcmp(agbsave->magic, magic, sizeof(magic)) != 0) ||
+        (0x200 + agbsave->save_size > SIZE_AGBSAVE * 0x200) ||
         (ReadNandBytes(agbsave->savegame, (SECTOR_AGBSAVE+1) * 0x200, agbsave->save_size, 0x07, nand_src) != 0))
         return 1;
     
@@ -30,6 +31,7 @@ u32 CheckAgbSaveCmac(u32 nand_src) {
 u32 FixAgbSaveCmac(u32 nand_dst) {
     AgbSave* agbsave = (AgbSave*) NAND_BUFFER;
     if ((ReadNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_dst) != 0) ||
+        (0x200 + agbsave->save_size > SIZE_AGBSAVE * 0x200) ||
         (ReadNandBytes(agbsave->savegame, (SECTOR_AGBSAVE+1) * 0x200, agbsave->save_size, 0x07, nand_dst) != 0))
         return 1;
         
