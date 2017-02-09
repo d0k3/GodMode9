@@ -671,10 +671,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         GetDirContents(current_dir, current_path);
         return 0;
     } else if (user_select == calccmac) { // -> calculate CMAC
-        optionstr[0] = "Check only current CMAC";
-        optionstr[1] = "Verify CMAC for all files";
-        optionstr[2] = "Fix CMAC for all files";
-        user_select = (n_marked > 1) ? ShowSelectPrompt(3, optionstr, "%s\n%(lu files selected)", pathstr, n_marked) : 1;
+        optionstr[0] = "Check current CMAC only";
+        optionstr[1] = "Verify CMAC for all";
+        optionstr[2] = "Fix CMAC for all";
+        user_select = (n_marked > 1) ? ShowSelectPrompt(3, optionstr, "%s\n%(%lu files selected)", pathstr, n_marked) : 1;
         if (user_select == 1) {
             CmacCalculator(curr_entry->path);
             return 0;
@@ -692,13 +692,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     n_nocmac++;
                     continue;
                 }
-                current_dir->entry[i].marked = false;
+                if (CheckFileCmac(path) == 0) n_success++;
                 else if (fix && (FixFileCmac(path) == 0)) n_fixed++;
                 else { // on failure: set cursor on failed file
                     *cursor = i;
                     continue;
                 }
-                if (CheckFileCmac(path) == 0) n_success++;
+                current_dir->entry[i].marked = false;
             }
             if (n_fixed) {
                 if (n_nocmac) ShowPrompt(false, "%lu/%lu/%lu files ok/fixed/total\n%lu/%lu have no CMAC",
