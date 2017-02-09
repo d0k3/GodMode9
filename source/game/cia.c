@@ -12,8 +12,7 @@ u32 ValidateCiaHeader(CiaHeader* header) {
         (header->size_ticket != TICKET_SIZE) ||
         (header->size_tmd < TMD_SIZE_MIN) ||
         (header->size_tmd > TMD_SIZE_MAX) ||
-        (header->size_content == 0) ||
-        ((header->size_meta != 0) && (header->size_meta != CIA_META_SIZE)))
+        (header->size_content == 0))
         return 1;
     return 0;
 }
