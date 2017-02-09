@@ -662,7 +662,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
     if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
     
-    int user_select = ShowSelectPrompt(n_opt, optionstr, pathstr);
+    int user_select = ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
+        "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
     if (user_select == hexviewer) { // -> show in hex viewer
         HexViewer(curr_entry->path);
         return 0;
@@ -787,7 +788,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
     
     // auto select when there is only one option
-    user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+    user_select = (n_opt <= 1) ? n_opt : (int) ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
+        "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
     if (user_select == mount) { // -> mount file as image
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
@@ -814,7 +816,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (cryptable_inplace) {
             optionstr[0] = "Decrypt to " OUTPUT_PATH;
             optionstr[1] = "Decrypt inplace";
-            user_select = (int) ShowSelectPrompt(2, optionstr, pathstr);
+            user_select = (int) ShowSelectPrompt(2, optionstr, (n_marked > 1) ?
+                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
@@ -861,7 +864,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (cryptable_inplace) {
             optionstr[0] = "Encrypt to " OUTPUT_PATH;
             optionstr[1] = "Encrypt inplace";
-            user_select = (int) ShowSelectPrompt(2, optionstr, pathstr);
+            user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
+                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
