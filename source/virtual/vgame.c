@@ -415,23 +415,26 @@ bool BuildVGameFirmDir(void) {
             }
         } else if (section->type == 1) { // ARM11 section, search for modules
             NcchHeader firm_ncch;
-            for (u32 p = 0; p < section->size; p += firm_ncch.size * NCCH_MEDIA_UNIT) {
-                char name[8];
-                if ((ReadImageBytes((u8*) &firm_ncch, section->offset + p, 0x200) != 0) ||
-                    (ReadImageBytes((u8*) name, section->offset + p + 0x200, 0x8) != 0) ||
-                    (ValidateNcchHeader(&firm_ncch) != 0))
-                    break;
-                
-                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, ".app");
-                templates[n].offset = section->offset + p;
-                templates[n].size = firm_ncch.size * NCCH_MEDIA_UNIT;
-                templates[n].keyslot = 0xFF;
-                templates[n].flags = VFLAG_NCCH;
-                n++;
-                memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
-                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, "");
-                templates[n].flags |= VFLAG_DIR;
-                n++;
+            for (u32 v = 0; v < 2; v++) {
+                u32 start = v ? ARM11V2_OFFSET : 0;
+                for (u32 p = start; p < section->size; p += firm_ncch.size * NCCH_MEDIA_UNIT) {
+                    char name[8];
+                    if ((ReadImageBytes((u8*) &firm_ncch, section->offset + p, 0x200) != 0) ||
+                        (ReadImageBytes((u8*) name, section->offset + p + 0x200, 0x8) != 0) ||
+                        (ValidateNcchHeader(&firm_ncch) != 0))
+                        break;
+                    
+                    snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, ".app");
+                    templates[n].offset = section->offset + p;
+                    templates[n].size = firm_ncch.size * NCCH_MEDIA_UNIT;
+                    templates[n].keyslot = 0xFF;
+                    templates[n].flags = VFLAG_NCCH;
+                    n++;
+                    memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
+                    snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, "");
+                    templates[n].flags |= VFLAG_DIR;
+                    n++;
+                }
             }
         }
     }
