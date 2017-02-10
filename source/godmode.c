@@ -713,6 +713,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             }
             return 0;
         }
+        return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
     } else if (user_select == copystd) { // -> copy to OUTPUT_PATH
         u32 flags = 0;
         if ((n_marked > 1) && ShowPrompt(true, "Copy all %lu selected files?", n_marked)) {
@@ -1011,7 +1012,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         }
     }
     
-    return 1;
+    return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
 }
 
 u32 GodMode() {
