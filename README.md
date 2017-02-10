@@ -12,6 +12,14 @@ After unlocking write permissions on SysNAND, any writing change to your CTRNAND
 __As always, be smart, keep backups, just to be safe__.
 
 
+## Quick start guide
+These short instructions apply to all users who have ARM9loaderhax and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
+* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
+* Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/` or `sd:/files9` (optional but recommended for full functionality).
+
+You may now run GodMode9 via the X Button (or any other button you chose). See below for a list of stuff you can do with it.
+
+
 ## What you can do with GodMode9
 With the possibilites GodMode9 provides not everything may be obvious at first glance. So, for your convenience a (incomplete!) list of what GodMode9 can do follows below.
 * __Manage files on all your data storages__: You wouldn't have expected this, right? Included are all standard file operations such as copy, delete, rename files and create folders. Use the L button to mark multiple files and apply file operations to multiple files at once.
@@ -19,14 +27,21 @@ With the possibilites GodMode9 provides not everything may be obvious at first g
 * __Use multiple panes__: Press R+left|right. This enables you to stay in one location in the first pane and open another in the second pane.
 * __Search drives and folders__: Just press R+A on the drive / folder you want to search.
 * __Format your SD card / setup a RedNAND__: Press the HOME button, select `SD format menu`. This also allows to setup a RedNAND on your SD card. You will get a warning prompt and an unlock sequence before any operation starts.
+* __Handle multiple EmuNANDs / RedNAND__: Press the HOME button, select `Switch EmuNAND` to switch between EmuNANDs / RedNANDs.
 * __Run it without an SD card / unmount the SD card__: If no SD card is found, you will be offered to run without the SD card. You can also unmount and remount your SD card from the file system root at any point.
-* __Direct access to SD installed contents__: Just take a look inside the `A:`/`B:` drives. One the fly crypto is taken care for, you can access this the same as any other content.
+* __Direct access to SD installed contents__: Just take a look inside the `A:`/`B:` drives. On-the-fly-crypto is taken care for, you can access this the same as any other content.
 * __Build CIAs from NCCH / NCSD (.3DS) / TMD (installed contents)__: Press A on the file you want converted, the option will be shown. Installed contents are found (among others) in `1:/titles/`(SysNAND) and `A:/titles/`(SD installed). Where applicable, you will also be able to generate legit CIAs. Note: this works also from a file search.
-* __Decrypt and verify NCCH / NCSD / CIA / TMD / FIRM images__: Options are found inside the A button menu. You will be able to decrypt to the standard output directory or (where applicable) in place.
-* __Batch mode for the above two operations__: Just select multiple files of the same type via the L button, then press the A button on one of the selected files.
+* __Decrypt, encrypt and verify NCCH / NCSD / CIA / BOSS / FIRM images__: Options are found inside the A button menu. You will be able to decrypt/encrypt to the standard output directory or (where applicable) in place.
+* __Decrypt content downloaded from CDN /NUS__: Press A on the file you want decrypted. For this to work, you need at least a TMD file (`encTitlekeys.bin` / `decTitlekeys.bin` also required, see `Support files` below) or a CETK file. Either keep the names provided by CDN / NUS, or rename the downloaded content to `(anything).nus` or `(anything).cdn` and the CETK to `(anything).cetk`.
+* __Batch mode for the above operations__: Just select multiple files of the same type via the L button, then press the A button on one of the selected files.
 * __Access any file inside NCCH / NCSD / CIA / FIRM images__: Just mount the file via the A button menu and browse to the file you want.
+* __Inject any NCCH CXI file into Health & Safety__: The option is found inside the A button menu for any NCCH CXI file. NCCH CXIs are found, f.e. inside of CIAs.
+* __Inject and dump GBA VC saves__: Look for a file called `gbavc.sav` inside the `S:` drive. Keep in mind that you need to start the specific GBA game on your console before dumping / injecting the save.
+* __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges.
+* __Generate XORpads from ´ncchinfo.bin´ files__: Start this via the appropriate entry inside A button menu.
 * __Generate XORpads for any NAND partition__: Take a look inside the `X:` drive. You can use these XORpads for decryption of encrypted NAND images on PC. Additional tools such as [3dsFAT16Tool](https://github.com/d0k3/3DSFAT16tool/releases) are required on PC.
 * __Directly mount and access NAND dumps or standard FAT images__: Just press the A button on these files to get the option. You can only mount NAND dumps from the same console.
+* __Restore NAND dumps while keeping your A9LH / sighax installation intact__: Select `Restore SysNAND (safe)` from inside the 
 * __Restore / dump NAND partitions or even full NANDs__: Just take a look into the `S:` (or `E:`/ `I:`) drive. This is done the same as any other file operation.
 * __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
 * __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain file, write permissions can't be enabled.
@@ -55,6 +70,7 @@ For certain functionality, GodMode9 may need 'support files'. Support files can 
 
 ## License
 You may use this under the terms of the GNU General Public License GPL v2 or under the terms of any later revisions of the GPL. Refer to the provided `LICENSE.txt` file for further information.
+
 
 ## Credits
 This tool would not have been possible without the help of numerous people. Thanks go to...
