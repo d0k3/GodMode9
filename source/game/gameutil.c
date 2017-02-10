@@ -232,15 +232,15 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     return 0;
 }
 
-u32 LoadCdnTicketFile(Ticket* ticket, const char* path) {
-    // path may be to any file in dir
+u32 LoadCdnTicketFile(Ticket* ticket, const char* path_cnt) {
+    // path points to CDN content file
     char path_cetk[256];
-    char* name_cetk;
-    strncpy(path_cetk, path, 256);
-    name_cetk = strrchr(path_cetk, '/');
+    strncpy(path_cetk, path_cnt, 256);
+    char* name_cetk = strrchr(path_cetk, '/');
     if (!name_cetk) return 1; // will not happen
-    name_cetk++;
-    snprintf(name_cetk, 256 - (name_cetk - path_cetk), "cetk");
+    char* ext_cetk = strrchr(++name_cetk, '.');
+    ext_cetk = (ext_cetk) ? ext_cetk + 1 : name_cetk;
+    snprintf(ext_cetk, 256 - (ext_cetk - path_cetk), "cetk");
     
     // load and check ticket
     UINT br;
@@ -929,17 +929,24 @@ u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
     Ticket* ticket = (Ticket*) (TEMP_BUFFER + TMD_SIZE_MAX);
     u8 titlekey[0x10] = { 0xFF };
-    u32 cnt_id;
+    
+    // get name
+    char* fname;
+    fname = strrchr(orig, '/');
+    if (!fname) return 1; // will not happen
+    fname++;
     
     // try to load TMD file
     char path_tmd[256];
-    char* name_tmd;
-    strncpy(path_tmd, orig, 256);
-    name_tmd = strrchr(path_tmd, '/');
-    if (!name_tmd) return 1; // will not happen
-    name_tmd++;
-    snprintf(name_tmd, 256 - (name_tmd - path_tmd), "tmd");
-    if (LoadTmdFile(tmd, path_tmd) != 0) tmd = NULL;
+    if (!strrchr(fname, '.')) {
+        char* name_tmd;
+        strncpy(path_tmd, orig, 256);
+        name_tmd = strrchr(path_tmd, '/');
+        if (!name_tmd) return 1; // will not happen
+        name_tmd++;
+        snprintf(name_tmd, 256 - (name_tmd - path_tmd), "tmd");
+        if (LoadTmdFile(tmd, path_tmd) != 0) tmd = NULL;
+    } else tmd = NULL;
     
     // load or build ticket
     if (LoadCdnTicketFile(ticket, orig) != 0) {
@@ -951,13 +958,6 @@ u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
     if (GetTitleKey(titlekey, ticket) != 0)
         return 1;
     
-    // get content id
-    char* fname;
-    fname = strrchr(orig, '/');
-    if (!fname) return 1; // will not happen
-    if (sscanf(++fname, "%08lx", &cnt_id) != 1)
-        return 1; // this won't either
-    
     // find (build fake) content chunk
     TmdContentChunk* chunk = NULL;
     if (!tmd) {
@@ -966,9 +966,11 @@ u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
         chunk->type[1] = 0x01; // encrypted 
     } else {
         u32 content_count = getbe16(tmd->content_count);
+        u32 content_id = 0;
+        if (sscanf(fname, "%08lx", &content_id) != 1) return 1;
         for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
             chunk = &(content_list[i]);
-            if (getbe32(chunk->id) == cnt_id) break;
+            if (getbe32(chunk->id) == content_id) break;
             chunk = NULL;
         }
         if (!chunk || !(getbe16(chunk->type) & 0x01)) return 1;

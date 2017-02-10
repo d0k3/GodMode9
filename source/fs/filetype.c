@@ -69,10 +69,16 @@ u32 IdentifyFileType(const char* path) {
         strncpy(path_cdn, path, 256);
         strncpy(name_cdn, "tmd", 4);
         if (FileGetSize(path_cdn) > 0)
-            return GAME_NUSCDN;
+            return GAME_NUSCDN; // NUS/CDN type 1
         strncpy(name_cdn, "cetk", 5);
         if (FileGetSize(path_cdn) > 0)
-            return GAME_NUSCDN;
+            return GAME_NUSCDN; // NUS/CDN type 1
+    } else if (ext && ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0))) {
+        char path_cetk[256];
+        char* ext_cetk = path_cetk + (ext - path);
+        strncpy(ext_cetk, "cetk", 5);
+        if (FileGetSize(path_cetk) > 0)
+            return GAME_NUSCDN; // NUS/CDN type 2
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload
