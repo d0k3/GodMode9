@@ -27,19 +27,17 @@
 
 #define FS_DRVNAME \
         "SDCARD", \
-        "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP", \
-        "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP", \
-        "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP", \
-        "GAME IMAGE", \
-        "SYSNAND SD", "EMUNAND SD", \
+        "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP", "SYSNAND SD", "SYSNAND VIRTUAL", \
+        "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP", "EMUNAND SD", "EMUNAND VIRTUAL", \
+        "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP", "IMGNAND VIRTUAL", \
         "GAMECART", \
-        "SYSNAND VIRTUAL", "EMUNAND VIRTUAL", "IMGNAND VIRTUAL", \
-        "NAND XORPADS", \
+        "GAME IMAGE", \
         "MEMORY VIRTUAL", \
+        "NAND XORPADS", \
         "LAST SEARCH" \
         
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:", "G:", "A:", "B:", "C:", "S:", "E:", "I:", "X:", "M:", "Z:"
+    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "M:", "X:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);

@@ -66,24 +66,24 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     u32 n_entries = 0;
     
     // virtual root objects hacked in
-    for (u32 pdrv = 0; (pdrv < NORM_FS+VIRT_FS) && (n_entries < MAX_DIR_ENTRIES); pdrv++) {
+    for (u32 i = 0; (i < NORM_FS+VIRT_FS) && (n_entries < MAX_DIR_ENTRIES); i++) {
         DirEntry* entry = &(contents->entry[n_entries]);
-        if (!DriveType(drvnum[pdrv])) continue; // drive not available
+        if (!DriveType(drvnum[i])) continue; // drive not available
         memset(entry->path, 0x00, 64);
-        snprintf(entry->path + 0,  4, drvnum[pdrv]);
-        if ((pdrv == 7) && (GetMountState() & IMG_FAT)) // FAT image handling
-            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], "FAT IMAGE");
-        else if ((pdrv == 9) && !(GetMountState() & IMG_NAND)) // RAM drive handling
-            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], "RAMDRIVE");
-        else if (pdrv == 10) // Game drive special handling
-            snprintf(entry->path + 4, 32, "[%s] %s %s", drvnum[pdrv],
+        snprintf(entry->path + 0,  4, drvnum[i]);
+        if ((*(drvnum[i]) == '7') && (GetMountState() & IMG_FAT)) // FAT image handling
+            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i], "FAT IMAGE");
+        else if ((*(drvnum[i]) == '9') && !(GetMountState() & IMG_NAND)) // RAM drive handling
+            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i], "RAMDRIVE");
+        else if (*(drvnum[i]) == 'G') // Game drive special handling
+            snprintf(entry->path + 4, 32, "[%s] %s %s", drvnum[i],
                 (GetMountState() & GAME_CIA  ) ? "CIA"   :
                 (GetMountState() & GAME_NCSD ) ? "NCSD"  :
                 (GetMountState() & GAME_NCCH ) ? "NCCH"  :
                 (GetMountState() & GAME_EXEFS) ? "EXEFS" :
                 (GetMountState() & GAME_ROMFS) ? "ROMFS" :
-                (GetMountState() & SYS_FIRM)   ? "FIRM" : "UNK", drvname[pdrv]);
-        else snprintf(entry->path + 4, 32, "[%s] %s", drvnum[pdrv], drvname[pdrv]);
+                (GetMountState() & SYS_FIRM)   ? "FIRM" : "UNK", drvname[i]);
+        else snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i], drvname[i]);
         entry->name = entry->path + 4;
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;
