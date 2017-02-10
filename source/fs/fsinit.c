@@ -35,7 +35,7 @@ bool InitExtFS() {
 
 bool InitImgFS(const char* path) {
     // deinit image filesystem
-    for (u32 i = (GetMountState() & IMG_NAND) ? NORM_FS - 1 : NORM_FS - IMGN_FS; i >= NORM_FS - IMGN_FS; i--) {
+    for (u32 i = NORM_FS - IMGN_FS; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
         if (!fs_mounted[i]) continue;
@@ -45,7 +45,10 @@ bool InitImgFS(const char* path) {
     // (re)mount image, done if path == NULL
     MountImage(path);
     InitVirtualImageDrive();
-    if (!GetMountState()) return false;
+    if (!GetMountState()) {
+        fs_mounted[9] = (f_mount(fs + 9, "9:", 1) == FR_OK); // ram drive
+        return false;
+    }
     // reinit image filesystem
     for (u32 i = NORM_FS - IMGN_FS; i < NORM_FS; i++) {
         char fsname[8];
