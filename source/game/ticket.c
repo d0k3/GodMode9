@@ -25,7 +25,7 @@ u32 ValidateTicket(Ticket* ticket) {
     return 0;
 }
 
-u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt) {
+u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt, bool devkit) {
     // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
     static const u8 common_keyy[6][16] __attribute__((aligned(16))) = {
         {0xD0, 0x7B, 0x33, 0x7F, 0x9C, 0xA4, 0x38, 0x59, 0x32, 0xA2, 0xE2, 0x57, 0x23, 0x23, 0x2E, 0xB9} , // 0 - eShop Titles
@@ -36,21 +36,22 @@ u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt) {
         {0x5E, 0x66, 0x99, 0x8A, 0xB4, 0xE8, 0x93, 0x16, 0x06, 0x85, 0x0F, 0xD7, 0xA1, 0x6D, 0xD7, 0x55} , // 5
     };
     // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/dev.h#L21
-    /* static const u8 common_key_devkit[6][16] __attribute__((aligned(16))) = { // unused atm!
+    static const u8 common_key_devkit[6][16] __attribute__((aligned(16))) = {
         {0x55, 0xA3, 0xF8, 0x72, 0xBD, 0xC8, 0x0C, 0x55, 0x5A, 0x65, 0x43, 0x81, 0x13, 0x9E, 0x15, 0x3B} , // 0 - eShop Titles
         {0x44, 0x34, 0xED, 0x14, 0x82, 0x0C, 0xA1, 0xEB, 0xAB, 0x82, 0xC1, 0x6E, 0x7B, 0xEF, 0x0C, 0x25} , // 1 - System Titles
         {0xF6, 0x2E, 0x3F, 0x95, 0x8E, 0x28, 0xA2, 0x1F, 0x28, 0x9E, 0xEC, 0x71, 0xA8, 0x66, 0x29, 0xDC} , // 2
         {0x2B, 0x49, 0xCB, 0x6F, 0x99, 0x98, 0xD9, 0xAD, 0x94, 0xF2, 0xED, 0xE7, 0xB5, 0xDA, 0x3E, 0x27} , // 3
         {0x75, 0x05, 0x52, 0xBF, 0xAA, 0x1C, 0x04, 0x07, 0x55, 0xC8, 0xD5, 0x9A, 0x55, 0xF9, 0xAD, 0x1F} , // 4
         {0xAA, 0xDA, 0x4C, 0xA8, 0xF6, 0xE5, 0xA9, 0x77, 0xE0, 0xA0, 0xF9, 0xE4, 0x76, 0xCF, 0x0D, 0x63} , // 5
-    };*/
+    };
     
     u32 mode = (encrypt) ? AES_CNT_TITLEKEY_ENCRYPT_MODE : AES_CNT_TITLEKEY_DECRYPT_MODE;
     u8 ctr[16] = { 0 };
     
     // setup key 0x3D // ctr
     if (tik->commonkey_idx >= 6) return 1;
-    setup_aeskeyY(0x3D, (void*) common_keyy[tik->commonkey_idx]);
+    if (!devkit) setup_aeskeyY(0x3D, (void*) common_keyy[tik->commonkey_idx]);
+    else setup_aeskey(0x3D, (void*) common_key_devkit[tik->commonkey_idx]);
     use_aeskey(0x3D);
     memcpy(ctr, tik->title_id, 8);
     set_ctr(ctr);
@@ -66,7 +67,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     memcpy(tik.titlekey, ticket->titlekey, 16);
     tik.commonkey_idx = ticket->commonkey_idx;
     
-    if (CryptTitleKey(&tik, false) != 0) return 1;
+    if (CryptTitleKey(&tik, false, TICKET_DEVKIT(ticket)) != 0) return 1;
     memcpy(titlekey, tik.titlekey, 16);
     return 0;
 }
@@ -125,7 +126,7 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
                 TitleKeyEntry* tik = tikdb->entries + t;
                 if (memcmp(title_id, tik->title_id, 8) != 0)
                     continue;
-                if (!enc && (CryptTitleKey(tik, true) != 0)) // encrypt the key first
+                if (!enc && (CryptTitleKey(tik, true, TICKET_DEVKIT(ticket)) != 0)) // encrypt the key first
                     continue;
                 memcpy(ticket->titlekey, tik->titlekey, 16);
                 ticket->commonkey_idx = tik->commonkey_idx;

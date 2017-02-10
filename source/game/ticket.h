@@ -9,6 +9,8 @@
 #define TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
 #define TICKET_SIG_TYPE     0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
 
+#define TICKET_DEVKIT(tick) (strncmp((char*)tick->issuer, TICKET_ISSUER_DEV, 0x40) == 0)
+
 #define TIKDB_NAME_ENC      "encTitleKeys.bin"
 #define TIKDB_NAME_DEC      "decTitleKeys.bin"
 
