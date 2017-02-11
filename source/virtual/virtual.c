@@ -2,6 +2,7 @@
 #include "vnand.h"
 #include "vmem.h"
 #include "vgame.h"
+#include "vtickdb.h"
 #include "vcart.h"
 
 typedef struct {
@@ -22,7 +23,7 @@ u32 GetVirtualSource(const char* path) {
 }
 
 bool InitVirtualImageDrive(void) {
-    return InitVGameDrive();
+    return InitVGameDrive() || InitVTickDbDrive();
 }
 
 bool CheckVirtualDrive(const char* path) {
@@ -31,7 +32,9 @@ bool CheckVirtualDrive(const char* path) {
         return CheckVNandDrive(virtual_src); // check virtual NAND drive for EmuNAND / ImgNAND
     else if (virtual_src & VRT_GAME)
         return CheckVGameDrive();
-    return virtual_src; // this is safe for SysNAND, memory & cart
+    else if (virtual_src & VRT_TICKDB)
+        return CheckVTickDbDrive();
+    return virtual_src; // this is safe for SysNAND & memory
 }
 
 bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
@@ -43,6 +46,8 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
         ret = ReadVMemDir(vfile, vdir);
     } else if (virtual_src & VRT_GAME) {
         ret = ReadVGameDir(vfile, vdir);
+    } else if (virtual_src & VRT_TICKDB) {
+        ret = ReadVTickDbDir(vfile, vdir);
     } else if (virtual_src & VRT_CART) {
         ret = ReadVCartDir(vfile, vdir);
     }
@@ -170,6 +175,8 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count,
         return ReadVMemFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_GAME) {
         return ReadVGameFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_TICKDB) {
+        return ReadVTickDbFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_CART) {
         return ReadVCartFile(vfile, buffer, offset, count);
     }
@@ -189,7 +196,7 @@ int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32
         return WriteVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return WriteVMemFile(vfile, buffer, offset, count);
-    } // no write support for virtual game / cart files
+    } // no write support for virtual game / tickdb / cart files
     
     return -1;
 }
@@ -200,6 +207,8 @@ u64 GetVirtualDriveSize(const char* path) {
         return GetVNandDriveSize(virtual_src);
     else if (virtual_src & VRT_GAME)
         return GetVGameDriveSize();
+    else if (virtual_src & VRT_TICKDB)
+        return GetVTickDbDriveSize();
     else if (virtual_src & VRT_CART)
         return GetVCartDriveSize();
     return 0;

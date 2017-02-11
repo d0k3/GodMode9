@@ -5,7 +5,7 @@
 
 #define NORM_FS  10
 #define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  10
+#define VIRT_FS  11
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
@@ -31,13 +31,13 @@
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP", "EMUNAND SD", "EMUNAND VIRTUAL", \
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP", "IMGNAND VIRTUAL", \
         "GAMECART", \
-        "GAME IMAGE", \
+        "GAME IMAGE", "TICKET.DB IMAGE", \
         "MEMORY VIRTUAL", \
         "NAND XORPADS", \
         "LAST SEARCH" \
         
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "M:", "X:", "Z:"
+    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "T:", "M:", "X:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);

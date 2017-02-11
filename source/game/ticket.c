@@ -72,6 +72,17 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     return 0;
 }
 
+Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls) {
+    // chunk must be aligned to 0x200 byte in file and at least 0x400 byte big
+    Ticket* tick = (Ticket*) (chunk + 0x18);
+    if ((getle32(chunk + 0x10) == 0) || (getle32(chunk + 0x14) != sizeof(Ticket))) return NULL;
+    if (ValidateTicket(tick) != 0) return NULL; // ticket not validated
+    if (title_id && (memcmp(title_id, tick->title_id, 8) != 0)) return NULL; // title id not matching
+    if (legit_pls && (getbe64(tick->ticket_id) == 0)) return NULL; // legit check, not perfect
+    
+    return tick;
+}
+
 u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
     const char* path_db = TICKDB_PATH(emunand); // EmuNAND / SysNAND
     const u32 area_offsets[] = { TICKDB_AREA_OFFSETS };
@@ -86,13 +97,10 @@ u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
     for (u32 p = 0; p < 2; p++) {
         u32 area_offset = area_offsets[p];
         for (u32 i = 0; !found && (i < TICKDB_AREA_SIZE); i += 0x200) {
-            Ticket* tick = (Ticket*) (data + 0x18);
             f_lseek(&file, area_offset + i);
             if ((f_read(&file, data, 0x400, &btr) != FR_OK) || (btr != 0x400)) break;
-            if ((getle32(data + 0x10) == 0) || (getle32(data + 0x14) != sizeof(Ticket))) continue;
-            if (ValidateTicket(tick) != 0) continue; // ticket not validated
-            if (memcmp(title_id, tick->title_id, 8) != 0) continue; // title id not matching
-            if (force_legit && (getbe64(tick->ticket_id) == 0)) continue; // legit check
+            Ticket* tick = TicketFromTickDbChunk(data, title_id, force_legit);
+            if (!tick) continue;
             memcpy(ticket, tick, sizeof(Ticket));
             found = true;
             break;

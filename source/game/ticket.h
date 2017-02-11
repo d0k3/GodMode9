@@ -16,7 +16,7 @@
 
 #define TICKDB_PATH(emu)    ((emu) ? "4:/dbs/ticket.db" : "1:/dbs/ticket.db") // EmuNAND / SysNAND         
 #define TICKDB_AREA_OFFSETS 0x0137F000, 0x001C0C00 // second partition is more likely to be in use 
-#define TICKDB_AREA_SIZE    0x00200000 // the actual area size is around 0x0010C600
+#define TICKDB_AREA_SIZE    0x00180000 // the actual area size is around 0x0010C600
 
 #define TICKDB_MAGIC        0x44, 0x49, 0x46, 0x46, 0x00, 0x00, 0x03, 0x00, \
                             0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
@@ -58,6 +58,7 @@ typedef struct {
 
 u32 ValidateTicket(Ticket* ticket);
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
+Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls);
 u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand);
 u32 FindTitleKey(Ticket* ticket, u8* title_id);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
