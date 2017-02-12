@@ -414,9 +414,10 @@ bool BuildVGameFirmDir(void) {
                 n++;
             }
         } else if (section->type == 1) { // ARM11 section, search for modules
+            const u32 arm11_ncch_offset[] = { ARM11NCCH_OFFSET };
             NcchHeader firm_ncch;
-            for (u32 v = 0; v < 2; v++) {
-                u32 start = v ? ARM11V2_OFFSET : 0;
+            for (u32 v = 0; v < sizeof(arm11_ncch_offset) / sizeof(u32); v++) {
+                u32 start = arm11_ncch_offset[v];
                 for (u32 p = start; p < section->size; p += firm_ncch.size * NCCH_MEDIA_UNIT) {
                     char name[8];
                     if ((ReadImageBytes((u8*) &firm_ncch, section->offset + p, 0x200) != 0) ||

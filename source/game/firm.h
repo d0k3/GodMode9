@@ -8,8 +8,8 @@
 #define SECRET_NAME "secret_sector.bin"
 
 #define FIRM_MAX_SIZE  0x400000 // 4MB, due to FIRM partition size
+#define ARM11NCCH_OFFSET 0, 0x2A000, 0x2B000, 0x2C000
 #define ARM9BIN_OFFSET 0x800
-#define ARM11V2_OFFSET 0x2B000
 
 // see: https://www.3dbrew.org/wiki/FIRM#Firmware_Section_Headers
 typedef struct {
