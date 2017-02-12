@@ -16,6 +16,7 @@ u32 IdentifyFileType(const char* path) {
     if (ext) ext++;
     if (FileGetData(path, header, 0x200, 0) < ((fsize > 0x200) ? 0x200 : fsize)) return 0;
     
+    if (!fsize) return 0;
     if (fsize >= 0x200) {
         if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
             (getbe64(header + 0x108) == (u64) 0) && (fsize >= 0x8FC8000)) {
@@ -82,6 +83,14 @@ u32 IdentifyFileType(const char* path) {
         strncpy(ext_cetk, "cetk", 5);
         if (FileGetSize(path_cetk) > 0)
             return GAME_NUSCDN; // NUS/CDN type 2
+    } else if ((strncasecmp(fname, "seeddb.bin", 11) == 0) ||
+        (strncasecmp(fname, "encTitlekeys.bin", 17) == 0) ||
+        (strncasecmp(fname, "decTitlekeys.bin", 17) == 0) ||
+        (strncasecmp(fname, "aeskeydb.bin", 13) == 0) ||
+        (strncasecmp(fname, "otp.bin", 8) == 0) ||
+        (strncasecmp(fname, "secret_sector.bin", 18) == 0) ||
+        (strncasecmp(fname, "sector0x96.bin", 15) == 0)) {
+        return BIN_SUPPORT; // known support file (so launching is not offered)
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload

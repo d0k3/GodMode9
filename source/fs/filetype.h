@@ -17,6 +17,7 @@
 #define SYS_TICKDB  (1<<12)
 #define BIN_NCCHNFO (1<<13)
 #define BIN_LAUNCH  (1<<14)
+#define BIN_SUPPORT (1<<15)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_NUSCDN (1<<30)
