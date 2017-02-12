@@ -147,6 +147,21 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     return (found) ? 0 : 1;
 }
 
+/*u32 BuildTitleKeyInfo(TitleKeysInfo* tik_info, TicketInfo* tick_info, bool decrypt) {
+    memset(tik_info, 0, 16);
+    for (u32 i = 0; i < tick_info->n_entries; i++) {
+        TicketEntry* tick_entry = tick_info->entries + i;
+        TitleKeyEntry* tik_entry = tik_info->entries + tik_info->n_entries;
+        if (!getbe64(tick_entry->ticket_id)) continue;
+        tik_entry->commonkey_idx = tick_entry->commonkey_idx;
+        memcpy(tik_entry->title_id, tick_entry->title_id, 8);
+        memcpy(tik_entry->titlekey, tick_entry->titlekey, 16);
+        if (decrypt) CryptTitleKey(tik_entry, false, false);
+        tik_info->n_entries++;
+    }
+    return 0;
+}*/
+
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     const u8 sig_type[4] =  { TICKET_SIG_TYPE }; // RSA_2048 SHA256
     const u8 ticket_cnt_index[] = { // whatever this is
