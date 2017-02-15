@@ -19,7 +19,8 @@
 
 #define N_PANES 2
 
-#define COLOR_TOP_BAR   ((GetWritePermissions() & (PERM_A9LH&~PERM_SYSNAND)) ? COLOR_DARKRED : (GetWritePermissions() & PERM_SYSNAND) ? COLOR_RED : (GetWritePermissions() & PERM_MEMORY) ? COLOR_BRIGHTBLUE : (GetWritePermissions() & (PERM_EMUNAND|PERM_IMAGE)) ? COLOR_BRIGHTYELLOW : GetWritePermissions() ? COLOR_BRIGHTGREEN : COLOR_WHITE)   
+#define COLOR_TOP_BAR   (PERM_RED ? COLOR_RED : PERM_ORANGE ? COLOR_ORANGE : PERM_BLUE ? COLOR_BRIGHTBLUE : \
+                         PERM_YELLOW ? COLOR_BRIGHTYELLOW : PERM_GREEN ? COLOR_GREEN : COLOR_WHITE)   
 #define COLOR_SIDE_BAR  COLOR_DARKGREY
 #define COLOR_MARKED    COLOR_TINTEDYELLOW
 #define COLOR_FILE      COLOR_TINTEDGREEN
@@ -1224,7 +1225,6 @@ u32 GodMode() {
                 if (n_marked) {
                     if (ShowPrompt(true, "Delete %u path(s)?", n_marked)) {
                         u32 n_errors = 0;
-                        ShowString("Deleting files, please wait...");
                         for (u32 c = 0; c < current_dir->n_entries; c++)
                             if (current_dir->entry[c].marked && !PathDelete(current_dir->entry[c].path))
                                 n_errors++;
@@ -1235,7 +1235,6 @@ u32 GodMode() {
                     char namestr[36+1];
                     TruncateString(namestr, curr_entry->name, 28, 12);
                     if (ShowPrompt(true, "Delete \"%s\"?", namestr)) {
-                        ShowString("Deleting %s\nPlease wait...", namestr);
                         if (!PathDelete(curr_entry->path))
                             ShowPrompt(false, "Failed deleting:\n%s", namestr);
                         ClearScreenF(true, false, COLOR_STD_BG);

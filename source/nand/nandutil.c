@@ -122,7 +122,7 @@ u32 SafeRestoreNandDump(const char* path) {
         ShowPrompt(false, "Error: A9LH not detected.");
         return 1;
     }
-    if (!SetWritePermissions(PERM_SYSNAND, true)) return 1;
+    if (!SetWritePermissions(PERM_SYS_LVL2, true)) return 1;
     
     // open file, get size
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)

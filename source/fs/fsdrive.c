@@ -15,7 +15,7 @@ int DriveType(const char* path) {
     int pdrv = GetMountedFSNum(path);
     
     if (CheckAliasDrive(path)) {
-        type = DRV_FAT | DRV_ALIAS;
+        type = DRV_FAT | DRV_ALIAS | ((*path == 'A') ? DRV_SYSNAND : DRV_EMUNAND);
     } else if (*search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0)) {
         type = DRV_SEARCH;
     } else if ((pdrv >= 0) && (pdrv < NORM_FS)) {
@@ -23,10 +23,14 @@ int DriveType(const char* path) {
             type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
         } else if ((pdrv == 9) && !(GetMountState() & IMG_NAND)) {
             type = DRV_FAT | DRV_RAMDRIVE | DRV_STDFAT;
-        } else if ((pdrv >= 1) && (pdrv <= 3)) {
-            type = DRV_FAT | DRV_SYSNAND | DRV_STDFAT;
-        } else if ((pdrv >= 4) && (pdrv <= 6)) {
-            type = DRV_FAT | DRV_EMUNAND | DRV_STDFAT;
+        } else if (pdrv == 1) {
+            type = DRV_FAT | DRV_SYSNAND | DRV_CTRNAND | DRV_STDFAT;
+        } else if ((pdrv == 2) || (pdrv == 3)) {
+            type = DRV_FAT | DRV_SYSNAND | DRV_TWLNAND | DRV_STDFAT;
+        } else if (pdrv == 4) {
+            type = DRV_FAT | DRV_EMUNAND | DRV_CTRNAND | DRV_STDFAT;
+        } else if ((pdrv == 5) || (pdrv == 6)) {
+            type = DRV_FAT | DRV_EMUNAND | DRV_TWLNAND | DRV_STDFAT;
         }  else if ((pdrv >= 7) && (pdrv <= 9) &&
             (GetMountState() & (IMG_FAT|IMG_NAND))) {
             type = DRV_FAT | DRV_IMAGE | DRV_STDFAT;

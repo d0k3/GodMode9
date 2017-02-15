@@ -57,7 +57,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     else memset(mbr + 0x1CE, 0, 0x10);
     
     // one last warning....
-    if (!ShowUnlockSequence(3, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it.\n"))
+    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it.\n"))
         return false;
     ShowString("Formatting SD, please wait..."); 
     
@@ -270,8 +270,11 @@ bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
         ShowPrompt(false, "Origin equals destination:\n%s\n%s", origstr, deststr);
         return false;
     }
-    if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset)) // this improves copy times
-        dvfile.keyslot = ovfile.keyslot = 0xFF;
+    if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset))
+        dvfile.keyslot = ovfile.keyslot = 0xFF; // this improves copy times for virtual NAND
+    
+    // check write permissions
+    if (!CheckWritePermissions(dest)) return false;
     
     // unmount critical NAND drives
     DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
@@ -318,6 +321,7 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig) {
         }
         if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", dest, dvfile.name))
             return false;
+        snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
     } else if (dvfile.size != osize) { // handling for differing sizes
         char deststr[36 + 1];
         char origstr[36 + 1];
@@ -335,6 +339,9 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig) {
                 return false;
         }
     }
+    
+    // check write permissions
+    if (!CheckWritePermissions(dest)) return false;
     
     // FAT file
     if ((fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
@@ -417,6 +424,10 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
             return false;
         }
     }
+    
+    // check destination write permission (SysNAND CTRNAND only)
+    if ((*dest == '1') && (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
+        !CheckWritePermissions(dest)) return false;
     
     // the copy process takes place here
     if (!ShowProgress(0, 0, orig)) return false;
@@ -549,6 +560,10 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
     }
     
+    // check destination write permission (SysNAND CTRNAND only)
+    if ((*dest == '1') && (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
+        !CheckWritePermissions(dest)) return false;
+    
     // the copy process takes place here
     if (!ShowProgress(0, 0, orig)) return false;
     if (move && fa_stat(dest, NULL) != FR_OK) { // moving if dest not existing
@@ -646,7 +661,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
 
 bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
-        if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
+    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     int ddrvtype = DriveType(destdir);
     int odrvtype = DriveType(orig);
     if (!(ddrvtype & DRV_VIRTUAL)) { // FAT / virtual to FAT
@@ -668,7 +683,7 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
 
 bool PathMove(const char* destdir, const char* orig, u32* flags) {
     if (!CheckWritePermissions(destdir)) return false;
-    if (!CheckWritePermissions(orig)) return false;
+    if (!CheckDirWritePermissions(orig)) return false; // check orig FULL DIR permissions
     if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     // moving only for regular FAT drives (= not alias drives)
     if (!(DriveType(destdir) & DriveType(orig) & DRV_STDFAT)) {
@@ -718,8 +733,9 @@ bool PathDeleteWorker(char* fpath) {
 
 bool PathDelete(const char* path) {
     char fpath[256]; // 256 is the maximum length of a full path
-    if (!CheckWritePermissions(path)) return false;
+    if (!CheckDirWritePermissions(path)) return false;
     strncpy(fpath, path, 256);
+    ShowString("Deleting files, please wait...");
     return PathDeleteWorker(fpath);
 }
 
@@ -727,7 +743,7 @@ bool PathRename(const char* path, const char* newname) {
     char npath[256]; // 256 is the maximum length of a full path
     char* oldname = strrchr(path, '/');
     
-    if (!CheckWritePermissions(path)) return false;
+    if (!CheckDirWritePermissions(path)) return false;
     if (!oldname) return false;
     oldname++;
     strncpy(npath, path, oldname - path);
