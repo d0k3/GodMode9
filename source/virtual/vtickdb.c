@@ -104,9 +104,9 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
             
             u64 ticket_id = getbe64(tick_entry->ticket_id);
             u32 ck_idx = tick_entry->commonkey_idx;
-            if (!(((vdir->flags & VFLAG_SYSTEM) && ticket_id && (ck_idx == 1)) ||
-                ((vdir->flags & VFLAG_ESHOP) && ticket_id && (ck_idx < 6)) ||
-                ((vdir->flags & VFLAG_UNKNOWN) && (!ticket_id || (ck_idx >= 6)))))
+            if (!(((vdir->flags & VFLAG_ESHOP) && ticket_id && (ck_idx == 0)) ||
+                ((vdir->flags & VFLAG_SYSTEM) && ticket_id && (ck_idx == 1)) ||
+                ((vdir->flags & VFLAG_UNKNOWN) && (!ticket_id || (ck_idx >= 2)))))
                 continue;
             
             memset(vfile, 0, sizeof(VirtualFile));
