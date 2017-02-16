@@ -1,48 +1,63 @@
 #include "vcart.h"
 #include "gamecart.h"
 
+#define FAT_LIMIT   0x100000000
 #define VFLAG_PRIV_HDR  (1<<31)
 
 static CartData* cdata = (CartData*) VCART_BUFFER; // 128kB reserved (~64kB required)
 static bool cart_init = false;
 
 u32 InitVCartDrive(void) {
-    cart_init = (InitCardRead(cdata) == 0);
+    cart_init = ((InitCardRead(cdata) == 0) && (cdata->cart_size <= FAT_LIMIT));
     return cart_init ? cdata->cart_id : 0;
 }
 
 bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     if ((vdir->index < 0) && !cart_init)
         InitVCartDrive();
+    if (!cart_init) return false;
     
-    if (++vdir->index < 3) {
-        if (!cart_init) return false;
-        char name[24];
-        GetCartName(name, cdata);
-        memset(vfile, 0, sizeof(VirtualFile));
-        vfile->keyslot = 0xFF; // unused
+    const char* ext = (cdata->cart_type & CART_CTR) ? "3ds" : "nds";
+    char name[24];
+    GetCartName(name, cdata);
+    memset(vfile, 0, sizeof(VirtualFile));
+    vfile->keyslot = 0xFF; // unused
         
-        if (vdir->index == 2) { // private header
-            if (!(cdata->cart_type & CART_CTR)) return false;
+    while (++vdir->index <= 5) {
+        if ((vdir->index == 0) && (cdata->data_size < FAT_LIMIT)) { // standard full rom
+            snprintf(vfile->name, 32, "%s.%s", name, ext);
+            vfile->size = cdata->cart_size;
+            if (vfile->size == FAT_LIMIT) vfile->size--;
+            return true;
+        } else if ((vdir->index == 1)  && (cdata->data_size < FAT_LIMIT)) { // trimmed rom
+            snprintf(vfile->name, 32, "%s.trim.%s", name, ext);
+            vfile->size = cdata->data_size;
+            return true;
+        } else if ((vdir->index == 3)  && (cdata->cart_size == FAT_LIMIT)) { // split rom .000
+            snprintf(vfile->name, 32, "%s.split.000", name);
+            vfile->size = (FAT_LIMIT / 2);
+            return true;
+        } else if ((vdir->index == 4)  && (cdata->cart_size == FAT_LIMIT)) { // split rom .001
+            snprintf(vfile->name, 32, "%s.split.001", name);
+            vfile->size = (FAT_LIMIT / 2);
+            vfile->offset = (FAT_LIMIT / 2);
+            return true;
+        } else if ((vdir->index == 5) && (cdata->cart_type & CART_CTR)) { // private header
             snprintf(vfile->name, 32, "%s-priv.bin", name);
             vfile->size = PRIV_HDR_SIZE;
             vfile->flags = VFLAG_PRIV_HDR;
-        } else {
-            const char* ext = (cdata->cart_type & CART_CTR) ? "3ds" : "nds";
-            snprintf(vfile->name, 32, "%s%s.%s", name, (vdir->index == 1) ? ".trim" : "", ext);
-            vfile->size = (vdir->index == 1) ? cdata->data_size : cdata->cart_size;
+            return true;
         }
-        
-        return true;
     }
     
     return false;
 }
 
 int ReadVCartFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
+    u32 foffset = vfile->offset + offset;
     if (vfile->flags & VFLAG_PRIV_HDR)
-        return ReadCartPrivateHeader(buffer, offset, count, cdata);
-    else return ReadCartBytes(buffer, offset, count, cdata);
+        return ReadCartPrivateHeader(buffer, foffset, count, cdata);
+    else return ReadCartBytes(buffer, foffset, count, cdata);
 }
 
 u64 GetVCartDriveSize(void) {

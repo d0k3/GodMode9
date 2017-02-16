@@ -82,8 +82,8 @@ u32 InitCardRead(CartData* cdata) {
             return 1;
         cdata->cart_size = (u64) ncsd->size * NCSD_MEDIA_UNIT;
         cdata->data_size = GetNcsdTrimmedSize(ncsd);
-        if (cdata->cart_size > 0x100000000) return 1; // can't support carts > 4GB
-        else if (cdata->cart_size == 0x100000000) cdata->cart_size -= 0x200; // silent 4GB fix
+        if (cdata->cart_size > 0x100000000) return 1; // carts > 4GB don't exist
+        // else if (cdata->cart_size == 0x100000000) cdata->cart_size -= 0x200; // silent 4GB fix
         if (cdata->data_size > cdata->cart_size) return 1;
         
         // private header
