@@ -32,6 +32,8 @@ static const VirtualFile vNandFileTemplates[] = {
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
     { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND },
     { "free0x01.bin"     , 0x00000200, 0x00012A00, 0xFF, VFLAG_ON_NAND },
+    { "free0x1D7800.bin" , 0x3AF00000, 0x00000000, 0xFF, VFLAG_ON_O3DS | VFLAG_NAND_SIZE },
+    { "free0x26C000.bin" , 0x4D800000, 0x00000000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_NAND_SIZE },
     { "gbavc.sav"        , 0x0B100200, 0x00000000, 0x07, VFLAG_ON_NAND | VFLAG_GBA_VC },
 };
 
@@ -65,11 +67,13 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
             continue; // keyslot 0x05 not properly set up
         if ((vfile->flags & VFLAG_NEEDS_OTP) && !CheckSector0x96Crypto())
-            return false; // sector 0x96 crypto not set up
+            continue; // sector 0x96 crypto not set up
         if (vfile->flags & VFLAG_NAND_SIZE) {
             if ((nand_src != VRT_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
                 continue; // EmuNAND/ImgNAND is too small
-            vfile->size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
+            u64 nand_size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
+            if (nand_size <= vfile->offset) continue;
+            vfile->size = nand_size - vfile->offset;
         }
         if (vfile->flags & VFLAG_GBA_VC) {
             if (CheckAgbSaveCmac(nand_src) != 0) continue;
