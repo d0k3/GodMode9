@@ -17,8 +17,7 @@
 
 #define VFLAG_DIR       (1<<16)
 #define VFLAG_ROOT      (1<<17)
-#define VFLAG_A9LH_AREA (1<<18)
-#define VFLAG_LV3       (1<<19)
+#define VFLAG_LV3       (1<<18)
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
                     {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'T', VRT_TICKDB}, {'C', VRT_CART}
