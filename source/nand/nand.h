@@ -41,8 +41,8 @@ bool CheckA9lh(void);
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot);
 void CryptSector0x96(u8* buffer, bool encrypt);
-int ReadNandBytes(u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_src);
-int WriteNandBytes(const u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_dst);
+int ReadNandBytes(u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src);
+int WriteNandBytes(const u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst);
 int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 src);
 int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 dest);
 

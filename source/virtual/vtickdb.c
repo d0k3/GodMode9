@@ -131,8 +131,8 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
     return false;
 }
 
-int ReadVTickDbFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
-    u32 foffset = vfile->offset + offset;
+int ReadVTickDbFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
+    u64 foffset = vfile->offset + offset;
     return (ReadImageBytes(buffer, foffset, count) == 0) ? 0 : 1;
 }
 

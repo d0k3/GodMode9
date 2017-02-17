@@ -41,13 +41,13 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
     return false;
 }
 
-int ReadVMemFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
+int ReadVMemFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
     u32 foffset = vfile->offset + offset;
     memcpy(buffer, (u8*) foffset, count);
     return 0;
 }
 
-int WriteVMemFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count) {
+int WriteVMemFile(const VirtualFile* vfile, const u8* buffer, u64 offset, u64 count) {
     u32 foffset = vfile->offset + offset;
     memcpy((u8*) foffset, buffer, count);
     return 0;

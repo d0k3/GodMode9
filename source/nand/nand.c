@@ -229,7 +229,7 @@ void CryptSector0x96(u8* buffer, bool encrypt)
     ecb_decrypt((void*) buffer, (void*) buffer, 0x200 / AES_BLOCK_SIZE, mode);
 }
 
-int ReadNandBytes(u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_src)
+int ReadNandBytes(u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src)
 {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
         // simple wrapper function for ReadNandSectors(...)
@@ -261,7 +261,7 @@ int ReadNandBytes(u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_src)
     }
 }
 
-int WriteNandBytes(const u8* buffer, u32 offset, u32 count, u32 keyslot, u32 nand_dst)
+int WriteNandBytes(const u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst)
 {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
         // simple wrapper function for WriteNandSectors(...)

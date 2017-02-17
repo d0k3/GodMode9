@@ -176,7 +176,7 @@ u32 ReadCartSectors(u8* buffer, u32 sector, u32 count, CartData* cdata) {
     return 0;
 }
 
-u32 ReadCartBytes(u8* buffer, u32 offset, u32 count, CartData* cdata) {
+u32 ReadCartBytes(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
         // simple wrapper function for ReadCartSectors(...)
         return ReadCartSectors(buffer, offset / 0x200, count / 0x200, cdata);
@@ -203,7 +203,7 @@ u32 ReadCartBytes(u8* buffer, u32 offset, u32 count, CartData* cdata) {
     }
 }
 
-u32 ReadCartPrivateHeader(u8* buffer, u32 offset, u32 count, CartData* cdata) {
+u32 ReadCartPrivateHeader(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (!(cdata->cart_type & CART_CTR)) return 1;
     if (offset < PRIV_HDR_SIZE) {
         u8* priv_hdr = cdata->header + 0x4000;

@@ -678,7 +678,7 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     return false;
 }
 
-int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
+int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
     u32 vfoffset = vfile->offset;
     if (vfile->flags & VFLAG_LV3) {
         RomFsLv3FileMeta* lv3file;

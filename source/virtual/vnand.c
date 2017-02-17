@@ -88,12 +88,12 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
     return false;
 }
 
-int ReadVNandFile(const VirtualFile* vfile, u8* buffer, u32 offset, u32 count) {
+int ReadVNandFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
     u32 nand_src = vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD);
     return ReadNandBytes(buffer, vfile->offset + offset, count, vfile->keyslot, nand_src);
 }
 
-int WriteVNandFile(const VirtualFile* vfile, const u8* buffer, u32 offset, u32 count) {
+int WriteVNandFile(const VirtualFile* vfile, const u8* buffer, u64 offset, u64 count) {
     u32 nand_dst = vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD);
     int res = WriteNandBytes(buffer, vfile->offset + offset, count, vfile->keyslot, nand_dst);
     if ((res == 0) && (vfile->flags & VFLAG_GBA_VC)) res = FixAgbSaveCmac(nand_dst);
