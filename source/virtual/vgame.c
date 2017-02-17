@@ -3,16 +3,16 @@
 #include "game.h"
 #include "aes.h"
 
-#define VFLAG_FIRM_SECTION  (1<<22)
-#define VFLAG_FIRM_ARM9     (1<<23)
-#define VFLAG_FIRM          (1<<24)
-#define VFLAG_EXEFS_FILE    (1<<25)
-#define VFLAG_EXTHDR        (1<<26)
-#define VFLAG_CIA           (1<<27)
-#define VFLAG_NCSD          (1<<28)
-#define VFLAG_NCCH          (1<<29)
-#define VFLAG_EXEFS         (1<<30)
-#define VFLAG_ROMFS         (1<<31)
+#define VFLAG_FIRM_SECTION  (1UL<<22)
+#define VFLAG_FIRM_ARM9     (1UL<<23)
+#define VFLAG_FIRM          (1UL<<24)
+#define VFLAG_EXEFS_FILE    (1UL<<25)
+#define VFLAG_EXTHDR        (1UL<<26)
+#define VFLAG_CIA           (1UL<<27)
+#define VFLAG_NCSD          (1UL<<28)
+#define VFLAG_NCCH          (1UL<<29)
+#define VFLAG_EXEFS         (1UL<<30)
+#define VFLAG_ROMFS         (1UL<<31)
 #define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3)
 
 #define NAME_FIRM_HEADER    "header.bin"

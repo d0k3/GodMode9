@@ -3,20 +3,20 @@
 #include "common.h"
 
 // permission types
-#define PERM_SDCARD     (1<<0)
-#define PERM_IMAGE      (1<<1)
-#define PERM_RAMDRIVE   (1<<2)
-#define PERM_EMU_LVL0   (1<<3)
-#define PERM_EMU_LVL1   (PERM_EMU_LVL0|(1<<4))
-#define PERM_SYS_LVL0   (1<<5)
-#define PERM_SYS_LVL1   (PERM_SYS_LVL0|(1<<6))
-#define PERM_SYS_LVL2   (PERM_SYS_LVL1|(1<<7))
-#define PERM_SYS_LVL3   (PERM_SYS_LVL2|(1<<8))
-#define PERM_SDDATA     (PERM_SDCARD|(1<<9))
-#define PERM_MEMORY     (1<<10)
-#define PERM_GAME       (1<<11) // can't be enabled, placeholder
-#define PERM_XORPAD     (1<<12) // can't be enabled, placeholder
-#define PERM_CART       (1<<13) // can't be enabled, placeholder
+#define PERM_SDCARD     (1UL<<0)
+#define PERM_IMAGE      (1UL<<1)
+#define PERM_RAMDRIVE   (1UL<<2)
+#define PERM_EMU_LVL0   (1UL<<3)
+#define PERM_EMU_LVL1   (PERM_EMU_LVL0|(1UL<<4))
+#define PERM_SYS_LVL0   (1UL<<5)
+#define PERM_SYS_LVL1   (PERM_SYS_LVL0|(1UL<<6))
+#define PERM_SYS_LVL2   (PERM_SYS_LVL1|(1UL<<7))
+#define PERM_SYS_LVL3   (PERM_SYS_LVL2|(1UL<<8))
+#define PERM_SDDATA     (PERM_SDCARD|(1UL<<9))
+#define PERM_MEMORY     (1UL<<10)
+#define PERM_GAME       (1UL<<11) // can't be enabled, placeholder
+#define PERM_XORPAD     (1UL<<12) // can't be enabled, placeholder
+#define PERM_CART       (1UL<<13) // can't be enabled, placeholder
 #define PERM_BASE       (PERM_SDCARD | PERM_IMAGE | PERM_RAMDRIVE | PERM_EMU_LVL0 | PERM_SYS_LVL0)
 #ifndef SAFEMODE
 #define PERM_ALL        (PERM_BASE | PERM_SDDATA | PERM_EMU_LVL1 | PERM_SYS_LVL2 | PERM_MEMORY)

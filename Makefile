@@ -30,9 +30,8 @@ INCLUDES	:=	source source/common source/font source/fs source/crypto source/fatf
 #---------------------------------------------------------------------------------
 ARCH	:=	-mthumb -mthumb-interwork -flto
 
-CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -pedantic -O2\
-			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
-			-ffast-math -std=c99\
+CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -Wno-misleading-identation -O2\
+			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu99\
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DEXEC_$(EXEC_METHOD) -DARM9

@@ -7,9 +7,9 @@
 // #include "fsperm.h"
 
 // move / copy flags
-#define ASK_ALL         (1<<0)
-#define SKIP_ALL        (1<<1)
-#define OVERWRITE_ALL   (1<<2)
+#define ASK_ALL         (1UL<<0)
+#define SKIP_ALL        (1UL<<1)
+#define OVERWRITE_ALL   (1UL<<2)
 
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();

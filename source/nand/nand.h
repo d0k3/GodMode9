@@ -2,13 +2,13 @@
 
 #include "common.h"
 
-#define NAND_SYSNAND    (1<<0)
-#define NAND_EMUNAND    (1<<1)
-#define NAND_IMGNAND    (1<<2)
-#define NAND_ZERONAND   (1<<3)
-#define NAND_TYPE_O3DS  (1<<4)
-#define NAND_TYPE_N3DS  (1<<5)
-#define NAND_TYPE_NO3DS (1<<6)
+#define NAND_SYSNAND    (1UL<<0)
+#define NAND_EMUNAND    (1UL<<1)
+#define NAND_IMGNAND    (1UL<<2)
+#define NAND_ZERONAND   (1UL<<3)
+#define NAND_TYPE_O3DS  (1UL<<4)
+#define NAND_TYPE_N3DS  (1UL<<5)
+#define NAND_TYPE_NO3DS (1UL<<6)
 
 // minimum size of NAND memory
 #define NAND_MIN_SECTORS_O3DS 0x1D7800

@@ -8,16 +8,16 @@
 #define VRT_EMUNAND NAND_EMUNAND
 #define VRT_IMGNAND NAND_IMGNAND
 #define VRT_XORPAD  NAND_ZERONAND
-#define VRT_MEMORY  (1<<10)
-#define VRT_GAME    (1<<11)
-#define VRT_TICKDB  (1<<12)
-#define VRT_CART    (1<<13)
+#define VRT_MEMORY  (1UL<<10)
+#define VRT_GAME    (1UL<<11)
+#define VRT_TICKDB  (1UL<<12)
+#define VRT_CART    (1UL<<13)
 
 #define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_TICKDB|VRT_CART)
 
-#define VFLAG_DIR       (1<<16)
-#define VFLAG_ROOT      (1<<17)
-#define VFLAG_LV3       (1<<18)
+#define VFLAG_DIR       (1UL<<16)
+#define VFLAG_ROOT      (1UL<<17)
+#define VFLAG_LV3       (1UL<<18)
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
                     {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'T', VRT_TICKDB}, {'C', VRT_CART}

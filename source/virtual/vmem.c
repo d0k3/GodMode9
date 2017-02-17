@@ -1,7 +1,7 @@
 #include "vmem.h"
 #include "platform.h"
 
-#define VFLAG_N3DS_ONLY     (1<<31)
+#define VFLAG_N3DS_ONLY     (1UL<<31)
 
 // see: http://3dbrew.org/wiki/Memory_layout#ARM9
 static const VirtualFile vMemFileTemplates[] = {

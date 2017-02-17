@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR (1<<3)
-#define OVERWRITE_CUR (1<<4)
+#define SKIP_CUR (1UL<<3)
+#define OVERWRITE_CUR (1UL<<4)
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {

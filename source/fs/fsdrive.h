@@ -9,23 +9,23 @@
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
-#define DRV_FAT         (1<<0)
-#define DRV_VIRTUAL     (1<<1)
+#define DRV_FAT         (1UL<<0)
+#define DRV_VIRTUAL     (1UL<<1)
 // secondary drive types
-#define DRV_SDCARD      (1<<2)
-#define DRV_SYSNAND     (1<<3)
-#define DRV_EMUNAND     (1<<4)
-#define DRV_CTRNAND     (1<<5)
-#define DRV_TWLNAND     (1<<6)
-#define DRV_IMAGE       (1<<7)
-#define DRV_XORPAD      (1<<8)
-#define DRV_RAMDRIVE    (1<<9)
-#define DRV_MEMORY      (1<<10)
-#define DRV_GAME        (1<<11)
-#define DRV_CART        (1<<12)
-#define DRV_ALIAS       (1<<13)
-#define DRV_SEARCH      (1<<14)
-#define DRV_STDFAT      (1<<15) // standard FAT drive without limitations
+#define DRV_SDCARD      (1UL<<2)
+#define DRV_SYSNAND     (1UL<<3)
+#define DRV_EMUNAND     (1UL<<4)
+#define DRV_CTRNAND     (1UL<<5)
+#define DRV_TWLNAND     (1UL<<6)
+#define DRV_IMAGE       (1UL<<7)
+#define DRV_XORPAD      (1UL<<8)
+#define DRV_RAMDRIVE    (1UL<<9)
+#define DRV_MEMORY      (1UL<<10)
+#define DRV_GAME        (1UL<<11)
+#define DRV_CART        (1UL<<12)
+#define DRV_ALIAS       (1UL<<13)
+#define DRV_SEARCH      (1UL<<14)
+#define DRV_STDFAT      (1UL<<15) // standard FAT drive without limitations
 
 #define FS_DRVNAME \
         "SDCARD", \

@@ -2,7 +2,7 @@
 #include "gamecart.h"
 
 #define FAT_LIMIT   0x100000000
-#define VFLAG_PRIV_HDR  (1<<31)
+#define VFLAG_PRIV_HDR  (1UL<<31)
 
 static CartData* cdata = (CartData*) VCART_BUFFER; // 128kB reserved (~64kB required)
 static bool cart_init = false;

@@ -2,9 +2,9 @@
 #include "image.h"
 #include "ticket.h"
 
-#define VFLAG_UNKNOWN       (1<<29)
-#define VFLAG_ESHOP         (1<<30)
-#define VFLAG_SYSTEM        (1<<31)
+#define VFLAG_UNKNOWN       (1UL<<29)
+#define VFLAG_ESHOP         (1UL<<30)
+#define VFLAG_SYSTEM        (1UL<<31)
 #define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_ESHOP|VFLAG_SYSTEM)
 
 #define NAME_TIK            "%02lX.%016llX.%08lX" // index / title id / console id

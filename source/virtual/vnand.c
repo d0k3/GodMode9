@@ -7,9 +7,9 @@
 #define VFLAG_ON_N3DS       NAND_TYPE_N3DS
 #define VFLAG_ON_NO3DS      NAND_TYPE_NO3DS
 #define VFLAG_ON_NAND       (VFLAG_ON_O3DS | VFLAG_ON_N3DS | VFLAG_ON_NO3DS)
-#define VFLAG_GBA_VC        (1<<29)
-#define VFLAG_NEEDS_OTP     (1<<30)
-#define VFLAG_NAND_SIZE     (1<<31)
+#define VFLAG_GBA_VC        (1UL<<29)
+#define VFLAG_NEEDS_OTP     (1UL<<30)
+#define VFLAG_NAND_SIZE     (1UL<<31)
 
 // see: http://3dbrew.org/wiki/Flash_Filesystem#NAND_structure
 // too much hardcoding, but more readable this way
