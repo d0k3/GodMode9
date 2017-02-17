@@ -31,6 +31,7 @@
 #define FTYPE_BUILDABLE_L(tp)   (FTYPE_BUILDABLE(tp) && (tp&(GAME_TMD)))
 #define FTYPE_HSINJECTABLE(tp)  ((u32) (tp&(GAME_NCCH|FLAG_CXI)) == (u32) (GAME_NCCH|FLAG_CXI))
 #define FTYPE_RESTORABLE(tp)    (tp&(IMG_NAND))
+#define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))
 #define FTYPE_XORPAD(tp)        (tp&(BIN_NCCHNFO))
 #define FTYPE_PAYLOAD(tp)       (tp&(BIN_LAUNCH))
 

@@ -616,10 +616,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && CheckA9lh() && !(drvtype & DRV_SYSNAND));
+    bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
     bool special_opt = mountable || verificable || decryptable || encryptable || 
-        buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable;
+        buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable || ebackupable;
     
     char pathstr[48];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -770,6 +771,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     n_opt = 0;
     int mount = (mountable) ? ++n_opt : -1;
     int restore = (restorable) ? ++n_opt : -1;
+    int ebackup = (ebackupable) ? ++n_opt : -1;
     int decrypt = (decryptable) ? ++n_opt : -1;
     int encrypt = (encryptable) ? ++n_opt : -1;
     int build = (buildable) ? ++n_opt : -1;
@@ -781,6 +783,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int launch = (launchable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
+    if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
     if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
@@ -987,9 +990,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             ShowPrompt(false, "%s\nH&S inject %s", pathstr,
                 (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
+        return 0;
     } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
             (SafeRestoreNandDump(curr_entry->path) == 0) ? "success" : "failed");
+        return 0;
     } else if ((user_select == xorpad) || (user_select == xorpad_inplace)) {
         bool inplace = (user_select == xorpad_inplace);
         bool success = (BuildNcchInfoXorpads((inplace) ? current_path : OUTPUT_PATH, curr_entry->path) == 0);
@@ -1005,6 +1010,14 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             *scroll = 0;
             *cursor = 1;
         }
+        return 0;
+    } else if (user_select == ebackup) {
+        ShowString("%s\nUpdating embedded backup...", pathstr);
+        bool required = (CheckEmbeddedBackup(curr_entry->path) != 0);
+        bool success = (required && (EmbedEssentialBackup(curr_entry->path) == 0));
+        ShowPrompt(false, "%s\nBackup update: %s", pathstr, (!required) ? "not required" :
+            (success) ? "completed" : "failed!");
+        return 0;
     } else if ((user_select == launch)) {
         size_t payload_size = FileGetSize(curr_entry->path);
         if (ShowUnlockSequence(3, "%s (%dkB)\nLaunch as arm9 payload?", pathstr, payload_size / 1024)) {
@@ -1013,6 +1026,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 while(1);
             } // failed load is basically impossible here
         }
+        return 0;
     }
     
     return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);

@@ -2,10 +2,25 @@
 #include "nand.h"
 #include "firm.h"
 #include "fatmbr.h"
+#include "sysfiles.h" // for essential backup struct
+#include "exefs.h" // for essential backup struct
+#include "image.h"
+#include "fsinit.h"
 #include "fsperm.h"
 #include "sha.h"
 #include "ui.h"
 #include "vff.h"
+
+typedef struct {
+    ExeFsHeader header;
+    u8 nand_hdr[0x200];
+    SecureInfo secinfo;
+    u8 padding_secinfo[0x200 - sizeof(SecureInfo)];
+    MovableSed movable;
+    u8 padding_movable[0x200 - sizeof(MovableSed)];
+    LocalFriendCodeSeed frndseed;
+    u8 padding_frndseed[0x200 - sizeof(LocalFriendCodeSeed)];
+} __attribute__((packed)) EssentialBackup;
 
 u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
     u32 offset = sector * 0x200;
@@ -16,6 +31,79 @@ u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
     if ((fvx_read(file, buffer, size, &btr) != FR_OK) || (btr != size))
         return 1; // read failed
     if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
+    return 0;
+}
+
+u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
+    // prepare essential backup struct
+    const ExeFsFileHeader filelist[] = {
+        { "nand_hdr", 0x000, 0x200 },
+        { "secinfo" , 0x200, 0x111 },
+        { "movable" , 0x400, 0x140 },
+        { "frndseed", 0x600, 0x110 }
+    };
+    memset(essential, 0, sizeof(EssentialBackup));
+    memcpy(essential, filelist, sizeof(filelist));
+    
+    // backup current mount path, mount new path
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
+    if (!InitImgFS(path)) {
+        InitImgFS(path_bak);
+        return 1;
+    }
+    
+    // read four files
+    ExeFsFileHeader* files = essential->header.files;
+    if ((fvx_qread("I:/nand_hdr.bin", &(essential->nand_hdr), 0, 0x200, (UINT*) &(files[0].size)) != FR_OK) ||
+        ((fvx_qread("7:/rw/sys/SecureInfo_A", &(essential->secinfo), 0, 0x200, (UINT*) &(files[1].size)) != FR_OK) &&
+         (fvx_qread("7:/rw/sys/SecureInfo_B", &(essential->secinfo), 0, 0x200, (UINT*) &(files[1].size)) != FR_OK)) ||
+        (fvx_qread("7:/private/movable.sed", &(essential->movable), 0, 0x200, (UINT*) &(files[2].size)) != FR_OK) ||
+        ((fvx_qread("7:/rw/sys/LocalFriendCodeSeed_B", &(essential->frndseed), 0, 0x200, (UINT*) &(files[3].size)) != FR_OK) &&
+         (fvx_qread("7:/rw/sys/LocalFriendCodeSeed_A", &(essential->frndseed), 0, 0x200, (UINT*) &(files[3].size)) != FR_OK))) {
+        InitImgFS(path_bak);
+        return 1;
+    }
+    
+    // mount original file
+    InitImgFS(path_bak);
+    
+    // check sizes
+    if ((files[0].size != 0x200) || (files[1].size != 0x111) ||
+        ((files[2].size != 0x120) && (files[2].size != 0x140)) || (files[3].size != 0x110))
+        return 1;
+    
+    // calculate hashes
+    for (u32 i = 0; i < 4; i++) 
+        sha_quick(essential->header.hashes[9-i],
+            ((u8*) essential) + files[i].offset + sizeof(ExeFsHeader),
+            files[i].size, SHA256_MODE);
+    
+    return 0;
+}
+
+u32 CheckEmbeddedBackup(const char* path) {
+    EssentialBackup* essential = (EssentialBackup*) TEMP_BUFFER;
+    EssentialBackup* embedded = (EssentialBackup*) (TEMP_BUFFER + sizeof(EssentialBackup));
+    UINT btr;
+    if ((BuildEssentialBackup(path, essential) != 0) ||
+        (fvx_qread(path, embedded, 0x200, sizeof(EssentialBackup), &btr) != FR_OK) ||
+        (memcmp(embedded, essential, sizeof(EssentialBackup)) != 0))
+        return 1;
+    return 0;
+}
+
+u32 EmbedEssentialBackup(const char* path) {
+    EssentialBackup* essential = (EssentialBackup*) TEMP_BUFFER;
+    UINT btw;
+    // leaving out the write permissions check here, it's okay
+    if ((BuildEssentialBackup(path, essential) != 0) ||
+        (CheckNandHeader(essential->nand_hdr) == 0) || // 0 -> header not recognized
+        (fvx_qwrite(path, essential, 0x200, sizeof(EssentialBackup), &btw) != FR_OK) ||
+        (btw != sizeof(EssentialBackup)))
+        return 1;
     return 0;
 }
 
@@ -114,10 +202,9 @@ u32 SafeRestoreNandDump(const char* path) {
     u32 safe_sectors[] = { SAFE_SECTORS };
     FIL file;
     
-    /* if (ValidateNandDump(path) != 0) { // NAND dump validation
-        ShowPrompt(false, "NAND dump corrupt or not from console.\nYou can still try mount and copy.");
+    if ((ValidateNandDump(path) != 0) && // NAND dump validation
+        !ShowPrompt(true, "NAND dump corrupt or not from console.\nStill continue?"))
         return 1;
-    }*/
     if (!CheckA9lh()) {
         ShowPrompt(false, "Error: A9LH not detected.");
         return 1;
