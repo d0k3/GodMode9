@@ -24,8 +24,9 @@
 #define DRV_GAME        (1UL<<11)
 #define DRV_CART        (1UL<<12)
 #define DRV_ALIAS       (1UL<<13)
-#define DRV_SEARCH      (1UL<<14)
-#define DRV_STDFAT      (1UL<<15) // standard FAT drive without limitations
+#define DRV_BONUS       (1UL<<14)
+#define DRV_SEARCH      (1UL<<15)
+#define DRV_STDFAT      (1UL<<16) // standard FAT drive without limitations
 
 #define FS_DRVNAME \
         "SDCARD", \

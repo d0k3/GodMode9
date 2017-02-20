@@ -1355,8 +1355,8 @@ u32 GodMode() {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
         } else if (pad_state & BUTTON_HOME) { // Home menu
-            const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu", "Switch EmuNAND" };
-            u32 user_select = ShowSelectPrompt(CheckMultiEmuNand() ? 4 : 3, optionstr,
+            const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu", "Bonus drive setup", "Switch EmuNAND" };
+            u32 user_select = ShowSelectPrompt(CheckMultiEmuNand() ? 5 : 4, optionstr,
                 "HOME button pressed.\nSelect action:" );
             if (user_select == 1) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
@@ -1378,7 +1378,13 @@ u32 GodMode() {
                 InitEmuNandBase(true);
                 InitExtFS();
                 GetDirContents(current_dir, current_path);
-            } else if (user_select == 4) { // switch EmuNAND offset
+            } else if (user_select == 4) { // setup bonus drive
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_BONUS|DRV_IMAGE)))
+                    clipboard->n_entries = 0; // remove bonus drive clipboard entries
+                if (!SetupBonusDrive()) ShowPrompt(false, "Setup failed!");
+                ClearScreenF(true, true, COLOR_STD_BG);
+                GetDirContents(current_dir, current_path);
+            } else if (user_select == 5) { // switch EmuNAND offset
                 while (ShowPrompt(true, "Current EmuNAND offset is %06X.\nSwitch to next offset?", GetEmuNandBase())) {
                     if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_EMUNAND))
                         clipboard->n_entries = 0; // remove SD clipboard entries

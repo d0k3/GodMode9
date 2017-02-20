@@ -77,6 +77,19 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     return ret;
 }
 
+bool SetupBonusDrive(void) {
+    if (!ShowUnlockSequence(3, "Format the bonus drive?\nThis will irreversibly delete\nALL data on it.\n"))
+        return false;
+    ShowString("Formatting drive, please wait...");
+    if (GetMountState() & IMG_NAND) InitImgFS(NULL);
+    bool ret = (f_mkfs("8:", FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK);
+    if (ret) {
+        f_setlabel("8:BONUS");
+        InitExtFS();
+    }
+    return ret;
+}
+
 bool FileUnlock(const char* path) {
     FIL file;
     if (!(DriveType(path) & DRV_FAT)) return true; // can't really check this
