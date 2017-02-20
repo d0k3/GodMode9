@@ -411,6 +411,11 @@ u64 GetNandSizeSectors(u32 nand_src)
     return 0;
 }
 
+u64 GetNandUnusedSectors(u32 nand_src)
+{
+    return GetNandSizeSectors(nand_src) - NAND_MIN_SECTORS;
+}
+
 bool CheckMultiEmuNand(void)
 {
     // this only checks for the theoretical possibility

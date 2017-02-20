@@ -47,6 +47,7 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 src);
 int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 dest);
 
 u64 GetNandSizeSectors(u32 src);
+u64 GetNandUnusedSectors(u32 src);
 u32 CheckNandHeader(u8* header);
 u32 CheckNandType(u32 src);
 
