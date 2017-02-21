@@ -2,8 +2,7 @@
 #include "nand.h"
 #include "firm.h"
 #include "fatmbr.h"
-#include "sysfiles.h" // for essential backup struct
-#include "exefs.h" // for essential backup struct
+#include "essentials.h" // for essential backup struct
 #include "image.h"
 #include "fsinit.h"
 #include "fsperm.h"
@@ -11,16 +10,6 @@
 #include "ui.h"
 #include "vff.h"
 
-typedef struct {
-    ExeFsHeader header;
-    u8 nand_hdr[0x200];
-    SecureInfo secinfo;
-    u8 padding_secinfo[0x200 - sizeof(SecureInfo)];
-    MovableSed movable;
-    u8 padding_movable[0x200 - sizeof(MovableSed)];
-    LocalFriendCodeSeed frndseed;
-    u8 padding_frndseed[0x200 - sizeof(LocalFriendCodeSeed)];
-} __attribute__((packed)) EssentialBackup;
 
 u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
     u32 offset = sector * 0x200;
@@ -211,6 +200,11 @@ u32 SafeRestoreNandDump(const char* path) {
     }
     if (!SetWritePermissions(PERM_SYS_LVL2, true)) return 1;
     
+    // inject essential backup to NAND
+    EssentialBackup* essential = (EssentialBackup*) TEMP_BUFFER;
+    if (BuildEssentialBackup("1:/nand.bin", essential) == 0) 
+        WriteNandSectors((u8*) essential, ESSENTIAL_SECTOR, (sizeof(EssentialBackup) + 0x1FF) / 0x200, 0xFF, NAND_SYSNAND);
+    
     // open file, get size
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
@@ -231,7 +225,7 @@ u32 SafeRestoreNandDump(const char* path) {
             if (WriteNandSectors(MAIN_BUFFER, s, count, 0xFF, NAND_SYSNAND)) ret = 1;
             if (btr != count * 0x200) ret = 1;
             if (!ShowProgress(s + count, fsize / 0x200, path)) ret = 1;
-        }            
+        }
     }
     fvx_close(&file);
     

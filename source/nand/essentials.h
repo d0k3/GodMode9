@@ -1,6 +1,9 @@
 #pragma once
 
 #include "common.h"
+#include "exefs.h"
+
+#define ESSENTIAL_SECTOR 0x1 // start sector of the essential backup in NAND
 
 // /rw/sys/LocalFriendCodeSeed_B (/_A) file
 // see: http://3dbrew.org/wiki/Nandrw/sys/LocalFriendCodeSeed_B
@@ -29,3 +32,16 @@ typedef struct {
     u8 unknown;
     char serial[0xF];
 } __attribute__((packed)) SecureInfo;
+
+// includes all essential system files
+// (this is of our own making)
+typedef struct {
+    ExeFsHeader header;
+    u8 nand_hdr[0x200];
+    SecureInfo secinfo;
+    u8 padding_secinfo[0x200 - sizeof(SecureInfo)];
+    MovableSed movable;
+    u8 padding_movable[0x200 - sizeof(MovableSed)];
+    LocalFriendCodeSeed frndseed;
+    u8 padding_frndseed[0x200 - sizeof(LocalFriendCodeSeed)];
+} __attribute__((packed)) EssentialBackup;
