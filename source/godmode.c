@@ -152,7 +152,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
-        "START - Reboot / [+R] Poweroff"); // generic end part
+        "START - Reboot / [+R] Poweroff\nHOME button for HOME menu"); // generic end part
     DrawStringF(TOP_SCREEN, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
 }
 
