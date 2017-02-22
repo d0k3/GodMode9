@@ -6,6 +6,9 @@
 
 #include "common.h"
 
+extern u8 *TOP_SCREEN, *BOT_SCREEN;
+
+
 #define BYTES_PER_PIXEL 3
 #define SCREEN_HEIGHT 240
 #define SCREEN_WIDTH_TOP 400
@@ -21,7 +24,7 @@
 #define FONT_HEIGHT_EXT 8
 #endif
 
-#define RGB(r,g,b) (r<<24|b<<16|g<<8|r)
+#define RGB(r,g,b) ((r)<<24|(b)<<16|(g)<<8|(r))
 
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
 #define COLOR_WHITE         RGB(0xFF, 0xFF, 0xFF)
@@ -51,16 +54,6 @@
 
 #define COLOR_STD_BG        COLOR_BLACK
 #define COLOR_STD_FONT      COLOR_WHITE
-
-#ifdef EXEC_GATEWAY
-	#define TOP_SCREEN (u8*)(*(u32*)((uint32_t)0x080FFFC0 + 4 * (*(u32*)0x080FFFD8 & 1)))
-	#define BOT_SCREEN (u8*)(*(u32*)((uint32_t)0x080FFFD0 + 4 * (*(u32*)0x080FFFDC & 1)))
-#elif defined(EXEC_A9LH)
-	#define TOP_SCREEN (u8*)(*(u32*)0x23FFFE00)
-	#define BOT_SCREEN (u8*)(*(u32*)0x23FFFE08)
-#else
-	#error "Unknown execution method"
-#endif
 
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_top, bool clear_bottom, int color);

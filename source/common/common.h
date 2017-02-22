@@ -18,6 +18,8 @@
 #define vu32 volatile u32
 #define vu64 volatile u64
 
+extern u32 origin;
+
 #define max(a,b) \
     (((a) > (b)) ? (a) : (b))
 #define min(a,b) \
@@ -75,6 +77,10 @@
 #define RAMDRV_SIZE_O3DS    (0x01C00000) // 28MB
 #define RAMDRV_BUFFER_N3DS  ((u8*)0x28000000) // in N3DS FCRAM
 #define RAMDRV_SIZE_N3DS    (0x08000000) // 128MB
+
+#define ENTRY_BRAHMA        (1)
+#define ENTRY_GATEWAY       (2)
+
 
 inline u32 strchrcount(const char* str, char symbol) {
     u32 count = 0;

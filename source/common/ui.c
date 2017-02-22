@@ -14,6 +14,8 @@
 
 #define STRBUF_SIZE 512 // maximum size of the string buffer
 
+u8 *TOP_SCREEN = NULL, *BOT_SCREEN = NULL;
+
 void ClearScreen(u8* screen, int color)
 {
     int width = (screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT;

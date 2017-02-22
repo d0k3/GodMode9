@@ -30,7 +30,7 @@ INCLUDES	:=	source source/common source/font source/fs source/crypto source/fatf
 #---------------------------------------------------------------------------------
 ARCH	:=	-mthumb -mthumb-interwork -flto
 
-CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -Wno-misleading-identation -O2\
+CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -Wno-misleading-identation -Wno-main -O2\
 			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu99\
 			$(ARCH)
 
@@ -57,12 +57,12 @@ endif
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH) -DEXEC_$(EXEC_METHOD)
-LDFLAGS	=	-nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
+LDFLAGS	=	--specs=../link.specs -nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
 
 ifeq ($(EXEC_METHOD),GATEWAY)
-	LDFLAGS += --specs=../gateway.specs
+	LDFLAGS += -Wl,--section-start,.text.start=0x08000000
 else ifeq ($(EXEC_METHOD),A9LH)
-	LDFLAGS += --specs=../a9lh.specs
+	LDFLAGS += -Wl,--section-start,.text.start=0x23F00000
 endif
 
 LIBS	:=

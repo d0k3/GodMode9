@@ -1,5 +1,4 @@
 %rename link                old_link
 
 *link:
-%(old_link) -T ../a9lh.ld%s
-
+%(old_link) -T ../link.ld%s
