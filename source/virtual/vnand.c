@@ -1,12 +1,14 @@
 #include "vnand.h"
 #include "nand.h"
 #include "agbsave.h"
+#include "essentials.h"
 #include "platform.h"
 
 #define VFLAG_ON_O3DS       NAND_TYPE_O3DS
 #define VFLAG_ON_N3DS       NAND_TYPE_N3DS
 #define VFLAG_ON_NO3DS      NAND_TYPE_NO3DS
 #define VFLAG_ON_NAND       (VFLAG_ON_O3DS | VFLAG_ON_N3DS | VFLAG_ON_NO3DS)
+#define VFLAG_ESSENTIAL     (1UL<<28)
 #define VFLAG_GBA_VC        (1UL<<29)
 #define VFLAG_NEEDS_OTP     (1UL<<30)
 #define VFLAG_NAND_SIZE     (1UL<<31)
@@ -32,8 +34,9 @@ static const VirtualFile vNandFileTemplates[] = {
     { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
     { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND },
     { "free0x01.bin"     , 0x00000200, 0x00012A00, 0xFF, VFLAG_ON_NAND },
-    { "free0x1D7800.bin" , 0x3AF00000, 0x00000000, 0xFF, VFLAG_ON_O3DS | VFLAG_NAND_SIZE },
-    { "free0x26C000.bin" , 0x4D800000, 0x00000000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_NAND_SIZE },
+    { "essential.exefs"  , 0x00000200, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_ESSENTIAL },
+    { "bonus0x1D7800.bin", 0x3AF00000, 0x00000000, 0xFF, VFLAG_ON_O3DS | VFLAG_NAND_SIZE },
+    { "bonus0x26C000.bin", 0x4D800000, 0x00000000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_NAND_SIZE },
     { "gbavc.sav"        , 0x0B100200, 0x00000000, 0x07, VFLAG_ON_NAND | VFLAG_GBA_VC },
 };
 
@@ -74,6 +77,13 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
             u64 nand_size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
             if (nand_size <= vfile->offset) continue;
             vfile->size = nand_size - vfile->offset;
+        }
+        if (vfile->flags & VFLAG_ESSENTIAL) {
+            const u8 magic[] = { ESSENTIAL_MAGIC };
+            u8 data[sizeof(magic)];
+            ReadNandBytes(data, vfile->offset, sizeof(magic), vfile->keyslot, nand_src);
+            if (memcmp(data, magic, sizeof(magic)) != 0) continue;
+            vfile->size = sizeof(EssentialBackup);
         }
         if (vfile->flags & VFLAG_GBA_VC) {
             if (CheckAgbSaveCmac(nand_src) != 0) continue;
