@@ -57,7 +57,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     else memset(mbr + 0x1CE, 0, 0x10);
     
     // one last warning....
-    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it.\n"))
+    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it."))
         return false;
     ShowString("Formatting SD, please wait..."); 
     
@@ -78,7 +78,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
 }
 
 bool SetupBonusDrive(void) {
-    if (!ShowUnlockSequence(3, "Format the bonus drive?\nThis will irreversibly delete\nALL data on it.\n"))
+    if (!ShowUnlockSequence(3, "Format the bonus drive?\nThis will irreversibly delete\nALL data on it."))
         return false;
     ShowString("Formatting drive, please wait...");
     if (GetMountState() & IMG_NAND) InitImgFS(NULL);
