@@ -41,6 +41,9 @@ bool CheckWritePermissions(const char* path) {
             for (u32 i = 0; (i < sizeof(path_lvl1) / sizeof(char*)) && (lvl < 1); i++)
                 if (strncmp(path, path_lvl1[i], 256) == 0) lvl = 1;
         }
+        if (!CheckA9lh()) { // changed SysNAND permission levels on non-A9LH
+            if ((drvtype & DRV_CTRNAND) || (lvl == 2)) lvl = 3;
+        }
         perm = perms[lvl];
         snprintf(area_name, 16, "SysNAND (lvl%lu)", lvl);
     } else if (drvtype & DRV_EMUNAND) {
@@ -169,7 +172,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
                 return false;
             break;
         case PERM_SYS_LVL3:
-            if (!ShowUnlockSequence(5, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\nyour A9LH installation and\nBRICK your console!"))
+            if (!ShowUnlockSequence(5, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\n%s", CheckA9lh() ? "your A9LH installation and/or\nBRICK your console!" : "essential system files and/or\nBRICK your console!"))
                 return false;
             break;
         case PERM_ALL: // maybe get rid of this (???)
