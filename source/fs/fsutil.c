@@ -438,8 +438,9 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         }
     }
     
-    // check destination write permission (SysNAND CTRNAND only)
-    if ((*dest == '1') && (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
+    // check destination write permission (special paths only)
+    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
+        (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
         !CheckWritePermissions(dest)) return false;
     
     // the copy process takes place here
@@ -573,8 +574,9 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
     }
     
-    // check destination write permission (SysNAND CTRNAND only)
-    if ((*dest == '1') && (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
+    // check destination write permission (special paths only)
+    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
+        (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
         !CheckWritePermissions(dest)) return false;
     
     // the copy process takes place here
