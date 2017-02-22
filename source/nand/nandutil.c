@@ -199,8 +199,8 @@ u32 SafeRestoreNandDump(const char* path) {
         return 1;
     }
     
-    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with this backup.\n"))
-        return false;
+    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(A9LH will be left intact.)"))
+        return 1;
     if (!SetWritePermissions(PERM_SYS_LVL2, true)) return 1;
     
     // build essential backup from NAND
