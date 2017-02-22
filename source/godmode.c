@@ -250,7 +250,8 @@ u32 SdFormatMenu(void) {
         return 0;
     InitSDCardFS(); // this has to be initialized for EmuNAND to work
     if ((nand.size / (1024*1024) <= emunand_size_mb) && ShowPrompt(true, "Clone SysNAND to RedNAND now?")) {
-        if (!PathCopy("E:", "S:/nand_minsize.bin", NULL))
+        u32 flags = OVERRIDE_PERM;
+        if (!PathCopy("E:", "S:/nand_minsize.bin", &flags))
             ShowPrompt(false, "Cloning SysNAND to EmuNAND: failed!");
     }
     DeinitSDCardFS();

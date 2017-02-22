@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR (1UL<<3)
-#define OVERWRITE_CUR (1UL<<4)
+#define SKIP_CUR        (1UL<<4)
+#define OVERWRITE_CUR   (1UL<<5)
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
@@ -57,7 +57,8 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     else memset(mbr + 0x1CE, 0, 0x10);
     
     // one last warning....
-    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it."))
+    // 0:/Nintendo 3DS/ write permission is ignored here, this warning is enough
+    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it."))
         return false;
     ShowString("Formatting SD, please wait..."); 
     
@@ -258,7 +259,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     return ret;
 }
 
-bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
+bool PathCopyVrtToVrt(const char* destdir, const char* orig, u32* flags) {
     VirtualFile dvfile;
     VirtualFile ovfile;
     bool ret = true;
@@ -287,7 +288,8 @@ bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
         dvfile.keyslot = ovfile.keyslot = 0xFF; // this improves copy times for virtual NAND
     
     // check write permissions
-    if (!CheckWritePermissions(dest)) return false;
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
+        return false;
     
     // unmount critical NAND drives
     DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
@@ -307,7 +309,7 @@ bool PathCopyVrtToVrt(const char* destdir, const char* orig) {
     return ret;
 }
 
-bool PathCopyFatToVrt(const char* destdir, const char* orig) {
+bool PathCopyFatToVrt(const char* destdir, const char* orig, u32* flags) {
     VirtualFile dvfile;
     FIL ofile;
     bool ret = true;
@@ -354,7 +356,8 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig) {
     }
     
     // check write permissions
-    if (!CheckWritePermissions(dest)) return false;
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
+        return false;
     
     // FAT file
     if ((fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
@@ -441,6 +444,7 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
     // check destination write permission (special paths only)
     if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
         (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
+        (!flags || !(*flags & OVERRIDE_PERM)) && 
         !CheckWritePermissions(dest)) return false;
     
     // the copy process takes place here
@@ -577,6 +581,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     // check destination write permission (special paths only)
     if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
         (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
+        (!flags || !(*flags & OVERRIDE_PERM)) && 
         !CheckWritePermissions(dest)) return false;
     
     // the copy process takes place here
@@ -675,7 +680,8 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
 }
 
 bool PathCopy(const char* destdir, const char* orig, u32* flags) {
-    if (!CheckWritePermissions(destdir)) return false;
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
+        return false;
     if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     int ddrvtype = DriveType(destdir);
     int odrvtype = DriveType(orig);
@@ -692,13 +698,15 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
             ShowPrompt(false, "Copy operation is not allowed");
             return false; // prevent illegal operations
         }
-        return PathCopyFatToVrt(destdir, orig);
-    } else return PathCopyVrtToVrt(destdir, orig); // virtual to virtual
+        return PathCopyFatToVrt(destdir, orig, flags);
+    } else return PathCopyVrtToVrt(destdir, orig, flags); // virtual to virtual
 }
 
 bool PathMove(const char* destdir, const char* orig, u32* flags) {
-    if (!CheckWritePermissions(destdir)) return false;
-    if (!CheckDirWritePermissions(orig)) return false; // check orig FULL DIR permissions
+    if (!flags || !(*flags & OVERRIDE_PERM)) {
+        if (!CheckWritePermissions(destdir)) return false;
+        if (!CheckDirWritePermissions(orig)) return false;
+    }
     if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     // moving only for regular FAT drives (= not alias drives)
     if (!(DriveType(destdir) & DriveType(orig) & DRV_STDFAT)) {
