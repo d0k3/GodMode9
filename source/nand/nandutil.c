@@ -198,12 +198,15 @@ u32 SafeRestoreNandDump(const char* path) {
         ShowPrompt(false, "Error: A9LH not detected.");
         return 1;
     }
+    
+    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with this backup.\n"))
+        return false;
     if (!SetWritePermissions(PERM_SYS_LVL2, true)) return 1;
     
-    // inject essential backup to NAND
+    // build essential backup from NAND
     EssentialBackup* essential = (EssentialBackup*) TEMP_BUFFER;
-    if (BuildEssentialBackup("1:/nand.bin", essential) == 0) 
-        WriteNandSectors((u8*) essential, ESSENTIAL_SECTOR, (sizeof(EssentialBackup) + 0x1FF) / 0x200, 0xFF, NAND_SYSNAND);
+    if (BuildEssentialBackup("1:/nand.bin", essential) != 0)
+        memset(essential, 0, sizeof(EssentialBackup));
     
     // open file, get size
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
@@ -228,6 +231,9 @@ u32 SafeRestoreNandDump(const char* path) {
         }
     }
     fvx_close(&file);
+    
+    // inject essential backup to NAND
+    WriteNandSectors((u8*) essential, ESSENTIAL_SECTOR, (sizeof(EssentialBackup) + 0x1FF) / 0x200, 0xFF, NAND_SYSNAND);
     
     return ret;
 }
