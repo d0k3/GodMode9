@@ -76,6 +76,10 @@
 #define RAMDRV_BUFFER_N3DS  ((u8*)0x28000000) // in N3DS FCRAM
 #define RAMDRV_SIZE_N3DS    (0x08000000) // 128MB
 
+#define ENTRY_BRAHMA        (1)
+#define ENTRY_GATEWAY       (2)
+
+
 inline u32 strchrcount(const char* str, char symbol) {
     u32 count = 0;
     for (u32 i = 0; str[i] != '\0'; i++) {
