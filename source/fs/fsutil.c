@@ -55,9 +55,10 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     memcpy(mbr + 0x1BE, mbrdata, 0x42);
     if (hidden_mb) memcpy(mbr, "GATEWAYNAND", 12);
     else memset(mbr + 0x1CE, 0, 0x10);
-    
+
     // one last warning....
-    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it."))
+    // 0:/Nintendo 3DS/ write permission is ignored here, this warning is enough
+    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will format this SD.\nThis will irreversibly delete\nALL data on it."))
         return false;
     ShowString("Formatting SD, please wait..."); 
     

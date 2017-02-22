@@ -57,13 +57,7 @@ endif
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH) -DEXEC_$(EXEC_METHOD)
-LDFLAGS	=	--specs=../link.specs -nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
-
-ifeq ($(EXEC_METHOD),GATEWAY)
-	LDFLAGS += -Wl,--section-start,.text.start=0x08000000
-else ifeq ($(EXEC_METHOD),A9LH)
-	LDFLAGS += -Wl,--section-start,.text.start=0x23F00000
-endif
+LDFLAGS	=	-T../link.ld -nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
 
 LIBS	:=
 
@@ -120,28 +114,25 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 .PHONY: common clean all gateway a9lh cakehax cakerop brahma release
 
 #---------------------------------------------------------------------------------
-all: a9lh
+all: binary
 
 common:
 	@[ -d $(OUTPUT_D) ] || mkdir -p $(OUTPUT_D)
 	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
-    
+
 submodules:
 	@-git submodule update --init --recursive
 
-gateway: common
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
+binary: common
+	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
 	@dd if=$(OUTPUT).bin of=$(OUTPUT_D)/Launcher.dat bs=1497296 seek=1 conv=notrunc
-
-a9lh: common
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=A9LH
 
 cakehax: submodules common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
 	@make dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
 	@dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
-    
+
 cakerop: cakehax
 	@make DATNAME=$(TARGET).dat DISPNAME=$(TARGET) GRAPHICS=../resources/CakesROP -C CakesROP
 	@mv CakesROP/CakesROP.nds $(OUTPUT_D)/$(TARGET).nds
@@ -154,7 +145,7 @@ brahma: submodules a9lh
 	@make --no-print-directory -C BrahmaLoader APP_TITLE=$(TARGET)
 	@mv BrahmaLoader/output/*.3dsx $(OUTPUT_D)
 	@mv BrahmaLoader/output/*.smdh $(OUTPUT_D)
-	
+
 release:
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 	@-make --no-print-directory cakerop
@@ -169,7 +160,7 @@ release:
 	@-cp $(OUTPUT).smdh $(RELEASE)/$(TARGET)
 	@cp $(CURDIR)/README.md $(RELEASE)
 	@-7z a $(RELEASE)/$(TARGET)-`date +'%Y%m%d-%H%M%S'`.zip $(RELEASE)/*
-	
+
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...

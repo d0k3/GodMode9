@@ -18,8 +18,6 @@
 #define vu32 volatile u32
 #define vu64 volatile u64
 
-extern u32 origin;
-
 #define max(a,b) \
     (((a) > (b)) ? (a) : (b))
 #define min(a,b) \

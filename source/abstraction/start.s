@@ -3,8 +3,9 @@
 .align 4
 .arm
 
-@ TODO: make the binary fully position independent
-
+@ if the binary is booted from Brahma/CakeHax/k9lh
+@ the entrypoint is <start + 0x0>
+@ framebuffers are already set
 _start:
     nop
     nop
@@ -16,45 +17,63 @@ _start:
     nop
     nop
     nop
-    nop
-    b _start_common
-    @ reserved space for ARM9 boot ROM interrupts...
-    @ might do something with these someday
+    nop @ dummy
+    b _skip_gw
 
-_start_common:
-    adr r11, _start
-    mov r12, #-1 @ unknown entrypoint
-
-    ldr r1, =0x23F00000
-    cmp r11, r1
-    moveq r12, #1 @ brahma/a9lh
-    beq _start_brahma
-
-    ldr r1, =0x08000000
-    cmp r11, r1
-    moveq r12, #2 @ gateway
-    beq _start_gw
-
-    b _start
-
-.pool
-
+@ if the binary is booted from the GW exploit
+@ the entrypoint is <start + 0x30>
 _start_gw:
+
     @@wait for the arm11 kernel threads to be ready
-    ldr r1, =0x10000
+    mov r1, #0x10000
     waitLoop9:
         sub r1, #1
         cmp r1, #0
         bgt waitLoop9
 
-    ldr r1, =0x10000
+    mov r1, #0x10000
     waitLoop92:
         sub r1, #1
         cmp r1, #0
         bgt waitLoop92
 
-_start_brahma:
-_start_cont:
+
+    @ copy the payload to the standard entrypoint (0x23F00000)
+    adr r0, _start
+    add r1, r0, #0x100000
+    ldr r2, .entry
+    .copy_binary_fcram:
+        cmp r0, r1
+        ldrlt r3, [r0], #4
+        strlt r3, [r2], #4
+        blt .copy_binary_fcram
+
+    @ setup framebuffers to look like Brahma/etc
+
+    ldr r0, .gw_fba
+    ldr r1, [r0, #0x18]
+    and r1, #1
+    ldr r1, [r0, r1, lsl #2] @ r1 := top framebuffer loc
+    mov r2, r1               @ r2 := top framebuffer loc
+
+    ldr r0, .gw_fbb
+    ldr r3, [r0, #0xC]
+    and r3, #1
+    ldr r3, [r0, r3, lsl #2] @ r3 := bottom framebuffer loc
+
+    ldr r0, .cakehax
+    stmia r0, {r1,r2,r3}
+    @ framebuffers properly set
+
+    ldr r3, .entry
+    bx r3
+
+.gw_fba:  .word 0x080FFFC0
+.gw_fbb:  .word 0x080FFFD0
+.cakehax: .word 0x23FFFE00
+.entry:   .word 0x23F00000
+
+_skip_gw:
     @ Disable caches / mpu
     mrc p15, 0, r4, c1, c0, 0  @ read control register
     bic r4, #(1<<12)           @ - instruction cache disable
@@ -124,9 +143,6 @@ _start_cont:
     str r1, [r0]
 
     mov sp, #0x27000000
-
-    mov r0, r11
-    mov r1, r12
 
     blx main
     b _start

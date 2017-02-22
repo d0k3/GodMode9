@@ -6,9 +6,6 @@
 
 #include "common.h"
 
-extern u8 *TOP_SCREEN, *BOT_SCREEN;
-
-
 #define BYTES_PER_PIXEL 3
 #define SCREEN_HEIGHT 240
 #define SCREEN_WIDTH_TOP 400
@@ -54,6 +51,9 @@ extern u8 *TOP_SCREEN, *BOT_SCREEN;
 
 #define COLOR_STD_BG        COLOR_BLACK
 #define COLOR_STD_FONT      COLOR_WHITE
+
+#define TOP_SCREEN          (u8*)(*(u32*)0x23FFFE00)
+#define BOT_SCREEN          (u8*)(*(u32*)0x23FFFE08)
 
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_top, bool clear_bottom, int color);
