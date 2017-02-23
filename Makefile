@@ -111,7 +111,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: common clean all gateway a9lh cakehax cakerop brahma release
+.PHONY: common clean all gateway binary cakehax cakerop brahma release
 
 #---------------------------------------------------------------------------------
 all: binary
@@ -137,7 +137,7 @@ cakerop: cakehax
 	@make DATNAME=$(TARGET).dat DISPNAME=$(TARGET) GRAPHICS=../resources/CakesROP -C CakesROP
 	@mv CakesROP/CakesROP.nds $(OUTPUT_D)/$(TARGET).nds
 
-brahma: submodules a9lh
+brahma: submodules binary
 	@[ -d BrahmaLoader/data ] || mkdir -p BrahmaLoader/data
 	@cp $(OUTPUT).bin BrahmaLoader/data/payload.bin
 	@cp resources/BrahmaAppInfo BrahmaLoader/resources/AppInfo

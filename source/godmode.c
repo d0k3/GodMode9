@@ -1018,6 +1018,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         bool success = (required && (EmbedEssentialBackup(curr_entry->path) == 0));
         ShowPrompt(false, "%s\nBackup update: %s", pathstr, (!required) ? "not required" :
             (success) ? "completed" : "failed!");
+        GetDirContents(current_dir, current_path);
         return 0;
     } else if ((user_select == launch)) {
         size_t payload_size = FileGetSize(curr_entry->path);
