@@ -14,6 +14,8 @@
 #include "sdmmc.h"
 
 
+#define FREE_MIN_SECTORS 0x10000 // minimum sectors for the free drive to appear
+
 #define FPDRV(pdrv) (((pdrv >= 7) && !nand_type_img) ? pdrv + 3 : pdrv)
 #define PART_TYPE(pdrv) (DriveInfo[FPDRV(pdrv)].type)
 #define PART_SUBTYPE(pdrv) (DriveInfo[FPDRV(pdrv)].subtype)
@@ -142,7 +144,8 @@ DSTATUS disk_initialize (
         nand_type_img = (mount_state & IMG_NAND) ? CheckNandType(NAND_IMGNAND) : 0;
         if (!nand_type_img) {
             if ((pdrv == 7) && !(mount_state & IMG_FAT)) return STA_NOINIT|STA_NODISK;
-            else if ((pdrv == 8) && !CheckNandType(NAND_SYSNAND)) return STA_NOINIT|STA_NODISK;
+            else if ((pdrv == 8) && (!CheckNandType(NAND_SYSNAND) ||
+                GetNandUnusedSectors(NAND_SYSNAND) < FREE_MIN_SECTORS)) return STA_NOINIT|STA_NODISK;
             else if (pdrv == 9) InitRamDrive();
         }
     }
