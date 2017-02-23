@@ -102,7 +102,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
             (drvtype & DRV_CART) ? "Gamecart" : (drvtype & DRV_SEARCH) ? "Search" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
         ResizeString(tempstr, drvstr, 160 / FONT_WIDTH_EXT, 8, false);
-    }else {
+    } else {
         char numstr[32];
         char bytestr[32];
         FormatNumber(numstr, curr_entry->size);

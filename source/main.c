@@ -17,10 +17,10 @@ void PowerOff()
 }
 
 
-int main()
+void main()
 {
     u32 godmode_exit = GodMode();
     ClearScreenF(true, true, COLOR_STD_BG);
     (godmode_exit == GODMODE_EXIT_REBOOT) ? Reboot() : PowerOff();
-    return 0;
+    return;
 }
