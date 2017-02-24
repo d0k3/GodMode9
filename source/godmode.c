@@ -1359,7 +1359,7 @@ u32 GodMode() {
         } else if (pad_state & BUTTON_HOME) { // Home menu
             const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu", "Bonus drive setup", "Switch EmuNAND" };
             u32 n_opt = 3;
-            int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x10000) ? (int) ++n_opt : -1;
+            int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
             int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
             if (bonus < 0) optionstr[3] = "Switch EmuNAND";
             u32 user_select = ShowSelectPrompt(n_opt, optionstr, "HOME button pressed.\nSelect action:" );

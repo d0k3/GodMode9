@@ -14,7 +14,7 @@
 #include "sdmmc.h"
 
 
-#define FREE_MIN_SECTORS 0x10000 // minimum sectors for the free drive to appear
+#define FREE_MIN_SECTORS 0x2000 // minimum sectors for the free drive to appear (4MB)
 
 #define FPDRV(pdrv) (((pdrv >= 7) && !nand_type_img) ? pdrv + 3 : pdrv)
 #define PART_TYPE(pdrv) (DriveInfo[FPDRV(pdrv)].type)
