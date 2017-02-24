@@ -125,11 +125,12 @@ submodules:
 
 binary: common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+
+gateway: binary
 	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
 	@dd if=$(OUTPUT).bin of=$(OUTPUT_D)/Launcher.dat bs=1497296 seek=1 conv=notrunc
 
-cakehax: submodules common
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
+cakehax: submodules binary
 	@make dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
 	@dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
 
@@ -148,12 +149,12 @@ brahma: submodules binary
 
 release:
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
+	@make --no-print-directory binary
 	@-make --no-print-directory cakerop
-	@rm -fr $(BUILD) $(OUTPUT).bin $(OUTPUT).elf $(CURDIR)/$(LOADER)/data
-	@make --no-print-directory brahma
+	@-make --no-print-directory brahma
 	@[ -d $(RELEASE) ] || mkdir -p $(RELEASE)
 	@[ -d $(RELEASE)/$(TARGET) ] || mkdir -p $(RELEASE)/$(TARGET)
-	@-cp $(OUTPUT).bin $(RELEASE)
+	@cp $(OUTPUT).bin $(RELEASE)
 	@-cp $(OUTPUT).dat $(RELEASE)
 	@-cp $(OUTPUT).nds $(RELEASE)
 	@-cp $(OUTPUT).3dsx $(RELEASE)/$(TARGET)
