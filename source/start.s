@@ -83,7 +83,7 @@ _skip_gw:
 
     @ Clear bss
     ldr r0, =__bss_start
-    ldr r1, =__end__
+    ldr r1, =__bss_end
     mov r2, #0
 
     .bss_clr:
