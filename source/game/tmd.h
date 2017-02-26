@@ -10,6 +10,7 @@
 #define TMD_CDNCERT_SIZE    0x700
 
 #define TMD_ISSUER          "Root-CA00000003-CP0000000b"
+#define TMD_ISSUER_DEV      "Root-CA00000004-CP0000000a"
 #define TMD_SIG_TYPE        0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
 
 #define DLC_TID_HIGH        0x00, 0x04, 0x00, 0x8C // title id high for DLC
@@ -56,6 +57,7 @@ typedef struct {
 	TmdContentInfo contentinfo[64];
 } __attribute__((packed)) TitleMetaData;
 
+u32 ValidateTmd(TitleMetaData* tmd);
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);
 u32 FixTmdHashes(TitleMetaData* tmd);
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size);

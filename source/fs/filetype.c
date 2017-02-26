@@ -47,7 +47,7 @@ u32 IdentifyFileType(const char* path) {
             return GAME_EXEFS; // ExeFS file (false positives possible)
         } else if (memcmp(header, romfs_magic, sizeof(romfs_magic)) == 0) {
             return GAME_ROMFS; // RomFS file (check could be better)
-        } else if (strncmp(TMD_ISSUER, (char*) (header + 0x140), 0x40) == 0) {
+        } else if (ValidateTmd((TitleMetaData*) data) == 0) {
             if (fsize == TMD_SIZE_N(getbe16(header + 0x1DE)) + TMD_CDNCERT_SIZE)
                 return GAME_TMD | FLAG_NUSCDN; // TMD file from NUS/CDN
             else if (fsize >= TMD_SIZE_N(getbe16(header + 0x1DE)))
