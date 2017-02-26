@@ -13,7 +13,9 @@ FRESULT fx_close (FIL* fp);
 void dealias_path (TCHAR* alias, const TCHAR* path);
 FRESULT fa_open (FIL* fp, const TCHAR* path, BYTE mode);
 FRESULT fa_opendir (DIR* dp, const TCHAR* path);
+FRESULT fa_mkdir (const TCHAR* path);
 FRESULT fa_stat (const TCHAR* path, FILINFO* fno);
+FRESULT fa_unlink (const TCHAR* path);
 
 // special functions for access of virtual NAND SD drives
 bool SetupNandSdDrive(const char* path, const char* sd_path, const char* movable, int num);

@@ -132,10 +132,22 @@ FRESULT fa_opendir (DIR* dp, const TCHAR* path) {
     return f_opendir(dp, alias);
 }
 
+FRESULT fa_mkdir (const TCHAR* path) {
+    TCHAR alias[256];
+    dealias_path(alias, path);
+    return f_mkdir(alias);
+}
+
 FRESULT fa_stat (const TCHAR* path, FILINFO* fno) {
     TCHAR alias[256];
     dealias_path(alias, path);
     return f_stat(alias, fno);
+}
+
+FRESULT fa_unlink (const TCHAR* path) {
+    TCHAR alias[256];
+    dealias_path(alias, path);
+    return f_unlink(alias);
 }
 
 // special functions for access of virtual NAND SD drives

@@ -751,7 +751,7 @@ bool PathDeleteWorker(char* fpath) {
         *(--fname) = '\0';
     }
     
-    return (f_unlink(fpath) == FR_OK);
+    return (fa_unlink(fpath) == FR_OK);
 }
 
 bool PathDelete(const char* path) {
@@ -779,7 +779,7 @@ bool DirCreate(const char* cpath, const char* dirname) {
     char npath[256]; // 256 is the maximum length of a full path
     if (!CheckWritePermissions(cpath)) return false;
     snprintf(npath, 255, "%s/%s", cpath, dirname);
-    return (f_mkdir(npath) == FR_OK);
+    return (fa_mkdir(npath) == FR_OK);
 }
 
 void CreateScreenshot() {
