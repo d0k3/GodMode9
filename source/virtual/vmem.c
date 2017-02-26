@@ -1,5 +1,5 @@
 #include "vmem.h"
-#include "platform.h"
+#include "unittype.h"
 
 #define VFLAG_N3DS_ONLY     (1UL<<31)
 
@@ -29,7 +29,7 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
         
         // process special flag
-        if ((vfile->flags & VFLAG_N3DS_ONLY) && (GetUnitPlatform() != PLATFORM_N3DS))
+        if ((vfile->flags & VFLAG_N3DS_ONLY) && (IS_O3DS))
             continue; // this is not on O3DS consoles
         
         // found if arriving here

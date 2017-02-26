@@ -1,5 +1,5 @@
 #include "ramdrive.h"
-#include "platform.h"
+#include "unittype.h"
 
 static u8* ramdrv_buffer = NULL;
 static u32 ramdrv_size = 0;
@@ -26,7 +26,7 @@ u64 GetRamDriveSize(void) {
 }
 
 void InitRamDrive(void) {
-    if (GetUnitPlatform() == PLATFORM_3DS) {
+    if (IS_O3DS) {
         ramdrv_buffer = RAMDRV_BUFFER_O3DS;
         ramdrv_size = RAMDRV_SIZE_O3DS;
     } else {

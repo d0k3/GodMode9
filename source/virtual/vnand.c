@@ -2,7 +2,7 @@
 #include "nand.h"
 #include "agbsave.h"
 #include "essentials.h"
-#include "platform.h"
+#include "unittype.h"
 
 #define VFLAG_ON_O3DS       NAND_TYPE_O3DS
 #define VFLAG_ON_N3DS       NAND_TYPE_N3DS
@@ -52,7 +52,7 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
     while (++vdir->index < n_templates) { 
         // get NAND type (O3DS/N3DS/NO3DS), workaround for empty EmuNAND
         u32 nand_type = CheckNandType(nand_src);
-        if (!nand_type) nand_type = (GetUnitPlatform() == PLATFORM_3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
+        if (!nand_type) nand_type = (IS_O3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
         
         // copy current template to vfile
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));

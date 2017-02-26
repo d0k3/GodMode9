@@ -6,6 +6,7 @@
 #include "image.h"
 #include "fsinit.h"
 #include "fsperm.h"
+#include "unittype.h"
 #include "sha.h"
 #include "ui.h"
 #include "vff.h"
@@ -194,7 +195,7 @@ u32 SafeRestoreNandDump(const char* path) {
     if ((ValidateNandDump(path) != 0) && // NAND dump validation
         !ShowPrompt(true, "NAND dump corrupt or not from console.\nStill continue?"))
         return 1;
-    if (!CheckA9lh()) {
+    if (!IS_A9LH) {
         ShowPrompt(false, "Error: A9LH not detected.");
         return 1;
     }

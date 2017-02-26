@@ -8,7 +8,7 @@
 #include "gameutil.h"
 #include "nandutil.h"
 #include "filetype.h"
-#include "platform.h"
+#include "unittype.h"
 #include "nand.h"
 #include "virtual.h"
 #include "vcart.h"
@@ -239,7 +239,7 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    if (CheckA9lh()) {
+    if (IS_A9LH) {
         InitSDCardFS(); // on A9LH: copy the payload from mem to SD root
         FileSetData("0:/arm9loaderhax.bin", (u8*) 0x23F00000, 0x40000, 0, true);
         DeinitSDCardFS();
@@ -616,7 +616,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool buildable = (FTYPE_BUILDABLE(filetype));
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
-    bool restorable = (FTYPE_RESTORABLE(filetype) && CheckA9lh() && !(drvtype & DRV_SYSNAND));
+    bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
@@ -1069,7 +1069,7 @@ u32 GodMode() {
     InitExtFS();
     
     // could also check for a9lh via this: ((*(vu32*) 0x101401C0) == 0) 
-    if ((GetUnitPlatform() == PLATFORM_N3DS) && !CheckSlot0x05Crypto()) {
+    if ((!IS_O3DS) && !CheckSlot0x05Crypto()) {
         if (!ShowPrompt(true, "Warning: slot0x05 crypto fail!\nCould not set up slot0x05keyY.\nContinue?")) {
             DeinitExtFS();
             DeinitSDCardFS();

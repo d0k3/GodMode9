@@ -3,7 +3,7 @@
 #include "ui.h"
 #include "fsperm.h"
 #include "filetype.h"
-#include "platform.h"
+#include "unittype.h"
 #include "aes.h"
 #include "sha.h"
 #include "vff.h"
@@ -1427,7 +1427,7 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
             continue;
         region = secinfo[0x100];
         if (region >= sizeof(tidlow_hs_o3ds) / sizeof(u32)) continue;
-        tidlow_hs = (GetUnitPlatform() == PLATFORM_3DS) ?
+        tidlow_hs = (IS_O3DS) ?
             tidlow_hs_o3ds[region] : tidlow_hs_n3ds[region];
         break;
     }

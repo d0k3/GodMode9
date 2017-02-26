@@ -1,14 +1,14 @@
 #include "nand.h"
 #include "fsdrive.h"
 #include "fsutil.h"
-#include "platform.h"
+#include "unittype.h"
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
 #include "sdmmc.h"
 #include "image.h"
 
-#define NAND_MIN_SECTORS ((GetUnitPlatform() == PLATFORM_N3DS) ? NAND_MIN_SECTORS_N3DS : NAND_MIN_SECTORS_O3DS)
+#define NAND_MIN_SECTORS ((!IS_O3DS) ? NAND_MIN_SECTORS_N3DS : NAND_MIN_SECTORS_O3DS)
 
 static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from FIRM0 / external file
 static const u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY (16 byte)
@@ -67,7 +67,7 @@ u32 LoadKeyYFromP9(u8* key, const u8* keyhash, u32 offset, u32 keyslot)
     u8 header[0x200];
     
     // check arm9loaderhax
-    if (!CheckA9lh() || (offset < (offsetA9l + 0x0800))) return 1;
+    if (!IS_A9LH || (offset < (offsetA9l + 0x0800))) return 1;
     
     // section 2 (arm9loader) header of FIRM
     // this is @0x066A00 in FIRM90 & FIRM81
@@ -98,7 +98,7 @@ bool InitNandCrypto(void)
 {   
     // part #0: KeyX / KeyY for secret sector 0x96
     // on a9lh this MUST be run before accessing the SHA register in any other way
-    if (CheckA9lh()) { // for a9lh
+    if (IS_A9LH) { // for a9lh
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*) REG_SHAHASH, 32);
     } else {
@@ -128,7 +128,7 @@ bool InitNandCrypto(void)
     
     // part #2: TWL KEY
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-    if (CheckA9lh()) { // only for a9lh
+    if (IS_A9LH) { // only for a9lh
         u32* TwlCustId = (u32*) (0x01FFB808);
         u8 TwlKeyX[16] __attribute__((aligned(32)));
         u8 TwlKeyY[16] __attribute__((aligned(32)));
@@ -194,11 +194,6 @@ bool CheckSector0x96Crypto(void)
     u8 buffer[0x200];
     ReadNandSectors(buffer, 0x96, 1, 0x11, NAND_SYSNAND);
     return (sha_cmp(slot0x11Key95_sha256, buffer, 16, SHA256_MODE) == 0);
-}
-
-bool CheckA9lh(void)
-{
-    return ((*(vu32*) 0x101401C0) == 0);
 }
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
@@ -368,7 +363,7 @@ u32 CheckNandHeader(u8* header)
     
     // header type check
     if (memcmp(header + 0x100, nand_magic_n3ds, sizeof(nand_magic_n3ds) == 0) == 0)
-        return (GetUnitPlatform() == PLATFORM_3DS) ? 0 : NAND_TYPE_N3DS;
+        return (IS_O3DS) ? 0 : NAND_TYPE_N3DS;
     else if (memcmp(header + 0x100, nand_magic_o3ds, sizeof(nand_magic_o3ds) == 0) == 0)
         return NAND_TYPE_O3DS;
     
@@ -379,13 +374,13 @@ u32 CheckNandType(u32 nand_src)
 {
     if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, nand_src) != 0)
         return 0;
-    if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, 0x60) == 0) {
-        return (GetUnitPlatform() == PLATFORM_3DS) ? 0 : NAND_TYPE_N3DS;
-    } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, 0x60) == 0) {
+    if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, sizeof(nand_magic_n3ds)) == 0) {
+        return (IS_O3DS) ? 0 : NAND_TYPE_N3DS;
+    } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, sizeof(nand_magic_o3ds)) == 0) {
         u8 magic[8] = {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20};
         if (ReadNandSectors(NAND_BUFFER, 0x5CAE5, 1, 0x04, nand_src) != 0)
             return 0;
-        return ((GetUnitPlatform() == PLATFORM_3DS) || (memcmp(magic, NAND_BUFFER, 8) == 0)) ?
+        return ((IS_O3DS) || (memcmp(magic, NAND_BUFFER, 8) == 0)) ?
             NAND_TYPE_O3DS : NAND_TYPE_NO3DS;
     }
     
