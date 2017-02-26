@@ -241,7 +241,7 @@ u32 SdFormatMenu(void) {
     
     if (IS_A9LH) {
         InitSDCardFS(); // on A9LH: copy the payload from mem to SD root
-        FileSetData("0:/arm9loaderhax.bin", (u8*) 0x23F00000, 0x40000, 0, true);
+        FileSetData("0:/arm9loaderhax_si.bin", (u8*) 0x23F00000, 0x40000, 0, true);
         DeinitSDCardFS();
     }
     
