@@ -93,7 +93,6 @@ u32 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
 u32 CheckVTickDbDrive(void) {
     if ((GetMountState() & SYS_TICKDB) && tick_info->n_entries) // very basic sanity check
         return SYS_TICKDB;
-    tick_info->n_entries = 0;
     return 0;
 }
 
