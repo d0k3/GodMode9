@@ -57,5 +57,8 @@ bool PathRename(const char* path, const char* newname);
 /** Create a new directory in cpath **/
 bool DirCreate(const char* cpath, const char* dirname);
 
+/** Get # of files, subdirs and total size for directory **/
+bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles);
+
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();

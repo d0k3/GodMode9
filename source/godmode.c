@@ -1110,17 +1110,31 @@ u32 GodMode() {
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
-                char searchstr[256];
-                char namestr[20+1];
-                snprintf(searchstr, 256, "*");
-                TruncateString(namestr, curr_entry->name, 20, 8);
-                if (ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
-                    SetFSSearch(searchstr, curr_entry->path);
-                    snprintf(current_path, 256, "Z:");
-                    GetDirContents(current_dir, current_path);
-                    if (current_dir->n_entries) ShowPrompt(false, "Found %lu results.", current_dir->n_entries - 1);
-                    cursor = 1;
-                    scroll = 0;
+                const char* optionstr[2] = { "Search files & subdirs", "Directory info" }; // search files only?
+                char namestr[32+1];
+                TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
+                u32 user_select = ShowSelectPrompt(2, optionstr, "%s", namestr);
+                if (user_select == 1) {
+                    char searchstr[256];
+                    snprintf(searchstr, 256, "*");
+                    TruncateString(namestr, curr_entry->name, 20, 8);
+                    if (ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
+                        SetFSSearch(searchstr, curr_entry->path);
+                        snprintf(current_path, 256, "Z:");
+                        GetDirContents(current_dir, current_path);
+                        if (current_dir->n_entries) ShowPrompt(false, "Found %lu results.", current_dir->n_entries - 1);
+                        cursor = 1;
+                        scroll = 0;
+                    }
+                } else if (user_select == 2) {
+                    u64 tsize = 0;
+                    u32 tdirs = 0;
+                    u32 tfiles = 0;
+                    if (DirInfo(curr_entry->path, &tsize, &tdirs, &tfiles)) {
+                        char bytestr[32];
+                        FormatBytes(bytestr, tsize);
+                        ShowPrompt(false, "%s\n%lu files & %lu subdirs\n%s total", namestr, tfiles, tdirs, bytestr);
+                    } else ShowPrompt(false, "Analyze dir: failed!");
                 }
             } else { // one level up
                 u32 user_select = 1;

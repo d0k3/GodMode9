@@ -782,6 +782,60 @@ bool DirCreate(const char* cpath, const char* dirname) {
     return (fa_mkdir(npath) == FR_OK);
 }
 
+bool DirInfoWorker(char* fpath, bool virtual, u64* tsize, u32* tdirs, u32* tfiles) {
+    char* fname = fpath + strnlen(fpath, 256 - 1);
+    bool ret = true;
+    if (virtual) {
+        VirtualDir vdir;
+        VirtualFile vfile;
+        if (!GetVirtualDir(&vdir, fpath)) return false; // get dir reader object
+        while (ReadVirtualDir(&vfile, &vdir)) {
+            if (vfile.flags & VFLAG_DIR) {
+                (*tdirs)++;
+                *(fname++) = '/';
+                GetVirtualFilename(fname, &vfile, (256 - 1) - (fname - fpath));
+                if (!DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles)) ret = false;
+                *(--fname) = '\0';
+            } else {
+                *tsize += vfile.size;
+                (*tfiles)++;
+            }
+        }
+    } else {
+        DIR pdir;
+        FILINFO fno;
+        if (fa_opendir(&pdir, fpath) != FR_OK) return false; // get dir reader object
+        while (f_readdir(&pdir, &fno) == FR_OK) {
+            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+                continue; // filter out virtual entries
+            if (fno.fname[0] == 0) break; // end of dir
+            if (fno.fattrib & AM_DIR) {
+                (*tdirs)++;
+                *(fname++) = '/';
+                strncpy(fname, fno.fname, (256 - 1) - (fname - fpath));
+                if (!DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles)) ret = false;
+                *(--fname) = '\0';
+            } else {
+                *tsize += fno.fsize;
+                (*tfiles)++;
+            }
+        }
+        f_closedir(&pdir);
+    }
+    
+    return ret;
+}
+
+bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
+    bool virtual = (DriveType(path) & DRV_VIRTUAL);
+    char fpath[256];
+    strncpy(fpath, path, 255);
+    *tsize = *tdirs = *tfiles = 0;
+    ShowString("Analyzing dir, please wait...");
+    bool res = DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles);
+    return res;
+}
+
 void CreateScreenshot() {
     const u8 bmp_header[54] = {
         0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,
