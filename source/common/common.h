@@ -39,7 +39,14 @@
 
 #define ENTRY_BRAHMA        (1)
 #define ENTRY_GATEWAY       (2)
-    
+
+// GodMode9 / SafeMode9 ("flavor")
+#ifndef SAFEMODE
+#define FLAVOR  "GodMode9"
+#else
+#define FLAVOR "SafeMode9"
+#endif
+
 // GodMode9 version
 #define VERSION "1.0.2"
 

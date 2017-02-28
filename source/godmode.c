@@ -76,7 +76,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
     } else {
         DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "GodMode9");
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", FLAVOR);
     }
     
     // left top - current file info
@@ -137,12 +137,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     
     // bottom: inctruction block
     char instr[512];
-    snprintf(instr, 512, "%s%s\n%s%s%s%s%s%s%s%s",
-        #ifndef SAFEMODE
-        "GodMode9 Explorer v", VERSION, // generic start part
-        #else
-        "SafeMode9 Explorer v", VERSION, // generic start part
-        #endif
+    snprintf(instr, 512, "%s\n%s%s%s%s%s%s%s%s",
+        FLAVOR " Explorer v"VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
         ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\n" : ""),
