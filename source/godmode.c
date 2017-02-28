@@ -1096,7 +1096,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         int sys = (DriveType("1:")) ? (int) ++n_opt : -1;
         int emu = (DriveType("4:")) ? (int) ++n_opt : -1;
         if (sys > 0) optionstr[sys - 1] = "Backup SysNAND";
-        if (emu > 0) optionstr[emu - 1] = "BAckup EmuNAND";
+        if (emu > 0) optionstr[emu - 1] = "Backup EmuNAND";
         user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
         if (user_select > 0) {
             u32 flags = CALC_SHA;

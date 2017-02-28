@@ -44,6 +44,15 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);
 /** Inject file into file @offset **/
 bool FileInjectFile(const char* dest, const char* orig, u32 offset);
 
+/** Recursively build a directory **/
+bool DirBuilder(const char* destdir);
+
+/** Create a new directory in cpath **/
+bool DirCreate(const char* cpath, const char* dirname);
+
+/** Get # of files, subdirs and total size for directory **/
+bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles);
+
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig, u32* flags);
 
@@ -55,15 +64,6 @@ bool PathDelete(const char* path);
 
 /** Rename file / folder in path to new name **/
 bool PathRename(const char* path, const char* newname);
-
-/** Recursively build a directory **/
-bool DirBuilder(const char* destdir);
-
-/** Create a new directory in cpath **/
-bool DirCreate(const char* cpath, const char* dirname);
-
-/** Get # of files, subdirs and total size for directory **/
-bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles);
 
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();

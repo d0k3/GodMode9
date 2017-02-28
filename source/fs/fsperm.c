@@ -11,7 +11,6 @@
 #define PATH_SYS_LVL3   "S:/firm0.bin", "S:/firm1.bin", "S:/nand.bin", "S:/nand_minsize.bin", "S:/nand_hdr.bin", \
                         "S:/sector0x96.bin", "S:/twlmbr.bin"
 #define PATH_EMU_LVL1   "E:/ctrnand_fat.bin", "E:/ctrnand_full.bin", "E:/nand.bin", "E:/nand_minsize.bin", "E:/nand_hdr.bin"
-#define PATH_PERM_CHK   "E:", "S:", "1:/rw/sys", "1:/private"
 
 // write permissions - careful with this
 static u32 write_permissions = PERM_BASE;

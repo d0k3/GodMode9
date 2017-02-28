@@ -259,6 +259,88 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     return ret;
 }
 
+bool DirBuilderWorker(char* dest) {
+    DIR tmp_dir;
+    if (fa_opendir(&tmp_dir, dest) != FR_OK) {
+        char* slash = strrchr(dest, '/');
+        if (!slash) return false;
+        *slash = '\0';
+        if (!DirBuilderWorker(dest)) return false;
+        *slash = '/';
+        return (fa_mkdir(dest) == FR_OK);
+    } else {
+        f_closedir(&tmp_dir);
+        return true;
+    }
+}
+
+bool DirBuilder(const char* destdir) {
+    char fdpath[256]; // 256 is the maximum length of a full path
+    strncpy(fdpath, destdir, 255);
+    return DirBuilderWorker(fdpath);
+}
+
+bool DirCreate(const char* cpath, const char* dirname) {
+    char npath[256]; // 256 is the maximum length of a full path
+    if (!CheckWritePermissions(cpath)) return false;
+    snprintf(npath, 255, "%s/%s", cpath, dirname);
+    return (fa_mkdir(npath) == FR_OK);
+}
+
+bool DirInfoWorker(char* fpath, bool virtual, u64* tsize, u32* tdirs, u32* tfiles) {
+    char* fname = fpath + strnlen(fpath, 256 - 1);
+    bool ret = true;
+    if (virtual) {
+        VirtualDir vdir;
+        VirtualFile vfile;
+        if (!GetVirtualDir(&vdir, fpath)) return false; // get dir reader object
+        while (ReadVirtualDir(&vfile, &vdir)) {
+            if (vfile.flags & VFLAG_DIR) {
+                (*tdirs)++;
+                *(fname++) = '/';
+                GetVirtualFilename(fname, &vfile, (256 - 1) - (fname - fpath));
+                if (!DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles)) ret = false;
+                *(--fname) = '\0';
+            } else {
+                *tsize += vfile.size;
+                (*tfiles)++;
+            }
+        }
+    } else {
+        DIR pdir;
+        FILINFO fno;
+        if (fa_opendir(&pdir, fpath) != FR_OK) return false; // get dir reader object
+        while (f_readdir(&pdir, &fno) == FR_OK) {
+            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+                continue; // filter out virtual entries
+            if (fno.fname[0] == 0) break; // end of dir
+            if (fno.fattrib & AM_DIR) {
+                (*tdirs)++;
+                *(fname++) = '/';
+                strncpy(fname, fno.fname, (256 - 1) - (fname - fpath));
+                if (!DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles)) ret = false;
+                *(--fname) = '\0';
+            } else {
+                *tsize += fno.fsize;
+                (*tfiles)++;
+            }
+        }
+        f_closedir(&pdir);
+    }
+    
+    return ret;
+}
+
+bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
+    bool virtual = (DriveType(path) & DRV_VIRTUAL);
+    char fpath[256];
+    strncpy(fpath, path, 255);
+    *tsize = *tdirs = *tfiles = 0;
+    ShowString("Analyzing dir, please wait...");
+    bool res = DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles);
+    return res;
+}
+
 bool PathCopyVrtToVrt(const char* destdir, const char* orig, u32* flags) {
     VirtualFile dvfile;
     VirtualFile ovfile;
@@ -686,11 +768,11 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     int ddrvtype = DriveType(destdir);
     int odrvtype = DriveType(orig);
     if (!(ddrvtype & DRV_VIRTUAL)) { // FAT / virtual to FAT
-        if (flags && (*flags & BUILD_PATH)) DirBuilder(destdir);
         char fdpath[256]; // 256 is the maximum length of a full path
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
+        if (flags && (*flags & BUILD_PATH)) DirBuilderWorker(fdpath);
         bool res = (odrvtype & DRV_VIRTUAL) ? PathCopyVrtToFat(fdpath, fopath, flags) :
             PathCopyWorker(fdpath, fopath, flags, false);
         return res;
@@ -714,11 +796,11 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
         ShowPrompt(false, "Error: Moving is not possible here");
         return false;
     } else {
-        if (flags && (*flags & BUILD_PATH)) DirBuilder(destdir);
         char fdpath[256]; // 256 is the maximum length of a full path
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
+        if (flags && (*flags & BUILD_PATH)) DirBuilderWorker(fdpath);
         bool same_drv = (strncmp(orig, destdir, 2) == 0);
         bool res = PathCopyWorker(fdpath, fopath, flags, same_drv);
         if (res && (!flags || !(*flags&SKIP_CUR))) PathDelete(orig);
@@ -775,88 +857,6 @@ bool PathRename(const char* path, const char* newname) {
     strncpy(npath + (oldname - path), newname, 255 - (oldname - path));
     
     return (f_rename(path, npath) == FR_OK);
-}
-
-bool DirBuilderWorker(char* dest) {
-    DIR tmp_dir;
-    if (fa_opendir(&tmp_dir, dest) != FR_OK) {
-        char* slash = strrchr(dest, '/');
-        if (!slash) return false;
-        *slash = '\0';
-        if (!DirBuilderWorker(dest)) return false;
-        *slash = '/';
-        return (fa_mkdir(dest) == FR_OK);
-    } else {
-        f_closedir(&tmp_dir);
-        return true;
-    }
-}
-
-bool DirBuilder(const char* destdir) {
-    char fdpath[256]; // 256 is the maximum length of a full path
-    strncpy(fdpath, destdir, 255);
-    return DirBuilderWorker(destdir);
-}
-
-bool DirCreate(const char* cpath, const char* dirname) {
-    char npath[256]; // 256 is the maximum length of a full path
-    if (!CheckWritePermissions(cpath)) return false;
-    snprintf(npath, 255, "%s/%s", cpath, dirname);
-    return (fa_mkdir(npath) == FR_OK);
-}
-
-bool DirInfoWorker(char* fpath, bool virtual, u64* tsize, u32* tdirs, u32* tfiles) {
-    char* fname = fpath + strnlen(fpath, 256 - 1);
-    bool ret = true;
-    if (virtual) {
-        VirtualDir vdir;
-        VirtualFile vfile;
-        if (!GetVirtualDir(&vdir, fpath)) return false; // get dir reader object
-        while (ReadVirtualDir(&vfile, &vdir)) {
-            if (vfile.flags & VFLAG_DIR) {
-                (*tdirs)++;
-                *(fname++) = '/';
-                GetVirtualFilename(fname, &vfile, (256 - 1) - (fname - fpath));
-                if (!DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles)) ret = false;
-                *(--fname) = '\0';
-            } else {
-                *tsize += vfile.size;
-                (*tfiles)++;
-            }
-        }
-    } else {
-        DIR pdir;
-        FILINFO fno;
-        if (fa_opendir(&pdir, fpath) != FR_OK) return false; // get dir reader object
-        while (f_readdir(&pdir, &fno) == FR_OK) {
-            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
-                continue; // filter out virtual entries
-            if (fno.fname[0] == 0) break; // end of dir
-            if (fno.fattrib & AM_DIR) {
-                (*tdirs)++;
-                *(fname++) = '/';
-                strncpy(fname, fno.fname, (256 - 1) - (fname - fpath));
-                if (!DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles)) ret = false;
-                *(--fname) = '\0';
-            } else {
-                *tsize += fno.fsize;
-                (*tfiles)++;
-            }
-        }
-        f_closedir(&pdir);
-    }
-    
-    return ret;
-}
-
-bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
-    bool virtual = (DriveType(path) & DRV_VIRTUAL);
-    char fpath[256];
-    strncpy(fpath, path, 255);
-    *tsize = *tdirs = *tfiles = 0;
-    ShowString("Analyzing dir, please wait...");
-    bool res = DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles);
-    return res;
 }
 
 void CreateScreenshot() {
