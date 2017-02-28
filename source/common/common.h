@@ -50,6 +50,9 @@
 // GodMode9 version
 #define VERSION "1.0.2"
 
+// Maximum payload size (arbitrary value!)
+#define SELF_MAX_SIZE (320 * 1024) // 320kB
+
 // input / output paths
 #define INPUT_PATHS     "0:", "0:/files9", "1:/rw/files9"
 #define OUTPUT_PATH     "0:/gm9out"
