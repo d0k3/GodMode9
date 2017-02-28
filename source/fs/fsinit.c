@@ -35,13 +35,7 @@ bool InitExtFS() {
 
 bool InitImgFS(const char* path) {
     // deinit image filesystem
-    for (u32 i = NORM_FS - IMGN_FS; i < NORM_FS; i++) {
-        char fsname[8];
-        snprintf(fsname, 7, "%lu:", i);
-        if (!fs_mounted[i]) continue;
-        f_mount(NULL, fsname, 1);
-        fs_mounted[i] = false;
-    }
+    DismountDriveType(DRV_IMAGE);
     // (re)mount image, done if path == NULL
     MountImage(path);
     InitVirtualImageDrive();
