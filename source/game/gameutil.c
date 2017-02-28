@@ -1006,6 +1006,7 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     
     if (!inplace) {
         // ensure the output dir exists
+        // warning: this will only build output dirs in the root dir (!!!)
         if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
             return 1;
     }
@@ -1334,6 +1335,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     f_unlink(dest); // remove the file if it already exists
     
     // ensure the output dir exists
+    // warning: this will only build output dirs in the root dir (!!!)
     if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
         return 1;
     
@@ -1358,6 +1360,9 @@ u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
     UINT bt;
     
     if (!CheckWritePermissions(destdir)) return 1;
+    // warning: this will only build output dirs in the root dir (!!!)
+    if ((f_stat(destdir, NULL) != FR_OK) && (f_mkdir(destdir) != FR_OK))
+        return 1;
     
     NcchInfoHeader info;
     u32 version = 0;

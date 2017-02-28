@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<<4)
-#define OVERWRITE_CUR   (1UL<<5)
+#define SKIP_CUR        (1UL<<6)
+#define OVERWRITE_CUR   (1UL<<7)
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
@@ -686,6 +686,7 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     int ddrvtype = DriveType(destdir);
     int odrvtype = DriveType(orig);
     if (!(ddrvtype & DRV_VIRTUAL)) { // FAT / virtual to FAT
+        if (flags && (*flags & BUILD_PATH)) DirBuilder(destdir);
         char fdpath[256]; // 256 is the maximum length of a full path
         char fopath[256];
         strncpy(fdpath, destdir, 255);
@@ -713,6 +714,7 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
         ShowPrompt(false, "Error: Moving is not possible here");
         return false;
     } else {
+        if (flags && (*flags & BUILD_PATH)) DirBuilder(destdir);
         char fdpath[256]; // 256 is the maximum length of a full path
         char fopath[256];
         strncpy(fdpath, destdir, 255);
@@ -773,6 +775,27 @@ bool PathRename(const char* path, const char* newname) {
     strncpy(npath + (oldname - path), newname, 255 - (oldname - path));
     
     return (f_rename(path, npath) == FR_OK);
+}
+
+bool DirBuilderWorker(char* dest) {
+    DIR tmp_dir;
+    if (fa_opendir(&tmp_dir, dest) != FR_OK) {
+        char* slash = strrchr(dest, '/');
+        if (!slash) return false;
+        *slash = '\0';
+        if (!DirBuilderWorker(dest)) return false;
+        *slash = '/';
+        return (fa_mkdir(dest) == FR_OK);
+    } else {
+        f_closedir(&tmp_dir);
+        return true;
+    }
+}
+
+bool DirBuilder(const char* destdir) {
+    char fdpath[256]; // 256 is the maximum length of a full path
+    strncpy(fdpath, destdir, 255);
+    return DirBuilderWorker(destdir);
 }
 
 bool DirCreate(const char* cpath, const char* dirname) {

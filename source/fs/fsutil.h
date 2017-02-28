@@ -8,9 +8,11 @@
 
 // move / copy flags
 #define OVERRIDE_PERM   (1UL<<0)
-#define ASK_ALL         (1UL<<1)
-#define SKIP_ALL        (1UL<<2)
-#define OVERWRITE_ALL   (1UL<<3)
+#define CALC_SHA        (1UL<<1)
+#define BUILD_PATH      (1UL<<2)
+#define ASK_ALL         (1UL<<3)
+#define SKIP_ALL        (1UL<<4)
+#define OVERWRITE_ALL   (1UL<<5)
 
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();
@@ -53,6 +55,9 @@ bool PathDelete(const char* path);
 
 /** Rename file / folder in path to new name **/
 bool PathRename(const char* path, const char* newname);
+
+/** Recursively build a directory **/
+bool DirBuilder(const char* destdir);
 
 /** Create a new directory in cpath **/
 bool DirCreate(const char* cpath, const char* dirname);
