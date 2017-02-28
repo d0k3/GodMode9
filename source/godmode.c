@@ -1099,9 +1099,9 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         if (emu > 0) optionstr[emu - 1] = "Backup EmuNAND";
         user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
         if (user_select > 0) {
-            u32 flags = CALC_SHA;
+            u32 flags = BUILD_PATH | CALC_SHA;
             ShowPrompt(false, "NAND backup: %s",
-                (PathCopy(OUTPUT_PATH, (user_select == sys) ? "1:/nand_min.bin" : "4:/nand_min.bin", &flags)) ?
+                (PathCopy(OUTPUT_PATH, (user_select == sys) ? "S:/nand.bin" : "E:/nand.bin", &flags)) ?
                 "success" : "failed");
             GetDirContents(current_dir, current_path);
             return 0;

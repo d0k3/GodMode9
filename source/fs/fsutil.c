@@ -575,6 +575,7 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         f_sync(&dfile);
     
         ret = true;
+        if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
         for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
             UINT bytes_written = 0;
@@ -586,11 +587,20 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
                 ret = false;
             if (read_bytes != bytes_written)
                 ret = false;
+            if (flags && (*flags & CALC_SHA))
+                sha_update(MAIN_BUFFER, read_bytes);
         }
         ShowProgress(1, 1, orig);
         
         fx_close(&dfile);
         if (!ret) f_unlink(dest);
+        else if (flags && (*flags & CALC_SHA)) {
+            u8 sha256[0x20];
+            char* ext_sha = dest + strnlen(dest, 256);
+            strncpy(ext_sha, ".sha", 256 - (ext_sha - dest));
+            sha_get(sha256);
+            FileSetData(dest, sha256, 0x20, 0, true);
+        }
     }
     
     *(--dname) = '\0';
@@ -600,7 +610,7 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
 bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     FILINFO fno;
     bool ret = false;
-      
+    
     if (fa_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
         DIR tmp_dir; // check if root
         if (fa_opendir(&tmp_dir, dest) != FR_OK) return false;
@@ -738,6 +748,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         f_sync(&ofile);
         
         ret = true;
+        if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
         for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
@@ -749,12 +760,21 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
                 ret = false;
             if (bytes_read != bytes_written)
                 ret = false;
+            if (flags && (*flags & CALC_SHA))
+                sha_update(MAIN_BUFFER, bytes_read);
         }
         ShowProgress(1, 1, orig);
         
         fx_close(&ofile);
         fx_close(&dfile);
         if (!ret) f_unlink(dest);
+        else if (flags && (*flags & CALC_SHA)) {
+            u8 sha256[0x20];
+            char* ext_sha = dest + strnlen(dest, 256);
+            strncpy(ext_sha, ".sha", 256 - (ext_sha - dest));
+            sha_get(sha256);
+            FileSetData(dest, sha256, 0x20, 0, true);
+        }
     }
     
     *(--dname) = '\0';
