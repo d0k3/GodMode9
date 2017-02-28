@@ -202,7 +202,7 @@ u32 SafeRestoreNandDump(const char* path) {
     
     if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(A9LH will be left intact.)"))
         return 1;
-    if (!SetWritePermissions(PERM_SYS_LVL2, true)) return 1;
+    if (!SetWritePermissions(PERM_SYS_LVL1, true)) return 1;
     
     // build essential backup from NAND
     EssentialBackup* essential = (EssentialBackup*) TEMP_BUFFER;
@@ -230,6 +230,16 @@ u32 SafeRestoreNandDump(const char* path) {
             if (btr != count * 0x200) ret = 1;
             if (!ShowProgress(s + count, fsize / 0x200, path)) ret = 1;
         }
+    }
+    if (!IS_O3DS && (CheckNandType(NAND_SYSNAND) != NAND_TYPE_N3DS) && (ret == 0)) {
+        // NAND header handling / special case, only for downgraded N3DS
+        u8 header[0x200]; // NAND header
+        UINT btr;
+        fvx_lseek(&file, 0);
+        if ((fvx_read(&file, header, 0x200, &btr) == FR_OK) &&
+            (CheckNandHeader(header) == NAND_TYPE_N3DS) &&
+            (WriteNandSectors(header, 0, 1, 0xFF, NAND_SYSNAND) != 0))
+            ret = 1;
     }
     fvx_close(&file);
     
