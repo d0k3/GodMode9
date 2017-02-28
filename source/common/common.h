@@ -41,7 +41,7 @@
 #define ENTRY_GATEWAY       (2)
     
 // GodMode9 version
-#define VERSION "1.0.1"
+#define VERSION "1.0.2"
 
 // input / output paths
 #define INPUT_PATHS     "0:", "0:/files9", "1:/rw/files9"

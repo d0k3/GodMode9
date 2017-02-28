@@ -1400,15 +1400,16 @@ u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
     return ret;
 }
 
+u32 CheckHealthAndSafetyInject(const char* hsdrv) {
+    char path_mrk[32] = { 0 };
+    snprintf(path_mrk, 32, "%s/%s", hsdrv, HSINJECT_MARKFILE);
+    return (f_stat(path_mrk, NULL) == FR_OK) ? 0 : 1;
+}
+
 u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
     const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x00027300, 0 };
     NcchHeader ncch;
-    
-    // check input file / crypto
-    if ((LoadNcchHeaders(&ncch, NULL, NULL, path, 0) != 0) ||
-        !(NCCH_IS_CXI(&ncch)) || (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0))
-        return 1;
         
     // write permissions
     if (!CheckWritePermissions(destdrv))
@@ -1434,17 +1435,35 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     if (!tidlow_hs) return 1;
     
     // build paths
-    char path_tmd[64];
-    char path_cxi[64];
-    char path_bak[64];
-    snprintf(path_tmd, 64, "%s/title/00040010/%08lx/content/00000000.tmd", destdrv, tidlow_hs);
+    char path_cxi[64] = { 0 };
+    char path_bak[64] = { 0 };
+    char path_mrk[32] = { 0 };
+    snprintf(path_mrk, 32, "%s/%s", destdrv, HSINJECT_MARKFILE);
+    for (u32 i = 0; i < 8; i++) { // 8 is an arbitrary number
+        TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+        TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+        char path_tmd[64];
+        snprintf(path_tmd, 64, "%s/title/00040010/%08lx/content/%08lx.tmd", destdrv, tidlow_hs, i);
+        if (LoadTmdFile(tmd, path_tmd) != 0) continue;
+        if (!getbe16(tmd->content_count)) return 1;
+        snprintf(path_cxi, 64, "%s/title/00040010/%08lx/content/%08lx.app", destdrv, tidlow_hs, getbe32(chunk->id));
+        snprintf(path_bak, 64, "%s/title/00040010/%08lx/content/%08lx.bak", destdrv, tidlow_hs, getbe32(chunk->id));
+        break;
+    }
+    if (!(*path_cxi)) return 1;
     
-    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
-    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
-    if (LoadTmdFile(tmd, path_tmd) != 0) return 1;
-    if (!getbe16(tmd->content_count)) return 1;
-    snprintf(path_cxi, 64, "%s/title/00040010/%08lx/content/%08lX.app", destdrv, tidlow_hs, getbe32(chunk->id));
-    snprintf(path_bak, 64, "%s/title/00040010/%08lx/content/%08lX.bak", destdrv, tidlow_hs, getbe32(chunk->id));
+    if (!path) { // if path == NULL -> restore H&S from backup
+        if (f_stat(path_bak, NULL) != FR_OK) return 1;
+        f_unlink(path_mrk);
+        f_unlink(path_cxi);
+        f_rename(path_bak, path_cxi);
+        return 0;
+    }
+    
+    // check input file / crypto
+    if ((LoadNcchHeaders(&ncch, NULL, NULL, path, 0) != 0) ||
+        !(NCCH_IS_CXI(&ncch)) || (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0))
+        return 1;
     
     // check crypto, get sig
     u64 tid_hs = ((u64) 0x00040010 << 32) | tidlow_hs;
@@ -1485,6 +1504,9 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     if (ret != 0) { // in case of failure: try recover
         f_unlink(path_cxi);
         f_rename(path_bak, path_cxi);
+    } else { // in case of success:  mark this ctrnand as H&S injected
+        UINT bw;
+        fvx_qwrite(path_mrk, path_bak, 0, strnlen(path_bak, 63) + 1, &bw);
     }
     
     return ret;

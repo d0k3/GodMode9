@@ -608,7 +608,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
     
     // special stuff, only available for known filetypes (see int special below)
-    bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & (DRV_IMAGE|DRV_RAMDRIVE)));
+    bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & (DRV_IMAGE|DRV_BONUS|DRV_RAMDRIVE)));
     bool verificable = (FYTPE_VERIFICABLE(filetype));
     bool decryptable = (FYTPE_DECRYPTABLE(filetype));
     bool encryptable = (FYTPE_ENCRYPTABLE(filetype));
@@ -623,7 +623,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool special_opt = mountable || verificable || decryptable || encryptable || 
         buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable || ebackupable;
     
-    char pathstr[48];
+    char pathstr[32];
     TruncateString(pathstr, curr_entry->path, 32, 8);
     
     u32 n_marked = 0;
@@ -731,8 +731,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 current_dir->entry[i].marked = false;
                 if (PathCopy(OUTPUT_PATH, path, &flags)) n_success++;
                 else { // on failure: set cursor on failed title, break;
-                    char currstr[20+1];
-                    TruncateString(currstr, clipboard->entry[0].name, 20, 12);
+                    char currstr[32+1];
+                    TruncateString(currstr, path, 32, 12);
                     ShowPrompt(false, "%s\nFailed copying file", currstr);
                     *cursor = i;
                     break;
@@ -1034,6 +1034,87 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
 }
 
+u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboard) {
+    const char* optionstr[8];
+    const char* promptstr = "HOME more.. menu.\nSelect action:";
+    u32 n_opt = 0;
+    int sdformat = ++n_opt;
+    int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
+    int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
+    int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
+    int nandbak = ++n_opt;
+    
+    if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
+    if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
+    if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
+    if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
+    if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
+    
+    int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
+    if (user_select == sdformat) { // format SD card
+        bool sd_state = CheckSDMountState();
+        if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
+            clipboard->n_entries = 0; // remove SD clipboard entries
+        DeinitExtFS();
+        DeinitSDCardFS();
+        if ((SdFormatMenu() == 0) || sd_state) {;
+            while (!InitSDCardFS() &&
+                ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
+        }
+        ClearScreenF(true, true, COLOR_STD_BG);
+        InitEmuNandBase(true);
+        InitExtFS();
+        GetDirContents(current_dir, current_path);
+        return 0;
+    } else if (user_select == bonus) { // setup bonus drive
+        if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_BONUS|DRV_IMAGE)))
+            clipboard->n_entries = 0; // remove bonus drive clipboard entries
+        if (!SetupBonusDrive()) ShowPrompt(false, "Setup failed!");
+        ClearScreenF(true, true, COLOR_STD_BG);
+        GetDirContents(current_dir, current_path);
+        return 0;
+    } else if (user_select == multi) { // switch EmuNAND offset
+        while (ShowPrompt(true, "Current EmuNAND offset is %06X.\nSwitch to next offset?", GetEmuNandBase())) {
+            if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_EMUNAND))
+                clipboard->n_entries = 0; // remove EmuNAND clipboard entries
+            DismountDriveType(DRV_EMUNAND);
+            InitEmuNandBase(false);
+            InitExtFS();
+        }
+        GetDirContents(current_dir, current_path);
+        return 0;
+    } else if (user_select == hsrestore) { // restore Health & Safety
+        n_opt = 0;
+        int sys = (CheckHealthAndSafetyInject("1:") == 0) ? (int) ++n_opt : -1;
+        int emu = (CheckHealthAndSafetyInject("4:") == 0) ? (int) ++n_opt : -1;
+        if (sys > 0) optionstr[sys - 1] = "Restore H&S (SysNAND)";
+        if (emu > 0) optionstr[emu - 1] = "Restore H&S (EmuNAND)";
+        user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
+        if (user_select > 0) {
+            InjectHealthAndSafety(NULL, (user_select == sys) ? "1:" : "4:");
+            GetDirContents(current_dir, current_path);
+            return 0;
+        }
+    } else if (user_select == nandbak) { // dump NAND backup
+        n_opt = 0;
+        int sys = (DriveType("1:")) ? (int) ++n_opt : -1;
+        int emu = (DriveType("4:")) ? (int) ++n_opt : -1;
+        if (sys > 0) optionstr[sys - 1] = "Backup SysNAND";
+        if (emu > 0) optionstr[emu - 1] = "BAckup EmuNAND";
+        user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
+        if (user_select > 0) {
+            u32 flags = CALC_SHA;
+            ShowPrompt(false, "NAND backup: %s",
+                (PathCopy(OUTPUT_PATH, (user_select == sys) ? "1:/nand_min.bin" : "4:/nand_min.bin", &flags)) ?
+                "success" : "failed");
+            GetDirContents(current_dir, current_path);
+            return 0;
+        }
+    } else return 1;
+    
+    return HomeMoreMenu(current_path, current_dir, clipboard);
+}
+    
 u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
@@ -1371,46 +1452,18 @@ u32 GodMode() {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
         } else if (pad_state & BUTTON_HOME) { // Home menu
-            const char* optionstr[] = { "Poweroff system", "Reboot system", "SD format menu", "Bonus drive setup", "Switch EmuNAND" };
+            const char* optionstr[] = { "Poweroff system", "Reboot system", "More..." };
+            const char* promptstr = "HOME button pressed.\nSelect action:";
             u32 n_opt = 3;
-            int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
-            int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
-            if (bonus < 0) optionstr[3] = "Switch EmuNAND";
-            u32 user_select = ShowSelectPrompt(n_opt, optionstr, "HOME button pressed.\nSelect action:" );
+            u32 user_select = 0;
+            while (((user_select = ShowSelectPrompt(n_opt, optionstr, promptstr)) == 3) &&
+                (HomeMoreMenu(current_path, current_dir, clipboard) == 1)); // more... menu
             if (user_select == 1) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
                 break;
             } else if (user_select == 2) { 
                 exit_mode = GODMODE_EXIT_REBOOT;
                 break;
-            } else if (user_select == 3) { // format SD card
-                bool sd_state = CheckSDMountState();
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
-                    clipboard->n_entries = 0; // remove SD clipboard entries
-                DeinitExtFS();
-                DeinitSDCardFS();
-                if ((SdFormatMenu() == 0) || sd_state) {;
-                    while (!InitSDCardFS() &&
-                        ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
-                }
-                ClearScreenF(true, true, COLOR_STD_BG);
-                InitEmuNandBase(true);
-                InitExtFS();
-                GetDirContents(current_dir, current_path);
-            } else if (user_select == (u32) bonus) { // setup bonus drive
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_BONUS|DRV_IMAGE)))
-                    clipboard->n_entries = 0; // remove bonus drive clipboard entries
-                if (!SetupBonusDrive()) ShowPrompt(false, "Setup failed!");
-                ClearScreenF(true, true, COLOR_STD_BG);
-                GetDirContents(current_dir, current_path);
-            } else if (user_select == (u32) multi) { // switch EmuNAND offset
-                while (ShowPrompt(true, "Current EmuNAND offset is %06X.\nSwitch to next offset?", GetEmuNandBase())) {
-                    if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_EMUNAND))
-                        clipboard->n_entries = 0; // remove SD clipboard entries
-                    DismountDriveType(DRV_EMUNAND);
-                    InitEmuNandBase(false);
-                    InitExtFS();
-                }
             }
         } else if (pad_state & (CART_INSERT|CART_EJECT)) {
             if (!InitVCartDrive() && (pad_state & CART_INSERT)) // reinit virtual cart drive
