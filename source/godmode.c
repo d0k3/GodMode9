@@ -1055,7 +1055,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         DeinitSDCardFS();
         if ((SdFormatMenu() == 0) || sd_state) {;
             while (!InitSDCardFS() &&
-                ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
+                ShowPrompt(true, "Initialising SD card failed! Retry?"));
         }
         ClearScreenF(true, true, COLOR_STD_BG);
         InitEmuNandBase(true);
@@ -1260,7 +1260,7 @@ u32 GodMode() {
             DeinitExtFS();
             if (!CheckSDMountState()) {
                 while (!InitSDCardFS() &&
-                    ShowPrompt(true, "Reinitialising SD card failed! Retry?"));
+                    ShowPrompt(true, "Initialising SD card failed! Retry?"));
             } else {
                 DeinitSDCardFS();
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) &
@@ -1466,6 +1466,21 @@ u32 GodMode() {
                 ShowPrompt(false, "Cart init failed!");
             if (!(*current_path) || (curr_drvtype & DRV_CART))
                 GetDirContents(current_dir, current_path); // refresh dir contents
+        } else if (pad_state & SD_INSERT) {
+            while (!InitSDCardFS() && ShowPrompt(true, "Initialising SD card failed! Retry?"));
+            ClearScreenF(true, true, COLOR_STD_BG);
+            InitEmuNandBase(true);
+            InitExtFS();
+            GetDirContents(current_dir, current_path);
+        } else if ((pad_state & SD_EJECT) && CheckSDMountState()) {
+            ShowPrompt(false, "!Unexpected SD card removal!\n \nTo prevent data loss, unmount\nbefore ejecting the SD card.");
+            DeinitExtFS();
+            DeinitSDCardFS();
+            InitExtFS();
+            if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) &
+                (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
+                clipboard->n_entries = 0; // remove SD clipboard entries
+            GetDirContents(current_dir, current_path);
         }
     }
     
