@@ -866,7 +866,7 @@ bool PathDelete(const char* path) {
     char fpath[256]; // 256 is the maximum length of a full path
     if (!CheckDirWritePermissions(path)) return false;
     strncpy(fpath, path, 256);
-    ShowString("Deleting files, please wait...");
+    // ShowString("Deleting files, please wait..."); // handled elsewhere
     return PathDeleteWorker(fpath);
 }
 

@@ -20,6 +20,7 @@
 #define BIN_SUPPORT (1UL<<15)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
+#define FLAG_CTR    (1UL<<29)
 #define FLAG_NUSCDN (1UL<<30)
 #define FLAG_CXI    (1UL<<31)
 
@@ -29,6 +30,7 @@
 #define FYTPE_ENCRYPTABLE(tp)   (tp&(GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_BOSS))
 #define FTYPE_BUILDABLE(tp)     (tp&(GAME_NCSD|GAME_NCCH|GAME_TMD))
 #define FTYPE_BUILDABLE_L(tp)   (FTYPE_BUILDABLE(tp) && (tp&(GAME_TMD)))
+#define FTYPE_TRANSFERABLE(tp)  ((u32) (tp&(IMG_FAT|FLAG_CTR)) == (u32) (IMG_FAT|FLAG_CTR))
 #define FTYPE_HSINJECTABLE(tp)  ((u32) (tp&(GAME_NCCH|FLAG_CXI)) == (u32) (GAME_NCCH|FLAG_CXI))
 #define FTYPE_RESTORABLE(tp)    (tp&(IMG_NAND))
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))

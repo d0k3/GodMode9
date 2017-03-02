@@ -9,6 +9,7 @@
 #define NAND_TYPE_O3DS  (1UL<<4)
 #define NAND_TYPE_N3DS  (1UL<<5)
 #define NAND_TYPE_NO3DS (1UL<<6)
+#define NAND_TYPE_TWL   (1UL<<7)
 
 // minimum size of NAND memory
 #define NAND_MIN_SECTORS_O3DS 0x1D7800
@@ -47,6 +48,7 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 d
 
 u64 GetNandSizeSectors(u32 src);
 u64 GetNandUnusedSectors(u32 src);
+u32 CheckNandMbr(u8* mbr);
 u32 CheckNandHeader(u8* header);
 u32 CheckNandType(u32 src);
 

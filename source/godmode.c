@@ -13,6 +13,7 @@
 #include "virtual.h"
 #include "vcart.h"
 #include "nandcmac.h"
+#include "ctrtransfer.h"
 #include "ncchinfo.h"
 #include "image.h"
 #include "chainload.h"
@@ -611,6 +612,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool buildable = (FTYPE_BUILDABLE(filetype));
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
+    bool transferable = (FTYPE_TRANSFERABLE(filetype) && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
@@ -643,7 +645,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
     if (special > 0) optionstr[special-1] =
         (filetype & IMG_NAND  ) ? "NAND image options..." :
-        (filetype & IMG_FAT   ) ? "Mount as FAT image"    :
+        (filetype & IMG_FAT   ) ? (transferable) ? "CTRNAND options..." : "Mount as FAT image" :
         (filetype & GAME_CIA  ) ? "CIA image options..."  :
         (filetype & GAME_NCSD ) ? "NCSD image options..." :
         (filetype & GAME_NCCH ) ? "NCCH image options..." :
@@ -774,6 +776,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int build = (buildable) ? ++n_opt : -1;
     int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
+    int ctradapt = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -786,6 +789,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
+    if (ctradapt > 0) optionstr[ctradapt-1] = "Adapt image to SysNAND";
     if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
@@ -987,6 +991,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             ShowPrompt(false, "%s\nH&S inject %s", pathstr,
                 (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
+        return 0;
+    } else if (user_select == ctradapt) { // -> adapt CTRNAND image to SysNAND
+        ShowPrompt(false, "%s\n%s", pathstr,
+            (AdaptCtrNandImage(curr_entry->path) == 0) ? "Image adapted to SysNAND" : "Image modification failed");
         return 0;
     } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
@@ -1334,6 +1342,7 @@ u32 GodMode() {
                 if (n_marked) {
                     if (ShowPrompt(true, "Delete %u path(s)?", n_marked)) {
                         u32 n_errors = 0;
+                        ShowString("Deleting files, please wait...");
                         for (u32 c = 0; c < current_dir->n_entries; c++)
                             if (current_dir->entry[c].marked && !PathDelete(current_dir->entry[c].path))
                                 n_errors++;
@@ -1344,6 +1353,7 @@ u32 GodMode() {
                     char namestr[36+1];
                     TruncateString(namestr, curr_entry->name, 28, 12);
                     if (ShowPrompt(true, "Delete \"%s\"?", namestr)) {
+                        ShowString("Deleting files, please wait...");
                         if (!PathDelete(curr_entry->path))
                             ShowPrompt(false, "Failed deleting:\n%s", namestr);
                         ClearScreenF(true, false, COLOR_STD_BG);

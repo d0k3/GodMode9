@@ -1,6 +1,7 @@
 #include "filetype.h"
 #include "fsutil.h"
 #include "fatmbr.h"
+#include "nand.h"
 #include "game.h"
 #include "chainload.h"
 
@@ -26,8 +27,9 @@ u32 IdentifyFileType(const char* path) {
         } else if (ValidateMbrHeader((MbrHeader*) data) == 0) {
             MbrHeader* mbr = (MbrHeader*) data;
             MbrPartitionInfo* partition0 = mbr->partitions;
+            bool ctr = (CheckNandMbr(data) & (NAND_TYPE_O3DS|NAND_TYPE_N3DS)); // is this a CTRNAND MBR?
             if ((partition0->sector + partition0->count) <= (fsize / 0x200)) // size check
-                return IMG_FAT; // possibly an MBR -> also treat as FAT image
+                return IMG_FAT | (ctr ? FLAG_CTR : 0); // possibly an MBR -> also treat as FAT image
         } else if (ValidateCiaHeader((CiaHeader*) data) == 0) {
             // this only works because these functions ignore CIA content index
             CiaInfo info;
