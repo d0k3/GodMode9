@@ -487,6 +487,10 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
     *(dname++) = '/';
     strncpy(dname, oname, 256 - (dname - dest));
     
+    // path string (for output)
+    char deststr[36 + 1];
+    TruncateString(deststr, dest, 36, 8);
+    
     // open / check virtual file
     if (!GetVirtualFile(&vfile, orig))
         return false;
@@ -499,10 +503,8 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         }
         const char* optionstr[5] =
             {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
-        char namestr[36 + 1];
-        TruncateString(namestr, dest, 36, 8);
         u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
-            "Destination already exists:\n%s", namestr);
+            "Destination already exists:\n%s", deststr);
         if (user_select == 1) {
             do {
                 if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
@@ -539,7 +541,7 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         // create the destination folder if it does not already exist
         if (fa_opendir(&pdir, dest) != FR_OK) {
             if (f_mkdir(dest) != FR_OK) {
-                ShowPrompt(false, "Error: Overwriting file with dir");
+                ShowPrompt(false, "%s\nError: Overwriting file with dir", deststr);
                 return false;
             }
         } else f_closedir(&pdir);
@@ -563,12 +565,12 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         u64 osize = vfile.size;
     
         if (GetFreeSpace(dest) < osize) {
-            ShowPrompt(false, "Error: File is too big for destination");
+            ShowPrompt(false, "%s\nError: File is too big for destination", deststr);
             return false;
         }
         
         if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-            ShowPrompt(false, "Error: Cannot create destination file");
+            ShowPrompt(false, "%s\nError: Cannot create destination file", deststr);
             return false;
         }
         f_lseek(&dfile, 0);
@@ -626,14 +628,18 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
     *(dname++) = '/';
     strncpy(dname, oname, 256 - (dname - dest));
     
+    // path string (for output)
+    char deststr[36 + 1];
+    TruncateString(deststr, dest, 36, 8);
+    
     // check if destination is part of or equal origin
     while (strncmp(dest, orig, 255) == 0) {
-        if (!ShowStringPrompt(dname, 255 - (dname - dest), "Destination is equal to origin\nChoose another name?"))
+        if (!ShowStringPrompt(dname, 255 - (dname - dest), "%s\nDestination is equal to origin\nChoose another name?", deststr))
             return false;
     }
     if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
         if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0')) {
-            ShowPrompt(false, "Error: Destination is part of origin");
+            ShowPrompt(false, "%s\nError: Destination is part of origin", deststr);
             return false;
         }
     }
@@ -646,10 +652,8 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
         const char* optionstr[5] =
             {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
-        char namestr[36 + 1];
-        TruncateString(namestr, dest, 36, 8);
         u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
-            "Destination already exists:\n%s", namestr);
+            "Destination already exists:\n%s", deststr);
         if (user_select == 1) {
             do {
                 if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
@@ -687,7 +691,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         // create the destination folder if it does not already exist
         if (fa_opendir(&pdir, dest) != FR_OK) {
             if (f_mkdir(dest) != FR_OK) {
-                ShowPrompt(false, "Error: Overwriting file with dir");
+                ShowPrompt(false, "%s\nError: Overwriting file with dir", deststr);
                 return false;
             }
         } else f_closedir(&pdir);
@@ -712,7 +716,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         if (fa_stat(dest, &fno) != FR_OK)
             return false;
         if (fno.fattrib & AM_DIR) {
-            ShowPrompt(false, "Error: Overwriting dir with file");
+            ShowPrompt(false, "%s\nError: Overwriting dir with file", deststr);
             return false;
         }
         if (f_unlink(dest) != FR_OK)
@@ -731,13 +735,13 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         
         fsize = f_size(&ofile);
         if (GetFreeSpace(dest) < fsize) {
-            ShowPrompt(false, "Error: File is too big for destination");
+            ShowPrompt(false, "%s\nError: File is too big for destination", deststr);
             fx_close(&ofile);
             return false;
         }
         
         if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-            ShowPrompt(false, "Error: Cannot create destination file");
+            ShowPrompt(false, "%s\nError: Cannot create destination file", deststr);
             fx_close(&ofile);
             return false;
         }

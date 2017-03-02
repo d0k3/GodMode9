@@ -229,7 +229,7 @@
 /  These options have no effect at read-only configuration (_FS_READONLY = 1). */
 
 
-#define	_FS_LOCK	8
+#define	_FS_LOCK	32
 /* The option _FS_LOCK switches file lock function to control duplicated file open
 /  and illegal operation to open objects. This option must be 0 when _FS_READONLY
 /  is 1.
