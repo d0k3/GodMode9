@@ -1,5 +1,5 @@
-# :godmode: Godmode9 :godmode:
-_A full access file browser for the 3DS console_
+# ![GodMode9](https://github.com/d0k3/GodMode9/blob/master/resources/logo.png)
+_A full access file browser for the 3DS console_ :godmode:
 
 GodMode9 is a full access file browser for the Nintendo 3DS console, giving you access to your SD card, to the FAT partitons inside your SysNAND and EmuNAND and to basically anything else. Among other functionality (see below), you can copy, delete, rename files and create folders.
 
@@ -14,6 +14,7 @@ __As always, be smart, keep backups, just to be safe__.
 These short instructions apply to all users who have ARM9loaderhax and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
 * Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/` or `sd:/files9` (optional but recommended for full functionality).
+* Possibly helpful info: If you wonder how to backup your NAND, press the HOME button and enter the menu titled `More...`. You may also backup your NAND via just copying the `nand.bin` / `nand_min.bin` file in `S:/`.
 
 You may now run GodMode9 via the X Button (or any other button you chose). See below for a list of stuff you can do with it.
 
@@ -69,12 +70,14 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges.
 * __Generate XORpads from `ncchinfo.bin` files__: Start this via the appropriate entry inside the A button menu.
 * __Generate XORpads for any NAND partition__: Take a look inside the `X:` drive. You can use these XORpads for decryption of encrypted NAND images on PC. Additional tools such as [3dsFAT16Tool](https://github.com/d0k3/3DSFAT16tool/releases) are required on PC.
+* __Check and fix CMACs (for any file that has them)__: The option will turn up in the A button menu if it is available for a given file (f.e. system savegames, `ticket.db`, etc...). This can also be done for multiple files at once if they are marked.
 * __Directly mount and access NAND dumps or standard FAT images__: Just press the A button on these files to get the option. You can only mount NAND dumps from the same console.
 * __Restore NAND dumps while keeping your A9LH / sighax installation intact__: Select `Restore SysNAND (safe)` from inside the A button menu.
 * __Restore / dump NAND partitions or even full NANDs__: Just take a look into the `S:` (or `E:`/ `I:`) drive. This is done the same as any other file operation.
+* __Transfer CTRNAND images between systems__: Transfer the file located at `S:/ctrnand_full.bin` (or `E:`/ `I:`). On the receiving system, press A, select `CTRNAND Options...`, then `Adapt to SysNAND`. After the modification finishes, you may copy `ctrnand_full.bin` to `S:` / `E` / `I` t to transfer it into your NAND.
 * __Embed an essential backup right into a NAND dump__: This is available in the A button menu for NAND dumps. Essential backups contain NAND header, `movable.sed`, `LocalFriendCodeSeed_B` and `SecureInfo_A`.
 * __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
-* __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain file, write permissions can't be enabled.
+* __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain files, write permissions can't be enabled.
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
 
 
@@ -87,7 +90,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **Archshift**, for providing the base project infrastructure
 * **Normmatt**, for sdmmc.c / sdmmc.h and gamecart code
 * **Cha(N)**, **Kane49**, and all other FatFS contributors for FatFS
-* **SciResM** for helping me figure out RomFS 
+* **SciresM** for helping me figure out RomFS 
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **dark_samus** for the new 6x10 font and help on various things
@@ -95,6 +98,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **WinterMute** and **YodaDaCoda** for help testing DSi cart dumping
 * **Al3x_10m**, **Supster131**, **imanoob**, **Kasher_CS** and all other fearless testers
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
+* **Amazingmax fonts** for the Amazdoom font
 * The fine folks on **freenode #Cakey**
 * All **[3dbrew.org](https://www.3dbrew.org/wiki/Main_Page) editors**
 * Everyone I possibly forgot, if you think you deserve to be mentioned, just contact me!
