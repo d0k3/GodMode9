@@ -94,10 +94,10 @@ u32 GetDrawStringHeight(const char* str) {
     return height;
 }
 
-u32 GetDrawStringWidth(char* str) {
+u32 GetDrawStringWidth(const char* str) {
     u32 width = 0;
-    char* old_lf = str;
-    char* str_end = str + strnlen(str, STRBUF_SIZE);
+    char* old_lf = (char*) str;
+    char* str_end = (char*) str + strnlen(str, STRBUF_SIZE);
     for (char* lf = strchr(str, '\n'); lf != NULL; lf = strchr(lf + 1, '\n')) {
         if ((u32) (lf - old_lf) > width) width = lf - old_lf;
         old_lf = lf;

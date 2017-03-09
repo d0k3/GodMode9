@@ -64,7 +64,7 @@ void DrawString(unsigned char *screen, const char *str, int x, int y, int color,
 void DrawStringF(unsigned char *screen, int x, int y, int color, int bgcolor, const char *format, ...);
 
 u32 GetDrawStringHeight(const char* str);
-u32 GetDrawStringWidth(char* str);
+u32 GetDrawStringWidth(const char* str);
 
 void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);
 void TruncateString(char* dest, const char* orig, int nsize, int tpos);

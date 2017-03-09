@@ -17,6 +17,16 @@
 #include "ncchinfo.h"
 #include "image.h"
 #include "chainload.h"
+#include "qlzcomp.h"
+#include "timer.h"
+
+#ifndef SAFEMODE
+#include "gm9_splash_qlz.h"
+#define QLZ_SPLASH gm9_splash_qlz
+#else
+#include "sm9_splash_qlz.h"
+#define QLZ_SPLASH sm9_splash_qlz
+#endif
 
 #define N_PANES 2
 
@@ -1118,7 +1128,24 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     
     return HomeMoreMenu(current_path, current_dir, clipboard);
 }
+
+u32 SplashInit() {
+    const char* namestr = FLAVOR " Explorer v" VERSION;
+    const char* loadstr = "loading...";
+    const u32 pos_xb = 10;
+    const u32 pos_yb = 10;
+    const u32 pos_xu = SCREEN_WIDTH_BOT - 10 - GetDrawStringWidth(loadstr);
+    const u32 pos_yu = SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr);
     
+    ClearScreenF(true, true, COLOR_STD_BG);
+    QlzDecompress(TOP_SCREEN, QLZ_SPLASH, 0);
+    DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s", namestr, strnlen(namestr, 64), strnlen(namestr, 64),
+        "------------------------------", "https://github.com/d0k3/GodMode9");
+    DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
+    
+    return 0;
+}
+
 u32 GodMode() {
     static const u32 quick_stp = 20;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
@@ -1140,18 +1167,18 @@ u32 GodMode() {
         ShowPrompt(false, "Out of memory!"); // just to be safe
         return exit_mode;
     }
-    while (!InitSDCardFS()) {
-        const char* optionstr[] = { "Retry initialising", "Poweroff system", "Reboot system", "No SD mode (exp.)", "SD format menu" };
-        u32 user_select = ShowSelectPrompt(5, optionstr, "Initialising SD card failed!\nSelect action:" );
-        if (user_select == 2) return GODMODE_EXIT_POWEROFF;
-        else if (user_select == 3) return GODMODE_EXIT_REBOOT;
-        else if (user_select == 4) break;
-        else if (user_select == 5) SdFormatMenu();
-        ClearScreenF(true, true, COLOR_STD_BG);
-    }
+    
+    SplashInit();
+    timer_start(); // show splash for at least 1 sec
+    
+    InitSDCardFS();
     InitEmuNandBase(true);
     InitNandCrypto();
     InitExtFS();
+    
+    // do this now so we don't have to do it later
+    GetFreeSpace("0:");
+    InitVCartDrive();
     
     // could also check for a9lh via this: ((*(vu32*) 0x101401C0) == 0) 
     if ((!IS_O3DS) && !CheckSlot0x05Crypto()) {
@@ -1165,6 +1192,10 @@ u32 GodMode() {
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
+    
+    while(timer_sec() < 1); // show splash for at least 1 sec
+    ClearScreenF(true, true, COLOR_STD_BG); // clear splash
+    
     while (true) { // this is the main loop
         int curr_drvtype = DriveType(current_path);
         

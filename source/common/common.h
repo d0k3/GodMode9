@@ -62,10 +62,17 @@
 #define DIR_BUFFER_SIZE     (0x100000)
 // buffer area defines (temporary, in use by various functions)
 //  -> godmode.c hexviewer
+//  -> godmode.c loading payloads
 //  -> ncch.c seed setup
 //  -> cia.c ticket / titlekey setup
 //  -> gameutil.c various temporary stuff
 //  -> nandcmac.c for processing agbsave
+//  -> nandutil.c for storing essential backup
+//  -> ctrtransfer.c for SecureInfo (temporary)
+//  -> vgame.c for handling FIRMs
+//  -> vtickdb.c for parsing ticket.db
+//  -> qlzcomp.c for temporary compression stuff
+// meaning: careful when using this!
 #define TEMP_BUFFER         ((u8*)0x21100000)
 #define TEMP_BUFFER_SIZE    (0x100000)
 // buffer area defines (in use by fsutil.c, fsinit.c and gameutil.c)

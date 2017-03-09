@@ -1,10 +1,6 @@
 #pragma once
 
 #include "common.h"
-// temporary
-// #include "fsinit.h"
-// #include "fsdrive.h"
-// #include "fsperm.h"
 
 // move / copy flags
 #define OVERRIDE_PERM   (1UL<<0)
