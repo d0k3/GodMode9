@@ -15,3 +15,13 @@ ioDelay:
 	subs r0, #1
 	bgt 1b
 	bx lr
+	
+.global ioDelay2
+.type   ioDelay2 STT_FUNC
+
+@ioDelay2 ( u32 us )
+ioDelay2:
+1:
+	subs r0, #1
+	bgt 1b
+	bx lr

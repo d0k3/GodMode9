@@ -7,3 +7,4 @@
 #include "common.h"
 
 void ioDelay(u32 us);
+void ioDelay2(u32 us);

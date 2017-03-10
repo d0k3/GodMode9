@@ -71,7 +71,7 @@ void NTR_CryptDown(u32* pCardHash, u32* aPtr)
 
 // chosen by fair dice roll.
 // guaranteed to be random.
-#define getRandomNumber() (4)
+#define getRandomNumber() (rand())
 
 void NTR_InitKey1 (u8* aCmdData, IKEY1* pKey1, int iCardDevice)
 {
@@ -179,12 +179,31 @@ void NTR_DecryptSecureArea (u32 aGameCode, u32* pCardHash, int nCardHash, u32* p
     for(int ii=0;ii<0x200;ii+=2) NTR_CryptDown (pCardHash, pSecureArea + ii);
 }
 
+//	Causes the timer to count at (33.514 / 1024) Mhz.
+#define TIMER_DIV_1024  (3)
+#define TIMER0_DATA    (*(vu16*)0x10003000)
+#define TIMER0_CR   (*(vu16*)0x10003002)
+#define TIMER_ENABLE    (1<<7)
+void NTR_SecureDelay(u16 aTimeout)
+{
+  /* Using a while loop to check the timeout,
+     so we have to wait until one before overflow.
+     This also requires an extra 1 for the timer data.
+     See GBATek for the normal formula used for card timeout.
+  */
+  TIMER0_DATA=0x10000-(((aTimeout&0x3FFF)+3));
+  //TIMER0_CR=TIMER_DIV_256|TIMER_ENABLE;
+  TIMER0_CR=TIMER_DIV_1024|TIMER_ENABLE;
+  while(TIMER0_DATA!=0xFFFF);
+  
+  // Clear out the timer registers
+  TIMER0_CR=0;
+  TIMER0_DATA=0;
+}
 
-u32 NTR_GetIDSafe (u32 flags, const u8* command, u32 Delay)
+u32 NTR_GetIDSafe (u32 flags, const u8* command)
 {
     u32 data = 0;
-    Delay = 2* (((Delay & 0x3fff) * 1000) / 0x83);
-    ioDelay (Delay);
     cardWriteCommand(command);
     REG_NTRCARDROMCNT = flags | NTRCARD_BLK_SIZE(7);
 
@@ -200,10 +219,8 @@ u32 NTR_GetIDSafe (u32 flags, const u8* command, u32 Delay)
     return data;
 }
 
-void NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd, u32 Delay)
+void NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd)
 {
-    Delay = 2 * (((Delay & 0x3fff) * 1000) / 0x83);
-    ioDelay (Delay);
     cardPolledTransfer (flags, buffer, length, pcmd);
 }
 
@@ -217,15 +234,15 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
     const u8 cardSeedBytes[]={0xE8,0x4D,0x5A,0xB1,0x17,0x8F,0x99,0xD5};
     IKEY1 iKey1 ={0};
     bool iCheapCard = (CartID & 0x80000000) != 0;
-    u32 cardControl13 = *((u32*)(void*)&header[0x60]);
-    u32 cardControlBF = *((u32*)(void*)&header[0x64]);
-	u16 readTimeout = *((u16*)(void*)&header[0x6E]); readTimeout*=8;
+    u32 cardControl13 = *((vu32*)(void*)&header[0x60]);
+    u32 cardControlBF = *((vu32*)(void*)&header[0x64]);
+	u16 readTimeout = *((vu16*)(void*)&header[0x6E]);
 	u8 deviceType = header[0x13];
 	int nCardHash = sizeof (iCardHash) / sizeof (iCardHash[0]);
     u32 flagsKey1=NTRCARD_ACTIVATE|NTRCARD_nRESET|(cardControl13&(NTRCARD_WR|NTRCARD_CLK_SLOW))|((cardControlBF&(NTRCARD_CLK_SLOW|NTRCARD_DELAY1(0x1FFF)))+((cardControlBF&NTRCARD_DELAY2(0x3F))>>16));
     u32 flagsSec=(cardControlBF&(NTRCARD_CLK_SLOW|NTRCARD_DELAY1(0x1FFF)|NTRCARD_DELAY2(0x3F)))|NTRCARD_ACTIVATE|NTRCARD_nRESET|NTRCARD_SEC_EN|NTRCARD_SEC_DAT;
 
-    iGameCode = *((u32*)(void*)&header[0x0C]);
+    iGameCode = *((vu32*)(void*)&header[0x0C]);
     ReadDataFlags = cardControl13 & ~ NTRCARD_BLK_SIZE(7);
     NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, iCardDevice?1:2, iCardDevice);
 
@@ -237,15 +254,16 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
     //Debug("iKey1=%08X %08X %08X", iKey1.iii, iKey1. jjj, iKey1. kkkkk);
     //Debug("iKey1=%08X %08X %08X", iKey1. llll, iKey1. mmm, iKey1. nnn);
 
-    NTR_CmdSecure ((cardControl13 & (NTRCARD_WR | NTRCARD_nRESET | NTRCARD_CLK_SLOW)) | NTRCARD_ACTIVATE, NULL, 0, cmdData, 0);
+    NTR_CmdSecure ((cardControl13&(NTRCARD_CLK_SLOW|NTRCARD_DELAY2(0x3f)|NTRCARD_DELAY1(0x1fff)))|NTRCARD_ACTIVATE|NTRCARD_nRESET, NULL, 0, cmdData);
 
     NTR_CreateEncryptedCommand (NTRCARD_CMD_ACTIVATE_SEC, iCardHash, cmdData, &iKey1, 0);
     //Debug("cmdData=%02X %02X %02X %02X %02X %02X %02X %02X ", cmdData[0], cmdData[1], cmdData[2], cmdData[3], cmdData[4], cmdData[5], cmdData[6], cmdData[7]);
     if(iCheapCard)
     {
-        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData, 0);
+        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+		NTR_SecureDelay(readTimeout);
     }
-    NTR_CmdSecure (flagsKey1, NULL, 0, cmdData, readTimeout);
+    NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
 
     REG_NTRCARDROMCNT = 0;
     REG_NTRCARDSEEDX_L = cardSeedBytes[deviceType & 0x07] | (iKey1.nnn << 15) | (iKey1.mmm << 27) | 0x6000;
@@ -260,11 +278,12 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
     u32 SecureCartID = 0;
     if(iCheapCard)
     {
-        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData, 0);
+        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+		NTR_SecureDelay(readTimeout);
     }
 
-    //NTR_CmdSecure (flagsKey1, &SecureCartID, sizeof (SecureCartID), cmdData, readTimeout);
-    SecureCartID = NTR_GetIDSafe (flagsKey1, cmdData, readTimeout);
+    //NTR_CmdSecure (flagsKey1, &SecureCartID, sizeof (SecureCartID), cmdData);
+    SecureCartID = NTR_GetIDSafe (flagsKey1, cmdData);
 
     if (SecureCartID != CartID)
     {
@@ -278,16 +297,17 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
         NTR_CreateEncryptedCommand (NTRCARD_CMD_SECURE_READ, iCardHash, cmdData, &iKey1, secureBlockNumber);
         if (iCheapCard)
         {
-            NTR_CmdSecure (flagsSec, NULL, 0, cmdData, 0);
+            NTR_CmdSecure (flagsSec, NULL, 0, cmdData);
+			NTR_SecureDelay(readTimeout);
             for(int ii=8;ii>0;--ii)
             {
-                NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(1), secureArea + secureAreaOffset, 0x200, cmdData, readTimeout);
+                NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(1), secureArea + secureAreaOffset, 0x200, cmdData);
                 secureAreaOffset += 0x200 / sizeof (u32);
             }
         }
         else
         {
-            NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(4) | NTRCARD_SEC_LARGE, secureArea + secureAreaOffset, 0x1000, cmdData, readTimeout);
+            NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(4) | NTRCARD_SEC_LARGE, secureArea + secureAreaOffset, 0x1000, cmdData);
             secureAreaOffset += 0x1000 / sizeof (u32);
         }
     }
@@ -295,9 +315,10 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
     NTR_CreateEncryptedCommand (NTRCARD_CMD_DATA_MODE, iCardHash, cmdData, &iKey1, 0);
     if(iCheapCard)
     {
-        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData, 0);
+        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+		NTR_SecureDelay(readTimeout);
     }
-    NTR_CmdSecure (flagsKey1, NULL, 0, cmdData, readTimeout);
+    NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
 
     if(!iCardDevice) //CycloDS doesn't like the dsi secure area being decrypted
     {

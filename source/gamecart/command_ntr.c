@@ -16,7 +16,7 @@ u32 ReadDataFlags = 0;
 void NTR_CmdReset(void)
 {
     cardReset ();
-    ioDelay(0xF000);
+    ioDelay2(0xF000);
 }
 
 u32 NTR_CmdGetCartId(void)
@@ -34,7 +34,7 @@ void NTR_CmdReadHeader (u8* buffer)
 {
 	REG_NTRCARDROMCNT=0;
 	REG_NTRCARDMCNT=0;
-	ioDelay(167550);
+	ioDelay2(167550);
 	REG_NTRCARDMCNT=NTRCARD_CR1_ENABLE|NTRCARD_CR1_IRQ;
 	REG_NTRCARDROMCNT=NTRCARD_nRESET|NTRCARD_SEC_SEED;
 	while(REG_NTRCARDROMCNT&NTRCARD_BUSY) ;

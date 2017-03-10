@@ -17,3 +17,4 @@ int Cart_IsInserted(void);
 u32 Cart_GetID(void);
 void Cart_Secure_Init(u32* buf, u32* out);
 void Cart_Dummy(void);
+void Cart_Reset(void);

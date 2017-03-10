@@ -88,6 +88,17 @@ u32 Cart_GetID(void)
     return CartID;
 }
 
+void Cart_Reset(void)
+{
+    ResetCartSlot(); //Seems to reset the cart slot?
+
+    REG_CTRCARDSECCNT &= 0xFFFFFFFB;
+    ioDelay2(0x40000);
+
+    SwitchToNTRCARD();
+    ioDelay2(0x40000);
+}
+
 void Cart_Init(void)
 {
     ResetCartSlot(); //Seems to reset the cart slot?
