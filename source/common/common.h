@@ -40,15 +40,20 @@
 #define ENTRY_BRAHMA        (1)
 #define ENTRY_GATEWAY       (2)
 
-// GodMode9 / SafeMode9 ("flavor")
+// GodMode9 / SafeMode9 ("flavor" / splash screen)
 #ifndef SAFEMODE
-#define FLAVOR  "GodMode9"
+#define FLAVOR "GodMode9"
+#define QLZ_SPLASH_H "gm9_splash_qlz.h"
+#define QLZ_SPLASH gm9_splash_qlz
 #else
 #define FLAVOR "SafeMode9"
+#define QLZ_SPLASH_H "sm9_splash_baby_qlz.h"
+#define QLZ_SPLASH sm9_splash_baby_qlz
 #endif
 
+
 // GodMode9 version
-#define VERSION "1.0.4"
+#define VERSION "1.0.5"
 
 // Maximum payload size (arbitrary value!)
 #define SELF_MAX_SIZE (320 * 1024) // 320kB

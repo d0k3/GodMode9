@@ -71,7 +71,9 @@ void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcol
 
 void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor)
 {
-    for (size_t i = 0; i < strlen(str); i++)
+    size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / FONT_WIDTH;
+    size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
+    for (size_t i = 0; i < len; i++)
         DrawCharacter(screen, str[i], x + i * FONT_WIDTH, y, color, bgcolor);
 }
 

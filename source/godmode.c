@@ -19,14 +19,7 @@
 #include "chainload.h"
 #include "qlzcomp.h"
 #include "timer.h"
-
-#ifndef SAFEMODE
-#include "gm9_splash_qlz.h"
-#define QLZ_SPLASH gm9_splash_qlz
-#else
-#include "sm9_splash_qlz.h"
-#define QLZ_SPLASH sm9_splash_qlz
-#endif
+#include QLZ_SPLASH_H
 
 #define N_PANES 2
 
@@ -1139,8 +1132,11 @@ u32 SplashInit() {
     
     ClearScreenF(true, true, COLOR_STD_BG);
     QlzDecompress(TOP_SCREEN, QLZ_SPLASH, 0);
-    DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s", namestr, strnlen(namestr, 64), strnlen(namestr, 64),
-        "------------------------------", "https://github.com/d0k3/GodMode9");
+    DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n%s\n%s\n \n%s\n%s",
+        namestr, strnlen(namestr, 64), strnlen(namestr, 64),
+        "------------------------------", "https://github.com/d0k3/GodMode9",
+        "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
+        "Hourlies:", "https://d0k3.secretalgorithm.com/");
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
     
     return 0;
@@ -1176,9 +1172,8 @@ u32 GodMode() {
     InitNandCrypto();
     InitExtFS();
     
-    // do this now so we don't have to do it later
+    // this takes long - do it while splash is displayed
     GetFreeSpace("0:");
-    InitVCartDrive();
     
     // could also check for a9lh via this: ((*(vu32*) 0x101401C0) == 0) 
     if ((!IS_O3DS) && !CheckSlot0x05Crypto()) {
