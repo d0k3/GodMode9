@@ -238,6 +238,11 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
         { '\x18', '\x19', '\x1B', '\x1A', 'A' }
     };
     const u32 len = 5;
+    
+    u32 color_bg = COLOR_STD_BG;
+    u32 color_font = COLOR_STD_FONT;
+    u32 color_off = COLOR_GREY;
+    u32 color_on = seqcolors[seqlvl];
     u32 lvl = 0;
     
     u32 str_width, str_height;
@@ -255,14 +260,21 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
-    ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(TOP_SCREEN, x, y + str_height - 28, COLOR_STD_FONT, COLOR_STD_BG, "To proceed, enter this:");
+    if (seqlvl >= 6) { // special handling
+        color_bg = seqcolors[seqlvl];
+        color_font = COLOR_BLACK;
+        color_off = COLOR_BLACK;
+        color_on = COLOR_DARKGREY;
+    }
+    
+    ClearScreenF(true, false, color_bg);
+    DrawStringF(TOP_SCREEN, x, y, color_font, color_bg, str);
+    DrawStringF(TOP_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
     
     while (true) {
         for (u32 n = 0; n < len; n++) {
             DrawStringF(TOP_SCREEN, x + (n*4*8), y + str_height - 18,
-                (lvl > n) ? seqcolors[seqlvl] : COLOR_GREY, COLOR_STD_BG, "<%c>", seqsymbols[seqlvl][n]);
+                (lvl > n) ? color_on : color_off, color_bg, "<%c>", seqsymbols[seqlvl][n]);
         }
         if (lvl == len)
             break;

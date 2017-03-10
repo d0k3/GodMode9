@@ -171,10 +171,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
                 return false;
             break;
         case PERM_SYS_LVL3:
-            if (!ShowUnlockSequence(5, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\n%s", IS_A9LH ? "your A9LH installation and/or\nBRICK your console!" : "essential system files and/or\nBRICK your console!"))
+            if (!ShowUnlockSequence(6, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\n%s", IS_A9LH ? "your A9LH installation and/or\nBRICK your console!" : "essential system files and/or\nBRICK your console!"))
                 return false;
             break;
-        case PERM_ALL: // maybe get rid of this (???)
+        case PERM_ALL: // not accessible from GM9
             if (!ShowUnlockSequence(3, "!Better be careful!\n \nYou want to enable ALL\nwriting permissions.\n \nThis enables you to do some\nreally dangerous stuff!"))
                 return false;
             break;
