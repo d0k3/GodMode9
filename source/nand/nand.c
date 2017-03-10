@@ -389,9 +389,9 @@ u32 CheckNandHeader(u8* header)
         return 0; // header does not belong to console
     
     // header type check
-    if (memcmp(header + 0x100, nand_magic_n3ds, sizeof(nand_magic_n3ds) == 0) == 0)
+    if (memcmp(header + 0x100, nand_magic_n3ds, sizeof(nand_magic_n3ds)) == 0)
         return (IS_O3DS) ? 0 : NAND_TYPE_N3DS;
-    else if (memcmp(header + 0x100, nand_magic_o3ds, sizeof(nand_magic_o3ds) == 0) == 0)
+    else if (memcmp(header + 0x100, nand_magic_o3ds, sizeof(nand_magic_o3ds)) == 0)
         return NAND_TYPE_O3DS;
     
     return 0;
