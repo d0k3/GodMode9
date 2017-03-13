@@ -50,6 +50,8 @@ u32 GetCartName(char* name, CartData* cdata) {
         CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)(void*) cdata;
         TwlHeader* nds = &(cdata_i->ntr_header);
         snprintf(name, 24, "%.12s_%.6s_%02u", nds->game_title, nds->game_code, nds->rom_version);
+        for (char* c = name; *c != '\0'; c++)
+            if ((*c == ':') || (*c == '*') || (*c == '?') || (*c == '/') || (*c == '\\')) *c = '_';
         return 0;
     } else return 1;
 }
