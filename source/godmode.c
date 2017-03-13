@@ -1043,7 +1043,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
 
 u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboard) {
     const char* optionstr[8];
-    const char* promptstr = "HOME more.. menu.\nSelect action:";
+    const char* promptstr = "HOME more... menu.\nSelect action:";
     u32 n_opt = 0;
     int sdformat = ++n_opt;
     int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
@@ -1111,9 +1111,9 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
         if (user_select > 0) {
             u32 flags = BUILD_PATH | CALC_SHA;
-            ShowPrompt(false, "NAND backup: %s",
-                (PathCopy(OUTPUT_PATH, (user_select == sys) ? "S:/nand.bin" : "E:/nand.bin", &flags)) ?
-                "success" : "failed");
+            if (PathCopy(OUTPUT_PATH, (user_select == sys) ? "S:/nand.bin" : "E:/nand.bin", &flags))
+                ShowPrompt(false, "NAND backup written to " OUTPUT_PATH);
+            else ShowPrompt(false, "NAND backup failed");
             GetDirContents(current_dir, current_path);
             return 0;
         }

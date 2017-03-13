@@ -53,7 +53,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     memcpy(mbrdata + 0x18, &emu_sector, 4);
     memcpy(mbrdata + 0x1C, &emu_size, 4);
     memcpy(mbr + 0x1BE, mbrdata, 0x42);
-    if (hidden_mb) memcpy(mbr, "GATEWAYNAND", 12);
+    if (hidden_mb) memcpy(mbr, "GATEWAYNAND", 12); // legacy
     else memset(mbr + 0x1CE, 0, 0x10);
     
     // one last warning....

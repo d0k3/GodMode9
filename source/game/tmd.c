@@ -46,9 +46,10 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size
     memcpy(tmd->title_id, title_id, 8);
     tmd->title_type[3] = 0x40; // whatever
     for (u32 i = 0; i < 4; i++) tmd->save_size[i] = (save_size >> (i*8)) & 0xFF; // little endian?
-    tmd->content_count[1] = (u8) n_contents;
+    tmd->content_count[0] = (u8) ((n_contents >> 8) & 0xFF);
+    tmd->content_count[1] = (u8) (n_contents & 0xFF);
     memset(tmd->contentinfo_hash, 0xFF, 0x20); // placeholder (hash)
-    tmd->contentinfo[0].cmd_count[1] = (u8) n_contents;
+    memcpy(tmd->contentinfo[0].cmd_count, tmd->content_count, 2);
     memset(tmd->contentinfo[0].hash, 0xFF, 0x20); // placeholder (hash)
     // nothing to do for content list (yet)
     

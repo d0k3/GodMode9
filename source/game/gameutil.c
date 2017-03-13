@@ -14,7 +14,7 @@
 
 u32 GetOutputPath(char* dest, const char* path, const char* ext) {
     // special handling for input from title directories (somewhat hacky)
-    if ((strspn(path, "AB147") > 0) && (strncmp(path + 1, ":/title/", 8) == 0)) {
+    if (strncmp(path + 1, ":/title/", 8) == 0) {
         u32 tid_high, tid_low, app_id;
         char drv;
         if (((sscanf(path, "%c:/title/%08lx/%08lx/content/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&

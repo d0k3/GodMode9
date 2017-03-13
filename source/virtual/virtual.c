@@ -157,7 +157,7 @@ bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const c
 
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     if (!(vfile->flags & VFLAG_LV3)) strncpy(name, vfile->name, n_chars);
-    else if (!GetVGameLv3Filename(name, vfile, 256)) return false;
+    else if (!GetVGameLv3Filename(name, vfile, n_chars)) return false;
     return true;
 }
 
