@@ -66,6 +66,19 @@ FRESULT fvx_sync (FIL* fp) {
     return f_sync( fp );
 }
 
+FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
+    if (GetVirtualSource(path)) {
+        VirtualFile vfile;
+        if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
+        fno->fsize = vfile.size;
+        fno->fdate = fno->ftime = 0;
+        fno->fattrib = (vfile.flags & VFLAG_DIR) ? AM_DIR : 0;
+        // could be better...
+        if (_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
+        return FR_OK;
+    } else return fa_stat(path, fno);
+}
+
 FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* br) {
     FIL fp;
     FRESULT res;
