@@ -48,6 +48,31 @@ For certain functionality, GodMode9 may need 'support files'. Support files can 
 * __`encTitleKeys.bin`__ / __`decTitleKeys.bin`__: These files are optional and provide titlekeys, which are required to create updatable CIAs from NCCH / NCSD files. CIAs created without these files will still work, but won't be updatable from eShop.
 
 
+## Drives in GodMode9
+GodMode9 provides access to system data via drives, a listing of what each drive contains and additional info follows below. Some of these drives are removable (such as drive `7:`), some will only turn up if they are available (drive `8:` and everything associated with EmuNAND, f.e.). Information on the 3DS console file system is also found on [3Dbrew.org](https://3dbrew.org/wiki/Flash_Filesystem).
+* __`0: SDCARD`__: The SD card currently inserted into the SD card slot. The `0:/Nintendo 3DS`folder contains software installs and extdata and is specially protected via the write permission system. The SD card can be unmounted from the root directory via the R+B buttons, otherwise the SD card is always available.
+* __`1: SYSNAND CTRNAND`__: The CTRNAND partition on SysNAND. This contains your 3DS console's operating system and system software installs. Data in here is protected by the write permissions system.
+* __`2: SYSNAND TWLN`__: The TWLN partition on SysNAND. This contains your 3DS console's TWL mode operating system and system software installs. Data in here is protected by the write permissions system.
+* __`3: SYSNAND TWLP`__: The TWLP partition on SysNAND. This contains photos taken while in TWL mode
+* __`A: SYSNAND SD`__: This drive is used for special access to data on your SD card. It actually links to a subfolder inside `0:/Nintendo 3DS` and contains software and extdata installed to SD from SysNAND. Crypto in this folder is handled only when accessed via the `A:` drive (not from `0:`). This is protected by the write permissions system.
+* __`S: SYSNAND VIRTUAL`__: This drive provides access to all partitions of the SysNAND, some of them critical for base system functionality. This is protected by the write permissions system, but, when unlocked, modifications can brick the system.
+* __`4: EMUNAND CTRNAND`__: Same as `1:`, but handles the CTRNAND on EmuNAND. For multi EmuNAND setups, the currently active EmuNAND partition can be switched via the HOME menu.
+* __`5: EMUNAND TWLN`__: Same as `2`, but handles TWLN on EmuNAND. No write protection here, cause this partition is never used on EmuNAND.
+* __`6: EMUNAND TWLP`__: Same as `3`, but handles TWLP on EmuNAND.
+* __`B: EMUNAND SD`__: Same as `A:`, but handles the `0:/Nintendo 3DS` subfolder associated with EmuNAND. In case of linked NANDs, this is identcial with `A:`. This is also protected by the write permissions system.
+* __`E: EMUNAND VIRTUAL`__: Same as `S:`, but handles system partitions on EmuNAND. No bricking risk here as EmuNAND is never critical to system functionality.
+* __`7: FAT IMAGE / IMGNAND CTRNAND`__: This provides access to mounted FAT images. When a NAND image is mounted, it provides access to the mounted NAND image's CTRNAND.
+* __`8: BONUS DRIVE / IMGNAND TWLN`__: This provides access to the bonus drive on SysNAND. The bonus drive can be setup via the HOME menu on 3DS consoles that provide the space for it. When a NAND image is mounted, this provides access to the mounted NAND image's TWLN.
+* __`9: RAM DRIVE / IMGNAND TWLP`__: This provides access to the RAM drive. All data stored inside the RAM drive is temporary and will be wiped after a reboot. When a NAND image is mounted, this provides access to the mounted NAND image's TWLP.
+* __`I: IMGNAND VIRTUAL`__: When a NAND image is mounted, this provides access to the partitions inside the NAND image.
+* __`C: GAMECART`__: This is read-only and provides access to the game cartridge currently inserted into the cart slot. This can be used for dumps of CTR and TWL mode cartridges. Flash cards are supported only to a limited extent.
+* __`G: GAME IMAGE`__: CIA/NCSD/NCCH/EXEFS/ROMFS/FIRM images can be accesed via this drive when mounted. This is read-only.
+* __`T: TICKET.DB IMAGE`__: Ticket database files can be mounted and accessed via this drive. This provides easy and quick access to all tickets inside the `ticket.db`.
+* __`M: MEMORY VIRTUAL`__: This provides access to various memory regions. This is protected by a special write permission, and caution is advised when doing modifications inside this drive.
+* __`X: NAND XORPADS`__: This drive contains XORpads for all NAND partitions. XORpads can be used to decrypt NAND partitions outside of the 3DS console with the help of [additional software](https://github.com/d0k3/3DSFAT16tool/releases).
+* __`Z: LAST SEARCH`__: After a search operation, search results are found inside this drive. The drive can be accessed at a later point to return to the former search results.
+
+
 ## What you can do with GodMode9
 With the possibilites GodMode9 provides, not everything may be obvious at first glance. In short, __GodMode9 includes improved versions of basically everything that Decrypt9 has, and more__. Any kind of dumps and injections are handled via standard copy operations and more specific operations are found inside the A button menu. The A button menu also works for batch operations when multiple files are selected. For your convenience a (incomplete!) list of what GodMode9 can do follows below.
 * __Manage files on all your data storages__: You wouldn't have expected this, right? Included are all standard file operations such as copy, delete, rename files and create folders. Use the L button to mark multiple files and apply file operations to multiple files at once.
