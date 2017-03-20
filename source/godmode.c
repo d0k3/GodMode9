@@ -148,7 +148,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\n" : ""),
         (*curr_path) ? "" : (GetMountState()) ? "R+X - Unmount image\n" : "",
         (*curr_path) ? "" : (CheckSDMountState()) ? "R+B - Unmount SD card\n" : "R+B - Remount SD card\n",
-        (*curr_path) ? "R+A - Search directory\n" : "R+A - Search drive\n", 
+        (*curr_path) ? "R+A - Directory options\n" : "R+A - Drive options\n", 
         "R+L - Make a Screenshot\n",
         "R+\x1B\x1A - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
@@ -595,6 +595,44 @@ u32 CmacCalculator(const char* path) {
     return 0;
 }
 
+u32 StandardCopy(u32* cursor, DirStruct* current_dir) {
+    DirEntry* curr_entry = &(current_dir->entry[*cursor]);
+    u32 n_marked = 0;
+    if (curr_entry->marked) {
+        for (u32 i = 0; i < current_dir->n_entries; i++) 
+            if (current_dir->entry[i].marked) n_marked++;
+    }
+    
+    u32 flags = BUILD_PATH;
+    if ((n_marked > 1) && ShowPrompt(true, "Copy all %lu selected items?", n_marked)) {
+        u32 n_success = 0;
+        for (u32 i = 0; i < current_dir->n_entries; i++) {
+            const char* path = current_dir->entry[i].path;
+            if (!current_dir->entry[i].marked) 
+                continue;
+            flags |= ASK_ALL;
+            current_dir->entry[i].marked = false;
+            if (PathCopy(OUTPUT_PATH, path, &flags)) n_success++;
+            else { // on failure: set cursor on failed item, break;
+                char currstr[32+1];
+                TruncateString(currstr, path, 32, 12);
+                ShowPrompt(false, "%s\nFailed copying item", currstr);
+                *cursor = i;
+                break;
+            }
+        }
+        if (n_success) ShowPrompt(false, "%lu items copied to %s", n_success, OUTPUT_PATH);
+    } else {
+        char pathstr[32+1];
+        TruncateString(pathstr, curr_entry->path, 32, 8);
+        if (!PathCopy(OUTPUT_PATH, curr_entry->path, &flags))
+            ShowPrompt(false, "%s\nFailed copying item", pathstr);
+        else ShowPrompt(false, "%s\nCopied to %s", pathstr, OUTPUT_PATH);
+    }
+    
+    return 0;
+}
+
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* current_dir, DirStruct* clipboard) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     const char* optionstr[16];
@@ -624,7 +662,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool special_opt = mountable || verificable || decryptable || encryptable || 
         buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable || ebackupable;
     
-    char pathstr[32];
+    char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
     
     u32 n_marked = 0;
@@ -721,30 +759,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         }
         return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
     } else if (user_select == copystd) { // -> copy to OUTPUT_PATH
-        u32 flags = BUILD_PATH;
-        if ((n_marked > 1) && ShowPrompt(true, "Copy all %lu selected files?", n_marked)) {
-            u32 n_success = 0;
-            for (u32 i = 0; i < current_dir->n_entries; i++) {
-                const char* path = current_dir->entry[i].path;
-                if (!current_dir->entry[i].marked) 
-                    continue;
-                flags |= ASK_ALL;
-                current_dir->entry[i].marked = false;
-                if (PathCopy(OUTPUT_PATH, path, &flags)) n_success++;
-                else { // on failure: set cursor on failed title, break;
-                    char currstr[32+1];
-                    TruncateString(currstr, path, 32, 12);
-                    ShowPrompt(false, "%s\nFailed copying file", currstr);
-                    *cursor = i;
-                    break;
-                }
-            }
-            if (n_success) ShowPrompt(false, "%lu files copied to %s", n_success, OUTPUT_PATH);
-        } else {
-            if (!PathCopy(OUTPUT_PATH, curr_entry->path, &flags))
-                ShowPrompt(false, "%s\nFailed copying file", pathstr);
-            else ShowPrompt(false, "%s\nCopied to %s", pathstr, OUTPUT_PATH);
-        }
+        StandardCopy(cursor, current_dir);
         return 0;
     } else if (user_select == inject) { // -> inject data from clipboard
         char origstr[18 + 1];
@@ -1221,10 +1236,11 @@ u32 GodMode() {
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
-                const char* optionstr[2] = { "Search for files...", "Directory info" }; // search files only?
+                const char* optionstr[3] = { "Search for files...", "Directory info", "Copy to " OUTPUT_PATH };
+                u32 n_opt = (*current_path && (strncmp(current_path, OUTPUT_PATH, 256) != 0)) ? 3 : 2;
                 char namestr[32+1];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
-                u32 user_select = ShowSelectPrompt(2, optionstr, "%s", namestr);
+                u32 user_select = ShowSelectPrompt(n_opt, optionstr, "%s", namestr);
                 if (user_select == 1) {
                     char searchstr[256];
                     snprintf(searchstr, 256, "*");
@@ -1246,6 +1262,8 @@ u32 GodMode() {
                         FormatBytes(bytestr, tsize);
                         ShowPrompt(false, "%s\n%lu files & %lu subdirs\n%s total", namestr, tfiles, tdirs, bytestr);
                     } else ShowPrompt(false, "Analyze dir: failed!");
+                } else if (user_select == 3) {
+                    StandardCopy(&cursor, current_dir);
                 }
             } else { // one level up
                 u32 user_select = 1;
