@@ -1221,7 +1221,7 @@ u32 GodMode() {
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
-                const char* optionstr[2] = { "Search files & subdirs", "Directory info" }; // search files only?
+                const char* optionstr[2] = { "Search for files...", "Directory info" }; // search files only?
                 char namestr[32+1];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
                 u32 user_select = ShowSelectPrompt(2, optionstr, "%s", namestr);

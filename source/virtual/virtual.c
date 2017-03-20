@@ -144,7 +144,10 @@ bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const c
             entry->size = vfile.size;
             entry->type = (vfile.flags & VFLAG_DIR) ? T_DIR : T_FILE;
             entry->marked = 0;
-            contents->n_entries++;
+            if (contents->n_entries >= MAX_DIR_ENTRIES)
+                break; // Too many entries, still okay
+            if (!recursive || (entry->type != T_DIR))
+                contents->n_entries++;
         }
         if (recursive && (vfile.flags & VFLAG_DIR)) {
             if (!GetVirtualDirContents(contents, fpath, fnsize, pattern, recursive))
