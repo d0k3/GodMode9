@@ -59,17 +59,17 @@ GodMode9 provides access to system data via drives, a listing of what each drive
 * __`4: EMUNAND CTRNAND`__: Same as `1:`, but handles the CTRNAND on EmuNAND. For multi EmuNAND setups, the currently active EmuNAND partition can be switched via the HOME menu.
 * __`5: EMUNAND TWLN`__: Same as `2`, but handles TWLN on EmuNAND. No write protection here, cause this partition is never used on EmuNAND.
 * __`6: EMUNAND TWLP`__: Same as `3`, but handles TWLP on EmuNAND.
-* __`B: EMUNAND SD`__: Same as `A:`, but handles the `0:/Nintendo 3DS` subfolder associated with EmuNAND. In case of linked NANDs, this is identcial with `A:`. This is also protected by the write permissions system.
+* __`B: EMUNAND SD`__: Same as `A:`, but handles the `0:/Nintendo 3DS` subfolder associated with EmuNAND. In case of linked NANDs, this is identical with `A:`. This is also protected by the write permissions system.
 * __`E: EMUNAND VIRTUAL`__: Same as `S:`, but handles system partitions on EmuNAND. No bricking risk here as EmuNAND is never critical to system functionality.
 * __`7: FAT IMAGE / IMGNAND CTRNAND`__: This provides access to mounted FAT images. When a NAND image is mounted, it provides access to the mounted NAND image's CTRNAND.
 * __`8: BONUS DRIVE / IMGNAND TWLN`__: This provides access to the bonus drive on SysNAND. The bonus drive can be setup via the HOME menu on 3DS consoles that provide the space for it. When a NAND image is mounted, this provides access to the mounted NAND image's TWLN.
 * __`9: RAM DRIVE / IMGNAND TWLP`__: This provides access to the RAM drive. All data stored inside the RAM drive is temporary and will be wiped after a reboot. When a NAND image is mounted, this provides access to the mounted NAND image's TWLP.
 * __`I: IMGNAND VIRTUAL`__: When a NAND image is mounted, this provides access to the partitions inside the NAND image.
 * __`C: GAMECART`__: This is read-only and provides access to the game cartridge currently inserted into the cart slot. This can be used for dumps of CTR and TWL mode cartridges. Flash cards are supported only to a limited extent.
-* __`G: GAME IMAGE`__: CIA/NCSD/NCCH/EXEFS/ROMFS/FIRM images can be accesed via this drive when mounted. This is read-only.
-* __`T: TICKET.DB IMAGE`__: Ticket database files can be mounted and accessed via this drive. This provides easy and quick access to all tickets inside the `ticket.db`.
+* __`G: GAME IMAGE`__: CIA/NCSD/NCCH/EXEFS/ROMFS/FIRM images can be accessed via this drive when mounted. This is read-only.
+* __`T: TICKET.DB IMAGE`__: Ticket database files can be mounted and accessed via this drive. This provides easy and quick access to all tickets inside the `ticket.db`. This is read-only.
 * __`M: MEMORY VIRTUAL`__: This provides access to various memory regions. This is protected by a special write permission, and caution is advised when doing modifications inside this drive.
-* __`X: NAND XORPADS`__: This drive contains XORpads for all NAND partitions. XORpads can be used to decrypt NAND partitions outside of the 3DS console with the help of [additional software](https://github.com/d0k3/3DSFAT16tool/releases).
+* __`X: NAND XORPADS`__: This drive contains XORpads for all NAND partitions. XORpads can be used to decrypt NAND partitions outside of the 3DS console with the help of [additional software](https://github.com/d0k3/3DSFAT16tool/releases). This is read-only.
 * __`Z: LAST SEARCH`__: After a search operation, search results are found inside this drive. The drive can be accessed at a later point to return to the former search results.
 
 
