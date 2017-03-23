@@ -692,10 +692,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_NCCH ) ? "NCCH image options..." :
         (filetype & GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
-        (filetype & GAME_TMD)   ? "TMD file options..."   :
-        (filetype & GAME_BOSS)  ? "BOSS file options..."  :
+        (filetype & GAME_TMD  ) ? "TMD file options..."   :
+        (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
-        (filetype & SYS_FIRM)   ? "FIRM image options..." :
+        (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_TICKDB) ? "Mount as ticket.db"    :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
@@ -794,7 +794,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int build = (buildable) ? ++n_opt : -1;
     int build_legit = (buildable_legit) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
-    int ctradapt = (transferable) ? ++n_opt : -1;
+    int ctrtransfer = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -807,7 +807,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
     if (verify > 0) optionstr[verify-1] = "Verify file";
-    if (ctradapt > 0) optionstr[ctradapt-1] = "Adapt image to SysNAND";
+    if (ctrtransfer > 0) optionstr[ctrtransfer-1] = "Transfer image to CTRNAND";
     if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
@@ -1010,9 +1010,22 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
         return 0;
-    } else if (user_select == ctradapt) { // -> adapt CTRNAND image to SysNAND
-        ShowPrompt(false, "%s\n%s", pathstr,
-            (AdaptCtrNandImage(curr_entry->path) == 0) ? "Image adapted to SysNAND" : "Image modification failed");
+    } else if (user_select == ctrtransfer) { // -> adapt CTRNAND image to SysNAND
+        char* destdrv[2] = { NULL };
+        n_opt = 0;
+        if (DriveType("1:")) {
+            optionstr[n_opt] = "Transfer to SysNAND";
+            destdrv[n_opt++] = "1:";
+        }
+        if (DriveType("4:")) {
+            optionstr[n_opt] = "Transfer to EmuNAND";
+            destdrv[n_opt++] = "4:";
+        }
+        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+        if (user_select) {
+            ShowPrompt(false, "%s\nCTRNAND transfer %s", pathstr,
+                (TransferCtrNandImage(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+        }
         return 0;
     } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
