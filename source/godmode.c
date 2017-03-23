@@ -701,7 +701,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
-    optionstr[calccmac-1] = "Calculate CMAC";
+    if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
     if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
