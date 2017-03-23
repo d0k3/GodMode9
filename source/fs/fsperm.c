@@ -6,7 +6,8 @@
 #include "ui.h"
 
 #define PATH_SYS_LVL1   "S:/twln.bin", "S:/twlp.bin" 
-#define PATH_SYS_LVL2   "1:/rw/sys/LocalFriendCodeSeed_B", "1:/rw/sys/SecureInfo_A", "1:/rw/sys/SecureInfo_B", \
+#define PATH_SYS_LVL2   "1:/rw/sys/LocalFriendCodeSeed_B", "1:/rw/sys/LocalFriendCodeSeed_A", \
+                        "1:/rw/sys/SecureInfo_A", "1:/rw/sys/SecureInfo_B", \
                         "1:/private/movable.sed", "S:/ctrnand_fat.bin", "S:/ctrnand_full.bin"
 #define PATH_SYS_LVL3   "S:/firm0.bin", "S:/firm1.bin", "S:/nand.bin", "S:/nand_minsize.bin", "S:/nand_hdr.bin", \
                         "S:/sector0x96.bin", "S:/twlmbr.bin"
