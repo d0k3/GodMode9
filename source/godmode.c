@@ -653,7 +653,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool buildable = (FTYPE_BUILDABLE(filetype));
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
-    bool transferable = (FTYPE_TRANSFERABLE(filetype) && (drvtype & DRV_FAT));
+    bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
