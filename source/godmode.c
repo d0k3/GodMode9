@@ -653,14 +653,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool buildable = (FTYPE_BUILDABLE(filetype));
     bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
+    bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
-    bool special_opt = mountable || verificable || decryptable || encryptable || 
-        buildable || buildable_legit || hsinjectable || restorable || xorpadable || launchable || ebackupable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || buildable || buildable_legit ||
+        titleinfo || hsinjectable || restorable || xorpadable || launchable || ebackupable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -695,6 +696,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_TMD  ) ? "TMD file options..."   :
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
+        (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_TICKDB) ? "Mount as ticket.db"    :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
@@ -786,6 +788,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     
     // stuff for special menu starts here
     n_opt = 0;
+    int show_info = (titleinfo) ? ++n_opt : -1;
     int mount = (mountable) ? ++n_opt : -1;
     int restore = (restorable) ? ++n_opt : -1;
     int ebackup = (ebackupable) ? ++n_opt : -1;
@@ -802,6 +805,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
+    if (show_info > 0) optionstr[show_info-1] = "Show title info";
     if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
     if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
@@ -992,6 +996,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             } else ShowPrompt(false, "%s\nVerification %s", pathstr,
                 (VerifyGameFile(curr_entry->path) == 0) ? "success" : "failed");
         }
+        return 0;
+    } else if (user_select == show_info) { // -> Show title info
+        if (ShowGameFileTitleInfo(curr_entry->path) != 0)
+            ShowPrompt(false, "Title info: not found");
         return 0;
     } else if (user_select == hsinject) { // -> Inject to Health & Safety
         char* destdrv[2] = { NULL };

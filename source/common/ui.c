@@ -46,6 +46,21 @@ void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
     }
 }
 
+void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap)
+{
+    u8* bitmapPos = bitmap;
+    for (int yy = 0; yy < h; yy++) {
+        int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
+        int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
+        u8* screenPos = screen + xDisplacement + yDisplacement;
+        for (int xx = w - 1; xx >= 0; xx--) {
+            memcpy(screenPos, bitmapPos, BYTES_PER_PIXEL);
+            bitmapPos += BYTES_PER_PIXEL;
+            screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
+        }
+    }
+}
+
 void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcolor)
 {
     for (int yy = 0; yy < FONT_HEIGHT; yy++) {
@@ -108,6 +123,27 @@ u32 GetDrawStringWidth(const char* str) {
         width = str_end - old_lf;
     width *= FONT_WIDTH;
     return width;
+}
+
+void WordWrapString(char* str, int llen) {
+    char* last_brk = str - 1;
+    char* last_spc = str - 1;
+    if (!llen) llen = (SCREEN_WIDTH_TOP / FONT_WIDTH);
+    for (char* str_ptr = str;; str_ptr++) {
+        if (!*str_ptr || (*str_ptr == ' ')) { // on space or string_end
+            if (str_ptr - last_brk > llen) { // if maximum line lenght is exceeded
+                if (last_spc > last_brk) { // put a line_brk at the last space
+                    *last_spc = '\n';
+                    last_brk = last_spc;
+                    last_spc = str_ptr;
+                } else if (*str_ptr) { // if we have no applicable space
+                    *str_ptr = '\n';
+                    last_brk = str_ptr;
+                }
+            } else if (*str_ptr) last_spc = str_ptr;
+        } else if (*str_ptr == '\n') last_brk = str_ptr;
+        if (!*str_ptr) break;
+    }
 }
 
 void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right) {
@@ -178,6 +214,33 @@ void ShowString(const char *format, ...)
         ClearScreenF(true, false, COLOR_STD_BG);
         DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
     } else ClearScreenF(true, false, COLOR_STD_BG);
+}
+
+void ShowIconString(u8* icon, int w, int h, const char *format, ...)
+{
+    static const u32 icon_offset = 10;
+    u32 str_width, str_height, tot_height;
+    u32 x_str, y_str, x_bmp, y_bmp;
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    if (!format || !*format) return; // only if there is something in there
+    
+    char str[STRBUF_SIZE] = { 0 };
+    va_list va;
+    va_start(va, format);
+    vsnprintf(str, STRBUF_SIZE, format, va);
+    va_end(va);
+    
+    str_width = GetDrawStringWidth(str);
+    str_height = GetDrawStringHeight(str);
+    tot_height = h + icon_offset + str_height;
+    x_str = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    y_str = (str_height >= SCREEN_HEIGHT) ? 0 : h + icon_offset + (SCREEN_HEIGHT - tot_height) / 2;
+    x_bmp = (w >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - w) / 2;
+    y_bmp = (tot_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - tot_height) / 2;
+    
+    DrawBitmap(TOP_SCREEN, x_bmp, y_bmp, w, h, icon);
+    DrawStringF(TOP_SCREEN, x_str, y_str, COLOR_STD_FONT, COLOR_STD_BG, str);
 }
 
 bool ShowPrompt(bool ask, const char *format, ...)

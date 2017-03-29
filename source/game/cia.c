@@ -17,7 +17,7 @@ u32 ValidateCiaHeader(CiaHeader* header) {
 }
 
 u32 GetCiaInfo(CiaInfo* info, CiaHeader* header) {
-    memcpy(info, header, 0x20); // take over first 0x20 byte
+    if ((u8*) info != (u8*) header) memcpy(info, header, 0x20); // take over first 0x20 byte
     
     info->offset_cert = align(header->size_header, 64);
     info->offset_ticket = info->offset_cert + align(header->size_cert, 64);

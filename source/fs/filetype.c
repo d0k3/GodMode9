@@ -8,6 +8,7 @@
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
+    const u8 smdh_magic[] = { SMDH_MAGIC };
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
     void* data = (void*) header;
     size_t fsize = FileGetSize(path);
@@ -60,6 +61,8 @@ u32 IdentifyFileType(const char* path) {
             return SYS_FIRM; // FIRM file
         } else if (memcmp(header + 0x100, tickdb_magic, sizeof(tickdb_magic)) == 0) {
             return SYS_TICKDB; // ticket.db
+        } else if (memcmp(header, smdh_magic, sizeof(smdh_magic)) == 0) {
+            return GAME_SMDH; // SMDH file
         }
     }
     if ((fsize > sizeof(BossHeader)) &&

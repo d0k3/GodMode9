@@ -1,5 +1,6 @@
 #include "gameutil.h"
 #include "game.h"
+#include "hid.h"
 #include "ui.h"
 #include "fsperm.h"
 #include "filetype.h"
@@ -191,6 +192,7 @@ u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u3
             break;
         }
     }
+    
     if (exefile) {
         u32 size_exefile = exefile->size;
         u32 offset_exefile = (ncch.offset_exefs * NCCH_MEDIA_UNIT) + sizeof(ExeFsHeader) + exefile->offset;
@@ -1370,6 +1372,105 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     
     if (ret != 0) // try to get rid of the borked file
         f_unlink(dest);
+    
+    return ret;
+}
+
+u32 ShowSmdhTitleInfo(Smdh* smdh) {
+    const u32 lwrap = 24;
+    u8* icon = (u8*) (TEMP_BUFFER + sizeof(Smdh));
+    char* desc_l = (char*) icon + SMDH_SIZE_ICON_BIG;
+    char* desc_s = (char*) desc_l + SMDH_SIZE_DESC_LONG;
+    char* pub = (char*) desc_s + SMDH_SIZE_DESC_SHORT;
+    if ((GetSmdhIconBig(icon, smdh) != 0) ||
+        (GetSmdhDescLong(desc_l, smdh) != 0) ||
+        (GetSmdhDescShort(desc_s, smdh) != 0) ||
+        (GetSmdhPublisher(pub, smdh) != 0))
+        return 1;
+    WordWrapString(desc_l, lwrap);
+    WordWrapString(desc_s, lwrap);
+    WordWrapString(pub, lwrap);
+    ShowIconString(icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s\n%s\n%s", desc_l, desc_s, pub);
+    InputWait();
+    ClearScreenF(true, false, COLOR_STD_BG);
+    return 0;
+}
+
+u32 ShowSmdhFileTitleInfo(const char* path) {
+    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
+    UINT btr;
+    if ((fvx_qread(path, smdh, 0, sizeof(Smdh), &btr) != FR_OK) || (btr != sizeof(Smdh)))
+        return 1;
+    return ShowSmdhTitleInfo(smdh);
+}
+
+u32 ShowNcchFileTitleInfo(const char* path) {
+    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
+    if (LoadExeFsFile(smdh, path, 0, "icon", sizeof(Smdh)) != 0)
+        return 1;
+    return ShowSmdhTitleInfo(smdh);
+}
+
+u32 ShowNcsdFileTitleInfo(const char* path) {
+    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
+    if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh)) != 0)
+        return 1;
+    return ShowSmdhTitleInfo(smdh);
+}
+
+u32 ShowCiaFileTitleInfo(const char* path) {
+    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
+    CiaInfo info;
+    UINT btr;
+    
+    if ((fvx_qread(path, &info, 0, 0x20, &btr) != FR_OK) || (btr != 0x20) ||
+        (GetCiaInfo(&info, (CiaHeader*) &info) != 0))
+        return 1;
+    if ((info.offset_meta) && ((fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), &btr) != FR_OK) ||
+        (btr != sizeof(Smdh)))) return 1;
+    else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh)) != 0) return 1;
+    
+    return ShowSmdhTitleInfo(smdh);
+}
+
+u32 ShowTmdFileTitleInfo(const char* path) {
+    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+    
+    // content path string
+    char path_content[256];
+    char* name_content;
+    strncpy(path_content, path, 256);
+    name_content = strrchr(path_content, '/');
+    if (!name_content) return 1; // will not happen
+    name_content++;
+    
+    // load TMD file
+    if ((LoadTmdFile(tmd, path) != 0) || !getbe16(tmd->content_count))
+        return 1;
+    snprintf(name_content, 256 - (name_content - path_content),
+        (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+    
+    return ShowGameFileTitleInfo(path_content);
+}
+
+u32 ShowGameFileTitleInfo(const char* path) {
+    u32 filetype = IdentifyFileType(path);
+    u32 ret = 1;
+    
+    // build CIA from game file
+    if (filetype & GAME_SMDH) {
+        ret = ShowSmdhFileTitleInfo(path);
+    } else if (filetype & GAME_NCCH) {
+        ret = ShowNcchFileTitleInfo(path);
+    } else if (filetype & GAME_NCSD) {
+        ret = ShowNcsdFileTitleInfo(path);
+    } else if (filetype & GAME_CIA) {
+        ret = ShowCiaFileTitleInfo(path);
+    } else if (filetype & GAME_TMD) {
+        ret = ShowTmdFileTitleInfo(path);
+    }
     
     return ret;
 }

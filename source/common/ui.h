@@ -58,6 +58,7 @@
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_top, bool clear_bottom, int color);
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
+void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap);
 
 void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
 void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);
@@ -66,12 +67,14 @@ void DrawStringF(unsigned char *screen, int x, int y, int color, int bgcolor, co
 u32 GetDrawStringHeight(const char* str);
 u32 GetDrawStringWidth(const char* str);
 
+void WordWrapString(char* str, int llen);
 void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);
 void TruncateString(char* dest, const char* orig, int nsize, int tpos);
 void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 
 void ShowString(const char *format, ...);
+void ShowIconString(u8* icon, int w, int h, const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
