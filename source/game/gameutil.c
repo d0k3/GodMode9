@@ -1433,7 +1433,7 @@ u32 CheckHealthAndSafetyInject(const char* hsdrv) {
 
 u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
-    const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x00027300, 0 };
+    const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x20027300, 0 };
     NcchHeader ncch;
         
     // write permissions
