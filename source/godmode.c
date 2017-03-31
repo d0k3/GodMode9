@@ -697,6 +697,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
+        (filetype & GAME_NDS)   ? "Show NDS title info"  :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_TICKDB) ? "Mount as ticket.db"    :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :

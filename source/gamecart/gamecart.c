@@ -3,7 +3,7 @@
 #include "command_ctr.h"
 #include "command_ntr.h"
 #include "card_eeprom.h"
-#include "ndsheader.h"
+#include "nds.h"
 #include "ncch.h"
 #include "ncsd.h"
 

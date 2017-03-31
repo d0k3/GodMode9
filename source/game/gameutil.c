@@ -1455,6 +1455,23 @@ u32 ShowTmdFileTitleInfo(const char* path) {
     return ShowGameFileTitleInfo(path_content);
 }
 
+u32 ShowNdsFileTitleInfo(const char* path) {
+    const u32 lwrap = 24;
+    TwlIconData* twl_icon = (TwlIconData*) TEMP_BUFFER;
+    u8* icon = (u8*) (TEMP_BUFFER + sizeof(TwlIconData));
+    char* desc = (char*) icon + TWLICON_SIZE_ICON;
+    if ((LoadTwlIconData(path, twl_icon) != 0) ||
+        (GetTwlIcon(icon, twl_icon) != 0) ||
+        (GetTwlTitle(desc, twl_icon) != 0))
+        return 1;
+    WordWrapString(desc, lwrap);
+    ShowIconString(icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
+    InputWait();
+    ClearScreenF(true, false, COLOR_STD_BG);
+    return 0;
+    
+}
+
 u32 ShowGameFileTitleInfo(const char* path) {
     u32 filetype = IdentifyFileType(path);
     u32 ret = 1;
@@ -1470,6 +1487,8 @@ u32 ShowGameFileTitleInfo(const char* path) {
         ret = ShowCiaFileTitleInfo(path);
     } else if (filetype & GAME_TMD) {
         ret = ShowTmdFileTitleInfo(path);
+    } else if (filetype & GAME_NDS) {
+        ret = ShowNdsFileTitleInfo(path);
     }
     
     return ret;

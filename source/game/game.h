@@ -8,4 +8,5 @@
 #include "firm.h"
 #include "boss.h"
 #include "smdh.h"
+#include "nds.h"
 #include "ncchinfo.h"
