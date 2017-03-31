@@ -587,7 +587,7 @@ u32 CmacCalculator(const char* path) {
             pathstr, getbe64(cmac + 0), getbe64(cmac + 8),
             "CMAC verification: ", (identical) ? "passed!" : "failed!",
             (!identical) ? "\n \nFix CMAC in file?" : "") &&
-            !identical && (WriteFileCmac(path, cmac_file) != 0)) {
+            !identical && (WriteFileCmac(path, cmac) != 0)) {
             ShowPrompt(false, "Fixing CMAC: failed!");
         }
     }
