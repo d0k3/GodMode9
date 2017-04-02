@@ -4,11 +4,13 @@
 #include "nand.h"
 #include "game.h"
 #include "chainload.h"
+#include "movable.h"
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
     const u8 smdh_magic[] = { SMDH_MAGIC };
+    const u8 movable_magic[] = { MOVABLE_MAGIC };
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
     void* data = (void*) header;
     size_t fsize = FileGetSize(path);
@@ -67,7 +69,9 @@ u32 IdentifyFileType(const char* path) {
             return GAME_NDS; // NDS rom file
         }
     }
-    if ((fsize > sizeof(BossHeader)) &&
+    if (memcmp(header, movable_magic, sizeof(movable_magic)) == 0) { // movable.sed
+      return SYS_MOVABLE;
+    } else if ((fsize > sizeof(BossHeader)) &&
         (ValidateBossHeader((BossHeader*) data, fsize) == 0)) {
         return GAME_BOSS; // BOSS (SpotPass) file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&

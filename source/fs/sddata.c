@@ -1,6 +1,7 @@
 #include "sddata.h"
 #include "aes.h"
 #include "sha.h"
+#include "movable.h"
 
 #define NUM_ALIAS_DRV 2
 #define NUM_FILCRYPTINFO 16
@@ -160,22 +161,13 @@ bool SetupNandSdDrive(const char* path, const char* sd_path, const char* movable
     if (!sd_path || !movable || !path) return true;
     
     // grab the key Y from movable.sed
-    UINT bytes_read = 0;
-    FIL file;
-    if (f_open(&file, movable, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    if (GetMovableKeyY(movable, sd_keyy[num]) != 0)
         return false;
-    f_lseek(&file, 0x110);
-    if ((f_read(&file, sd_keyy[num], 0x10, &bytes_read) != FR_OK) || (bytes_read != 0x10)) {
-        f_close(&file);
-        return false;
-    }
-    f_close(&file);
     
     // build the alias path (id0)
-    u32 sha256sum[8];
-    sha_quick(sha256sum, sd_keyy[num], 0x10, SHA256_MODE);
-    snprintf(alias, 127, "%s/Nintendo 3DS/%08lX%08lX%08lX%08lX",
-        sd_path, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+    char id0[33] = { 0 };
+    GetMovableID0(movable, id0);
+    snprintf(alias, 127, "%s/Nintendo 3DS/%s", sd_path, id0);
     
     // find the alias path (id1)
     char* id1 = alias + strnlen(alias, 127);

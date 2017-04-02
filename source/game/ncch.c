@@ -3,6 +3,7 @@
 #include "aes.h"
 #include "sha.h"
 #include "ff.h"
+#include "movable.h"
 
 #define SEEDDB_NAME "seeddb.bin"
 #define EXEFS_KEYID(name) (((strncmp(name, "banner", 8) == 0) || (strncmp(name, "icon", 8) == 0)) ? 0 : 1)
@@ -82,19 +83,11 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     // try to grab the seed from NAND database
     const char* nand_drv[] = {"1:", "4:"}; // SysNAND and EmuNAND
     for (u32 i = 0; i < (sizeof(nand_drv)/sizeof(char*)); i++) {
-        // grab the key Y from movable.sed
-        u8 movable_keyy[16];
-        snprintf(path, 128, "%s/private/movable.sed", nand_drv[i]);
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            continue;
-        f_lseek(&file, 0x110);
-        f_read(&file, movable_keyy, 0x10, &btr);
-        f_close(&file);
-        
         // build the seed save path
-        sha_quick(sha256sum, movable_keyy, 0x10, SHA256_MODE);
-        snprintf(path, 128, "%s/data/%08lX%08lX%08lX%08lX/sysdata/0001000F/00000000",
-            nand_drv[i], sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+        snprintf(path, 128, "%s/private/movable.sed", nand_drv[i]);
+        char id0[33] = { 0 };
+        GetMovableID0(path, id0);
+        snprintf(path, 128, "%s/data/%s/sysdata/0001000F/00000000", nand_drv[i], id0);
             
         // check seedsave for seed
         u8* seedsave = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));

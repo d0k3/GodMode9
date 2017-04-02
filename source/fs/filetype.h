@@ -20,6 +20,7 @@
 #define BIN_NCCHNFO (1UL<<15)
 #define BIN_LAUNCH  (1UL<<16)
 #define BIN_SUPPORT (1UL<<17)
+#define SYS_MOVABLE (1UL<<18)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_CTR    (1UL<<29)
@@ -39,5 +40,6 @@
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))
 #define FTYPE_XORPAD(tp)        (tp&(BIN_NCCHNFO))
 #define FTYPE_PAYLOAD(tp)       (tp&(BIN_LAUNCH))
+#define FTYPE_ID0(tp)           (tp&(IMG_NAND|SYS_MOVABLE))
 
 u32 IdentifyFileType(const char* path);
