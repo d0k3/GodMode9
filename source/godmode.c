@@ -22,7 +22,7 @@
 #include "movable.h"
 #include QLZ_SPLASH_H
 
-#define N_PANES 2
+#define N_PANES 4
 
 #define COLOR_TOP_BAR   (PERM_RED ? COLOR_RED : PERM_ORANGE ? COLOR_ORANGE : PERM_BLUE ? COLOR_BRIGHTBLUE : \
                          PERM_YELLOW ? COLOR_BRIGHTYELLOW : PERM_GREEN ? COLOR_GREEN : COLOR_WHITE)   
