@@ -370,7 +370,7 @@ bool PathCopyVrtToVrt(const char* destdir, const char* orig, u32* flags) {
         dvfile.keyslot = ovfile.keyslot = 0xFF; // this improves copy times for virtual NAND
     
     // check write permissions
-    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(dest))
         return false;
     
     // unmount critical NAND drives
@@ -438,7 +438,7 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig, u32* flags) {
     }
     
     // check write permissions
-    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(dest))
         return false;
     
     // FAT file
