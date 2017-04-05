@@ -2,8 +2,6 @@
 
 #include "common.h"
 
-#define HSINJECT_MARKFILE "__gm9_hsbak.pth"
-
 u32 VerifyGameFile(const char* path);
 u32 CheckEncryptedGameFile(const char* path);
 u32 CryptGameFile(const char* path, bool inplace, bool encrypt);

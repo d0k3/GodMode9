@@ -62,8 +62,6 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
         PathCopy(path_dbs, path_from, &flags);
         FixFileCmac(path_to);
     }
-    snprintf(path_to, 32, "%s/" HSINJECT_MARKFILE, drv);
-    PathDelete(path_to);
     ShowString("Cleaning up titles, please wait...");
     snprintf(path_to, 32, "%s/title", drv);
     snprintf(path_from, 32, "7:/title");

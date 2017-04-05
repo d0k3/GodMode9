@@ -55,7 +55,7 @@ u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon) {
 u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon) {
     const u32 h = TWLICON_DIM_ICON; // fixed size
     const u32 w = TWLICON_DIM_ICON; // fixed size
-    u16* palette = twl_icon->palette;
+    const u16* palette = twl_icon->palette;
     u8* pix4 = (u8*) twl_icon->icon;
     for (u32 y = 0; y < h; y += 8) {
         for (u32 x = 0; x < w; x += 8) {
