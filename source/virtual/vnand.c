@@ -3,11 +3,13 @@
 #include "agbsave.h"
 #include "essentials.h"
 #include "unittype.h"
+#include "ncsd.h"
 
 #define VFLAG_ON_O3DS       NAND_TYPE_O3DS
 #define VFLAG_ON_N3DS       NAND_TYPE_N3DS
 #define VFLAG_ON_NO3DS      NAND_TYPE_NO3DS
 #define VFLAG_ON_NAND       (VFLAG_ON_O3DS | VFLAG_ON_N3DS | VFLAG_ON_NO3DS)
+#define VFLAG_NAND_HEADER    (1UL<<27)
 #define VFLAG_ESSENTIAL     (1UL<<28)
 #define VFLAG_GBA_VC        (1UL<<29)
 #define VFLAG_NEEDS_OTP     (1UL<<30)
@@ -16,28 +18,29 @@
 // see: http://3dbrew.org/wiki/Flash_Filesystem#NAND_structure
 // too much hardcoding, but more readable this way
 static const VirtualFile vNandFileTemplates[] = {
-    { "twln.bin"         , 0x00012E00, 0x08FB5200, 0x03, VFLAG_ON_NAND },
-    { "twlp.bin"         , 0x09011A00, 0x020B6600, 0x03, VFLAG_ON_NAND },
-    { "agbsave.bin"      , 0x0B100000, 0x00030000, 0x07, VFLAG_ON_NAND },
-    { "firm0.bin"        , 0x0B130000, 0x00400000, 0x06, VFLAG_ON_NAND},
-    { "firm1.bin"        , 0x0B530000, 0x00400000, 0x06, VFLAG_ON_NAND},
-    { "ctrnand_fat.bin"  , 0x0B95CA00, 0x2F3E3600, 0x04, VFLAG_ON_O3DS },
-    { "ctrnand_fat.bin"  , 0x0B95AE00, 0x41D2D200, 0x05, VFLAG_ON_N3DS },
-    { "ctrnand_fat.bin"  , 0x0B95AE00, 0x41D2D200, 0x04, VFLAG_ON_NO3DS },
-    { "ctrnand_full.bin" , 0x0B930000, 0x2F5D0000, 0x04, VFLAG_ON_O3DS },
-    { "ctrnand_full.bin" , 0x0B930000, 0x41ED0000, 0x05, VFLAG_ON_N3DS },
-    { "ctrnand_full.bin" , 0x0B930000, 0x41ED0000, 0x04, VFLAG_ON_NO3DS },
-    { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0x11, VFLAG_ON_NAND | VFLAG_NEEDS_OTP },
-    { "nand.bin"         , 0x00000000, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_NAND_SIZE },
-    { "nand_minsize.bin" , 0x00000000, 0x3AF00000, 0xFF, VFLAG_ON_O3DS },
-    { "nand_minsize.bin" , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS },
-    { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
-    { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND },
-    { "free0x01.bin"     , 0x00000200, 0x00012A00, 0xFF, VFLAG_ON_NAND },
-    { "essential.exefs"  , 0x00000200, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_ESSENTIAL },
-    { "bonus0x1D7800.bin", 0x3AF00000, 0x00000000, 0xFF, VFLAG_ON_O3DS | VFLAG_NAND_SIZE },
-    { "bonus0x26C000.bin", 0x4D800000, 0x00000000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_NAND_SIZE },
-    { "gbavc.sav"        , 0x0B100200, 0x00000000, 0x07, VFLAG_ON_NAND | VFLAG_GBA_VC },
+    { "twln.bin"           , 0x00012E00, 0x08FB5200, 0x03, VFLAG_ON_NAND },
+    { "twlp.bin"           , 0x09011A00, 0x020B6600, 0x03, VFLAG_ON_NAND },
+    { "agbsave.bin"        , 0x0B100000, 0x00030000, 0x07, VFLAG_ON_NAND },
+    { "firm0.bin"          , 0x0B130000, 0x00400000, 0x06, VFLAG_ON_NAND},
+    { "firm1.bin"          , 0x0B530000, 0x00400000, 0x06, VFLAG_ON_NAND},
+    { "ctrnand_fat.bin"    , 0x0B95CA00, 0x2F3E3600, 0x04, VFLAG_ON_O3DS },
+    { "ctrnand_fat.bin"    , 0x0B95AE00, 0x41D2D200, 0x05, VFLAG_ON_N3DS },
+    { "ctrnand_fat.bin"    , 0x0B95AE00, 0x41D2D200, 0x04, VFLAG_ON_NO3DS },
+    { "ctrnand_full.bin"   , 0x0B930000, 0x2F5D0000, 0x04, VFLAG_ON_O3DS },
+    { "ctrnand_full.bin"   , 0x0B930000, 0x41ED0000, 0x05, VFLAG_ON_N3DS },
+    { "ctrnand_full.bin"   , 0x0B930000, 0x41ED0000, 0x04, VFLAG_ON_NO3DS },
+    { "sector0x96.bin"     , 0x00012C00, 0x00000200, 0x11, VFLAG_ON_NAND | VFLAG_NEEDS_OTP },
+    { "nand.bin"           , 0x00000000, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_NAND_SIZE },
+    { "nand_minsize.bin"   , 0x00000000, 0x3AF00000, 0xFF, VFLAG_ON_O3DS },
+    { "nand_minsize.bin"   , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS },
+    { "nand_hdr.bin"       , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
+    { "nand_hdr_backup.bin", 0x00000400, 0x00000200, 0xFF, VFLAG_ON_NAND | VFLAG_NAND_HEADER },
+    { "twlmbr.bin"         , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND },
+    { "free0x01.bin"       , 0x00000200, 0x00012A00, 0xFF, VFLAG_ON_NAND },
+    { "essential.exefs"    , 0x00000200, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_ESSENTIAL },
+    { "bonus0x1D7800.bin"  , 0x3AF00000, 0x00000000, 0xFF, VFLAG_ON_O3DS | VFLAG_NAND_SIZE },
+    { "bonus0x26C000.bin"  , 0x4D800000, 0x00000000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_NAND_SIZE },
+    { "gbavc.sav"          , 0x0B100200, 0x00000000, 0x07, VFLAG_ON_NAND | VFLAG_GBA_VC },
 };
 
 bool CheckVNandDrive(u32 nand_src) {
@@ -88,6 +91,12 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         if (vfile->flags & VFLAG_GBA_VC) {
             if (CheckAgbSaveCmac(nand_src) != 0) continue;
             vfile->size = GetAgbSaveSize(nand_src);
+        }
+        if (vfile->flags & VFLAG_NAND_HEADER) {
+            const u8 magic[] = { NCSD_MAGIC };
+            u8 data[sizeof(magic)];
+            ReadNandBytes(data, vfile->offset + 0x100, sizeof(magic), vfile->keyslot, nand_src);
+            if (memcmp(data, magic, sizeof(magic)) != 0) continue;
         }
         
         // found if arriving here

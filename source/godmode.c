@@ -19,9 +19,10 @@
 #include "chainload.h"
 #include "qlzcomp.h"
 #include "timer.h"
+#include "movable.h"
 #include QLZ_SPLASH_H
 
-#define N_PANES 2
+#define N_PANES 4
 
 #define COLOR_TOP_BAR   (PERM_RED ? COLOR_RED : PERM_ORANGE ? COLOR_ORANGE : PERM_BLUE ? COLOR_BRIGHTBLUE : \
                          PERM_YELLOW ? COLOR_BRIGHTYELLOW : PERM_GREEN ? COLOR_GREEN : COLOR_WHITE)   
@@ -660,8 +661,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
+    bool id0able = (FTYPE_ID0(filetype) && !(drvtype & DRV_IMAGE));
     bool special_opt = mountable || verificable || decryptable || encryptable || buildable || buildable_legit ||
-        titleinfo || hsinjectable || restorable || xorpadable || launchable || ebackupable;
+        titleinfo || hsinjectable || restorable || xorpadable || launchable || ebackupable || id0able;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -701,7 +703,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_TICKDB) ? "Mount as ticket.db"    :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
-        (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
+        (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" :
+        (filetype & SYS_MOVABLE) ? "Get <id0>" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
@@ -803,6 +806,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     int launch = (launchable) ? ++n_opt : -1;
+    int id0 = (id0able) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
@@ -817,6 +821,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
+    if (id0 > 0) optionstr[id0-1] = "Get <id0>";
     
     // auto select when there is only one option
     user_select = (n_opt <= 1) ? n_opt : (int) ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
@@ -1072,6 +1077,31 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 while(1);
             } // failed load is basically impossible here
         }
+        return 0;
+    } else if ((user_select == id0)) { // -> Get <id0>
+        char* path_bak = NULL;
+        if(filetype & IMG_NAND) {
+            // backup current mount path, mount new path
+            char path_store[256] = { 0 };
+            strncpy(path_store, GetMountPath(), 256);
+            if (*path_store) path_bak = path_store;
+            if (!InitImgFS(pathstr)) {
+                InitImgFS(path_bak);
+                return 1;
+            }
+        }
+
+        char id0[33] = { 0 };
+        if (GetMovableID0((filetype & IMG_NAND) ? "7:/private/movable.sed" : pathstr, id0) != 0) {
+            if (filetype & IMG_NAND)
+                InitImgFS(path_bak);
+            return 1;
+        }
+
+        if(filetype & IMG_NAND)
+            InitImgFS(path_bak);
+
+        ShowPrompt(false, "<id0>: %s", id0);
         return 0;
     }
     

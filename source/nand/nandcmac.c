@@ -4,6 +4,7 @@
 #include "sha.h"
 #include "aes.h"
 #include "vff.h"
+#include "movable.h"
 
 // CMAC types, see:
 // https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
@@ -156,7 +157,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         u8 keyy[16] __attribute__((aligned(32)));
         char movable_path[32];
         snprintf(movable_path, 32, "%c:/private/movable.sed", (drv == 'A') ? '1' : (drv == 'B') ? '4' : drv);
-        if ((fvx_qread(movable_path, keyy, 0x110, 0x10, &br) != FR_OK) || (br != 0x10)) return 1;
+        if (GetMovableKeyY(movable_path, keyy) != 0) return 1;
         setup_aeskeyY(0x30, keyy);
         use_aeskey(0x30);
     }

@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#define NCSD_MAGIC 'N', 'C', 'S', 'D'
+
 #define NCSD_MEDIA_UNIT     0x200
 
 #define NCSD_CINFO_OFFSET   0x200

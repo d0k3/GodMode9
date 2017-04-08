@@ -525,11 +525,9 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         }
     }
     
-    // check destination write permission (special paths only)
-    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
-        (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
-        (!flags || !(*flags & OVERRIDE_PERM)) && 
-        !CheckWritePermissions(dest)) return false;
+    // check destination write permission
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(dest))
+        return false;
     
     // the copy process takes place here
     if (!ShowProgress(0, 0, orig)) return false;
@@ -674,11 +672,9 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
     }
     
-    // check destination write permission (special paths only)
-    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
-        (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
-        (!flags || !(*flags & OVERRIDE_PERM)) && 
-        !CheckWritePermissions(dest)) return false;
+    // check destination write permission
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(dest))
+        return false;
     
     // the copy process takes place here
     if (!ShowProgress(0, 0, orig)) return false;
@@ -786,8 +782,6 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
 }
 
 bool PathCopy(const char* destdir, const char* orig, u32* flags) {
-    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
-        return false;
     if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
     int ddrvtype = DriveType(destdir);
     int odrvtype = DriveType(orig);
@@ -807,29 +801,6 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
         }
         return PathCopyFatToVrt(destdir, orig, flags);
     } else return PathCopyVrtToVrt(destdir, orig, flags); // virtual to virtual
-}
-
-bool PathMove(const char* destdir, const char* orig, u32* flags) {
-    if (!flags || !(*flags & OVERRIDE_PERM)) {
-        if (!CheckWritePermissions(destdir)) return false;
-        if (!CheckDirWritePermissions(orig)) return false;
-    }
-    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
-    // moving only for regular FAT drives (= not alias drives)
-    if (!(DriveType(destdir) & DriveType(orig) & DRV_STDFAT)) {
-        ShowPrompt(false, "Error: Moving is not possible here");
-        return false;
-    } else {
-        char fdpath[256]; // 256 is the maximum length of a full path
-        char fopath[256];
-        strncpy(fdpath, destdir, 255);
-        strncpy(fopath, orig, 255);
-        if (flags && (*flags & BUILD_PATH)) DirBuilderWorker(fdpath);
-        bool same_drv = (strncmp(orig, destdir, 2) == 0);
-        bool res = PathCopyWorker(fdpath, fopath, flags, same_drv);
-        if (res && (!flags || !(*flags&SKIP_CUR))) PathDelete(orig);
-        return res;
-    }
 }
 
 bool PathDeleteWorker(char* fpath) {
@@ -868,6 +839,27 @@ bool PathDelete(const char* path) {
     strncpy(fpath, path, 256);
     // ShowString("Deleting files, please wait..."); // handled elsewhere
     return PathDeleteWorker(fpath);
+}
+
+bool PathMove(const char* destdir, const char* orig, u32* flags) {
+    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckDirWritePermissions(orig))
+      return false;
+    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
+    // moving only for regular FAT drives (= not alias drives)
+    if (!(DriveType(destdir) & DriveType(orig) & DRV_STDFAT)) {
+        ShowPrompt(false, "Error: Moving is not possible here");
+        return false;
+    } else {
+        char fdpath[256]; // 256 is the maximum length of a full path
+        char fopath[256];
+        strncpy(fdpath, destdir, 255);
+        strncpy(fopath, orig, 255);
+        if (flags && (*flags & BUILD_PATH)) DirBuilderWorker(fdpath);
+        bool same_drv = (strncmp(orig, destdir, 2) == 0);
+        bool res = PathCopyWorker(fdpath, fopath, flags, same_drv);
+        if (res && (!flags || !(*flags&SKIP_CUR))) PathDeleteWorker(fopath);
+        return res;
+    }
 }
 
 bool PathRename(const char* path, const char* newname) {
