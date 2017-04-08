@@ -7,7 +7,7 @@
 #define VFLAG_SYSTEM        (1UL<<31)
 #define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_ESHOP|VFLAG_SYSTEM)
 
-#define NAME_TIK            "%02lX.%016llX.%08lX" // index / title id / console id
+#define NAME_TIK            "%02lX.%016llX.%08lX.tik" // index / title id / console id
 
 typedef struct {
     u32 commonkey_idx;
@@ -82,7 +82,7 @@ u32 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
             for (; data + TICKET_SIZE < ((u8*) TEMP_BUFFER) + read_bytes; data += 0x200) {
                 Ticket* ticket = TicketFromTickDbChunk(data, NULL, false);
                 if (!ticket) continue;
-                AddTickDbInfo(tick_info, ticket, offset_area + i + 0x18);
+                AddTickDbInfo(tick_info, ticket, offset_area + i + (data - ((u8*) TEMP_BUFFER)) + 0x18);
             }
         }
     }
@@ -109,7 +109,7 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
                 continue;
             
             memset(vfile, 0, sizeof(VirtualFile));
-            snprintf(vfile->name, 32, NAME_TIK, tick_entry->commonkey_idx, getbe64(tick_entry->title_id), getbe32(tick_entry->console_id));
+            snprintf(vfile->name, 48, NAME_TIK, tick_entry->commonkey_idx, getbe64(tick_entry->title_id), getbe32(tick_entry->console_id));
             vfile->offset = tick_entry->offset;
             vfile->size = sizeof(Ticket);
             vfile->keyslot = 0xFF;

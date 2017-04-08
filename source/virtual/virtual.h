@@ -28,7 +28,7 @@
 // bits 16...21: reserved for external flags
 // bits 22...31: reserved for internal flags (different per source)
 typedef struct {
-    char name[32];
+    char name[48];
     u64 offset; // must be a multiple of 0x200 (for NAND access)
     u64 size;
     u32 keyslot;
