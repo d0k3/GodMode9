@@ -12,6 +12,7 @@
 #include "nand.h"
 #include "virtual.h"
 #include "vcart.h"
+#include "game.h"
 #include "nandcmac.h"
 #include "ctrtransfer.h"
 #include "ncchinfo.h"
@@ -651,8 +652,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool decryptable = (FYTPE_DECRYPTABLE(filetype));
     bool encryptable = (FYTPE_ENCRYPTABLE(filetype));
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
-    bool buildable = (FTYPE_BUILDABLE(filetype));
-    bool buildable_legit = (FTYPE_BUILDABLE_L(filetype));
+    bool cia_buildable = (FTYPE_CIABUILD(filetype));
+    bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
+    bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
@@ -660,8 +662,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
-    bool special_opt = mountable || verificable || decryptable || encryptable || buildable || buildable_legit ||
-        titleinfo || hsinjectable || restorable || xorpadable || launchable || ebackupable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit ||
+        tik_buildable || titleinfo || hsinjectable || restorable || xorpadable || launchable || ebackupable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -697,9 +699,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
-        (filetype & GAME_NDS)   ? "Show NDS title info"  :
+        (filetype & GAME_NDS)   ? "Show NDS title info"   :
+        (filetype & GAME_TICKET)? "Ticket options..."     :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
-        (filetype & SYS_TICKDB) ? "Mount as ticket.db"    :
+        (filetype & SYS_TICKDB) ? (tik_buildable) ? "Ticket.db options..." : "Mount as ticket.db" :
+        (filetype & BIN_TIKDB)  ? "Titlekey options..."   :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
@@ -795,8 +799,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int ebackup = (ebackupable) ? ++n_opt : -1;
     int decrypt = (decryptable) ? ++n_opt : -1;
     int encrypt = (encryptable) ? ++n_opt : -1;
-    int build = (buildable) ? ++n_opt : -1;
-    int build_legit = (buildable_legit) ? ++n_opt : -1;
+    int cia_build = (cia_buildable) ? ++n_opt : -1;
+    int cia_build_legit = (cia_buildable_legit) ? ++n_opt : -1;
+    int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
+    int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
     int ctrtransfer = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
@@ -809,8 +815,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (show_info > 0) optionstr[show_info-1] = "Show title info";
     if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
-    if (build > 0) optionstr[build-1] = (build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
-    if (build_legit > 0) optionstr[build_legit-1] = "Build CIA (legit)";
+    if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
+    if (cia_build_legit > 0) optionstr[cia_build_legit-1] = "Build CIA (legit)";
+    if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
+    if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
     if (verify > 0) optionstr[verify-1] = "Verify file";
     if (ctrtransfer > 0) optionstr[ctrtransfer-1] = "Transfer image to CTRNAND";
     if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
@@ -930,8 +938,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             else ShowPrompt(false, "%s\nEncrypted to %s", pathstr, OUTPUT_PATH);
         }
         return 0;
-    } else if ((user_select == build) || (user_select == build_legit)) { // -> build CIA
-        bool force_legit = (user_select == build_legit);
+    } else if ((user_select == cia_build) || (user_select == cia_build_legit)) { // -> build CIA
+        bool force_legit = (user_select == cia_build_legit);
         if ((n_marked > 1) && ShowPrompt(true, "Try to process all %lu selected files?", n_marked)) {
             u32 n_success = 0;
             u32 n_other = 0; 
@@ -998,6 +1006,33 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 (VerifyGameFile(curr_entry->path) == 0) ? "success" : "failed");
         }
         return 0;
+    } else if ((user_select == tik_build_enc) || (user_select == tik_build_dec)) { // -> (Re)Build titlekey database
+        bool dec = (user_select == tik_build_dec);
+        const char* path_out = (dec) ? OUTPUT_PATH "/" TIKDB_NAME_DEC : OUTPUT_PATH "/" TIKDB_NAME_ENC;
+        if (BuildTitleKeyInfo(NULL, dec, false) != 0) return 1; // init database
+        ShowString("Building %s...", (dec) ? TIKDB_NAME_DEC : TIKDB_NAME_ENC);
+        if (n_marked > 1) {
+            u32 n_success = 0;
+            u32 n_other = 0;
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked)
+                    continue;
+                if (!FTYPE_TIKBUILD(IdentifyFileType(path))) {
+                    n_other++;
+                    continue;
+                }
+                current_dir->entry[i].marked = false;
+                if (BuildTitleKeyInfo(path, dec, false) == 0) n_success++; // ignore failures for now
+            }
+            if (BuildTitleKeyInfo(NULL, dec, true) == 0) {
+                if (n_other) ShowPrompt(false, "%s\n%lu/%lu files processed\n%lu/%lu files ignored",
+                    path_out, n_success, n_marked, n_other, n_marked);
+                else ShowPrompt(false, "%s\n%lu/%lu files processed", path_out, n_success, n_marked); 
+            } else ShowPrompt(false, "%s\nBuild database failed.");
+        } else ShowPrompt(false, "%s\nBuild database %s.", path_out, 
+            (BuildTitleKeyInfo(curr_entry->path, dec, true) == 0) ? "success" : "failed");
+        return 0;
     } else if (user_select == show_info) { // -> Show title info
         if (ShowGameFileTitleInfo(curr_entry->path) != 0)
             ShowPrompt(false, "Title info: not found");
@@ -1019,7 +1054,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
         return 0;
-    } else if (user_select == ctrtransfer) { // -> adapt CTRNAND image to SysNAND
+    } else if (user_select == ctrtransfer) { // -> transfer CTRNAND image to SysNAND
         char* destdrv[2] = { NULL };
         n_opt = 0;
         if (DriveType("1:")) {

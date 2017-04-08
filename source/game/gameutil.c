@@ -1662,3 +1662,70 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     
     return ret;
 }
+
+u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
+    TitleKeysInfo* tik_info = (TitleKeysInfo*) MAIN_BUFFER;
+    const char* path_out = (dec) ? OUTPUT_PATH "/" TIKDB_NAME_DEC : OUTPUT_PATH "/" TIKDB_NAME_ENC;
+    const char* path_in = path;
+    UINT br;
+    
+    if (!path_in && !dump) { // no input path given - initialize
+        memset(tik_info, 0, 16);
+        if ((fvx_stat(path_out, NULL) == FR_OK) &&
+            (ShowPrompt(true, "%s\nOutput file already exists.\nUpdate this?", path_out)))
+            path_in = path_out;
+        else return 0;
+    }
+    
+    u32 filetype = path_in ? IdentifyFileType(path_in) : 0;
+    if (filetype & GAME_TICKET) {
+        Ticket* ticket = (Ticket*) TEMP_BUFFER;
+        if ((fvx_qread(path_in, ticket, 0, TICKET_SIZE, &br) != FR_OK) || (br != TICKET_SIZE) ||
+            (TIKDB_SIZE(tik_info) + 32 > MAIN_BUFFER_SIZE) || (AddTicketToInfo(tik_info, ticket, dec) != 0)) return 1;
+    } else if (filetype & SYS_TICKDB) {
+        const u32 area_offsets[] = { TICKDB_AREA_OFFSETS };
+        FIL file;
+        if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) return 1;
+        // parse file, sector by sector
+        for (u32 p = 0; p < sizeof(area_offsets) / sizeof(u32); p++) {
+            fvx_lseek(&file, area_offsets[p]);
+            fvx_sync(&file);
+            for (u32 i = 0; i < TICKDB_AREA_SIZE; i += (TEMP_BUFFER_SIZE - 0x200)) {
+                u32 read_bytes = min(TEMP_BUFFER_SIZE, TICKDB_AREA_SIZE - i);
+                u8* data = (u8*) TEMP_BUFFER;
+                if ((fvx_read(&file, data, read_bytes, &br) != FR_OK) || (br != read_bytes)) {
+                    fvx_close(&file);
+                    return 1;
+                }
+                for (; data + TICKET_SIZE < ((u8*) TEMP_BUFFER) + read_bytes; data += 0x200) {
+                    Ticket* ticket = TicketFromTickDbChunk(data, NULL, false);
+                    if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
+                    if (TIKDB_SIZE(tik_info) + 32 > MAIN_BUFFER_SIZE) return 1;
+                    AddTicketToInfo(tik_info, ticket, dec); // ignore result
+                }
+            }
+        }
+        fvx_close(&file);
+    } else if (filetype & BIN_TIKDB) {
+        TitleKeysInfo* tik_info_merge = (TitleKeysInfo*) TEMP_BUFFER;
+        if ((fvx_qread(path_in, tik_info_merge, 0, TEMP_BUFFER_SIZE, &br) != FR_OK) ||
+            (TIKDB_SIZE(tik_info_merge) != br)) return 1;
+        // merge and rebuild TitleKeyInfo
+        u32 n_entries = tik_info_merge->n_entries;
+        TitleKeyEntry* tik = tik_info_merge->entries;
+        for (u32 i = 0; i < n_entries; i++, tik++) {
+            if (TIKDB_SIZE(tik_info) + 32 > MAIN_BUFFER_SIZE) return 1;
+            AddTitleKeyToInfo(tik_info, tik, !(filetype & FLAG_ENC), dec, false); // ignore result
+                
+        }
+    }
+    
+    if (dump) {
+        u32 dump_size = TIKDB_SIZE(tik_info);
+        f_unlink(path_out);
+        if ((dump_size <= 16) || (fvx_qwrite(path_out, tik_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))
+            return 1;
+    }
+    
+    return 0;
+}

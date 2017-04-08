@@ -4,19 +4,6 @@
 #include "sha.h"
 #include "ff.h"
 
-typedef struct {
-    u32 commonkey_idx;
-    u8  reserved[4];
-    u8  title_id[8];
-    u8  titlekey[16];
-} __attribute__((packed)) TitleKeyEntry;
-
-typedef struct {
-    u32 n_entries;
-    u8  reserved[12];
-    TitleKeyEntry entries[256]; // this number is only a placeholder
-} __attribute__((packed)) TitleKeysInfo;
-
 u32 ValidateTicket(Ticket* ticket) {
     const u8 magic[] = { TICKET_SIG_TYPE };
     if ((memcmp(ticket->sig_type, magic, sizeof(magic)) != 0) ||
@@ -148,20 +135,31 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     return (found) ? 0 : 1;
 }
 
-/*u32 BuildTitleKeyInfo(TitleKeysInfo* tik_info, TicketInfo* tick_info, bool decrypt) {
-    memset(tik_info, 0, 16);
-    for (u32 i = 0; i < tick_info->n_entries; i++) {
-        TicketEntry* tick_entry = tick_info->entries + i;
-        TitleKeyEntry* tik_entry = tik_info->entries + tik_info->n_entries;
-        if (!getbe64(tick_entry->ticket_id)) continue;
-        tik_entry->commonkey_idx = tick_entry->commonkey_idx;
-        memcpy(tik_entry->title_id, tick_entry->title_id, 8);
-        memcpy(tik_entry->titlekey, tick_entry->titlekey, 16);
-        if (decrypt) CryptTitleKey(tik_entry, false, false);
-        tik_info->n_entries++;
+u32 AddTitleKeyToInfo(TitleKeysInfo* tik_info, TitleKeyEntry* tik_entry, bool decrypted_in, bool decrypted_out, bool devkit) {
+    if (!tik_entry) { // no titlekey entry -> reset database
+        memset(tik_info, 0, 16);
+        return 0;
     }
+    // check if entry already in DB
+    u32 n_entries = tik_info->n_entries;
+    TitleKeyEntry* tik = tik_info->entries;
+    for (u32 i = 0; i < n_entries; i++, tik++)
+        if (memcmp(tik->title_id, tik_entry->title_id, 8) == 0) return 0;
+    // actually a new titlekey
+    memcpy(tik, tik_entry, sizeof(TitleKeyEntry));
+    if ((decrypted_in != decrypted_out) && (CryptTitleKey(tik, !decrypted_out, devkit) != 0)) return 1;
+    tik_info->n_entries++;
     return 0;
-}*/
+}
+
+u32 AddTicketToInfo(TitleKeysInfo* tik_info, Ticket* ticket, bool decrypt) { // TODO: check for legit tickets?
+    if (!ticket) return AddTitleKeyToInfo(tik_info, NULL, false, false, false);
+    TitleKeyEntry tik = { 0 };
+    memcpy(tik.title_id, ticket->title_id, 8);
+    memcpy(tik.titlekey, ticket->titlekey, 16);
+    tik.commonkey_idx = ticket->commonkey_idx;
+    return AddTitleKeyToInfo(tik_info, &tik, false, decrypt, TICKET_DEVKIT(ticket));
+}
 
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     const u8 sig_type[4] =  { TICKET_SIG_TYPE }; // RSA_2048 SHA256

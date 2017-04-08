@@ -9,6 +9,7 @@ u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
     const u8 smdh_magic[] = { SMDH_MAGIC };
+    if (!path) return 0; // safety
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
     void* data = (void*) header;
     size_t fsize = FileGetSize(path);
@@ -90,9 +91,11 @@ u32 IdentifyFileType(const char* path) {
         strncpy(ext_cetk, "cetk", 5);
         if (FileGetSize(path_cetk) > 0)
             return GAME_NUSCDN; // NUS/CDN type 2
+    } else if (strncasecmp(fname, TIKDB_NAME_ENC, sizeof(TIKDB_NAME_ENC)) == 0) {
+        return BIN_TIKDB | FLAG_ENC; // titlekey database / encrypted
+    } else if (strncasecmp(fname, TIKDB_NAME_DEC, sizeof(TIKDB_NAME_DEC)) == 0) {
+        return BIN_TIKDB; // titlekey database / decrypted
     } else if ((strncasecmp(fname, "seeddb.bin", 11) == 0) ||
-        (strncasecmp(fname, "encTitlekeys.bin", 17) == 0) ||
-        (strncasecmp(fname, "decTitlekeys.bin", 17) == 0) ||
         (strncasecmp(fname, "aeskeydb.bin", 13) == 0) ||
         (strncasecmp(fname, "otp.bin", 8) == 0) ||
         (strncasecmp(fname, "secret_sector.bin", 18) == 0) ||
