@@ -7,7 +7,7 @@
 #define VFLAG_SYSTEM        (1UL<<31)
 #define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_ESHOP|VFLAG_SYSTEM)
 
-#define NAME_TIK            "%02lX.%016llX.%08lX" // index / title id / console id
+#define NAME_TIK            "%016llX.%08lX.tik" // title id / console id
 
 typedef struct {
     u32 commonkey_idx;
@@ -109,7 +109,7 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
                 continue;
             
             memset(vfile, 0, sizeof(VirtualFile));
-            snprintf(vfile->name, 32, NAME_TIK, tick_entry->commonkey_idx, getbe64(tick_entry->title_id), getbe32(tick_entry->console_id));
+            snprintf(vfile->name, 32, NAME_TIK, getbe64(tick_entry->title_id), getbe32(tick_entry->console_id));
             vfile->offset = tick_entry->offset;
             vfile->size = sizeof(Ticket);
             vfile->keyslot = 0xFF;
