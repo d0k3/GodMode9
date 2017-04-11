@@ -26,6 +26,7 @@
 #define NAME_CIA_TMD        "tmd.bin"
 #define NAME_CIA_TMDCHUNK   "tmdchunks.bin"
 #define NAME_CIA_META       "meta.bin"
+#define NAME_CIA_ICON       "icon.bin"
 #define NAME_CIA_CONTENT    "%04X.%08lX%s" // index.id(.ext)
 
 #define NAME_NCSD_HEADER    "ncsd.bin"
@@ -312,6 +313,12 @@ bool BuildVGameCiaDir(void) {
         strncpy(templates[n].name, NAME_CIA_META, 32);
         templates[n].offset = info.offset_meta;
         templates[n].size = info.size_meta;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+        strncpy(templates[n].name, NAME_CIA_ICON, 32);
+        templates[n].offset = info.offset_meta + 0x400;
+        templates[n].size = info.size_meta - 0x400;
         templates[n].keyslot = 0xFF;
         templates[n].flags = 0;
         n++;
