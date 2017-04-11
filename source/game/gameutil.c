@@ -1729,3 +1729,78 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
     
     return 0;
 }
+
+u32 BuildSeedInfo(const char* path, bool dump) {
+    SeedInfo* seed_info = (SeedInfo*) MAIN_BUFFER;
+    const char* path_out = OUTPUT_PATH "/" SEEDDB_NAME;
+    const char* path_in = path;
+    u32 inputtype = 0; // 0 -> none, 1 -> seeddb.bin, 2 -> seed system save
+    UINT br;
+    
+    if (!path_in && !dump) { // no input path given - initialize
+        memset(seed_info, 0, 16);
+        if ((fvx_stat(path_out, NULL) == FR_OK) &&
+            (ShowPrompt(true, "%s\nOutput file already exists.\nUpdate this?", path_out))) {
+            path_in = path_out;
+            inputtype = 1;
+        } else return 0;
+    }
+    
+    char path_str[128];
+    if (path_in && (strnlen(path_in, 16) == 2)) { // when only a drive is given...
+        // grab the key Y from movable.sed
+        u8 movable_keyy[16];
+        snprintf(path_str, 128, "%s/private/movable.sed", path_in);
+        if ((fvx_qread(path_str, movable_keyy, 0x110, 0x10, &br) != FR_OK) || (br != 0x10))
+            return 1;
+        // build the seed save path
+        u32 sha256sum[8];
+        sha_quick(sha256sum, movable_keyy, 0x10, SHA256_MODE);
+        snprintf(path_str, 128, "%s/data/%08lX%08lX%08lX%08lX/sysdata/0001000F/00000000",
+            path_in, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+        path_in = path_str;
+        inputtype = 2;
+    }
+    
+    if (inputtype == 1) { // seeddb.bin input
+        SeedInfo* seed_info_merge = (SeedInfo*) TEMP_BUFFER;
+        if ((fvx_qread(path_in, seed_info_merge, 0, TEMP_BUFFER_SIZE, &br) != FR_OK) ||
+            (SEEDDB_SIZE(seed_info_merge) != br)) return 1;
+        // merge and rebuild SeedInfo
+        u32 n_entries = seed_info_merge->n_entries;
+        SeedInfoEntry* seed = seed_info_merge->entries;
+        for (u32 i = 0; i < n_entries; i++, seed++) {
+            if (SEEDDB_SIZE(seed_info) + 32 > MAIN_BUFFER_SIZE) return 1;
+            AddSeedToDb(seed_info, seed); // ignore result        
+        }
+    } else if (inputtype == 2) { // seed system save input
+        static const u32 seed_offset[2] = {SEEDSAVE_AREA_OFFSETS};
+        u8* seedsave = (u8*) TEMP_BUFFER;
+        if ((fvx_qread(path_in, seedsave, 0, 0x200, &br) != FR_OK) || (br != 0x200))
+            return 1;
+        u32 p_active = (getle32(seedsave + 0x168)) ? 1 : 0;
+        for (u32 p = 0; p < 2; p++) {
+            SeedInfoEntry seed = { 0 };
+            if ((fvx_qread(path_in, seedsave, seed_offset[(p + p_active) % 2], SEEDSAVE_MAX_ENTRIES*(8+16), &br) != FR_OK) ||
+                (br != SEEDSAVE_MAX_ENTRIES*(8+16)))
+                return 1;
+            for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
+                seed.titleId = getle64(seedsave + (s*8));
+                memcpy(seed.seed, seedsave + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
+                if (((seed.titleId >> 32) != 0x00040000) ||
+                    (!getle64(seed.seed) && !getle64(seed.seed + 8))) continue;
+                if (SEEDDB_SIZE(seed_info) + 32 > MAIN_BUFFER_SIZE) return 1;
+                AddSeedToDb(seed_info, &seed); // ignore result 
+            }
+        }
+    }
+    
+    if (dump) {
+        u32 dump_size = SEEDDB_SIZE(seed_info);
+        f_unlink(path_out);
+        if ((dump_size <= 16) || (fvx_qwrite(path_out, seed_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))
+            return 1;
+    }
+    
+    return 0;
+}

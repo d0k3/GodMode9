@@ -1120,12 +1120,14 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int sdformat = ++n_opt;
     int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
+    int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int nandbak = ++n_opt;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
+    if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
     if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
     
@@ -1160,6 +1162,48 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             InitEmuNandBase(false);
             InitExtFS();
         }
+        GetDirContents(current_dir, current_path);
+        return 0;
+    } else if (user_select == bsupport) { // build support files
+        bool tik_enc_sys = false;
+        bool tik_enc_emu = false;
+        if (BuildTitleKeyInfo(NULL, false, false) == 0) {
+            ShowString("Building " TIKDB_NAME_ENC "...");
+            tik_enc_sys = (BuildTitleKeyInfo("1:/dbs/ticket.db", false, false) == 0);
+            tik_enc_emu = (BuildTitleKeyInfo("4:/dbs/ticket.db", false, false) == 0);
+            if (BuildTitleKeyInfo(NULL, false, true) != 0)
+                tik_enc_sys = tik_enc_emu = false;
+        }
+        bool tik_dec_sys = false;
+        bool tik_dec_emu = false;
+        if (BuildTitleKeyInfo(NULL, true, false) == 0) {
+            ShowString("Building " TIKDB_NAME_DEC "...");
+            tik_dec_sys = (BuildTitleKeyInfo("1:/dbs/ticket.db", true, false) == 0);
+            tik_dec_emu = (BuildTitleKeyInfo("4:/dbs/ticket.db", true, false) == 0);
+            if (!tik_dec_sys || BuildTitleKeyInfo(NULL, true, true) != 0)
+                tik_dec_sys = tik_dec_emu = false;
+        }
+        bool seed_sys = false;
+        bool seed_emu = false;
+        if (BuildSeedInfo(NULL, false) == 0) {
+            ShowString("Building " SEEDDB_NAME "...");
+            seed_sys = (BuildSeedInfo("1:", false) == 0);
+            seed_emu = (BuildSeedInfo("4:", false) == 0);
+            if (!seed_sys || BuildSeedInfo(NULL, true) != 0)
+                seed_sys = seed_emu = false;
+        }
+        bool lsector = false;
+        u8 legit_sector[0x200];
+        if (GetLegitSector0x96(legit_sector) == 0) {
+            ShowString("Searching secret sector...");
+            const char* path_sector = OUTPUT_PATH "/" SECRET_NAME;
+            lsector = FileSetData(path_sector, legit_sector, 0x200, 0, true);
+        }
+        ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%18.18-s %s\n%18.18-s %s\n%18.18-s %s\n%18.18-s %s",
+            TIKDB_NAME_ENC, tik_enc_sys ? tik_enc_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
+            TIKDB_NAME_DEC, tik_dec_sys ? tik_dec_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
+            SEEDDB_NAME, seed_sys ? seed_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
+            SECRET_NAME, lsector ? "OK (legit)" : "Failed");
         GetDirContents(current_dir, current_path);
         return 0;
     } else if (user_select == hsrestore) { // restore Health & Safety

@@ -35,6 +35,10 @@
 #define SIZE_CTR_O3DS   0x17AE80
 #define SIZE_CTR_N3DS   0x20F680
 
+// filenames for sector 0x96
+#define SECTOR_NAME     "sector0x96.bin"
+#define SECRET_NAME     "secret_sector.bin"
+
 bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
@@ -51,6 +55,8 @@ u64 GetNandUnusedSectors(u32 src);
 u32 CheckNandMbr(u8* mbr);
 u32 CheckNandHeader(u8* header);
 u32 CheckNandType(u32 src);
+
+u32 GetLegitSector0x96(u8* sector);
 
 bool CheckMultiEmuNand(void);
 u32 InitEmuNandBase(bool reset);

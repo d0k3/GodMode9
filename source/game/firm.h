@@ -4,9 +4,6 @@
 
 #define FIRM_MAGIC  'F', 'I', 'R', 'M'
 
-#define SECTOR_NAME "sector0x96.bin"
-#define SECRET_NAME "secret_sector.bin"
-
 #define FIRM_MAX_SIZE  0x400000 // 4MB, due to FIRM partition size
 #define ARM11NCCH_OFFSET 0, 0x2A000, 0x2B000, 0x2C000
 #define ARM9BIN_OFFSET 0x800

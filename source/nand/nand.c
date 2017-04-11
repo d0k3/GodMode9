@@ -24,6 +24,12 @@ static const u8 slot0x11Key95_sha256[0x20] = { // slot0x11Key95 hash (first 16 b
     0xBA, 0xC1, 0x40, 0x9C, 0x6E, 0xE4, 0x1F, 0x04, 0xAA, 0xC4, 0xE2, 0x09, 0x5C, 0xE9, 0x4F, 0x78, 
     0x6C, 0x78, 0x5F, 0xAC, 0xEC, 0x7E, 0xC0, 0x11, 0x26, 0x9D, 0x4E, 0x47, 0xB3, 0x64, 0xC4, 0xA5
 };
+
+// from: https://github.com/AuroraWright/SafeA9LHInstaller/blob/master/source/installer.c#L9-L17
+static const u8 sector0x96_sha256[0x20] = { // hash for legit sector 0x96 (different on A9LH)
+    0x82, 0xF2, 0x73, 0x0D, 0x2C, 0x2D, 0xA3, 0xF3, 0x01, 0x65, 0xF9, 0x87, 0xFD, 0xCC, 0xAC, 0x5C,
+    0xBA, 0xB2, 0x4B, 0x4E, 0x5F, 0x65, 0xC9, 0x81, 0xCD, 0x7B, 0xE6, 0xF4, 0x38, 0xE6, 0xD9, 0xD3
+};
     
 static const u8 nand_magic_n3ds[0x60] = { // NCSD NAND header N3DS magic
     0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -436,6 +442,38 @@ u64 GetNandSizeSectors(u32 nand_src)
 u64 GetNandUnusedSectors(u32 nand_src)
 {
     return GetNandSizeSectors(nand_src) - NAND_MIN_SECTORS;
+}
+
+u32 GetLegitSector0x96(u8* sector)
+{
+    // secret sector already in buffer?
+    if (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0)
+        return 0;
+    
+    // search for valid secret sector in SysNAND / EmuNAND
+    const u32 nand_src[] = { NAND_SYSNAND, NAND_EMUNAND };
+    for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
+        ReadNandSectors(sector, 0x96, 1, 0x11, nand_src[i]);
+        if (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0)
+            return 0;
+    }
+    
+    // no luck? try searching for a file
+    const char* base[] = { INPUT_PATHS };
+    for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
+        char path[64];
+        snprintf(path, 64, "%s/%s", base[i], SECTOR_NAME);
+        if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
+            (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0))
+            return 0;
+        snprintf(path, 64, "%s/%s", base[i], SECRET_NAME);
+        if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
+            (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0))
+            return 0;
+    }
+    
+    // failed if we arrive here
+    return 1;
 }
 
 bool CheckMultiEmuNand(void)

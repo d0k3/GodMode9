@@ -53,51 +53,13 @@ u32 GetArm9BinarySize(FirmA9LHeader* a9l) {
 }
 
 u32 SetupSecretKey(u32 keynum) {
-    const char* base[] = { INPUT_PATHS };
-    // from: https://github.com/AuroraWright/SafeA9LHInstaller/blob/master/source/installer.c#L9-L17
-    const u8 sectorHash[0x20] = {
-        0x82, 0xF2, 0x73, 0x0D, 0x2C, 0x2D, 0xA3, 0xF3, 0x01, 0x65, 0xF9, 0x87, 0xFD, 0xCC, 0xAC, 0x5C,
-        0xBA, 0xB2, 0x4B, 0x4E, 0x5F, 0x65, 0xC9, 0x81, 0xCD, 0x7B, 0xE6, 0xF4, 0x38, 0xE6, 0xD9, 0xD3
-    };
     static u8 __attribute__((aligned(32))) sector[0x200];
-    u8 hash[0x20];
     
     // safety check
     if (keynum >= 0x200/0x10) return 1;
     
-    // secret sector already loaded?
-    sha_quick(hash, sector, 0x200, SHA256_MODE);
-    if (memcmp(hash, sectorHash, 0x20) == 0) {
-        setup_aeskey(0x11, sector + (keynum*0x10));
-        use_aeskey(0x11);
-        return 0;
-    }
-    
-    // search for valid secret sector in SysNAND / EmuNAND
-    const u32 nand_src[] = { NAND_SYSNAND, NAND_EMUNAND };
-    for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
-        ReadNandSectors(sector, 0x96, 1, 0x11, nand_src[i]);
-        sha_quick(hash, sector, 0x200, SHA256_MODE);
-        if (memcmp(hash, sectorHash, 0x20) != 0) continue;
-        setup_aeskey(0x11, sector + (keynum*0x10));
-        use_aeskey(0x11);
-        return 0;
-    }
-    
-    // no luck? try searching for a file
-    for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
-        char path[64];
-        FIL fp;
-        UINT btr;
-        snprintf(path, 64, "%s/%s", base[i], SECTOR_NAME);
-        if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
-            snprintf(path, 64, "%s/%s", base[i], SECRET_NAME);
-            if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) continue;
-        }
-        f_read(&fp, sector, 0x200, &btr);
-        f_close(&fp);
-        sha_quick(hash, sector, 0x200, SHA256_MODE);
-        if (memcmp(hash, sectorHash, 0x20) != 0) continue;
+    // seach for secret sector data...
+    if (GetLegitSector0x96(sector) == 0) {
         setup_aeskey(0x11, sector + (keynum*0x10));
         use_aeskey(0x11);
         return 0;

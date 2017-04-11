@@ -4,20 +4,7 @@
 #include "sha.h"
 #include "ff.h"
 
-#define SEEDDB_NAME "seeddb.bin"
 #define EXEFS_KEYID(name) (((strncmp(name, "banner", 8) == 0) || (strncmp(name, "icon", 8) == 0)) ? 0 : 1)
-
-typedef struct {
-    u64 titleId;
-    u8 seed[16];
-    u8 reserved[8];
-} __attribute__((packed)) SeedInfoEntry;
-
-typedef struct {
-    u32 n_entries;
-    u8 padding[12];
-    SeedInfoEntry entries[256]; // this number is only a placeholder
-} __attribute__((packed)) SeedInfo;
 
 u32 ValidateNcchHeader(NcchHeader* header) {
     if (memcmp(header->magic, "NCCH", 4) != 0) // check magic number
@@ -102,14 +89,13 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
             continue;
         f_read(&file, seedsave, 0x200, &btr);
         u32 p_active = (getle32(seedsave + 0x168)) ? 1 : 0;
-        static const u32 seed_offset[2] = {0x7000, 0x5C000};
+        static const u32 seed_offset[2] = {SEEDSAVE_AREA_OFFSETS};
         for (u32 p = 0; p < 2; p++) {
             f_lseek(&file, seed_offset[(p + p_active) % 2]);
-            f_read(&file, seedsave, 2000*(8+16), &btr);
-            for (u32 s = 0; s < 2000; s++) {
-                if (titleId != getle64(seedsave + (s*8)))
-                    continue;
-                memcpy(lseed, seedsave + (2000*8) + (s*16), 16);
+            f_read(&file, seedsave, SEEDSAVE_MAX_ENTRIES*(8+16), &btr);
+            for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
+                if (titleId != getle64(seedsave + (s*8))) continue;
+                memcpy(lseed, seedsave + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
                 sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
                 if (hash_seed == sha256sum[0]) {
                     memcpy(seed, lseed, 16);
@@ -146,6 +132,22 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     
     // out of options -> failed!
     return 1;
+}
+
+u32 AddSeedToDb(SeedInfo* seed_info, SeedInfoEntry* seed_entry) {
+    if (!seed_entry) { // no seed entry -> reset database
+        memset(seed_info, 0, 16);
+        return 0;
+    }
+    // check if entry already in DB
+    u32 n_entries = seed_info->n_entries;
+    SeedInfoEntry* seed = seed_info->entries;
+    for (u32 i = 0; i < n_entries; i++, seed++)
+        if (seed->titleId == seed_entry->titleId) return 0;
+    // actually a new seed entry
+    memcpy(seed, seed_entry, sizeof(SeedInfoEntry));
+    seed_info->n_entries++;
+    return 0;
 }
 
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid) {
