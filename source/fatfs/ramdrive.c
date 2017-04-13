@@ -26,11 +26,6 @@ u64 GetRamDriveSize(void) {
 }
 
 void InitRamDrive(void) {
-    if (IS_O3DS) {
-        ramdrv_buffer = RAMDRV_BUFFER_O3DS;
-        ramdrv_size = RAMDRV_SIZE_O3DS;
-    } else {
-        ramdrv_buffer = RAMDRV_BUFFER_N3DS;
-        ramdrv_size = RAMDRV_SIZE_N3DS;
-    }
+    ramdrv_buffer = RAMDRV_BUFFER;
+    ramdrv_size = IS_O3DS ? RAMDRV_SIZE_O3DS : RAMDRV_SIZE_N3DS;
 }

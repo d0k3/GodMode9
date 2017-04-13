@@ -142,7 +142,7 @@ _skip_gw:
     mov r1, #0x340
     str r1, [r0]
 
-    mov sp, #0x27000000
+    ldr sp, =0x23F00000
 
     blx main
     b _start
