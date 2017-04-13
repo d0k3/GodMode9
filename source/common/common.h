@@ -37,9 +37,6 @@
 #define align(v,a) \
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
 
-#define ENTRY_BRAHMA        (1)
-#define ENTRY_GATEWAY       (2)
-
 // GodMode9 / SafeMode9 ("flavor" / splash screen)
 #ifndef SAFEMODE
 #define FLAVOR "GodMode9"
@@ -96,10 +93,9 @@
 #define VCART_BUFFER        ((u8*)0x21600000)
 #define VCART_BUFFER_SIZE   (0x20000) // 128kB, this is more than enough
 // buffer area defines (in use by image.c, for RAMdrive)
-#define RAMDRV_BUFFER_O3DS  ((u8*)0x22200000) // in O3DS FCRAM
-#define RAMDRV_SIZE_O3DS    (0x01C00000) // 28MB
-#define RAMDRV_BUFFER_N3DS  ((u8*)0x28000000) // in N3DS FCRAM
-#define RAMDRV_SIZE_N3DS    (0x08000000) // 128MB
+#define RAMDRV_BUFFER       ((u8*)0x24000000) // top half of FCRAM
+#define RAMDRV_SIZE_O3DS    (0x04000000) // 64MB
+#define RAMDRV_SIZE_N3DS    (0x0C000000) // 192MB
 
 inline u32 strchrcount(const char* str, char symbol) {
     u32 count = 0;
