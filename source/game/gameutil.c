@@ -1669,6 +1669,10 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
     const char* path_in = path;
     UINT br;
     
+    // write permissions
+    if (!CheckWritePermissions(path_out))
+        return 1;
+    
     if (!path_in && !dump) { // no input path given - initialize
         memset(tik_info, 0, 16);
         if ((fvx_stat(path_out, NULL) == FR_OK) &&
@@ -1736,6 +1740,10 @@ u32 BuildSeedInfo(const char* path, bool dump) {
     const char* path_in = path;
     u32 inputtype = 0; // 0 -> none, 1 -> seeddb.bin, 2 -> seed system save
     UINT br;
+    
+    // write permissions
+    if (!CheckWritePermissions(path_out))
+        return 1;
     
     if (!path_in && !dump) { // no input path given - initialize
         memset(seed_info, 0, 16);
