@@ -19,4 +19,5 @@ typedef struct {
 } __attribute__((packed)) AesKeyInfo;
 
 u32 GetUnitKeysType(void);
+void CryptAesKeyInfo(AesKeyInfo* info);
 u32 LoadKeyFromFile(u8* key, u32 keyslot, char type, char* id);
