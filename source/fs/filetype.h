@@ -20,7 +20,9 @@
 #define BIN_NCCHNFO (1UL<<15)
 #define BIN_LAUNCH  (1UL<<16)
 #define BIN_TIKDB   (1UL<<17)
-#define BIN_SUPPORT (1UL<<18)
+#define BIN_KEYDB   (1UL<<18)
+#define BIN_LEGKEY  (1UL<<19)
+#define BIN_SUPPORT (1UL<<20)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_ENC    (1UL<<28)

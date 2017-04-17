@@ -38,6 +38,8 @@
 // filenames for sector 0x96
 #define SECTOR_NAME     "sector0x96.bin"
 #define SECRET_NAME     "secret_sector.bin"
+#define OTP_NAME        "otp.bin"
+#define OTP_BIG_NAME    "otp0x108.bin"  
 
 bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);

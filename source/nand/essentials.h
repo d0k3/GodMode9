@@ -29,7 +29,7 @@ typedef struct {
     u8 cmac[0x10];
 } __attribute__((packed)) MovableSed;
 
-// /rw/sys/Secure_A (/_B) file
+// /rw/sys/SecureInfo_A (/_B) file
 // see: http://3dbrew.org/wiki/Nandrw/sys/SecureInfo_A
 typedef struct {
     u8 signature[0x100];

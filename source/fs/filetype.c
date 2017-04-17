@@ -3,6 +3,7 @@
 #include "fatmbr.h"
 #include "nand.h"
 #include "game.h"
+#include "keydb.h"
 #include "chainload.h"
 
 u32 IdentifyFileType(const char* path) {
@@ -95,11 +96,15 @@ u32 IdentifyFileType(const char* path) {
         return BIN_TIKDB | FLAG_ENC; // titlekey database / encrypted
     } else if (strncasecmp(fname, TIKDB_NAME_DEC, sizeof(TIKDB_NAME_DEC)) == 0) {
         return BIN_TIKDB; // titlekey database / decrypted
-    } else if ((strncasecmp(fname, "seeddb.bin", 11) == 0) ||
-        (strncasecmp(fname, "aeskeydb.bin", 13) == 0) ||
-        (strncasecmp(fname, "otp.bin", 8) == 0) ||
-        (strncasecmp(fname, "secret_sector.bin", 18) == 0) ||
-        (strncasecmp(fname, "sector0x96.bin", 15) == 0)) {
+    } else if (strncasecmp(fname, KEYDB_NAME, sizeof(KEYDB_NAME)) == 0) {
+        return BIN_KEYDB; // key database
+    } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
+        return BIN_LEGKEY; // legacy key file
+    } else if ((strncasecmp(fname, OTP_NAME, sizeof(OTP_NAME)) == 0) ||
+        (strncasecmp(fname, OTP_BIG_NAME, sizeof(OTP_BIG_NAME)) == 0) ||
+        (strncasecmp(fname, SEEDDB_NAME, sizeof(SEEDDB_NAME)) == 0) ||
+        (strncasecmp(fname, SECTOR_NAME, sizeof(SECTOR_NAME)) == 0) ||
+        (strncasecmp(fname, SECRET_NAME, sizeof(SECRET_NAME)) == 0)) {
         return BIN_SUPPORT; // known support file (so launching is not offered)
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {

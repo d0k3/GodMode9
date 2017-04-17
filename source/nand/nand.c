@@ -128,7 +128,7 @@ bool InitNandCrypto(void)
         char path[64];
         u8 otp[0x100];
         for (u32 i = 0; i < 2 * (sizeof(base)/sizeof(char*)); i++) {
-            snprintf(path, 64, "%s/%s", base[i/2], (i%2) ? "otp0x108.bin" : "otp.bin");
+            snprintf(path, 64, "%s/%s", base[i/2], (i%2) ? OTP_BIG_NAME : OTP_NAME);
             if (FileGetData(path, otp, 0x100, 0) == 0x100) {
                 sha_quick(OtpSha256, otp, 0x90, SHA256_MODE);
                 break;

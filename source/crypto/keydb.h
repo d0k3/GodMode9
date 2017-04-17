@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#define KEYDB_NAME "aeskeydb.bin"
+
 #define KEYS_UNKNOWN 0
 #define KEYS_RETAIL  1
 #define KEYS_DEVKIT  2

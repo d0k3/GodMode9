@@ -3,8 +3,6 @@
 #include "sha.h"
 #include "ff.h"
 
-#define KEYDB_NAME "aeskeydb.bin"
-
 typedef struct {
     u8   slot;           // keyslot, 0x00...0x39 
     char type;           // type 'X' / 'Y' / 'N' for normalKey
