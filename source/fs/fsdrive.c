@@ -49,9 +49,7 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_XORPAD;
         } else if (vsrc == VRT_MEMORY) {
             type = DRV_VIRTUAL | DRV_MEMORY;
-        } else if (vsrc == VRT_GAME) {
-            type = DRV_VIRTUAL | DRV_GAME | DRV_IMAGE;
-        } else if (vsrc == VRT_TICKDB) { // GAME (???)
+        } else if ((vsrc == VRT_GAME) || (vsrc == VRT_KEYDB) || (vsrc == VRT_TICKDB)) {
             type = DRV_VIRTUAL | DRV_GAME | DRV_IMAGE;
         } else if (vsrc == VRT_CART) {
             type = DRV_VIRTUAL | DRV_CART;

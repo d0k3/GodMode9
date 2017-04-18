@@ -64,7 +64,7 @@ u32 AddTickDbInfo(TickDbInfo* info, Ticket* ticket, u32 offset) {
 
 u32 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
     const u32 area_offsets[] = { TICKDB_AREA_OFFSETS };
-    if (!(GetMountState() & SYS_TICKDB)) return 1;
+    if (!(GetMountState() & SYS_TICKDB)) return 0;
     
     // reset internal db
     memset(tick_info, 0, 16);

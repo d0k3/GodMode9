@@ -839,7 +839,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
         InitImgFS(curr_entry->path);
-        if (!(DriveType("7:")||DriveType("G:")||DriveType("T:"))) {
+        if (!(DriveType("7:")||DriveType("G:")||DriveType("K:")||DriveType("T:"))) {
             ShowPrompt(false, "Mounting image: failed");
             InitImgFS(NULL);
         } else {
@@ -847,7 +847,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             *current_path = '\0';
             GetDirContents(current_dir, current_path);
             for (u32 i = 0; i < current_dir->n_entries; i++) {
-                if (strspn(current_dir->entry[i].path, "7GTI") == 0)
+                if (strspn(current_dir->entry[i].path, "7GKTI") == 0)
                     continue;
                 strncpy(current_path, current_dir->entry[i].path, 256);
                 GetDirContents(current_dir, current_path);
