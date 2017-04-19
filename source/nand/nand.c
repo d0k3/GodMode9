@@ -510,7 +510,7 @@ u32 InitEmuNandBase(bool reset)
             return emunand_base_sector; // RedNAND type EmuNAND
         
         // compact type multiNAND
-        if (last_valid % 0x2000 == 1) {
+        if (last_valid % 0x2000 <= 1) {
             u32 compact_sectors = align(NAND_MIN_SECTORS + 1, 0x2000);
             emunand_base_sector = last_valid + compact_sectors;
             if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
