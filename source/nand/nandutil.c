@@ -26,11 +26,13 @@ u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
 
 u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     // prepare essential backup struct
-    const ExeFsFileHeader filelist[] = {
+    ExeFsFileHeader filelist[] = {
         { "nand_hdr", 0x000, 0x200 },
         { "secinfo" , 0x200, 0x111 },
         { "movable" , 0x400, 0x140 },
-        { "frndseed", 0x600, 0x110 }
+        { "frndseed", 0x600, 0x110 },
+        { "nand_cid", 0x800, 0x010 },
+        { "otp_hash", 0xA00, 0x020 }
     };
     memset(essential, 0, sizeof(EssentialBackup));
     memcpy(essential, filelist, sizeof(filelist));
@@ -64,9 +66,14 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     if ((files[0].size != 0x200) || (files[1].size != 0x111) ||
         ((files[2].size != 0x120) && (files[2].size != 0x140)) || (files[3].size != 0x110))
         return 1;
+        
+    // fill nand cid / otp hash
+    if (GetNandCid(&(essential->nand_cid)) != 0) return 1;
+    bool have_otp = (GetOtpHash(&(essential->otp_hash)) == 0);
+    if (!have_otp) memset(&(filelist[5]), 0, sizeof(ExeFsFileHeader));
     
     // calculate hashes
-    for (u32 i = 0; i < 4; i++) 
+    for (u32 i = 0; i < (have_otp ? 6 : 5); i++) 
         sha_quick(essential->header.hashes[9-i],
             ((u8*) essential) + files[i].offset + sizeof(ExeFsHeader),
             files[i].size, SHA256_MODE);

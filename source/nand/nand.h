@@ -59,6 +59,8 @@ u32 CheckNandHeader(u8* header);
 u32 CheckNandType(u32 src);
 
 u32 GetLegitSector0x96(u8* sector);
+u32 GetOtpHash(void* hash);
+u32 GetNandCid(void* cid);
 
 bool CheckMultiEmuNand(void);
 u32 InitEmuNandBase(bool reset);
