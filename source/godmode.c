@@ -1176,7 +1176,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         DeinitSDCardFS();
         if ((SdFormatMenu() == 0) || sd_state) {;
             while (!InitSDCardFS() &&
-                ShowPrompt(true, "Initialising SD card failed! Retry?"));
+                ShowPrompt(true, "Initializing SD card failed! Retry?"));
         }
         ClearScreenF(true, true, COLOR_STD_BG);
         InitEmuNandBase(true);

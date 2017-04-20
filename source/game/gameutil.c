@@ -1726,6 +1726,10 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
     
     if (dump) {
         u32 dump_size = TIKDB_SIZE(tik_info);
+        // ensure the output dir exists
+        // warning: this will only build output dirs in the root dir (!!!)
+        if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
+            return 1;
         f_unlink(path_out);
         if ((dump_size <= 16) || (fvx_qwrite(path_out, tik_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))
             return 1;
@@ -1805,6 +1809,10 @@ u32 BuildSeedInfo(const char* path, bool dump) {
     
     if (dump) {
         u32 dump_size = SEEDDB_SIZE(seed_info);
+        // ensure the output dir exists
+        // warning: this will only build output dirs in the root dir (!!!)
+        if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
+            return 1;
         f_unlink(path_out);
         if ((dump_size <= 16) || (fvx_qwrite(path_out, seed_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))
             return 1;
