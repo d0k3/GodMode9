@@ -62,10 +62,10 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     // mount original file
     InitImgFS(path_bak);
     
-    // check sizes
-    if ((files[0].size != 0x200) || (files[1].size != 0x111) ||
+    // check sizes - stubbed
+    /*if ((files[0].size != 0x200) || (files[1].size != 0x111) ||
         ((files[2].size != 0x120) && (files[2].size != 0x140)) || (files[3].size != 0x110))
-        return 1;
+        return 1;*/
         
     // fill nand cid / otp hash
     if (GetNandCid(&(essential->nand_cid)) != 0) return 1;
