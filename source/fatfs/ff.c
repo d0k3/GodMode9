@@ -2976,7 +2976,8 @@ BYTE check_fs (	/* 0:FAT, 1:exFAT, 2:Valid BS but not FAT, 3:Not a BS, 4:Disk er
 	if (fs->win[BS_JmpBoot] == 0xE9 || (fs->win[BS_JmpBoot] == 0xEB && fs->win[BS_JmpBoot + 2] == 0x90)) {
 		if ((ld_dword(fs->win + BS_FilSysType) & 0xFFFFFF) == 0x544146) return 0;	/* Check "FAT" string */
 		if (ld_dword(fs->win + BS_FilSysType32) == 0x33544146) return 0;			/* Check "FAT3" string */
-        if (ld_dword(fs->win + BS_FilSysType) == 0x00000000) return 0;			    /* all zeroes, hacked(!!!) in */
+		/* !CUSTOM CODE! - special detection for public.sav archives in the TWLN partition */
+		if ((ld_dword(fs->win + BS_FilSysType) == 0x00) && (ld_dword(fs->win + BS_VolID) == 0x12345678)) return 0;
 	}
 #if _FS_EXFAT
 	if (!mem_cmp(fs->win + BS_JmpBoot, "\xEB\x76\x90" "EXFAT   ", 11)) return 1;
