@@ -16,7 +16,7 @@
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
-    {0, 1}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
+    {0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
     {5, 0}, {6, 0}, {7, 0}, {8, 0}, {9, 0}
 };
 
@@ -70,10 +70,12 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     }
     
     // format the SD card
+    VolToPart[0].pt = 1; // workaround to prevent FatFS rebuilding the MBR
     InitSDCardFS();
     UINT c_size = cluster_size;
     bool ret = (f_mkfs("0:", FM_FAT32, c_size, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK) && (f_setlabel((label) ? label : "0:GM9SD") == FR_OK);
     DeinitSDCardFS();
+    VolToPart[0].pt = 0; // revert workaround to prevent SD mount problems
     
     return ret;
 }
