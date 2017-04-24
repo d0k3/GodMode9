@@ -48,6 +48,8 @@
 #define QLZ_SPLASH sm9_splash_baby_qlz
 #endif
 
+// define this to switch top / bottom screen
+// #define SWITCH_SCREENS
 
 // GodMode9 version
 #define VERSION "1.1.3"

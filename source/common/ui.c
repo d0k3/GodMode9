@@ -25,10 +25,10 @@ void ClearScreen(u8* screen, int color)
     }
 }
 
-void ClearScreenF(bool clear_top, bool clear_bottom, int color)
+void ClearScreenF(bool clear_main, bool clear_alt, int color)
 {
-    if (clear_top) ClearScreen(TOP_SCREEN, color);
-    if (clear_bottom) ClearScreen(BOT_SCREEN, color);
+    if (clear_main) ClearScreen(MAIN_SCREEN, color);
+    if (clear_alt) ClearScreen(ALT_SCREEN, color);
 }
 
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
@@ -128,7 +128,7 @@ u32 GetDrawStringWidth(const char* str) {
 void WordWrapString(char* str, int llen) {
     char* last_brk = str - 1;
     char* last_spc = str - 1;
-    if (!llen) llen = (SCREEN_WIDTH_TOP / FONT_WIDTH);
+    if (!llen) llen = (SCREEN_WIDTH_MAIN / FONT_WIDTH);
     for (char* str_ptr = str;; str_ptr++) {
         if (!*str_ptr || (*str_ptr == ' ')) { // on space or string_end
             if (str_ptr - last_brk > llen) { // if maximum line lenght is exceeded
@@ -208,11 +208,11 @@ void ShowString(const char *format, ...)
         
         str_width = GetDrawStringWidth(str);
         str_height = GetDrawStringHeight(str);
-        x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+        x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
         y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
         
         ClearScreenF(true, false, COLOR_STD_BG);
-        DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+        DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
     } else ClearScreenF(true, false, COLOR_STD_BG);
 }
 
@@ -234,13 +234,13 @@ void ShowIconString(u8* icon, int w, int h, const char *format, ...)
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str);
     tot_height = h + icon_offset + str_height;
-    x_str = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    x_str = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y_str = (str_height >= SCREEN_HEIGHT) ? 0 : h + icon_offset + (SCREEN_HEIGHT - tot_height) / 2;
-    x_bmp = (w >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - w) / 2;
+    x_bmp = (w >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - w) / 2;
     y_bmp = (tot_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - tot_height) / 2;
     
-    DrawBitmap(TOP_SCREEN, x_bmp, y_bmp, w, h, icon);
-    DrawStringF(TOP_SCREEN, x_str, y_str, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawBitmap(MAIN_SCREEN, x_bmp, y_bmp, w, h, icon);
+    DrawStringF(MAIN_SCREEN, x_str, y_str, COLOR_STD_FONT, COLOR_STD_BG, str);
 }
 
 bool ShowPrompt(bool ask, const char *format, ...)
@@ -258,12 +258,12 @@ bool ShowPrompt(bool ask, const char *format, ...)
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (2 * 10);
     if (str_width < 18 * FONT_WIDTH) str_width = 18 * FONT_WIDTH;
-    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(TOP_SCREEN, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
+    DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(MAIN_SCREEN, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
     
     while (true) {
         u32 pad_state = InputWait();
@@ -320,7 +320,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (4*10);
     if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
-    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     if (seqlvl >= 6) { // special handling
@@ -331,12 +331,12 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     }
     
     ClearScreenF(true, false, color_bg);
-    DrawStringF(TOP_SCREEN, x, y, color_font, color_bg, str);
-    DrawStringF(TOP_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
+    DrawStringF(MAIN_SCREEN, x, y, color_font, color_bg, str);
+    DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
     
     while (true) {
         for (u32 n = 0; n < len; n++) {
-            DrawStringF(TOP_SCREEN, x + (n*4*8), y + str_height - 18,
+            DrawStringF(MAIN_SCREEN, x + (n*4*8), y + str_height - 18,
                 (lvl > n) ? color_on : color_off, color_bg, "<%c>", seqsymbols[seqlvl][n]);
         }
         if (lvl == len)
@@ -374,16 +374,16 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
     if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
-    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(TOP_SCREEN, x, yopt + (n*12) + 10, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
+    DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(MAIN_SCREEN, x, yopt + (n*12) + 10, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
     while (true) {
         for (u32 i = 0; i < n; i++) {
-            DrawStringF(TOP_SCREEN, x, yopt + (12*i), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
+            DrawStringF(MAIN_SCREEN, x, yopt + (12*i), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
                 (sel == i) ? "->" : "", options[i]);
         }
         u32 pad_state = InputWait();
@@ -422,12 +422,12 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (8*10);
     if (str_width < (24 * FONT_WIDTH)) str_width = 24 * FONT_WIDTH;
-    x = (str_width >= SCREEN_WIDTH_TOP) ? 0 : (SCREEN_WIDTH_TOP - str_width) / 2;
+    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(TOP_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(TOP_SCREEN, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
+    DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
     
     int cursor_a = -1;
     u32 cursor_s = 0;
@@ -439,7 +439,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         if (cursor_s < scroll) scroll = cursor_s;
         else if (cursor_s - scroll >= input_shown) scroll = cursor_s - input_shown + 1;
         while (scroll && (inputstr_size - scroll < input_shown)) scroll--;
-        DrawStringF(TOP_SCREEN, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
+        DrawStringF(MAIN_SCREEN, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
             (scroll) ? '<' : '|',
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
@@ -601,7 +601,7 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     static u32 last_prog_width = 0;
     const u32 bar_width = 240;
     const u32 bar_height = 12;
-    const u32 bar_pos_x = (SCREEN_WIDTH_TOP - bar_width) / 2;
+    const u32 bar_pos_x = (SCREEN_WIDTH_MAIN - bar_width) / 2;
     const u32 bar_pos_y = (SCREEN_HEIGHT / 2) - bar_height - 2 - 10;
     const u32 text_pos_y = bar_pos_y + bar_height + 2;
     u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
@@ -622,22 +622,22 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     
     if (!current || last_prog_width > prog_width) {
         ClearScreenF(true, false, COLOR_STD_BG);
-        DrawRectangle(TOP_SCREEN, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_STD_FONT);
-        DrawRectangle(TOP_SCREEN, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
+        DrawRectangle(MAIN_SCREEN, bar_pos_x, bar_pos_y, bar_width, bar_height, COLOR_STD_FONT);
+        DrawRectangle(MAIN_SCREEN, bar_pos_x + 1, bar_pos_y + 1, bar_width - 2, bar_height - 2, COLOR_STD_BG);
     }
-    DrawRectangle(TOP_SCREEN, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
+    DrawRectangle(MAIN_SCREEN, bar_pos_x + 2, bar_pos_y + 2, prog_width, bar_height - 4, COLOR_STD_FONT);
     
     TruncateString(progstr, opstr, (bar_width / FONT_WIDTH_EXT) - 7, 8);
     snprintf(tempstr, 64, "%s (%lu%%)", progstr, prog_percent);
     ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
-    DrawString(TOP_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     if (sec_elapsed >= 1) {
         snprintf(tempstr, 16, "ETA %02llum%02llus", sec_remain / 60, sec_remain % 60);
         ResizeString(progstr, tempstr, 16, 8, true);
-        DrawString(TOP_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
+        DrawString(MAIN_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
             bar_pos_y - 10 - 1, COLOR_STD_FONT, COLOR_STD_BG);
     }
-    DrawString(TOP_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
     
     last_prog_width = prog_width;
     

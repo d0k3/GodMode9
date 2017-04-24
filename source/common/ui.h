@@ -55,8 +55,20 @@
 #define TOP_SCREEN          (u8*)(*(u32*)0x23FFFE00)
 #define BOT_SCREEN          (u8*)(*(u32*)0x23FFFE08)
 
+#ifndef SWITCH_SCREENS
+#define MAIN_SCREEN         TOP_SCREEN
+#define ALT_SCREEN          BOT_SCREEN
+#define SCREEN_WIDTH_MAIN   SCREEN_WIDTH_TOP
+#define SCREEN_WIDTH_ALT    SCREEN_WIDTH_BOT
+#else
+#define MAIN_SCREEN         BOT_SCREEN
+#define ALT_SCREEN          TOP_SCREEN
+#define SCREEN_WIDTH_MAIN   SCREEN_WIDTH_BOT
+#define SCREEN_WIDTH_ALT    SCREEN_WIDTH_TOP
+#endif
+
 void ClearScreen(unsigned char *screen, int color);
-void ClearScreenF(bool clear_top, bool clear_bottom, int color);
+void ClearScreenF(bool clear_main, bool clear_alt, int color);
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
 void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap);
 
