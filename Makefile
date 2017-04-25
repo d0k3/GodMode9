@@ -17,7 +17,7 @@ include $(DEVKITARM)/ds_rules
 # SPECS is the directory containing the important build and link files
 #---------------------------------------------------------------------------------
 export TARGET	:=	GodMode9
-ifeq ($(MODE),safe)
+ifeq ($(SAFEMODE),1)
 	export TARGET	:=	SafeMode9
 endif
 BUILD		:=	build
@@ -50,8 +50,12 @@ else
 CFLAGS	+=	-DFONT_6X10
 endif
 
-ifeq ($(MODE),safe)
+ifeq ($(SAFEMODE),1)
 	CFLAGS += -DSAFEMODE
+endif
+
+ifeq ($(SWITCH_SCREENS),1)
+	CFLAGS += -DSWITCH_SCREENS
 endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
@@ -87,7 +91,7 @@ CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/gm9*.*)))
-ifeq ($(MODE),safe)
+ifeq ($(SAFEMODE),1)
 	BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/sm9*.*)))
 endif
 

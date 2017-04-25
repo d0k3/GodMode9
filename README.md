@@ -16,10 +16,10 @@ These short instructions apply to all users who have ARM9loaderhax and [Luma3DS]
 * Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/` or `sd:/files9` (optional but recommended for full functionality).
 * Possibly helpful info: If you wonder how to backup your NAND, press the HOME button and enter the menu titled `More...`. You may also backup your NAND via just copying the `nand.bin` / `nand_min.bin` file in `S:/`.
 
-You may now run GodMode9 via the X Button (or any other button you chose). See below for a list of stuff you can do with it.
+You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
 
-## How to run this / entry points
+## How to run this / entry points / developer info
 GodMode9 can be built to run from a number of entry points, descriptions are below. Note that you need to be on or below 3DS firmware version v11.2 (v9.2 if not using SafeHax/FastHax) or have ARM9loaderhax installed for any of these to work. All entrypoint files are included in the release archive.
 * __A9LH, Brahma & SafeHax__: Copy `GodMode9.bin` to somewhere on your SD card and run it via either [arm9loaderhax](https://3ds.guide/), [Brahma](https://github.com/delebile/Brahma2) or [FastHax](https://github.com/nedwill/fasthax)/[SafeHax](https://github.com/TiniVi/safehax). Brahma derivatives / loaders (such as [BrahmaLoader](https://gbatemp.net/threads/release-easily-load-payloads-in-hb-launcher-via-brahma-2-mod.402857/)) and A9LH chainloaders (such as [Luma3DS](https://github.com/AuroraWright/Luma3DS) and [BootCTR9](https://github.com/hartmannaf/BootCtr9)) will work with this as well. Build this with `make binary`.
 * __Homebrew Launcher__: Copy `GodMode9.3dsx` & `GodMode9.smdh` into `/3DS/GodMode9` on your SD card. Run this via [Smealums Homebrew Launcher](http://smealum.github.io/3ds/), [Mashers Grid Launcher](https://gbatemp.net/threads/release-homebrew-launcher-with-grid-layout.397527/) or any other compatible software. Build this with `make brahma`.
@@ -27,7 +27,7 @@ GodMode9 can be built to run from a number of entry points, descriptions are bel
 * __CakeHax MSET__: Copy `GodMode9.dat` to the root of your SD card and `GodMode9.nds` to anywhere on the SD card. You can then run it either via MSET and GodMode9.nds. Build this via `make cakerop`.
 * __Gateway Browser Exploit__: Copy Launcher.dat to your SD card root and run this via http://go.gateway-3ds.com/ from your 3DS browser. Build this with `make gateway`. Please note: __this entrypoint is deprecated__. While it may still work at the present time with little to no problems, bugs will no more be fixed and it may be completely removed at a later time. Use CakeHax instead.
 
-If you are a developer and you are building this, you may also just run `make release` to build all files at once. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make MODE=safe`. For additional customization, you may also choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` and `make FONT=ORIG`.
+If you are a developer and you are building this, you may also just run `make release` to build all files at once. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
 
 
 ## Write permissions system

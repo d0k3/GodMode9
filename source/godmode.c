@@ -49,11 +49,11 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     const u32 n_cb_show = 8;
     const u32 bartxt_start = (FONT_HEIGHT_EXT == 10) ? 1 : 2;
     const u32 bartxt_x = 2;
-    const u32 bartxt_rx = SCREEN_WIDTH_MAIN - (19*FONT_WIDTH_EXT) - bartxt_x;
-    const u32 info_start = 18;
-    const u32 instr_x = (SCREEN_WIDTH_MAIN - (36*FONT_WIDTH_EXT)) / 2;
-    const u32 len_path = SCREEN_WIDTH_MAIN - ((SCREEN_WIDTH_MAIN >= 400) ? 160 : 120);
-    const u32 len_info = (SCREEN_WIDTH_MAIN - ((SCREEN_WIDTH_MAIN >= 400) ? 80 : 40)) / 2;
+    const u32 bartxt_rx = SCREEN_WIDTH_TOP - (19*FONT_WIDTH_EXT) - bartxt_x;
+    const u32 info_start = (MAIN_SCREEN == TOP_SCREEN) ? 18 : 2; // leave space for the topbar when required
+    const u32 instr_x = (SCREEN_WIDTH_MAIN - (34*FONT_WIDTH_EXT)) / 2;
+    const u32 len_path = SCREEN_WIDTH_TOP - 120;
+    const u32 len_info = (SCREEN_WIDTH_MAIN - ((SCREEN_WIDTH_MAIN >= 400) ? 80 : 20)) / 2;
     char tempstr[64];
     
     static u32 state_prev = 0xFFFFFFFF;
@@ -71,20 +71,20 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     }
     
     // top bar - current path & free/total storage
-    DrawRectangle(MAIN_SCREEN, 0, 0, SCREEN_WIDTH_MAIN, 12, COLOR_TOP_BAR);
+    DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
     if (strncmp(curr_path, "", 256) != 0) {
         char bytestr0[32];
         char bytestr1[32];
         TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
-        DrawStringF(MAIN_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
-        DrawStringF(MAIN_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
+        DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
         FormatBytes(bytestr1, GetTotalSpace(curr_path));
         snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
-        DrawStringF(MAIN_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
     } else {
-        DrawStringF(MAIN_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
-        DrawStringF(MAIN_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", FLAVOR);
+        DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", FLAVOR);
     }
     
     // left top - current file info
@@ -164,8 +164,8 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     const int str_width = (SCREEN_WIDTH_ALT-3) / FONT_WIDTH_EXT;
     const u32 bar_height_min = 32;
     const u32 bar_width = 2;
-    const u32 start_y = 2;
     const u32 stp_y = 12;
+    const u32 start_y = (MAIN_SCREEN == TOP_SCREEN) ? 2 : 2 + stp_y;
     const u32 pos_x = 0;
     const u32 lines = (SCREEN_HEIGHT-start_y+stp_y-1) / stp_y;
     u32 pos_y = start_y;
@@ -1244,6 +1244,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         if (GetLegitSector0x96(legit_sector) == 0) {
             ShowString("Searching secret sector...");
             const char* path_sector = OUTPUT_PATH "/" SECRET_NAME;
+            // we can safely assume the output path exists at that point
             lsector = FileSetData(path_sector, legit_sector, 0x200, 0, true);
         }
         ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%18.18-s %s\n%18.18-s %s\n%18.18-s %s\n%18.18-s %s",
@@ -1376,8 +1377,8 @@ u32 GodMode() {
             curr_entry->marked = mark_next;
             mark_next = -2;
         }
-        DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
         DrawDirContents(current_dir, cursor, &scroll);
+        DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
         u32 pad_state = InputWait();
         bool switched = (pad_state & BUTTON_R1);
         
