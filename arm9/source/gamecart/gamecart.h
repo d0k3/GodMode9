@@ -17,11 +17,15 @@ typedef struct {
     u32 cart_id;
     u64 cart_size;
     u64 data_size;
+    u32 save_size;
+    int save_type;
     u32 arm9i_rom_offset; // TWL specific
 } PACKED_ALIGN(16) CartData;
 
 u32 GetCartName(char* name, CartData* cdata);
-u32 InitCardRead(CartData* cdata);
+u32 InitCartRead(CartData* cdata);
 u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata);
 u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata);
+u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata);
+u32 WriteCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata);

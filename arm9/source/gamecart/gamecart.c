@@ -3,6 +3,7 @@
 #include "command_ctr.h"
 #include "command_ntr.h"
 #include "card_eeprom.h"
+#include "spi.h"
 #include "nds.h"
 #include "ncch.h"
 #include "ncsd.h"
@@ -23,6 +24,8 @@ typedef struct {
     u32 cart_id;
     u64 cart_size;
     u64 data_size;
+    u32 save_size;
+    int save_type;
     u32 unused_offset;
 } PACKED_ALIGN(16) CartDataCtr;
 
@@ -37,6 +40,8 @@ typedef struct {
     u32 cart_id;
     u64 cart_size;
     u64 data_size;
+    u32 save_size;
+    int save_type;
     u32 arm9i_rom_offset;
 } PACKED_ALIGN(16) CartDataNtrTwl;
 
@@ -55,14 +60,14 @@ u32 GetCartName(char* name, CartData* cdata) {
     return 0;
 }
 
-u32 InitCardRead(CartData* cdata) {
+u32 InitCartRead(CartData* cdata) {
     memset(cdata, 0x00, sizeof(CartData));
     cdata->cart_type = CART_NONE;
     if (!CART_INSERTED) return 1;
     Cart_Init();
     cdata->cart_id = Cart_GetID();
     cdata->cart_type = (cdata->cart_id & 0x10000000) ? CART_CTR : CART_NTR;
-    if (cdata->cart_type & CART_CTR) {
+    if (cdata->cart_type & CART_CTR) { // CTR cartridges
         memset(cdata, 0xFF, 0x4000 + PRIV_HDR_SIZE); // switch the padding to 0xFF
         
         // init, NCCH header
@@ -93,7 +98,14 @@ u32 InitCardRead(CartData* cdata) {
         memcpy(priv_header + 0x40, &(cdata->cart_id), 4);
         memset(priv_header + 0x44, 0x00, 4);
         memset(priv_header + 0x48, 0xFF, 8);
-    } else {
+        
+        // save data
+        u32 card2_offset = getle32(cdata->header + 0x200);
+        if ((card2_offset != 0xFFFFFFFF) || (SPIGetCardType((CardType*) (CardType*) &(cdata->save_type), 0) != 0) || (cdata->save_type < 0)) {
+            cdata->save_type = -1;
+            cdata->save_size = 0;
+        } else cdata->save_size = SPIGetCapacity((CardType) cdata->save_type);
+    } else { // NTR/TWL cartridges
         // NTR header
         TwlHeader* nds_header = (void*)cdata->header;
         NTR_CmdReadHeader(cdata->header);
@@ -121,6 +133,13 @@ u32 InitCardRead(CartData* cdata) {
         
         // last safety check
         if (cdata->data_size > cdata->cart_size) return 1;
+        
+        // save data
+        u32 infrared = (*(nds_header->game_code) == 'I') ? 1 : 0;
+        if ((SPIGetCardType((CardType*) &(cdata->save_type), infrared) != 0) || (cdata->save_type < 0)) {
+            cdata->save_type = -1;
+            cdata->save_size = 0;
+        } else cdata->save_size = SPIGetCapacity((CardType) cdata->save_type);
     }
     return 0;
 }
@@ -220,4 +239,16 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
         memcpy(buffer, priv_hdr + offset, count);
     }
     return 0;
+}
+
+u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+    if (offset >= cdata->save_size) return 1;
+    if (offset + count > cdata->save_size) count = cdata->save_size - offset;
+    return (SPIReadSaveData((CardType) cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;
+}
+
+u32 WriteCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+    if (offset >= cdata->save_size) return 1;
+    if (offset + count > cdata->save_size) count = cdata->save_size - offset;
+    return (SPIWriteSaveData((CardType) cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;
 }
