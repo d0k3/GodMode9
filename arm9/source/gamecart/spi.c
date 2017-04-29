@@ -22,13 +22,14 @@
 
 // u8* fill_buf = NULL;
 
-#define CFG_CARDCONF		*(vu16 *)0x1000000C
+#define CFG_CARDCONF		(*(vu16 *)0x1000000C)
 
-#define REG_SPICARDCNT		*(vu32 *)0x1000D800
-#define REG_SPICARDSIZE		*(vu32 *)0x1000D808
-#define REG_SPICARDFIFO		*(vu32 *)0x1000D80C
-#define REG_SPICARDFIFOSTAT	*(vu32 *)0x1000D810
-#define REG_UNK_AT_0x18		*(vu32 *)0x1000D818
+#define REG_SPICARDCNT		(*(vu32 *)0x1000D800)
+#define REG_SPICARDASSERT	(*(vu32 *)0x1000D804)
+#define REG_SPICARDSIZE		(*(vu32 *)0x1000D808)
+#define REG_SPICARDFIFO		(*(vu32 *)0x1000D80C)
+#define REG_SPICARDFIFOSTAT	(*(vu32 *)0x1000D810)
+#define REG_UNK_AT_0x18		(*(vu32 *)0x1000D818)
 
 #define SPICARD_START_IS_BUSY	0x8000
 
@@ -48,12 +49,13 @@ typedef enum {
 
 void _SPITransferData(void *data, u32 len, FS_CardSpiBaudRate baudRate, bool write)
 {
-	REG_SPICARDCNT = (((write) ? 1 : 0) << 13) | (1 << 12) | (u32)baudRate;
-	REG_UNK_AT_0x18 = 6;
+	REG_SPICARDSIZE = len;
+	REG_SPICARDCNT = (((write) ? 1 : 0) << 13) | (0 << 12) | (u32)baudRate;
+	REG_UNK_AT_0x18 = 0;
 	REG_SPICARDCNT |= SPICARD_START_IS_BUSY; //start
 	
 	u32 wordCount = (len + 3) >> 2;
-	
+	u32 len_was = len;
 	for(u32 i = 0; i < wordCount; i++)
 	{
 		u32 nbBytes = (len <= 4) ? len : 4;
@@ -62,20 +64,21 @@ void _SPITransferData(void *data, u32 len, FS_CardSpiBaudRate baudRate, bool wri
 		{
 			u32 word = 0;
 			memcpy(&word, (u32 *)data + i, nbBytes);
-			while(!(REG_SPICARDFIFOSTAT & 1));
-			REG_SPICARDFIFOSTAT = word;
+			while(REG_SPICARDFIFOSTAT);
+			REG_SPICARDFIFO = word;
 		}
 		
 		else
 		{
-			while(!(REG_SPICARDFIFOSTAT & 1));
-			u32 word = REG_SPICARDFIFOSTAT;
+			while(!REG_SPICARDFIFOSTAT);
+			u32 word = REG_SPICARDFIFO;
 			memcpy((u32 *)data + i, &word, nbBytes);
 		}
 		
-		while(REG_SPICARDCNT & SPICARD_START_IS_BUSY);
 		len -= nbBytes;
 	}
+    
+	while(REG_SPICARDCNT & SPICARD_START_IS_BUSY) ShowString("Busy, %s %lu", (write) ? "write" : "read", len_was);
 } 
 
 int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, void* data, u32 dataSize)
@@ -83,31 +86,34 @@ int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answer
 	bool infra = type == FLASH_512KB_INFRARED || type == FLASH_256KB_INFRARED;
 	
 	CFG_CARDCONF |= 0x100; //wake card
-	
-    u32 zero = 0;
+    
+	u32 zero = 0;
 	if(infra) _SPITransferData(&zero, 1, BAUDRATE_1MHZ, true); //header
 	
 	if(cmd != NULL) _SPITransferData(cmd, cmdSize, BAUDRATE_4MHZ, true);
 	if(answer != NULL) _SPITransferData(answer, answerSize, BAUDRATE_4MHZ, false);
 	if(data != NULL) _SPITransferData(data, dataSize, BAUDRATE_4MHZ, true);
+	if (dataSize) ShowPrompt(false, "Completed: %lu/%lu/%lu", cmdSize, answerSize, dataSize);
+    // else ShowString("Completed: %lu/%lu/%lu", cmdSize, answerSize, dataSize);
+	REG_SPICARDASSERT = 0;
 	
 	return 0;
 }
 
 int SPIWaitWriteEnd(CardType type) {
-	u8 cmd = SPI_CMD_RDSR, statusReg = 0;
+	u32 cmd = SPI_CMD_RDSR, statusReg = 0;
 	int res = 0;
-	
+	ShowPrompt(false, "WaitWriteEnd start");
 	do{
 		res = SPIWriteRead(type, &cmd, 1, &statusReg, 1, 0, 0);
 		if(res) return res;
 	} while(statusReg & SPI_FLG_WIP);
-	
+	ShowPrompt(false, "WaitWriteEnd complete");
 	return 0;
 }
 
 int SPIEnableWriting(CardType type) {
-	u8 cmd = SPI_CMD_WREN, statusReg = 0;
+	u32 cmd = SPI_CMD_WREN, statusReg = 0;
 	int res = SPIWriteRead(type, &cmd, 1, NULL, 0, 0, 0);
 
 	if(res || type == EEPROM_512B) return res; // Weird, but works (otherwise we're getting an infinite loop for that chip type).
@@ -122,9 +128,9 @@ int SPIEnableWriting(CardType type) {
 }
 
 int SPIReadJEDECIDAndStatusReg(CardType type, u32* id, u8* statusReg) {
-	u8 cmd = SPI_FLASH_CMD_RDID;
-	u8 reg = 0;
-	u8 idbuf[3] = { 0 };
+	u32 cmd = SPI_FLASH_CMD_RDID;
+	u32 reg = 0;
+	u8 idbuf[4] = { 0 };
 	u32 id_ = 0;
 	int res = SPIWaitWriteEnd(type);
 	if(res) return res;
@@ -411,7 +417,7 @@ int SPIGetCardType(CardType* type, int infrared) {
 		++tries;
 		t = FLASH_INFRARED_DUMMY;
 	}
-	
+	ShowPrompt(false, "JEDECID done");
 	if(t == EEPROM_512B) { *type = t; return 0; }
 	else if(t == EEPROM_STD_DUMMY) {
 		bool mirrored = false;
