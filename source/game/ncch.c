@@ -284,7 +284,7 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
             ExeFsFileHeader* file = exefs->files + i;
             if (CryptNcchSection(data, offset, size,
                 (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset,
-                file->size, 0x200 + file->offset,
+                align(file->size, NCCH_MEDIA_UNIT), 0x200 + file->offset,
                 ncch, 2, crypt_to, EXEFS_KEYID(file->name)) != 0) return 1;
         }
     }
