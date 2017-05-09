@@ -13,46 +13,26 @@
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
 #define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
 
-u32 GetOutputPath(char* dest, const char* path, const char* ext) {
-    // special handling for input from title directories (somewhat hacky)
-    if (strncmp(path + 1, ":/title/", 8) == 0) {
-        u32 tid_high, tid_low, app_id;
-        char drv;
-        if (((sscanf(path, "%c:/title/%08lx/%08lx/content/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&
-             (strnlen(path, 256) == (1+1+1) + (5+1) + (8+1) + (8+1) + (7+1) + (8+1+3))) ||
-            ((sscanf(path, "%c:/title/%08lx/%08lx/content/00000000/%08lx", &drv, &tid_high, &tid_low, &app_id) == 4) &&
-             (strnlen(path, 256) == (1+1+1) + (5+1) + (8+1) + (8+1) + (7+1) + (8+1) + (8+1+3)))) { // confused? ^_^
-            if (!ext) snprintf(dest, 256, "%s/%08lx%08lx.%08lx.app", OUTPUT_PATH, tid_high, tid_low, app_id);
-            else snprintf(dest, 256, "%s/%08lx%08lx.%s", OUTPUT_PATH, tid_high, tid_low, ext);
-            return 0;
-        }
-    }
-    
-    // tmd file handling (outside of title dirs, still hacky)
-    if (ext && (strnlen(path, 256) >= 3) && (strncasecmp(path + strnlen(path, 256) - 3, "tmd", 3)) == 0) {
-        // minimum size TMD
-        const u8 magic[] = { TMD_SIG_TYPE };
-        TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
-        UINT br;
+u64 GetTitleId(const char* path) {
+    u32 filetype = IdentifyFileType(path);
+    UINT br;
+    if (filetype & GAME_TMD) {
+        TitleMetaData* tmd = (TitleMetaData*) (void*) TEMP_BUFFER;
         if ((fvx_qread(path, tmd, 0, TMD_SIZE_MIN, &br) == FR_OK) &&
-            (memcmp(tmd->sig_type, magic, sizeof(magic)) == 0) &&
-            (br == TMD_SIZE_MIN)) {
-            snprintf(dest, 256, "%s/%016llx.%s", OUTPUT_PATH, getbe64(tmd->title_id), ext);
-            return 0;
-        }
-    }
-    
-    // handling for everything else
-    char* name = strrchr(path, '/');
-    if (!name) return 1;
-    snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
-    if (ext) { // replace extension
-        char* dot = strrchr(dest, '.');
-        if (!dot || ((dot - dest) <= (int) strnlen(OUTPUT_PATH, 256) + 1))
-            dot = dest + strnlen(dest, 256);
-        snprintf(dot, 16, ".%s", ext);
-    }
-    
+            (br == TMD_SIZE_MIN)) return getbe64(tmd->title_id);
+    } else if (filetype & GAME_NCCH) {
+        NcchHeader* ncch = (NcchHeader*) (void*) TEMP_BUFFER;
+        if ((fvx_qread(path, ncch, 0, sizeof(NcchHeader), &br) == FR_OK) &&
+            (br == sizeof(NcchHeader))) return ncch->programId;
+    } else if (filetype & GAME_NCSD) {
+        NcsdHeader* ncsd = (NcsdHeader*) (void*) TEMP_BUFFER;
+        if ((fvx_qread(path, ncsd, 0, sizeof(NcsdHeader), &br) == FR_OK) &&
+            (br == sizeof(NcsdHeader))) return ncsd->mediaId;
+    } else if (filetype & GAME_NDS) {
+        TwlHeader* twl = (TwlHeader*) (void*) TEMP_BUFFER;
+        if ((fvx_qread(path, twl, 0, sizeof(TwlHeader), &br) == FR_OK) &&
+            (br == sizeof(TwlHeader))) return twl->title_id;
+    } // ignored: CIA, ticket
     return 0;
 }
 
@@ -998,8 +978,12 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     char* destptr = (char*) path;
     u32 ret = 0;
     
-    if (!inplace) {
-        if (GetOutputPath(dest, path, NULL) != 0) return 1;
+    if (!inplace) { // build output name
+        char* name = strrchr(path, '/');
+        if (!name) return 1;
+        if ((strncmp(path + 1, ":/title/", 8) == 0) && (filetype & (GAME_NCCH))) {
+           snprintf(dest, 256, "%s/%016llx.%s", OUTPUT_PATH, GetTitleId(path), ++name); 
+        } else snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
         destptr = dest;
     }
     
@@ -1351,8 +1335,20 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     char dest[256];
     u32 ret = 0;
     
-    // destination path
-    if (GetOutputPath(dest, path, force_legit ? "legit.cia" : "cia") != 0) return 1;
+    // build output name
+    char* name = strrchr(path, '/');
+    if (!name) return 1;
+    if (filetype & GAME_TMD) {
+        snprintf(dest, 256, "%s/%016llx", OUTPUT_PATH, GetTitleId(path));
+    } else if ((strncmp(path + 1, ":/title/", 8) == 0) && (filetype & (GAME_NCCH))) {
+       snprintf(dest, 256, "%s/%016llx.%s", OUTPUT_PATH, GetTitleId(path), ++name); 
+    } else snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
+    // replace extension
+    char* dot = strrchr(dest, '.');
+    if (!dot || (dot < strrchr(dest, '/')))
+        dot = dest + strnlen(dest, 256);
+    snprintf(dot, 16, ".%s", force_legit ? "legit.cia" : "cia");
+        
     if (!CheckWritePermissions(dest)) return 1;
     f_unlink(dest); // remove the file if it already exists
     

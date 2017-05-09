@@ -12,3 +12,4 @@ u32 CheckHealthAndSafetyInject(const char* hsdrv);
 u32 InjectHealthAndSafety(const char* path, const char* destdrv);
 u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump);
 u32 BuildSeedInfo(const char* path, bool dump);
+u64 GetTitleId(const char* path);

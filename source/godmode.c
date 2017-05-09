@@ -899,7 +899,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, false) == 0)) n_success++;
                 else { // on failure: set cursor on failed title, break;
                     TruncateString(pathstr, path, 32, 8);
-                    ShowPrompt(false, "%s\nDecryption failed%s", pathstr, (filetype & (GAME_NCCH|GAME_NCSD|GAME_CIA)) ? "\n\nHint: Did you provide\n" KEYDB_NAME " & " SEEDDB_NAME"?" : "");
+                    ShowPrompt(false, "%s\nDecryption failed%s", pathstr, (filetype & (GAME_NCCH|GAME_NCSD|GAME_CIA)) ? "\n \nHint: Did you provide\n" KEYDB_NAME " & " SEEDDB_NAME"?" : "");
                     *cursor = i;
                     break;
                 }
@@ -916,7 +916,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(curr_entry->path, inplace, false) :
                     CryptGameFile(curr_entry->path, inplace, false);
                 if (inplace || (ret != 0)) ShowPrompt(false, "%s\nDecryption %s", pathstr, (ret == 0) ? "success" : (filetype & (GAME_NCCH|GAME_NCSD|GAME_CIA)) ?
-                    "failed\n\nHint: Did you provide\n" KEYDB_NAME " & " SEEDDB_NAME"?" : "failed");
+                    "failed\n \nHint: Did you provide\n" KEYDB_NAME " & " SEEDDB_NAME"?" : "failed");
                 else ShowPrompt(false, "%s\nDecrypted to %s", pathstr, OUTPUT_PATH);
             }
         }
@@ -1107,7 +1107,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
         if (user_select) {
             ShowPrompt(false, "%s\nH&S inject %s", pathstr,
-                (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed\n\nHint: Did you provide\n" KEYDB_NAME "?");
+                (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed\n \nHint: Did you provide\n" KEYDB_NAME "?");
         }
         return 0;
     } else if (user_select == ctrtransfer) { // -> transfer CTRNAND image to SysNAND
