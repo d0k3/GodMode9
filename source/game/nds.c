@@ -28,14 +28,16 @@ u32 ValidateTwlHeader(TwlHeader* twl) {
     return (crc16_quick(twl->logo, sizeof(twl->logo)) == NDS_LOGO_CRC16) ? 0 : 1;
 }
 
-u32 LoadTwlIconData(const char* path, TwlIconData* icon) {
+u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon) {
     u8 ntr_header[0x200]; // we only need the NTR header (ignore TWL stuff)
-    TwlHeader* twl = (TwlHeader*) ntr_header;
+    TwlHeader* twl = hdr ? hdr : (TwlHeader*) ntr_header;
+    u32 hdr_size = hdr ? sizeof(TwlHeader) : 0x200; // load full header if bufefr provided
     UINT br;
-    if ((fvx_qread(path, ntr_header, 0, 0x200, &br) != FR_OK) || (br != 0x200) ||
+    if ((fvx_qread(path, ntr_header, 0, hdr_size, &br) != FR_OK) || (br != hdr_size) ||
         (ValidateTwlHeader(twl) != 0))
         return 1;
-    // we also don't need anything beyond the v0x0001 icon, so ignore this, too
+    if (!icon) return 0; // done if icon data is not required
+    // we don't need anything beyond the v0x0001 icon, so ignore the remainder
     if ((fvx_qread(path, icon, twl->icon_offset, TWLICON_SIZE_DATA(0x0001), &br) != FR_OK) || (br != TWLICON_SIZE_DATA(0x0001)) ||
         (!TWLICON_SIZE_DATA(icon->version)) || (crc16_quick(((u8*) icon) + 0x20, TWLICON_SIZE_DATA(0x0001) - 0x20) != icon->crc_0x0020_0x0840))
         return 1;

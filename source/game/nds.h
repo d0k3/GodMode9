@@ -15,6 +15,18 @@
 #define TWLICON_SIZE_ICON   (TWLICON_DIM_ICON * TWLICON_DIM_ICON * 3) // w * h * bpp (rgb888)
 #define NDS_LOGO_CRC16      0xCF56
 
+#define TWL_UNITCODE_NTR    0x00
+#define TWL_UNITCODE_TWLNTR 0x02
+#define TWL_UNITCODE_TWL    0x03
+
+#define TWL_REGION_JAP      0x01
+#define TWL_REGION_USA      0x02
+#define TWL_REGION_EUR      0x04
+#define TWL_REGION_AUS      0x08
+#define TWL_REGION_CHN      0x10
+#define TWL_REGION_KOR      0x20
+#define TWL_REGION_FREE     0xFFFFFFFF
+
 // see: http://problemkaputt.de/gbatek.htm#dscartridgeicontitle
 typedef struct {
     u16 version;
@@ -88,7 +100,9 @@ typedef struct {
     u16 header_crc;
     u8  debugger_reserved[0x20];
     // extended mode stuff (DSi only)
-    u8  ignored0[0x40]; // ignored
+    u8  ignored0[0x30]; // ignored
+    u32 region_flags;
+    u8  ignored1[0xC]; // ignored
     u32 arm9i_rom_offset;
     u32 reserved2;
     u32 arm9i_load_adress;
@@ -97,19 +111,19 @@ typedef struct {
     u32 unknown1;
     u32 arm7i_load_adress;
     u32 arm7i_size;
-    u8  ignored1[0x30]; // ignored
+    u8  ignored2[0x30]; // ignored
     u32 ntr_twl_rom_size;
     u8  unknown2[12];
-    u8  ignored2[0x10]; // ignored
+    u8  ignored3[0x10]; // ignored
     u64 title_id;
     u32 pubsav_size;
     u32 prvsav_size;
     u8  reserved3[176];
     u8  unknown3[0x10];
-    u8  ignored3[0xD00]; // ignored
+    u8  ignored4[0xD00]; // ignored
 } __attribute__((packed)) TwlHeader;
 
 u32 ValidateTwlHeader(TwlHeader* twl);
-u32 LoadTwlIconData(const char* path, TwlIconData* icon);
+u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon);
 u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon);
 u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon);

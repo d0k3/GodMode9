@@ -11,6 +11,15 @@
 #define SMDH_SIZE_ICON_SMALL    (SMDH_DIM_ICON_SMALL * SMDH_DIM_ICON_SMALL * 3) // w * h * bpp (rgb888)
 #define SMDH_SIZE_ICON_BIG      (SMDH_DIM_ICON_BIG * SMDH_DIM_ICON_BIG * 3) // w * h * bpp (rgb888)
 
+#define SMDH_REGION_JAP         0x01
+#define SMDH_REGION_USA         0x02
+#define SMDH_REGION_EUR         0x04
+#define SMDH_REGION_AUS         0x08
+#define SMDH_REGION_CHN         0x10
+#define SMDH_REGION_KOR         0x20
+#define SMDH_REGION_TWN         0x40
+#define SMDH_REGION_FREE        0x7FFFFFFF
+
 // see: https://www.3dbrew.org/wiki/SMDH#Application_Titles
 typedef struct {
     u16 short_desc[0x40];

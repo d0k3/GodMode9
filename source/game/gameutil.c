@@ -13,29 +13,6 @@
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
 #define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
 
-u64 GetTitleId(const char* path) {
-    u32 filetype = IdentifyFileType(path);
-    UINT br;
-    if (filetype & GAME_TMD) {
-        TitleMetaData* tmd = (TitleMetaData*) (void*) TEMP_BUFFER;
-        if ((fvx_qread(path, tmd, 0, TMD_SIZE_MIN, &br) == FR_OK) &&
-            (br == TMD_SIZE_MIN)) return getbe64(tmd->title_id);
-    } else if (filetype & GAME_NCCH) {
-        NcchHeader* ncch = (NcchHeader*) (void*) TEMP_BUFFER;
-        if ((fvx_qread(path, ncch, 0, sizeof(NcchHeader), &br) == FR_OK) &&
-            (br == sizeof(NcchHeader))) return ncch->programId;
-    } else if (filetype & GAME_NCSD) {
-        NcsdHeader* ncsd = (NcsdHeader*) (void*) TEMP_BUFFER;
-        if ((fvx_qread(path, ncsd, 0, sizeof(NcsdHeader), &br) == FR_OK) &&
-            (br == sizeof(NcsdHeader))) return ncsd->mediaId;
-    } else if (filetype & GAME_NDS) {
-        TwlHeader* twl = (TwlHeader*) (void*) TEMP_BUFFER;
-        if ((fvx_qread(path, twl, 0, sizeof(TwlHeader), &br) == FR_OK) &&
-            (br == sizeof(TwlHeader))) return twl->title_id;
-    } // ignored: CIA, ticket
-    return 0;
-}
-
 u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file) {
     u32 offset_ncch = fvx_tell(file);
     UINT btr;
@@ -1372,6 +1349,50 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     return ret;
 }
 
+u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
+    u32 filetype = IdentifyFileType(path);
+    
+    if (filetype & GAME_SMDH) { // SMDH file
+        UINT btr;
+        if ((fvx_qread(path, smdh, 0, sizeof(Smdh), &btr) == FR_OK) || (btr == sizeof(Smdh))) return 0;
+    } else if (filetype & GAME_NCCH) { // NCCH file
+        if (LoadExeFsFile(smdh, path, 0, "icon", sizeof(Smdh)) == 0) return 0;
+    } else if (filetype & GAME_NCSD) { // NCSD file
+        if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh)) == 0) return 0;
+    } else if (filetype & GAME_CIA) { // CIA file
+        CiaInfo info;
+        UINT btr;
+        
+        if ((fvx_qread(path, &info, 0, 0x20, &btr) != FR_OK) || (btr != 0x20) ||
+            (GetCiaInfo(&info, (CiaHeader*) &info) != 0)) return 1;
+        if ((info.offset_meta) && (fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), &btr) == FR_OK) &&
+            (btr == sizeof(Smdh))) return 0;
+        else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh)) == 0) return 0;
+    } else if (filetype & GAME_TMD) {
+        const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+        TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+        TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+        
+        // content path string
+        char path_content[256];
+        char* name_content;
+        strncpy(path_content, path, 256);
+        name_content = strrchr(path_content, '/');
+        if (!name_content) return 1; // will not happen
+        name_content++;
+        
+        // load TMD file
+        if ((LoadTmdFile(tmd, path) != 0) || !getbe16(tmd->content_count))
+            return 1;
+        snprintf(name_content, 256 - (name_content - path_content),
+            (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+        
+        return LoadSmdhFromGameFile(path_content, smdh);
+    }
+    
+    return 1;
+}
+
 u32 ShowSmdhTitleInfo(Smdh* smdh) {
     const u32 lwrap = 24;
     u8* icon = (u8*) (TEMP_BUFFER + sizeof(Smdh));
@@ -1392,71 +1413,12 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     return 0;
 }
 
-u32 ShowSmdhFileTitleInfo(const char* path) {
-    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
-    UINT btr;
-    if ((fvx_qread(path, smdh, 0, sizeof(Smdh), &btr) != FR_OK) || (btr != sizeof(Smdh)))
-        return 1;
-    return ShowSmdhTitleInfo(smdh);
-}
-
-u32 ShowNcchFileTitleInfo(const char* path) {
-    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
-    if (LoadExeFsFile(smdh, path, 0, "icon", sizeof(Smdh)) != 0)
-        return 1;
-    return ShowSmdhTitleInfo(smdh);
-}
-
-u32 ShowNcsdFileTitleInfo(const char* path) {
-    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
-    if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh)) != 0)
-        return 1;
-    return ShowSmdhTitleInfo(smdh);
-}
-
-u32 ShowCiaFileTitleInfo(const char* path) {
-    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
-    CiaInfo info;
-    UINT btr;
-    
-    if ((fvx_qread(path, &info, 0, 0x20, &btr) != FR_OK) || (btr != 0x20) ||
-        (GetCiaInfo(&info, (CiaHeader*) &info) != 0))
-        return 1;
-    if ((info.offset_meta) && ((fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), &btr) != FR_OK) ||
-        (btr != sizeof(Smdh)))) return 1;
-    else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh)) != 0) return 1;
-    
-    return ShowSmdhTitleInfo(smdh);
-}
-
-u32 ShowTmdFileTitleInfo(const char* path) {
-    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
-    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
-    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
-    
-    // content path string
-    char path_content[256];
-    char* name_content;
-    strncpy(path_content, path, 256);
-    name_content = strrchr(path_content, '/');
-    if (!name_content) return 1; // will not happen
-    name_content++;
-    
-    // load TMD file
-    if ((LoadTmdFile(tmd, path) != 0) || !getbe16(tmd->content_count))
-        return 1;
-    snprintf(name_content, 256 - (name_content - path_content),
-        (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-    
-    return ShowGameFileTitleInfo(path_content);
-}
-
 u32 ShowNdsFileTitleInfo(const char* path) {
     const u32 lwrap = 24;
     TwlIconData* twl_icon = (TwlIconData*) TEMP_BUFFER;
     u8* icon = (u8*) (TEMP_BUFFER + sizeof(TwlIconData));
     char* desc = (char*) icon + TWLICON_SIZE_ICON;
-    if ((LoadTwlIconData(path, twl_icon) != 0) ||
+    if ((LoadTwlMetaData(path, NULL, twl_icon) != 0) ||
         (GetTwlIcon(icon, twl_icon) != 0) ||
         (GetTwlTitle(desc, twl_icon) != 0))
         return 1;
@@ -1469,25 +1431,12 @@ u32 ShowNdsFileTitleInfo(const char* path) {
 }
 
 u32 ShowGameFileTitleInfo(const char* path) {
-    u32 filetype = IdentifyFileType(path);
-    u32 ret = 1;
+    Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
     
-    // build CIA from game file
-    if (filetype & GAME_SMDH) {
-        ret = ShowSmdhFileTitleInfo(path);
-    } else if (filetype & GAME_NCCH) {
-        ret = ShowNcchFileTitleInfo(path);
-    } else if (filetype & GAME_NCSD) {
-        ret = ShowNcsdFileTitleInfo(path);
-    } else if (filetype & GAME_CIA) {
-        ret = ShowCiaFileTitleInfo(path);
-    } else if (filetype & GAME_TMD) {
-        ret = ShowTmdFileTitleInfo(path);
-    } else if (filetype & GAME_NDS) {
-        ret = ShowNdsFileTitleInfo(path);
-    }
-    
-    return ret;
+    // try loading SMDH, then try NDS
+    if (LoadSmdhFromGameFile(path, smdh) == 0)
+        return ShowSmdhTitleInfo(smdh);
+    else return ShowNdsFileTitleInfo(path);
 }
 
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
@@ -1812,6 +1761,37 @@ u32 BuildSeedInfo(const char* path, bool dump) {
         f_unlink(path_out);
         if ((dump_size <= 16) || (fvx_qwrite(path_out, seed_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))
             return 1;
+    }
+    
+    return 0;
+}
+
+u64 GetTitleId(const char* path) {
+    u32 filetype = IdentifyFileType(path);
+    UINT br;
+    
+    if (filetype & GAME_TMD) {
+        TitleMetaData* tmd = (TitleMetaData*) (void*) TEMP_BUFFER;
+        if ((fvx_qread(path, tmd, 0, TMD_SIZE_MIN, &br) == FR_OK) &&
+            (br == TMD_SIZE_MIN) && (ValidateTmd(tmd) == 0)) return getbe64(tmd->title_id);
+    } else if (filetype & GAME_NCCH) {
+        NcchHeader* ncch = (NcchHeader*) (void*) TEMP_BUFFER;
+        if ((fvx_qread(path, ncch, 0, sizeof(NcchHeader), &br) == FR_OK) &&
+            (br == sizeof(NcchHeader)) && (ValidateNcchHeader(ncch) == 0)) return ncch->programId;
+    } else if (filetype & GAME_NCSD) {
+        NcsdHeader* ncsd = (NcsdHeader*) (void*) TEMP_BUFFER;
+        if ((fvx_qread(path, ncsd, 0, sizeof(NcsdHeader), &br) == FR_OK) &&
+            (br == sizeof(NcsdHeader)) && (ValidateNcsdHeader(ncsd) == 0)) return ncsd->mediaId;
+    } else if (filetype & GAME_NDS) {
+        TwlHeader* twl = (TwlHeader*) (void*) TEMP_BUFFER;
+        if ((twl->unit_code & 0x02) && (fvx_qread(path, twl, 0, sizeof(TwlHeader), &br) == FR_OK) &&
+            (br == sizeof(TwlHeader))) return twl->title_id;
+    } else if (filetype & GAME_CIA) {
+        TitleMetaData* tmd = (TitleMetaData*) (void*) TEMP_BUFFER;
+        CiaInfo info;
+        if ((fvx_qread(path, &info, 0, 0x20, &br) == FR_OK) && (br == 0x20) &&
+            (GetCiaInfo(&info, (CiaHeader*) &info) == 0) && (fvx_qread(path, tmd, info.offset_tmd, TMD_SIZE_MIN, &br) == FR_OK) &&
+            (br == TMD_SIZE_MIN) && (ValidateTmd(tmd) == 0)) return getbe64(tmd->title_id);
     }
     
     return 0;
