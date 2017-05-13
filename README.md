@@ -12,11 +12,11 @@ __As always, be smart, keep backups, just to be safe__.
 
 ## Quick start guide
 These short instructions apply to all users who have ARM9loaderhax and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
-* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
+* Place `GodMode9.bin`(from the release archive) into `sd:/luma/payloads/`
 * Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/` or `sd:/files9` (optional but recommended for full functionality).
 * Possibly helpful info: If you wonder how to backup your NAND, press the HOME button and enter the menu titled `More...`. You may also backup your NAND via just copying the `nand.bin` / `nand_min.bin` file in `S:/`.
 
-You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
+You may now run GodMode9 via holding the start button at startup and selecting `GodMode9.bin` from the Luma3DS Chainloader menu. See below for a list of stuff you can do with it.
 
 
 ## How to run this / entry points / developer info
