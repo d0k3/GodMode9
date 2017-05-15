@@ -45,8 +45,8 @@
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);
 
-/** Set search pattern / path for special Z: drive **/
-void SetFSSearch(const char* pattern, const char* path);
+/** Set search pattern / path / mode for special Z: drive **/
+void SetFSSearch(const char* pattern, const char* path, bool mode);
 
 /** Get directory content under a given path **/
 void GetDirContents(DirStruct* contents, const char* path);

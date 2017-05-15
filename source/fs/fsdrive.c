@@ -1,4 +1,5 @@
 #include "fsdrive.h"
+#include "fsgame.h"
 #include "fsinit.h"
 #include "virtual.h"
 #include "sddata.h"
@@ -6,9 +7,10 @@
 #include "ui.h"
 #include "ff.h"
 
-// last search pattern & path
+// last search pattern, path & mode
 static char search_pattern[256] = { 0 };
 static char search_path[256] = { 0 };
+static bool search_title_mode = false;
 
 int DriveType(const char* path) {
     int type = DRV_UNKNOWN;
@@ -59,10 +61,11 @@ int DriveType(const char* path) {
     return type;
 }
 
-void SetFSSearch(const char* pattern, const char* path) {
+void SetFSSearch(const char* pattern, const char* path, bool mode) {
     if (pattern && path) {
         strncpy(search_pattern, pattern, 256);
         strncpy(search_path, path, 256);
+        search_title_mode = mode;
     } else *search_pattern = *search_path = '\0';
 }
 
@@ -171,16 +174,17 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
             if (!GetDirContentsWorker(contents, fpath, 256, pattern, recursive))
                 contents->n_entries = 0;
         }
-        SortDirStruct(contents);
     }
 }
 
 void GetDirContents(DirStruct* contents, const char* path) {
-    if (DriveType(path) & DRV_SEARCH) {
+    if (*search_path && DriveType(path) & DRV_SEARCH) {
         ShowString("Searching, please wait...");
         SearchDirContents(contents, search_path, search_pattern, true);
+        if (search_title_mode) SetDirGoodNames(contents);
         ClearScreenF(true, false, COLOR_STD_BG);
     } else SearchDirContents(contents, path, NULL, false);
+    if (*path) SortDirStruct(contents);
 }
 
 uint64_t GetFreeSpace(const char* path)

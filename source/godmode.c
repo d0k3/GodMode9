@@ -1394,24 +1394,32 @@ u32 GodMode() {
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
-                const char* optionstr[3] = { "Search for files...", "Directory info", "Copy to " OUTPUT_PATH };
-                u32 n_opt = (*current_path && (strncmp(current_path, OUTPUT_PATH, 256) != 0)) ? 3 : 2;
+                const char* optionstr[4] = { NULL };
+                int n_opt = 0;
+                int srch_t = (strncmp(curr_entry->path + 1, ":/title", 7) == 0) ? ++n_opt : -1;
+                int srch_f = ++n_opt;
+                int dirnfo = ++n_opt;
+                int stdcpy = (strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
+                if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
+                if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
+                if (dirnfo > 0) optionstr[dirnfo-1] = "Directory info";
+                if (stdcpy > 0) optionstr[stdcpy-1] = "Copy to " OUTPUT_PATH;
                 char namestr[32+1];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
-                u32 user_select = ShowSelectPrompt(n_opt, optionstr, "%s", namestr);
-                if (user_select == 1) {
+                int user_select = ShowSelectPrompt(n_opt, optionstr, "%s", namestr);
+                if ((user_select == srch_f) || (user_select == srch_t)) {
                     char searchstr[256];
-                    snprintf(searchstr, 256, "*");
+                    snprintf(searchstr, 256, (user_select == srch_t) ? "*.tmd" : "*");
                     TruncateString(namestr, curr_entry->name, 20, 8);
-                    if (ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
-                        SetFSSearch(searchstr, curr_entry->path);
+                    if ((user_select == srch_t) || ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
+                        SetFSSearch(searchstr, curr_entry->path, (user_select == srch_t));
                         snprintf(current_path, 256, "Z:");
                         GetDirContents(current_dir, current_path);
                         if (current_dir->n_entries) ShowPrompt(false, "Found %lu results.", current_dir->n_entries - 1);
                         cursor = 1;
                         scroll = 0;
                     }
-                } else if (user_select == 2) {
+                } else if (user_select == dirnfo) {
                     u64 tsize = 0;
                     u32 tdirs = 0;
                     u32 tfiles = 0;
@@ -1420,7 +1428,7 @@ u32 GodMode() {
                         FormatBytes(bytestr, tsize);
                         ShowPrompt(false, "%s\n%lu files & %lu subdirs\n%s total", namestr, tfiles, tdirs, bytestr);
                     } else ShowPrompt(false, "Analyze dir: failed!");
-                } else if (user_select == 3) {
+                } else if (user_select == stdcpy) {
                     StandardCopy(&cursor, current_dir);
                 }
             } else { // one level up
