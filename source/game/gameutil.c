@@ -209,6 +209,28 @@ u32 LoadCdnTicketFile(Ticket* ticket, const char* path_cnt) {
     return 0;
 }
 
+u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
+    // get path to TMD first content
+    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
+    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+    
+    // content path string
+    char* name_content;
+    strncpy(path_content, path_tmd, 256);
+    name_content = strrchr(path_content, '/');
+    if (!name_content) return 1; // will not happen
+    name_content++;
+    
+    // load TMD file
+    if ((LoadTmdFile(tmd, path_tmd) != 0) || !getbe16(tmd->content_count))
+        return 1;
+    snprintf(name_content, 256 - (name_content - path_content),
+        (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+    
+    return 0;
+}
+
 u32 WriteCiaStub(CiaStub* stub, const char* path) {
     FIL file;
     UINT btw;
@@ -1373,24 +1395,8 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
             (btr == sizeof(Smdh))) return 0;
         else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh)) == 0) return 0;
     } else if (filetype & GAME_TMD) {
-        const u8 dlc_tid_high[] = { DLC_TID_HIGH };
-        TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
-        TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
-        
-        // content path string
         char path_content[256];
-        char* name_content;
-        strncpy(path_content, path, 256);
-        name_content = strrchr(path_content, '/');
-        if (!name_content) return 1; // will not happen
-        name_content++;
-        
-        // load TMD file
-        if ((LoadTmdFile(tmd, path) != 0) || !getbe16(tmd->content_count))
-            return 1;
-        snprintf(name_content, 256 - (name_content - path_content),
-            (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-        
+        if (GetTmdContentPath(path_content, path) != 0) return 1;
         return LoadSmdhFromGameFile(path_content, smdh);
     }
     
@@ -1436,6 +1442,12 @@ u32 ShowNdsFileTitleInfo(const char* path) {
 
 u32 ShowGameFileTitleInfo(const char* path) {
     Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
+    
+    char path_content[256];
+    if (IdentifyFileType(path) & GAME_TMD) {
+        if (GetTmdContentPath(path_content, path) != 0) return 1;
+        path = path_content;
+    }
     
     // try loading SMDH, then try NDS
     if (LoadSmdhFromGameFile(path, smdh) == 0)
@@ -1839,24 +1851,7 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
     
     char path_content[256];
     if (type_donor & GAME_TMD) {
-        const u8 dlc_tid_high[] = { DLC_TID_HIGH };
-        TitleMetaData* tmd = (TitleMetaData*) TEMP_BUFFER;
-        TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
-        
-        // content path string
-        char* name_content;
-        strncpy(path_content, path_donor, 256);
-        name_content = strrchr(path_content, '/');
-        if (!name_content) return 1; // will not happen
-        name_content++;
-        
-        // load TMD file
-        if ((LoadTmdFile(tmd, path_donor) != 0) || !getbe16(tmd->content_count))
-            return 1;
-        snprintf(name_content, 256 - (name_content - path_content),
-            (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-        
-        // new donor type
+        if (GetTmdContentPath(path_content, path) != 0) return 1;
         path_donor = path_content;
         type_donor = IdentifyFileType(path_donor);
     }

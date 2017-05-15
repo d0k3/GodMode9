@@ -31,9 +31,9 @@ u32 ValidateTwlHeader(TwlHeader* twl) {
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon) {
     u8 ntr_header[0x200]; // we only need the NTR header (ignore TWL stuff)
     TwlHeader* twl = hdr ? hdr : (TwlHeader*) ntr_header;
-    u32 hdr_size = hdr ? sizeof(TwlHeader) : 0x200; // load full header if bufefr provided
+    u32 hdr_size = hdr ? sizeof(TwlHeader) : 0x200; // load full header if buffer provided
     UINT br;
-    if ((fvx_qread(path, ntr_header, 0, hdr_size, &br) != FR_OK) || (br != hdr_size) ||
+    if ((fvx_qread(path, twl, 0, hdr_size, &br) != FR_OK) || (br != hdr_size) ||
         (ValidateTwlHeader(twl) != 0))
         return 1;
     if (!icon) return 0; // done if icon data is not required
