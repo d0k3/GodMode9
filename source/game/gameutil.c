@@ -981,7 +981,7 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
         // build output name
         snprintf(dest, 256, OUTPUT_PATH "/");
         char* dname = dest + strnlen(dest, 256);
-        if ((strncmp(path + 1, ":/title/", 8) != 0) || (GetGoodName(dname, path, true) != 0)) {
+        if ((strncmp(path + 1, ":/title/", 8) != 0) || (GetGoodName(dname, path, false) != 0)) {
             char* name = strrchr(path, '/');
             if (!name) return 1;
             snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
@@ -1341,7 +1341,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     snprintf(dest, 256, OUTPUT_PATH "/");
     char* dname = dest + strnlen(dest, 256);
     if (!((filetype & GAME_TMD) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
-        (GetGoodName(dname, path, true) != 0)) {
+        (GetGoodName(dname, path, false) != 0)) {
         char* name = strrchr(path, '/');
         if (!name) return 1;
         snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
