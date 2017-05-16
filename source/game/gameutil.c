@@ -1874,7 +1874,7 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
             
             if (twl->unit_code & 0x02) { // TWL
                 char region[8] = { 0 };
-                if (twl->region_flags == TWL_REGION_FREE) snprintf(region, 8, "WORLD");
+                if (twl->region_flags == TWL_REGION_FREE) snprintf(region, 8, "W");
                 snprintf(region, 8, "%s%s%s%s%s",
                     (twl->region_flags & TWL_REGION_JAP) ? "J" : "",
                     (twl->region_flags & TWL_REGION_USA) ? "U" : "",
@@ -1902,7 +1902,7 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
             if (GetSmdhDescShort(title_name, smdh) != 0) return 1;
             
             char region[8] = { 0 };
-            if (smdh->region_lockout == SMDH_REGION_FREE) snprintf(region, 8, "WORLD");
+            if (smdh->region_lockout == SMDH_REGION_FREE) snprintf(region, 8, "W");
             snprintf(region, 8, "%s%s%s%s%s%s",
                 (smdh->region_lockout & SMDH_REGION_JAP) ? "J" : "",
                 (smdh->region_lockout & SMDH_REGION_USA) ? "U" : "",
@@ -1920,10 +1920,17 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
     
     // remove illegal chars from filename
     for (char* c = name; *c; c++) {
-    if ((*c == ':') || (*c == '/') || (*c == '\\') ||
-        (*c == '*') || (*c == '?') || (*c == '\n') || (*c == '\r'))
-        *c = ' ';
-    }        
+        if ((*c == ':') || (*c == '/') || (*c == '\\') || (*c == '"') ||
+            (*c == '*') || (*c == '?') || (*c == '\n') || (*c == '\r'))
+            *c = ' ';
+    }
+    
+    // remove double spaces from filename
+    char* s = name;
+    for (char* c = name; *s; c++, s++) {
+        while ((*c == ' ') && (*(c+1) == ' ')) c++;
+        *s = *c;
+    }
     
     return 0;
 }
