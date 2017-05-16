@@ -49,7 +49,7 @@
 #endif
 
 // GodMode9 version
-#define VERSION "1.1.4"
+#define VERSION "1.1.5"
 
 // Maximum payload size (arbitrary value!)
 #define SELF_MAX_SIZE (320 * 1024) // 320kB
