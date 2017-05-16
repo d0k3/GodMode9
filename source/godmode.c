@@ -298,9 +298,7 @@ u32 HexViewer(const char* path) {
         show_instr = false;
     }
     
-    #ifdef SWITCH_SCREENS
-    ShowString(instr);
-    #endif
+    if (MAIN_SCREEN != TOP_SCREEN) ShowString(instr);
     memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     
     while (true) {
@@ -452,11 +450,13 @@ u32 HexViewer(const char* path) {
                 u8 data[64] = { 0 };
                 FileGetData(path, data, found_size, found_offset);
                 found_offset = FileFindData(path, data, found_size, found_offset + 1);
-                ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                 if (found_offset == (u32) -1) {
                     ShowPrompt(false, "Not found!");
                     found_size = 0;
                 } else offset = found_offset;
+                if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+                else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+                else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
             } else if (pad_state & BUTTON_X) {
                 const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
                 u32 user_select = ShowSelectPrompt(3, optionstr, "Current offset: %08X\nSelect action:", 
@@ -471,11 +471,13 @@ u32 HexViewer(const char* path) {
                     if (ShowStringPrompt(string, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
                         found_size = strnlen(string, 64);
                         found_offset = FileFindData(path, (u8*) string, found_size, offset);
-                        ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                         if (found_offset == (u32) -1) {
                             ShowPrompt(false, "Not found!");
                             found_size = 0;
                         } else offset = found_offset;
+                        if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+                        else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+                        else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
                     }
                 } else if (user_select == 3) {
                     u8 data[64] = { 0 };
@@ -484,11 +486,13 @@ u32 HexViewer(const char* path) {
                     if (ShowDataPrompt(data, &size, "Enter search data below.\n(R+X to repeat search)", (unsigned int) offset)) {
                         found_size = size;
                         found_offset = FileFindData(path, data, size, offset);
-                        ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                         if (found_offset == (u32) -1) {
                             ShowPrompt(false, "Not found!");
                             found_size = 0;
                         } else offset = found_offset;
+                        if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+                        else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+                        else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
                     }
                 }
             }
@@ -544,11 +548,9 @@ u32 HexViewer(const char* path) {
     }
     
     ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-    #ifndef SWITCH_SCREENS
-    memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
-    #else
-    ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-    #endif
+    if (MAIN_SCREEN == TOP_SCREEN) memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+    else ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+    
     return 0;
 }
 
@@ -1316,7 +1318,7 @@ u32 SplashInit() {
 }
 
 u32 GodMode() {
-    static const u32 quick_stp = 20;
+    const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
     
     // reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
