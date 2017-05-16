@@ -755,7 +755,7 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     
     u32 ret = 0;
     if (!ShowProgress(offset, fsize, dest)) ret = 1;
-    if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM)) { // for NCCH / NCSD / BOSS / FIRM files
+    if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM|GAME_NDS)) { // for NCCH / NCSD / BOSS / FIRM files
         for (u64 i = 0; (i < size) && (ret == 0); i += MAIN_BUFFER_SIZE) {
             u32 read_bytes = min(MAIN_BUFFER_SIZE, (size - i));
             UINT bytes_read, bytes_written;
@@ -1373,6 +1373,27 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
         f_unlink(dest);
     
     return ret;
+}
+
+// this has very limited uses right now
+u32 DumpCxiSrlFromTmdFile(const char* path) {
+    u32 filetype = 0;
+    char path_cxi[256];
+    char dest[256];
+    
+    // prepare output name
+    snprintf(dest, 256, OUTPUT_PATH "/");
+    char* dname = dest + strnlen(dest, 256);
+        
+    // get path to CXI/SRL and decrypt (if encrypted)
+    if ((strncmp(path + 1, ":/title/", 8) != 0) ||
+        (GetTmdContentPath(path_cxi, path) != 0) ||
+        (!((filetype = IdentifyFileType(path_cxi)) & (GAME_NCCH|GAME_NDS))) ||
+        (GetGoodName(dname, path_cxi, false) != 0) ||
+        (CryptNcchNcsdBossFirmFile(path_cxi, dest, filetype, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0))
+        return 1;
+    
+    return 0;
 }
 
 u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {

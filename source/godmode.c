@@ -668,6 +668,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
+    bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
     bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path;
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
@@ -818,6 +819,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int encrypt = (encryptable) ? ++n_opt : -1;
     int cia_build = (cia_buildable) ? ++n_opt : -1;
     int cia_build_legit = (cia_buildable_legit) ? ++n_opt : -1;
+    int cxi_dump = (cxi_dumpable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
     int key_build = (key_buildable) ? ++n_opt : -1;
@@ -835,6 +837,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
     if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (cia_build_legit > 0) optionstr[cia_build_legit-1] = "Build CIA (legit)";
+    if (cxi_dump > 0) optionstr[cxi_dump-1] = "Dump CXI/NDS file";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
     if (key_build > 0) optionstr[key_build-1] = "Build " KEYDB_NAME;
@@ -966,7 +969,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             else ShowPrompt(false, "%s\nEncrypted to %s", pathstr, OUTPUT_PATH);
         }
         return 0;
-    } else if ((user_select == cia_build) || (user_select == cia_build_legit)) { // -> build CIA
+    } else if ((user_select == cia_build) || (user_select == cia_build_legit) || (user_select == cxi_dump)) { // -> build CIA / dump CXI
+        char* type = (user_select == cxi_dump) ? "CXI" : "CIA";
         bool force_legit = (user_select == cia_build_legit);
         if ((n_marked > 1) && ShowPrompt(true, "Try to process all %lu selected files?", n_marked)) {
             u32 n_success = 0;
@@ -980,24 +984,26 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     continue;
                 }
                 current_dir->entry[i].marked = false;
-                if (BuildCiaFromGameFile(path, force_legit) == 0) n_success++;
+                if (((user_select != cxi_dump) && (BuildCiaFromGameFile(path, force_legit) == 0)) ||
+                    ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(path) == 0))) n_success++;
                 else { // on failure: set *cursor on failed title, break;
                     TruncateString(pathstr, path, 32, 8);
-                    ShowPrompt(false, "%s\nBuild CIA failed", pathstr);
+                    ShowPrompt(false, "%s\nBuild %s failed", pathstr, type);
                     *cursor = i;
                     break;
                 }
             }
-            if (n_other) ShowPrompt(false, "%lu/%lu CIAs built ok\n%lu/%lu not of same type",
-                n_success, n_marked, n_other, n_marked);
-            else ShowPrompt(false, "%lu/%lu CIAs built ok", n_success, n_marked);
+            if (n_other) ShowPrompt(false, "%lu/%lu %ss built ok\n%lu/%lu not of same type",
+                n_success, n_marked, type, n_other, n_marked);
+            else ShowPrompt(false, "%lu/%lu %ss built ok", n_success, n_marked, type);
             if (n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
             if (n_success && in_output_path) GetDirContents(current_dir, current_path);
         } else {
-            if (BuildCiaFromGameFile(curr_entry->path, force_legit) == 0) {
-                ShowPrompt(false, "%s\nCIA built to %s", pathstr, OUTPUT_PATH);
+            if (((user_select != cxi_dump) && (BuildCiaFromGameFile(curr_entry->path, force_legit) == 0)) ||
+                ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(curr_entry->path) == 0))) {
+                ShowPrompt(false, "%s\n%s built to %s", pathstr, type, OUTPUT_PATH);
                 if (in_output_path) GetDirContents(current_dir, current_path);
-            } else ShowPrompt(false, "%s\nCIA build failed", pathstr);
+            } else ShowPrompt(false, "%s\n%s build failed", pathstr, type);
         }
         return 0;
     } else if (user_select == verify) { // -> verify game / nand file

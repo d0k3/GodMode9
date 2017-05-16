@@ -6,6 +6,7 @@ u32 VerifyGameFile(const char* path);
 u32 CheckEncryptedGameFile(const char* path);
 u32 CryptGameFile(const char* path, bool inplace, bool encrypt);
 u32 BuildCiaFromGameFile(const char* path, bool force_legit);
+u32 DumpCxiSrlFromTmdFile(const char* path);
 u32 ShowGameFileTitleInfo(const char* path);
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path);
 u32 CheckHealthAndSafetyInject(const char* hsdrv);
