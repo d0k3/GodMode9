@@ -11,3 +11,10 @@
 
 // see: https://3dbrew.org/wiki/CONFIG11_Registers
 #define IS_A9LH     ((*(vu32*) 0x101401C0) == 0)
+
+// https://www.3dbrew.org/wiki/CONFIG9_Registers
+// (actually checks for an unlocked OTP)
+#define IS_UNLOCKED (!((*(vu8*)0x10000000) & 0x2))
+
+// A9LH + unlocked = SigHax
+#define IS_SIGHAX   (IS_A9LH && IS_UNLOCKED)

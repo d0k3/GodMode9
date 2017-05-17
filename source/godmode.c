@@ -244,7 +244,7 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    if (IS_A9LH) {
+    if (IS_A9LH && !IS_SIGHAX) {
         InitSDCardFS(); // on A9LH: copy the payload from mem to SD root
         FileSetData("0:/arm9loaderhax_si.bin", (u8*) 0x23F00000, SELF_MAX_SIZE, 0, true);
         DeinitSDCardFS();
@@ -679,7 +679,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
-    bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
+    bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT) && !IS_SIGHAX);
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
         tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
         launchable || ebackupable;

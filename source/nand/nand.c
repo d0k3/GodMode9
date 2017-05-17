@@ -120,7 +120,10 @@ bool InitNandCrypto(void)
 {   
     // part #0: KeyX / KeyY for secret sector 0x96
     // on a9lh this MUST be run before accessing the SHA register in any other way
-    if (IS_A9LH) { // for a9lh
+    if (IS_UNLOCKED) { // if OTP is unlocked
+        // see: https://www.3dbrew.org/wiki/OTP_Registers
+        sha_quick(OtpSha256, (u8*) 0x10012000, 0x90, SHA256_MODE);
+    } else if (IS_A9LH) { // for a9lh
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*) REG_SHAHASH, 32);
     } else {
