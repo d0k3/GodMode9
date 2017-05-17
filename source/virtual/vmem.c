@@ -7,7 +7,7 @@
 static const VirtualFile vMemFileTemplates[] = {
     { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, 0 },
     { "arm9.mem"         , 0x08000000, 0x00100000, 0xFF, 0 },
-    { "arm9ext.mem"      , 0x08010000, 0x00080000, 0xFF, VFLAG_N3DS_ONLY },
+    { "arm9ext.mem"      , 0x08100000, 0x00080000, 0xFF, VFLAG_N3DS_ONLY },
     { "vram.mem"         , 0x18000000, 0x00600000, 0xFF, 0 },
     { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, 0 },
     { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, 0 },
