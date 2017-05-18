@@ -9,3 +9,7 @@
 	path = CakesROP
 	url = https://github.com/mid-kid/CakesROP
 	ignore = dirty
+[submodule "firmtool"]
+	path = firmtool
+	url = https://github.com/TuxSH/firmtool.git
+	ignore = dirty
