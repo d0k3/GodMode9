@@ -10,6 +10,9 @@
 
 #define NAND_MIN_SECTORS ((!IS_O3DS) ? NAND_MIN_SECTORS_N3DS : NAND_MIN_SECTORS_O3DS)
 
+#define KEY95_SHA256    ((IS_DEVKIT) ? slot0x11Key95dev_sha256 : slot0x11Key95_sha256)
+#define SECTOR_SHA256   ((IS_DEVKIT) ? sector0x96dev_sha256 : sector0x96_sha256)
+
 static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from FIRM0 / external file
 static const u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY (16 byte)
     0x98, 0x24, 0x27, 0x14, 0x22, 0xB0, 0x6B, 0xF2, 0x10, 0x96, 0x9C, 0x36, 0x42, 0x53, 0x7C, 0x86,
@@ -25,10 +28,21 @@ static const u8 slot0x11Key95_sha256[0x20] = { // slot0x11Key95 hash (first 16 b
     0x6C, 0x78, 0x5F, 0xAC, 0xEC, 0x7E, 0xC0, 0x11, 0x26, 0x9D, 0x4E, 0x47, 0xB3, 0x64, 0xC4, 0xA5
 };
 
+static const u8 slot0x11Key95dev_sha256[0x20] = { // slot0x11Key95 hash (first 16 byte of sector0x96)
+    0x97, 0x0E, 0x52, 0x29, 0x63, 0x19, 0x47, 0x51, 0x15, 0xD8, 0x02, 0x7A, 0x22, 0x0F, 0x58, 0x15,
+    0xD7, 0x6C, 0xE9, 0xAD, 0xE7, 0xFE, 0x9A, 0x25, 0x4E, 0x4A, 0x0C, 0x82, 0x67, 0xB5, 0x4A, 0x7B
+};
+
 // from: https://github.com/AuroraWright/SafeA9LHInstaller/blob/master/source/installer.c#L9-L17
 static const u8 sector0x96_sha256[0x20] = { // hash for legit sector 0x96 (different on A9LH)
     0x82, 0xF2, 0x73, 0x0D, 0x2C, 0x2D, 0xA3, 0xF3, 0x01, 0x65, 0xF9, 0x87, 0xFD, 0xCC, 0xAC, 0x5C,
     0xBA, 0xB2, 0x4B, 0x4E, 0x5F, 0x65, 0xC9, 0x81, 0xCD, 0x7B, 0xE6, 0xF4, 0x38, 0xE6, 0xD9, 0xD3
+};
+
+// from: https://github.com/SciresM/CTRAesEngine/tree/master/CTRAesEngine/Resources/_byte
+static const u8 sector0x96dev_sha256[0x20] = { // hash for legit sector 0x96 (different on A9LH)
+    0xB2, 0x91, 0xD9, 0xB1, 0x33, 0x05, 0x79, 0x0D, 0x47, 0xC6, 0x06, 0x98, 0x4C, 0x67, 0xC3, 0x70,
+    0x09, 0x54, 0xE3, 0x85, 0xDE, 0x47, 0x55, 0xAF, 0xC6, 0xCB, 0x1D, 0x8D, 0xC7, 0x84, 0x5A, 0x64
 };
     
 static const u8 nand_magic_n3ds[0x60] = { // NCSD NAND header N3DS magic
@@ -218,7 +232,7 @@ bool CheckSector0x96Crypto(void)
 {
     u8 buffer[0x200];
     ReadNandSectors(buffer, 0x96, 1, 0x11, NAND_SYSNAND);
-    return (sha_cmp(slot0x11Key95_sha256, buffer, 16, SHA256_MODE) == 0);
+    return (sha_cmp(KEY95_SHA256, buffer, 16, SHA256_MODE) == 0);
 }
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
@@ -450,14 +464,14 @@ u64 GetNandUnusedSectors(u32 nand_src)
 u32 GetLegitSector0x96(u8* sector)
 {
     // secret sector already in buffer?
-    if (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0)
+    if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
         return 0;
     
     // search for valid secret sector in SysNAND / EmuNAND
     const u32 nand_src[] = { NAND_SYSNAND, NAND_EMUNAND };
     for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
         ReadNandSectors(sector, 0x96, 1, 0x11, nand_src[i]);
-        if (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0)
+        if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
             return 0;
     }
     
@@ -467,11 +481,11 @@ u32 GetLegitSector0x96(u8* sector)
         char path[64];
         snprintf(path, 64, "%s/%s", base[i], SECTOR_NAME);
         if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
-            (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0))
+            (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0))
             return 0;
         snprintf(path, 64, "%s/%s", base[i], SECRET_NAME);
         if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
-            (sha_cmp(sector0x96_sha256, sector, 0x200, SHA256_MODE) == 0))
+            (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0))
             return 0;
     }
     
