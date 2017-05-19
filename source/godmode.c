@@ -5,6 +5,7 @@
 #include "fsdrive.h"
 #include "fsutil.h"
 #include "fsperm.h"
+#include "fsgame.h"
 #include "gameutil.h"
 #include "keydbutil.h"
 #include "nandutil.h"
@@ -672,14 +673,16 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
     bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path;
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
+    bool renamable = (FTYPE_RENAMABLE(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT));
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit ||
-        tik_buildable || key_buildable || titleinfo || hsinjectable || restorable || xorpadable || launchable || ebackupable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
+        tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
+        launchable || ebackupable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -715,7 +718,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
-        (filetype & GAME_NDS)   ? "Show NDS title info"   :
+        (filetype & GAME_NDS)   ? "NDS image options..."  :
         (filetype & GAME_TICKET)? "Ticket options..."     :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_TICKDB) ? (tik_buildable) ? "Ticket.db options..." : "Mount as ticket.db" :
@@ -826,6 +829,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int verify = (verificable) ? ++n_opt : -1;
     int ctrtransfer = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
+    int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     int launch = (launchable) ? ++n_opt : -1;
@@ -844,6 +848,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (verify > 0) optionstr[verify-1] = "Verify file";
     if (ctrtransfer > 0) optionstr[ctrtransfer-1] = "Transfer image to CTRNAND";
     if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
+    if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
@@ -1096,6 +1101,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             } else ShowPrompt(false, "%s\nBuild database failed.", path_out);
         } else ShowPrompt(false, "%s\nBuild database %s.", path_out, 
             (BuildKeyDb(curr_entry->path, true) == 0) ? "success" : "failed");
+        return 0;
+    } else if (user_select == rename) { // -> Game file renamer
+        if ((n_marked > 1) && ShowPrompt(true, "Try to rename all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            ShowProgress(0, 0, "");
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                DirEntry* entry = &(current_dir->entry[i]);
+                if (!current_dir->entry[i].marked) continue;
+                ShowProgress(i+1, current_dir->n_entries, entry->name);
+                if (!GoodRenamer(entry, false)) continue;
+                n_success++;
+                current_dir->entry[i].marked = false;
+            }
+            ShowPrompt(false, "%lu/%lu renamed ok", n_success, n_marked);
+        } else if (!GoodRenamer(&(current_dir->entry[*cursor]), true)) {
+            ShowPrompt(false, "%s\nGood name not found\n(Maybe try decrypt?)", pathstr);
+        }
         return 0;
     } else if (user_select == show_info) { // -> Show title info
         if (ShowGameFileTitleInfo(curr_entry->path) != 0)
