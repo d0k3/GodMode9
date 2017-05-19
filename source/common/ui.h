@@ -55,7 +55,7 @@
 #define TOP_SCREEN          (u8*)(*(u32*)0x23FFFE00)
 #define BOT_SCREEN          (u8*)(*(u32*)0x23FFFE08)
 
-#ifndef SWITCH_SCREENS
+#ifdef SWITCH_SCREENS
 #define MAIN_SCREEN         TOP_SCREEN
 #define ALT_SCREEN          BOT_SCREEN
 #define SCREEN_WIDTH_MAIN   SCREEN_WIDTH_TOP
