@@ -44,8 +44,8 @@ static const VirtualFile vMemFileTemplates[] = {
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, 0 },
     { "otp.mem"          , 0x10012000, 0x00000100, 0xFF, VFLAG_OTP },
     // { "otp_dec.mem"      , 0x10012000, 0x00000100, 0x11, VFLAG_OTP | VFLAG_BOOT9 },
-    { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
-    { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 },
+    // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
+    // { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 },
     { "godmode9.bin"     , 0x23F00000, SELF_MAX_SIZE, 0xFF, VFLAG_PAYLOAD }
 };
 
