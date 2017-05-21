@@ -51,7 +51,7 @@ u32 AddKeyToDb(AesKeyInfo* key_info, AesKeyInfo* key_entry) {
             if ((u8*) key - (u8*) key_info >= MAX_KEYDB_SIZE) return 1;
             if ((key_entry->slot == key->slot) && (key_entry->type == key->type) &&
                 (strncasecmp(key_entry->id, key->id, 10) == 0) &&
-                ((bool) key_entry->isDevkitKey == (bool) key->isDevkitKey))
+                (key_entry->keyUnitType == key->keyUnitType))
                 return 0; // key already in db
         }
         memcpy(key++, key_entry, sizeof(AesKeyInfo));
@@ -104,9 +104,10 @@ u32 BuildKeyDb(const char* path, bool dump) {
         if (!dot) return 1;
         *dot = '\0';
         if ((typestr[1] == '\0') && ((*typestr == 'X') || (*typestr == 'Y'))) key.type = *typestr;
+        else if ((typestr[2] == '\0') && (typestr[0] == 'I') && (typestr[1] == 'V')) key.type = 'I';
         else strncpy(key.id, typestr, 10);
         key.slot = keyslot;
-        key.isDevkitKey = (IS_DEVKIT) ? 1 : 0; // just assume it's a devkit key on devkit
+        key.keyUnitType = 0;
         if ((fvx_qread(path_in, key.key, 0, 16, &br) != FR_OK) || (br != 16)) return 1;
         if (AddKeyToDb(key_info, &key) != 0) return 1;
     }

@@ -5,15 +5,15 @@
 #define KEYDB_NAME "aeskeydb.bin"
 
 #define KEYS_UNKNOWN 0
-#define KEYS_RETAIL  1
-#define KEYS_DEVKIT  2
+#define KEYS_DEVKIT  1
+#define KEYS_RETAIL  2
 
 typedef struct {
     u8   slot; // keyslot, 0x00...0x3F 
-    char type; // type 'X' / 'Y' / 'N' for normalKey
+    char type; // type 'X' / 'Y' / 'N' for normalKey / 'I' for IV
     char id[10]; // key ID for special keys, all zero for standard keys
     u8   reserved[2]; // reserved space
-    u8   isDevkitKey; // 0 for retail units / 1 for DevKit units
+    u8   keyUnitType; // 0 for ALL units / 1 for devkit exclusive / 2 for retail exclusive
     u8   isEncrypted; // 0 if not / anything else if it is
     u8   key[16];
 } __attribute__((packed)) AesKeyInfo;
