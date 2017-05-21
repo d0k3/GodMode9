@@ -2,7 +2,7 @@
 #include "image.h"
 #include "keydb.h"
 
-#define NAME_LEGKEY "slot0x%02lXKey%.10s.bin" // keyslot / type string
+#define NAME_LEGKEY "slot0x%02lXKey%.10s%s.bin" // keyslot / type string / unit extension
 
 static AesKeyInfo* key_info = (AesKeyInfo*) VGAME_BUFFER; // full 1MB reserved (enough for 32768 entries)
 static u32 n_keys = 0;
@@ -39,11 +39,15 @@ bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir) {
         AesKeyInfo* key_entry = key_info + vdir->index;
         u32 keyslot = key_entry->slot;
         char typestr[16] = { 0 };
+        char* unitext =
+            (key_entry->keyUnitType == KEYS_DEVKIT) ? ".dev" :
+            (key_entry->keyUnitType == KEYS_RETAIL) ? ".ret" : ""; 
         if (*(key_entry->id)) snprintf(typestr, 10, key_entry->id);
+        else if (key_entry->type == 'I') snprintf(typestr, 10, "IV");
         else if (key_entry->type != 'N') *typestr = key_entry->type;
         
         memset(vfile, 0, sizeof(VirtualFile));
-        snprintf(vfile->name, 32, NAME_LEGKEY, keyslot, typestr);
+        snprintf(vfile->name, 32, NAME_LEGKEY, keyslot, typestr, unitext);
         vfile->offset = vdir->index * sizeof(AesKeyInfo);
         vfile->size = 16; // standard size of a key
         vfile->keyslot = 0xFF;
