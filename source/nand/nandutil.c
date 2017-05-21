@@ -203,11 +203,11 @@ u32 SafeRestoreNandDump(const char* path) {
         !ShowPrompt(true, "NAND dump corrupt or not from console.\nStill continue?"))
         return 1;
     if (!IS_A9LH) {
-        ShowPrompt(false, "Error: A9LH not detected.");
+        ShowPrompt(false, "Error: A9LH/B9S not detected.");
         return 1;
     }
     
-    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(A9LH will be left intact.)"))
+    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(A9LH/B9S will be left intact.)"))
         return 1;
     if (!SetWritePermissions(PERM_SYS_LVL1, true)) return 1;
     

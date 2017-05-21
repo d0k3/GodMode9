@@ -26,7 +26,6 @@ bool CheckWritePermissions(const char* path) {
         return false; // endless loop when mounted file inside image, but not possible
     
     // check drive type, get permission type
-    // TODO: handle entypoints other than A9LH (!!!)
     if (drvtype & DRV_SYSNAND) {
         u32 perms[] = { PERM_SYS_LVL0, PERM_SYS_LVL1, PERM_SYS_LVL2, PERM_SYS_LVL3 };
         u32 lvl = (drvtype & (DRV_TWLNAND|DRV_ALIAS|DRV_CTRNAND)) ? 1 : 0;
@@ -172,7 +171,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
                 return false;
             break;
         case PERM_SYS_LVL3:
-            if (!ShowUnlockSequence(6, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\n%s", IS_A9LH ? "your A9LH installation and/or\nBRICK your console!" : "essential system files and/or\nBRICK your console!"))
+            if (!ShowUnlockSequence(6, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\n%s", IS_SIGHAX ? "your B9S installation and/or\nBRICK your console!" : IS_A9LH ? "your A9LH installation and/or\nBRICK your console!" : "essential system files and/or\nBRICK your console!"))
                 return false;
             break;
         case PERM_ALL: // not accessible from GM9
