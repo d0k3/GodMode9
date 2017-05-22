@@ -26,7 +26,7 @@ u8 boot11_sha256[0x20] = {
 };
 
 // see: https://github.com/SciresM/CTRAesEngine/blob/8312adc74b911a6b9cb9e03982ba3768b8e2e69c/CTRAesEngine/AesEngine.cs#L672-L688
-#define OTP_KEY ((u8*) BOOT9_POS + ((IS_DEVKIT) ?  + 0x5710 : 0x56E0))
+#define OTP_KEY ((u8*) BOOT9_POS + ((IS_DEVKIT) ?  + 0xD700 : 0xD6E0))
 #define OTP_IV  (OTP_KEY + 0x10)
 
 // see: http://3dbrew.org/wiki/Memory_layout#ARM9
@@ -43,7 +43,7 @@ static const VirtualFile vMemFileTemplates[] = {
     { "fcramext.mem"     , 0x28000000, 0x08000000, 0xFF, VFLAG_N3DS_ONLY },
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, 0 },
     { "otp.mem"          , 0x10012000, 0x00000100, 0xFF, VFLAG_OTP },
-    // { "otp_dec.mem"      , 0x10012000, 0x00000100, 0x11, VFLAG_OTP | VFLAG_BOOT9 },
+    { "otp_dec.mem"      , 0x10012000, 0x00000100, 0x11, VFLAG_OTP | VFLAG_BOOT9 },
     // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
     // { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 },
     { "godmode9.bin"     , 0x23F00000, SELF_MAX_SIZE, 0xFF, VFLAG_PAYLOAD }
@@ -75,10 +75,12 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
 int ReadVMemFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
     if ((vfile->flags & VFLAG_OTP) && (vfile->keyslot == 0x11)) {
         u8 __attribute__((aligned(32))) otp_local[vfile->size];
+        u8 __attribute__((aligned(32))) otp_iv[0x10];
         u8* otp_mem = (u8*) (u32) vfile->offset;
+        memcpy(otp_iv, OTP_IV, 0x10);
         setup_aeskey(0x11, OTP_KEY);
         use_aeskey(0x11);
-        cbc_decrypt(otp_mem, otp_local, vfile->size, AES_CNT_TITLEKEY_DECRYPT_MODE, OTP_IV);
+        cbc_decrypt(otp_mem, otp_local, vfile->size / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, otp_iv);
         memcpy(buffer, otp_local + offset, count);
     } else {
         u32 foffset = vfile->offset + offset;
