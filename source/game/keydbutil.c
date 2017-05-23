@@ -93,21 +93,26 @@ u32 BuildKeyDb(const char* path, bool dump) {
     } else if (filetype & BIN_LEGKEY) { // legacy key file
         AesKeyInfo key;
         unsigned int keyslot = 0xFF;
-        char typestr[16] = { 0 };
+        char typestr[32] = { 0 };
         char* name_in = strrchr(path_in, '/');
         memset(&key, 0, sizeof(AesKeyInfo));
         key.type = 'N';
         if (!name_in || (strnlen(++name_in, 32) > 24)) return 1; // safety
         if ((sscanf(name_in, "slot0x%02XKey%s", &keyslot, typestr) != 2) &&
             (sscanf(name_in, "slot0x%02Xkey%s", &keyslot, typestr) != 2)) return 1;
-        char* dot = strrchr(typestr, '.');
-        if (!dot) return 1;
-        *dot = '\0';
-        if ((typestr[1] == '\0') && ((*typestr == 'X') || (*typestr == 'Y'))) key.type = *typestr;
-        else if ((typestr[2] == '\0') && (typestr[0] == 'I') && (typestr[1] == 'V')) key.type = 'I';
-        else strncpy(key.id, typestr, 10);
+        char* ext = strchr(typestr, '.');
+        if (!ext) return 1;
+        *(ext++) = '\0';
+        if ((*typestr == 'X') || (*typestr == 'Y')) {
+            key.type = *typestr;
+            strncpy(key.id, typestr + 1, 10);
+        } else if ((typestr[0] == 'I') && (typestr[1] == 'V')) {
+            key.type = 'I';
+            strncpy(key.id, typestr + 2, 10);
+        } else strncpy(key.id, typestr, 10);
         key.slot = keyslot;
-        key.keyUnitType = 0;
+        key.keyUnitType = (strncasecmp(ext, "ret.bin", 10) == 0) ? KEYS_RETAIL :
+            (strncasecmp(ext, "dev.bin", 10) == 0) ? KEYS_DEVKIT : 0;
         if ((fvx_qread(path_in, key.key, 0, 16, &br) != FR_OK) || (br != 16)) return 1;
         if (AddKeyToDb(key_info, &key) != 0) return 1;
     }

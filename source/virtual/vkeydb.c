@@ -41,10 +41,9 @@ bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir) {
         char typestr[16] = { 0 };
         char* unitext =
             (key_entry->keyUnitType == KEYS_DEVKIT) ? ".dev" :
-            (key_entry->keyUnitType == KEYS_RETAIL) ? ".ret" : ""; 
-        if (*(key_entry->id)) snprintf(typestr, 10, key_entry->id);
-        else if (key_entry->type == 'I') snprintf(typestr, 10, "IV");
-        else if (key_entry->type != 'N') *typestr = key_entry->type;
+            (key_entry->keyUnitType == KEYS_RETAIL) ? ".ret" : "";
+        snprintf(typestr, 12 + 1, "%s%.10s", (key_entry->type == 'I') ? "IV" :
+            (key_entry->type == 'X') ? "X" : (key_entry->type == 'Y') ? "Y" : "", key_entry->id);
         
         memset(vfile, 0, sizeof(VirtualFile));
         snprintf(vfile->name, 32, NAME_LEGKEY, keyslot, typestr, unitext);
