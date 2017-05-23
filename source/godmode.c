@@ -1209,12 +1209,12 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int nandbak = ++n_opt;
     
+    if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
-    if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
