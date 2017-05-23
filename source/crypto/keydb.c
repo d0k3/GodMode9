@@ -198,8 +198,8 @@ u32 LoadKeyFromFile(u8* key, u32 keyslot, char type, char* id)
             FIL fp;
             char path[64];
             UINT btr;
-            snprintf(path, 64, "%s/slot0x%02lXKey%s.bin", base[i], keyslot,
-                (id) ? id : (type == 'X') ? "X" : (type == 'Y') ? "Y" : "");
+            snprintf(path, 64, "%s/slot0x%02lXKey%s%s.bin", base[i], keyslot,
+                (type == 'X') ? "X" : (type == 'Y') ? "Y" : (type == 'I') ? "IV" : "", (id) ? id : "");
             if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) continue;
             if ((f_read(&fp, key, 16, &btr) == FR_OK) && (btr == 16))
                 found = true;
