@@ -4,7 +4,9 @@
 
 u32 GetAgbSaveSize(u32 nand_src) {
     AgbSave* agbsave = (AgbSave*) NAND_BUFFER;
-    if (ReadNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_src) != 0)
+    NandPartitionInfo info;
+    if ((GetNandPartitionInfo(&info, NP_TYPE_AGB, NP_SUBTYPE_CTR, 0, nand_src) != 0) ||
+        (ReadNandSectors((u8*) agbsave, info.sector, 1, info.keyslot, nand_src) != 0))
         return 0;
     return agbsave->save_size; // it's recommended to also check the CMAC
 }
@@ -13,10 +15,12 @@ u32 CheckAgbSaveCmac(u32 nand_src) {
     u8 magic[] = { AGBSAVE_MAGIC };
     
     AgbSave* agbsave = (AgbSave*) NAND_BUFFER;
-    if ((ReadNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_src) != 0) ||
+    NandPartitionInfo info;
+    if ((GetNandPartitionInfo(&info, NP_TYPE_AGB, NP_SUBTYPE_CTR, 0, nand_src) != 0) ||
+        (ReadNandSectors((u8*) agbsave, info.sector, 1, info.keyslot, nand_src) != 0) ||
         (memcmp(agbsave->magic, magic, sizeof(magic)) != 0) ||
-        (0x200 + agbsave->save_size > SIZE_AGBSAVE * 0x200) ||
-        (ReadNandBytes(agbsave->savegame, (SECTOR_AGBSAVE+1) * 0x200, agbsave->save_size, 0x07, nand_src) != 0))
+        (0x200 + agbsave->save_size > info.count * 0x200) ||
+        (ReadNandBytes(agbsave->savegame, (info.sector+1) * 0x200, agbsave->save_size, info.keyslot, nand_src) != 0))
         return 1;
     
     u8 cmac[16] __attribute__((aligned(32)));
@@ -30,9 +34,11 @@ u32 CheckAgbSaveCmac(u32 nand_src) {
 
 u32 FixAgbSaveCmac(u32 nand_dst) {
     AgbSave* agbsave = (AgbSave*) NAND_BUFFER;
-    if ((ReadNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_dst) != 0) ||
-        (0x200 + agbsave->save_size > SIZE_AGBSAVE * 0x200) ||
-        (ReadNandBytes(agbsave->savegame, (SECTOR_AGBSAVE+1) * 0x200, agbsave->save_size, 0x07, nand_dst) != 0))
+    NandPartitionInfo info;
+    if ((GetNandPartitionInfo(&info, NP_TYPE_AGB, NP_SUBTYPE_CTR, 0, nand_dst) != 0) ||
+        (ReadNandSectors((u8*) agbsave, info.sector, 1, info.keyslot, nand_dst) != 0) ||
+        (0x200 + agbsave->save_size > info.count * 0x200) ||
+        (ReadNandBytes(agbsave->savegame, (info.sector+1) * 0x200, agbsave->save_size, info.keyslot, nand_dst) != 0))
         return 1;
         
     u8 cmac[16] __attribute__((aligned(32)));
@@ -46,5 +52,5 @@ u32 FixAgbSaveCmac(u32 nand_dst) {
     // https://www.3dbrew.org/wiki/CONFIG_Registers#CFG_BOOTENV
     *(u32*) 0x10010000 = 0x7;
     
-    return (WriteNandSectors((u8*) agbsave, SECTOR_AGBSAVE, 1, 0x07, nand_dst) == 0) ? 0 : 1;
+    return (WriteNandSectors((u8*) agbsave, info.sector, 1, info.keyslot, nand_dst) == 0) ? 0 : 1;
 }

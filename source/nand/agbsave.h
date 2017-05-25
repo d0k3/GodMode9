@@ -21,7 +21,7 @@ typedef struct {
     u32 unknown1; // has to do with ARM7?
     u32 unknown2; // has to do with ARM7?
     u8  reserved3[0x198]; // always 0xFF
-    u8  savegame[(SIZE_AGBSAVE-1)*0x200];
+    u8  savegame[(0x000180-1)*0x200]; // unknown on custom partitions
 } __attribute__((packed)) AgbSave;
 
 u32 GetAgbSaveSize(u32 nand_src);
