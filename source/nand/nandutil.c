@@ -32,7 +32,7 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
         { "movable" , 0x400, 0x140 },
         { "frndseed", 0x600, 0x110 },
         { "nand_cid", 0x800, 0x010 },
-        { "otp_hash", 0xA00, 0x020 }
+        { "otp"     , 0xA00, 0x100 }
     };
     memset(essential, 0, sizeof(EssentialBackup));
     memcpy(essential, filelist, sizeof(filelist));
@@ -69,11 +69,11 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
         
     // fill nand cid / otp hash
     if (GetNandCid(&(essential->nand_cid)) != 0) return 1;
-    bool have_otp = (GetOtpHash(&(essential->otp_hash)) == 0);
-    if (!have_otp) memset(&(filelist[5]), 0, sizeof(ExeFsFileHeader));
+    if (!IS_UNLOCKED) memset(&(filelist[5]), 0, sizeof(ExeFsFileHeader));
+    else memcpy(&(essential->otp), (u8*) 0x10012000, 0x100);
     
     // calculate hashes
-    for (u32 i = 0; i < (have_otp ? 6 : 5); i++) 
+    for (u32 i = 0; i < (IS_UNLOCKED ? 6 : 5); i++) 
         sha_quick(essential->header.hashes[9-i],
             ((u8*) essential) + files[i].offset + sizeof(ExeFsHeader),
             files[i].size, SHA256_MODE);

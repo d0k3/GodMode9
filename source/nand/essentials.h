@@ -51,6 +51,6 @@ typedef struct {
     u8 padding_frndseed[0x200 - sizeof(LocalFriendCodeSeed)];
     u8 nand_cid[0x10];
     u8 padding_nand_cid[0x200 - 0x10];
-    u8 otp_hash[0x20];
-    u8 padding_otp_hash[0x200 - 0x20];
+    u8 otp[0x100];
+    u8 padding_otp[0x200 - 0x100];
 } __attribute__((packed)) EssentialBackup;
