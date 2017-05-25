@@ -4,40 +4,45 @@
 #include "essentials.h"
 #include "unittype.h"
 
-#define VFLAG_ON_O3DS       NAND_TYPE_O3DS
-#define VFLAG_ON_N3DS       NAND_TYPE_N3DS
-#define VFLAG_ON_NO3DS      NAND_TYPE_NO3DS
-#define VFLAG_ON_NAND       (VFLAG_ON_O3DS | VFLAG_ON_N3DS | VFLAG_ON_NO3DS)
+#define VFLAG_MBR           (1UL<<27)
 #define VFLAG_ESSENTIAL     (1UL<<28)
 #define VFLAG_GBA_VC        (1UL<<29)
 #define VFLAG_NEEDS_OTP     (1UL<<30)
 #define VFLAG_NAND_SIZE     (1UL<<31)
 
-// see: http://3dbrew.org/wiki/Flash_Filesystem#NAND_structure
-// too much hardcoding, but more readable this way
-static const VirtualFile vNandFileTemplates[] = {
-    { "twln.bin"         , 0x00012E00, 0x08FB5200, 0x03, VFLAG_ON_NAND },
-    { "twlp.bin"         , 0x09011A00, 0x020B6600, 0x03, VFLAG_ON_NAND },
-    { "agbsave.bin"      , 0x0B100000, 0x00030000, 0x07, VFLAG_ON_NAND },
-    { "firm0.bin"        , 0x0B130000, 0x00400000, 0x06, VFLAG_ON_NAND},
-    { "firm1.bin"        , 0x0B530000, 0x00400000, 0x06, VFLAG_ON_NAND},
-    { "ctrnand_fat.bin"  , 0x0B95CA00, 0x2F3E3600, 0x04, VFLAG_ON_O3DS },
-    { "ctrnand_fat.bin"  , 0x0B95AE00, 0x41D2D200, 0x05, VFLAG_ON_N3DS },
-    { "ctrnand_fat.bin"  , 0x0B95AE00, 0x41D2D200, 0x04, VFLAG_ON_NO3DS },
-    { "ctrnand_full.bin" , 0x0B930000, 0x2F5D0000, 0x04, VFLAG_ON_O3DS },
-    { "ctrnand_full.bin" , 0x0B930000, 0x41ED0000, 0x05, VFLAG_ON_N3DS },
-    { "ctrnand_full.bin" , 0x0B930000, 0x41ED0000, 0x04, VFLAG_ON_NO3DS },
-    { "sector0x96.bin"   , 0x00012C00, 0x00000200, 0x11, VFLAG_ON_NAND | VFLAG_NEEDS_OTP },
-    { "nand.bin"         , 0x00000000, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_NAND_SIZE },
-    { "nand_minsize.bin" , 0x00000000, 0x3AF00000, 0xFF, VFLAG_ON_O3DS },
-    { "nand_minsize.bin" , 0x00000000, 0x4D800000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS },
-    { "nand_hdr.bin"     , 0x00000000, 0x00000200, 0xFF, VFLAG_ON_NAND },
-    { "twlmbr.bin"       , 0x000001BE, 0x00000042, 0x03, VFLAG_ON_NAND },
-    { "free0x01.bin"     , 0x00000200, 0x00012A00, 0xFF, VFLAG_ON_NAND },
-    { "essential.exefs"  , 0x00000200, 0x00000000, 0xFF, VFLAG_ON_NAND | VFLAG_ESSENTIAL },
-    { "bonus0x1D7800.bin", 0x3AF00000, 0x00000000, 0xFF, VFLAG_ON_O3DS | VFLAG_NAND_SIZE },
-    { "bonus0x26C000.bin", 0x4D800000, 0x00000000, 0xFF, VFLAG_ON_N3DS | VFLAG_ON_NO3DS | VFLAG_NAND_SIZE },
-    { "gbavc.sav"        , 0x0B100200, 0x00000000, 0x07, VFLAG_ON_NAND | VFLAG_GBA_VC },
+typedef struct {
+    char name[32];
+    u32 type;
+    u32 subtype;
+    u32 index;
+    u32 flags;
+} __attribute__((packed)) VirtualNandTemplate;
+
+// see NP_TYPE_ and NP_SUBTYPE_ in nand.h
+static const VirtualNandTemplate vNandTemplates[] = {
+    { "nand_hdr.bin"     , NP_TYPE_NCSD  , NP_SUBTYPE_CTR  , 0, 0 },
+    { "twlmbr.bin"       , NP_TYPE_STD   , NP_SUBTYPE_TWL  , 0, VFLAG_MBR },
+    { "essential.exefs"  , NP_TYPE_D0K3  , NP_SUBTYPE_NONE , 0, VFLAG_ESSENTIAL },
+    { "sector0x96.bin"   , NP_TYPE_SECRET, NP_SUBTYPE_CTR_N, 0, VFLAG_NEEDS_OTP },
+    { "twln.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 0, 0 },
+    { "twlp.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 1, 0 },
+    { "agbsave.bin"      , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, 0 },
+    { "gbavc.sav"        , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, VFLAG_GBA_VC },
+    { "firm0.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 0, 0 },
+    { "firm1.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 1, 0 },
+    { "firm2.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 2, 0 },
+    { "firm3.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 3, 0 },
+    { "firm4.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 4, 0 },
+    { "firm5.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 5, 0 },
+    { "firm6.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 6, 0 },
+    { "firm7.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 7, 0 },
+    { "ctrnand_full.bin" , NP_TYPE_STD   , NP_SUBTYPE_CTR  , 0, 0 },
+    { "ctrnand_full.bin" , NP_TYPE_STD   , NP_SUBTYPE_CTR_N, 0, 0 },
+    { "ctrnand_fat.bin"  , NP_TYPE_FAT   , NP_SUBTYPE_CTR  , 0, 0 },
+    { "ctrnand_fat.bin"  , NP_TYPE_FAT   , NP_SUBTYPE_CTR_N, 0, 0 },
+    { "bonus.bin"        , NP_TYPE_BONUS , NP_SUBTYPE_CTR  , 0, 0 },
+    { "nand.bin"         , NP_TYPE_NONE  , NP_SUBTYPE_NONE , 0, VFLAG_NAND_SIZE },
+    { "nand_minsize.bin" , NP_TYPE_NONE  , NP_SUBTYPE_NONE , 0, 0 }
 };
 
 bool CheckVNandDrive(u32 nand_src) {
@@ -45,35 +50,38 @@ bool CheckVNandDrive(u32 nand_src) {
 }
 
 bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
-    int n_templates = sizeof(vNandFileTemplates) / sizeof(VirtualFile);
-    const VirtualFile* templates = vNandFileTemplates;
+    int n_templates = sizeof(vNandTemplates) / sizeof(VirtualNandTemplate);
+    const VirtualNandTemplate* templates = vNandTemplates;
     u32 nand_src = vdir->flags & VRT_SOURCE;
     
-    while (++vdir->index < n_templates) { 
-        // get NAND type (O3DS/N3DS/NO3DS), workaround for empty EmuNAND
-        u32 nand_type = CheckNandType(nand_src);
-        if (!nand_type) nand_type = (IS_O3DS) ? NAND_TYPE_O3DS : NAND_TYPE_N3DS;
+    while (++vdir->index < n_templates) {
+        const VirtualNandTemplate* template = templates + vdir->index;
+        NandPartitionInfo prt_info;
         
-        // copy current template to vfile
-        memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
+        // set up virtual file
+        if (GetNandPartitionInfo(&prt_info, template->type, template->subtype, template->index, nand_src) != 0)
+            continue;
+        snprintf(vfile->name, 32, "%s%s", template->name, (nand_src == VRT_XORPAD) ? ".xorpad" : "");
+        vfile->offset = ((u64) prt_info.sector) * 0x200;
+        vfile->size = ((u64) prt_info.count) * 0x200;
+        vfile->keyslot = prt_info.keyslot;
+        vfile->flags = template->flags;
         
-        // XORpad drive handling
-        if (nand_src == VRT_XORPAD) {
-            snprintf(vfile->name, 32, "%s.xorpad", templates[vdir->index].name);
-            if ((vfile->keyslot == 0x11) || (vfile->keyslot >= 0x40) || (vfile->flags & VFLAG_GBA_VC))
-                continue;
-        }
-        
-        // process / check special flags
-        if (!(vfile->flags & nand_type))
-            continue; // virtual file has wrong NAND type
+        // handle special cases
+        if (!vfile->size) continue;
+        if ((nand_src == VRT_XORPAD) && ((vfile->keyslot == 0x11) || (vfile->keyslot >= 0x40) || (vfile->flags & VFLAG_GBA_VC)))
+            continue;
         if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
             continue; // keyslot 0x05 not properly set up
         if ((vfile->flags & VFLAG_NEEDS_OTP) && !CheckSector0x96Crypto())
             continue; // sector 0x96 crypto not set up
+        if (vfile->flags & VFLAG_MBR) {
+            vfile->offset += 0x200 - 0x42;
+            vfile->size = 0x42;
+        }
         if (vfile->flags & VFLAG_NAND_SIZE) {
-            if ((nand_src != VRT_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) != GetNandSizeSectors(nand_src)))
-                continue; // EmuNAND/ImgNAND is too small
+            if ((nand_src != VRT_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) > GetNandSizeSectors(nand_src)))
+                continue; // EmuNAND / ImgNAND is too small
             u64 nand_size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
             if (nand_size <= vfile->offset) continue;
             vfile->size = nand_size - vfile->offset;
@@ -87,8 +95,10 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         }
         if (vfile->flags & VFLAG_GBA_VC) {
             if (CheckAgbSaveCmac(nand_src) != 0) continue;
+            vfile->offset += 0x200;
             vfile->size = GetAgbSaveSize(nand_src);
         }
+        
         
         // found if arriving here
         vfile->flags |= nand_src;

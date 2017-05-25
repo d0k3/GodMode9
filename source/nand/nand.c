@@ -5,6 +5,7 @@
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
+#include "fatmbr.h"
 #include "sdmmc.h"
 #include "image.h"
 
@@ -12,6 +13,19 @@
 
 #define KEY95_SHA256    ((IS_DEVKIT) ? slot0x11Key95dev_sha256 : slot0x11Key95_sha256)
 #define SECTOR_SHA256   ((IS_DEVKIT) ? sector0x96dev_sha256 : sector0x96_sha256)
+
+// see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
+static const u32 np_keyslots[9][4] = { // [NP_TYPE][NP_SUBTYPE]
+    { 0xFF, 0xFF, 0xFF, 0xFF }, // none
+    { 0xFF, 0x03, 0x04, 0x05 }, // standard
+    { 0xFF, 0x03, 0x04, 0x05 }, // FAT (custom, not in NCSD)
+    { 0xFF, 0xFF, 0x06, 0xFF }, // FIRM
+    { 0xFF, 0xFF, 0x07, 0xFF }, // AGBSAVE
+    { 0xFF, 0xFF, 0xFF, 0xFF }, // NCSD (custom)
+    { 0xFF, 0xFF, 0xFF, 0xFF }, // D0K3 (custom)
+    { 0xFF, 0xFF, 0xFF, 0x11 }, // SECRET (custom)
+    { 0xFF, 0xFF, 0xFF, 0xFF }  // BONUS (custom)
+};
 
 static u8 slot0x05KeyY[0x10] = { 0x00 }; // need to load this from FIRM0 / external file
 static const u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY (16 byte)
@@ -96,23 +110,24 @@ static u32 emunand_base_sector = 0x000000;
 
 u32 LoadKeyYFromP9(u8* key, const u8* keyhash, u32 offset, u32 keyslot)
 {
-    static u32 offsetA9l = 0x066A00; // fixed offset, this only has to work for FIRM90 / FIRM81
+    static const u32 offsetA9l = 0x066A00; // fixed offset, this only has to work for FIRM90 / FIRM81
+    static const u32 sector_firm0 = 0x058980; // standard firm0 sector (this only has to work in A9LH anyways)
     u8 ctr0x15[16] __attribute__((aligned(32)));
     u8 keyY0x15[16] __attribute__((aligned(32)));
     u8 keyY[16] __attribute__((aligned(32)));
     u8 header[0x200];
     
     // check arm9loaderhax
-    if (!IS_A9LH || (offset < (offsetA9l + 0x0800))) return 1;
+    if (!IS_A9LH || IS_SIGHAX || (offset < (offsetA9l + 0x0800))) return 1;
     
     // section 2 (arm9loader) header of FIRM
     // this is @0x066A00 in FIRM90 & FIRM81
-    ReadNandBytes(header, (SECTOR_FIRM0 * 0x200) + offsetA9l, 0x200, 0x06, NAND_SYSNAND);
+    ReadNandBytes(header, (sector_firm0 * 0x200) + offsetA9l, 0x200, 0x06, NAND_SYSNAND);
     memcpy(keyY0x15, header + 0x10, 0x10); // 0x15 keyY
     memcpy(ctr0x15, header + 0x20, 0x10); // 0x15 counter
     
     // read and decrypt the encrypted keyY
-    ReadNandBytes(keyY, (SECTOR_FIRM0 * 0x200) + offset, 0x10, 0x06, NAND_SYSNAND);
+    ReadNandBytes(keyY, (sector_firm0 * 0x200) + offset, 0x10, 0x06, NAND_SYSNAND);
     setup_aeskeyY(0x15, keyY0x15);
     use_aeskey(0x15);
     ctr_decrypt_byte(keyY, keyY, 0x10, offset - (offsetA9l + 0x800), AES_CNT_CTRNAND_MODE, ctr0x15);
@@ -141,6 +156,7 @@ bool InitNandCrypto(void)
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*) REG_SHAHASH, 32);
     } else {
+        // load hash via keys?
         const char* base[] = { INPUT_PATHS };
         char path[64];
         u8 otp[0x100];
@@ -231,18 +247,18 @@ bool CheckSlot0x05Crypto(void)
 bool CheckSector0x96Crypto(void)
 {
     u8 buffer[0x200];
-    ReadNandSectors(buffer, 0x96, 1, 0x11, NAND_SYSNAND);
+    ReadNandSectors(buffer, SECTOR_SECRET, 1, 0x11, NAND_SYSNAND);
     return (sha_cmp(KEY95_SHA256, buffer, 16, SHA256_MODE) == 0);
 }
 
 void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
 {
-    u32 mode = (sector >= SECTOR_TWL + SIZE_TWL) ? AES_CNT_CTRNAND_MODE : AES_CNT_TWLNAND_MODE;
+    u32 mode = (keyslot != 0x03) ? AES_CNT_CTRNAND_MODE : AES_CNT_TWLNAND_MODE; // somewhat hacky
     u8 ctr[16] __attribute__((aligned(32)));
     u32 blocks = count * (0x200 / 0x10);
     
     // copy NAND CTR and increment it
-    memcpy(ctr, (sector >= SECTOR_TWL + SIZE_TWL) ? CtrNandCtr : TwlNandCtr, 16);
+    memcpy(ctr, (keyslot != 0x03) ? CtrNandCtr : TwlNandCtr, 16); // hacky again
     add_ctr(ctr, sector * (0x200 / 0x10));
     
     // decrypt the data
@@ -356,7 +372,7 @@ int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src
     } else {
         return -1;
     }
-    if ((keyslot == 0x11) && (sector == 0x96)) CryptSector0x96(buffer, false);
+    if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(buffer, false);
     else if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
     
     return 0;
@@ -368,7 +384,7 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
     for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
         memcpy(NAND_BUFFER, buffer + (s*0x200), pcount * 0x200);
-        if ((keyslot == 0x11) && (sector == 0x96)) CryptSector0x96(NAND_BUFFER, true);
+        if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(NAND_BUFFER, true);
         else if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
         if (nand_dst == NAND_EMUNAND) {
             int errorcode = 0;
@@ -390,6 +406,94 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
     
     return 0;
 }
+
+u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd) // in sectors
+{
+    u32 nand_minsize = 1;
+    for (u32 prt_idx = 0; prt_idx < 8; prt_idx++) {
+        u32 prt_end = ncsd->partitions[prt_idx].offset + ncsd->partitions[prt_idx].size;
+        if (prt_end > nand_minsize) nand_minsize = prt_end;
+    }
+    
+    return nand_minsize;
+}
+
+u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, NandNcsdHeader* ncsd)
+{
+    // safety / set keyslot
+    if ((type == NP_TYPE_FAT) || (type > NP_TYPE_BONUS) || (subtype > NP_SUBTYPE_CTR_N)) return 1;
+    info->keyslot = np_keyslots[type][subtype];
+    
+    // full (minimum) NAND "partition"
+    if (type == NP_TYPE_NONE) {
+        info->sector = 0x00;
+        info->count = GetNandNcsdMinSizeSectors(ncsd);
+        return 0;
+    }
+    
+    // special, custom partition types, not in NCSD
+    if (type >= NP_TYPE_NCSD) {
+        if (type == NP_TYPE_NCSD) {
+            info->sector = 0x00; // hardcoded
+            info->count = 0x01;
+        } else if (type == NP_TYPE_D0K3) {
+            info->sector = SECTOR_D0K3; // hardcoded
+            info->count = SECTOR_SECRET - info->sector;
+        } else if (type == NP_TYPE_SECRET) {
+            info->sector = SECTOR_SECRET;
+            info->count = 0x01;
+        } else if (type == NP_TYPE_BONUS) {
+            info->sector = GetNandNcsdMinSizeSectors(ncsd);
+            info->count = 0x00; // placeholder, actual size needs info from NAND chip
+        } else return 1;
+        return 0;
+    }
+    
+    u32 prt_idx = 8;
+    for (prt_idx = 0; prt_idx < 8; prt_idx++) {
+        if ((ncsd->partitions_fs_type[prt_idx] != type) ||
+            (ncsd->partitions_crypto_type[prt_idx] != subtype)) continue;
+        if (index == 0) break;
+        index--;
+    }
+    
+    if (prt_idx >= 8) return 1; // not found
+    info->sector = ncsd->partitions[prt_idx].offset;
+    info->count = ncsd->partitions[prt_idx].size;
+    
+    return 0;
+}
+
+u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, u32 nand_src)
+{
+    // check NAND NCSD integrity(!!!)
+    // workaround for ZERONAND
+    if (nand_src == NAND_ZERONAND) nand_src = NAND_SYSNAND;
+    
+    // find type & subtype in NCSD header
+    u8 header[0x200];
+    ReadNandSectors(header, 0x00, 1, 0xFF, nand_src);
+    NandNcsdHeader* ncsd = (NandNcsdHeader*) header;
+    if (((type == NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, NP_TYPE_STD, subtype, 0, ncsd) != 0)) ||
+        ((type != NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, type, subtype, index, ncsd) != 0)))
+        return 1; // not found
+    
+    // size of bonus partition
+    if (type == NP_TYPE_BONUS) {
+        info->count = GetNandSizeSectors(nand_src) - info->sector;
+    } else if (type == NP_TYPE_FAT) { // FAT type specific stuff
+        ReadNandSectors(header, info->sector, 1, info->keyslot, nand_src);
+        MbrHeader* mbr = (MbrHeader*) header;
+        if ((ValidateMbrHeader(mbr) != 0) || (index >= 4) ||
+            (mbr->partitions[index].sector == 0) || (mbr->partitions[index].count == 0) ||
+            (mbr->partitions[index].sector + mbr->partitions[index].count > info->count))
+            return 1;
+        info->sector += mbr->partitions[index].sector;
+        info->count = mbr->partitions[index].count;
+    }
+    
+    return 0;
+}    
 
 u32 CheckNandMbr(u8* mbr)
 {
@@ -470,7 +574,7 @@ u32 GetLegitSector0x96(u8* sector)
     // search for valid secret sector in SysNAND / EmuNAND
     const u32 nand_src[] = { NAND_SYSNAND, NAND_EMUNAND };
     for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
-        ReadNandSectors(sector, 0x96, 1, 0x11, nand_src[i]);
+        ReadNandSectors(sector, SECTOR_SECRET, 1, 0x11, nand_src[i]);
         if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
             return 0;
     }
