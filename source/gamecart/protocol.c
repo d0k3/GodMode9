@@ -28,8 +28,6 @@
 #define REG_AESKEYXFIFO (*(vu32*)0x10009104)
 #define REG_AESKEYYFIFO (*(vu32*)0x10009108)
 
-extern u8* bottomScreen;
-
 u32 CartID = 0xFFFFFFFFu;
 u32 CartType = 0;
 

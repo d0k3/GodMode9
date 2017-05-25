@@ -65,6 +65,13 @@ _start_gw:
     stmia r0, {r1,r2,r3}
     @ framebuffers properly set
 
+    ldr r3, =0xFFFF0830         @ flush (clean & invalidate) entire dcache b9 func
+    blx r3
+
+    mov r3, #0
+    mcr p15, 0, r3, c7, c5, 0   @ invalidate I-cache
+
+    mov r2, #0
     ldr r3, .entry
     bx r3
 
@@ -74,8 +81,18 @@ _start_gw:
 .entry:   .word 0x23F00000
 
 _skip_gw:
+    mov r9, r0      @ argc
+    mov r10, r1     @ argv
+
+    ldr r4, =0xBEEF
+    lsl r2, #16
+    lsr r2, #16
+    cmp r2, r4      @ magic word
+    movne r9, #0
+
     @ Disable caches / mpu
     mrc p15, 0, r4, c1, c0, 0  @ read control register
+    bic r4, #(1<<16)           @ - dtcm disable (mandated by the docs, before you change the dtcm's address)
     bic r4, #(1<<12)           @ - instruction cache disable
     bic r4, #(1<<2)            @ - data cache disable
     bic r4, #(1<<0)            @ - mpu disable
@@ -91,10 +108,10 @@ _skip_gw:
         strlt r2, [r0], #4
         blt .bss_clr
 
-    @ Flush caches
+    @ Invalidate caches
     mov r5, #0
-    mcr p15, 0, r5, c7, c5, 0  @ flush I-cache
-    mcr p15, 0, r5, c7, c6, 0  @ flush D-cache
+    mcr p15, 0, r5, c7, c5, 0  @ invalidate I-cache
+    mcr p15, 0, r5, c7, c6, 0  @ invalidate D-cache
     mcr p15, 0, r5, c7, c10, 4 @ drain write buffer
 
     @ Give read/write access to all the memory regions
@@ -144,7 +161,8 @@ _skip_gw:
 
     ldr sp, =0x23F00000
 
-    blx main
-    b _start
+    mov r0, r9
+    mov r1, r10
+    b main
 
 .pool
