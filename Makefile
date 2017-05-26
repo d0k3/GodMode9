@@ -134,7 +134,7 @@ binary: common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 firm: binary
-	@firmtool/firmtool build $(OUTPUT).firm -n 0x23F00000 -e 0 -D $(OUTPUT).bin -A 0x23F00000 -C NDMA -i
+	@firmtool build $(OUTPUT).firm -n 0x23F00000 -e 0 -D $(OUTPUT).elf -A 0x23F00000 -C NDMA -i
 
 gateway: binary
 	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
