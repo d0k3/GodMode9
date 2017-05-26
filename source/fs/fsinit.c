@@ -43,7 +43,6 @@ bool InitImgFS(const char* path) {
     for (u32 i = NORM_FS - IMGN_FS; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
-        if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
     }
     return GetMountState();
