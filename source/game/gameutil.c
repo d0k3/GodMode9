@@ -1384,6 +1384,11 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     // prepare output name
     snprintf(dest, 256, OUTPUT_PATH "/");
     char* dname = dest + strnlen(dest, 256);
+    
+    // ensure the output dir exists
+    // warning: this will only build output dirs in the root dir (!!!)
+    if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
+        return 1;
         
     // get path to CXI/SRL and decrypt (if encrypted)
     if ((strncmp(path + 1, ":/title/", 8) != 0) ||
