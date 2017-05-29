@@ -3,7 +3,6 @@
 #include "common.h"
 
 #define BOSS_MAGIC 0x62, 0x6F, 0x73, 0x73, 0x00, 0x01, 0x00, 0x01
-#define BOSS_MAX_SIZE 0xF0000 // 960 kB, should be more than enough
 
 #define BOSS_OFFSET_PAYLOAD sizeof(BossHeader)
 #define BOSS_SIZE_PAYLOAD_HEADER (0x1C + 2)

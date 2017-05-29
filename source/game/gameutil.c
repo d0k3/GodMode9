@@ -549,26 +549,32 @@ u32 VerifyFirmFile(const char* path) {
 
 u32 VerifyBossFile(const char* path) {
     BossHeader* boss = (BossHeader*) TEMP_BUFFER;
-    u8* payload_hdr = MAIN_BUFFER;
-    u8* payload = MAIN_BUFFER + BOSS_SIZE_PAYLOAD_HEADER;
     u32 payload_size;
     bool encrypted = false;
+    FIL file;
+    UINT btr;
     
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
     
     // read file header
-    UINT btr;
-    if ((fvx_qread(path, boss, 0, sizeof(BossHeader), &btr) != FR_OK) ||
+    
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    fvx_lseek(&file, 0);
+    if ((fvx_read(&file, boss, sizeof(BossHeader), &btr) != FR_OK) ||
         (btr != sizeof(BossHeader)) || (ValidateBossHeader(boss, 0) != 0)) {
         ShowPrompt(false, "%s\nError: Not a BOSS file", pathstr);
+        fvx_close(&file);
         return 1;
     }
     
     // get / check size
     payload_size = getbe32(boss->filesize) - sizeof(BossHeader);
-    if ((payload_size + BOSS_SIZE_PAYLOAD_HEADER > MAIN_BUFFER_SIZE) || !payload_size)
+    if (!payload_size) {
+        fvx_close(&file);
         return 1;
+    }
     
     // check if encrypted, decrypt if required
     encrypted = (CheckBossEncrypted(boss) == 0);
@@ -576,11 +582,20 @@ u32 VerifyBossFile(const char* path) {
     
     // actual hash calculation & compare
     u8 hash[32];
-    memset(MAIN_BUFFER, 0, MAIN_BUFFER_SIZE);
-    GetBossPayloadHashHeader(payload_hdr, boss);
-    fvx_qread(path, payload, sizeof(BossHeader), payload_size, &btr);
-    if (encrypted) CryptBoss(payload, sizeof(BossHeader), payload_size, boss);
-    sha_quick(hash, MAIN_BUFFER, payload_size + BOSS_SIZE_PAYLOAD_HEADER, SHA256_MODE);
+    sha_init(SHA256_MODE);
+    GetBossPayloadHashHeader(MAIN_BUFFER, boss);
+    u32 read_bytes = min((MAIN_BUFFER_SIZE - BOSS_SIZE_PAYLOAD_HEADER), payload_size);
+    fvx_read(&file, MAIN_BUFFER + BOSS_SIZE_PAYLOAD_HEADER, read_bytes, &btr);
+    if (encrypted) CryptBoss(MAIN_BUFFER + BOSS_SIZE_PAYLOAD_HEADER, sizeof(BossHeader), read_bytes, boss);
+    sha_update(MAIN_BUFFER, read_bytes + BOSS_SIZE_PAYLOAD_HEADER);
+    for (u32 i = read_bytes; i < payload_size; i += MAIN_BUFFER_SIZE) {
+        read_bytes = min(MAIN_BUFFER_SIZE, (payload_size - i));
+        fvx_read(&file, MAIN_BUFFER, read_bytes, &btr);
+        if (encrypted) CryptBoss(MAIN_BUFFER, sizeof(BossHeader) + i, read_bytes, boss);
+        sha_update(MAIN_BUFFER, read_bytes);
+    }
+    fvx_close(&file);
+    sha_get(hash);
     if (memcmp(hash, boss->hash_payload, 0x20) != 0) {
         ShowPrompt(false, "%s\nBOSS payload hash mismatch", pathstr);
         return 1;

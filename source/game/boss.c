@@ -26,7 +26,6 @@ u32 ValidateBossHeader(BossHeader* header, u32 fsize) {
     // base checks
     if ((memcmp(header->magic, boss_magic, sizeof(boss_magic)) != 0) ||
         (fsize && (fsize != getbe32(header->filesize))) ||
-        (getbe32(header->filesize) > BOSS_MAX_SIZE) ||
         (getbe32(header->filesize) < sizeof(BossHeader)) ||
         (getbe16(header->unknown0) != 0x0001) ||
         (getbe16(header->cnthdr_hash_type) != 0x0002) ||
