@@ -3,7 +3,6 @@
 #include "sha.h"
 #include "aes.h"
 
-#define VFLAG_PAYLOAD       (1UL<<27)
 #define VFLAG_BOOT9         (1UL<<28)
 #define VFLAG_BOOT11        (1UL<<29)
 #define VFLAG_OTP           (1UL<<30)
@@ -45,8 +44,7 @@ static const VirtualFile vMemFileTemplates[] = {
     { "otp.mem"          , 0x10012000, 0x00000100, 0xFF, VFLAG_OTP },
     { "otp_dec.mem"      , 0x10012000, 0x00000100, 0x11, VFLAG_OTP | VFLAG_BOOT9 },
     // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
-    // { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 },
-    { "godmode9.bin"     , 0x23F00000, SELF_MAX_SIZE, 0xFF, VFLAG_PAYLOAD }
+    // { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 }
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
@@ -61,8 +59,7 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
         if (((vfile->flags & VFLAG_N3DS_ONLY) && (IS_O3DS)) || // this is not on O3DS consoles
             ((vfile->flags & VFLAG_OTP) && !(IS_UNLOCKED)) || // OTP still locked
             ((vfile->flags & VFLAG_BOOT9) && (sha_cmp(boot9_sha256, (u8*) BOOT9_POS, BOOT9_LEN, SHA256_MODE) != 0)) || // boot9 not found
-            ((vfile->flags & VFLAG_BOOT11) && (sha_cmp(boot11_sha256, (u8*) BOOT11_POS, BOOT11_LEN, SHA256_MODE) != 0)) || // boot11 not found
-            ((vfile->flags & VFLAG_PAYLOAD) && IS_SIGHAX)) // not available on SigHax (yet)
+            ((vfile->flags & VFLAG_BOOT11) && (sha_cmp(boot11_sha256, (u8*) BOOT11_POS, BOOT11_LEN, SHA256_MODE) != 0))) // boot11 not found
             continue; 
         
         // found if arriving here

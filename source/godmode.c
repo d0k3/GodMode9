@@ -244,12 +244,6 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    if (IS_A9LH && !IS_SIGHAX) {
-        InitSDCardFS(); // on A9LH: copy the payload from mem to SD root
-        FileSetData("0:/arm9loaderhax_si.bin", (u8*) 0x23F00000, SELF_MAX_SIZE, 0, true);
-        DeinitSDCardFS();
-    }
-    
     VirtualFile nand;
     if (!GetVirtualFile(&nand, "S:/nand_minsize.bin"))
         return 0;
