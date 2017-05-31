@@ -525,23 +525,12 @@ u32 VerifyFirmFile(const char* path) {
     }
     fvx_close(&file);
     
-    // check arm11 / arm9 entrypoints
-    int section_arm11 = -1;
-    int section_arm9 = -1;
-    for (u32 i = 0; i < 4; i++) {
-        FirmSectionHeader* section = header.sections + i;
-        if ((header.entry_arm11 >= section->address) &&
-            (header.entry_arm11 < section->address + section->size))
-            section_arm11 = i;
-        if ((header.entry_arm9 >= section->address) &&
-            (header.entry_arm9 < section->address + section->size))
-            section_arm9 = i;
-    }
-    
-    // sections for arm11 / arm9 entrypoints not found?
-    if ((section_arm11 < 0) || (section_arm9 < 0)) {
-        ShowPrompt(false, "%s\nARM11/ARM9 entrypoint not found", pathstr);
+    // no arm11 / arm9 entrypoints?
+    if (!header.entry_arm9) {
+        ShowPrompt(false, "%s\nARM9 entrypoint is missing", pathstr);
         return 1;
+    } else if (!header.entry_arm11) {
+        ShowPrompt(false, "%s\nWarning: ARM11 entrypoint is missing", pathstr);
     }
     
     return 0;

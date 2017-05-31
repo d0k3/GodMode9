@@ -1199,15 +1199,18 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
 }
 
 u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboard) {
+    NandPartitionInfo np_info;
+    if (GetNandPartitionInfo(&np_info, NP_TYPE_BONUS, NP_SUBTYPE_CTR, 0, NAND_SYSNAND) != 0) np_info.count = 0;
+    
     const char* optionstr[8];
     const char* promptstr = "HOME more... menu.\nSelect action:";
     u32 n_opt = 0;
+    int nandbak = ++n_opt;
     int sdformat = ++n_opt;
-    int bonus = (GetNandUnusedSectors(NAND_SYSNAND) > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
+    int bonus = (np_info.count > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
-    int nandbak = ++n_opt;
     
     if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";

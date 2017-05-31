@@ -61,11 +61,6 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     
     // mount original file
     InitImgFS(path_bak);
-    
-    // check sizes - stubbed
-    /*if ((files[0].size != 0x200) || (files[1].size != 0x111) ||
-        ((files[2].size != 0x120) && (files[2].size != 0x140)) || (files[3].size != 0x110))
-        return 1;*/
         
     // fill nand cid / otp hash
     if (GetNandCid(&(essential->nand_cid)) != 0) return 1;
@@ -86,7 +81,7 @@ u32 CheckEmbeddedBackup(const char* path) {
     EssentialBackup* embedded = (EssentialBackup*) (TEMP_BUFFER + sizeof(EssentialBackup));
     UINT btr;
     if ((BuildEssentialBackup(path, essential) != 0) ||
-        (fvx_qread(path, embedded, 0x200, sizeof(EssentialBackup), &btr) != FR_OK) ||
+        (fvx_qread(path, embedded, SECTOR_D0K3 * 0x200, sizeof(EssentialBackup), &btr) != FR_OK) ||
         (memcmp(embedded, essential, sizeof(EssentialBackup)) != 0))
         return 1;
     return 0;
@@ -97,20 +92,15 @@ u32 EmbedEssentialBackup(const char* path) {
     UINT btw;
     // leaving out the write permissions check here, it's okay
     if ((BuildEssentialBackup(path, essential) != 0) ||
-        (CheckNandHeader(essential->nand_hdr) == 0) || // 0 -> header not recognized
-        (fvx_qwrite(path, essential, 0x200, sizeof(EssentialBackup), &btw) != FR_OK) ||
+        (ValidateNandNcsdHeader((NandNcsdHeader*) essential->nand_hdr) != 0) ||
+        (fvx_qwrite(path, essential, SECTOR_D0K3 * 0x200, sizeof(EssentialBackup), &btw) != FR_OK) ||
         (btw != sizeof(EssentialBackup)))
         return 1;
     return 0;
 }
 
 u32 ValidateNandDump(const char* path) {
-    const u32 mbr_sectors[] = { SECTOR_TWL, SECTOR_CTR };
-    const u32 firm_sectors[] = { SECTOR_FIRM0, SECTOR_FIRM1 };
-    u8 buffer[0x200];
-    FirmHeader firm;
-    MbrHeader mbr;
-    u32 nand_type;
+    NandPartitionInfo info;
     FIL file;
     
     // truncated path string
@@ -122,25 +112,29 @@ u32 ValidateNandDump(const char* path) {
         return 1;
     
     // check NAND header
-    if ((ReadNandFile(&file, buffer, 0, 1, 0xFF) != 0) ||
-        ((nand_type = CheckNandHeader(buffer)) == 0)) { // zero means header not recognized
-        ShowPrompt(false, "%s\nHeader does not belong to device", pathstr);
+    NandNcsdHeader ncsd;
+    if ((ReadNandFile(&file, &ncsd, 0, 1, 0xFF) != 0) || (ValidateNandNcsdHeader(&ncsd) != 0)) {
+        ShowPrompt(false, "%s\nNCSD header is not valid", pathstr);
         fvx_close(&file);
         return 1;
     }
     
     // check size
-    if (fvx_size(&file) < ((nand_type == NAND_TYPE_O3DS) ? NAND_MIN_SECTORS_O3DS : NAND_MIN_SECTORS_N3DS)) {
+    if (fvx_size(&file) < (GetNandNcsdMinSizeSectors(&ncsd) * 0x200)) {
         ShowPrompt(false, "%s\nNAND dump misses data", pathstr);
         fvx_close(&file);
         return 1;
     }
     
-    // check MBRs (TWL & CTR)
-    for (u32 i = 0; i < sizeof(mbr_sectors) / sizeof(u32); i++) {
-        u32 keyslot = (i == 0) ? 0x03 : (nand_type == NAND_TYPE_O3DS) ? 0x04 : 0x05;
+    // check TWL & CTR FAT partitions
+    for (u32 i = 0; i < 2; i++) {
         char* section_type = (i) ? "CTR" : "MBR";
-        if ((ReadNandFile(&file, &mbr, mbr_sectors[i], 1, keyslot) != 0) ||
+        if (i == 0) { // check TWL first, then CTR
+            if (GetNandNcsdPartitionInfo(&info, NP_TYPE_STD, NP_SUBTYPE_TWL, 0, &ncsd) != 0) return 1;
+        } else if ((GetNandNcsdPartitionInfo(&info, NP_TYPE_STD, NP_SUBTYPE_CTR, 0, &ncsd) != 0) &&
+            (GetNandNcsdPartitionInfo(&info, NP_TYPE_STD, NP_SUBTYPE_CTR_N, 0, &ncsd) != 0)) return 1;
+        MbrHeader mbr;
+        if ((ReadNandFile(&file, &mbr, info.sector, 1, info.keyslot) != 0) ||
             (ValidateMbrHeader(&mbr) != 0)) {
             ShowPrompt(false, "%s\nError: %s MBR is corrupt", pathstr, section_type);
             fvx_close(&file);
@@ -148,9 +142,10 @@ u32 ValidateNandDump(const char* path) {
         }
         for (u32 p = 0; p < 4; p++) {
             u32 p_sector = mbr.partitions[p].sector;
+            u8 fat[0x200];
             if (!p_sector) continue;
-            if ((ReadNandFile(&file, buffer, mbr_sectors[i] + p_sector, 1, keyslot) != 0) ||
-                (ValidateFatHeader(buffer) != 0)) {
+            if ((ReadNandFile(&file, fat, info.sector + p_sector, 1, info.keyslot) != 0) ||
+                (ValidateFatHeader(fat) != 0)) {
                 ShowPrompt(false, "%s\nError: %s partition%u is corrupt", pathstr, section_type, p);
                 fvx_close(&file);
                 return 1;
@@ -158,56 +153,54 @@ u32 ValidateNandDump(const char* path) {
         }
     }
     
-    // check FIRMs (FIRM1 must be valid)
-    for (u32 i = 0; i < sizeof(firm_sectors) / sizeof(u32); i++) {
-        u32 keyslot = 0x06;
-        if ((ReadNandFile(&file, &firm, firm_sectors[i], 1, keyslot) != 0) ||
-            (ValidateFirmHeader(&firm, 0) != 0) ||
-            (getbe32(firm.dec_magic) != 0)) { // decrypted firms are not allowed
-            ShowPrompt(false, "%s\nError: FIRM%u header is corrupt", pathstr, i);
+    // check FIRMs (at least one FIRM must be valid)
+    // check all 8 firms, also check if ARM9 & ARM11 entrypoints are available
+    for (u32 f = 0; f <= 8; f++) {
+        FirmHeader firm;
+        if (GetNandNcsdPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, f, &ncsd) != 0) {
+            ShowPrompt(false, "%s\nNo valid FIRM found", pathstr);
             fvx_close(&file);
             return 1;
         }
+        if ((ReadNandFile(&file, &firm, info.sector, 1, info.keyslot) != 0) ||
+            (ValidateFirmHeader(&firm, 0) != 0) || (getbe32(firm.dec_magic) != 0) || // decrypted firms are not allowed
+            (!firm.entry_arm9) || (!firm.entry_arm11))  // arm9 / arm11 entry points must be there
+            continue;
         // hash verify all available sections
-        if (i == 0) continue; // no hash checks for FIRM0 (might be A9LH)
-        for (u32 s = 0; s < 4; s++) {
+        u32 s;
+        for (s = 0; s < 4; s++) {
             FirmSectionHeader* section = firm.sections + s;
-            u32 sector = firm_sectors[i] + (section->offset / 0x200);
+            u32 sector = info.sector + (section->offset / 0x200);
             u32 count = section->size / 0x200;
             if (!count) continue;
             sha_init(SHA256_MODE);
             // relies on sections being aligned to sectors
             for (u32 c = 0; c < count; c += MAIN_BUFFER_SIZE / 0x200) {
                 u32 read_sectors = min(MAIN_BUFFER_SIZE / 0x200, (count - c));
-                ReadNandFile(&file, MAIN_BUFFER, sector + c, read_sectors, keyslot);
+                ReadNandFile(&file, MAIN_BUFFER, sector + c, read_sectors, info.keyslot);
                 sha_update(MAIN_BUFFER, read_sectors * 0x200);
             }
             u8 hash[0x20];
             sha_get(hash);
-            if (memcmp(hash, section->hash, 0x20) != 0) {
-                ShowPrompt(false, "%s\nFIRM%u/%u hash mismatch", pathstr, i, s);
-                fvx_close(&file);
-                return 1;
-            }
+            if (memcmp(hash, section->hash, 0x20) != 0) break;
         }
+        if (s >= 4) break; // valid FIRM found
     }
+    fvx_close(&file);
     
     return 0;
 }
 
 u32 SafeRestoreNandDump(const char* path) {
-    u32 safe_sectors[] = { SAFE_SECTORS };
-    FIL file;
-    
     if ((ValidateNandDump(path) != 0) && // NAND dump validation
-        !ShowPrompt(true, "NAND dump corrupt or not from console.\nStill continue?"))
+        !ShowPrompt(true, "Error: NAND dump is corrupt.\nStill continue?"))
         return 1;
     if (!IS_A9LH) {
-        ShowPrompt(false, "Error: A9LH/B9S not detected.");
+        ShowPrompt(false, "Error: B9S/A9LH not detected.");
         return 1;
     }
     
-    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(A9LH/B9S will be left intact.)"))
+    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(B9S/A9LH will be left intact.)"))
         return 1;
     if (!SetWritePermissions(PERM_SYS_LVL1, true)) return 1;
     
@@ -217,38 +210,80 @@ u32 SafeRestoreNandDump(const char* path) {
         memset(essential, 0, sizeof(EssentialBackup));
     
     // open file, get size
+    FIL file;
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     u32 fsize = fvx_size(&file);
-    safe_sectors[(sizeof(safe_sectors) / sizeof(u32)) - 1] = fsize / 0x200;
+    
+    // get NCSD headers from image and SysNAND
+    NandNcsdHeader ncsd_loc, ncsd_img;
+    MbrHeader twl_mbr_img;
+    if ((ReadNandFile(&file, &ncsd_img, 0, 1, 0xFF) != 0) ||
+        (ReadNandFile(&file, &twl_mbr_img, 0, 1, 0x03) != 0) ||
+        (ReadNandSectors((u8*) &ncsd_loc, 0, 1, 0xFF, NAND_SYSNAND) != 0)) {
+        fvx_close(&file);
+        return 1;
+    }
+    
+    // compare NCSD header partitioning
+    bool header_inject = false;
+    if (memcmp(&ncsd_loc, &ncsd_img, sizeof(NandNcsdHeader)) != 0) {
+        for (int p = -1; p <= 8; p++) {
+            NandPartitionInfo info_loc = { 0 };
+            NandPartitionInfo info_img = { 0 };
+            u32 idx = (p < 0) ? 0 : p;
+            u32 type = (p < 0) ? NP_TYPE_SECRET : NP_TYPE_FIRM;
+            u32 subtype = (p < 0) ? NP_SUBTYPE_CTR_N : NP_SUBTYPE_CTR;
+            bool np_loc = (GetNandNcsdPartitionInfo(&info_loc, type, subtype, idx, &ncsd_loc) == 0);
+            bool np_img = (GetNandNcsdPartitionInfo(&info_img, type, subtype, idx, &ncsd_img) == 0);
+            if (!np_loc && !np_img) {
+                if (p >= 1) header_inject = true;
+                break;
+            }
+            if ((np_loc != np_img) || (memcmp(&info_loc, &info_img, sizeof(NandPartitionInfo)) != 0))
+                break;
+        }
+        if (!header_inject || (ValidateNandNcsdHeader(&ncsd_img) != 0) || (ValidateMbrHeader(&twl_mbr_img) != 0)) {
+            ShowPrompt(false, "Image NCSD corrupt or customized,\nsafe restore is not possible!");
+            fvx_close(&file);
+            return 1;
+        }
+    }
+    
+    // additional warning for elevated write permissions
+    if (header_inject) {
+        if (!ShowPrompt(true, "!WARNING!\n \nNCSD differs between image and local,\nelevated write permissions required\n \nProceed on your own risk?") ||
+            !SetWritePermissions(PERM_SYS_LVL3, true)) {
+            fvx_close(&file);
+            return 1;
+        }
+    }
     
     // main processing loop
     u32 ret = 0;
+    u32 sector0 = 1; // start at the sector after NCSD
     if (!ShowProgress(0, 0, path)) ret = 1;
-    for (u32 p = 0; p < sizeof(safe_sectors) / sizeof(u32); p += 2) {
-        u32 sector0 = safe_sectors[p];
-        u32 sector1 = safe_sectors[p+1];
-        fvx_lseek(&file, sector0 * 0x200);
+    for (int p = -1; p < 8; p++) {
+        NandPartitionInfo np_info;
+        u32 idx = (p < 0) ? 0 : p;
+        u32 type = (p < 0) ? NP_TYPE_SECRET : NP_TYPE_FIRM;
+        u32 subtype = (p < 0) ? NP_SUBTYPE_CTR_N : NP_SUBTYPE_CTR;
+        u32 sector1 = (GetNandNcsdPartitionInfo(&np_info, type, subtype, idx, &ncsd_loc) == 0) ? np_info.sector : fsize / 0x200;
         for (u32 s = sector0; (s < sector1) && (ret == 0); s += MAIN_BUFFER_SIZE / 0x200) {
-            UINT btr;
             u32 count = min(MAIN_BUFFER_SIZE / 0x200, (sector1 - s));
-            if (fvx_read(&file, MAIN_BUFFER, count * 0x200, &btr) != FR_OK) ret = 1;
+            if (ReadNandFile(&file, MAIN_BUFFER, s, count, 0xFF)) ret = 1;
             if (WriteNandSectors(MAIN_BUFFER, s, count, 0xFF, NAND_SYSNAND)) ret = 1;
-            if (btr != count * 0x200) ret = 1;
             if (!ShowProgress(s + count, fsize / 0x200, path)) ret = 1;
         }
-    }
-    if (!IS_O3DS && (CheckNandType(NAND_SYSNAND) != NAND_TYPE_N3DS) && (ret == 0)) {
-        // NAND header handling / special case, only for downgraded N3DS
-        u8 header[0x200]; // NAND header
-        UINT btr;
-        fvx_lseek(&file, 0);
-        if ((fvx_read(&file, header, 0x200, &btr) == FR_OK) &&
-            (CheckNandHeader(header) == NAND_TYPE_N3DS) &&
-            (WriteNandSectors(header, 0, 1, 0xFF, NAND_SYSNAND) != 0))
-            ret = 1;
+        if (sector1 == fsize / 0x200) break; // at file end
+        sector0 = np_info.sector + np_info.count;
     }
     fvx_close(&file);
+    
+    // NCSD header inject, should only be required with 2.1 local NANDs on N3DS
+    if (header_inject && (ret == 0) &&
+        (WriteNandSectors((u8*) &ncsd_img, 0, 1, 0xFF, NAND_SYSNAND) != 0))
+        ret = 1;
     
     // inject essential backup to NAND
     WriteNandSectors((u8*) essential, ESSENTIAL_SECTOR, (sizeof(EssentialBackup) + 0x1FF) / 0x200, 0xFF, NAND_SYSNAND);

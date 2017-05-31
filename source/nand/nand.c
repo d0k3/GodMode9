@@ -9,7 +9,6 @@
 #include "sdmmc.h"
 #include "image.h"
 
-#define NAND_MIN_SECTORS ((!IS_O3DS) ? NAND_MIN_SECTORS_N3DS : NAND_MIN_SECTORS_O3DS)
 
 #define KEY95_SHA256    ((IS_DEVKIT) ? slot0x11Key95dev_sha256 : slot0x11Key95_sha256)
 #define SECTOR_SHA256   ((IS_DEVKIT) ? sector0x96dev_sha256 : sector0x96_sha256)
@@ -57,48 +56,6 @@ static const u8 sector0x96_sha256[0x20] = { // hash for legit sector 0x96 (diffe
 static const u8 sector0x96dev_sha256[0x20] = { // hash for legit sector 0x96 (different on A9LH)
     0xB2, 0x91, 0xD9, 0xB1, 0x33, 0x05, 0x79, 0x0D, 0x47, 0xC6, 0x06, 0x98, 0x4C, 0x67, 0xC3, 0x70,
     0x09, 0x54, 0xE3, 0x85, 0xDE, 0x47, 0x55, 0xAF, 0xC6, 0xCB, 0x1D, 0x8D, 0xC7, 0x84, 0x5A, 0x64
-};
-    
-static const u8 nand_magic_n3ds[0x60] = { // NCSD NAND header N3DS magic
-    0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x04, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x03, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x05, 0x00, 0x00, 0x88, 0x05, 0x00, 0x80, 0x01, 0x00, 0x00,
-    0x80, 0x89, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00, 0x80, 0xA9, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00,
-    0x80, 0xC9, 0x05, 0x00, 0x80, 0xF6, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-static const u8 nand_magic_o3ds[0x60] = { // NCSD NAND header O3DS magic
-    0x4E, 0x43, 0x53, 0x44, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x04, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x05, 0x00, 0x00, 0x88, 0x05, 0x00, 0x80, 0x01, 0x00, 0x00,
-    0x80, 0x89, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00, 0x80, 0xA9, 0x05, 0x00, 0x00, 0x20, 0x00, 0x00,
-    0x80, 0xC9, 0x05, 0x00, 0x80, 0xAE, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-static const u8 twl_mbr[0x42] = { // encrypted version inside the NCSD NAND header (@0x1BE)
-    0x00, 0x04, 0x18, 0x00, 0x06, 0x01, 0xA0, 0x3F, 0x97, 0x00, 0x00, 0x00, 0xA9, 0x7D, 0x04, 0x00,
-    0x00, 0x04, 0x8E, 0x40, 0x06, 0x01, 0xA0, 0xC3, 0x8D, 0x80, 0x04, 0x00, 0xB3, 0x05, 0x01, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x55, 0xAA
-};
-
-static const u8 ctr_mbr_o3ds[0x42] = { // found at the beginning of the CTRNAND partition (O3DS)
-    0x00, 0x05, 0x2B, 0x00, 0x06, 0x02, 0x42, 0x80, 0x65, 0x01, 0x00, 0x00, 0x1B, 0x9F, 0x17, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x55, 0xAA
-};
-
-static const u8 ctr_mbr_n3ds[0x42] = { // found at the beginning of the CTRNAND partition (N3DS)
-    0x00, 0x05, 0x1D, 0x00, 0x06, 0x02, 0x82, 0x17, 0x57, 0x01, 0x00, 0x00, 0x69, 0xE9, 0x20, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x55, 0xAA
 };
 
 static u8 CtrNandCtr[16];
@@ -407,15 +364,72 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 n
     return 0;
 }
 
-u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd) // in sectors
+// shamelessly stolen from myself
+// see: https://github.com/d0k3/GodMode9/blob/master/source/game/ncsd.c#L4
+u32 ValidateNandNcsdHeader(NandNcsdHeader* header)
 {
-    u32 nand_minsize = 1;
+    u8 zeroes[16] = { 0 };
+    if ((memcmp(header->magic, "NCSD", 4) != 0) || // check magic number
+        (memcmp(header->partitions_fs_type, zeroes, 8) == 0) || header->mediaId) // prevent detection of cart NCSD images
+        return 1;
+    
+    u32 data_units = 0;
+    u32 firm_count = 0;
+    for (u32 i = 0; i < 8; i++) {
+        NandNcsdPartition* partition = header->partitions + i;
+        u8 np_type = header->partitions_fs_type[i];
+        if ((i == 0) && !partition->size) return 1; // first content must be there
+        else if (!partition->size) continue;
+        if (!np_type) return 1; // partition must have a type
+        if (partition->offset < data_units)
+            return 1; // overlapping partitions, failed
+        data_units = partition->offset + partition->size;
+        if (np_type == NP_TYPE_FIRM) firm_count++; // count firms
+    }
+    if (data_units > header->size) return 1;
+    if (!firm_count) return 1; // at least one firm is required
+     
+    return 0;
+}
+
+u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd)
+{
+    u32 nand_minsize = 0;
     for (u32 prt_idx = 0; prt_idx < 8; prt_idx++) {
         u32 prt_end = ncsd->partitions[prt_idx].offset + ncsd->partitions[prt_idx].size;
         if (prt_end > nand_minsize) nand_minsize = prt_end;
     }
     
     return nand_minsize;
+}
+
+u32 GetNandMinSizeSectors(u32 nand_src)
+{
+    NandNcsdHeader ncsd;
+    if ((ReadNandSectors((u8*) &ncsd, 0, 1, 0xFF, nand_src) != 0) ||
+        (ValidateNandNcsdHeader(&ncsd) != 0)) return 0;
+    
+    return GetNandNcsdMinSizeSectors(&ncsd);
+}
+
+u32 GetNandSizeSectors(u32 nand_src)
+{
+    u32 sysnand_sectors = getMMCDevice(0)->total_size;
+    if (nand_src == NAND_SYSNAND) return sysnand_sectors; // for SysNAND
+    
+    u32 min_sectors = GetNandMinSizeSectors(nand_src);
+    if (nand_src == NAND_EMUNAND) { // for EmuNAND
+        u32 partition_offset = GetPartitionOffsetSector("0:");
+        u32 emunand_max_sectors = (partition_offset >= (emunand_base_sector + 1)) ? // +1 for safety
+            partition_offset - (emunand_base_sector + 1) : 0;
+        u32 emunand_min_sectors = (emunand_base_sector % 0x2000 == 0) ? sysnand_sectors : min_sectors;
+        return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
+    } else if (nand_src == NAND_IMGNAND) { // for images
+        u32 img_sectors = (GetMountState() & IMG_NAND) ? GetMountSize() / 0x200 : 0;
+        return (img_sectors >= min_sectors) ? img_sectors : 0;
+    }
+    
+    return 0;
 }
 
 u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, NandNcsdHeader* ncsd)
@@ -466,7 +480,10 @@ u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32
 
 u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, u32 nand_src)
 {
-    // check NAND NCSD integrity(!!!)
+    // workaround for info == NULL
+    NandPartitionInfo dummy;
+    if (!info) info = &dummy;
+    
     // workaround for ZERONAND
     if (nand_src == NAND_ZERONAND) nand_src = NAND_SYSNAND;
     
@@ -474,12 +491,12 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
     u8 header[0x200];
     ReadNandSectors(header, 0x00, 1, 0xFF, nand_src);
     NandNcsdHeader* ncsd = (NandNcsdHeader*) header;
-    if (((type == NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, NP_TYPE_STD, subtype, 0, ncsd) != 0)) ||
+    if ((ValidateNandNcsdHeader(ncsd) != 0) ||
+        ((type == NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, NP_TYPE_STD, subtype, 0, ncsd) != 0)) ||
         ((type != NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, type, subtype, index, ncsd) != 0)))
         return 1; // not found
     
-    // size of bonus partition
-    if (type == NP_TYPE_BONUS) {
+    if (type == NP_TYPE_BONUS) { // size of bonus partition
         info->count = GetNandSizeSectors(nand_src) - info->sector;
     } else if (type == NP_TYPE_FAT) { // FAT type specific stuff
         ReadNandSectors(header, info->sector, 1, info->keyslot, nand_src);
@@ -493,76 +510,6 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
     }
     
     return 0;
-}    
-
-u32 CheckNandMbr(u8* mbr)
-{
-    if (memcmp(mbr + (0x200 - sizeof(twl_mbr)), twl_mbr, sizeof(twl_mbr)) == 0)
-        return NAND_TYPE_TWL; // TWLNAND MBR (included in NAND header)
-    else if (memcmp(mbr + (0x200 - sizeof(ctr_mbr_o3ds)), ctr_mbr_o3ds, sizeof(ctr_mbr_o3ds)) == 0)
-        return NAND_TYPE_O3DS; // CTRNAND MBR (@0x05C980)
-    else if (memcmp(mbr + (0x200 - sizeof(ctr_mbr_n3ds)), ctr_mbr_n3ds, sizeof(ctr_mbr_n3ds)) == 0)
-        return NAND_TYPE_N3DS; // CTRNAND MBR (@0x05C980)
-    else return 0;
-}
-
-u32 CheckNandHeader(u8* header)
-{
-    // TWL MBR check
-    u8 header_dec[0x200];
-    memcpy(header_dec, header, 0x200);
-    CryptNand(header_dec, 0, 1, 0x03);
-    if (CheckNandMbr(header_dec) != NAND_TYPE_TWL)
-        return 0; // header does not belong to console
-    
-    // header type check
-    if (memcmp(header + 0x100, nand_magic_n3ds, sizeof(nand_magic_n3ds)) == 0)
-        return (IS_O3DS) ? 0 : NAND_TYPE_N3DS;
-    else if (memcmp(header + 0x100, nand_magic_o3ds, sizeof(nand_magic_o3ds)) == 0)
-        return NAND_TYPE_O3DS;
-    
-    return 0;
-}
-
-u32 CheckNandType(u32 nand_src)
-{
-    if (ReadNandSectors(NAND_BUFFER, 0, 1, 0xFF, nand_src) != 0)
-        return 0;
-    if (memcmp(NAND_BUFFER + 0x100, nand_magic_n3ds, sizeof(nand_magic_n3ds)) == 0) {
-        return (IS_O3DS) ? 0 : NAND_TYPE_N3DS;
-    } else if (memcmp(NAND_BUFFER + 0x100, nand_magic_o3ds, sizeof(nand_magic_o3ds)) == 0) {
-        u8 magic[8] = {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20};
-        if (ReadNandSectors(NAND_BUFFER, 0x5CAE5, 1, 0x04, nand_src) != 0)
-            return 0;
-        return ((IS_O3DS) || (memcmp(magic, NAND_BUFFER, 8) == 0)) ?
-            NAND_TYPE_O3DS : NAND_TYPE_NO3DS;
-    }
-    
-    return 0;
-}
-
-u64 GetNandSizeSectors(u32 nand_src)
-{
-    u32 sysnand_sectors = getMMCDevice(0)->total_size;
-    if (nand_src == NAND_EMUNAND) { // for EmuNAND
-        u32 partition_offset = GetPartitionOffsetSector("0:");
-        u32 emunand_max_sectors = (partition_offset >= (emunand_base_sector + 1)) ? // +1 for safety
-            partition_offset - (emunand_base_sector + 1) : 0;
-        u32 emunand_min_sectors = (emunand_base_sector % 0x2000 == 0) ? sysnand_sectors : NAND_MIN_SECTORS;
-        return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
-    } else if (nand_src == NAND_IMGNAND) { // for images
-        u32 img_sectors = (GetMountState() & IMG_NAND) ? GetMountSize() / 0x200 : 0;
-        return (img_sectors >= sysnand_sectors) ? sysnand_sectors : (img_sectors >= NAND_MIN_SECTORS) ? NAND_MIN_SECTORS : 0;
-    } else if (nand_src == NAND_SYSNAND) { // for SysNAND
-        return sysnand_sectors;
-    }
-    
-    return 0;
-}
-
-u64 GetNandUnusedSectors(u32 nand_src)
-{
-    return GetNandSizeSectors(nand_src) - NAND_MIN_SECTORS;
 }
 
 u32 GetLegitSector0x96(u8* sector)
@@ -613,34 +560,36 @@ u32 GetNandCid(void* cid) {
 bool CheckMultiEmuNand(void)
 {
     // this only checks for the theoretical possibility
-    return (GetPartitionOffsetSector("0:") >= (u64) (align(NAND_MIN_SECTORS + 1, 0x2000) * 2));
+    u32 emunand_min_sectors = GetNandMinSizeSectors(NAND_EMUNAND);
+    return (emunand_min_sectors && (GetPartitionOffsetSector("0:") >= (u64) (align(emunand_min_sectors + 1, 0x2000) * 2)));
 }
 
 u32 InitEmuNandBase(bool reset)
 {
     if (!reset) {
         u32 last_valid = emunand_base_sector;
+        u32 emunand_min_sectors = GetNandMinSizeSectors(NAND_EMUNAND);
         
         // legacy type multiNAND
         u32 legacy_sectors = (getMMCDevice(0)->total_size > 0x200000) ? 0x400000 : 0x200000;
         emunand_base_sector += legacy_sectors - (emunand_base_sector % legacy_sectors);
-        if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
+        if (GetNandSizeSectors(NAND_EMUNAND) && (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) == 0))
             return emunand_base_sector; // GW type EmuNAND
         emunand_base_sector++;
-        if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
+        if (GetNandSizeSectors(NAND_EMUNAND) && (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) == 0))
             return emunand_base_sector; // RedNAND type EmuNAND
         
         // compact type multiNAND
-        if (last_valid % 0x2000 <= 1) {
-            u32 compact_sectors = align(NAND_MIN_SECTORS + 1, 0x2000);
+        if (emunand_min_sectors && (last_valid % 0x2000 <= 1)) {
+            u32 compact_sectors = align(emunand_min_sectors + 1, 0x2000);
             emunand_base_sector = last_valid + compact_sectors;
-            if (GetNandSizeSectors(NAND_EMUNAND) && CheckNandType(NAND_EMUNAND))
+            if (GetNandSizeSectors(NAND_EMUNAND) && (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) == 0))
                 return emunand_base_sector;
         }
     }
     
     emunand_base_sector = 0x000000; // GW type EmuNAND
-    if (!CheckNandType(NAND_EMUNAND))
+    if (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) != 0)
         emunand_base_sector = 0x000001; // RedNAND type EmuNAND
     
     return emunand_base_sector;

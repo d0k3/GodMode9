@@ -14,14 +14,24 @@ u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
         return 1;
     
     u32 firm_size = sizeof(FirmHeader);
+    int section_arm11 = -1;
+    int section_arm9 = -1;
     for (u32 i = 0; i < 4; i++) {
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
         if (section->offset < firm_size) return 1;
+        if ((header->entry_arm11 >= section->address) &&
+            (header->entry_arm11 < section->address + section->size))
+            section_arm11 = i;
+        if ((header->entry_arm9 >= section->address) &&
+            (header->entry_arm9 < section->address + section->size))
+            section_arm9 = i;
         firm_size = section->offset + section->size;
     }
     
     if ((firm_size > FIRM_MAX_SIZE) || (data_size && (firm_size > data_size)))
+        return 1;
+    if ((header->entry_arm11 && (section_arm11 < 0)) || (header->entry_arm9 && (section_arm9 < 0)))
         return 1;
     
     return 0;
