@@ -73,7 +73,9 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     VolToPart[0].pt = 1; // workaround to prevent FatFS rebuilding the MBR
     InitSDCardFS();
     UINT c_size = cluster_size;
-    bool ret = (f_mkfs("0:", FM_FAT32, c_size, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK) && (f_setlabel((label) ? label : "0:GM9SD") == FR_OK);
+    bool ret = ((f_mkfs("0:", FM_FAT32, c_size, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK) || 
+        (f_mkfs("0:", FM_FAT32, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK)) &&
+        (f_setlabel((label) ? label : "0:GM9SD") == FR_OK);
     DeinitSDCardFS();
     VolToPart[0].pt = 0; // revert workaround to prevent SD mount problems
     
