@@ -744,7 +744,7 @@ bool GetVGameLv3Filename(char* name, const VirtualFile* vfile, u32 n_chars) {
     }
     memset(name, 0, n_chars);
     for (u32 i = 0; (i < (n_chars-1)) && (i < name_len); i++)
-        name[i] = wname[i]; // poor mans UTF-16 -> UTF-8
+        name[i] = wname[i]; // poor mans UTF-16 -> UTF-8 (doesn't work proper for special chars)
     
     return true;
 }

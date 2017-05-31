@@ -49,7 +49,7 @@ u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon) {
 u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon) {
     const u16* title = twl_icon->title_eng; // english title
     memset(desc, 0, TWLICON_SIZE_DESC + 1);
-    for (u32 i = 0; i < TWLICON_SIZE_DESC; i++) desc[i] = title[i];
+    for (u32 i = 0; i < TWLICON_SIZE_DESC; i++) desc[i] = (title[i] >= 0x80) ? ' ' : title[i];
     return 0;
 }
 
