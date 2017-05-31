@@ -561,7 +561,7 @@ bool CheckMultiEmuNand(void)
     return (emunand_min_sectors && (GetPartitionOffsetSector("0:") >= (u64) (align(emunand_min_sectors + 1, 0x2000) * 2)));
 }
 
-u32 InitEmuNandBase(bool reset)
+u32 AutoEmuNandBase(bool reset)
 {
     if (!reset) {
         u32 last_valid = emunand_base_sector;
@@ -595,4 +595,9 @@ u32 InitEmuNandBase(bool reset)
 u32 GetEmuNandBase(void)
 {
     return emunand_base_sector;
+}
+
+u32 SetEmuNandBase(u32 base_sector)
+{
+    return (emunand_base_sector = base_sector);
 }

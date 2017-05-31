@@ -75,6 +75,7 @@ int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 d
 
 u32 ValidateNandNcsdHeader(NandNcsdHeader* header);
 u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd);
+u32 GetNandMinSizeSectors(u32 nand_src);
 u32 GetNandSizeSectors(u32 src);
 u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, NandNcsdHeader* ncsd);
 u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, u32 nand_src);
@@ -84,5 +85,6 @@ u32 GetOtpHash(void* hash);
 u32 GetNandCid(void* cid);
 
 bool CheckMultiEmuNand(void);
-u32 InitEmuNandBase(bool reset);
+u32 AutoEmuNandBase(bool reset);
 u32 GetEmuNandBase(void);
+u32 SetEmuNandBase(u32 base_sector);

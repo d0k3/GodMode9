@@ -206,10 +206,12 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 }
 
 u32 SdFormatMenu(void) {
-    const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x3FF, 0x7FF };
+    const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x3FF, 0x7FF }; // [2] and [3] are placeholders
     const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
-    const char* option_emunand_size[6] = { "No EmuNAND", "O3DS NAND size", "N3DS NAND size", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
+    const char* option_emunand_size[6] = { "No EmuNAND", "SysNAND size (min)", "SysNAND size (full)", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
     const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
+    u64 sysnand_size_mb = (((u64)GetNandSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
+    u64 sysnand_min_size_mb = (((u64)GetNandMinSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
     char label[16] = "0:GM9SD";
     u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
@@ -224,7 +226,11 @@ u32 SdFormatMenu(void) {
     }
     
     user_select = ShowSelectPrompt(6, option_emunand_size, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
-    if (user_select && (user_select < 6)) {
+    if (user_select == 2) {
+        emunand_size_mb = sysnand_min_size_mb;
+    } else if (user_select == 3) {
+        emunand_size_mb = sysnand_size_mb;
+    } else if (user_select && (user_select < 6)) {
         emunand_size_mb = emunand_size_table[user_select];
     } else if (user_select == 6) do {
         emunand_size_mb = ShowNumberPrompt(0, "SD card size is %lluMB.\nEnter EmuNAND size (MB) below:", sdcard_size_mb);
@@ -244,16 +250,23 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    VirtualFile nand;
-    if (!GetVirtualFile(&nand, "S:/nand_minsize.bin"))
-        return 0;
-    InitSDCardFS(); // this has to be initialized for EmuNAND to work
-    if ((nand.size / (1024*1024) <= emunand_size_mb) && ShowPrompt(true, "Clone SysNAND to RedNAND now?")) {
+    if (emunand_size_mb >= sysnand_min_size_mb) {
+        const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
+        if (emunand_size_mb >= sysnand_size_mb)
+            user_select = ShowSelectPrompt(3, option_emunand_type, "Choose EmuNAND type to set up:");
+        else user_select = ShowPrompt(true, "Clone SysNAND to RedNAND now?") ? 1 : 0;
+        if (!user_select || (user_select > 2)) return 0;
+        
+        u8 ncsd[0x200];
         u32 flags = OVERRIDE_PERM;
-        if (!PathCopy("E:", "S:/nand_minsize.bin", &flags))
+        InitSDCardFS(); // this has to be initialized for EmuNAND to work
+        SetEmuNandBase((user_select == 2) ? 0 : 1); // 0 -> GW EmuNAND
+        if ((ReadNandSectors(ncsd, 0, 1, 0xFF, NAND_SYSNAND) != 0) ||
+            (WriteNandSectors(ncsd, 0, 1, 0xFF, NAND_EMUNAND) != 0) ||
+            (!PathCopy("E:", "S:/nand_minsize.bin", &flags)))
             ShowPrompt(false, "Cloning SysNAND to EmuNAND: failed!");
+        DeinitSDCardFS();
     }
-    DeinitSDCardFS();
     
     return 0;
 }
@@ -1225,7 +1238,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
                 ShowPrompt(true, "Initializing SD card failed! Retry?"));
         }
         ClearScreenF(true, true, COLOR_STD_BG);
-        InitEmuNandBase(true);
+        AutoEmuNandBase(true);
         InitExtFS();
         GetDirContents(current_dir, current_path);
         return 0;
@@ -1241,7 +1254,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_EMUNAND))
                 clipboard->n_entries = 0; // remove EmuNAND clipboard entries
             DismountDriveType(DRV_EMUNAND);
-            InitEmuNandBase(false);
+            AutoEmuNandBase(false);
             InitExtFS();
         }
         GetDirContents(current_dir, current_path);
@@ -1367,7 +1380,7 @@ u32 GodMode() {
     timer_start(); // show splash for at least 1 sec
     
     InitSDCardFS();
-    InitEmuNandBase(true);
+    AutoEmuNandBase(true);
     InitNandCrypto();
     InitExtFS();
     
@@ -1512,7 +1525,7 @@ u32 GodMode() {
                     clipboard->n_entries = 0; // remove SD clipboard entries
             }
             ClearScreenF(true, true, COLOR_STD_BG);
-            InitEmuNandBase(true);
+            AutoEmuNandBase(true);
             InitExtFS();
             GetDirContents(current_dir, current_path);
             if (cursor >= current_dir->n_entries) cursor = 0;
@@ -1715,7 +1728,7 @@ u32 GodMode() {
         } else if (pad_state & SD_INSERT) {
             while (!InitSDCardFS() && ShowPrompt(true, "Initialising SD card failed! Retry?"));
             ClearScreenF(true, true, COLOR_STD_BG);
-            InitEmuNandBase(true);
+            AutoEmuNandBase(true);
             InitExtFS();
             GetDirContents(current_dir, current_path);
         } else if ((pad_state & SD_EJECT) && CheckSDMountState()) {
