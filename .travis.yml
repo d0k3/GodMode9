@@ -10,4 +10,4 @@ install:
   - sudo apt-get -qq install lftp p7zip-full
 
 script:
-  - make
+  - make binary
