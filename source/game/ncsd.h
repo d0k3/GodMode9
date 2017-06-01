@@ -38,4 +38,4 @@ typedef struct {
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
 u64 GetNcsdTrimmedSize(NcsdHeader* header);
-u32 CryptNcsdSequential(u8* data, u32 offset_data, u32 size_data, u16 crypto);
+u32 CryptNcsdSequential(void* data, u32 offset_data, u32 size_data, u16 crypto);

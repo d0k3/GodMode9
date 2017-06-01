@@ -101,9 +101,7 @@ u32 IdentifyFileType(const char* path) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
-    } else if ((strncasecmp(fname, OTP_NAME, sizeof(OTP_NAME)) == 0) ||
-        (strncasecmp(fname, OTP_BIG_NAME, sizeof(OTP_BIG_NAME)) == 0) ||
-        (strncasecmp(fname, SEEDDB_NAME, sizeof(SEEDDB_NAME)) == 0) ||
+    } else if ((strncasecmp(fname, SEEDDB_NAME, sizeof(SEEDDB_NAME)) == 0) ||
         (strncasecmp(fname, SECTOR_NAME, sizeof(SECTOR_NAME)) == 0) ||
         (strncasecmp(fname, SECRET_NAME, sizeof(SECRET_NAME)) == 0)) {
         return BIN_SUPPORT; // known support file (so launching is not offered)

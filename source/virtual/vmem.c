@@ -69,7 +69,7 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
     return false;
 }
 
-int ReadVMemFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
+int ReadVMemFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     if ((vfile->flags & VFLAG_OTP) && (vfile->keyslot == 0x11)) {
         u8 __attribute__((aligned(32))) otp_local[vfile->size];
         u8 __attribute__((aligned(32))) otp_iv[0x10];
@@ -86,7 +86,7 @@ int ReadVMemFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
     return 0;
 }
 
-int WriteVMemFile(const VirtualFile* vfile, const u8* buffer, u64 offset, u64 count) {
+int WriteVMemFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
     if (vfile->flags & (VFLAG_OTP|VFLAG_BOOT9|VFLAG_BOOT11)) {
         return 1; // not writable / writes blocked
     } else {

@@ -68,5 +68,5 @@ u32 BuildCiaCert(u8* ciacert);
 u32 BuildCiaMeta(CiaMeta* meta, void* exthdr, void* smdh);
 u32 BuildCiaHeader(CiaHeader* header);
 
-u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey);
-u32 EncryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey);
+u32 DecryptCiaContentSequential(void* data, u32 size, u8* ctr, const u8* titlekey);
+u32 EncryptCiaContentSequential(void* data, u32 size, u8* ctr, const u8* titlekey);

@@ -208,7 +208,7 @@ u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to) {
     return res_from | res_to;
 }
 
-u32 CryptNcchSection(u8* data, u32 offset_data, u32 size_data, u32 offset_section, u32 size_section,
+u32 CryptNcchSection(void* data, u32 offset_data, u32 size_data, u32 offset_section, u32 size_section,
     u32 offset_ctr, NcchHeader* ncch, u32 snum, u16 crypt_to, u32 keyid) {
     u16 crypt_from = NCCH_GET_CRYPTO(ncch);
     const u32 mode = AES_CNT_CTRNAND_MODE;
@@ -221,15 +221,16 @@ u32 CryptNcchSection(u8* data, u32 offset_data, u32 size_data, u32 offset_sectio
     }
     
     // determine data / offset / size
-    u8* data_i = data;
+    u8* data8 = (u8*)data;
+    u8* data_i = data8;
     u32 offset_i = 0;
     u32 size_i = size_section;
     if (offset_section < offset_data)
         offset_i = offset_data - offset_section;
-    else data_i = data + (offset_section - offset_data);
+    else data_i = data8 + (offset_section - offset_data);
     size_i = size_section - offset_i;
-    if (size_i > size_data - (data_i - data))
-        size_i = size_data - (data_i - data);
+    if (size_i > size_data - (data_i - data8))
+        size_i = size_data - (data_i - data8);
     
     // actual decryption stuff
     u8 ctr[16];
@@ -247,7 +248,7 @@ u32 CryptNcchSection(u8* data, u32 offset_data, u32 size_data, u32 offset_sectio
 }
 
 // on the fly de-/encryptor for NCCH
-u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypt_to) {
+u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypt_to) {
     const u32 offset_flag3 = 0x188 + 3;
     const u32 offset_flag7 = 0x188 + 7;
     u16 crypt_from = NCCH_GET_CRYPTO(ncch);
@@ -258,10 +259,10 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
     
     // ncch flags handling
     if ((offset <= offset_flag3) && (offset + size > offset_flag3))
-        data[offset_flag3 - offset] = (crypt_to >> 8);
+        ((u8*)data)[offset_flag3 - offset] = (crypt_to >> 8);
     if ((offset <= offset_flag7) && (offset + size > offset_flag7)) {
-        data[offset_flag7 - offset] &= ~(0x01|0x20|0x04);
-        data[offset_flag7 - offset] |= (crypt_to & (0x01|0x20|0x04));
+        ((u8*)data)[offset_flag7 - offset] &= ~(0x01|0x20|0x04);
+        ((u8*)data)[offset_flag7 - offset] |= (crypt_to & (0x01|0x20|0x04));
     }
     
     // exthdr handling
@@ -301,7 +302,7 @@ u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exe
 }
 
 // on the fly de- / encryptor for NCCH - sequential
-u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypt_to) {
+u32 CryptNcchSequential(void* data, u32 offset, u32 size, u16 crypt_to) {
     // warning: this will only work for sequential processing
     // unexpected results otherwise
     static NcchHeader ncch = { 0 };
@@ -324,7 +325,7 @@ u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypt_to) {
         u32 offset_exefs = ncchptr->offset_exefs * NCCH_MEDIA_UNIT;
         if ((offset <= offset_exefs) &&
             ((offset + size) >= offset_exefs + sizeof(ExeFsHeader))) {
-            memcpy(&exefs, data + offset_exefs - offset, sizeof(ExeFsHeader));
+            memcpy(&exefs, (u8*)data + offset_exefs - offset, sizeof(ExeFsHeader));
             if ((NCCH_ENCRYPTED(ncchptr)) && 
                 (DecryptNcch((u8*) &exefs, offset_exefs, sizeof(ExeFsHeader), ncchptr, NULL) != 0))
                 return 1;
@@ -336,9 +337,9 @@ u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypt_to) {
     return CryptNcch(data, offset, size, ncchptr, exefsptr, crypt_to);
 }
 
-u32 SetNcchSdFlag(u8* data) { // data must be at least 0x600 byte and start with NCCH header
-    NcchHeader* ncch = (NcchHeader*) (void*) data;
-    NcchExtHeader* exthdr = (NcchExtHeader*) (void*) (data + NCCH_EXTHDR_OFFSET);
+u32 SetNcchSdFlag(void* data) { // data must be at least 0x600 byte and start with NCCH header
+    NcchHeader* ncch = (NcchHeader*) data;
+    NcchExtHeader* exthdr = (NcchExtHeader*) (void*) ((u8*)data + NCCH_EXTHDR_OFFSET);
     NcchExtHeader exthdr_dec;
     
     if ((ValidateNcchHeader(ncch) != 0) || (!ncch->size_exthdr))

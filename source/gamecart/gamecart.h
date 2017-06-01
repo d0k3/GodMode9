@@ -22,6 +22,6 @@ typedef struct {
 
 u32 GetCartName(char* name, CartData* cdata);
 u32 InitCardRead(CartData* cdata);
-u32 ReadCartSectors(u8* buffer, u32 sector, u32 count, CartData* cdata);
-u32 ReadCartBytes(u8* buffer, u64 offset, u64 count, CartData* cdata);
-u32 ReadCartPrivateHeader(u8* buffer, u64 offset, u64 count, CartData* cdata);
+u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata);
+u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata);
+u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata);

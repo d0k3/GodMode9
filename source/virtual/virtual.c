@@ -169,7 +169,7 @@ bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     return true;
 }
 
-int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count, u32* bytes_read) {
+int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count, u32* bytes_read) {
     // basic check of offset / count
     if (offset >= vfile->size)
         return 0;
@@ -194,7 +194,7 @@ int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count,
     return -1;
 }
 
-int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u64 offset, u64 count, u32* bytes_written) {
+int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written) {
     // basic check of offset / count
     if (offset >= vfile->size)
         return 0;

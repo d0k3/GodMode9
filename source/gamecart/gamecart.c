@@ -125,14 +125,15 @@ u32 InitCardRead(CartData* cdata) {
     return 0;
 }
 
-u32 ReadCartSectors(u8* buffer, u32 sector, u32 count, CartData* cdata) {
+u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
+    u8* buffer8 = (u8*) buffer;
     if (!CART_INSERTED) return 1;
     // header
     u32 header_sectors = (cdata->cart_type & CART_CTR) ? 0x4000/0x200 : 0x8000/0x200;
     if (sector < header_sectors) {
         u32 header_count = (sector + count > header_sectors) ? header_sectors - sector : count;
-        memcpy(buffer, cdata->header + (sector * 0x200), header_count * 0x200);
-        buffer += header_count * 0x200;
+        memcpy(buffer8, cdata->header + (sector * 0x200), header_count * 0x200);
+        buffer8 += header_count * 0x200;
         sector += header_count;
         count -= header_count;
     }
@@ -141,19 +142,19 @@ u32 ReadCartSectors(u8* buffer, u32 sector, u32 count, CartData* cdata) {
     if (cdata->cart_type & CART_CTR) {
         Cart_Dummy();
         Cart_Dummy();
-        CTR_CmdReadData(sector, 0x200, count, buffer);
+        CTR_CmdReadData(sector, 0x200, count, buffer8);
         // overwrite the card2 savegame with 0xFF
         u32 card2_offset = getle32(cdata->header + 0x200);
         if ((card2_offset != 0xFFFFFFFF) &&
             (card2_offset >= cdata->data_size) &&
             (sector + count > card2_offset)) {
             if (sector > card2_offset)
-                memset(buffer, 0xFF, (count * 0x200));
-            else memset(buffer + (card2_offset - sector) * 0x200, 0xFF,
+                memset(buffer8, 0xFF, (count * 0x200));
+            else memset(buffer8 + (card2_offset - sector) * 0x200, 0xFF,
                 (count - (card2_offset - sector)) * 0x200);
         }
     } else if (cdata->cart_type & CART_NTR) {
-        u8* buff = buffer;
+        u8* buff = buffer8;
         u32 off = sector * 0x200;
         for (u32 i = 0; i < count; i++, off += 0x200, buff += 0x200)
             NTR_CmdReadData(off, buff);
@@ -162,49 +163,50 @@ u32 ReadCartSectors(u8* buffer, u32 sector, u32 count, CartData* cdata) {
             ((sector+count) * 0x200 > cdata->arm9i_rom_offset) &&
             (sector * 0x200 < cdata->arm9i_rom_offset + MODC_AREA_SIZE)) {
             u32 arm9i_rom_offset = cdata->arm9i_rom_offset;
-            u8* buffer_arm9i = buffer;
+            u8* buffer_arm9i = buffer8;
             u32 offset_i = 0;
             u32 size_i = MODC_AREA_SIZE;
             if (arm9i_rom_offset < (sector * 0x200))
                 offset_i = (sector * 0x200) - arm9i_rom_offset;
-            else buffer_arm9i = buffer + (arm9i_rom_offset - (sector * 0x200));
+            else buffer_arm9i = buffer8 + (arm9i_rom_offset - (sector * 0x200));
             size_i = MODC_AREA_SIZE - offset_i;
-            if (size_i > (count * 0x200) - (buffer_arm9i - buffer))
-                size_i = (count * 0x200) - (buffer_arm9i - buffer);
+            if (size_i > (count * 0x200) - (buffer_arm9i - buffer8))
+                size_i = (count * 0x200) - (buffer_arm9i - buffer8);
             if (size_i) memcpy(buffer_arm9i, cdata->twl_header + 0x4000 + offset_i, size_i);
         }
     } else return 1;
     return 0;
 }
 
-u32 ReadCartBytes(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata) {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
         // simple wrapper function for ReadCartSectors(...)
         return ReadCartSectors(buffer, offset / 0x200, count / 0x200, cdata);
     } else { // misaligned data -> -___-
+        u8* buffer8 = (u8*) buffer;
         u8 l_buffer[0x200];
         if (offset % 0x200) { // handle misaligned offset
             u32 offset_fix = 0x200 - (offset % 0x200);
             if (ReadCartSectors(l_buffer, offset / 0x200, 1, cdata) != 0) return 1;
-            memcpy(buffer, l_buffer + 0x200 - offset_fix, min(offset_fix, count));
+            memcpy(buffer8, l_buffer + 0x200 - offset_fix, min(offset_fix, count));
             if (count <= offset_fix) return 0;
             offset += offset_fix;
-            buffer += offset_fix;
+            buffer8 += offset_fix;
             count -= offset_fix;
         } // offset is now aligned and part of the data is read
         if (count >= 0x200) { // otherwise this is misaligned and will be handled below
-            if (ReadCartSectors(buffer, offset / 0x200, count / 0x200, cdata) != 0) return 1;
+            if (ReadCartSectors(buffer8, offset / 0x200, count / 0x200, cdata) != 0) return 1;
         }
         if (count % 0x200) { // handle misaligned count
             u32 count_fix = count % 0x200;
             if (ReadCartSectors(l_buffer, (offset + count) / 0x200, 1, cdata) != 0) return 1;
-            memcpy(buffer + count - count_fix, l_buffer, count_fix);
+            memcpy(buffer8 + count - count_fix, l_buffer, count_fix);
         }
         return 0;
     }
 }
 
-u32 ReadCartPrivateHeader(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) {
     if (!(cdata->cart_type & CART_CTR)) return 1;
     if (offset < PRIV_HDR_SIZE) {
         u8* priv_hdr = cdata->header + 0x4000;

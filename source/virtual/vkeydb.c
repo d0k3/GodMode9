@@ -57,7 +57,7 @@ bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir) {
     return false;
 }
 
-int ReadVKeyDbFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
+int ReadVKeyDbFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     AesKeyInfo* key_entry = key_info + (vfile->offset / sizeof(AesKeyInfo));
     memcpy(buffer, key_entry->key + offset, count);
     return 0;

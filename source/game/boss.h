@@ -40,5 +40,5 @@ typedef struct {
 u32 ValidateBossHeader(BossHeader* header, u32 fsize);
 u32 GetBossPayloadHashHeader(u8* header, BossHeader* boss);
 u32 CheckBossEncrypted(BossHeader* boss);
-u32 CryptBoss(u8* data, u32 offset, u32 size, BossHeader* boss);
-u32 CryptBossSequential(u8* data, u32 offset, u32 size);
+u32 CryptBoss(void* data, u32 offset, u32 size, BossHeader* boss);
+u32 CryptBossSequential(void* data, u32 offset, u32 size);

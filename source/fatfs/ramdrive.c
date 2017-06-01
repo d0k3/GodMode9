@@ -4,7 +4,7 @@
 static u8* ramdrv_buffer = NULL;
 static u32 ramdrv_size = 0;
 
-int ReadRamDriveSectors(u8* buffer, u32 sector, u32 count) {
+int ReadRamDriveSectors(void* buffer, u32 sector, u32 count) {
     u64 offset = sector * 0x200;
     u64 btr = count * 0x200;
     if (!ramdrv_buffer) return -1;
@@ -12,7 +12,7 @@ int ReadRamDriveSectors(u8* buffer, u32 sector, u32 count) {
     memcpy(buffer, ramdrv_buffer + offset, btr);
     return 0;
 }
-int WriteRamDriveSectors(const u8* buffer, u32 sector, u32 count) {
+int WriteRamDriveSectors(const void* buffer, u32 sector, u32 count) {
     u64 offset = sector * 0x200;
     u64 btw = count * 0x200;
     if (!ramdrv_buffer) return -1;

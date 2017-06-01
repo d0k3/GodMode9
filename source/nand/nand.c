@@ -112,20 +112,22 @@ bool InitNandCrypto(void)
     } else if (IS_A9LH) { // for a9lh
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*) REG_SHAHASH, 32);
-    } else {
-        // load hash via keys?
-        const char* base[] = { INPUT_PATHS };
-        char path[64];
-        u8 otp[0x100];
-        for (u32 i = 0; i < 2 * (sizeof(base)/sizeof(char*)); i++) {
-            snprintf(path, 64, "%s/%s", base[i/2], (i%2) ? OTP_BIG_NAME : OTP_NAME);
-            if (FileGetData(path, otp, 0x100, 0) == 0x100) {
-                sha_quick(OtpSha256, otp, 0x90, SHA256_MODE);
-                break;
-            }
+    }
+    if (!CheckSector0x96Crypto()) { // if all else fails...
+        u8 __attribute__((aligned(32))) otp0x90[0x90];
+        u8 __attribute__((aligned(32))) otp_key[0x10];
+        u8 __attribute__((aligned(32))) otp_iv[0x10];
+        memcpy(otp0x90, (u8*) 0x01FFB800, 0x90);
+        if ((LoadKeyFromFile(otp_key, 0x11, 'N', "OTP") == 0) &&
+            ((LoadKeyFromFile(otp_iv, 0x11, 'I', "IVOTP") == 0) ||
+             (LoadKeyFromFile(otp_iv, 0x11, 'I', "OTP") == 0))) {
+            setup_aeskey(0x11, otp_key);
+            use_aeskey(0x11);
+            cbc_encrypt(otp0x90, otp0x90, 0x90 / 0x10, AES_CNT_TITLEKEY_ENCRYPT_MODE, otp_iv);
+            sha_quick(OtpSha256, otp0x90, 0x90, SHA256_MODE);
         }
     }
-        
+    
     // part #1: Get NAND CID, set up TWL/CTR counter
     u32 NandCid[4];
     u8 shasum[32];
@@ -205,7 +207,7 @@ bool CheckSector0x96Crypto(void)
     return (sha_cmp(KEY95_SHA256, buffer, 16, SHA256_MODE) == 0);
 }
 
-void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
+void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot)
 {
     u32 mode = (keyslot != 0x03) ? AES_CNT_CTRNAND_MODE : AES_CNT_TWLNAND_MODE; // somewhat hacky
     u8 ctr[16] __attribute__((aligned(32)));
@@ -220,7 +222,7 @@ void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot)
     ctr_decrypt((void*) buffer, (void*) buffer, blocks, mode, ctr);
 }
 
-void CryptSector0x96(u8* buffer, bool encrypt)
+void CryptSector0x96(void* buffer, bool encrypt)
 {
     u32 mode = encrypt ? AES_CNT_ECB_ENCRYPT_MODE : AES_CNT_ECB_DECRYPT_MODE;
     
@@ -233,67 +235,69 @@ void CryptSector0x96(u8* buffer, bool encrypt)
     ecb_decrypt((void*) buffer, (void*) buffer, 0x200 / AES_BLOCK_SIZE, mode);
 }
 
-int ReadNandBytes(u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src)
+int ReadNandBytes(void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src)
 {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
         // simple wrapper function for ReadNandSectors(...)
         return ReadNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_src);
     } else { // misaligned data -> -___-
+        u8* buffer8 = (u8*) buffer;
         u8 l_buffer[0x200];
         int errorcode = 0;
         if (offset % 0x200) { // handle misaligned offset
             u32 offset_fix = 0x200 - (offset % 0x200);
             errorcode = ReadNandSectors(l_buffer, offset / 0x200, 1, keyslot, nand_src);
             if (errorcode != 0) return errorcode;
-            memcpy(buffer, l_buffer + 0x200 - offset_fix, min(offset_fix, count));
+            memcpy(buffer8, l_buffer + 0x200 - offset_fix, min(offset_fix, count));
             if (count <= offset_fix) return 0;
             offset += offset_fix;
-            buffer += offset_fix;
+            buffer8 += offset_fix;
             count -= offset_fix;
         } // offset is now aligned and part of the data is read
         if (count >= 0x200) { // otherwise this is misaligned and will be handled below
-            errorcode = ReadNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_src);
+            errorcode = ReadNandSectors(buffer8, offset / 0x200, count / 0x200, keyslot, nand_src);
             if (errorcode != 0) return errorcode;
         }
         if (count % 0x200) { // handle misaligned count
             u32 count_fix = count % 0x200;
             errorcode = ReadNandSectors(l_buffer, (offset + count) / 0x200, 1, keyslot, nand_src);
             if (errorcode != 0) return errorcode;
-            memcpy(buffer + count - count_fix, l_buffer, count_fix);
+            memcpy(buffer8 + count - count_fix, l_buffer, count_fix);
         }
         return errorcode;
     }
 }
 
-int WriteNandBytes(const u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst)
+int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst)
 {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
         // simple wrapper function for WriteNandSectors(...)
         return WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
     } else { // misaligned data -> -___-
+        u8* buffer8 = (u8*) buffer8;
         u8 l_buffer[0x200];
         int errorcode = 0;
         if (offset % 0x200) { // handle misaligned offset
             u32 offset_fix = 0x200 - (offset % 0x200);
             errorcode = ReadNandSectors(l_buffer, offset / 0x200, 1, keyslot, nand_dst);
             if (errorcode != 0) return errorcode;
-            memcpy(l_buffer + 0x200 - offset_fix, buffer, min(offset_fix, count));
+            memcpy(l_buffer + 0x200 - offset_fix, buffer8, min(offset_fix, count));
             errorcode = WriteNandSectors((const u8*) l_buffer, offset / 0x200, 1, keyslot, nand_dst);
             if (errorcode != 0) return errorcode;
             if (count <= offset_fix) return 0;
             offset += offset_fix;
-            buffer += offset_fix;
+            buffer8 += offset_fix;
             count -= offset_fix;
         } // offset is now aligned and part of the data is written
         if (count >= 0x200) { // otherwise this is misaligned and will be handled below
-            errorcode = WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
+            errorcode = WriteNandSectors(buffer8, offset / 0x200, count / 0x200, keyslot, nand_dst);
             if (errorcode != 0) return errorcode;
         }
         if (count % 0x200) { // handle misaligned count
             u32 count_fix = count % 0x200;
             errorcode = ReadNandSectors(l_buffer, (offset + count) / 0x200, 1, keyslot, nand_dst);
             if (errorcode != 0) return errorcode;
-            memcpy(l_buffer, buffer + count - count_fix, count_fix);
+            memcpy(l_buffer, buffer8 + count - count_fix, count_fix);
             errorcode = WriteNandSectors((const u8*) l_buffer, (offset + count) / 0x200, 1, keyslot, nand_dst);
             if (errorcode != 0) return errorcode;
         }
@@ -301,43 +305,45 @@ int WriteNandBytes(const u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nan
     }
 }
 
-int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
-{
+int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
+{   
+    u8* buffer8 = (u8*) buffer;
     if (!count) return 0; // <--- just to be safe
     if (nand_src == NAND_EMUNAND) { // EmuNAND
         int errorcode = 0;
         if ((sector == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
-            errorcode = sdmmc_sdcard_readsectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, buffer);
-            if ((keyslot < 0x40) && (keyslot != 0x11) && !errorcode) CryptNand(buffer, 0, 1, keyslot);
+            errorcode = sdmmc_sdcard_readsectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, buffer8);
+            if ((keyslot < 0x40) && (keyslot != 0x11) && !errorcode) CryptNand(buffer8, 0, 1, keyslot);
             sector = 1;
             count--;
-            buffer += 0x200;
+            buffer8 += 0x200;
         }
-        errorcode = (!errorcode && count) ? sdmmc_sdcard_readsectors(emunand_base_sector + sector, count, buffer) : errorcode;
+        errorcode = (!errorcode && count) ? sdmmc_sdcard_readsectors(emunand_base_sector + sector, count, buffer8) : errorcode;
         if (errorcode) return errorcode;
     } else if (nand_src == NAND_IMGNAND) { // ImgNAND
-        int errorcode = ReadImageSectors(buffer, sector, count);
+        int errorcode = ReadImageSectors(buffer8, sector, count);
         if (errorcode) return errorcode;
     } else if (nand_src == NAND_SYSNAND) { // SysNAND
-        int errorcode = sdmmc_nand_readsectors(sector, count, buffer);
+        int errorcode = sdmmc_nand_readsectors(sector, count, buffer8);
         if (errorcode) return errorcode;   
     } else if (nand_src == NAND_ZERONAND) { // zero NAND (good for XORpads)
-        memset(buffer, 0, count * 0x200);
+        memset(buffer8, 0, count * 0x200);
     } else {
         return -1;
     }
-    if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(buffer, false);
-    else if (keyslot < 0x40) CryptNand(buffer, sector, count, keyslot);
+    if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(buffer8, false);
+    else if (keyslot < 0x40) CryptNand(buffer8, sector, count, keyslot);
     
     return 0;
 }
 
-int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_dst)
+int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_dst)
 {
+    u8* buffer8 = (u8*) buffer;
     // buffer must not be changed, so this is a little complicated
     for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
-        memcpy(NAND_BUFFER, buffer + (s*0x200), pcount * 0x200);
+        memcpy(NAND_BUFFER, buffer8 + (s*0x200), pcount * 0x200);
         if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(NAND_BUFFER, true);
         else if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
         if (nand_dst == NAND_EMUNAND) {

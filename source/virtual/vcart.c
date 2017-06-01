@@ -53,7 +53,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     return false;
 }
 
-int ReadVCartFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
+int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     u32 foffset = vfile->offset + offset;
     if (vfile->flags & VFLAG_PRIV_HDR)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);

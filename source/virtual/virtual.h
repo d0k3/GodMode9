@@ -58,7 +58,7 @@ bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const c
 
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars);
 
-int ReadVirtualFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count, u32* bytes_read);
-int WriteVirtualFile(const VirtualFile* vfile, const u8* buffer, u64 offset, u64 count, u32* bytes_written);
+int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count, u32* bytes_read);
+int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written);
 
 u64 GetVirtualDriveSize(const char* path);

@@ -40,7 +40,7 @@ u32 FixNcchInfoEntry(NcchInfoEntry* entry, u32 version) {
     return 0;
 }
 
-u32 BuildNcchInfoXorpad(u8* buffer, NcchInfoEntry* entry, u32 size, u32 offset) {
+u32 BuildNcchInfoXorpad(void* buffer, NcchInfoEntry* entry, u32 size, u32 offset) {
     // set NCCH key
     // build faux NCCH header from entry
     NcchHeader ncch = { 0 };

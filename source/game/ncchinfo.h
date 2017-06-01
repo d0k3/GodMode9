@@ -27,4 +27,4 @@ typedef struct {
 
 u32 GetNcchInfoVersion(NcchInfoHeader* info);
 u32 FixNcchInfoEntry(NcchInfoEntry* entry, u32 version);
-u32 BuildNcchInfoXorpad(u8* buffer, NcchInfoEntry* entry, u32 size, u32 offset);
+u32 BuildNcchInfoXorpad(void* buffer, NcchInfoEntry* entry, u32 size, u32 offset);

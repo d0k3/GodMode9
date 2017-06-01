@@ -51,11 +51,11 @@ u32 CheckBossEncrypted(BossHeader* boss) {
 }
 
 // on the fly de-/encryptor for BOSS
-u32 CryptBoss(u8* data, u32 offset, u32 size, BossHeader* boss) {
+u32 CryptBoss(void* data, u32 offset, u32 size, BossHeader* boss) {
     // check data area (encrypted area starts @0x28)
     if (offset + size < 0x28) return 0;
     else if (offset < 0x28) {
-        data += 0x28 - offset;
+        data = ((u8*)data + 0x28 - offset);
         size -= 0x28 - offset;
         offset = 0x28;
     }
@@ -71,7 +71,7 @@ u32 CryptBoss(u8* data, u32 offset, u32 size, BossHeader* boss) {
 }
 
 // on the fly de-/encryptor for BOSS - sequential
-u32 CryptBossSequential(u8* data, u32 offset, u32 size) {
+u32 CryptBossSequential(void* data, u32 offset, u32 size) {
     // warning: this will only work for sequential processing
     // unexpected results otherwise
     static BossHeader boss = { 0 };

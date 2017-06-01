@@ -91,8 +91,8 @@ typedef struct {
 u32 ValidateNcchHeader(NcchHeader* header);
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid);
 u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to);
-u32 CryptNcch(u8* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);
-u32 CryptNcchSequential(u8* data, u32 offset, u32 size, u16 crypto);
-u32 SetNcchSdFlag(u8* data);
+u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);
+u32 CryptNcchSequential(void* data, u32 offset, u32 size, u16 crypto);
+u32 SetNcchSdFlag(void* data);
 
 u32 AddSeedToDb(SeedInfo* seed_info, SeedInfoEntry* seed_entry);

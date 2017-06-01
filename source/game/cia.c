@@ -107,7 +107,7 @@ u32 BuildCiaHeader(CiaHeader* header) {
     return 0;
 }
 
-u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey) {
+u32 DecryptCiaContentSequential(void* data, u32 size, u8* ctr, const u8* titlekey) {
     // WARNING: size and offset of data have to be a multiple of 16
     u8 tik[16] __attribute__((aligned(32)));
     u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;
@@ -118,7 +118,7 @@ u32 DecryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey)
     return 0;
 }
 
-u32 EncryptCiaContentSequential(u8* data, u32 size, u8* ctr, const u8* titlekey) {
+u32 EncryptCiaContentSequential(void* data, u32 size, u8* ctr, const u8* titlekey) {
     // WARNING: size and offset of data have to be a multiple of 16
     u8 tik[16] __attribute__((aligned(32)));
     u32 mode = AES_CNT_TITLEKEY_ENCRYPT_MODE;

@@ -120,7 +120,7 @@ u32 SetupArm9BinaryCrypto(FirmA9LHeader* header) {
     return 0;
 }
 
-u32 DecryptArm9Binary(u8* data, u32 offset, u32 size, FirmA9LHeader* a9l) {
+u32 DecryptArm9Binary(void* data, u32 offset, u32 size, FirmA9LHeader* a9l) {
     // offset == offset inside ARM9 binary
     // ARM9 binary begins 0x800 byte after the ARM9 loader header
     
@@ -137,7 +137,7 @@ u32 DecryptArm9Binary(u8* data, u32 offset, u32 size, FirmA9LHeader* a9l) {
     return 0;
 }
 
-u32 DecryptFirm(u8* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeader* a9l) {
+u32 DecryptFirm(void* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeader* a9l) {
     // ARM9 binary size / offset
     FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
     u32 offset_arm9bin = arm9s->offset + ARM9BIN_OFFSET;
@@ -153,20 +153,21 @@ u32 DecryptFirm(u8* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeader*
         return 0; // section not in data
     
     // determine data / offset / size
-    u8* data_i = data;
+    u8* data8 = (u8*)data;
+    u8* data_i = data8;
     u32 offset_i = 0;
     u32 size_i = size_arm9bin;
     if (offset_arm9bin < offset)
         offset_i = offset - offset_arm9bin;
-    else data_i = data + (offset_arm9bin - offset);
+    else data_i = data8 + (offset_arm9bin - offset);
     size_i = size_arm9bin - offset_i;
-    if (size_i > size - (data_i - data))
-        size_i = size - (data_i - data);
+    if (size_i > size - (data_i - data8))
+        size_i = size - (data_i - data8);
     
     return DecryptArm9Binary(data_i, offset_i, size_i, a9l);
 }
 
-u32 DecryptFirmSequential(u8* data, u32 offset, u32 size) {
+u32 DecryptFirmSequential(void* data, u32 offset, u32 size) {
     // warning: this will only work for sequential processing
     // unexpected results otherwise
     static FirmHeader firm = { 0 };
@@ -189,7 +190,7 @@ u32 DecryptFirmSequential(u8* data, u32 offset, u32 size) {
     // fetch ARM9 loader header from data
     if (arm9s && !a9lptr && (offset <= arm9s->offset) &&
         ((offset + size) >= arm9s->offset + sizeof(FirmA9LHeader))) {
-        memcpy(&a9l, data + arm9s->offset - offset, sizeof(FirmA9LHeader));
+        memcpy(&a9l, (u8*)data + arm9s->offset - offset, sizeof(FirmA9LHeader));
         a9lptr = (ValidateFirmA9LHeader(&a9l) == 0) ? &a9l : NULL;
     }
     

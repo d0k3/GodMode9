@@ -80,7 +80,7 @@ static ExeFsHeader* exefs = (ExeFsHeader*) (void*) (VGAME_BUFFER + 0x1FE00); // 
 static u8* romfslv3 = (u8*) (VGAME_BUFFER + 0x20000); // 1920kB reserved
 static RomFsLv3Index lv3idx;
 
-int ReadFirmImageBytes(u8* buffer, u64 offset, u64 count) {
+int ReadFirmImageBytes(void* buffer, u64 offset, u64 count) {
     int ret = ReadImageBytes(buffer, offset, count);
     if ((offset_a9bin == (u64) -1) || (ret != 0)) return ret;
     if (DecryptFirm(buffer, offset, count, firm, a9l) != 0)
@@ -88,7 +88,7 @@ int ReadFirmImageBytes(u8* buffer, u64 offset, u64 count) {
     return 0;
 }
 
-int ReadNcchImageBytes(u8* buffer, u64 offset, u64 count) {
+int ReadNcchImageBytes(void* buffer, u64 offset, u64 count) {
     int ret = (offset_a9bin == (u64) - 1) ? ReadImageBytes(buffer, offset, count) : 
         ReadFirmImageBytes(buffer, offset, count);
     if ((offset_ncch == (u64) -1) || (ret != 0)) return ret;
@@ -685,7 +685,7 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     return false;
 }
 
-int ReadVGameFile(const VirtualFile* vfile, u8* buffer, u64 offset, u64 count) {
+int ReadVGameFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     u32 vfoffset = vfile->offset;
     if (vfile->flags & VFLAG_LV3) {
         RomFsLv3FileMeta* lv3file;

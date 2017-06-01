@@ -14,8 +14,6 @@
 // filenames for sector 0x96
 #define SECTOR_NAME     "sector0x96.bin"
 #define SECRET_NAME     "secret_sector.bin"
-#define OTP_NAME        "otp.bin"
-#define OTP_BIG_NAME    "otp0x108.bin"
 
 // 0x110...0x118 in the NAND NCSD header
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
@@ -66,12 +64,12 @@ bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
 
-void CryptNand(u8* buffer, u32 sector, u32 count, u32 keyslot);
-void CryptSector0x96(u8* buffer, bool encrypt);
-int ReadNandBytes(u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src);
-int WriteNandBytes(const u8* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst);
-int ReadNandSectors(u8* buffer, u32 sector, u32 count, u32 keyslot, u32 src);
-int WriteNandSectors(const u8* buffer, u32 sector, u32 count, u32 keyslot, u32 dest);
+void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot);
+void CryptSector0x96(void* buffer, bool encrypt);
+int ReadNandBytes(void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src);
+int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst);
+int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 src);
+int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32 dest);
 
 u32 ValidateNandNcsdHeader(NandNcsdHeader* header);
 u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd);
