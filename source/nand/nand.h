@@ -68,13 +68,13 @@ void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot);
 void CryptSector0x96(void* buffer, bool encrypt);
 int ReadNandBytes(void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src);
 int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst);
-int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 src);
-int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32 dest);
+int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src);
+int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_dest);
 
 u32 ValidateNandNcsdHeader(NandNcsdHeader* header);
 u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd);
 u32 GetNandMinSizeSectors(u32 nand_src);
-u32 GetNandSizeSectors(u32 src);
+u32 GetNandSizeSectors(u32 nand_src);
 u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, NandNcsdHeader* ncsd);
 u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, u32 nand_src);
 
