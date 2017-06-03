@@ -167,7 +167,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
                 return false;
             break;
         case PERM_MEMORY:
-            if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\n nWriting to certain areas may\nlead to unexpected results."))
+            if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\n \nWriting to certain areas may\nlead to unexpected results."))
                 return false;
             break;
         case PERM_SYS_LVL3:
