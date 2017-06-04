@@ -683,12 +683,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool renamable = (FTYPE_RENAMABLE(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
+	bool arinjectable = (FTYPE_HSINJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT) && !IS_SIGHAX);
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
-        tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
+        tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || arinjectable || restorable || xorpadable ||
         launchable || ebackupable;
     
     char pathstr[32+1];
@@ -836,6 +837,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int verify = (verificable) ? ++n_opt : -1;
     int ctrtransfer = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
+	int arinject = (arinjectable) ? ++n_opt : -1;
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -855,6 +857,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (verify > 0) optionstr[verify-1] = "Verify file";
     if (ctrtransfer > 0) optionstr[ctrtransfer-1] = "Transfer image to CTRNAND";
     if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
+	if (arinject > 0) optionstr[arinject-1] = "Inject to AR Games";
     if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
@@ -1146,6 +1149,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
         return 0;
+	} else if (user_select == arinject) { // -> Inject to AR Games
+        char* destdrv[2] = { NULL };
+        n_opt = 0;
+        if (DriveType("1:")) {
+            optionstr[n_opt] = "SysNAND AR Games inject";
+            destdrv[n_opt++] = "1:";
+        }
+        if (DriveType("4:")) {
+            optionstr[n_opt] = "EmuNAND AR Games inject";
+            destdrv[n_opt++] = "4:";
+        }
+        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+        if (user_select) {
+            ShowPrompt(false, "%s\nH&S inject %s", pathstr,
+                (InjectARGames(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+        }
+        return 0;
     } else if (user_select == ctrtransfer) { // -> transfer CTRNAND image to SysNAND
         char* destdrv[2] = { NULL };
         n_opt = 0;
@@ -1218,6 +1238,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
+	int arrestore = ((CheckARGamesInject("1:") == 0) || (CheckARGamesInject("4:") == 0)) ? (int) ++n_opt : -1;
     
     if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
@@ -1225,6 +1246,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
+	if (arrestore > 0) optionstr[arrestore -1] = "Restore AR Games";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1314,6 +1336,18 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             GetDirContents(current_dir, current_path);
             return 0;
         }
+	} else if (user_select == arrestore) { // restore AR Games
+        n_opt = 0;
+        int sys = (CheckARGamesInject("1:") == 0) ? (int) ++n_opt : -1;
+        int emu = (CheckARGamesInject("4:") == 0) ? (int) ++n_opt : -1;
+        if (sys > 0) optionstr[sys - 1] = "Restore AR Games (SysNAND)";
+        if (emu > 0) optionstr[emu - 1] = "Restore AR Games (EmuNAND)";
+        user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
+        if (user_select > 0) {
+            InjectARGames(NULL, (user_select == sys) ? "1:" : "4:");
+            GetDirContents(current_dir, current_path);
+            return 0;
+        }
     } else if (user_select == nandbak) { // dump NAND backup
         n_opt = 0;
         int sys = (DriveType("1:")) ? (int) ++n_opt : -1;
@@ -1348,7 +1382,7 @@ u32 SplashInit() {
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
         "------------------------------", "https://github.com/d0k3/GodMode9",
         "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
-        "Hourlies:", "https://d0k3.secretalgorithm.com/");
+		"Modded Release By:", "CrimsonMaple";
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
     
     return 0;
