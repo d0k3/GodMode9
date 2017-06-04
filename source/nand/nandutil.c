@@ -195,10 +195,6 @@ u32 SafeRestoreNandDump(const char* path) {
     if ((ValidateNandDump(path) != 0) && // NAND dump validation
         !ShowPrompt(true, "Error: NAND dump is corrupt.\nStill continue?"))
         return 1;
-    if (!IS_A9LH) {
-        ShowPrompt(false, "Error: B9S/A9LH not detected.");
-        return 1;
-    }
     
     if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(B9S/A9LH will be left intact.)"))
         return 1;
