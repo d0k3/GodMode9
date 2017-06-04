@@ -142,26 +142,32 @@ bool InitNandCrypto(void)
     
     // part #2: TWL KEY
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-    if (IS_A9LH) { // only for a9lh (and sighax, for now)
-        u32* TwlCustId = (u32*) (0x01FFB808);
-        u8 TwlKeyX[16] __attribute__((aligned(32)));
+    if (IS_A9LH && !IS_SIGHAX) { // only for a9lh
         u8 TwlKeyY[16] __attribute__((aligned(32)));
-        
-        // thanks b1l1s & Normmatt
-        // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
-        const char* nintendo = "NINTENDO";
-        u32 TwlKeyXW0 = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
-        u32 TwlKeyXW3 = TwlCustId[1] ^ 0x08C267B7;
-        memcpy(TwlKeyX +  4, nintendo, 8);
-        memcpy(TwlKeyX +  0, &TwlKeyXW0, 4);
-        memcpy(TwlKeyX + 12, &TwlKeyXW3, 4);
-        
-        // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-        u32 TwlKeyYW3 = 0xE1A00005;
-        memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 12);
+        vu32 *Key3X = &REG_AESKEY0123[(3 * 3 + 1) * 4]; 
+
+        // k9l already did the part of the init that required the OTP registers
+        if(IS_DEVKIT) {
+            // Harcoded unencrypted by Process9:
+            static const u8 TwlKeyYDev[16] __attribute__((aligned(32))) = {
+                0xAA, 0xBF, 0x76, 0xF1, 0x7A, 0xB8, 0xE8, 0x66, 0x97, 0x64, 0x6A, 0x26, 0x0F, 0x67, 0x48, 0x52
+            };
+
+            Key3X[1] = 0xEE7A4B1E;
+            Key3X[2] = 0xAF42C08B;
+
+            memcpy(TwlKeyY, TwlKeyYDev, 16);
+        } else {
+            // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
+            Key3X[1] = *(vu32*)0x01FFD3A8; // "NINT"
+            Key3X[2] = *(vu32*)0x01FFD3AC; // "ENDO"
+
+            memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 16);
+        }
+
+        static const u32 TwlKeyYW3 = 0xE1A00005;
         memcpy(TwlKeyY + 12, &TwlKeyYW3, 4);
-        
-        setup_aeskeyX(0x03, TwlKeyX);
+
         setup_aeskeyY(0x03, TwlKeyY);
         use_aeskey(0x03);
     }
