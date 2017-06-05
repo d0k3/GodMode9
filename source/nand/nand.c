@@ -31,9 +31,15 @@ static const u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY (16 byte)
     0x98, 0x24, 0x27, 0x14, 0x22, 0xB0, 0x6B, 0xF2, 0x10, 0x96, 0x9C, 0x36, 0x42, 0x53, 0x7C, 0x86,
     0x62, 0x22, 0x5C, 0xFD, 0x6F, 0xAE, 0x9B, 0x0A, 0x85, 0xA5, 0xCE, 0x21, 0xAA, 0xB6, 0xC8, 0x4D
 };
+
 static const u8 slot0x24KeyY_sha256[0x20] = { // hash for slot0x24KeyY (16 byte) 
     0x5F, 0x04, 0x01, 0x22, 0x95, 0xB2, 0x23, 0x70, 0x12, 0x40, 0x53, 0x30, 0xC0, 0xA7, 0xBF, 0x7C, 
     0xD4, 0x40, 0x92, 0x25, 0xD1, 0x9D, 0xA2, 0xDE, 0xCD, 0xC7, 0x12, 0x97, 0x08, 0x46, 0x54, 0xB7
+};
+
+static const u8 slot0x03KeyYdev_sha256[0x20] = { // slot0x03KeyY hash for devkits only (16 byte)
+    0x4D, 0xBB, 0xDD, 0x08, 0x2B, 0xE3, 0xDF, 0x48, 0x51, 0x2D, 0xBD, 0xF9, 0xED, 0xDA, 0x0C, 0x52,
+    0x8F, 0x6D, 0x94, 0xB8, 0xED, 0xE4, 0x4D, 0x3A, 0xFA, 0x2A, 0x63, 0x57, 0xE4, 0xFA, 0x65, 0x69
 };
 
 static const u8 slot0x11Key95_sha256[0x20] = { // slot0x11Key95 hash (first 16 byte of sector0x96)
@@ -142,26 +148,28 @@ bool InitNandCrypto(void)
     
     // part #2: TWL KEY
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-    if (IS_A9LH) { // only for a9lh (and sighax, for now)
-        u32* TwlCustId = (u32*) (0x01FFB808);
-        u8 TwlKeyX[16] __attribute__((aligned(32)));
+    if (IS_A9LH && !IS_SIGHAX) { // only for a9lh
         u8 TwlKeyY[16] __attribute__((aligned(32)));
-        
-        // thanks b1l1s & Normmatt
-        // see source from https://gbatemp.net/threads/release-twltool-dsi-downgrading-save-injection-etc-multitool.393488/
-        const char* nintendo = "NINTENDO";
-        u32 TwlKeyXW0 = (TwlCustId[0] ^ 0xB358A6AF) | 0x80000000;
-        u32 TwlKeyXW3 = TwlCustId[1] ^ 0x08C267B7;
-        memcpy(TwlKeyX +  4, nintendo, 8);
-        memcpy(TwlKeyX +  0, &TwlKeyXW0, 4);
-        memcpy(TwlKeyX + 12, &TwlKeyXW3, 4);
-        
-        // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-        u32 TwlKeyYW3 = 0xE1A00005;
-        memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 12);
+        vu32 *RegKey0x03X = &REG_AESKEY0123[((0x30u * 0x03) + 0x10u)/4u]; 
+
+        // k9l already did the part of the init that required the OTP registers
+        if(IS_DEVKIT) {
+            // this is dfferent from key setup on retail
+            RegKey0x03X[1] = 0xEE7A4B1E;
+            RegKey0x03X[2] = 0xAF42C08B;
+
+            LoadKeyYFromP9(TwlKeyY, slot0x03KeyYdev_sha256, 0x0EC0D8, 0x03);
+        } else {
+            // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
+            RegKey0x03X[1] = *(vu32*)0x01FFD3A8; // "NINT"
+            RegKey0x03X[2] = *(vu32*)0x01FFD3AC; // "ENDO"
+
+            memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 16);
+        }
+
+        static const u32 TwlKeyYW3 = 0xE1A00005;
         memcpy(TwlKeyY + 12, &TwlKeyYW3, 4);
-        
-        setup_aeskeyX(0x03, TwlKeyX);
+
         setup_aeskeyY(0x03, TwlKeyY);
         use_aeskey(0x03);
     }
