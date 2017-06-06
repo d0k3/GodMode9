@@ -19,8 +19,7 @@ u32 CryptAesKeyDb(const char* path, bool inplace, bool encrypt) {
     
     if (!inplace) {
         // ensure the output dir exists
-        // warning: this will only build output dirs in the root dir (!!!)
-        if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
+        if (fvx_rmkdir(OUTPUT_PATH) != FR_OK)
             return 1;
     }
     
@@ -123,9 +122,7 @@ u32 BuildKeyDb(const char* path, bool dump) {
             dump_size += sizeof(AesKeyInfo);
             if (dump_size >= MAX_KEYDB_SIZE) return 1;
         }
-        // ensure the output dir exists
-        // warning: this will only build output dirs in the root dir (!!!)
-        if ((f_stat(OUTPUT_PATH, NULL) != FR_OK) && (f_mkdir(OUTPUT_PATH) != FR_OK))
+        if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) // ensure the output dir exists
             return 1;
         f_unlink(path_out);
         if (!dump_size || (fvx_qwrite(path_out, key_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))

@@ -40,9 +40,6 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);
 /** Inject file into file @offset **/
 bool FileInjectFile(const char* dest, const char* orig, u32 offset);
 
-/** Recursively build a directory **/
-bool DirBuilder(const char* destdir);
-
 /** Create a new directory in cpath **/
 bool DirCreate(const char* cpath, const char* dirname);
 

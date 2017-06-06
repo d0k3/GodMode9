@@ -128,19 +128,10 @@ size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
 }
 
 size_t FileGetSize(const char* path) {
-    int drvtype = DriveType(path);
-    if (drvtype & DRV_FAT) {
-        FILINFO fno;
-        if (fa_stat(path, &fno) != FR_OK)
-            return 0;
-        return fno.fsize;
-    } else if (drvtype & DRV_VIRTUAL) {
-        VirtualFile vfile;
-        if (!GetVirtualFile(&vfile, path))
-            return 0;
-        return vfile.size;
-    }
-    return 0;
+    FILINFO fno;
+    if (fvx_stat(path, &fno) != FR_OK)
+        return 0;
+    return fno.fsize;
 }
 
 bool FileGetSha256(const char* path, u8* sha256) {
@@ -263,27 +254,6 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
     fvx_close(&ofile);
     
     return ret;
-}
-
-bool DirBuilderWorker(char* dest) {
-    DIR tmp_dir;
-    if (fa_opendir(&tmp_dir, dest) != FR_OK) {
-        char* slash = strrchr(dest, '/');
-        if (!slash) return false;
-        *slash = '\0';
-        if (!DirBuilderWorker(dest)) return false;
-        *slash = '/';
-        return (fa_mkdir(dest) == FR_OK);
-    } else {
-        f_closedir(&tmp_dir);
-        return true;
-    }
-}
-
-bool DirBuilder(const char* destdir) {
-    char fdpath[256]; // 256 is the maximum length of a full path
-    strncpy(fdpath, destdir, 255);
-    return DirBuilderWorker(fdpath);
 }
 
 bool DirCreate(const char* cpath, const char* dirname) {
@@ -474,8 +444,7 @@ bool PathCopyFatToVrt(const char* destdir, const char* orig, u32* flags) {
     return ret;
 }
 
-bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
-    VirtualFile vfile;
+bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
     FILINFO fno;
     bool ret = false;
     
@@ -484,147 +453,8 @@ bool PathCopyVrtToFat(char* dest, char* orig, u32* flags) {
         if (fa_opendir(&tmp_dir, dest) != FR_OK) return false;
         f_closedir(&tmp_dir);
     } else if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
-    
-    // build full destination path (on top of destination directory)
-    char* oname = strrchr(orig, '/');
-    char* dname = dest + strnlen(dest, 255);
-    if (oname == NULL) return false; // not a proper origin path
-    oname++;
-    *(dname++) = '/';
-    strncpy(dname, oname, 256 - (dname - dest));
-    
-    // path string (for output)
-    char deststr[36 + 1];
-    TruncateString(deststr, dest, 36, 8);
-    
-    // open / check virtual file
-    if (!GetVirtualFile(&vfile, orig))
-        return false;
-    
-    // check if destination exists
-    if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (fa_stat(dest, NULL) == FR_OK)) {
-        if (*flags & SKIP_ALL) {
-            *flags |= SKIP_CUR;
-            return true;
-        }
-        const char* optionstr[5] =
-            {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
-        u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
-            "Destination already exists:\n%s", deststr);
-        if (user_select == 1) {
-            do {
-                if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
-                    return false;
-            } while (fa_stat(dest, NULL) == FR_OK);
-        } else if (user_select == 2) {
-            *flags |= OVERWRITE_CUR;
-        } else if (user_select == 3) {
-            *flags |= SKIP_CUR;
-            return true;
-        } else if (user_select == 4) {
-            *flags |= OVERWRITE_ALL;
-        } else if (user_select == 5) {
-            *flags |= (SKIP_CUR|SKIP_ALL);
-            return true;
-        } else {
-            return false;
-        }
-    }
-    
-    // check destination write permission (special paths only)
-    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
-        (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
-        (!flags || !(*flags & OVERRIDE_PERM)) && 
-        !CheckWritePermissions(dest)) return false;
-    
-    // the copy process takes place here
-    if (!ShowProgress(0, 0, orig)) return false;
-    if (vfile.flags & VFLAG_DIR) { // processing folders
-        DIR pdir;
-        VirtualDir vdir;
-        char* fname = orig + strnlen(orig, 256);
-        
-        // create the destination folder if it does not already exist
-        if (fa_opendir(&pdir, dest) != FR_OK) {
-            if (f_mkdir(dest) != FR_OK) {
-                ShowPrompt(false, "%s\nError: Overwriting file with dir", deststr);
-                return false;
-            }
-        } else f_closedir(&pdir);
-        
-        if (!OpenVirtualDir(&vdir, &vfile))
-            return false;
-        *(fname++) = '/';
-        while (true) {
-            if (!ReadVirtualDir(&vfile, &vdir)) {
-                ret = true;
-                break;
-            }
-            char name[256];
-            if (!GetVirtualFilename(name, &vfile, 256)) break;
-            strncpy(fname, name, 256 - (fname - orig));
-            if (!PathCopyVrtToFat(dest, orig, flags))
-                break;
-        }
-    } else { // copying files
-        FIL dfile;
-        u64 osize = vfile.size;
-    
-        if (GetFreeSpace(dest) < osize) {
-            ShowPrompt(false, "%s\nError: File is too big for destination", deststr);
-            return false;
-        }
-        
-        if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-            ShowPrompt(false, "%s\nError: Cannot create destination file", deststr);
-            return false;
-        }
-        f_lseek(&dfile, 0);
-        f_sync(&dfile);
-    
-        ret = true;
-        if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
-        for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-            UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
-            UINT bytes_written = 0;
-            if (ReadVirtualFile(&vfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-                ret = false;
-            if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
-                ret = false;
-            if (fx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK)
-                ret = false;
-            if (read_bytes != bytes_written)
-                ret = false;
-            if (flags && (*flags & CALC_SHA))
-                sha_update(MAIN_BUFFER, read_bytes);
-        }
-        ShowProgress(1, 1, orig);
-        
-        fx_close(&dfile);
-        if (!ret) f_unlink(dest);
-        else if (flags && (*flags & CALC_SHA)) {
-            u8 sha256[0x20];
-            char* ext_sha = dest + strnlen(dest, 256);
-            strncpy(ext_sha, ".sha", 256 - (ext_sha - dest));
-            sha_get(sha256);
-            FileSetData(dest, sha256, 0x20, 0, true);
-        }
-    }
-    
-    *(--dname) = '\0';
-    return ret;
-}
-
-bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
-    FILINFO fno;
-    bool ret = false;
-    
-    if (fa_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
-        DIR tmp_dir; // check if root
-        if (fa_opendir(&tmp_dir, dest) != FR_OK) return false;
-        f_closedir(&tmp_dir);
-    } else if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
-    if (fa_stat(orig, &fno) != FR_OK) return false; // origin does not exist
+    if (fvx_stat(orig, &fno) != FR_OK) return false; // origin does not exist
+    if (move && (fno.fattrib & AM_VRT)) return false; // trying to move a virtual file
 
     // build full destination path (on top of destination directory)
     char* oname = strrchr(orig, '/');
@@ -702,22 +532,22 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
             }
         } else f_closedir(&pdir);
         
-        if (fa_opendir(&pdir, orig) != FR_OK)
+        if (fvx_opendir(&pdir, orig) != FR_OK)
             return false;
         *(fname++) = '/';
         
-        while (f_readdir(&pdir, &fno) == FR_OK) {
+        while (fvx_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
             strncpy(fname, fno.fname, 256 - (fname - orig));
             if (fno.fname[0] == 0) {
                 ret = true;
                 break;
-            } else if (!PathCopyWorker(dest, orig, flags, move)) {
+            } else if (!PathCopyToFat(dest, orig, flags, move)) {
                 break;
             }
         }
-        f_closedir(&pdir);
+        fvx_closedir(&pdir);
     } else if (move) { // moving if destination exists
         if (fa_stat(dest, &fno) != FR_OK)
             return false;
@@ -733,13 +563,13 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         FIL dfile;
         u64 fsize;
         
-        if (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
-            if (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
+        if (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+            if (!FileUnlock(orig) || (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
                 return false;
             ShowProgress(0, 0, orig); // reinit progress bar
         }
         
-        fsize = f_size(&ofile);
+        fsize = fvx_size(&ofile);
         if (GetFreeSpace(dest) < fsize) {
             ShowPrompt(false, "%s\nError: File is too big for destination", deststr);
             fx_close(&ofile);
@@ -754,15 +584,15 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         
         f_lseek(&dfile, 0);
         f_sync(&dfile);
-        f_lseek(&ofile, 0);
-        f_sync(&ofile);
+        fvx_lseek(&ofile, 0);
+        fvx_sync(&ofile);
         
         ret = true;
         if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
         for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
-            if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+            if (fvx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
                 ret = false;
             if (!ShowProgress(pos + (bytes_read / 2), fsize, orig))
                 ret = false;
@@ -775,7 +605,7 @@ bool PathCopyWorker(char* dest, char* orig, u32* flags, bool move) {
         }
         ShowProgress(1, 1, orig);
         
-        fx_close(&ofile);
+        fvx_close(&ofile);
         fx_close(&dfile);
         if (!ret) f_unlink(dest);
         else if (flags && (*flags & CALC_SHA)) {
@@ -802,10 +632,8 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
-        if (flags && (*flags & BUILD_PATH)) DirBuilderWorker(fdpath);
-        bool res = (odrvtype & DRV_VIRTUAL) ? PathCopyVrtToFat(fdpath, fopath, flags) :
-            PathCopyWorker(fdpath, fopath, flags, false);
-        return res;
+        if (flags && (*flags & BUILD_PATH)) fvx_rmkdir(destdir);
+        return PathCopyToFat(fdpath, fopath, flags, false);
     } else if (!(odrvtype & DRV_VIRTUAL)) { // FAT to virtual
         if (odrvtype & ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
             ShowPrompt(false, "Copy operation is not allowed");
@@ -830,50 +658,17 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
         char fopath[256];
         strncpy(fdpath, destdir, 255);
         strncpy(fopath, orig, 255);
-        if (flags && (*flags & BUILD_PATH)) DirBuilderWorker(fdpath);
+        if (flags && (*flags & BUILD_PATH)) fvx_rmkdir(destdir);
         bool same_drv = (strncmp(orig, destdir, 2) == 0);
-        bool res = PathCopyWorker(fdpath, fopath, flags, same_drv);
+        bool res = PathCopyToFat(fdpath, fopath, flags, same_drv);
         if (res && (!flags || !(*flags&SKIP_CUR))) PathDelete(orig);
         return res;
     }
 }
 
-bool PathDeleteWorker(char* fpath) {
-    FILINFO fno;
-    
-    // this code handles directory content deletion
-    if (fa_stat(fpath, &fno) != FR_OK) return false; // fpath does not exist
-    if (fno.fattrib & AM_DIR) { // process folder contents
-        DIR pdir;
-        char* fname = fpath + strnlen(fpath, 255);
-        
-        if (fa_opendir(&pdir, fpath) != FR_OK)
-            return false;
-        *(fname++) = '/';
-        
-        while (f_readdir(&pdir, &fno) == FR_OK) {
-            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
-                continue; // filter out virtual entries
-            strncpy(fname, fno.fname, fpath + 255 - fname);
-            if (fno.fname[0] == 0) {
-                break;
-            } else { // return value won't matter
-                PathDeleteWorker(fpath);
-            }
-        }
-        f_closedir(&pdir);
-        *(--fname) = '\0';
-    }
-    
-    return (fa_unlink(fpath) == FR_OK);
-}
-
 bool PathDelete(const char* path) {
-    char fpath[256]; // 256 is the maximum length of a full path
     if (!CheckDirWritePermissions(path)) return false;
-    strncpy(fpath, path, 256);
-    // ShowString("Deleting files, please wait..."); // handled elsewhere
-    return PathDeleteWorker(fpath);
+    return (fvx_runlink(path) == FR_OK);
 }
 
 bool PathRename(const char* path, const char* newname) {

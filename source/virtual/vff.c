@@ -1,11 +1,22 @@
 #include "sddata.h"
 #include "virtual.h"
 #include "ffconf.h"
+#include "vff.h"
+
+#if _USE_LFN != 0
+#define _MAX_FN_LEN (_MAX_LFN)
+#else
+#define _MAX_FN_LEN (8+3)
+#endif
+    
+#define _VFIL_ENABLED    (!_FS_TINY)
+#define _VDIR_ENABLED    ((sizeof(DIR) - sizeof(_FDID) >= sizeof(VirtualDir)) && (_USE_LFN != 0))
 
 #define VFIL(fp) ((VirtualFile*) (void*) fp->buf)
+#define VDIR(dp) ((VirtualDir*) (void*) &(dp->dptr))
 
 FRESULT fvx_open (FIL* fp, const TCHAR* path, BYTE mode) {
-    #if !_FS_TINY
+    #if _VFIL_ENABLED
     VirtualFile* vfile = VFIL(fp);
     memset(fp, 0, sizeof(FIL));
     if (GetVirtualFile(vfile, path)) {
@@ -19,7 +30,7 @@ FRESULT fvx_open (FIL* fp, const TCHAR* path, BYTE mode) {
 }
 
 FRESULT fvx_read (FIL* fp, void* buff, UINT btr, UINT* br) {
-    #if !_FS_TINY
+    #if _VFIL_ENABLED
     if (fp->obj.fs == NULL) {
         VirtualFile* vfile = VFIL(fp);
         int res = ReadVirtualFile(vfile, buff, fp->fptr, btr, (u32*) br);
@@ -31,7 +42,7 @@ FRESULT fvx_read (FIL* fp, void* buff, UINT btr, UINT* br) {
 }
 
 FRESULT fvx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
-    #if !_FS_TINY
+    #if _VFIL_ENABLED
     if (fp->obj.fs == NULL) {
         VirtualFile* vfile = VFIL(fp);
         int res = WriteVirtualFile(vfile, buff, fp->fptr, btw, (u32*) bw);
@@ -43,14 +54,14 @@ FRESULT fvx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
 }
 
 FRESULT fvx_close (FIL* fp) {
-    #if !_FS_TINY
+    #if _VFIL_ENABLED
     if (fp->obj.fs == NULL) return FR_OK;
     #endif
     return fx_close( fp );
 }
 
 FRESULT fvx_lseek (FIL* fp, FSIZE_t ofs) {
-    #if !_FS_TINY
+    #if _VFIL_ENABLED
     if (fp->obj.fs == NULL) {
         fp->fptr = ofs;
         return FR_OK;
@@ -60,7 +71,7 @@ FRESULT fvx_lseek (FIL* fp, FSIZE_t ofs) {
 }
 
 FRESULT fvx_sync (FIL* fp) {
-    #if !_FS_TINY
+    #if _VFIL_ENABLED
     if (fp->obj.fs == NULL) return FR_OK;
     #endif
     return f_sync( fp );
@@ -72,16 +83,66 @@ FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
         if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
         fno->fsize = vfile.size;
         fno->fdate = fno->ftime = 0;
-        fno->fattrib = (vfile.flags & VFLAG_DIR) ? AM_DIR : 0;
+        fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
         // could be better...
         if (_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
         return FR_OK;
-    } else return fa_stat(path, fno);
+    } else return fa_stat( path, fno );
+}
+
+FRESULT fvx_rename (const TCHAR* path_old, const TCHAR* path_new) {
+    if ((GetVirtualSource(path_old)) || CheckAliasDrive(path_old)) return FR_DENIED;
+    return f_rename( path_old, path_new );
+}
+
+FRESULT fvx_unlink (const TCHAR* path) {
+    if (GetVirtualSource(path)) return FR_DENIED;
+    return fa_unlink( path );
+}
+
+FRESULT fvx_mkdir (const TCHAR* path) {
+    if (GetVirtualSource(path)) return FR_DENIED;
+    return fa_mkdir( path );
+}
+
+FRESULT fvx_opendir (DIR* dp, const TCHAR* path) {
+    if (_VDIR_ENABLED) {
+        VirtualDir* vdir = VDIR(dp);
+        memset(dp, 0, sizeof(DIR));
+        if (GetVirtualDir(vdir, path))
+            return FR_OK;
+    }
+    return fa_opendir( dp, path );
+}
+
+FRESULT fvx_closedir (DIR* dp) {
+    if (_VDIR_ENABLED) {
+        if (dp->obj.fs == NULL) return FR_OK;
+    }
+    return f_closedir( dp );
+}
+
+FRESULT fvx_readdir (DIR* dp, FILINFO* fno) {
+    if (_VDIR_ENABLED) {
+        if (dp->obj.fs == NULL) {
+            VirtualDir* vdir = VDIR(dp);
+            VirtualFile vfile;
+            if (ReadVirtualDir(&vfile, vdir)) {
+                fno->fsize = vfile.size;
+                fno->fdate = fno->ftime = 0;
+                fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
+                GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
+            } else *(fno->fname) = 0;
+            return FR_OK;
+        }
+    }
+    return f_readdir( dp, fno );
 }
 
 FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* br) {
     FIL fp;
     FRESULT res;
+    UINT brt = 0;
     
     res = fvx_open(&fp, path, FA_READ | FA_OPEN_EXISTING);
     if (res != FR_OK) return res;
@@ -92,8 +153,11 @@ FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* b
         return res;
     }
     
-    res = fvx_read(&fp, buff, btr, br);
+    res = fvx_read(&fp, buff, btr, &brt);
     fvx_close(&fp);
+    
+    if (br) *br = brt;
+    else if ((res == FR_OK) && (brt != btr)) res = FR_DENIED;
     
     return res;
 }
@@ -101,6 +165,7 @@ FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* b
 FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, UINT* bw) {
     FIL fp;
     FRESULT res;
+    UINT bwt = 0;
     
     res = fvx_open(&fp, path, FA_WRITE | FA_OPEN_ALWAYS);
     if (res != FR_OK) return res;
@@ -111,8 +176,141 @@ FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, 
         return res;
     }
     
-    res = fvx_write(&fp, buff, btw, bw);
+    res = fvx_write(&fp, buff, btw, &bwt);
     fvx_close(&fp);
     
+    if (bw) *bw = bwt;
+    else if ((res == FR_OK) && (bwt != btw)) res = FR_DENIED;
+    
     return res;
+}
+
+#if !_LFN_UNICODE // this will not work for unicode
+FRESULT worker_fvx_rmkdir (TCHAR* tpath) {
+    DIR tmp_dir;
+    if (fa_opendir(&tmp_dir, tpath) != FR_OK) {
+        TCHAR* slash = strrchr(tpath, '/');
+        if (!slash) return FR_DENIED;
+        *slash = '\0';
+        FRESULT res;
+        if ((res = worker_fvx_rmkdir(tpath)) != FR_OK) return res;
+        *slash = '/';
+        return fa_mkdir(tpath);
+    } else {
+        f_closedir(&tmp_dir);
+        return FR_OK;
+    }
+}
+#endif
+
+FRESULT fvx_rmkdir (const TCHAR* path) {
+    #if !_LFN_UNICODE // this will not work for unicode
+    TCHAR tpath[_MAX_FN_LEN+1];
+    strncpy(tpath, path, _MAX_FN_LEN);
+    return worker_fvx_rmkdir( tpath );
+    #else
+    return FR_DENIED;
+    #endif
+}
+
+#if !_LFN_UNICODE // this will not work for unicode
+FRESULT worker_fvx_runlink (TCHAR* tpath) {
+    FILINFO fno;
+    FRESULT res;
+    
+    // this code handles directory content deletion
+    if ((res = fa_stat(tpath, &fno)) != FR_OK) return res; // tpath does not exist
+    if (fno.fattrib & AM_DIR) { // process folder contents
+        DIR pdir;
+        TCHAR* fname = tpath + strnlen(tpath, 255);
+        
+        
+        if ((res = fa_opendir(&pdir, tpath)) != FR_OK) return res;
+        *(fname++) = '/';
+        
+        while (f_readdir(&pdir, &fno) == FR_OK) {
+            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+                continue; // filter out virtual entries
+            strncpy(fname, fno.fname, tpath + 255 - fname);
+            if (fno.fname[0] == 0) {
+                break;
+            } else { // return value won't matter
+                worker_fvx_runlink(tpath);
+            }
+        }
+        f_closedir(&pdir);
+        *(--fname) = '\0';
+    }
+    
+    return fa_unlink( tpath );
+}
+#endif
+
+FRESULT fvx_runlink (const TCHAR* path) {
+    #if !_LFN_UNICODE // this will not work for unicode
+    TCHAR tpath[_MAX_FN_LEN+1];
+    strncpy(tpath, path, _MAX_FN_LEN);
+    return worker_fvx_runlink( tpath );
+    #else
+    return FR_DENIED;
+    #endif
+}
+
+// inspired by http://www.geeksforgeeks.org/wildcard-character-matching/
+FRESULT fvx_match_name(const TCHAR* path, const TCHAR* pattern) {
+    // handling non asterisk chars
+    for (; *pattern != '*'; pattern++, path++) {
+        if ((*pattern == '\0') && (*path == '\0')) {
+            return FR_OK; // end reached simultaneously, match found
+        } else if ((*pattern == '\0') || (*path == '\0')) {
+            return FR_NO_FILE; // end reached on only one, failure
+        } else if ((*pattern != '?') && (tolower(*pattern) != tolower(*path))) {
+            return FR_NO_FILE; // chars don't match, failure
+        }
+    }
+    // handling the asterisk (matches one or more chars in path)
+    if ((*(pattern+1) == '?') || (*(pattern+1) == '*')) {
+        return FR_NO_FILE; // stupid user shenanigans, failure
+    } else if (*path == '\0') {
+        return FR_NO_FILE; // asterisk, but end reached on path, failure
+    } else if (*(pattern+1) == '\0') {
+        return FR_OK; // nothing after the asterisk, match found
+    } else { // we couldn't really go without recursion here
+        for (path++; *path != '\0'; path++) {
+            if (fvx_match_name(path, pattern + 1) == FR_OK) return FR_OK;
+        }
+    }
+    
+    return FR_NO_FILE;
+}
+
+FRESULT fvx_preaddir (DIR* dp, FILINFO* fno, const TCHAR* pattern) {
+    FRESULT res;
+    while ((res = fvx_readdir(dp, fno)) == FR_OK)
+        if (!pattern || !*(fno->fname) || (fvx_match_name(fno->fname, pattern) == FR_OK)) break;
+    return res;
+}
+
+FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern) {
+    strncpy(path, pattern, _MAX_FN_LEN);
+    TCHAR* fname = strrchr(path, '/');
+    if (!fname) return FR_DENIED;
+    *fname = '\0';
+    
+    TCHAR* npattern = strrchr(pattern, '/');
+    if (!npattern) return FR_DENIED;
+    npattern++;
+    
+    DIR pdir;
+    FILINFO fno;
+    FRESULT res;
+    if ((res = fvx_opendir(&pdir, path)) != FR_OK) return res;
+    if (fvx_preaddir(&pdir, &fno, npattern) != FR_OK) *(fno.fname) = '\0';
+    fvx_closedir( &pdir );
+    
+    *(fname++) = '/';
+    strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
+    if (!*(fno.fname)) return FR_NO_FILE;
+    
+    return FR_OK;
 }
