@@ -101,10 +101,6 @@ u32 IdentifyFileType(const char* path) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
-    } else if ((strncasecmp(fname, SEEDDB_NAME, sizeof(SEEDDB_NAME)) == 0) ||
-        (strncasecmp(fname, SECTOR_NAME, sizeof(SECTOR_NAME)) == 0) ||
-        (strncasecmp(fname, SECRET_NAME, sizeof(SECRET_NAME)) == 0)) {
-        return BIN_SUPPORT; // known support file (so launching is not offered)
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload

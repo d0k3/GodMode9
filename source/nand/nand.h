@@ -11,10 +11,6 @@
 #define SECTOR_D0K3     0x000001
 #define SECTOR_SECRET   0x000096
 
-// filenames for sector 0x96
-#define SECTOR_NAME     "sector0x96.bin"
-#define SECRET_NAME     "secret_sector.bin"
-
 // 0x110...0x118 in the NAND NCSD header
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
 #define NP_TYPE_NONE        0

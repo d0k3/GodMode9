@@ -1,6 +1,5 @@
 #include "nand.h"
 #include "fsdrive.h"
-#include "fsutil.h"
 #include "unittype.h"
 #include "keydb.h"
 #include "aes.h"
@@ -534,20 +533,6 @@ u32 GetLegitSector0x96(u8* sector)
     for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
         ReadNandSectors(sector, SECTOR_SECRET, 1, 0x11, nand_src[i]);
         if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
-            return 0;
-    }
-    
-    // no luck? try searching for a file
-    const char* base[] = { INPUT_PATHS };
-    for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
-        char path[64];
-        snprintf(path, 64, "%s/%s", base[i], SECTOR_NAME);
-        if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
-            (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0))
-            return 0;
-        snprintf(path, 64, "%s/%s", base[i], SECRET_NAME);
-        if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
-            (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0))
             return 0;
     }
     

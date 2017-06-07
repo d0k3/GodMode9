@@ -1287,19 +1287,10 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             if (!seed_sys || BuildSeedInfo(NULL, true) != 0)
                 seed_sys = seed_emu = false;
         }
-        bool lsector = false;
-        u8 legit_sector[0x200];
-        if (GetLegitSector0x96(legit_sector) == 0) {
-            ShowString("Searching secret sector...");
-            const char* path_sector = OUTPUT_PATH "/" SECRET_NAME;
-            // we can safely assume the output path exists at that point
-            lsector = FileSetData(path_sector, legit_sector, 0x200, 0, true);
-        }
-        ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%18.18-s %s\n%18.18-s %s\n%18.18-s %s\n%18.18-s %s",
+        ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%18.18-s %s\n%18.18-s %s\n%18.18-s %s",
             TIKDB_NAME_ENC, tik_enc_sys ? tik_enc_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
             TIKDB_NAME_DEC, tik_dec_sys ? tik_dec_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
-            SEEDDB_NAME, seed_sys ? seed_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
-            SECRET_NAME, lsector ? "OK (legit)" : "Failed");
+            SEEDDB_NAME, seed_sys ? seed_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed");
         GetDirContents(current_dir, current_path);
         return 0;
     } else if (user_select == hsrestore) { // restore Health & Safety
