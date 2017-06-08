@@ -15,7 +15,8 @@ These short instructions apply to all users who have ARM9loaderhax or SigHax and
 * *[A9LH only]* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * *[SigHax only]* Rename `GodMode9.firm`(from the release archive) to `X_GodMode9.firm`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/` or `sd:/files9` (optional but recommended for full functionality).
-* Possibly helpful info: If you wonder how to backup your NAND, press the HOME button and enter the menu titled `More...`. You may also backup your NAND via just copying the `nand.bin` / `nand_min.bin` file in `S:/`.
+* Helpful hint #1: Go [here](https://3ds.guide/godmode9-usage) for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
+* Helpful hint #2: __Never unlock the red write permission level unless you know exactly what you're doing__. You will notice that prompt when it comes up, it features a completely red screen. It is recommended you stay on the yellow permission level or below at all times to be completely safe. Also read more on the write permissions system below.
 
 You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
