@@ -8,7 +8,8 @@ u32 ValidateTicket(Ticket* ticket) {
     const u8 magic[] = { TICKET_SIG_TYPE };
     if ((memcmp(ticket->sig_type, magic, sizeof(magic)) != 0) ||
         ((strncmp((char*) ticket->issuer, TICKET_ISSUER, 0x40) != 0) &&
-        (strncmp((char*) ticket->issuer, TICKET_ISSUER_DEV, 0x40) != 0)))
+        (strncmp((char*) ticket->issuer, TICKET_ISSUER_DEV, 0x40) != 0)) ||
+        (ticket->commonkey_idx >= 6))
         return 1;
     return 0;
 }
