@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<<7)
-#define OVERWRITE_CUR   (1UL<<8)
+#define SKIP_CUR        (1UL<<8)
+#define OVERWRITE_CUR   (1UL<<9)
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
@@ -199,13 +199,9 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
     return found;
 }
 
-bool FileInjectFile(const char* dest, const char* orig, u32 offset, u32* flags) {
+bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_orig, u64 size, u32* flags) {
     FIL ofile;
     FIL dfile;
-    u64 osize;
-    u64 dsize;
-    bool no_cancel = (flags && (*flags & NO_CANCEL));
-    bool ret = true;
     
     if (!CheckWritePermissions(dest)) return false;
     if (strncmp(dest, orig, 256) == 0) {
@@ -221,32 +217,41 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset, u32* flags) 
         fvx_close(&dfile);
         return false;
     }
-    fvx_lseek(&dfile, offset);
-    fvx_lseek(&ofile, 0);
-    dsize = fvx_size(&dfile);
-    osize = f_size(&ofile);
+    fvx_lseek(&dfile, off_dest);
+    fvx_lseek(&ofile, off_orig);
+    if (!size && (off_orig < fvx_size(&ofile)))
+        size = fvx_size(&ofile) - off_orig;
     
     // check file limits
-    if (offset + osize > dsize) {
+    if (off_dest + size > fvx_size(&dfile)) {
         ShowPrompt(false, "Operation would write beyond end of file");
+        fvx_close(&dfile);
+        fvx_close(&ofile);
+        return false;
+    } else if (off_orig + size > fvx_size(&ofile)) {
+        ShowPrompt(false, "Not enough data in file");
         fvx_close(&dfile);
         fvx_close(&ofile);
         return false;
     }
     
+    bool ret = true;
     ShowProgress(0, 0, orig);
-    for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-        UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
+    for (u64 pos = 0; (pos < size) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT read_bytes = min(MAIN_BUFFER_SIZE, size - pos);
         UINT bytes_read = read_bytes;
         UINT bytes_written = read_bytes;
-        if (fvx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) {
-            ret = false;
-            break;
-        }
-        if ((!ShowProgress(pos + (bytes_read / 2), osize, orig) && !no_cancel) ||
+        if ((fvx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ||
             (fvx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ||
             (bytes_read != bytes_written))
             ret = false;
+        if (ret && !ShowProgress(pos + bytes_read, size, orig)) {
+            if (flags && (*flags & NO_CANCEL)) {
+                ShowPrompt(false, "Cancel is now allowed here");
+                ShowProgress(0, 0, orig);
+                ShowProgress(pos + bytes_read, size, orig);
+            } else ret = false;
+        }
     }
     ShowProgress(1, 1, orig);
     
@@ -319,6 +324,7 @@ bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
 
 bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
     bool to_virtual = GetVirtualSource(dest);
+    bool silent = (flags && (*flags & SILENT));
     bool ret = false;
     
     // check destination write permission (special paths only)
@@ -335,8 +341,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
     TruncateString(deststr, dest, 36, 8);
     
     // the copy process takes place here
-    bool no_cancel = (flags && (*flags & NO_CANCEL));
-    if (!ShowProgress(0, 0, orig) && !no_cancel) return false;
+    if (!ShowProgress(0, 0, orig) && !(flags && (*flags & NO_CANCEL))) return false;
     if (move && fvx_stat(dest, NULL) != FR_OK) { // moving if dest not existing
         ret = (fvx_rename(orig, dest) == FR_OK);
     } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
@@ -346,7 +351,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
         // create the destination folder if it does not already exist
         if (fvx_opendir(&pdir, dest) != FR_OK) {
             if (fvx_mkdir(dest) != FR_OK) {
-                ShowPrompt(false, "%s\nError: Overwriting file with dir", deststr);
+                if (!silent) ShowPrompt(false, "%s\nError: Overwriting file with dir", deststr);
                 return false;
             }
         } else fvx_closedir(&pdir);
@@ -378,7 +383,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
     } else if (move) { // moving if destination exists
         if (fvx_stat(dest, &fno) != FR_OK) return false;
         if (fno.fattrib & AM_DIR) {
-            ShowPrompt(false, "%s\nError: Overwriting dir with file", deststr);
+            if (!silent) ShowPrompt(false, "%s\nError: Overwriting dir with file", deststr);
             return false;
         }
         if (fvx_unlink(dest) != FR_OK) return false;
@@ -396,19 +401,19 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
         
         fsize = fvx_size(&ofile);
         if (!to_virtual && (GetFreeSpace(dest) < fsize)) {
-            ShowPrompt(false, "%s\nError: Not enough space in drive", deststr);
+            if (!silent) ShowPrompt(false, "%s\nError: Not enough space in drive", deststr);
             fvx_close(&ofile);
             return false;
         }
         
         if (fvx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-            ShowPrompt(false, "%s\nError: Cannot open destination file", deststr);
+            if (!silent) ShowPrompt(false, "%s\nError: Cannot open destination file", deststr);
             fvx_close(&ofile);
             return false;
         }
         
         if (to_virtual && (fvx_size(&dfile) < fsize)) {
-            ShowPrompt(false, "%s\nError: Not enough virtual space", deststr);
+            if (!silent) ShowPrompt(false, "%s\nError: Not enough virtual space", deststr);
             fvx_close(&ofile);
             fvx_close(&dfile);
             return false;
@@ -426,9 +431,15 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
             UINT bytes_written = 0;            
             if ((fvx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK) ||
                 (fvx_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK) ||
-                (bytes_read != bytes_written) ||
-                (!ShowProgress(pos + bytes_read, fsize, orig) && !no_cancel))
+                (bytes_read != bytes_written))
                 ret = false;
+            if (ret && !ShowProgress(pos + bytes_read, fsize, orig)) {
+                if (flags && (*flags & NO_CANCEL)) {
+                    ShowPrompt(false, "Cancel is now allowed here");
+                    ShowProgress(0, 0, orig);
+                    ShowProgress(pos + bytes_read, fsize, orig);
+                } else ret = false;
+            }
             if (flags && (*flags & CALC_SHA))
                 sha_update(MAIN_BUFFER, bytes_read);
         }
@@ -529,8 +540,8 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         
         // actual move / copy operation
         bool same_drv = (strncmp(lorig, ldest, 2) == 0);
-        bool res = PathMoveCopyRec(ldest, lorig, flags, move & same_drv);
-        if (move & res && (!flags || !(*flags&SKIP_CUR))) PathDelete(lorig);
+        bool res = PathMoveCopyRec(ldest, lorig, flags, move && same_drv);
+        if (move && res && (!flags || !(*flags&SKIP_CUR))) PathDelete(lorig);
         return res;
     } else { // virtual destination handling
         // can't write an SHA file to a virtual destination

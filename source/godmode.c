@@ -6,6 +6,7 @@
 #include "fsutil.h"
 #include "fsperm.h"
 #include "fsgame.h"
+#include "fsscript.h"
 #include "gameutil.h"
 #include "keydbutil.h"
 #include "nandutil.h"
@@ -686,10 +687,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
+    bool scriptable = (FTYPE_SCRIPT(filetype));
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT) && !IS_SIGHAX);
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
         tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
-        launchable || ebackupable;
+        ebackupable || launchable || scriptable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -733,7 +735,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & BIN_KEYDB)  ? "AESkeydb options..."   :
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
-        (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" : "???";
+        (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" :
+        (filetype & TXT_SCRIPT) ? "Execute GM9 script" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
@@ -801,7 +804,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         TruncateString(origstr, clipboard->entry[0].name, 18, 10);
         u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
         if (offset != (u64) -1) {
-            if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset, NULL))
+            if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset, 0, 0, NULL))
                 ShowPrompt(false, "Failed injecting %s", origstr);
             clipboard->n_entries = 0;
         }
@@ -840,6 +843,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     int launch = (launchable) ? ++n_opt : -1;
+    int script = (scriptable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
@@ -859,6 +863,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
+    if (script > 0) optionstr[script-1] = "Execute GM9 script";
     
     // auto select when there is only one option
     user_select = (n_opt <= 1) ? n_opt : (int) ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
@@ -1199,6 +1204,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 while(1);
             } // failed load is basically impossible here
         }
+        return 0;
+    } else if ((user_select == script)) {
+        if (ShowPrompt(true, "%s\nExecute script?", pathstr))
+            ShowPrompt(false, "%s\nScript execute %s", pathstr, ExecuteGM9Script(curr_entry->path) ? "success" : "failure");
+        GetDirContents(current_dir, current_path);
         return 0;
     }
     

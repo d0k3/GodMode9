@@ -6,6 +6,7 @@
 #include "keydb.h"
 #include "ctrtransfer.h"
 #include "chainload.h"
+#include "fsscript.h"
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
@@ -105,6 +106,8 @@ u32 IdentifyFileType(const char* path) {
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload
     #endif
+    } else if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0)) {
+        return TXT_SCRIPT; // should be a script
     }
     
     return 0;

@@ -325,5 +325,37 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern) {
     strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
     if (!*(fno.fname)) return FR_NO_PATH;
     
+    return res;
+}
+
+FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
+    strncpy(path, pattern, _MAX_FN_LEN);
+    TCHAR* fname = strrchr(path, '/');
+    if (!fname) return FR_DENIED;
+    fname++;
+    
+    TCHAR* rep[16];
+    u32 n_rep = 0;
+    for (u32 i = 0; fname[i]; i++) {
+        if (fname[i] == '?') {
+            rep[n_rep] = &(fname[i]);
+            *rep[n_rep++] = '0';
+        }
+        if (n_rep >= 16) return FR_DENIED;
+    }
+    if (!n_rep) return fvx_stat(path, NULL);
+    
+    while (fvx_stat(path, NULL) == FR_OK) {
+        for (INT i = n_rep - 1; (i >= 0); i--) {
+            if (*(rep[i]) == '9') {
+                if (!i) return FR_NO_PATH;
+                *(rep[i]) = '0';
+            } else {
+                (*(rep[i]))++;
+                break;
+            }
+        }
+    }
+    
     return FR_OK;
 }

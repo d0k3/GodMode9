@@ -36,4 +36,5 @@ FRESULT fvx_runlink (const TCHAR* path);
 // additional wildcard based functions
 FRESULT fvx_match_name(const TCHAR* path, const TCHAR* pattern);
 FRESULT fvx_preaddir (DIR* dp, FILINFO* fno, const TCHAR* pattern);
-FRESULT fvx_findfile (const TCHAR* path);
+FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern);
+FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern);
