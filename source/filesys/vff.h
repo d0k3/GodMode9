@@ -30,6 +30,7 @@ FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, 
 
 // additional recursive functions
 FRESULT fvx_rmkdir (const TCHAR* path);
+FRESULT fvx_rmkpath (const TCHAR* path);
 FRESULT fvx_runlink (const TCHAR* path);
 
 // additional wildcard based functions

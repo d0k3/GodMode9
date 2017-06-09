@@ -801,7 +801,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         TruncateString(origstr, clipboard->entry[0].name, 18, 10);
         u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
         if (offset != (u64) -1) {
-            if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset))
+            if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset, NULL))
                 ShowPrompt(false, "Failed injecting %s", origstr);
             clipboard->n_entries = 0;
         }

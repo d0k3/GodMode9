@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<<6)
-#define OVERWRITE_CUR   (1UL<<7)
+#define SKIP_CUR        (1UL<<7)
+#define OVERWRITE_CUR   (1UL<<8)
 
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
@@ -199,12 +199,13 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
     return found;
 }
 
-bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
+bool FileInjectFile(const char* dest, const char* orig, u32 offset, u32* flags) {
     FIL ofile;
     FIL dfile;
     u64 osize;
     u64 dsize;
-    bool ret;
+    bool no_cancel = (flags && (*flags & NO_CANCEL));
+    bool ret = true;
     
     if (!CheckWritePermissions(dest)) return false;
     if (strncmp(dest, orig, 256) == 0) {
@@ -233,7 +234,6 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
         return false;
     }
     
-    ret = true;
     ShowProgress(0, 0, orig);
     for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
         UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
@@ -243,7 +243,7 @@ bool FileInjectFile(const char* dest, const char* orig, u32 offset) {
             ret = false;
             break;
         }
-        if ((!ShowProgress(pos + (bytes_read / 2), osize, orig)) ||
+        if ((!ShowProgress(pos + (bytes_read / 2), osize, orig) && !no_cancel) ||
             (fvx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ||
             (bytes_read != bytes_written))
             ret = false;
@@ -317,220 +317,39 @@ bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
     return res;
 }
 
-bool PathCopyVrtToVrt(const char* destdir, const char* orig, u32* flags) {
-    VirtualFile dvfile;
-    VirtualFile ovfile;
-    bool ret = true;
-    
-    char dest[256]; // maximum path name length in FAT
-    char* oname = strrchr(orig, '/');
-    if (oname == NULL) return false; // not a proper origin path
-    snprintf(dest, 255, "%s/%s", destdir, (++oname));
-    
-    char deststr[36 + 1];
-    char origstr[36 + 1];
-    TruncateString(deststr, dest, 36, 8);
-    TruncateString(origstr, orig, 36, 8);
-    
-    if (!GetVirtualFile(&dvfile, dest) || !GetVirtualFile(&ovfile, orig))
-        return false;
-    u64 osize = ovfile.size;
-    if (dvfile.size != osize) { // almost impossible, but so what...
-        ShowPrompt(false, "Virtual file size mismatch:\n%s\n%s", origstr, deststr);
-        return false;
-    } else if (strncmp(dest, orig, 256) == 0) { // destination == origin
-        ShowPrompt(false, "Origin equals destination:\n%s\n%s", origstr, deststr);
-        return false;
-    }
-    if ((dvfile.keyslot == ovfile.keyslot) && (dvfile.offset == ovfile.offset))
-        dvfile.keyslot = ovfile.keyslot = 0xFF; // this improves copy times for virtual NAND
-    
-    // check write permissions
-    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(dest))
-        return false;
-    
-    // unmount critical NAND drives
-    DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
-    if (!ShowProgress(0, 0, orig)) ret = false;
-    for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-        UINT read_bytes = min(MAIN_BUFFER_SIZE, osize - pos);
-        if (ReadVirtualFile(&ovfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-            ret = false;
-        if (!ShowProgress(pos + (read_bytes / 2), osize, orig))
-            ret = false;
-        if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, read_bytes, NULL) != 0)
-            ret = false;
-    }
-    ShowProgress(1, 1, orig);
-    InitExtFS();
-    
-    return ret;
-}
-
-bool PathCopyFatToVrt(const char* destdir, const char* orig, u32* flags) {
-    VirtualFile dvfile;
-    FIL ofile;
-    bool ret = true;
-    
-    char dest[256]; // maximum path name length in FAT
-    char* oname = strrchr(orig, '/');
-    if (oname == NULL) return false; // not a proper origin path
-    snprintf(dest, 255, "%s/%s", destdir, (++oname));
-    
-    // FAT file size
-    FILINFO fno;
-    if (fa_stat(orig, &fno) != FR_OK) return false; // file does not exist
-    u64 osize = fno.fsize;
-    
-    // virtual file
-    if (!GetVirtualFile(&dvfile, dest)) {
-        VirtualDir vdir;
-        if (!GetVirtualDir(&vdir, destdir)) return false;
-        while (true) { // search by size should be a last resort solution
-            if (!ReadVirtualDir(&dvfile, &vdir))
-                return false;
-            if (dvfile.size == osize) 
-                break; // file found
-        }
-        if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", dest, dvfile.name))
-            return false;
-        snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
-    } else if (dvfile.size != osize) { // handling for differing sizes
-        char deststr[36 + 1];
-        char origstr[36 + 1];
-        char osizestr[32];
-        char dsizestr[32];
-        TruncateString(deststr, dest, 36, 8);
-        TruncateString(origstr, orig, 36, 8);
-        FormatBytes(osizestr, osize);
-        FormatBytes(dsizestr, dvfile.size);
-        if (dvfile.size > osize) {
-            if (!ShowPrompt(true, "File smaller than available space:\n%s (%s)\n%s (%s)\nContinue?", origstr, osizestr, deststr, dsizestr))
-                return false;
-        } else {
-            ShowPrompt(false, "File bigger than available space:\n%s (%s)\n%s (%s)", origstr, osizestr, deststr, dsizestr);
-                return false;
-        }
-    }
-    
-    // check write permissions
-    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(dest))
-        return false;
-    
-    // FAT file
-    if ((fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
-        (!FileUnlock(orig) || (fx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))) {
-        return false;
-    }
-    f_lseek(&ofile, 0);
-    f_sync(&ofile);
-    
-    // unmount critical NAND drives
-    DismountDriveType(DriveType(destdir)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
-    if (!ShowProgress(0, 0, orig)) ret = false;
-    for (u64 pos = 0; (pos < osize) && ret; pos += MAIN_BUFFER_SIZE) {
-        UINT bytes_read = 0;           
-        if (fx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
-            ret = false;
-        if (!ShowProgress(pos + (bytes_read / 2), osize, orig))
-            ret = false;
-        if (WriteVirtualFile(&dvfile, MAIN_BUFFER, pos, bytes_read, NULL) != 0)
-            ret = false;
-    }
-    ShowProgress(1, 1, orig);
-    fx_close(&ofile);
-    InitExtFS();
-    
-    return ret;
-}
-
-bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
-    FILINFO fno;
+bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
+    bool to_virtual = GetVirtualSource(dest);
     bool ret = false;
     
-    if (fa_stat(dest, &fno) != FR_OK) { // is root or destination does not exist
-        DIR tmp_dir; // check if root
-        if (fa_opendir(&tmp_dir, dest) != FR_OK) return false;
-        f_closedir(&tmp_dir);
-    } else if (!(fno.fattrib & AM_DIR)) return false; // destination is not a directory (must be at this point)
+    // check destination write permission (special paths only)
+    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
+        (!flags || !(*flags & OVERRIDE_PERM)) && 
+        !CheckWritePermissions(dest)) return false;
+    
+    FILINFO fno;
     if (fvx_stat(orig, &fno) != FR_OK) return false; // origin does not exist
-    if (move && (fno.fattrib & AM_VRT)) return false; // trying to move a virtual file
-
-    // build full destination path (on top of destination directory)
-    char* oname = strrchr(orig, '/');
-    char* dname = dest + strnlen(dest, 255);
-    if (oname == NULL) return false; // not a proper origin path
-    oname++;
-    *(dname++) = '/';
-    strncpy(dname, oname, 256 - (dname - dest));
+    if (move && (to_virtual || fno.fattrib & AM_VRT)) return false; // trying to move a virtual file
     
     // path string (for output)
     char deststr[36 + 1];
     TruncateString(deststr, dest, 36, 8);
     
-    // check if destination is part of or equal origin
-    while (strncmp(dest, orig, 255) == 0) {
-        if (!ShowStringPrompt(dname, 255 - (dname - dest), "%s\nDestination is equal to origin\nChoose another name?", deststr))
-            return false;
-    }
-    if (strncmp(dest, orig, strnlen(orig, 255)) == 0) {
-        if ((dest[strnlen(orig, 255)] == '/') || (dest[strnlen(orig, 255)] == '\0')) {
-            ShowPrompt(false, "%s\nError: Destination is part of origin", deststr);
-            return false;
-        }
-    }
-    
-    // check if destination exists
-    if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (fa_stat(dest, NULL) == FR_OK)) {
-        if (*flags & SKIP_ALL) {
-            *flags |= SKIP_CUR;
-            return true;
-        }
-        const char* optionstr[5] =
-            {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
-        u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
-            "Destination already exists:\n%s", deststr);
-        if (user_select == 1) {
-            do {
-                if (!ShowStringPrompt(dname, 255 - (dname - dest), "Choose new destination name"))
-                    return false;
-            } while (fa_stat(dest, NULL) == FR_OK);
-        } else if (user_select == 2) {
-            *flags |= OVERWRITE_CUR;
-        } else if (user_select == 3) {
-            *flags |= SKIP_CUR;
-            return true;
-        } else if (user_select == 4) {
-            *flags |= OVERWRITE_ALL;
-        } else if (user_select == 5) {
-            *flags |= (SKIP_CUR|SKIP_ALL);
-            return true;
-        } else {
-            return false;
-        }
-    }
-    
-    // check destination write permission (special paths only)
-    if (((*dest == '1') || (strncmp(dest, "0:/Nintendo 3DS", 16) == 0)) &&
-        (!flags || (*flags & (OVERWRITE_CUR|OVERWRITE_ALL))) &&
-        (!flags || !(*flags & OVERRIDE_PERM)) && 
-        !CheckWritePermissions(dest)) return false;
-    
     // the copy process takes place here
-    if (!ShowProgress(0, 0, orig)) return false;
-    if (move && fa_stat(dest, NULL) != FR_OK) { // moving if dest not existing
-        ret = (f_rename(orig, dest) == FR_OK);
+    bool no_cancel = (flags && (*flags & NO_CANCEL));
+    if (!ShowProgress(0, 0, orig) && !no_cancel) return false;
+    if (move && fvx_stat(dest, NULL) != FR_OK) { // moving if dest not existing
+        ret = (fvx_rename(orig, dest) == FR_OK);
     } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
         
         // create the destination folder if it does not already exist
-        if (fa_opendir(&pdir, dest) != FR_OK) {
-            if (f_mkdir(dest) != FR_OK) {
+        if (fvx_opendir(&pdir, dest) != FR_OK) {
+            if (fvx_mkdir(dest) != FR_OK) {
                 ShowPrompt(false, "%s\nError: Overwriting file with dir", deststr);
                 return false;
             }
-        } else f_closedir(&pdir);
+        } else fvx_closedir(&pdir);
         
         if (fvx_opendir(&pdir, orig) != FR_OK)
             return false;
@@ -543,21 +362,27 @@ bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
             if (fno.fname[0] == 0) {
                 ret = true;
                 break;
-            } else if (!PathCopyToFat(dest, orig, flags, move)) {
-                break;
+            } else {
+                // recursively process directory
+                char* oname = strrchr(orig, '/');
+                char* dname = dest + strnlen(dest, 255);
+                if (oname == NULL) return false; // not a proper origin path
+                *(dname++) = '/';
+                strncpy(dname, oname++, 256 - (dname - dest));
+                bool res = PathMoveCopyRec(dest, orig, flags, move);
+                *(--dname) = '\0';
+                if (!res) break;
             }
         }
         fvx_closedir(&pdir);
     } else if (move) { // moving if destination exists
-        if (fa_stat(dest, &fno) != FR_OK)
-            return false;
+        if (fvx_stat(dest, &fno) != FR_OK) return false;
         if (fno.fattrib & AM_DIR) {
             ShowPrompt(false, "%s\nError: Overwriting dir with file", deststr);
             return false;
         }
-        if (f_unlink(dest) != FR_OK)
-            return false;
-        ret = (f_rename(orig, dest) == FR_OK);
+        if (fvx_unlink(dest) != FR_OK) return false;
+        ret = (fvx_rename(orig, dest) == FR_OK);
     } else { // copying files
         FIL ofile;
         FIL dfile;
@@ -570,20 +395,27 @@ bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
         }
         
         fsize = fvx_size(&ofile);
-        if (GetFreeSpace(dest) < fsize) {
-            ShowPrompt(false, "%s\nError: File is too big for destination", deststr);
-            fx_close(&ofile);
+        if (!to_virtual && (GetFreeSpace(dest) < fsize)) {
+            ShowPrompt(false, "%s\nError: Not enough space in drive", deststr);
+            fvx_close(&ofile);
             return false;
         }
         
-        if (fx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-            ShowPrompt(false, "%s\nError: Cannot create destination file", deststr);
-            fx_close(&ofile);
+        if (fvx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+            ShowPrompt(false, "%s\nError: Cannot open destination file", deststr);
+            fvx_close(&ofile);
             return false;
         }
         
-        f_lseek(&dfile, 0);
-        f_sync(&dfile);
+        if (to_virtual && (fvx_size(&dfile) < fsize)) {
+            ShowPrompt(false, "%s\nError: Not enough virtual space", deststr);
+            fvx_close(&ofile);
+            fvx_close(&dfile);
+            return false;
+        }
+        
+        fvx_lseek(&dfile, 0);
+        fvx_sync(&dfile);
         fvx_lseek(&ofile, 0);
         fvx_sync(&ofile);
         
@@ -592,13 +424,10 @@ bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
         for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
-            if (fvx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
-                ret = false;
-            if (!ShowProgress(pos + (bytes_read / 2), fsize, orig))
-                ret = false;
-            if (fx_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK)
-                ret = false;
-            if (bytes_read != bytes_written)
+            if ((fvx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK) ||
+                (fvx_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK) ||
+                (bytes_read != bytes_written) ||
+                (!ShowProgress(pos + bytes_read, fsize, orig) && !no_cancel))
                 ret = false;
             if (flags && (*flags & CALC_SHA))
                 sha_update(MAIN_BUFFER, bytes_read);
@@ -606,9 +435,9 @@ bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
         ShowProgress(1, 1, orig);
         
         fvx_close(&ofile);
-        fx_close(&dfile);
-        if (!ret) f_unlink(dest);
-        else if (flags && (*flags & CALC_SHA)) {
+        fvx_close(&dfile);
+        if (!ret) fvx_unlink(dest);
+        else if (!to_virtual && flags && (*flags & CALC_SHA)) {
             u8 sha256[0x20];
             char* ext_sha = dest + strnlen(dest, 256);
             strncpy(ext_sha, ".sha", 256 - (ext_sha - dest));
@@ -617,53 +446,165 @@ bool PathCopyToFat(char* dest, char* orig, u32* flags, bool move) {
         }
     }
     
-    *(--dname) = '\0';
     return ret;
 }
 
-bool PathCopy(const char* destdir, const char* orig, u32* flags) {
-    if ((!flags || !(*flags & OVERRIDE_PERM)) && !CheckWritePermissions(destdir))
-        return false;
-    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
-    int ddrvtype = DriveType(destdir);
+bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
+    // check permissions
+    if (!flags || !(*flags & OVERRIDE_PERM)) {
+        if (!CheckWritePermissions(dest)) return false;
+        if (move && !CheckDirWritePermissions(orig)) return false;
+    }
+    
+    // reset local flags
+    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR);
+    
+    // preparations
+    int ddrvtype = DriveType(dest);
     int odrvtype = DriveType(orig);
-    if (!(ddrvtype & DRV_VIRTUAL)) { // FAT / virtual to FAT
-        char fdpath[256]; // 256 is the maximum length of a full path
-        char fopath[256];
-        strncpy(fdpath, destdir, 255);
-        strncpy(fopath, orig, 255);
-        if (flags && (*flags & BUILD_PATH)) fvx_rmkdir(destdir);
-        return PathCopyToFat(fdpath, fopath, flags, false);
-    } else if (!(odrvtype & DRV_VIRTUAL)) { // FAT to virtual
+    char ldest[256]; // 256 is the maximum length of a full path
+    char lorig[256];
+    strncpy(ldest, dest, 255);
+    strncpy(lorig, orig, 255);
+    char deststr[36 + 1];
+    TruncateString(deststr, ldest, 36, 8);
+    
+    // moving only for regular FAT drives (= not alias drives)
+    if (move && !(ddrvtype & odrvtype & DRV_STDFAT)) {
+        ShowPrompt(false, "Error: Only FAT files can be moved");
+        return false;
+    }
+    
+    // is destination part of origin?
+    u32 olen = strnlen(lorig, 255);
+    if ((strncmp(ldest, lorig, olen) == 0) && (ldest[olen] == '/')) {
+        ShowPrompt(false, "%s\nError: Destination is part of origin", deststr);
+        return false;
+    }
+    
+    if (!(ddrvtype & DRV_VIRTUAL)) { // FAT destination handling
+        // get destination name
+        char* dname = strrchr(ldest, '/');
+        if (!dname) return false;
+        dname++;
+        
+        // check & fix destination == origin
+        while (strncmp(ldest, lorig, 255) == 0) {
+            if (!ShowStringPrompt(dname, 255 - (dname - ldest), "%s\nDestination equals origin\nChoose another name?", deststr))
+                return false;
+        }
+        
+        // check if destination exists
+        if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (fa_stat(ldest, NULL) == FR_OK)) {
+            if (*flags & SKIP_ALL) {
+                *flags |= SKIP_CUR;
+                return true;
+            }
+            const char* optionstr[5] =
+                {"Choose new name", "Overwrite file(s)", "Skip file(s)", "Overwrite all", "Skip all"};
+            u32 user_select = ShowSelectPrompt((*flags & ASK_ALL) ? 5 : 3, optionstr,
+                "Destination already exists:\n%s", deststr);
+            if (user_select == 1) {
+                do {
+                    if (!ShowStringPrompt(dname, 255 - (dname - ldest), "Choose new destination name"))
+                        return false;
+                } while (fa_stat(ldest, NULL) == FR_OK);
+            } else if (user_select == 2) {
+                *flags |= OVERWRITE_CUR;
+            } else if (user_select == 3) {
+                *flags |= SKIP_CUR;
+                return true;
+            } else if (user_select == 4) {
+                *flags |= OVERWRITE_ALL;
+            } else if (user_select == 5) {
+                *flags |= (SKIP_CUR|SKIP_ALL);
+                return true;
+            } else {
+                return false;
+            }
+        }
+        
+        // ensure the destination path exists
+        if (flags && (*flags & BUILD_PATH)) fvx_rmkpath(ldest);
+        
+        // actual move / copy operation
+        bool same_drv = (strncmp(lorig, ldest, 2) == 0);
+        bool res = PathMoveCopyRec(ldest, lorig, flags, move & same_drv);
+        if (move & res && (!flags || !(*flags&SKIP_CUR))) PathDelete(lorig);
+        return res;
+    } else { // virtual destination handling
+        // can't write an SHA file to a virtual destination
+        if (flags) *flags |= ~CALC_SHA;
+        
+        // prevent illegal operations
         if (odrvtype & ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
             ShowPrompt(false, "Copy operation is not allowed");
-            return false; // prevent illegal operations
+            return false; 
         }
-        return PathCopyFatToVrt(destdir, orig, flags);
-    } else return PathCopyVrtToVrt(destdir, orig, flags); // virtual to virtual
+        
+        // check destination == origin
+        if (strncmp(ldest, lorig, 255) == 0) {
+            ShowPrompt(false, "%s\nDestination equals origin", deststr);
+            return false;
+        }
+        
+        // actual virtual copy operation
+        DismountDriveType(DriveType(ldest)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
+        bool res = PathMoveCopyRec(ldest, lorig, flags, false);
+        InitExtFS();
+        return res;
+    }
+}
+
+bool PathCopy(const char* destdir, const char* orig, u32* flags) {
+    // build full destination path (on top of destination directory)
+    char dest[256]; // maximum path name length in FAT
+    char* oname = strrchr(orig, '/');
+    if (oname == NULL) return false; // not a proper origin path
+    snprintf(dest, 255, "%s/%s", destdir, (++oname));
+    
+    // virtual destination special handling
+    if (GetVirtualSource(destdir)) {
+        u64 osize = FileGetSize(orig);
+        VirtualFile dvfile;
+        if (!osize) return false;
+        if (!GetVirtualFile(&dvfile, dest)) {
+            VirtualDir vdir;
+            if (!GetVirtualDir(&vdir, destdir)) return false;
+            while (true) { // search by size should be a last resort solution
+                if (!ReadVirtualDir(&dvfile, &vdir)) return false;
+                if (dvfile.size == osize) break; // file found
+            }
+            if (!ShowPrompt(true, "Entry not found: %s\nInject into %s instead?", dest, dvfile.name))
+                return false;
+            snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
+        } else if (osize < dvfile.size) { // if origin is smaller than destination...
+            char deststr[36 + 1];
+            char origstr[36 + 1];
+            char osizestr[32];
+            char dsizestr[32];
+            TruncateString(deststr, dest, 36, 8);
+            TruncateString(origstr, orig, 36, 8);
+            FormatBytes(osizestr, osize);
+            FormatBytes(dsizestr, dvfile.size);
+            if (dvfile.size > osize) {
+                if (!ShowPrompt(true, "File smaller than available space:\n%s (%s)\n%s (%s)\nContinue?", origstr, osizestr, deststr, dsizestr))
+                    return false;
+            }
+        }
+    }
+    
+    return PathMoveCopy(dest, orig, flags, false);
 }
 
 bool PathMove(const char* destdir, const char* orig, u32* flags) {
-    if (!flags || !(*flags & OVERRIDE_PERM)) {
-        if (!CheckWritePermissions(destdir)) return false;
-        if (!CheckDirWritePermissions(orig)) return false;
-    }
-    if (flags) *flags = *flags & ~(SKIP_CUR|OVERWRITE_CUR); // reset local flags
-    // moving only for regular FAT drives (= not alias drives)
-    if (!(DriveType(destdir) & DriveType(orig) & DRV_STDFAT)) {
-        ShowPrompt(false, "Error: Moving is not possible here");
-        return false;
-    } else {
-        char fdpath[256]; // 256 is the maximum length of a full path
-        char fopath[256];
-        strncpy(fdpath, destdir, 255);
-        strncpy(fopath, orig, 255);
-        if (flags && (*flags & BUILD_PATH)) fvx_rmkdir(destdir);
-        bool same_drv = (strncmp(orig, destdir, 2) == 0);
-        bool res = PathCopyToFat(fdpath, fopath, flags, same_drv);
-        if (res && (!flags || !(*flags&SKIP_CUR))) PathDelete(orig);
-        return res;
-    }
+    // build full destination path (on top of destination directory)
+    char dest[256]; // maximum path name length in FAT
+    char* oname = strrchr(orig, '/');
+    if (oname == NULL) return false; // not a proper origin path
+    snprintf(dest, 255, "%s/%s", destdir, (++oname));
+    
+    return PathMoveCopy(dest, orig, flags, true);
 }
 
 bool PathDelete(const char* path) {

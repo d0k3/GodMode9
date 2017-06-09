@@ -213,6 +213,19 @@ FRESULT fvx_rmkdir (const TCHAR* path) {
     #endif
 }
 
+FRESULT fvx_rmkpath (const TCHAR* path) {
+    #if !_LFN_UNICODE // this will not work for unicode
+    TCHAR tpath[_MAX_FN_LEN+1];
+    strncpy(tpath, path, _MAX_FN_LEN);
+    TCHAR* slash = strrchr(tpath, '/');
+    if (!slash) return FR_DENIED;
+    *slash = '\0';
+    return worker_fvx_rmkdir( tpath );
+    #else
+    return FR_DENIED;
+    #endif
+}
+
 #if !_LFN_UNICODE // this will not work for unicode
 FRESULT worker_fvx_runlink (TCHAR* tpath) {
     FILINFO fno;
@@ -310,7 +323,7 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern) {
     
     *(fname++) = '/';
     strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
-    if (!*(fno.fname)) return FR_NO_FILE;
+    if (!*(fno.fname)) return FR_NO_PATH;
     
     return FR_OK;
 }

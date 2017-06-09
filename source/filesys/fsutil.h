@@ -4,11 +4,12 @@
 
 // move / copy flags
 #define OVERRIDE_PERM   (1UL<<0)
-#define CALC_SHA        (1UL<<1)
-#define BUILD_PATH      (1UL<<2)
-#define ASK_ALL         (1UL<<3)
-#define SKIP_ALL        (1UL<<4)
-#define OVERWRITE_ALL   (1UL<<5)
+#define NO_CANCEL       (1UL<<1)
+#define CALC_SHA        (1UL<<2)
+#define BUILD_PATH      (1UL<<3)
+#define ASK_ALL         (1UL<<4)
+#define SKIP_ALL        (1UL<<5)
+#define OVERWRITE_ALL   (1UL<<6)
 
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();
@@ -38,13 +39,16 @@ bool FileGetSha256(const char* path, u8* sha256);
 u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);
 
 /** Inject file into file @offset **/
-bool FileInjectFile(const char* dest, const char* orig, u32 offset);
+bool FileInjectFile(const char* dest, const char* orig, u32 offset, u32* flags);
 
 /** Create a new directory in cpath **/
 bool DirCreate(const char* cpath, const char* dirname);
 
 /** Get # of files, subdirs and total size for directory **/
 bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles);
+
+/** Direct recursive move / copy of files or directories **/
+bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move);
 
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig, u32* flags);
