@@ -1,5 +1,7 @@
 #include "i2c.h"
 
+void wait(u64 amount);
+
 //-----------------------------------------------------------------------------
 
 static const struct { u8 bus_id, reg_addr; } dev_data[] = {
@@ -93,6 +95,9 @@ u8 i2cReadRegister(u8 dev_id, u8 reg) {
         *i2cGetCntReg(bus_id) = 0xC5;
         i2cWaitBusy(bus_id);
     }
+
+    wait(3ULL);
+
     return 0xff;
 }
 
@@ -124,7 +129,8 @@ bool i2cReadRegisterBuffer(unsigned int dev_id, int reg, u8* buffer, size_t buf_
     i2cWaitBusy(bus_id);
     *i2cGetCntReg(bus_id) = 0xE1;
     i2cWaitBusy(bus_id);
-    buffer[buf_size - 1] = *i2cGetDataReg(bus_id);
+    buffer[buf_size - 1] = *i2cGetDataReg(bus_id); 
+    wait(3ULL);
     return true;
 }
 
@@ -144,6 +150,8 @@ bool i2cWriteRegister(u8 dev_id, u8 reg, u8 data) {
         *i2cGetCntReg(bus_id) = 0xC5;
         i2cWaitBusy(bus_id);
     }
+    
+    wait(3ULL);
 
     return false;
 }
