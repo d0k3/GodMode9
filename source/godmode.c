@@ -207,9 +207,8 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 }
 
 u32 SdFormatMenu(void) {
-    const u32 emunand_size_table[6] = { 0x0, 0x0, 0x3AF, 0x4D8, 0x3FF, 0x7FF }; // [2] and [3] are placeholders
     const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
-    const char* option_emunand_size[6] = { "No EmuNAND", "SysNAND size (min)", "SysNAND size (full)", "1GB (legacy size)", "2GB (legacy size)", "User input..." };
+    const char* option_emunand_size[6] = { "No EmuNAND", "RedNAND size (min)", "EmuNAND size (full)", "User input..." };
     const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
     u64 sysnand_size_mb = (((u64)GetNandSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
     u64 sysnand_min_size_mb = (((u64)GetNandMinSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
@@ -226,15 +225,11 @@ u32 SdFormatMenu(void) {
         return 1;
     }
     
-    user_select = ShowSelectPrompt(6, option_emunand_size, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
-    if (user_select == 2) {
-        emunand_size_mb = sysnand_min_size_mb;
-    } else if (user_select == 3) {
-        emunand_size_mb = sysnand_size_mb;
-    } else if (user_select && (user_select < 6)) {
-        emunand_size_mb = emunand_size_table[user_select];
-    } else if (user_select == 6) do {
-        emunand_size_mb = ShowNumberPrompt(0, "SD card size is %lluMB.\nEnter EmuNAND size (MB) below:", sdcard_size_mb);
+    user_select = ShowSelectPrompt(4, option_emunand_size, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
+    if (user_select && (user_select < 4)) {
+        emunand_size_mb = (user_select == 2) ? sysnand_min_size_mb : (user_select == 3) ? sysnand_size_mb : 0;
+    } else if (user_select == 4) do {
+        emunand_size_mb = ShowNumberPrompt(sysnand_min_size_mb, "SD card size is %lluMB.\nEnter EmuNAND size (MB) below:", sdcard_size_mb);
         if (emunand_size_mb == (u64) -1) break;
     } while (emunand_size_mb > sdcard_size_mb);
     if (emunand_size_mb == (u64) -1) return 1;
