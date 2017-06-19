@@ -1,12 +1,6 @@
-#include "i2c.h"
+#pragma once
 
-inline static void Reboot() {
-    i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 2);
-    while(true);
-}
+#include "common.h"
 
-inline static void PowerOff()
-{
-    i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 0);
-    while (true);
-}
+void Reboot();
+void PowerOff();

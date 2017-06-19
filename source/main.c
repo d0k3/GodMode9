@@ -19,6 +19,5 @@ void main(int argc, char** argv)
         bottom_screen = (u8*)(*(u32*)0x23FFFE08);
     }
     u32 godmode_exit = GodMode();
-    ClearScreenF(true, true, COLOR_STD_BG);
     (godmode_exit == GODMODE_EXIT_REBOOT) ? Reboot() : PowerOff();
 }
