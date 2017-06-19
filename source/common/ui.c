@@ -608,13 +608,14 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     u32 prog_percent = ((total > 0) && (current <= total)) ? (current * 100) / total : 0;
     char tempstr[64];
     char progstr[64];
+    u64 timer = 0;
     
     static u64 last_sec_remain = 0;
     if (!current) {
-        timer_start();
+        timer = timer_start();
         last_sec_remain = 0;
     }
-    u64 sec_elapsed = (total > 0) ? timer_sec() : 0;
+    u64 sec_elapsed = (total > 0) ? timer_sec( timer ) : 0;
     u64 sec_total = (current > 0) ? (sec_elapsed * total) / current : 0;
     u64 sec_remain = (!last_sec_remain) ? (sec_total - sec_elapsed) : ((last_sec_remain + (sec_total - sec_elapsed) + 1) / 2);
     if (sec_remain >= 60 * 60) sec_remain = 60 * 60 - 1;

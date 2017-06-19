@@ -7,8 +7,8 @@ u32 InputWait() {
     u32 pad_state_old = HID_STATE;
     u32 cart_state_old = CART_STATE;
     u32 sd_state_old = SD_STATE;
+    u64 timer = timer_start();
     delay = (delay) ? 72 : 128;
-    timer_start();
     while (true) {
         u32 pad_state = HID_STATE;
         if (!(pad_state & BUTTON_ANY)) { // no buttons pressed
@@ -29,7 +29,7 @@ u32 InputWait() {
         }
         if ((pad_state == pad_state_old) &&
             (!(pad_state & BUTTON_ARROW) ||
-            (delay && (timer_msec() < delay))))
+            (delay && (timer_msec(timer) < delay))))
             continue;
         // make sure the key is pressed
         u32 t_pressed = 0;

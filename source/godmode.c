@@ -1373,7 +1373,7 @@ u32 GodMode() {
     }
     
     SplashInit();
-    timer_start(); // show splash for at least 1 sec
+    u64 timer = timer_start(); // show splash for at least 1 sec
     
     InitSDCardFS();
     AutoEmuNandBase(true);
@@ -1396,7 +1396,7 @@ u32 GodMode() {
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
     
-    while(timer_sec() < 1); // show splash for at least 1 sec
+    while(timer_sec( timer ) < 1); // show splash for at least 1 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
     while (true) { // this is the main loop
