@@ -1,6 +1,5 @@
 #include "i2c.h"
-
-void wait(u64 amount);
+#include "timer.h"
 
 //-----------------------------------------------------------------------------
 
@@ -89,15 +88,15 @@ u8 i2cReadRegister(u8 dev_id, u8 reg) {
                 i2cWaitBusy(bus_id);
                 i2cStop(bus_id, 1);
                 i2cWaitBusy(bus_id);
+                wait_msec(3ULL);
                 return *i2cGetDataReg(bus_id);
             }
         }
         *i2cGetCntReg(bus_id) = 0xC5;
         i2cWaitBusy(bus_id);
     }
-
-    wait(3ULL);
-
+    
+    wait_msec(3ULL);
     return 0xff;
 }
 
@@ -113,8 +112,10 @@ bool i2cReadRegisterBuffer(unsigned int dev_id, int reg, u8* buffer, size_t buf_
         i2cWaitBusy(bus_id);
         *i2cGetCntReg(bus_id) = 0xC5;
         i2cWaitBusy(bus_id);
-        if (++j >= 8)
+        if (++j >= 8) {
+            wait_msec(3ULL);
             return false;
+        }
     }
 
     if (buf_size != 1) {
@@ -131,8 +132,7 @@ bool i2cReadRegisterBuffer(unsigned int dev_id, int reg, u8* buffer, size_t buf_
     i2cWaitBusy(bus_id);
     buffer[buf_size - 1] = *i2cGetDataReg(bus_id);
     
-    wait(3ULL);
-    
+    wait_msec(3ULL);
     return true;
 }
 
@@ -146,14 +146,15 @@ bool i2cWriteRegister(u8 dev_id, u8 reg, u8 data) {
             *i2cGetDataReg(bus_id) = data;
             *i2cGetCntReg(bus_id) = 0xC1;
             i2cStop(bus_id, 0);
-            if (i2cGetResult(bus_id))
+            if (i2cGetResult(bus_id)) {
+                wait_msec(3ULL);
                 return true;
+            }
         }
         *i2cGetCntReg(bus_id) = 0xC5;
         i2cWaitBusy(bus_id);
     }
     
-    wait(3ULL);
-
+    wait_msec(3ULL);
     return false;
 }
