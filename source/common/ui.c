@@ -369,11 +369,13 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     va_end(va);
     
     if (n == 0) return 0; // check for low number of options
-    else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
+    // else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
     if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
+    for (u32 i = 0; i < n; i++) if (str_width < GetDrawStringWidth(options[i]))
+        str_width = GetDrawStringWidth(options[i]);
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;

@@ -1217,19 +1217,19 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     const char* optionstr[8];
     const char* promptstr = "HOME more... menu.\nSelect action:";
     u32 n_opt = 0;
-    int nandbak = ++n_opt;
     int sdformat = ++n_opt;
     int bonus = (np_info.count > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
+    int scripts = (PathExist(SCRIPT_PATH)) ? (int) ++n_opt : -1;
     
-    if (nandbak > 0) optionstr[nandbak - 1] = "Backup NAND";
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
+    if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1310,19 +1310,10 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             GetDirContents(current_dir, current_path);
             return 0;
         }
-    } else if (user_select == nandbak) { // dump NAND backup
-        n_opt = 0;
-        int sys = (DriveType("1:")) ? (int) ++n_opt : -1;
-        int emu = (DriveType("4:")) ? (int) ++n_opt : -1;
-        if (sys > 0) optionstr[sys - 1] = "Backup SysNAND";
-        if (emu > 0) optionstr[emu - 1] = "Backup EmuNAND";
-        user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
-        if (user_select > 0) {
-            u32 flags = BUILD_PATH | CALC_SHA;
-            if (PathCopy(OUTPUT_PATH, (user_select == sys) ? "S:/nand.bin" : "E:/nand.bin", &flags))
-                ShowPrompt(false, "NAND backup written to " OUTPUT_PATH);
-            else ShowPrompt(false, "NAND backup failed");
-            GetDirContents(current_dir, current_path);
+    } else if (user_select == scripts) { // scripts menu
+        char script[256];
+        if (FileSelector(script, "HOME scripts... menu.\nSelect action:", SCRIPT_PATH, "*.gm9", true, false)) {
+            ExecuteGM9Script(script);
             return 0;
         }
     } else return 1;

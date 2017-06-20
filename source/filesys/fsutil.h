@@ -48,6 +48,9 @@ bool DirCreate(const char* cpath, const char* dirname);
 /** Get # of files, subdirs and total size for directory **/
 bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles);
 
+/** True if path exists **/
+bool PathExist(const char* path);
+
 /** Direct recursive move / copy of files or directories **/
 bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move);
 
@@ -62,6 +65,9 @@ bool PathDelete(const char* path);
 
 /** Rename file / folder in path to new name **/
 bool PathRename(const char* path, const char* newname);
+
+/** Select a file **/
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs);
 
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();

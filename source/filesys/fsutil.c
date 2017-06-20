@@ -14,6 +14,8 @@
 #define SKIP_CUR        (1UL<<8)
 #define OVERWRITE_CUR   (1UL<<9)
 
+#define _MAX_FS_OPT     8 // max file selector options
+
 // Volume2Partition resolution table
 PARTITION VolToPart[] = {
     {0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
@@ -320,6 +322,10 @@ bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
     ShowString("Analyzing dir, please wait...");
     bool res = DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles);
     return res;
+}
+
+bool PathExist(const char* path) {
+    return (fvx_stat(path, NULL) == FR_OK);
 }
 
 bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
@@ -634,6 +640,68 @@ bool PathRename(const char* path, const char* newname) {
     strncpy(npath + (oldname - path), newname, 255 - (oldname - path));
     
     return (f_rename(path, npath) == FR_OK);
+}
+
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs) {
+    DirStruct* contents = (DirStruct*) (void*) TEMP_BUFFER;
+    char path_local[256];
+    strncpy(path_local, path, 256);
+    
+    // main loop
+    while (true) {
+        u32 n_found = 0;
+        u32 pos = 0;
+        GetDirContents(contents, path_local);
+        
+        while (pos < contents->n_entries) {
+            char opt_names[_MAX_FS_OPT+1][32+1];
+            DirEntry* res_entry[_MAX_FS_OPT+1] = { NULL };
+            u32 n_opt = 0;
+            for (; pos < contents->n_entries; pos++) {
+                DirEntry* entry = &(contents->entry[pos]);
+                if (!((entry->type == T_DIR) && (!no_dirs)) &&
+                    !((entry->type == T_FILE) && (fvx_match_name(entry->name, pattern) == FR_OK)))
+                    continue;
+                if (n_opt == _MAX_FS_OPT) {
+                    snprintf(opt_names[n_opt++], 32, "[more...]");
+                    break;
+                }
+                
+                char temp_str[256];
+                snprintf(temp_str, 256, entry->name);
+                if (hide_ext && (entry->type == T_FILE)) {
+                    char* dot = strrchr(temp_str, '.');
+                    if (dot) *dot = '\0';
+                }
+                TruncateString(opt_names[n_opt], temp_str, 32, 8);
+                res_entry[n_opt++] = entry;
+                n_found++;
+            }
+            if ((pos >= contents->n_entries) && (n_opt < n_found))
+                snprintf(opt_names[n_opt++], 32, "[more...]");
+            if (!n_opt) break;
+            
+            const char* optionstr[_MAX_FS_OPT+1] = { NULL };
+            for (u32 i = 0; i <= _MAX_FS_OPT; i++) optionstr[i] = opt_names[i];
+            u32 user_select = ShowSelectPrompt(n_opt, optionstr, text);
+            if (!user_select) return false;
+            DirEntry* res_local = res_entry[user_select-1];
+            if (res_local && (res_local->type == T_DIR)) { // selected dir
+                if (FileSelector(result, text, res_local->path, pattern, hide_ext, no_dirs))
+                    return true;
+                break;
+            } else if (res_local && (res_local->type == T_FILE)) { // selected file
+                strncpy(result, res_local->path, 256);
+                return true;
+            }
+        }
+        if (!n_found) { // not a single matching entry found
+            char pathstr[32+1];
+            TruncateString(pathstr, path_local, 32, 8);
+            ShowPrompt(false, "%s\nNo usable entries found.", pathstr);
+            return false; 
+        }
+    }
 }
 
 void CreateScreenshot() {
