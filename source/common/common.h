@@ -49,12 +49,12 @@
 #endif
 
 // GodMode9 version
-#define VERSION "1.2.4"
+#define VERSION "1.2.5"
 
 // input / output paths
-#define INPUT_PATHS     "0:", "0:/files9", "1:/rw/files9"
-#define OUTPUT_PATH     "0:/gm9out"
+#define INPUT_PATHS     "0:/gm9/support", "0:", "0:/files9" // legacy paths
 #define SCRIPT_PATH     "0:/gm9/scripts"
+#define OUTPUT_PATH     "0:/gm9/out"
 
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x21000000)
