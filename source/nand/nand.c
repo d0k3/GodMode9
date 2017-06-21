@@ -281,7 +281,7 @@ int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 n
         // simple wrapper function for WriteNandSectors(...)
         return WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
     } else { // misaligned data -> -___-
-        u8* buffer8 = (u8*) buffer8;
+        u8* buffer8 = (u8*) buffer;
         u8 l_buffer[0x200];
         int errorcode = 0;
         if (offset % 0x200) { // handle misaligned offset
