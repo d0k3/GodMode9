@@ -14,7 +14,7 @@ __As always, be smart, keep backups, just to be safe__.
 These short instructions apply to all users who have ARM9loaderhax or SigHax and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
 * *[A9LH only]* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * *[SigHax only]* Rename `GodMode9.firm`(from the release archive) to `X_GodMode9.firm`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
-* Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/gm9/support` (optional but recommended for full functionality).
+* Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/gm9/support` (optional but recommended for full functionality).
 * Helpful hint #1: Go [here](https://3ds.guide/godmode9-usage) for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
 * Helpful hint #2: __Never unlock the red write permission level unless you know exactly what you're doing__. You will notice that prompt when it comes up, it features a completely red screen. It is recommended you stay on the yellow permission level or below at all times to be completely safe. Also read more on the write permissions system below.
 
