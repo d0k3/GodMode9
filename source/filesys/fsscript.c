@@ -300,19 +300,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "permission fail");
     } else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
-        if (flags && _FLG('h')) flags_ext |= CALC_SHA;
-        if (flags && _FLG('n')) flags_ext |= NO_CANCEL;
-        if (flags && _FLG('s')) flags_ext |= SILENT;
-        if (flags && _FLG('w')) flags_ext |= OVERWRITE_ALL;
-        else if (flags && _FLG('k')) flags_ext |= SKIP_ALL;
+        if (flags & _FLG('h')) flags_ext |= CALC_SHA;
+        if (flags & _FLG('n')) flags_ext |= NO_CANCEL; // actually use this!
+        if (flags & _FLG('s')) flags_ext |= SILENT;
+        if (flags & _FLG('w')) flags_ext |= OVERWRITE_ALL;
+        else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, false);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "copy fail");
     } else if (id == CMD_ID_MV) {
         u32 flags_ext = BUILD_PATH;
-        if (flags && _FLG('n')) flags_ext |= NO_CANCEL;
-        if (flags && _FLG('s')) flags_ext |= SILENT;
-        if (flags && _FLG('w')) flags_ext |= OVERWRITE_ALL;
-        else if (flags && _FLG('k')) flags_ext |= SKIP_ALL;
+        if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
+        if (flags & _FLG('s')) flags_ext |= SILENT;
+        if (flags & _FLG('w')) flags_ext |= OVERWRITE_ALL;
+        else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, true);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "move fail");
     } else if (id == CMD_ID_INJECT) {
@@ -331,9 +331,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "missing dest offset");
         } else {
+            u32 flags_ext = 0;
             u64 at_dst = 0;
             *(atstr_dst++) = '\0';
-            ret = ((sscanf(atstr_dst, "%llX", &at_dst) == 1) && FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, NULL));
+            if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
+            ret = ((sscanf(atstr_dst, "%llX", &at_dst) == 1) && FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, &flags_ext));
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "inject fail");
         }
     } else if (id == CMD_ID_RM) {
