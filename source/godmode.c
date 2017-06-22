@@ -1353,6 +1353,7 @@ u32 GodMode() {
     char current_path[256] = { 0x00 };
     
     int mark_next = -1;
+    u32 last_write_perm = GetWritePermissions();
     u32 last_clipboard_size = 0;
     u32 cursor = 0;
     u32 scroll = 0;
@@ -1374,15 +1375,6 @@ u32 GodMode() {
     // this takes long - do it while splash is displayed
     GetFreeSpace("0:");
     
-    // could also check for a9lh via this: ((*(vu32*) 0x101401C0) == 0) 
-    if ((!IS_O3DS) && !CheckSlot0x05Crypto()) {
-        if (!ShowPrompt(true, "Warning: slot0x05 crypto fail!\nCould not set up slot0x05keyY.\nContinue?")) {
-            DeinitExtFS();
-            DeinitSDCardFS();
-            return exit_mode;
-        }
-    }
-    
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
@@ -1395,13 +1387,14 @@ u32 GodMode() {
         
         // basic sanity checking
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
+            ShowPrompt(false, "Invalid directory object");
             *current_path = '\0';
             DeinitExtFS(); // deinit and...
             InitExtFS(); // reinitialize extended file system
             GetDirContents(current_dir, current_path);
             cursor = 0;
             if (!current_dir->n_entries) { // should not happen, if it does fail gracefully
-                ShowPrompt(false, "Invalid directory object");
+                ShowPrompt(false, "Invalid root directory");
                 return exit_mode;
             }
         }
@@ -1414,6 +1407,15 @@ u32 GodMode() {
         }
         DrawDirContents(current_dir, cursor, &scroll);
         DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
+        
+        // check write permissions
+        if (~last_write_perm & GetWritePermissions()) {
+            if (ShowPrompt(true, "Write permissions where changed.\nRelock them?")) SetWritePermissions(last_write_perm, false);
+            last_write_perm = GetWritePermissions();
+            continue;
+        }
+        
+        // handle user input
         u32 pad_state = InputWait();
         bool switched = (pad_state & BUTTON_R1);
         
