@@ -7,6 +7,7 @@
 #include "filetype.h"
 #include "power.h"
 #include "vff.h"
+#include "sha.h"
 #include "ui.h"
 
 #define _MAX_ARGS       2
@@ -137,14 +138,33 @@ bool init_vars(void) {
     // reset var buffer
     memset(VAR_BUFFER, 0x00, VAR_BUFFER_SIZE);
     
-    // set env vars
+    // device serial
     char env_serial[16] = { 0 };
     if ((FileGetData("1:/rw/sys/SecureInfo_A", (u8*) env_serial, 0xF, 0x102) != 0xF) &&
         (FileGetData("1:/rw/sys/SecureInfo_B", (u8*) env_serial, 0xF, 0x102) != 0xF))
         snprintf(env_serial, 0xF, "UNKNOWN");
+    
+    // device sysnand / emunand id0
+    char env_sys_id0[32+1];
+    char env_emu_id0[32+1];
+    for (u32 emu = 0; emu <= 1; emu++) {
+        u8 sd_keyy[0x10];
+        char* env_id0 = emu ? env_emu_id0 : env_sys_id0;
+        char* path = emu ? "4:/private/movable.sed" : "1:/private/movable.sed";
+        if (FileGetData(path, sd_keyy, 0x10, 0x110) == 0x10) {
+            u32 sha256sum[8];
+            sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
+            snprintf(env_id0, 32+1, "%08lx%08lx%08lx%08lx",
+                sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+        } else snprintf(env_id0, 0xF, "UNKNOWN");
+    }
+    
+    // set env vars
     set_var("NULL", ""); // this one is special and should not be changed later 
     set_var("SERIAL", env_serial);
     set_var("GM9OUT", OUTPUT_PATH);
+    set_var("SYSID0", env_sys_id0);
+    set_var("EMUID0", env_emu_id0);
     
     return true;
 }
@@ -301,7 +321,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     } else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
         if (flags & _FLG('h')) flags_ext |= CALC_SHA;
-        if (flags & _FLG('n')) flags_ext |= NO_CANCEL; // actually use this!
+        if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         if (flags & _FLG('s')) flags_ext |= SILENT;
         if (flags & _FLG('w')) flags_ext |= OVERWRITE_ALL;
         else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
