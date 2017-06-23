@@ -1382,6 +1382,16 @@ u32 GodMode() {
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
     
+    // check for embedded essential backup
+    if (IS_SIGHAX && !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
+        ShowPrompt(true, "Essential files backup not found.\nCreate one now?")) {
+        if (EmbedEssentialBackup("S:/nand.bin") == 0) {
+            u32 flags = BUILD_PATH | SKIP_ALL;
+            PathCopy(OUTPUT_PATH, "S:/essential.exefs", &flags);
+            ShowPrompt(false, "Backup embedded in SysNAND\nand written to " OUTPUT_PATH ".");
+        }
+    }
+    
     while(timer_sec( timer ) < 1); // show splash for at least 1 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     

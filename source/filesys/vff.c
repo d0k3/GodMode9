@@ -81,11 +81,13 @@ FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
     if (GetVirtualSource(path)) {
         VirtualFile vfile;
         if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
-        fno->fsize = vfile.size;
-        fno->fdate = fno->ftime = 0;
-        fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
-        // could be better...
-        if (_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
+        if (fno) {
+            fno->fsize = vfile.size;
+            fno->fdate = fno->ftime = 0;
+            fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
+            // could be better...
+            if (_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
+        }
         return FR_OK;
     } else return fa_stat( path, fno );
 }

@@ -59,6 +59,7 @@ typedef struct {
 bool InitNandCrypto(void);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
+bool CheckGenuineNandNcsd(void);
 
 void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot);
 void CryptSector0x96(void* buffer, bool encrypt);
