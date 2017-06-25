@@ -116,14 +116,14 @@ bool FileUnlock(const char* path) {
     return true;
 }
 
-bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create) {
+bool FileSetData(const char* path, const void* data, size_t size, size_t foffset, bool create) {
     UINT bw;
     if (!CheckWritePermissions(path)) return false;
     if ((DriveType(path) & DRV_FAT) && create) f_unlink(path);
     return (fvx_qwrite(path, data, foffset, size, &bw) == FR_OK) && (bw == size);
 }
 
-size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset) {
+size_t FileGetData(const char* path, void* data, size_t size, size_t foffset) {
     UINT br;
     if (fvx_qread(path, data, foffset, size, &br) != FR_OK) br = 0;
     return br;

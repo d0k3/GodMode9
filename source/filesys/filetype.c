@@ -106,8 +106,10 @@ u32 IdentifyFileType(const char* path) {
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload
     #endif
-    } else if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0)) {
-        return TXT_SCRIPT; // should be a script
+    } else if (ValidateText((char*) data, (fsize > 0X200) ? 0x200 : fsize)) {
+        if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
+            return TXT_SCRIPT | TXT_GENERIC; // should be a script (which is also generic text)
+        else if (fsize < TEMP_BUFFER_SIZE) return TXT_GENERIC;
     }
     
     return 0;

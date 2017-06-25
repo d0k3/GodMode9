@@ -41,11 +41,41 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
+#define COLOR_TVOFFS    RGB(0x40, 0x60, 0x50)
+#define COLOR_TVTEXT    RGB(0x30, 0x85, 0x30)
+
 typedef struct {
     char path[256];
     u32 cursor;
     u32 scroll;
 } PaneData;
+
+static inline u32 LineLen(const char* text, u32 len, const char* line) {
+    char* line0 = (char*) line;
+    char* line1 = (char*) line;
+    while ((line1 < (text + len)) && (*line1 != '\n') && *line1) line1++;
+    while ((line1 > line0) && (*(line1-1) <= ' ')) line1--;
+    return line1 - line0;
+}
+
+static inline char* LineSeek(const char* text, u32 len, const char* line, int off) {
+    char* lf = ((char*) line - 1);
+    
+    // safety checks / ensure we are at the start of the line
+    if (line < text) return NULL;
+    if ((line >= (text + len)) && (off >= 0)) return (char*) line;
+    while ((lf >= text) && (*lf != '\n')) lf--;
+    
+    // handle backwards search
+    for (; (off < 0) && (lf >= text); off++)
+        for (lf--; (lf >= text) && (*lf != '\n'); lf--);
+    
+    // handle forwards search
+    for (; (off > 0) && (lf < text + len); off--)
+        for (lf++; (lf < text + len) && (*lf != '\n'); lf++);
+    
+    return lf + 1;
+}    
 
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
     const u32 n_cb_show = 8;
@@ -267,7 +297,101 @@ u32 SdFormatMenu(void) {
     return 0;
 }
 
-u32 HexViewer(const char* path) {
+u32 MemTextViewer(const char* text, u32 len) {
+    const u32 vpad = 1;
+    const u32 hpad = 0;
+    // bool wordwrap = false;
+    
+    char* line0 = (char*) text;
+    int lcurr = 0;
+    int off_x = 0;
+    
+    u32 nlin_disp = SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*vpad));
+    u32 llen_disp = (SCREEN_WIDTH_TOP - (2*hpad)) / FONT_WIDTH_EXT;
+    u32 llen_max = 0;
+    u32 nlines = 0;
+    
+    // clear screens
+    ClearScreenF(true, true, COLOR_STD_BG);
+    
+    static const char* instr = "Textviewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Wordwrap on/off\nX - Search / goto...\nB - Exit\n";
+    ShowString(instr);
+    
+    // find maximum line len and # of lines
+    for (char* ptr = (char*) text; ptr < (text + len); ptr = LineSeek(text, len, ptr, 1)) {
+        u32 llen = LineLen(text, len, ptr);
+        if (llen > llen_max) llen_max = llen;
+        if (!*(ptr + llen)) len = (ptr + llen) - text; // zero found
+        nlines++;
+    }
+    // make room for line numbers
+    llen_disp -= 5;
+    
+    while (true) {
+        // display text on screen
+        char dispstr[128]; // should be more than enough
+        char* arrow_l = dispstr;
+        char* arrow_r = dispstr + llen_disp - 1;
+        char* ptr = line0;
+        u32 nln = lcurr;
+        for (u32 y = vpad; y < SCREEN_HEIGHT; y += FONT_HEIGHT_EXT + (2*vpad)) {
+            char* ptr_next = LineSeek(text, len, ptr, 1);
+            u32 llen = LineLen(text, len, ptr);
+            u32 ncpy = ((int) llen < off_x) ? 0 : (llen - off_x);
+            if (ncpy > llen_disp) ncpy = llen_disp;
+            snprintf(dispstr, llen_disp + 1, "%-*.*s", (int) llen_disp, (int) llen_disp, "");
+            if (ncpy) memcpy(dispstr, ptr + off_x, ncpy);
+            for (char* d = dispstr; *d; d++) if (*d < ' ') *d = ' ';
+            
+            // line number / text / arrows (pt.1)
+            if (llen > off_x + llen_disp) *(arrow_r-1) = *arrow_r = '>';
+            if (off_x) *arrow_l = *(arrow_l+1) = '<';
+            DrawStringF(TOP_SCREEN, hpad + (5*FONT_WIDTH_EXT), y, COLOR_TVTEXT, COLOR_STD_BG, dispstr);
+            if (ptr != ptr_next) DrawStringF(TOP_SCREEN, hpad, y, COLOR_TVOFFS, COLOR_STD_BG, "%04lu", nln + 1);
+            
+            // arrows (pt.2)
+            snprintf(dispstr, llen_disp + 1, "%-*.*s", (int) llen_disp, (int) llen_disp, "");
+            if (llen > off_x + llen_disp) *(arrow_r-1) = *arrow_r = '>';
+            if (off_x) *arrow_l = *(arrow_l+1) = '<';
+            DrawStringF(TOP_SCREEN, hpad + (5*FONT_WIDTH_EXT), y, COLOR_TVOFFS, COLOR_TRANSPARENT, dispstr);
+            
+            // advance pointer / line number
+            for (char* c = ptr; c < ptr_next; c++) if (*c == '\n') ++nln;
+            ptr = ptr_next;
+        }
+        
+        // handle user input
+        u32 pad_state = InputWait();
+        if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
+        else { // standard viewer mode
+            int lcurr_next = lcurr;
+            u32 step_ud = (pad_state & BUTTON_R1) ? nlin_disp : 1;
+            u32 step_lr = (pad_state & BUTTON_R1) ? llen_disp : 1;
+            if (pad_state & BUTTON_DOWN) lcurr_next += step_ud;
+            else if (pad_state & BUTTON_RIGHT) off_x += step_lr;
+            else if (pad_state & BUTTON_UP) lcurr_next -= step_ud;
+            else if (pad_state & BUTTON_LEFT) off_x -= step_lr;
+            else if (pad_state & (BUTTON_B|BUTTON_START)) break;
+            
+            // check for problems, apply changes
+            if (lcurr_next + nlin_disp > nlines) lcurr_next = nlines - nlin_disp;
+            if (lcurr_next < 0) lcurr_next = 0;
+            if (lcurr_next != lcurr) {
+                line0 = LineSeek(text, len, line0, lcurr_next - lcurr);
+                lcurr = lcurr_next;
+            }
+            if (off_x + llen_disp > llen_max) off_x = llen_max - llen_disp;
+            if (off_x < 0) off_x = 0;
+        }
+    }
+    
+    // clear screens
+    ClearScreenF(true, true, COLOR_STD_BG);
+    
+    return 0;
+}
+
+u32 FileHexViewer(const char* path) {
     static const u32 max_data = (SCREEN_HEIGHT / 8) * 16;
     static u32 mode = 0;
     u8* data = TEMP_BUFFER;
@@ -701,6 +825,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int n_opt = 0;
     int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
+    int textviewer = (filetype & TXT_GENERIC) ? ++n_opt : -1;
     int calcsha = ++n_opt;
     int calccmac = (CheckCmacPath(curr_entry->path) == 0) ? ++n_opt : -1;
     int copystd = (!in_output_path) ? ++n_opt : -1;
@@ -734,6 +859,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & TXT_SCRIPT) ? "Execute GM9 script" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
+    if (textviewer > 0) optionstr[textviewer-1] = "Show in Textviewer";
     if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
@@ -742,7 +868,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int user_select = ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
         "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
     if (user_select == hexviewer) { // -> show in hex viewer
-        HexViewer(curr_entry->path);
+        FileHexViewer(curr_entry->path);
+        return 0;
+    } else if (user_select == textviewer) { // -> show in text viewer
+        char* text = (char*) TEMP_BUFFER;
+        u32 len = FileGetData(curr_entry->path, text, TEMP_BUFFER_SIZE, 0);
+        MemTextViewer(text, len);
         return 0;
     } else if (user_select == calcsha) { // -> calculate SHA-256
         Sha256Calculator(curr_entry->path);

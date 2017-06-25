@@ -25,10 +25,10 @@ bool SetupBonusDrive(void);
 bool FileUnlock(const char* path);
 
 /** Create / open file and write the provided data to it **/
-bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create);
+bool FileSetData(const char* path, const void* data, size_t size, size_t foffset, bool create);
 
 /** Read data from file@offset **/
-size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset);
+size_t FileGetData(const char* path, void* data, size_t size, size_t foffset);
 
 /** Get size of file **/
 size_t FileGetSize(const char* path);

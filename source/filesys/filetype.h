@@ -23,6 +23,7 @@
 #define BIN_KEYDB   (1UL<<18)
 #define BIN_LEGKEY  (1UL<<19)
 #define TXT_SCRIPT  (1UL<<20)
+#define TXT_GENERIC (1UL<<21)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_ENC    (1UL<<28)

@@ -455,6 +455,17 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     return true;
 }
 
+// checks for illegal ASCII symbols
+bool ValidateText(const char* text, u32 len) {
+    for (u32 i = 0; i < len; i++) {
+        char c = text[i];
+        if ((c == '\r') && ((i+1) < len) && (text[i+1] != '\n')) return false; // CR without LF
+        if ((c < 0x20) && (c != '\t') && (c != '\r') && (c != '\n')) return false; // illegal control char
+        if ((c == 0x7F) || (c == 0xFF)) return false; // other illegal char
+    }
+    return true;
+}
+
 bool ExecuteGM9Script(const char* path_script) {
     // revert mount state?
     char* script = (char*) SCRIPT_BUFFER;
