@@ -49,7 +49,7 @@
 #endif
 
 // GodMode9 version
-#define VERSION "1.2.5"
+#define VERSION "1.2.6"
 
 // input / output paths
 #define INPUT_PATHS     "0:/gm9/support", "0:", "0:/files9" // legacy paths
