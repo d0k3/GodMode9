@@ -250,9 +250,9 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
         if (ret && !ShowProgress(pos + bytes_read, size, orig)) {
             if (flags && (*flags & NO_CANCEL)) {
                 ShowPrompt(false, "Cancel is now allowed here");
-                ShowProgress(0, 0, orig);
-                ShowProgress(pos + bytes_read, size, orig);
-            } else ret = false;
+            } else ret = !ShowPrompt(true, "B button detected. Cancel?");
+            ShowProgress(0, 0, orig);
+            ShowProgress(pos + bytes_read, size, orig);
         }
     }
     ShowProgress(1, 1, orig);
@@ -347,7 +347,10 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
     TruncateString(deststr, dest, 36, 8);
     
     // the copy process takes place here
-    if (!ShowProgress(0, 0, orig) && !(flags && (*flags & NO_CANCEL))) return false;
+    if (!ShowProgress(0, 0, orig) && !(flags && (*flags & NO_CANCEL))) {
+        if (ShowPrompt(true, "%s\nB button detected. Cancel?", deststr)) return false;
+        ShowProgress(0, 0, orig);
+    }
     if (move && fvx_stat(dest, NULL) != FR_OK) { // moving if dest not existing
         ret = (fvx_rename(orig, dest) == FR_OK);
     } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
@@ -441,10 +444,10 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
                 ret = false;
             if (ret && !ShowProgress(pos + bytes_read, fsize, orig)) {
                 if (flags && (*flags & NO_CANCEL)) {
-                    ShowPrompt(false, "Cancel is now allowed here");
-                    ShowProgress(0, 0, orig);
-                    ShowProgress(pos + bytes_read, fsize, orig);
-                } else ret = false;
+                    ShowPrompt(false, "%s\nCancel is now allowed here", deststr);
+                } else ret = !ShowPrompt(true, "%s\nB button detected. Cancel?", deststr);
+                ShowProgress(0, 0, orig);
+                ShowProgress(pos + bytes_read, fsize, orig);
             }
             if (flags && (*flags & CALC_SHA))
                 sha_update(MAIN_BUFFER, bytes_read);
