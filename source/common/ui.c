@@ -601,6 +601,7 @@ bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
 bool ShowProgress(u64 current, u64 total, const char* opstr)
 {
     static u32 last_prog_width = 0;
+    static u64 timer = 0;
     const u32 bar_width = 240;
     const u32 bar_height = 12;
     const u32 bar_pos_x = (SCREEN_WIDTH_MAIN - bar_width) / 2;
@@ -610,7 +611,6 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     u32 prog_percent = ((total > 0) && (current <= total)) ? (current * 100) / total : 0;
     char tempstr[64];
     char progstr[64];
-    u64 timer = 0;
     
     static u64 last_sec_remain = 0;
     if (!current) {
