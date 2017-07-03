@@ -52,7 +52,7 @@
 #define VERSION "1.2.6"
 
 // input / output paths
-#define INPUT_PATHS     "0:/gm9/support", "0:", "0:/files9" // legacy paths
+#define SUPPORT_PATHS   "0:/gm9/support", "0:", "0:/files9" // legacy paths
 #define SCRIPT_PATH     "0:/gm9/scripts"
 #define OUTPUT_PATH     "0:/gm9/out"
 

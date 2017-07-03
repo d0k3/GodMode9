@@ -105,7 +105,7 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
     // when found, add it to the ticket
     for (u32 enc = 0; (enc <= 1) && !found; enc++) {
-        const char* base[] = { INPUT_PATHS };
+        const char* base[] = { SUPPORT_PATHS };
         for (u32 i = 0; (i < (sizeof(base)/sizeof(char*))) && !found; i++) {
             TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
             char path[64];

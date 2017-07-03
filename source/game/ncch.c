@@ -108,7 +108,7 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     }
     
     // not found -> try seeddb.bin
-    const char* base[] = { INPUT_PATHS };
+    const char* base[] = { SUPPORT_PATHS };
     for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
         SeedInfo* seeddb = (SeedInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
         snprintf(path, 128, "%s/%s", base[i], SEEDDB_NAME);
