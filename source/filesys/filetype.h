@@ -49,5 +49,6 @@
 #define FTYPE_XORPAD(tp)        (tp&(BIN_NCCHNFO))
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
 #define FTYPE_PAYLOAD(tp)       (tp&(BIN_LAUNCH))
+#define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 
 u32 IdentifyFileType(const char* path);
