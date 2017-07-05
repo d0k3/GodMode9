@@ -2,8 +2,8 @@
 
 u64 timer_start( void ) {
     static bool timer_init = true;
-    if (timer_init) {
-        // reset / deactivate timers
+    if (timer_init || !(*TIMER_CNT0 & TIMER_ACTIVE)) {
+        // deactivate, then reset timers
         *TIMER_CNT0 = 0;
         *TIMER_CNT1 = *TIMER_CNT2 = *TIMER_CNT3 = TIMER_COUNT_UP;
         *TIMER_VAL0 = *TIMER_VAL1 = *TIMER_VAL2 = *TIMER_VAL3 = 0;
