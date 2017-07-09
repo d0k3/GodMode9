@@ -6,14 +6,14 @@
 void Reboot() {
     ClearScreenF(true, true, COLOR_STD_BG);
     flushEntireDCache();
-    i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 2);
-    while(true);
+    if (I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 2))
+        while(true);
 }
 
 void PowerOff()
 {
     ClearScreenF(true, true, COLOR_STD_BG);
     flushEntireDCache();
-    i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 0);
-    while (true);
+    if (I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 0))
+        while (true);
 }

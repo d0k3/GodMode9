@@ -18,11 +18,13 @@ u32 InputWait() {
             u32 sd_state = SD_STATE;
             if (sd_state != sd_state_old)
                 return sd_state ? SD_INSERT : SD_EJECT;
-            u32 special_key = i2cReadRegister(I2C_DEV_MCU, 0x10);
-            if (special_key == 0x01)
-                return pad_state | BUTTON_POWER;
-            else if (special_key == 0x04)
-                return pad_state | BUTTON_HOME;
+            u8 special_key;
+            if (I2C_readRegBuf(I2C_DEV_MCU, 0x10, &special_key, 1)) {
+                if (special_key == 0x01)
+                    return pad_state | BUTTON_POWER;
+                else if (special_key == 0x04)
+                    return pad_state | BUTTON_HOME;
+            }
             pad_state_old = pad_state;
             delay = 0;
             continue;

@@ -23,6 +23,8 @@
 #include "chainload.h"
 #include "qlzcomp.h"
 #include "timer.h"
+#include "power.h"
+#include "i2c.h"
 #include QLZ_SPLASH_H
 
 #define N_PANES 2
@@ -1598,6 +1600,9 @@ u32 GodMode() {
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
+    
+    // I2C init
+    // I2C_init();
     
     // check for embedded essential backup
     if (IS_SIGHAX && !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
