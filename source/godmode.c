@@ -1068,7 +1068,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
-    if (boot > 0) optionstr[boot-1] = "Boot FIRM via boot9strap";
+    if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
     
     // auto select when there is only one option
@@ -1333,7 +1333,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             }
             ShowPrompt(false, "%lu/%lu renamed ok", n_success, n_marked);
         } else if (!GoodRenamer(&(current_dir->entry[*cursor]), true)) {
-            ShowPrompt(false, "%s\nGood name not found\n(Maybe try decrypt?)", pathstr);
+            ShowPrompt(false, "%s\nCould not rename\n(Maybe try decrypt?)", pathstr);
         }
         return 0;
     } else if (user_select == show_info) { // -> Show title info
@@ -1413,7 +1413,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         return 0;
     } else if ((user_select == boot)) {
         size_t payload_size = FileGetSize(curr_entry->path);
-        if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via boot9strap?", pathstr, payload_size / 1024)) {
+        if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via boot9strap?\n(requires boot9strap nightly)", pathstr, payload_size / 1024)) {
             u32 flags = OVERWRITE_ALL;
             if (PathMoveCopy("0:/bootonce.firm", curr_entry->path, &flags, false))
                 Reboot();
