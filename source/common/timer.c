@@ -2,7 +2,13 @@
 
 u64 timer_start( void ) {
     static bool timer_init = true;
-    if (timer_init || !(*TIMER_CNT0 & TIMER_ACTIVE)) {
+    // timer is initialized at least once (right at the beginning)
+    // this makes sure it is reinitialized in case of inconsistencies
+    if (!(*TIMER_CNT0 & *TIMER_CNT1 & *TIMER_CNT2 & *TIMER_CNT3 & TIMER_ACTIVE) ||
+        !(*TIMER_CNT1 & *TIMER_CNT2 & *TIMER_CNT3 & TIMER_COUNT_UP))
+        timer_init = true;
+    
+    if (timer_init) {
         // deactivate, then reset timers
         *TIMER_CNT0 = 0;
         *TIMER_CNT1 = *TIMER_CNT2 = *TIMER_CNT3 = TIMER_COUNT_UP;
@@ -12,7 +18,7 @@ u64 timer_start( void ) {
         *TIMER_CNT0 = TIMER_ACTIVE;
         *TIMER_CNT1 = *TIMER_CNT2 = *TIMER_CNT3 = TIMER_ACTIVE | TIMER_COUNT_UP;
         
-        // timer initialized (no need to do this more than once)
+        // timer initialized
         timer_init = false;
     }
     return timer_ticks( 0 );
