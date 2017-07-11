@@ -84,7 +84,12 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Search drives and folders__: Just press R+A on the drive / folder you want to search.
 * __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
 * __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain files, write permissions can't be enabled.
+* __View text files in a text viewer__: Press the A button on a file and select `Show in Textviewer` (only shows up for actual text files). You can enable wordwrapped mode via R+Y, and navigate around the file via R+X and the dpad.
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
+
+# Scripting functionality
+* __Run .gm9 scripts from anywhere on your SD card__: You can run scripts in .gm9 format via the A button menu. .gm9 scripts use a shell-like language and can be edited in any text editor. For an overview of usable commands have a look into the `HelloScript.gm9` included in the release archive. *Don't run scripts from untrusted sources.*
+* __Run .gm9 scripts via a neat menu__: Press the HOME Home button, select `More...` -> `Scripts...`. Any script you put into `0:/gm9/scripts` (subdirs included) will be found here. Scripts ran via this method won't have the confirmation at the beginning either.
 
 # SD card handling
 * __Format your SD card / setup an EmuNAND__: Press the HOME button, select `More...` -> `SD format menu`. This also allows to setup a RedNAND or GW type EmuNAND on your SD card. You will get a warning prompt and an unlock sequence before any operation starts.
