@@ -172,6 +172,7 @@ release:
 	#@-cp $(OUTPUT).3dsx $(RELEASE)/$(TARGET)
 	#@-cp $(OUTPUT).smdh $(RELEASE)/$(TARGET)
 	@cp $(CURDIR)/README.md $(RELEASE)
+	@cp $(CURDIR)/HelloScript.gm9 $(RELEASE)
 	@cp -R $(CURDIR)/resources/gm9 $(RELEASE)/gm9
 	@-7z a $(RELEASE)/$(TARGET)-`date +'%Y%m%d-%H%M%S'`.zip $(RELEASE)/*
 
