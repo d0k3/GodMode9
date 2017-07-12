@@ -49,8 +49,7 @@
 #endif
 
 // GodMode9 version
-// #define VERSION "1.2.2" cmaple's fork
-#define VERSION "1.2.7" // latest release by d0k3
+#define VERSION "1.2.7-C"
 
 // input / output paths
 #define SUPPORT_PATHS   "0:/gm9/support", "0:", "0:/files9" // legacy paths

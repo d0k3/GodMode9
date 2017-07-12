@@ -881,8 +881,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool renamable = (FTYPE_RENAMABLE(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
-    bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
-	bool arinjectable = (FTYPE_HSINJECTABLE(filetype));
+    bool injectable = (FTYPE_INJECTABLE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
@@ -890,13 +889,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT) && !IS_SIGHAX);
     bool bootable = ((FTYPE_BOOTABLE(filetype)) && !PathExist("0:/bootonce.firm") && IS_SIGHAX); // works only with boot9strap nightly
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
-<<<<<<< HEAD
-        tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || arinjectable || restorable || xorpadable ||
-        launchable || ebackupable;
-=======
-        tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
+        tik_buildable || key_buildable || titleinfo || renamable || transferable || injectable || restorable || xorpadable ||
         ebackupable || launchable || bootable || scriptable;
->>>>>>> d0k3/master
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -1048,8 +1042,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int key_build = (key_buildable) ? ++n_opt : -1;
     int verify = (verificable) ? ++n_opt : -1;
     int ctrtransfer = (transferable) ? ++n_opt : -1;
-    int hsinject = (hsinjectable) ? ++n_opt : -1;
-	int arinject = (arinjectable) ? ++n_opt : -1;
+    int injecths = (injectable) ? ++n_opt : -1;
+    int injectar = (injectable) ? ++n_opt : -1;
+    int injectfr = (injectable) ? ++n_opt : -1;
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -1070,8 +1065,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (key_build > 0) optionstr[key_build-1] = "Build " KEYDB_NAME;
     if (verify > 0) optionstr[verify-1] = "Verify file";
     if (ctrtransfer > 0) optionstr[ctrtransfer-1] = "Transfer image to CTRNAND";
-    if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
-	if (arinject > 0) optionstr[arinject-1] = "Inject to AR Games";
+    if (injecths > 0) optionstr[injecths-1] = "Inject to H&S App";
+    if (injectar > 0) optionstr[injectar-1] = "Inject to AR Games";
+    if (injectfr > 0) optionstr[injectfr-1] = "Inject to Face Raiders";
     if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
@@ -1348,38 +1344,58 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (ShowGameFileTitleInfo(curr_entry->path) != 0)
             ShowPrompt(false, "Title info: not found");
         return 0;
-    } else if (user_select == hsinject) { // -> Inject to Health & Safety
+    } else if (user_select == injecths) { // -> Inject to H&S Application
         char* destdrv[2] = { NULL };
         n_opt = 0;
+		u32 target = 0; // H&S ID
         if (DriveType("1:")) {
-            optionstr[n_opt] = "SysNAND H&S inject";
+            optionstr[n_opt] = "SysNAND inject (H&S)";
             destdrv[n_opt++] = "1:";
         }
         if (DriveType("4:")) {
-            optionstr[n_opt] = "EmuNAND H&S inject";
+            optionstr[n_opt] = "EmuNAND inject (H&S)";
             destdrv[n_opt++] = "4:";
         }
         user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
         if (user_select) {
-            ShowPrompt(false, "%s\nH&S inject %s", pathstr,
-                (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+            ShowPrompt(false, "%s\nH&S injection %s", pathstr,
+                (InjectTarget(curr_entry->path, destdrv[user_select-1], target) == 0) ? "success" : "failed");
         }
         return 0;
-	} else if (user_select == arinject) { // -> Inject to AR Games
+    } else if (user_select == injectar) { // -> Inject to AR Games Application
         char* destdrv[2] = { NULL };
         n_opt = 0;
+		u32 target = 1; // AR Games ID
         if (DriveType("1:")) {
-            optionstr[n_opt] = "SysNAND AR Games inject";
+            optionstr[n_opt] = "SysNAND inject (AR Games)";
             destdrv[n_opt++] = "1:";
         }
         if (DriveType("4:")) {
-            optionstr[n_opt] = "EmuNAND AR Games inject";
+            optionstr[n_opt] = "EmuNAND inject (AR Games)";
             destdrv[n_opt++] = "4:";
         }
         user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
         if (user_select) {
-            ShowPrompt(false, "%s\nH&S inject %s", pathstr,
-                (InjectARGames(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+            ShowPrompt(false, "%s\nAR Games injection %s", pathstr,
+                (InjectTarget(curr_entry->path, destdrv[user_select-1], target) == 0) ? "success" : "failed");
+        }
+        return 0;
+    } else if (user_select == injectfr) { // -> Inject to Face Raiders Application
+        char* destdrv[2] = { NULL };
+        n_opt = 0;
+		u32 target = 2; // Face Raiders ID
+        if (DriveType("1:")) {
+            optionstr[n_opt] = "SysNAND inject (Face Raiders)";
+            destdrv[n_opt++] = "1:";
+        }
+        if (DriveType("4:")) {
+            optionstr[n_opt] = "EmuNAND inject (Face Raiders)";
+            destdrv[n_opt++] = "4:";
+        }
+        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+        if (user_select) {
+            ShowPrompt(false, "%s\n Face Raiders injection %s", pathstr,
+                (InjectTarget(curr_entry->path, destdrv[user_select-1], target) == 0) ? "success" : "failed");
         }
         return 0;
     } else if (user_select == ctrtransfer) { // -> transfer CTRNAND image to SysNAND
@@ -1468,23 +1484,19 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int bonus = (np_info.count > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
     int bsupport = ++n_opt;
-    int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
-<<<<<<< HEAD
-	int arrestore = ((CheckARGamesInject("1:") == 0) || (CheckARGamesInject("4:") == 0)) ? (int) ++n_opt : -1;
-=======
+    int hsrestore = ((CheckTargetInject("1:", 0) == 0) || (CheckTargetInject("4:", 0) == 0)) ? (int) ++n_opt : -1;
+	int arrestore = ((CheckTargetInject("1:", 1) == 0) || (CheckTargetInject("4:", 1) == 0)) ? (int) ++n_opt : -1;
+    int frrestore = ((CheckTargetInject("1:", 2) == 0) || (CheckTargetInject("4:", 2) == 0)) ? (int) ++n_opt : -1;
     int scripts = (PathExist(SCRIPT_PATH)) ? (int) ++n_opt : -1;
->>>>>>> d0k3/master
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
-<<<<<<< HEAD
-	if (arrestore > 0) optionstr[arrestore -1] = "Restore AR Games";
-=======
+	if (arrestore > 0) optionstr[arrestore - 1] = "Restore AR Games";
+    if (frrestore > 0) optionstr[frrestore - 1] = "Restore Face Raiders";
     if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
->>>>>>> d0k3/master
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1555,48 +1567,44 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         return 0;
     } else if (user_select == hsrestore) { // restore Health & Safety
         n_opt = 0;
-        int sys = (CheckHealthAndSafetyInject("1:") == 0) ? (int) ++n_opt : -1;
-        int emu = (CheckHealthAndSafetyInject("4:") == 0) ? (int) ++n_opt : -1;
+        int sys = (CheckTargetInject("1:", 0) == 0) ? (int) ++n_opt : -1;
+        int emu = (CheckTargetInject("4:", 0) == 0) ? (int) ++n_opt : -1;
         if (sys > 0) optionstr[sys - 1] = "Restore H&S (SysNAND)";
         if (emu > 0) optionstr[emu - 1] = "Restore H&S (EmuNAND)";
         user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
         if (user_select > 0) {
-            InjectHealthAndSafety(NULL, (user_select == sys) ? "1:" : "4:");
+            InjectTarget(NULL, (user_select == sys) ? "1:" : "4:", 0);
             GetDirContents(current_dir, current_path);
             return 0;
         }
-<<<<<<< HEAD
 	} else if (user_select == arrestore) { // restore AR Games
         n_opt = 0;
-        int sys = (CheckARGamesInject("1:") == 0) ? (int) ++n_opt : -1;
-        int emu = (CheckARGamesInject("4:") == 0) ? (int) ++n_opt : -1;
+        int sys = (CheckTargetInject("1:", 1) == 0) ? (int) ++n_opt : -1;
+        int emu = (CheckTargetInject("4:", 1) == 0) ? (int) ++n_opt : -1;
         if (sys > 0) optionstr[sys - 1] = "Restore AR Games (SysNAND)";
         if (emu > 0) optionstr[emu - 1] = "Restore AR Games (EmuNAND)";
         user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
         if (user_select > 0) {
-            InjectARGames(NULL, (user_select == sys) ? "1:" : "4:");
+            InjectTarget(NULL, (user_select == sys) ? "1:" : "4:", 1);
             GetDirContents(current_dir, current_path);
             return 0;
         }
-    } else if (user_select == nandbak) { // dump NAND backup
+	} else if (user_select == frrestore) { // restore Face Raiders
         n_opt = 0;
-        int sys = (DriveType("1:")) ? (int) ++n_opt : -1;
-        int emu = (DriveType("4:")) ? (int) ++n_opt : -1;
-        if (sys > 0) optionstr[sys - 1] = "Backup SysNAND";
-        if (emu > 0) optionstr[emu - 1] = "Backup EmuNAND";
+        int sys = (CheckTargetInject("1:", 2) == 0) ? (int) ++n_opt : -1;
+        int emu = (CheckTargetInject("4:", 2) == 0) ? (int) ++n_opt : -1;
+        if (sys > 0) optionstr[sys - 1] = "Restore Face Raiders (SysNAND)";
+        if (emu > 0) optionstr[emu - 1] = "Restore Face Raiders (EmuNAND)";
         user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
         if (user_select > 0) {
-            u32 flags = BUILD_PATH | CALC_SHA;
-            if (PathCopy(OUTPUT_PATH, (user_select == sys) ? "S:/nand.bin" : "E:/nand.bin", &flags))
-                ShowPrompt(false, "NAND backup written to " OUTPUT_PATH);
-            else ShowPrompt(false, "NAND backup failed");
+            InjectTarget(NULL, (user_select == sys) ? "1:" : "4:", 2);
             GetDirContents(current_dir, current_path);
-=======
+            return 0;
+        }
     } else if (user_select == scripts) { // scripts menu
         char script[256];
         if (FileSelector(script, "HOME scripts... menu.\nSelect action:", SCRIPT_PATH, "*.gm9", true, false)) {
             ExecuteGM9Script(script);
->>>>>>> d0k3/master
             return 0;
         }
     } else return 1;
@@ -1617,8 +1625,8 @@ u32 SplashInit() {
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n%s\n%s\n \n%s\n%s",
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
         "------------------------------", "https://github.com/d0k3/GodMode9",
-        "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
-"Modded Release By:", "CrimsonMaple");
+        "Modded Releases:", "https://github.com/CrimsonMaple/GodMode9/releases/", // this won't fit with a 8px width font
+        "Modded Release By:", "CrimsonMaple");
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
     
     return 0;
