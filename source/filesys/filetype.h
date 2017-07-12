@@ -22,7 +22,8 @@
 #define BIN_TIKDB   (1UL<<17)
 #define BIN_KEYDB   (1UL<<18)
 #define BIN_LEGKEY  (1UL<<19)
-#define BIN_SUPPORT (1UL<<20)
+#define TXT_SCRIPT  (1UL<<20)
+#define TXT_GENERIC (1UL<<21)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_ENC    (1UL<<28)
@@ -46,6 +47,8 @@
 #define FTYPE_RESTORABLE(tp)    (tp&(IMG_NAND))
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))
 #define FTYPE_XORPAD(tp)        (tp&(BIN_NCCHNFO))
+#define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
 #define FTYPE_PAYLOAD(tp)       (tp&(BIN_LAUNCH))
+#define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 
 u32 IdentifyFileType(const char* path);

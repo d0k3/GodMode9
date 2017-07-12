@@ -1,6 +1,5 @@
 #include "nand.h"
 #include "fsdrive.h"
-#include "fsutil.h"
 #include "unittype.h"
 #include "keydb.h"
 #include "aes.h"
@@ -215,6 +214,25 @@ bool CheckSector0x96Crypto(void)
     return (sha_cmp(KEY95_SHA256, buffer, 16, SHA256_MODE) == 0);
 }
 
+bool CheckGenuineNandNcsd(void)
+{
+    u8 gen_o3ds_hash[0x20] = {
+        0xCD, 0xB8, 0x2B, 0xF3, 0xE0, 0xC7, 0xA3, 0xC7, 0x58, 0xDF, 0xDC, 0x4E, 0x27, 0x63, 0xBE, 0xE8,
+        0xBE, 0x2B, 0x1D, 0xF4, 0xBA, 0x97, 0xAF, 0x7F, 0x19, 0x70, 0x99, 0xDB, 0x66, 0xF7, 0x2F, 0xD7
+    };
+    u8 gen_n3ds_hash[0x20] = {
+        0x49, 0xB7, 0x4A, 0xF1, 0xFD, 0xB7, 0xCF, 0x5B, 0x76, 0x8F, 0xA2, 0x94, 0x0D, 0xB2, 0xB3, 0xE2,
+        0xA4, 0xBD, 0x25, 0x03, 0x06, 0x03, 0x47, 0x0B, 0x24, 0x5A, 0x86, 0x6A, 0x43, 0x60, 0xBC, 0x84, 
+    };
+    
+    u8 gen_hdr[0x100];
+    if ((ReadNandBytes(gen_hdr, 0x100, 0x100, 0xFF, NAND_SYSNAND) != 0) ||
+        (ReadNandBytes(gen_hdr + 0xBE, 0x1BE, 0x42, 0x03, NAND_SYSNAND) != 0))
+        return false;
+        
+    return (sha_cmp((IS_O3DS) ? gen_o3ds_hash : gen_n3ds_hash, gen_hdr, 0x100, SHA256_MODE) == 0);
+}
+
 void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot)
 {
     u32 mode = (keyslot != 0x03) ? AES_CNT_CTRNAND_MODE : AES_CNT_TWLNAND_MODE; // somewhat hacky
@@ -282,7 +300,7 @@ int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 n
         // simple wrapper function for WriteNandSectors(...)
         return WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
     } else { // misaligned data -> -___-
-        u8* buffer8 = (u8*) buffer8;
+        u8* buffer8 = (u8*) buffer;
         u8 l_buffer[0x200];
         int errorcode = 0;
         if (offset % 0x200) { // handle misaligned offset
@@ -534,20 +552,6 @@ u32 GetLegitSector0x96(u8* sector)
     for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
         ReadNandSectors(sector, SECTOR_SECRET, 1, 0x11, nand_src[i]);
         if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
-            return 0;
-    }
-    
-    // no luck? try searching for a file
-    const char* base[] = { INPUT_PATHS };
-    for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
-        char path[64];
-        snprintf(path, 64, "%s/%s", base[i], SECTOR_NAME);
-        if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
-            (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0))
-            return 0;
-        snprintf(path, 64, "%s/%s", base[i], SECRET_NAME);
-        if ((FileGetData(path, sector, 0x200, 0) == 0x200) &&
-            (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0))
             return 0;
     }
     

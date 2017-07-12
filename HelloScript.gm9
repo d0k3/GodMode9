@@ -1,0 +1,131 @@
+# GodMode9 "Hello Script"
+# Tutorial script - read / run this to learn how it works
+# last changed: 20170706
+# author: d0k3
+
+# COMMENTS / SCRIPTING BASICS / 'echo' COMMAND
+# Anything after '#' will be ignored by the scripting engine
+# Commands and arguments are separated by whitespaces, any redundant whitespaces will be ignored
+# Use '"' if an argument has to include whitespaces
+# The echo command outputs info on screen
+ echo  "'Hello Script'\nby d0k3\n \nThis is a sample script to\nshowcase the GM9 script engine." # comments work anywhere
+# Unknown commands lead to script abort (remove the '#' below to test)
+# iamunknown test test
+
+# 'ask' COMMAND / (-o/-s) SWITCHES
+# The 'ask' command is similar to the 'echo' command, but will allow the user to abort
+# Note that normally any failed command (like a negative user response on 'ask') will result in script abort
+ask "Continue running this script?"
+
+# (-o/-s) SWITCHES
+# You may use the -o / --optional and -s / --silent switches on any command
+# -o / --optional continues on failures
+# -s / --silent tries to suppress all error messages
+# This would have completely ignored the user response on the previous command:
+ask -o -s "Really continue running this script?\n(I will completely ignore your answer)"
+
+# ENVIRONMENTAL VARS
+# SERIAL is the serial number of your device
+# GM9OUT is the standard ouptput path
+# SYSID0 is the id0 belonging to your SysNAND
+# EMUID0 is the id0 belonging to your EmuNAND (if available)
+# Use $[VAR] to get the *content* of a variable VAR
+echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
+
+# ERRORMSG and SUCCESSMSG / 'set' COMMAND
+# These two are special environment vars, allowing you to control the message on script failure or success
+set ERRORMSG "HelloScript testing script failed"
+set SUCCESSMSG "HelloScript testing script success"
+# you can also reset these to return to default script messages
+# set ERRORMSG ""
+# set SUCCESSMSG ""
+
+# CREATING VARS
+# You can also create new variables using 'set'
+# Notice how you can use variables when setting variables
+set TESTPATH 0:/testdir/$[SERIAL]_tick.db
+echo "Your testpath is:\n$[TESTPATH]"
+
+# 'allow' COMMAND
+# typically used at the beginning of a script, prompts to allow writes to the location given in the argument
+# doing this from the beginning is preferable, so that no actions are taken unless all required write permissions are unlocked
+# (note #1: without 'allow', write permissions are still in place and the user will be asked on demand)
+# (note #2: this simple testing script requires no additional permissions, thus the command is hidden behind a '#')
+# -a / -all allows writes to the specified location and all included files and directories
+# allow -a M:/
+
+# 'rm' COMMAND
+# The 'rm' command is used to remove files and directories (recursively)
+# Here, we remove the dir if it is still here from an earlier run of this script
+# If it is not here, we ignore any errors and keep silent about it
+rm -o -s 0:/testdir
+
+# 'mkdir' COMMAND
+# Use this to create a directory at the specified location
+mkdir 0:/testdir
+
+# 'imgmount' COMMAND
+# The 'imgmount' command is used to mount an image.
+# An image can be (among other things) FAT, NAND, NCCH, NCSD, FIRM, ticket.db...
+imgmount S:/ctrnand_full.bin
+
+# 'cp' COMMAND
+# Use 'cp' to copy a file or directory (recursively)
+# -h / --hash also adds a .sha file containing the files SHA256
+# -w / --overwite forces overwrite on existing files
+# -k / --skip forces skip on existing files
+# -n / --no_cancel prevents user cancels (useful on critical operations)
+cp -h -w -n 7:/dbs/ticket.db  $[TESTPATH]
+
+# 'imgumount' COMMAND
+# This unmounts the current mounted image.
+imgumount
+
+# 'findnot' COMMAND
+# Use 'findnot' in conjunction with '?' to find an unused filename
+findnot $[TESTPATH]_???.rn RENPATH
+
+# 'mv' COMMAND
+# The 'mv command renames or moves a file or directory
+# -w / --overwite forces overwrite on existing files
+# -k / --skip forces skip on existing files
+# -n / --no_cancel prevents user cancels (useful on critical operations)
+mv -w -k $[TESTPATH] $[RENPATH]
+
+# 'find' COMMAND
+# The 'find' command has two main uses, (1) checking if files / dirs exist and (2) finding files / dirs
+# Here we use it to check for RENPATH, thus we use NULL as second argument (we're not interested in the output)
+find $[RENPATH] NULL
+# Wildcards ('*' / '?') are allowed when searching for a file / directory name:
+# find S:/nand.* NANDIMAGE
+
+# 'sha' COMMAND
+# Use this to check a files' SHA256
+sha $[RENPATH] $[TESTPATH].sha
+# Instead of an .sha file you can also use the SHA256 in hex as second argument
+# sha S:/sector0x96.bin 82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3
+
+# 'inject' COMMAND
+# This command is used to inject part of one file into another
+# The syntax is: inject origin@x:y destination@z
+#                x: origin offset (in hex)
+#                y: origin size, starting at x (in hex)
+#                z: destination offset (in hex)
+# -n / --no_cancel prevents user cancels (useful on critical operations)
+inject S:/nand_hdr.bin@100:4 $[RENPATH]@200 # offsets and sizes are in hex
+# As we just deliberately corrupted our test file, the subsequent SHA check will fail
+set ERRORMSG "SHA check failed (this was expected)"
+sha -o $[RENPATH] $[TESTPATH].sha
+set ERRORMSG ""
+
+# 'verify' COMMAND
+# Certain file formats (NAND, NCCH, NCSD, CIA, FIRM, ...) can also be verified. Use 'verify' to do so.
+# verify -o s:/firm0.bin # As drive letters are case sensitive, this would fail
+verify S:/firm1.bin
+
+# 'reboot' / 'poweroff' COMMAND
+# These are used to reboot or power off the 3DS console
+set ERRORMSG "Test script finished,\n(without reboot)\n \nIgnore the error message."
+ask "Reboot now?"
+reboot
+poweroff # this line can never be reached

@@ -5,7 +5,7 @@
 #include "sddata.h"
 #include "image.h"
 #include "ui.h"
-#include "ff.h"
+#include "vff.h"
 
 // last search pattern, path & mode
 static char search_pattern[256] = { 0 };
@@ -111,18 +111,18 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
     char* fname = fpath + strnlen(fpath, fnsize - 1);
     bool ret = false;
     
-    if (fa_opendir(&pdir, fpath) != FR_OK)
+    if (fvx_opendir(&pdir, fpath) != FR_OK)
         return false;
     (fname++)[0] = '/';
     
-    while (f_readdir(&pdir, &fno) == FR_OK) {
+    while (fvx_readdir(&pdir, &fno) == FR_OK) {
         if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
             continue; // filter out virtual entries
         strncpy(fname, fno.fname, (fnsize - 1) - (fname - fpath));
         if (fno.fname[0] == 0) {
             ret = true;
             break;
-        } else if (!pattern || MatchName(pattern, fname)) {
+        } else if (!pattern || (fvx_match_name(fname, pattern) == FR_OK)) {
             DirEntry* entry = &(contents->entry[contents->n_entries]);
             strncpy(entry->path, fpath, 256);
             entry->name = entry->path + (fname - fpath);
@@ -146,7 +146,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
                 break;
         }
     }
-    f_closedir(&pdir);
+    fvx_closedir(&pdir);
     
     return ret;
 }
@@ -167,13 +167,8 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         // search the path
         char fpath[256]; // 256 is the maximum length of a full path
         strncpy(fpath, path, 256);
-        if (DriveType(path) & DRV_VIRTUAL) {
-            if (!GetVirtualDirContents(contents, fpath, 256, pattern, recursive))
-                contents->n_entries = 0;
-        } else {
-            if (!GetDirContentsWorker(contents, fpath, 256, pattern, recursive))
-                contents->n_entries = 0;
-        }
+        if (!GetDirContentsWorker(contents, fpath, 256, pattern, recursive))
+            contents->n_entries = 0;
     }
 }
 

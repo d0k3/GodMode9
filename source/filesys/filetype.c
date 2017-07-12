@@ -6,6 +6,7 @@
 #include "keydb.h"
 #include "ctrtransfer.h"
 #include "chainload.h"
+#include "fsscript.h"
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
@@ -101,14 +102,14 @@ u32 IdentifyFileType(const char* path) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
-    } else if ((strncasecmp(fname, SEEDDB_NAME, sizeof(SEEDDB_NAME)) == 0) ||
-        (strncasecmp(fname, SECTOR_NAME, sizeof(SECTOR_NAME)) == 0) ||
-        (strncasecmp(fname, SECRET_NAME, sizeof(SECRET_NAME)) == 0)) {
-        return BIN_SUPPORT; // known support file (so launching is not offered)
     #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
     } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
         return BIN_LAUNCH; // assume it's an ARM9 payload
     #endif
+    } else if (ValidateText((char*) data, (fsize > 0X200) ? 0x200 : fsize)) {
+        if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
+            return TXT_SCRIPT | TXT_GENERIC; // should be a script (which is also generic text)
+        else if (fsize < TEMP_BUFFER_SIZE) return TXT_GENERIC;
     }
     
     return 0;

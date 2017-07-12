@@ -16,8 +16,8 @@
 #define TIMER_ACTIVE    0x0080
 #define TICKS_PER_SEC   67027964ULL
 
-void timer_start( void );
-void timer_stop( void );
-u64 timer_ticks( void );
-u64 timer_msec( void );
-u64 timer_sec( void );
+u64 timer_start( void );
+u64 timer_ticks( u64 start_time );
+u64 timer_msec( u64 start_time );
+u64 timer_sec( u64 start_time );
+void wait_msec( u64 msec );

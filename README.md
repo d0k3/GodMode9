@@ -14,8 +14,9 @@ __As always, be smart, keep backups, just to be safe__.
 These short instructions apply to all users who have ARM9loaderhax or SigHax and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
 * *[A9LH only]* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * *[SigHax only]* Rename `GodMode9.firm`(from the release archive) to `X_GodMode9.firm`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
-* Get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/` or `sd:/files9` (optional but recommended for full functionality).
-* Possibly helpful info: If you wonder how to backup your NAND, press the HOME button and enter the menu titled `More...`. You may also backup your NAND via just copying the `nand.bin` / `nand_min.bin` file in `S:/`.
+* Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/gm9/support` (optional but recommended for full functionality).
+* Helpful hint #1: Go [here](https://3ds.guide/godmode9-usage) for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
+* Helpful hint #2: __Never unlock the red write permission level unless you know exactly what you're doing__. You will notice that prompt when it comes up, it features a completely red screen. It is recommended you stay on the yellow permission level or below at all times to be completely safe. Also read more on the write permissions system below.
 
 You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
@@ -42,11 +43,9 @@ GodMode9 provides a write permissions system, which will protect you from accide
 
 
 ## Support files
-For certain functionality, GodMode9 may need 'support files'. Support files can be placed into either `0:/`(the SD root folder), `0:/files9/` or `1:/rw/files9/` (all locations will work). Support files contain additional information that is required in decryption operations. A list of support files, and what they do, is found below. Please don't ask for support files - find them yourself.
-* __`aeskeydb.bin`__: This should contain 0x25keyX, 0x18keyX and 0x1BkeyX to enable decryption of 7x / Secure3 / Secure4 encrypted NCCH files and 0x11key95 / 0x11key96 for FIRM decrypt support. It can be created from your existing legacy `slot0x??key?.bin`files in Decrypt9 via the 'Build Key Database' feature. As an alternative (not recommended), legacy `slot0x??key?.bin` files are also supported in GodMode9. *`aeskeydb.bin` should no more be required on sighaxed systems*. 
+For certain functionality, GodMode9 may need 'support files'. Support files should be placed into `0:/gm9/support`. Support files contain additional information that is required in decryption operations. A list of support files, and what they do, is found below. Please don't ask for support files - find them yourself.
+* __`aeskeydb.bin`__: This should contain 0x25keyX, 0x18keyX and 0x1BkeyX to enable decryption of 7x / Secure3 / Secure4 encrypted NCCH files, 0x11key95 / 0x11key96 for FIRM decrypt support and 0x11keyOTP / 0x11keyIVOTP for 'secret' sector 0x96 crypto support. It can be created from your existing legacy `slot0x??key?.bin`files in Decrypt9 via the 'Build Key Database' feature. As an alternative (not recommended), legacy `slot0x??key?.bin` files are also supported in GodMode9. *`aeskeydb.bin` should no more be required on sighaxed systems*. 
 * __`seeddb.bin`__: This file is required to decrypt and mount seed encrypted NCCHs and CIAs if the seed in question is not installed to your NAND. Note that your seeddb.bin must also contain the seed for the specific game you need to decrypt.
-* __`otp.bin`__: This file is console-unique and is required - on legacy entrypoints (other than A9LH & Sighax) - for decryption of the 'secret' sector 0x96 on N3DS (and O3DS with a9lh installed).
-* __`sector0x96.bin`__ / __`secret_sector.bin`__ : A copy of the decrypted, untouched (non-a9lh) secret sector. This is required for decryption of the encrypted ARM9 section of N3DS FIRMs. It is not required for anything else. As an alternative you can also provide the required keys inside your aeskeydb.bin.
 * __`encTitleKeys.bin`__ / __`decTitleKeys.bin`__: These files are optional and provide titlekeys, which are required to create updatable CIAs from NCCH / NCSD files. CIAs created without these files will still work, but won't be updatable from eShop.
 
 
@@ -85,11 +84,16 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Search drives and folders__: Just press R+A on the drive / folder you want to search.
 * __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
 * __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain files, write permissions can't be enabled.
+* __View text files in a text viewer__: Press the A button on a file and select `Show in Textviewer` (only shows up for actual text files). You can enable wordwrapped mode via R+Y, and navigate around the file via R+X and the dpad.
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
 
+# Scripting functionality
+* __Run .gm9 scripts from anywhere on your SD card__: You can run scripts in .gm9 format via the A button menu. .gm9 scripts use a shell-like language and can be edited in any text editor. For an overview of usable commands have a look into the `HelloScript.gm9` included in the release archive. *Don't run scripts from untrusted sources.*
+* __Run .gm9 scripts via a neat menu__: Press the HOME Home button, select `More...` -> `Scripts...`. Any script you put into `0:/gm9/scripts` (subdirs included) will be found here. Scripts ran via this method won't have the confirmation at the beginning either.
+
 # SD card handling
-* __Format your SD card / setup a RedNAND__: Press the HOME button, select `More...` -> `SD format menu`. This also allows to setup a RedNAND on your SD card. You will get a warning prompt and an unlock sequence before any operation starts.
-* __Handle multiple EmuNANDs / RedNAND__: Press the HOME button, select `More...` -> `Switch EmuNAND` to switch between EmuNANDs / RedNANDs. (Only available on multi EmuNAND / RedNAND systems.)
+* __Format your SD card / setup an EmuNAND__: Press the HOME button, select `More...` -> `SD format menu`. This also allows to setup a RedNAND or GW type EmuNAND on your SD card. You will get a warning prompt and an unlock sequence before any operation starts.
+* __Handle multiple EmuNANDs__: Press the HOME button, select `More...` -> `Switch EmuNAND` to switch between EmuNANDs / RedNANDs. (Only available on multi EmuNAND / RedNAND systems.)
 * __Run it without an SD card / unmount the SD card__: If no SD card is found, you will be offered to run without the SD card. You can also unmount and remount your SD card from the file system root at any point.
 * __Direct access to SD installed contents__: Just take a look inside the `A:`/`B:` drives. On-the-fly-crypto is taken care for, you can access this the same as any other content.
 

@@ -4,11 +4,13 @@
 
 // move / copy flags
 #define OVERRIDE_PERM   (1UL<<0)
-#define CALC_SHA        (1UL<<1)
-#define BUILD_PATH      (1UL<<2)
-#define ASK_ALL         (1UL<<3)
-#define SKIP_ALL        (1UL<<4)
-#define OVERWRITE_ALL   (1UL<<5)
+#define NO_CANCEL       (1UL<<1)
+#define SILENT          (1UL<<2)
+#define CALC_SHA        (1UL<<3)
+#define BUILD_PATH      (1UL<<4)
+#define ASK_ALL         (1UL<<5)
+#define SKIP_ALL        (1UL<<6)
+#define OVERWRITE_ALL   (1UL<<7)
 
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();
@@ -23,10 +25,10 @@ bool SetupBonusDrive(void);
 bool FileUnlock(const char* path);
 
 /** Create / open file and write the provided data to it **/
-bool FileSetData(const char* path, const u8* data, size_t size, size_t foffset, bool create);
+bool FileSetData(const char* path, const void* data, size_t size, size_t foffset, bool create);
 
 /** Read data from file@offset **/
-size_t FileGetData(const char* path, u8* data, size_t size, size_t foffset);
+size_t FileGetData(const char* path, void* data, size_t size, size_t foffset);
 
 /** Get size of file **/
 size_t FileGetSize(const char* path);
@@ -38,16 +40,19 @@ bool FileGetSha256(const char* path, u8* sha256);
 u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);
 
 /** Inject file into file @offset **/
-bool FileInjectFile(const char* dest, const char* orig, u32 offset);
-
-/** Recursively build a directory **/
-bool DirBuilder(const char* destdir);
+bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_orig, u64 size, u32* flags);
 
 /** Create a new directory in cpath **/
 bool DirCreate(const char* cpath, const char* dirname);
 
 /** Get # of files, subdirs and total size for directory **/
 bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles);
+
+/** True if path exists **/
+bool PathExist(const char* path);
+
+/** Direct recursive move / copy of files or directories **/
+bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move);
 
 /** Recursively copy a file or directory **/
 bool PathCopy(const char* destdir, const char* orig, u32* flags);
@@ -60,6 +65,9 @@ bool PathDelete(const char* path);
 
 /** Rename file / folder in path to new name **/
 bool PathRename(const char* path, const char* newname);
+
+/** Select a file **/
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs);
 
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();

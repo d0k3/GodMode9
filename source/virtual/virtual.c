@@ -131,38 +131,6 @@ bool GetVirtualDir(VirtualDir* vdir, const char* path) {
     return GetVirtualFile(&vfile, path) && OpenVirtualDir(vdir, &vfile);
 }
 
-bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const char* pattern, bool recursive) {
-    VirtualDir vdir;
-    VirtualFile vfile;
-    char* fname = fpath + strnlen(fpath, fnsize - 1);
-    (fname++)[0] = '/';
-    if (!GetVirtualDir(&vdir, fpath))
-        return false; // get dir reader object
-    while ((contents->n_entries < MAX_DIR_ENTRIES) && (ReadVirtualDir(&vfile, &vdir))) {
-        DirEntry* entry = &(contents->entry[contents->n_entries]);
-        char name[256];
-        GetVirtualFilename(name, &vfile, 256);
-        strncpy(fname, name, (fnsize - 1) - (fname - fpath));
-        if (!pattern || MatchName(pattern, fname)) {
-            strncpy(entry->path, fpath, 256);
-            entry->name = entry->path + (fname - fpath);
-            entry->size = vfile.size;
-            entry->type = (vfile.flags & VFLAG_DIR) ? T_DIR : T_FILE;
-            entry->marked = 0;
-            if (contents->n_entries >= MAX_DIR_ENTRIES)
-                break; // Too many entries, still okay
-            if (!recursive || (entry->type != T_DIR))
-                contents->n_entries++;
-        }
-        if (recursive && (vfile.flags & VFLAG_DIR)) {
-            if (!GetVirtualDirContents(contents, fpath, fnsize, pattern, recursive))
-                break;
-        }   
-    }
-    
-    return true; // not much we can check here
-}
-
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     if (!(vfile->flags & VFLAG_LV3)) strncpy(name, vfile->name, n_chars);
     else if (!GetVGameLv3Filename(name, vfile, n_chars)) return false;

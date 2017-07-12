@@ -7,8 +7,8 @@ u32 InputWait() {
     u32 pad_state_old = HID_STATE;
     u32 cart_state_old = CART_STATE;
     u32 sd_state_old = SD_STATE;
+    u64 timer = timer_start();
     delay = (delay) ? 72 : 128;
-    timer_start();
     while (true) {
         u32 pad_state = HID_STATE;
         if (!(pad_state & BUTTON_ANY)) { // no buttons pressed
@@ -18,18 +18,20 @@ u32 InputWait() {
             u32 sd_state = SD_STATE;
             if (sd_state != sd_state_old)
                 return sd_state ? SD_INSERT : SD_EJECT;
-            u32 special_key = i2cReadRegister(I2C_DEV_MCU, 0x10);
-            if (special_key == 0x01)
-                return pad_state | BUTTON_POWER;
-            else if (special_key == 0x04)
-                return pad_state | BUTTON_HOME;
+            u8 special_key;
+            if (I2C_readRegBuf(I2C_DEV_MCU, 0x10, &special_key, 1)) {
+                if (special_key == 0x01)
+                    return pad_state | BUTTON_POWER;
+                else if (special_key == 0x04)
+                    return pad_state | BUTTON_HOME;
+            }
             pad_state_old = pad_state;
             delay = 0;
             continue;
         }
         if ((pad_state == pad_state_old) &&
             (!(pad_state & BUTTON_ARROW) ||
-            (delay && (timer_msec() < delay))))
+            (delay && (timer_msec(timer) < delay))))
             continue;
         // make sure the key is pressed
         u32 t_pressed = 0;
