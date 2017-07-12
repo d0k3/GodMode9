@@ -21,9 +21,9 @@ ifeq ($(SAFEMODE),1)
 	export TARGET	:=	SafeMode9
 endif
 BUILD		:=	build
-SOURCES		:=	source source/common source/fs source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
+SOURCES		:=	source source/common source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
 DATA		:=	data
-INCLUDES	:=	source source/common source/font source/fs source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
+INCLUDES	:=	source source/common source/font source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -172,6 +172,8 @@ release:
 	#@-cp $(OUTPUT).3dsx $(RELEASE)/$(TARGET)
 	#@-cp $(OUTPUT).smdh $(RELEASE)/$(TARGET)
 	@cp $(CURDIR)/README.md $(RELEASE)
+	@cp $(CURDIR)/HelloScript.gm9 $(RELEASE)
+	@cp -R $(CURDIR)/resources/gm9 $(RELEASE)/gm9
 	@-7z a $(RELEASE)/$(TARGET)-`date +'%Y%m%d-%H%M%S'`.zip $(RELEASE)/*
 
 #---------------------------------------------------------------------------------

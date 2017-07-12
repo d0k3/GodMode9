@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.h"
-#include "fsdir.h"
 #include "nand.h"
 
 #define VRT_SYSNAND NAND_SYSNAND
@@ -54,8 +53,6 @@ bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry);
 
 bool GetVirtualFile(VirtualFile* vfile, const char* path);
 bool GetVirtualDir(VirtualDir* vdir, const char* path);
-bool GetVirtualDirContents(DirStruct* contents, char* fpath, int fnsize, const char* pattern, bool recursive);
-
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars);
 
 int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count, u32* bytes_read);

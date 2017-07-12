@@ -59,7 +59,11 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         NandPartitionInfo prt_info;
         
         // set up virtual file
-        if (GetNandPartitionInfo(&prt_info, template->type, template->subtype, template->index, nand_src) != 0)
+        if (template->flags & VFLAG_NAND_SIZE) { // override for "nand.bin"
+            prt_info.sector = 0;
+            prt_info.count = GetNandSizeSectors(nand_src);
+            prt_info.keyslot = 0xFF;
+        } else if (GetNandPartitionInfo(&prt_info, template->type, template->subtype, template->index, nand_src) != 0)
             continue;
         snprintf(vfile->name, 32, "%s%s", template->name, (nand_src == VRT_XORPAD) ? ".xorpad" : "");
         vfile->offset = ((u64) prt_info.sector) * 0x200;

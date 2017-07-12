@@ -369,11 +369,13 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     va_end(va);
     
     if (n == 0) return 0; // check for low number of options
-    else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
+    // else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
     if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
+    for (u32 i = 0; i < n; i++) if (str_width < GetDrawStringWidth(options[i]))
+        str_width = GetDrawStringWidth(options[i]);
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;
@@ -599,6 +601,7 @@ bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
 bool ShowProgress(u64 current, u64 total, const char* opstr)
 {
     static u32 last_prog_width = 0;
+    static u64 timer = 0;
     const u32 bar_width = 240;
     const u32 bar_height = 12;
     const u32 bar_pos_x = (SCREEN_WIDTH_MAIN - bar_width) / 2;
@@ -611,10 +614,10 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     
     static u64 last_sec_remain = 0;
     if (!current) {
-        timer_start();
+        timer = timer_start();
         last_sec_remain = 0;
     }
-    u64 sec_elapsed = (total > 0) ? timer_sec() : 0;
+    u64 sec_elapsed = (total > 0) ? timer_sec( timer ) : 0;
     u64 sec_total = (current > 0) ? (sec_elapsed * total) / current : 0;
     u64 sec_remain = (!last_sec_remain) ? (sec_total - sec_elapsed) : ((last_sec_remain + (sec_total - sec_elapsed) + 1) / 2);
     if (sec_remain >= 60 * 60) sec_remain = 60 * 60 - 1;

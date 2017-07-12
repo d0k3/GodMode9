@@ -49,11 +49,13 @@
 #endif
 
 // GodMode9 version
-#define VERSION "1.2.2"
+// #define VERSION "1.2.2" cmaple's fork
+#define VERSION "1.2.7" // latest release by d0k3
 
 // input / output paths
-#define INPUT_PATHS     "0:", "0:/files9", "1:/rw/files9"
-#define OUTPUT_PATH     "0:/gm9out"
+#define SUPPORT_PATHS   "0:/gm9/support", "0:", "0:/files9" // legacy paths
+#define SCRIPT_PATH     "0:/gm9/scripts"
+#define OUTPUT_PATH     "0:/gm9/out"
 
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x21000000)
@@ -82,22 +84,16 @@
 // buffer area defines (in use by sddata.c)
 #define SDCRYPT_BUFFER      ((u8*)0x21400000)
 #define SDCRYPT_BUFFER_SIZE (0x100000)
+// buffer area defines (in use by fsscript.c)
+#define SCRIPT_BUFFER       ((u8*)0x21500000)
+#define SCRIPT_BUFFER_SIZE  (0x100000)
 // buffer area defines (in use by vgame.c)
-#define VGAME_BUFFER        ((u8*)0x21500000)
+#define VGAME_BUFFER        ((u8*)0x21600000)
 #define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
 // buffer area defines (in use by vcart.c)
-#define VCART_BUFFER        ((u8*)0x21600000)
+#define VCART_BUFFER        ((u8*)0x21800000)
 #define VCART_BUFFER_SIZE   (0x20000) // 128kB, this is more than enough
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER       ((u8*)0x24000000) // top half of FCRAM
 #define RAMDRV_SIZE_O3DS    (0x04000000) // 64MB
 #define RAMDRV_SIZE_N3DS    (0x0C000000) // 192MB
-
-inline u32 strchrcount(const char* str, char symbol) {
-    u32 count = 0;
-    for (u32 i = 0; str[i] != '\0'; i++) {
-        if (str[i] == symbol)
-            count++;
-    }
-    return count;
-}

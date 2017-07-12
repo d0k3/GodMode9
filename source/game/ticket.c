@@ -8,7 +8,8 @@ u32 ValidateTicket(Ticket* ticket) {
     const u8 magic[] = { TICKET_SIG_TYPE };
     if ((memcmp(ticket->sig_type, magic, sizeof(magic)) != 0) ||
         ((strncmp((char*) ticket->issuer, TICKET_ISSUER, 0x40) != 0) &&
-        (strncmp((char*) ticket->issuer, TICKET_ISSUER_DEV, 0x40) != 0)))
+        (strncmp((char*) ticket->issuer, TICKET_ISSUER_DEV, 0x40) != 0)) ||
+        (ticket->commonkey_idx >= 6))
         return 1;
     return 0;
 }
@@ -104,7 +105,7 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
     // when found, add it to the ticket
     for (u32 enc = 0; (enc <= 1) && !found; enc++) {
-        const char* base[] = { INPUT_PATHS };
+        const char* base[] = { SUPPORT_PATHS };
         for (u32 i = 0; (i < (sizeof(base)/sizeof(char*))) && !found; i++) {
             TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
             char path[64];

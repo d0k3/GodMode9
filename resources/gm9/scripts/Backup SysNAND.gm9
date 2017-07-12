@@ -1,0 +1,10 @@
+# SysNAND backup GM9 script
+# This will create a backup named [SERIAL]_nandmin_???.bin
+# author: d0k3
+
+set ERRORMSG "SysNAND backup failed"
+
+ask "Create a SysNAND backup in $[GM9OUT]?"
+findnot $[GM9OUT]/$[SERIAL]_sysnand_???.bin OUTPATH
+cp S:/nand_minsize.bin $[OUTPATH]
+echo "Backup created succesfully:\n$[OUTPATH]"

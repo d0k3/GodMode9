@@ -26,4 +26,3 @@ typedef struct {
 
 void DirEntryCpy(DirEntry* dest, const DirEntry* orig);
 void SortDirStruct(DirStruct* contents);
-bool MatchName(const char *pattern, const char *path);
