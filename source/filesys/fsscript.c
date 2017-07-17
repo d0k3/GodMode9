@@ -75,7 +75,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
 };    
 
-inline bool strntohex(const char* str, u8* hex, u32 len) {
+static inline bool strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
         len = strlen(str); 
         if (len%1) return false;
