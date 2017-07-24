@@ -1645,7 +1645,7 @@ u32 GodMode() {
         
         // check write permissions
         if (~last_write_perm & GetWritePermissions()) {
-            if (ShowPrompt(true, "Write permissions where changed.\nRelock them?")) SetWritePermissions(last_write_perm, false);
+            if (ShowPrompt(true, "Write permissions were changed.\nRelock them?")) SetWritePermissions(last_write_perm, false);
             last_write_perm = GetWritePermissions();
             continue;
         }
