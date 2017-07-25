@@ -87,11 +87,18 @@ bool CheckWritePermissions(const char* path) {
     if ((write_permissions & perm) == perm)
         return true;
     
-    // ask the user
-    if (!ShowPrompt(true, "Writing to %s is locked!\nUnlock it now?", area_name))
-        return false;
-        
-    return SetWritePermissions(perm, true);
+    // offer unlock if possible
+    if (!(perm & (PERM_CART|PERM_GAME|PERM_XORPAD))) {
+        // ask the user
+        if (!ShowPrompt(true, "Writing to %s is locked!\nUnlock it now?", area_name))
+            return false;
+            
+        return SetWritePermissions(perm, true);
+    }
+    
+    // unlock not possible
+    ShowPrompt(false, "Unlock write permission for\n%s is not allowed.", area_name);
+    return false;
 }
 
 bool CheckDirWritePermissions(const char* path) {
@@ -148,18 +155,6 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
         case PERM_SDDATA:
             if (!ShowUnlockSequence(2, "You want to enable SD data\nwriting permissions.\n \nThis enables you to modify\ninstallations, user data &\nsavegames."))
                 return false;
-            break;
-        case PERM_CART:
-            ShowPrompt(false, "Unlock write permission for\ngame carts is not allowed.");
-            return false;
-            break;
-        case PERM_GAME:
-            ShowPrompt(false, "Unlock write permission for\ngame images is not allowed.");
-            return false;
-            break;
-        case PERM_XORPAD:
-            ShowPrompt(false, "Unlock write permission for\nXORpad drive is not allowed.");
-            return false;
             break;
         #ifndef SAFEMODE
         case PERM_SYS_LVL2:
