@@ -47,6 +47,13 @@ set SUCCESSMSG "HelloScript testing script success"
 set TESTPATH 0:/testdir/$[SERIAL]_tick.db
 echo "Your testpath is:\n$[TESTPATH]"
 
+# 'input' COMMAND
+# The 'input' command will allow the user to input a string and store that string in a variable
+# Preset the variable to have an initial value
+set USERINPUT "Hello World"
+input "Enter something please?" USERINPUT
+echo "You entered:\n$[USERINPUT]"
+
 # 'allow' COMMAND
 # typically used at the beginning of a script, prompts to allow writes to the location given in the argument
 # doing this from the beginning is preferable, so that no actions are taken unless all required write permissions are unlocked

@@ -26,6 +26,7 @@ typedef enum {
     CMD_ID_NONE = 0,
     CMD_ID_ECHO,
     CMD_ID_ASK,
+    CMD_ID_INPUT,
     CMD_ID_SET,
     CMD_ID_ALLOW,
     CMD_ID_CP,
@@ -58,6 +59,7 @@ typedef struct {
 Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
+    { CMD_ID_INPUT   , "input"   , 2, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
@@ -99,11 +101,17 @@ char* get_var(const char* name, char** endptr) {
     u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
     
     u32 name_len = 0;
-    char* vname = (char*) name + 1;
-    if (*name != '[') return NULL;
-    for (name_len = 0; vname[name_len] != ']'; name_len++)
-        if ((name_len >= _VAR_NAME_LEN) || !vname[name_len]) return NULL;
-    if (endptr) *endptr = vname + name_len + 1;
+    char* vname = NULL;
+    if (!endptr) { // no endptr, var is verbatim
+        vname = name;
+        name_len = strnlen(vname, _VAR_NAME_LEN);
+    } else { // endptr given, var is in [VAR] format
+        vname = (char*) name + 1;
+        if (*name != '[') return NULL;
+        for (name_len = 0; vname[name_len] != ']'; name_len++)
+            if ((name_len >= _VAR_NAME_LEN) || !vname[name_len]) return NULL;
+        *endptr = vname + name_len + 1;
+    }
     
     u32 n_var = 0;
     for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++) {
@@ -318,6 +326,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     } else if (id == CMD_ID_ASK) {
         ret = ShowPrompt(true, argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+    } else if (id == CMD_ID_INPUT) {
+        char* var = get_var(argv[1], NULL);
+        if (!*var) set_var(argv[1], ""); // make sure the var exists
+        ret = ShowStringPrompt(var, _VAR_CNT_LEN, argv[0]);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
     } else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "set fail");
@@ -453,7 +466,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
-        char* msg_fail = get_var("[ERRORMSG]", NULL);
+        char* msg_fail = get_var("ERRORMSG", NULL);
         if (msg_fail && *msg_fail) *err_str = '\0'; // use custom error message
         return false;
     }
@@ -500,7 +513,7 @@ bool ExecuteGM9Script(const char* path_script) {
         if (!run_line(ptr, line_end, &flags, err_str)) { // error handling
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
-                    char* msg_fail = get_var("[ERRORMSG]", NULL);
+                    char* msg_fail = get_var("ERRORMSG", NULL);
                     if (msg_fail && *msg_fail) ShowPrompt(false, msg_fail);
                     else snprintf(err_str, _ERR_STR_LEN, "error message fail");
                 }
@@ -524,7 +537,7 @@ bool ExecuteGM9Script(const char* path_script) {
         ptr = line_end + 1;
     }
     
-    char* msg_okay = get_var("[SUCCESSMSG]", NULL);
+    char* msg_okay = get_var("SUCCESSMSG", NULL);
     if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
     return true;
 }
