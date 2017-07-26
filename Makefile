@@ -28,7 +28,7 @@ INCLUDES	:=	source source/common source/font source/filesys source/crypto source
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork -flto
+ARCH	:=	-marm -mthumb-interwork -flto
 
 CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2\
 			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu11\
@@ -120,7 +120,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: common clean all gateway firm binary cakehax cakerop brahma release
+.PHONY: common clean all gateway firm binary cakehax cakerop brahma screeninit release
 
 #---------------------------------------------------------------------------------
 all: firm
@@ -132,11 +132,14 @@ common:
 submodules:
 	@-git submodule update --init --recursive
 
+screeninit:
+	@$(MAKE) dir_out=$(OUTPUT_D) -C screeninit
+
 binary: common
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
-firm: binary
-	@firmtool build $(OUTPUT).firm -n 0x23F00000 -e 0 -D $(OUTPUT).elf -A 0x23F00000 -C NDMA -i
+firm: binary screeninit
+	firmtool build $(OUTPUT).firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA
 
 gateway: binary
 	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
@@ -184,6 +187,7 @@ clean:
 	@-$(MAKE) clean --no-print-directory -C CakeHax
 	@-$(MAKE) clean --no-print-directory -C CakesROP
 	@-$(MAKE) clean --no-print-directory -C BrahmaLoader
+	@-$(MAKE) clean --no-print-directory -C screeninit
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 
 
