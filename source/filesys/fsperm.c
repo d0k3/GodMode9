@@ -136,6 +136,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
         case PERM_RAMDRIVE:
             if (!ShowUnlockSequence(1, "You want to enable RAM drive\nwriting permissions."))
                 return false;
+            break;
         case PERM_EMU_LVL0:
             if (!ShowUnlockSequence(1, "You want to enable EmuNAND\nlvl0 writing permissions."))
                 return false;
