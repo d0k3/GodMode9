@@ -78,7 +78,7 @@ static inline char* LineSeek(const char* text, u32 len, u32 ww, const char* line
         char* lf = ((char*) line - 1);
     
         // ensure we are at the start of the line
-        while ((lf >= text) && (*lf != '\n')) lf--;
+        while ((lf > text) && (*lf != '\n')) lf--;
         
         // handle backwards search
         for (; (add < 0) && (lf >= text); add++)
@@ -457,8 +457,13 @@ u32 FileTextViewer(const char* path) {
             // check for problems, apply changes
             if (!ww && (line0_next > llast_nww)) line0_next = llast_nww;
             else if (ww && (line0_next > llast_ww)) line0_next = llast_ww;
-            for (int i = (line0_next < line0) ? -1 : 1; line0 != line0_next; line0 += i)
-                if (*line0 == '\n') lcurr += i; // fix line number
+            if (line0_next < line0) { // fix line number for decrease
+                do if (*(--line0) == '\n') lcurr--;
+                while (line0 > line0_next);
+            } else { // fix line number for increase / same
+                for (; line0_next > line0; line0++)
+                    if (*line0 == '\n') lcurr++;
+            }
             if (off_disp + llen_disp > llen_max) off_disp = llen_max - llen_disp;
             if ((off_disp < 0) || ww) off_disp = 0;
         }
