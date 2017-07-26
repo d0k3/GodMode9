@@ -134,7 +134,7 @@ char* set_var(const char* name, const char* content) {
     return vars[n_var].content;
 }
 
-bool init_vars(void) {
+bool init_vars(const char* path_script) {
     // reset var buffer
     memset(VAR_BUFFER, 0x00, VAR_BUFFER_SIZE);
     
@@ -143,6 +143,12 @@ bool init_vars(void) {
     if ((FileGetData("1:/rw/sys/SecureInfo_A", (u8*) env_serial, 0xF, 0x102) != 0xF) &&
         (FileGetData("1:/rw/sys/SecureInfo_B", (u8*) env_serial, 0xF, 0x102) != 0xF))
         snprintf(env_serial, 0xF, "UNKNOWN");
+    
+    // current path
+    char curr_dir[_VAR_CNT_LEN];
+    strncpy(curr_dir, path_script, _VAR_CNT_LEN);
+    char* slash = strrchr(curr_dir, '/');
+    if (slash) *slash = '\0';
     
     // device sysnand / emunand id0
     char env_sys_id0[32+1];
@@ -163,6 +169,7 @@ bool init_vars(void) {
     set_var("NULL", ""); // this one is special and should not be changed later 
     set_var("SERIAL", env_serial);
     set_var("GM9OUT", OUTPUT_PATH);
+    set_var("CURRDIR", curr_dir);
     set_var("SYSID0", env_sys_id0);
     set_var("EMUID0", env_emu_id0);
     
@@ -479,7 +486,7 @@ bool ExecuteGM9Script(const char* path_script) {
     *end = '\0';
     
     // initialise variables
-    init_vars();
+    init_vars(path_script);
     
     for (u32 line = 1; ptr < end; line++) {
         u32 flags = 0;
