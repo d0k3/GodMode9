@@ -102,10 +102,10 @@ char* get_var(const char* name, char** endptr) {
     
     u32 name_len = 0;
     char* vname = NULL;
-    if (!endptr) { // no endptr, var is verbatim
-        vname = name;
+    if (!endptr) { // no endptr, varname is verbatim
+        vname = (char*) name;
         name_len = strnlen(vname, _VAR_NAME_LEN);
-    } else { // endptr given, var is in [VAR] format
+    } else { // endptr given, varname is in [VAR] format
         vname = (char*) name + 1;
         if (*name != '[') return NULL;
         for (name_len = 0; vname[name_len] != ']'; name_len++)
