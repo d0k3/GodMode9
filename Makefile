@@ -139,7 +139,8 @@ binary: common
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 firm: binary screeninit
-	firmtool build $(OUTPUT).firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA
+	firmtool build $(OUTPUT).firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-retail
+	firmtool build $(OUTPUT)_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-dev
 
 gateway: binary
 	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
@@ -172,6 +173,7 @@ release:
 	#@[ -d $(RELEASE)/$(TARGET) ] || mkdir -p $(RELEASE)/$(TARGET)
 	@cp $(OUTPUT).bin $(RELEASE)
 	@cp $(OUTPUT).firm $(RELEASE)
+	#@cp $(OUTPUT)_dev.firm $(RELEASE)
 	#@-cp $(OUTPUT).dat $(RELEASE)
 	#@-cp $(OUTPUT).nds $(RELEASE)
 	#@-cp $(OUTPUT).3dsx $(RELEASE)/$(TARGET)

@@ -7,12 +7,13 @@
 #define PDN_GPU_CNT (*(vu8  *)0x10141200)
 #define ARESCREENSINITIALIZED (PDN_GPU_CNT != 1)
 
-#define BRIGHTNESS 0x39
+#define BRIGHTNESS (0xBF)
 
 void main(void)
 {
+    char do_disco = !ARESCREENSINITIALIZED;
     vu32 *arm11Entry = (vu32 *)0x1FFFFFFC;
-    if (ARESCREENSINITIALIZED) return; // nothing to do in that case
+    u32 entry;
 
     *(vu32 *)0x10141200 = 0x1007F;
     *(vu32 *)0x10202014 = 0x00000001;
@@ -53,10 +54,6 @@ void main(void)
     *(vu32 *)0x10400490 = 0x000002D0;
     *(vu32 *)0x1040049C = 0x00000000;
 
-    //Disco register
-    for(u32 i = 0; i < 256; i++)
-        *(vu32 *)0x10400484 = 0x10101 * i;
-
     //Bottom screen
     *(vu32 *)0x10400500 = 0x000001c2;
     *(vu32 *)0x10400504 = 0x000000d1;
@@ -80,16 +77,19 @@ void main(void)
     *(vu32 *)0x1040055C = 0x00f00140;
     *(vu32 *)0x10400560 = 0x01c100d1;
     *(vu32 *)0x10400564 = 0x01920052;
-    *(vu32 *)0x10400568 = 0x18300000 + 0x46500;
+    *(vu32 *)0x10400568 = 0x18346500;
     *(vu32 *)0x10400570 = 0x80301;
     *(vu32 *)0x10400574 = 0x00010501;
     *(vu32 *)0x10400578 = 0;
     *(vu32 *)0x10400590 = 0x000002D0;
     *(vu32 *)0x1040059C = 0x00000000;
 
-    //Disco register
-    for(u32 i = 0; i < 256; i++)
-        *(vu32 *)0x10400584 = 0x10101 * i;
+    if (do_disco) {
+        for(u32 i = 0; i < 256; i++) {
+            *(vu32 *)0x10400484 = 0x10101 * i;
+            *(vu32 *)0x10400584 = 0x10101 * i;	
+        }
+    }
 
     //Set CakeBrah framebuffers
     fb->top_left = (u8 *)0x18300000;
@@ -118,12 +118,10 @@ void main(void)
 
     while(!((REGs_PSC0[3] & 2) && (REGs_PSC1[3] & 2)));
 
-    //Clear ARM11 entrypoint
+    // Clear ARM11 entrypoint
     *arm11Entry = 0;
 
-    //Wait for the entrypoint to be set
-    while(!*arm11Entry);
-
-    //Jump to it
-    ((void (*)())*arm11Entry)();
+    //Wait for the entrypoint to be set, then branch to it
+    while((entry=*arm11Entry) == 0);
+    ((void (*)())(entry))();
 }
