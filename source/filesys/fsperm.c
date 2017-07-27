@@ -34,11 +34,11 @@ bool CheckWritePermissions(const char* path) {
             const char* path_lvl2[] = { PATH_SYS_LVL2 };
             const char* path_lvl1[] = { PATH_SYS_LVL1 };
             for (u32 i = 0; (i < sizeof(path_lvl3) / sizeof(char*)) && (lvl < 3); i++)
-                if (strncmp(path, path_lvl3[i], 256) == 0) lvl = 3;
+                if (strncasecmp(path, path_lvl3[i], 256) == 0) lvl = 3;
             for (u32 i = 0; (i < sizeof(path_lvl2) / sizeof(char*)) && (lvl < 2); i++)
-                if (strncmp(path, path_lvl2[i], 256) == 0) lvl = 2;
+                if (strncasecmp(path, path_lvl2[i], 256) == 0) lvl = 2;
             for (u32 i = 0; (i < sizeof(path_lvl1) / sizeof(char*)) && (lvl < 1); i++)
-                if (strncmp(path, path_lvl1[i], 256) == 0) lvl = 1;
+                if (strncasecmp(path, path_lvl1[i], 256) == 0) lvl = 1;
         }
         if (!IS_A9LH) { // changed SysNAND permission levels on non-A9LH
             if ((drvtype & DRV_CTRNAND) || (lvl == 2)) lvl = 3;
@@ -51,7 +51,7 @@ bool CheckWritePermissions(const char* path) {
         if (drvtype & DRV_VIRTUAL) { // check for paths
             const char* path_lvl1[] = { PATH_EMU_LVL1 };
             for (u32 i = 0; (i < sizeof(path_lvl1) / sizeof(char*)) && (lvl < 1); i++)
-                if (strncmp(path, path_lvl1[i], 256) == 0) lvl = 1;
+                if (strncasecmp(path, path_lvl1[i], 256) == 0) lvl = 1;
         }
         perm = perms[lvl];
         snprintf(area_name, 16, "EmuNAND (lvl%lu)", lvl);
@@ -70,7 +70,7 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
         snprintf(area_name, 16, "memory areas");
-    } else if (strncmp(path, "0:/Nintendo 3DS", 15) == 0) { // this check could be better
+    } else if (strncasecmp(path, "0:/Nintendo 3DS", 15) == 0) { // this check could be better
         perm = PERM_SDDATA;
         snprintf(area_name, 16, "SD system data");
     } else if (drvtype & DRV_SDCARD) {
