@@ -4,6 +4,7 @@
 #include "fsperm.h"
 #include "nandutil.h"
 #include "gameutil.h"
+#include "keydbutil.h"
 #include "filetype.h"
 #include "power.h"
 #include "vff.h"
@@ -39,7 +40,11 @@ typedef enum {
     CMD_ID_FIND,
     CMD_ID_FINDNOT,
     CMD_ID_SHA,
+    CMD_ID_FIXCMAC,
     CMD_ID_VERIFY,
+    CMD_ID_DECRYPT,
+    CMD_ID_ENCRYPT,
+    CMD_ID_BUILDCIA,
     CMD_ID_REBOOT,
     CMD_ID_POWEROFF
 } cmd_id;
@@ -72,7 +77,11 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FIND    , "find"    , 2, 0 },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
+    // { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 }, // not supported yet
     { CMD_ID_VERIFY  , "verify"  , 1, 0 },
+    { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
+    { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
+    { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
 };    
@@ -241,6 +250,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
+    else if (strncmp(str, "--legit", len) == 0) flag_char = 'l';
     else if (strncmp(str, "--no_cancel", len) == 0) flag_char = 'n';
     else if (strncmp(str, "--optional", len) == 0) flag_char = 'o';
     else if (strncmp(str, "--silent", len) == 0) flag_char = 's';
@@ -428,6 +438,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
         else ret = (VerifyGameFile(argv[0]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "verification failed");
+    } else if (id == CMD_ID_DECRYPT) {
+        u32 filetype = IdentifyFileType(argv[0]);
+        if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
+        else ret = (CryptGameFile(argv[0], true, false) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "decrypt failed");
+    } else if (id == CMD_ID_ENCRYPT) {
+        u32 filetype = IdentifyFileType(argv[0]);
+        if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
+        else ret = (CryptGameFile(argv[0], true, true) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "encrypt failed");
+    } else if (id == CMD_ID_BUILDCIA) {
+        ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('n'))) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
     } else if (id == CMD_ID_REBOOT) {
         Reboot();
     } else if (id == CMD_ID_POWEROFF) {

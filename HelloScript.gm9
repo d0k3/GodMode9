@@ -131,6 +131,22 @@ set ERRORMSG ""
 # verify -o s:/firm0.bin # As drive letters are case sensitive, this would fail
 verify S:/firm1.bin
 
+# 'decrypt' COMMAND
+# Certain file formats (NCCH, NCSD, CIA, FIRM, BOSS, ...) can be decrypted. Use 'decrypt' to do so.
+# Take note that all crypto operations are done INPLACE and will overwrite the file(!)
+# decrypt 0:/x.ncch
+
+# 'encrypt' COMMAND
+# Certain file formats (NCCH, NCSD, CIA, BOSS, ...) can be encrypted. Use 'encrypt' to do so.
+# Take note that all crypto operations are done INPLACE and will overwrite the file(!)
+# encrypt 0:/x.ncch
+
+# 'buildcia' COMMAND
+# You can build CIA files from certain file formats (TMD, NCCH, NCSD ...). Use 'buildcia' to do so.
+# CIA files will always be built to the standard output directory (0:/gm9/out)
+# -l / --legit force CIA to be legit (only works for legit system installed titles)
+# buildcia 0:/x.ncch
+
 # 'reboot' / 'poweroff' COMMAND
 # These are used to reboot or power off the 3DS console
 set ERRORMSG "Test script finished,\n(without reboot)\n \nIgnore the error message."
