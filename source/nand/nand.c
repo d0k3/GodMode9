@@ -163,7 +163,7 @@ bool InitNandCrypto(void)
             // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
             u64 TwlCustId = 0x80000000ULL | (*(vu64 *)0x01FFB808 ^ 0x8C267B7B358A6AFULL);
             u8 TwlKeyX[16] __attribute__((aligned(32)));
-            u32* TwlKeyXW = (u32*) TwlKeyX;
+            u32* TwlKeyXW = (u32*) (void*) TwlKeyX;
             
             TwlKeyXW[0] = (u32) (TwlCustId>>0);
             TwlKeyXW[1] = *(vu32*)0x01FFD3A8; // "NINT"
