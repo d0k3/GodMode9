@@ -26,7 +26,7 @@
 
 // special buttons / cart / sd
 #define BUTTON_POWER  (1 << 12)
-#define BUTTON_HOME   (1 << 13)
+#define BUTTON_Y      (1 << 13)
 #define CART_INSERT   (1 << 14)
 #define CART_EJECT    (1 << 15)
 #define SD_INSERT     (1 << 16)
