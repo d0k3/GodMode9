@@ -1417,11 +1417,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         }
         return 0;
     } else if ((user_select == boot)) {
-        size_t payload_size = FileGetSize(curr_entry->path);
-        if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via boot9strap?\n(requires boot9strap nightly)", pathstr, payload_size / 1024)) {
-            u32 flags = OVERWRITE_ALL;
-            if (PathMoveCopy("0:/bootonce.firm", curr_entry->path, &flags, false))
-                Reboot();
+        size_t firm_size = FileGetSize(curr_entry->path);
+        if (firm_size > TEMP_BUFFER_SIZE) {
+            ShowPrompt(false, "FIRM too big, can't launch"); // unlikely
+        } else if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024)) {
+            if ((FileGetData(curr_entry->path, TEMP_BUFFER, firm_size, 0) == firm_size) &&
+                (ValidateFirm(TEMP_BUFFER, firm_size) != 0)) {
+                BootFirm((FirmHeader*)(void*)TEMP_BUFFER, curr_entry->path);
+                while(1);
+            } else ShowPrompt(false, "Not a vaild FIRM, can't launch");
         }
         return 0;
     } else if ((user_select == script)) {

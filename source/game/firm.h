@@ -43,6 +43,7 @@ typedef struct {
 
 u32 ValidateFirmHeader(FirmHeader* header, u32 data_size);
 u32 ValidateFirmA9LHeader(FirmA9LHeader* header);
+u32 ValidateFirm(void* firm, u32 firm_size);
 
 FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm);
 u32 GetArm9BinarySize(FirmA9LHeader* a9l);

@@ -9,6 +9,14 @@
 // 0 -> pre 9.5 / 1 -> 9.5 / 2 -> post 9.5
 #define A9L_CRYPTO_TYPE(hdr) ((hdr->k9l[3] == 0xFF) ? 0 : (hdr->k9l[3] == '1') ? 1 : 2)
 
+// valid addresses for FIRM section loading, pairs of start / end address, provided by Wolfvak
+#define FIRM_VALID_ADDRESS  \
+    0x08006000, 0x08800000, \
+    0x18000000, 0x18600000, \
+    0x1FFF0000, 0x1FFFFFFC, \
+    0x20000000, 0x23FFFE00, \
+    0x24000000, 0x27FFFB00
+
 u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
     u8 magic[] = { FIRM_MAGIC };
     if (memcmp(header->magic, magic, sizeof(magic)) != 0)
@@ -21,6 +29,7 @@ u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
         if (section->offset < firm_size) return 1;
+        if ((section->offset % 512) || (section->address % 512) || (section->size % 512)) return 1;
         if ((header->entry_arm11 >= section->address) &&
             (header->entry_arm11 < section->address + section->size))
             section_arm11 = i;
@@ -48,6 +57,36 @@ u32 ValidateFirmA9LHeader(FirmA9LHeader* header) {
         0xDA, 0x2D, 0xFA, 0x47, 0x8E, 0x2D, 0x98, 0x89, 0xBA, 0x60, 0xE8, 0x43, 0x5C, 0x1B, 0x93, 0x65, 
     };
     return sha_cmp((IS_DEVKIT) ? enckeyX0x15devhash : enckeyX0x15hash, header->keyX0x15, 0x10, SHA256_MODE);
+}
+
+u32 ValidateFirm(void* firm, u32 firm_size) {
+    FirmHeader* header = (FirmHeader*) firm;
+    
+    // validate firm header
+    if (ValidateFirmHeader(header, firm_size) != 0)
+        return 1;
+    
+    // hash verify all available sections and check load address
+    for (u32 i = 0; i < 4; i++) {
+        u32 valid_address[] = { FIRM_VALID_ADDRESS };
+        FirmSectionHeader* section = header->sections + i;
+        if (!section->size) continue;
+        if (sha_cmp(section->hash, (u8*) firm + section->offset, section->size, SHA256_MODE) != 0) {
+            return 1;
+        }
+        bool is_valid_address = false;
+        for (u32 a = 0; a < sizeof(valid_address) / (2*sizeof(u32)); a++) {
+            if ((valid_address[2*a] >= section->address) && (valid_address[(2*a)+1] <= section->address + section->size))
+                is_valid_address = true;
+        }
+        if (!is_valid_address) return 1;
+    }
+    
+    // section for arm9 entrypoint not found?
+    if (!FindFirmArm9Section(header))
+        return 1;
+    
+    return 0;
 }
 
 FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm) {
