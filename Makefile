@@ -120,7 +120,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: common clean all gateway firm binary cakehax cakerop brahma screeninit release
+.PHONY: common clean all gateway firm binary cakehax cakerop brahma release
 
 #---------------------------------------------------------------------------------
 all: firm
@@ -132,14 +132,11 @@ common:
 submodules:
 	@-git submodule update --init --recursive
 
-screeninit:
-	@$(MAKE) dir_out=$(OUTPUT_D) -C screeninit
-
 binary: common
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
-firm: binary screeninit
-	firmtool build $(OUTPUT).firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA
+firm: binary
+	firmtool build $(OUTPUT).firm -D $(OUTPUT).elf -C NDMA -i
 
 gateway: binary
 	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
@@ -187,7 +184,6 @@ clean:
 	@-$(MAKE) clean --no-print-directory -C CakeHax
 	@-$(MAKE) clean --no-print-directory -C CakesROP
 	@-$(MAKE) clean --no-print-directory -C BrahmaLoader
-	@-$(MAKE) clean --no-print-directory -C screeninit
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 
 
