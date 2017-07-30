@@ -891,7 +891,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool scriptable = (FTYPE_SCRIPT(filetype));
-    bool bootable = ((FTYPE_BOOTABLE(filetype)));
+    bool bootable = (FTYPE_BOOTABLE(filetype) && !(drvtype & DRV_VIRTUAL));
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
         tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
         ebackupable || bootable || scriptable;
@@ -1410,8 +1410,26 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         } else if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024)) {
             if ((FileGetData(curr_entry->path, TEMP_BUFFER, firm_size, 0) == firm_size) &&
                 (ValidateFirm(TEMP_BUFFER, firm_size) != 0)) {
-                BootFirm((FirmHeader*)(void*)TEMP_BUFFER, curr_entry->path);
-                while(1);
+                // fix the boot path first ("sdmc"/"nand" for Luma et al, hacky af)
+                const char* bootpath = curr_entry->path;
+                char fixpath[256] = { 0 }; // for Luma et al, hacky as fuck
+                if ((*bootpath != '0') && (*bootpath != '1')) {
+                    optionstr[0] = "Make a copy at " OUTPUT_PATH "/temp.firm";
+                    optionstr[1] = "Try to boot anyways";
+                    user_select = (int) ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from\nan unsupported location.", pathstr);
+                    if (user_select == 1) {
+                        FileSetData(OUTPUT_PATH "/temp.firm", TEMP_BUFFER, firm_size, 0, true);
+                        bootpath = OUTPUT_PATH "/temp.firm";
+                    } else if (!user_select) bootpath = "";
+                }
+                if ((*bootpath == '0') || (*bootpath == '1'))
+                    snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", curr_entry->path + 1);
+                else strncpy(fixpath, bootpath, 256);
+                // actually boot the FIRM (if we got a proper fixpath)
+                if (*fixpath) {
+                    BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
+                    while(1);
+                }
             } else ShowPrompt(false, "Not a vaild FIRM, can't launch");
         }
         return 0;
