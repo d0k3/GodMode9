@@ -20,7 +20,7 @@
 #include "ctrtransfer.h"
 #include "ncchinfo.h"
 #include "image.h"
-#include "chainload.h"
+#include "bootfirm.h"
 #include "qlzcomp.h"
 #include "timer.h"
 #include "power.h"
@@ -891,11 +891,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool scriptable = (FTYPE_SCRIPT(filetype));
-    bool launchable = ((FTYPE_PAYLOAD(filetype)) && (drvtype & DRV_FAT) && !IS_SIGHAX);
-    bool bootable = ((FTYPE_BOOTABLE(filetype)) && !PathExist("0:/bootonce.firm") && IS_SIGHAX); // works only with boot9strap nightly
+    bool bootable = ((FTYPE_BOOTABLE(filetype)));
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
         tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
-        ebackupable || launchable || bootable || scriptable;
+        ebackupable || bootable || scriptable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -940,7 +939,6 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & BIN_KEYDB)  ? "AESkeydb options..."   :
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
-        (filetype & BIN_LAUNCH) ? "Launch as arm9 payload" :
         (filetype & TXT_SCRIPT) ? "Execute GM9 script" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
@@ -1051,7 +1049,6 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
-    int launch = (launchable) ? ++n_opt : -1;
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
@@ -1072,7 +1069,6 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
-    if (launch > 0) optionstr[launch-1] = "Launch as ARM9 payload";
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
     
@@ -1406,15 +1402,6 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         ShowPrompt(false, "%s\nBackup update: %s", pathstr, (!required) ? "not required" :
             (success) ? "completed" : "failed!");
         GetDirContents(current_dir, current_path);
-        return 0;
-    } else if ((user_select == launch)) {
-        size_t payload_size = FileGetSize(curr_entry->path);
-        if (ShowUnlockSequence(3, "%s (%dkB)\nLaunch as arm9 payload?", pathstr, payload_size / 1024)) {
-            if (FileGetData(curr_entry->path, TEMP_BUFFER, payload_size, 0) == payload_size) {
-                Chainload(TEMP_BUFFER, payload_size);
-                while(1);
-            } // failed load is basically impossible here
-        }
         return 0;
     } else if ((user_select == boot)) {
         size_t firm_size = FileGetSize(curr_entry->path);

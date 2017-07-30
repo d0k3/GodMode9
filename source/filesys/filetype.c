@@ -5,7 +5,6 @@
 #include "game.h"
 #include "keydb.h"
 #include "ctrtransfer.h"
-#include "chainload.h"
 #include "fsscript.h"
 
 u32 IdentifyFileType(const char* path) {
@@ -102,10 +101,6 @@ u32 IdentifyFileType(const char* path) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
-    #if PAYLOAD_MAX_SIZE <= TEMP_BUFFER_SIZE
-    } else if ((fsize <= PAYLOAD_MAX_SIZE) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
-        return BIN_LAUNCH; // assume it's an ARM9 payload
-    #endif
     } else if (ValidateText((char*) data, (fsize > 0X200) ? 0x200 : fsize)) {
         if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
             return TXT_SCRIPT | TXT_GENERIC; // should be a script (which is also generic text)
