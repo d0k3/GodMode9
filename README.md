@@ -143,7 +143,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **SciresM**, **Myria**, **Normmatt**, **TuxSH** and **hedgeberg** for figuring out sighax and giving us access to bootrom
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
-* **dark_samus** for the new 6x10 font and help on various things
+* **stuckpixel** for the new 6x10 font and help on various things
 * **Wolfvak** for the ARM9 binary launcher and other improvements
 * **WinterMute** and **YodaDaCoda** for help testing DSi cart dumping
 * **Al3x_10m**, **Supster131**, **imanoob**, **Kasher_CS** and all other fearless testers
