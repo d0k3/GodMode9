@@ -23,7 +23,7 @@ u32 InputWait() {
                 if (special_key == 0x01)
                     return pad_state | BUTTON_POWER;
                 else if (special_key == 0x04)
-                    return pad_state | BUTTON_HOME;
+                    return pad_state | BUTTON_Y;
             }
             pad_state_old = pad_state;
             delay = 0;

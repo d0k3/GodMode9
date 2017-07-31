@@ -1935,7 +1935,7 @@ u32 GodMode() {
         } else if (pad_state & BUTTON_POWER) {
             exit_mode = GODMODE_EXIT_POWEROFF;
             break;
-        } else if (pad_state & BUTTON_HOME) { // Home menu
+        } else if (pad_state & BUTTON_Y) { // Home menu
             const char* optionstr[] = { "Poweroff system", "Reboot system", "More..." };
             const char* promptstr = "HOME button pressed.\nSelect action:";
             u32 n_opt = 3;
