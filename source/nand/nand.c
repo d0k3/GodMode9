@@ -31,16 +31,6 @@ static const u8 slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY (16 byte)
     0x62, 0x22, 0x5C, 0xFD, 0x6F, 0xAE, 0x9B, 0x0A, 0x85, 0xA5, 0xCE, 0x21, 0xAA, 0xB6, 0xC8, 0x4D
 };
 
-static const u8 slot0x24KeyY_sha256[0x20] = { // hash for slot0x24KeyY (16 byte) 
-    0x5F, 0x04, 0x01, 0x22, 0x95, 0xB2, 0x23, 0x70, 0x12, 0x40, 0x53, 0x30, 0xC0, 0xA7, 0xBF, 0x7C, 
-    0xD4, 0x40, 0x92, 0x25, 0xD1, 0x9D, 0xA2, 0xDE, 0xCD, 0xC7, 0x12, 0x97, 0x08, 0x46, 0x54, 0xB7
-};
-
-static const u8 slot0x03KeyYdev_sha256[0x20] = { // slot0x03KeyY hash for devkits only (16 byte)
-    0x4D, 0xBB, 0xDD, 0x08, 0x2B, 0xE3, 0xDF, 0x48, 0x51, 0x2D, 0xBD, 0xF9, 0xED, 0xDA, 0x0C, 0x52,
-    0x8F, 0x6D, 0x94, 0xB8, 0xED, 0xE4, 0x4D, 0x3A, 0xFA, 0x2A, 0x63, 0x57, 0xE4, 0xFA, 0x65, 0x69
-};
-
 static const u8 slot0x11Key95_sha256[0x20] = { // slot0x11Key95 hash (first 16 byte of sector0x96)
     0xBA, 0xC1, 0x40, 0x9C, 0x6E, 0xE4, 0x1F, 0x04, 0xAA, 0xC4, 0xE2, 0x09, 0x5C, 0xE9, 0x4F, 0x78, 
     0x6C, 0x78, 0x5F, 0xAC, 0xEC, 0x7E, 0xC0, 0x11, 0x26, 0x9D, 0x4E, 0x47, 0xB3, 0x64, 0xC4, 0xA5
@@ -70,44 +60,28 @@ static u8 OtpSha256[32] = { 0 };
 static u32 emunand_base_sector = 0x000000;
 
 
-u32 LoadKeyYFromP9(u8* key, const u8* keyhash, u32 offset, u32 keyslot)
+bool GetOtp0x90(void* otp0x90, u32 len)
 {
-    static const u32 offsetA9l = 0x066A00; // fixed offset, this only has to work for FIRM90 / FIRM81
-    static const u32 sector_firm0 = 0x058980; // standard firm0 sector (this only has to work in A9LH anyways)
-    u8 ctr0x15[16] __attribute__((aligned(32)));
-    u8 keyY0x15[16] __attribute__((aligned(32)));
-    u8 keyY[16] __attribute__((aligned(32)));
-    u8 header[0x200];
+    // a short helper function for crypto setup outside of sighax
+    u8 __attribute__((aligned(32))) otp_key[0x10];
+    u8 __attribute__((aligned(32))) otp_iv[0x10];
     
-    // check arm9loaderhax
-    if (!IS_A9LH || IS_SIGHAX || (offset < (offsetA9l + 0x0800))) return 1;
-    
-    // section 2 (arm9loader) header of FIRM
-    // this is @0x066A00 in FIRM90 & FIRM81
-    ReadNandBytes(header, (sector_firm0 * 0x200) + offsetA9l, 0x200, 0x06, NAND_SYSNAND);
-    memcpy(keyY0x15, header + 0x10, 0x10); // 0x15 keyY
-    memcpy(ctr0x15, header + 0x20, 0x10); // 0x15 counter
-    
-    // read and decrypt the encrypted keyY
-    ReadNandBytes(keyY, (sector_firm0 * 0x200) + offset, 0x10, 0x06, NAND_SYSNAND);
-    setup_aeskeyY(0x15, keyY0x15);
-    use_aeskey(0x15);
-    ctr_decrypt_byte(keyY, keyY, 0x10, offset - (offsetA9l + 0x800), AES_CNT_CTRNAND_MODE, ctr0x15);
-    if (key) memcpy(key, keyY, 0x10);
-    
-    // check the key
-    u8 shasum[0x32];
-    sha_quick(shasum, keyY, 16, SHA256_MODE);
-    if (memcmp(shasum, keyhash, 32) == 0) {
-        setup_aeskeyY(keyslot, keyY);
-        use_aeskey(keyslot);
-        return 0;
+    len = len - (len % 0x10);
+    if (len > 0x90) len = 0x90;
+    memcpy(otp0x90, (u8*) 0x01FFB800, len);
+    if ((LoadKeyFromFile(otp_key, 0x11, 'N', "OTP") == 0) &&
+        ((LoadKeyFromFile(otp_iv, 0x11, 'I', "IVOTP") == 0) ||
+         (LoadKeyFromFile(otp_iv, 0x11, 'I', "OTP") == 0))) {
+        setup_aeskey(0x11, otp_key);
+        use_aeskey(0x11);
+        cbc_encrypt(otp0x90, otp0x90, len / 0x10, AES_CNT_TITLEKEY_ENCRYPT_MODE, otp_iv);
+        return true;
     }
     
-    return 1;
+    return false;
 }
 
-bool InitNandCrypto(void)
+bool InitNandCrypto(bool init_full)
 {   
     // part #0: KeyX / KeyY for secret sector 0x96
     // on a9lh this MUST be run before accessing the SHA register in any other way
@@ -120,17 +94,8 @@ bool InitNandCrypto(void)
     }
     if (!CheckSector0x96Crypto()) { // if all else fails...
         u8 __attribute__((aligned(32))) otp0x90[0x90];
-        u8 __attribute__((aligned(32))) otp_key[0x10];
-        u8 __attribute__((aligned(32))) otp_iv[0x10];
-        memcpy(otp0x90, (u8*) 0x01FFB800, 0x90);
-        if ((LoadKeyFromFile(otp_key, 0x11, 'N', "OTP") == 0) &&
-            ((LoadKeyFromFile(otp_iv, 0x11, 'I', "IVOTP") == 0) ||
-             (LoadKeyFromFile(otp_iv, 0x11, 'I', "OTP") == 0))) {
-            setup_aeskey(0x11, otp_key);
-            use_aeskey(0x11);
-            cbc_encrypt(otp0x90, otp0x90, 0x90 / 0x10, AES_CNT_TITLEKEY_ENCRYPT_MODE, otp_iv);
+        if (GetOtp0x90(otp0x90, 0x90))
             sha_quick(OtpSha256, otp0x90, 0x90, SHA256_MODE);
-        }
     }
     
     // part #1: Get NAND CID, set up TWL/CTR counter
@@ -145,63 +110,68 @@ bool InitNandCrypto(void)
     for(u32 i = 0; i < 16; i++) // little endian and reversed order
         TwlNandCtr[i] = shasum[15-i];
     
-    // part #2: TWL KEY (if not already set up
+    // part #2: TWL KEY (if not already set up)
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
     if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_TWL, 0, NAND_SYSNAND) != 0) {
-        u8 TwlKeyY[16] __attribute__((aligned(32)));
-
-        // k9l already did the part of the init that required the OTP registers
-        if(IS_DEVKIT) {
-            vu32 *RegKey0x03X = &REG_AESKEY0123[((0x30u * 0x03) + 0x10u)/4u];
-            
-            // this is dfferent from key setup on retail
-            RegKey0x03X[1] = 0xEE7A4B1E;
-            RegKey0x03X[2] = 0xAF42C08B;
-
-            LoadKeyYFromP9(TwlKeyY, slot0x03KeyYdev_sha256, 0x0EC0D8, 0x03);
-        } else {
-            // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-            u64 TwlCustId = 0x80000000ULL | (*(vu64 *)0x01FFB808 ^ 0x8C267B7B358A6AFULL);
-            u8 TwlKeyX[16] __attribute__((aligned(32)));
-            u32* TwlKeyXW = (u32*) (void*) TwlKeyX;
-            
-            TwlKeyXW[0] = (u32) (TwlCustId>>0);
-            TwlKeyXW[1] = *(vu32*)0x01FFD3A8; // "NINT"
-            TwlKeyXW[2] = *(vu32*)0x01FFD3AC; // "ENDO"
-            TwlKeyXW[3] = (u32) (TwlCustId>>32);
-            setup_aeskeyX(0x03, TwlKeyX);
-
-            memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 16);
+        u64 TwlCustId = 0; // TWL customer ID (different for devkits)
+        if (!IS_DEVKIT) TwlCustId = 0x80000000ULL | (*(vu64 *)0x01FFB808 ^ 0x8C267B7B358A6AFULL);
+        else if (IS_UNLOCKED) TwlCustId = (*(vu64*)0x10012000);
+        if (!TwlCustId && IS_DEVKIT) {
+            u64 __attribute__((aligned(32))) otp0x10[2];
+            if (GetOtp0x90(otp0x10, 0x10)) TwlCustId = *otp0x10;
         }
-
-        static const u32 TwlKeyYW3 = 0xE1A00005;
-        memcpy(TwlKeyY + 12, &TwlKeyYW3, 4);
-
-        setup_aeskeyY(0x03, TwlKeyY);
-        use_aeskey(0x03);
+        
+        if (TwlCustId) { // give up if TwlCustId not found
+            u32 TwlKey0x03Y[4] __attribute__((aligned(32)));
+            u32 TwlKey0x03X[4] __attribute__((aligned(32)));
+            
+            if (IS_DEVKIT) {
+                TwlKey0x03X[1] = 0xEE7A4B1E;
+                TwlKey0x03X[2] = 0xAF42C08B;
+                LoadKeyFromFile(TwlKey0x03Y, 0x03, 'Y', NULL);
+            } else {
+                TwlKey0x03X[1] = *(vu32*)0x01FFD3A8; // "NINT"
+                TwlKey0x03X[2] = *(vu32*)0x01FFD3AC; // "ENDO"
+                memcpy(TwlKey0x03Y, (u8*) 0x01FFD3C8, 16);
+            }
+            
+            TwlKey0x03X[0] = (u32) (TwlCustId>>0);
+            TwlKey0x03X[3] = (u32) (TwlCustId>>32);
+            TwlKey0x03Y[3] = 0xE1A00005;
+            
+            setup_aeskeyX(0x03, TwlKey0x03X);
+            setup_aeskeyY(0x03, TwlKey0x03Y);
+            use_aeskey(0x03);
+            
+            if (init_full) { // full init
+                vu32 *RegKey0x01X = &REG_AESKEY0123[((0x30u * 0x01) + 0x10u)/4u];
+                RegKey0x01X[2] = (u32) (TwlCustId>>32);
+                RegKey0x01X[3] = (u32) (TwlCustId>>0);
+                
+                setup_aeskeyX(0x02, (u8*)0x01FFD398);
+                if (IS_DEVKIT) {
+                    u32 TwlKey0x02Y[4] __attribute__((aligned(32)));
+                    LoadKeyFromFile(TwlKey0x02Y, 0x02, 'Y', NULL);
+                    setup_aeskeyY(0x02, TwlKey0x02Y);
+                } else setup_aeskeyY(0x02, (u8*)0x01FFD220);
+                use_aeskey(0x02);
+                
+                if (IS_UNLOCKED)
+                    (*(vu64*)0x10012100) = TwlCustId;
+            }
+        }
     }
     
     // part #3: CTRNAND N3DS KEY (if not set up)
-    // thanks AuroraWright and Gelex for advice on this
-    // see: https://github.com/AuroraWright/Luma3DS/blob/master/source/crypto.c#L347
-    if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_CTR, 0, NAND_SYSNAND) != 0) {
-        if (IS_A9LH && !IS_SIGHAX) { // only on A9LH
-            // keyY 0x05 is encrypted @0x0EB014 in the FIRM90
-            // keyY 0x05 is encrypted @0x0EB24C in the FIRM81
-            if ((LoadKeyYFromP9(slot0x05KeyY, slot0x05KeyY_sha256, 0x0EB014, 0x05) != 0) &&
-                (LoadKeyYFromP9(slot0x05KeyY, slot0x05KeyY_sha256, 0x0EB24C, 0x05) != 0))
-                LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL);
-        } else LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL);
-    }
+    if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_CTR, 0, NAND_SYSNAND) != 0)
+        LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL);
     
-    // part #4: AGBSAVE CMAC KEY (source see above)
-    if (IS_A9LH && !IS_SIGHAX) { // only on A9LH
-        // keyY 0x24 is encrypted @0x0E62DC in the FIRM90
-        // keyY 0x24 is encrypted @0x0E6514 in the FIRM81
-        if ((LoadKeyYFromP9(NULL, slot0x24KeyY_sha256, 0x0E62DC, 0x24) != 0) &&
-            (LoadKeyYFromP9(NULL, slot0x24KeyY_sha256, 0x0E6514, 0x24) != 0))
-            LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
-    } else LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
+    // part #4: AGBSAVE CMAC KEY (set up on A9LH and SigHax)
+    if (IS_A9LH || IS_SIGHAX)
+        LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
+    
+    // part #5: FULL INIT
+    if (init_full) InitKeyDb();
     
     return true;
 }

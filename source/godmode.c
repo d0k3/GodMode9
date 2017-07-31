@@ -1412,7 +1412,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                 (ValidateFirm(TEMP_BUFFER, firm_size) != 0)) {
                 // fix the boot path first ("sdmc"/"nand" for Luma et al, hacky af)
                 const char* bootpath = curr_entry->path;
-                char fixpath[256] = { 0 }; // for Luma et al, hacky as fuck
+                char fixpath[256] = { 0 };
                 if ((*bootpath != '0') && (*bootpath != '1')) {
                     optionstr[0] = "Make a copy at " OUTPUT_PATH "/temp.firm";
                     optionstr[1] = "Try to boot anyways";
@@ -1605,7 +1605,7 @@ u32 GodMode() {
     
     InitSDCardFS();
     AutoEmuNandBase(true);
-    InitNandCrypto();
+    InitNandCrypto(true);
     InitExtFS();
     
     // this takes long - do it while splash is displayed

@@ -56,7 +56,7 @@ typedef struct {
 } __attribute__((packed)) NandNcsdHeader;
 
 
-bool InitNandCrypto(void);
+bool InitNandCrypto(bool init_full);
 bool CheckSlot0x05Crypto(void);
 bool CheckSector0x96Crypto(void);
 bool CheckGenuineNandNcsd(void);
