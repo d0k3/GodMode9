@@ -263,6 +263,23 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
     return ret;
 }
 
+bool FileCreateDummy(const char* cpath, const char* filename, u64 size) {
+    char npath[256]; // 256 is the maximum length of a full path
+    if (!CheckWritePermissions(cpath)) return false;
+    snprintf(npath, 255, "%s/%s", cpath, filename);
+    
+    // create dummy file (fail if already existing)
+    // then, expand the file size via cluster preallocation
+    FIL dfile;
+    if (fx_open(&dfile, npath, FA_WRITE | FA_CREATE_NEW) != FR_OK)
+        return false;
+    f_lseek(&dfile, size > 0xFFFFFFFF ? 0xFFFFFFFF : (FSIZE_t) size);
+    f_sync(&dfile);
+    fx_close(&dfile);
+    
+    return true;
+}
+
 bool DirCreate(const char* cpath, const char* dirname) {
     char npath[256]; // 256 is the maximum length of a full path
     if (!CheckWritePermissions(cpath)) return false;

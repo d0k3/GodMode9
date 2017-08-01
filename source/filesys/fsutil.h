@@ -42,6 +42,9 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);
 /** Inject file into file @offset **/
 bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_orig, u64 size, u32* flags);
 
+/** Create a dummy file at dest **/
+bool FileCreateDummy(const char* cpath, const char* filename, u64 size);
+
 /** Create a new directory in cpath **/
 bool DirCreate(const char* cpath, const char* dirname);
 

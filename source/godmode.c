@@ -226,8 +226,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     char instr[512];
     snprintf(instr, 512, "%s\n%s%s%s%s%s%s%s%s",
         FLAVOR " Explorer v"VERSION, // generic start part
-        (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY file(s) / [+R] CREATE dir\n" :
-        "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE file(s) / [+R] CREATE dir\n") :
+        (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY files / [+R] CREATE entry\n" :
+        "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE files / [+R] CREATE entry\n") :
         ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\n" : ""),
         (*curr_path) ? "" : (GetMountState()) ? "R+X - Unmount image\n" : "",
         (*curr_path) ? "" : (CheckSDMountState()) ? "R+B - Unmount SD card\n" : "R+B - Remount SD card\n",
@@ -1921,18 +1921,26 @@ u32 GodMode() {
                             (cursor > 1) && (strncmp(current_dir->entry[cursor].name, newname, 256) != 0); cursor--);
                     }
                 }
-            } else if (pad_state & BUTTON_Y) { // create a folder
-                char dirname[256];
-                snprintf(dirname, 255, "newdir");
-                if (ShowStringPrompt(dirname, 256, "Create a new folder here?\nEnter name below.")) {
-                    if (!DirCreate(current_path, dirname)) {
-                        char namestr[36+1];
-                        TruncateString(namestr, dirname, 36, 12);
-                        ShowPrompt(false, "Failed creating folder:\n%s", namestr);
-                    } else {
-                        GetDirContents(current_dir, current_path);
-                        for (cursor = (current_dir->n_entries) ? current_dir->n_entries - 1 : 0;
-                            (cursor > 1) && (strncmp(current_dir->entry[cursor].name, dirname, 256) != 0); cursor--);
+            } else if (pad_state & BUTTON_Y) { // create an entry
+                const char* optionstr[] = { "Create a folder", "Create a dummy file" };
+                u32 type = ShowSelectPrompt(2, optionstr, "Create a new entry here?\nSelect type.");
+                if (type) {
+                    const char* typestr = (type == 1) ? "folder" : (type == 2) ? "file" : NULL;
+                    char ename[256];
+                    u64 fsize = 0;
+                    snprintf(ename, 255, (type == 1) ? "newdir" : "dummy.bin");
+                    if ((ShowStringPrompt(ename, 256, "Create a new %s here?\nEnter name below.", typestr)) &&
+                        ((type != 2) || ((fsize = ShowNumberPrompt(0, "Create a new %s here?\nEnter file size below.", typestr)) != (u64) -1))) {
+                        if (((type == 1) && !DirCreate(current_path, ename)) ||
+                            ((type == 2) && !FileCreateDummy(current_path, ename, fsize))) {
+                            char namestr[36+1];
+                            TruncateString(namestr, ename, 36, 12);
+                            ShowPrompt(false, "Failed creating %s:\n%s", typestr, namestr);
+                        } else {
+                            GetDirContents(current_dir, current_path);
+                            for (cursor = (current_dir->n_entries) ? current_dir->n_entries - 1 : 0;
+                                (cursor > 1) && (strncmp(current_dir->entry[cursor].name, ename, 256) != 0); cursor--);
+                        }
                     }
                 }
             }
