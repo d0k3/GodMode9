@@ -1949,15 +1949,12 @@ u32 GodMode() {
         if (pad_state & BUTTON_START) {
             exit_mode = (switched || (pad_state & BUTTON_LEFT)) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
             break;
-        } else if (pad_state & BUTTON_POWER) {
-            exit_mode = GODMODE_EXIT_POWEROFF;
-            break;
-        } else if (pad_state & BUTTON_HOME) { // Home menu
+        } else if (pad_state & (BUTTON_HOME|BUTTON_POWER)) { // Home menu
             const char* optionstr[] = { "Poweroff system", "Reboot system", "More..." };
-            const char* promptstr = "HOME button pressed.\nSelect action:";
+            const char* buttonstr = (pad_state & BUTTON_HOME) ? "HOME" : "POWER";
             u32 n_opt = 3;
             u32 user_select = 0;
-            while (((user_select = ShowSelectPrompt(n_opt, optionstr, promptstr)) == 3) &&
+            while (((user_select = ShowSelectPrompt(n_opt, optionstr, "%s button pressed.\nSelect action:", buttonstr)) == 3) &&
                 (HomeMoreMenu(current_path, current_dir, clipboard) == 1)); // more... menu
             if (user_select == 1) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
