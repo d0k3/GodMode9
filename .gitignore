@@ -32,6 +32,7 @@
 *.dSYM/
 
 # Build directories
+/screeninit/build
 /build
 /output
 /release

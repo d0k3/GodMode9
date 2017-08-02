@@ -4,6 +4,7 @@
 #include "fsperm.h"
 #include "nandutil.h"
 #include "gameutil.h"
+#include "keydbutil.h"
 #include "filetype.h"
 #include "power.h"
 #include "vff.h"
@@ -26,6 +27,7 @@ typedef enum {
     CMD_ID_NONE = 0,
     CMD_ID_ECHO,
     CMD_ID_ASK,
+    CMD_ID_INPUT,
     CMD_ID_SET,
     CMD_ID_ALLOW,
     CMD_ID_CP,
@@ -38,7 +40,11 @@ typedef enum {
     CMD_ID_FIND,
     CMD_ID_FINDNOT,
     CMD_ID_SHA,
+    CMD_ID_FIXCMAC,
     CMD_ID_VERIFY,
+    CMD_ID_DECRYPT,
+    CMD_ID_ENCRYPT,
+    CMD_ID_BUILDCIA,
     CMD_ID_REBOOT,
     CMD_ID_POWEROFF
 } cmd_id;
@@ -58,6 +64,7 @@ typedef struct {
 Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
+    { CMD_ID_INPUT   , "input"   , 2, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
@@ -70,12 +77,16 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FIND    , "find"    , 2, 0 },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
+    // { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 }, // not supported yet
     { CMD_ID_VERIFY  , "verify"  , 1, 0 },
+    { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
+    { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
+    { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
 };    
 
-inline bool strntohex(const char* str, u8* hex, u32 len) {
+static inline bool strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
         len = strlen(str); 
         if (len%1) return false;
@@ -99,11 +110,17 @@ char* get_var(const char* name, char** endptr) {
     u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
     
     u32 name_len = 0;
-    char* vname = (char*) name + 1;
-    if (*name != '[') return NULL;
-    for (name_len = 0; vname[name_len] != ']'; name_len++)
-        if ((name_len >= _VAR_NAME_LEN) || !vname[name_len]) return NULL;
-    if (endptr) *endptr = vname + name_len + 1;
+    char* vname = NULL;
+    if (!endptr) { // no endptr, varname is verbatim
+        vname = (char*) name;
+        name_len = strnlen(vname, _VAR_NAME_LEN);
+    } else { // endptr given, varname is in [VAR] format
+        vname = (char*) name + 1;
+        if (*name != '[') return NULL;
+        for (name_len = 0; vname[name_len] != ']'; name_len++)
+            if ((name_len >= _VAR_NAME_LEN) || !vname[name_len]) return NULL;
+        *endptr = vname + name_len + 1;
+    }
     
     u32 n_var = 0;
     for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++) {
@@ -134,7 +151,7 @@ char* set_var(const char* name, const char* content) {
     return vars[n_var].content;
 }
 
-bool init_vars(void) {
+bool init_vars(const char* path_script) {
     // reset var buffer
     memset(VAR_BUFFER, 0x00, VAR_BUFFER_SIZE);
     
@@ -143,6 +160,12 @@ bool init_vars(void) {
     if ((FileGetData("1:/rw/sys/SecureInfo_A", (u8*) env_serial, 0xF, 0x102) != 0xF) &&
         (FileGetData("1:/rw/sys/SecureInfo_B", (u8*) env_serial, 0xF, 0x102) != 0xF))
         snprintf(env_serial, 0xF, "UNKNOWN");
+    
+    // current path
+    char curr_dir[_VAR_CNT_LEN];
+    strncpy(curr_dir, path_script, _VAR_CNT_LEN);
+    char* slash = strrchr(curr_dir, '/');
+    if (slash) *slash = '\0';
     
     // device sysnand / emunand id0
     char env_sys_id0[32+1];
@@ -163,6 +186,7 @@ bool init_vars(void) {
     set_var("NULL", ""); // this one is special and should not be changed later 
     set_var("SERIAL", env_serial);
     set_var("GM9OUT", OUTPUT_PATH);
+    set_var("CURRDIR", curr_dir);
     set_var("SYSID0", env_sys_id0);
     set_var("EMUID0", env_emu_id0);
     
@@ -226,6 +250,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
+    else if (strncmp(str, "--legit", len) == 0) flag_char = 'l';
     else if (strncmp(str, "--no_cancel", len) == 0) flag_char = 'n';
     else if (strncmp(str, "--optional", len) == 0) flag_char = 'o';
     else if (strncmp(str, "--silent", len) == 0) flag_char = 's';
@@ -310,6 +335,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ShowPrompt(false, argv[0]);
     } else if (id == CMD_ID_ASK) {
         ret = ShowPrompt(true, argv[0]);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+    } else if (id == CMD_ID_INPUT) {
+        char* var = get_var(argv[1], NULL);
+        if (!*var) set_var(argv[1], ""); // make sure the var exists
+        ret = ShowStringPrompt(var, _VAR_CNT_LEN, argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
     } else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
@@ -408,6 +438,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
         else ret = (VerifyGameFile(argv[0]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "verification failed");
+    } else if (id == CMD_ID_DECRYPT) {
+        u32 filetype = IdentifyFileType(argv[0]);
+        if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
+        else ret = (CryptGameFile(argv[0], true, false) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "decrypt failed");
+    } else if (id == CMD_ID_ENCRYPT) {
+        u32 filetype = IdentifyFileType(argv[0]);
+        if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
+        else ret = (CryptGameFile(argv[0], true, true) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "encrypt failed");
+    } else if (id == CMD_ID_BUILDCIA) {
+        ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('n'))) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
     } else if (id == CMD_ID_REBOOT) {
         Reboot();
     } else if (id == CMD_ID_POWEROFF) {
@@ -446,7 +489,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
-        char* msg_fail = get_var("[ERRORMSG]", NULL);
+        char* msg_fail = get_var("ERRORMSG", NULL);
         if (msg_fail && *msg_fail) *err_str = '\0'; // use custom error message
         return false;
     }
@@ -479,7 +522,7 @@ bool ExecuteGM9Script(const char* path_script) {
     *end = '\0';
     
     // initialise variables
-    init_vars();
+    init_vars(path_script);
     
     for (u32 line = 1; ptr < end; line++) {
         u32 flags = 0;
@@ -493,7 +536,7 @@ bool ExecuteGM9Script(const char* path_script) {
         if (!run_line(ptr, line_end, &flags, err_str)) { // error handling
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
-                    char* msg_fail = get_var("[ERRORMSG]", NULL);
+                    char* msg_fail = get_var("ERRORMSG", NULL);
                     if (msg_fail && *msg_fail) ShowPrompt(false, msg_fail);
                     else snprintf(err_str, _ERR_STR_LEN, "error message fail");
                 }
@@ -517,7 +560,7 @@ bool ExecuteGM9Script(const char* path_script) {
         ptr = line_end + 1;
     }
     
-    char* msg_okay = get_var("[SUCCESSMSG]", NULL);
+    char* msg_okay = get_var("SUCCESSMSG", NULL);
     if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
     return true;
 }

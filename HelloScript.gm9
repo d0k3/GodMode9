@@ -26,11 +26,12 @@ ask -o -s "Really continue running this script?\n(I will completely ignore your 
 
 # ENVIRONMENTAL VARS
 # SERIAL is the serial number of your device
-# GM9OUT is the standard ouptput path
+# GM9OUT is the standard output path
+# CURRDIR is the directory the script is running from
 # SYSID0 is the id0 belonging to your SysNAND
 # EMUID0 is the id0 belonging to your EmuNAND (if available)
 # Use $[VAR] to get the *content* of a variable VAR
-echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
+echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
 
 # ERRORMSG and SUCCESSMSG / 'set' COMMAND
 # These two are special environment vars, allowing you to control the message on script failure or success
@@ -45,6 +46,13 @@ set SUCCESSMSG "HelloScript testing script success"
 # Notice how you can use variables when setting variables
 set TESTPATH 0:/testdir/$[SERIAL]_tick.db
 echo "Your testpath is:\n$[TESTPATH]"
+
+# 'input' COMMAND
+# The 'input' command will allow the user to input a string and store that string in a variable
+# Preset the variable to have an initial value
+set USERINPUT "Hello World"
+input "Enter something please?" USERINPUT
+echo "You entered:\n$[USERINPUT]"
 
 # 'allow' COMMAND
 # typically used at the beginning of a script, prompts to allow writes to the location given in the argument
@@ -122,6 +130,22 @@ set ERRORMSG ""
 # Certain file formats (NAND, NCCH, NCSD, CIA, FIRM, ...) can also be verified. Use 'verify' to do so.
 # verify -o s:/firm0.bin # As drive letters are case sensitive, this would fail
 verify S:/firm1.bin
+
+# 'decrypt' COMMAND
+# Certain file formats (NCCH, NCSD, CIA, FIRM, BOSS, ...) can be decrypted. Use 'decrypt' to do so.
+# Take note that all crypto operations are done INPLACE and will overwrite the file(!)
+# decrypt 0:/x.ncch
+
+# 'encrypt' COMMAND
+# Certain file formats (NCCH, NCSD, CIA, BOSS, ...) can be encrypted. Use 'encrypt' to do so.
+# Take note that all crypto operations are done INPLACE and will overwrite the file(!)
+# encrypt 0:/x.ncch
+
+# 'buildcia' COMMAND
+# You can build CIA files from certain file formats (TMD, NCCH, NCSD ...). Use 'buildcia' to do so.
+# CIA files will always be built to the standard output directory (0:/gm9/out)
+# -l / --legit force CIA to be legit (only works for legit system installed titles)
+# buildcia 0:/x.ncch
 
 # 'reboot' / 'poweroff' COMMAND
 # These are used to reboot or power off the 3DS console

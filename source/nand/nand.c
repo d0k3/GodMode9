@@ -149,10 +149,11 @@ bool InitNandCrypto(void)
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
     if (IS_A9LH && !IS_SIGHAX) { // only for a9lh
         u8 TwlKeyY[16] __attribute__((aligned(32)));
-        vu32 *RegKey0x03X = &REG_AESKEY0123[((0x30u * 0x03) + 0x10u)/4u]; 
 
         // k9l already did the part of the init that required the OTP registers
         if(IS_DEVKIT) {
+            vu32 *RegKey0x03X = &REG_AESKEY0123[((0x30u * 0x03) + 0x10u)/4u];
+            
             // this is dfferent from key setup on retail
             RegKey0x03X[1] = 0xEE7A4B1E;
             RegKey0x03X[2] = 0xAF42C08B;
@@ -160,8 +161,15 @@ bool InitNandCrypto(void)
             LoadKeyYFromP9(TwlKeyY, slot0x03KeyYdev_sha256, 0x0EC0D8, 0x03);
         } else {
             // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
-            RegKey0x03X[1] = *(vu32*)0x01FFD3A8; // "NINT"
-            RegKey0x03X[2] = *(vu32*)0x01FFD3AC; // "ENDO"
+            u64 TwlCustId = 0x80000000ULL | (*(vu64 *)0x01FFB808 ^ 0x8C267B7B358A6AFULL);
+            u8 TwlKeyX[16] __attribute__((aligned(32)));
+            u32* TwlKeyXW = (u32*) (void*) TwlKeyX;
+            
+            TwlKeyXW[0] = (u32) (TwlCustId>>0);
+            TwlKeyXW[1] = *(vu32*)0x01FFD3A8; // "NINT"
+            TwlKeyXW[2] = *(vu32*)0x01FFD3AC; // "ENDO"
+            TwlKeyXW[3] = (u32) (TwlCustId>>32);
+            setup_aeskeyX(0x03, TwlKeyX);
 
             memcpy(TwlKeyY, (u8*) 0x01FFD3C8, 16);
         }
