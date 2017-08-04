@@ -27,12 +27,14 @@ u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
 u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     // prepare essential backup struct
     ExeFsFileHeader filelist[] = {
-        { "nand_hdr", 0x000, 0x200 },
-        { "secinfo" , 0x200, 0x111 },
-        { "movable" , 0x400, 0x140 },
-        { "frndseed", 0x600, 0x110 },
-        { "nand_cid", 0x800, 0x010 },
-        { "otp"     , 0xA00, 0x100 }
+        { "nand_hdr", 0x0000, 0x200 },
+        { "secinfo" , 0x0200, 0x111 },
+        { "movable" , 0x0400, 0x140 },
+        { "frndseed", 0x0600, 0x110 },
+        { "nand_cid", 0x0800, 0x010 },
+        { "otp"     , 0x0A00, 0x100 },
+        { "hwcal0"  , 0x0C00, 0x9D0 },
+        { "hwcal1"  , 0x1600, 0x9D0 }
     };
     memset(essential, 0, sizeof(EssentialBackup));
     memcpy(essential, filelist, sizeof(filelist));
@@ -59,16 +61,22 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
         return 1;
     }
     
+    // HWCAL0.dat / HWCAL1.dat
+    if ((fvx_qread("7:/ro/sys/HWCAL0.dat", &(essential->hwcal0), 0, 0x1000, (UINT*) &(files[6].size)) != FR_OK) ||
+        (fvx_qread("7:/ro/sys/HWCAL1.dat", &(essential->hwcal1), 0, 0x1000, (UINT*) &(files[7].size)) != FR_OK)) {
+        memset(&(filelist[6]), 0, 2 * sizeof(ExeFsFileHeader));
+    }
+    
     // mount original file
     InitImgFS(path_bak);
-        
+    
     // fill nand cid / otp hash
     if (GetNandCid(&(essential->nand_cid)) != 0) return 1;
-    if (!IS_UNLOCKED) memset(&(filelist[5]), 0, sizeof(ExeFsFileHeader));
+    if (!IS_UNLOCKED) memset(&(filelist[5]), 0, 3 * sizeof(ExeFsFileHeader));
     else memcpy(&(essential->otp), (u8*) 0x10012000, 0x100);
     
     // calculate hashes
-    for (u32 i = 0; i < (IS_UNLOCKED ? 6 : 5); i++) 
+    for (u32 i = 0; i < 8 && *(filelist[i].name); i++) 
         sha_quick(essential->header.hashes[9-i],
             ((u8*) essential) + files[i].offset + sizeof(ExeFsHeader),
             files[i].size, SHA256_MODE);
