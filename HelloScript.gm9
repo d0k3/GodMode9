@@ -30,8 +30,10 @@ ask -o -s "Really continue running this script?\n(I will completely ignore your 
 # CURRDIR is the directory the script is running from
 # SYSID0 is the id0 belonging to your SysNAND
 # EMUID0 is the id0 belonging to your EmuNAND (if available)
+# TIMESTAMP is the current time in hhmmss format
+# DATESTAMP is the current date in YYMMDD format
 # Use $[VAR] to get the *content* of a variable VAR
-echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
+echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
 
 # ERRORMSG and SUCCESSMSG / 'set' COMMAND
 # These two are special environment vars, allowing you to control the message on script failure or success

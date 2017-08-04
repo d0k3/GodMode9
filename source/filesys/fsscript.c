@@ -8,6 +8,7 @@
 #include "filetype.h"
 #include "power.h"
 #include "vff.h"
+#include "rtc.h"
 #include "sha.h"
 #include "ui.h"
 
@@ -128,6 +129,15 @@ char* get_var(const char* name, char** endptr) {
     }
     
     if (n_var >= max_vars || !*(vars[n_var].name)) n_var = 0;
+    if (n_var && (strncmp(vars[n_var].name, "DATESTAMP", _VAR_NAME_LEN) == 0)) {
+        DsTime dstime;
+        get_dstime(&dstime);
+        snprintf(vars[n_var].content, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
+    } else if (n_var && (strncmp(vars[n_var].name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) {
+        DsTime dstime;
+        get_dstime(&dstime);
+        snprintf(vars[n_var].content, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
+    }
     
     return vars[n_var].content;
 }
@@ -189,6 +199,8 @@ bool init_vars(const char* path_script) {
     set_var("CURRDIR", curr_dir);
     set_var("SYSID0", env_sys_id0);
     set_var("EMUID0", env_emu_id0);
+    set_var("DATESTAMP", ""); // needs to be set on every access
+    set_var("TIMESTAMP", ""); // needs to be set on every access
     
     return true;
 }
