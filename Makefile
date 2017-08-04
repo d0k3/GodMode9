@@ -120,7 +120,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: common clean all gateway firm binary cakehax cakerop brahma screeninit release
+.PHONY: common clean all firm binary screeninit release
 
 #---------------------------------------------------------------------------------
 all: firm
@@ -129,11 +129,8 @@ common:
 	@[ -d $(OUTPUT_D) ] || mkdir -p $(OUTPUT_D)
 	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
 
-submodules:
-	@-git submodule update --init --recursive
-
 screeninit:
-	@$(MAKE) dir_out=$(OUTPUT_D) -C screeninit
+	@$(MAKE) --no-print-directory dir_out=$(OUTPUT_D) -C screeninit
 
 binary: common
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
@@ -142,42 +139,13 @@ firm: binary screeninit
 	firmtool build $(OUTPUT).firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-retail
 	firmtool build $(OUTPUT)_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-dev
 
-gateway: binary
-	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
-	@dd if=$(OUTPUT).bin of=$(OUTPUT_D)/Launcher.dat bs=1497296 seek=1 conv=notrunc
-
-cakehax: submodules binary
-	@$(MAKE) dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
-	@dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
-
-cakerop: cakehax
-	@$(MAKE) DATNAME=$(TARGET).dat DISPNAME=$(TARGET) GRAPHICS=../resources/CakesROP -C CakesROP
-	@mv CakesROP/CakesROP.nds $(OUTPUT_D)/$(TARGET).nds
-
-brahma: submodules binary
-	@[ -d BrahmaLoader/data ] || mkdir -p BrahmaLoader/data
-	@cp $(OUTPUT).bin BrahmaLoader/data/payload.bin
-	@cp resources/BrahmaAppInfo BrahmaLoader/resources/AppInfo
-	@cp resources/BrahmaIcon.png BrahmaLoader/resources/icon.png
-	@$(MAKE) --no-print-directory -C BrahmaLoader APP_TITLE=$(TARGET)
-	@mv BrahmaLoader/output/*.3dsx $(OUTPUT_D)
-	@mv BrahmaLoader/output/*.smdh $(OUTPUT_D)
-
 release:
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 	@$(MAKE) --no-print-directory binary
 	@$(MAKE) --no-print-directory firm
-	#@-make --no-print-directory cakerop
-	#@-make --no-print-directory brahma
 	@[ -d $(RELEASE) ] || mkdir -p $(RELEASE)
-	#@[ -d $(RELEASE)/$(TARGET) ] || mkdir -p $(RELEASE)/$(TARGET)
 	@cp $(OUTPUT).bin $(RELEASE)
 	@cp $(OUTPUT).firm $(RELEASE)
-	#@cp $(OUTPUT)_dev.firm $(RELEASE)
-	#@-cp $(OUTPUT).dat $(RELEASE)
-	#@-cp $(OUTPUT).nds $(RELEASE)
-	#@-cp $(OUTPUT).3dsx $(RELEASE)/$(TARGET)
-	#@-cp $(OUTPUT).smdh $(RELEASE)/$(TARGET)
 	@cp $(CURDIR)/README.md $(RELEASE)
 	@cp $(CURDIR)/HelloScript.gm9 $(RELEASE)
 	@cp -R $(CURDIR)/resources/gm9 $(RELEASE)/gm9
@@ -186,9 +154,6 @@ release:
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@-$(MAKE) clean --no-print-directory -C CakeHax
-	@-$(MAKE) clean --no-print-directory -C CakesROP
-	@-$(MAKE) clean --no-print-directory -C BrahmaLoader
 	@-$(MAKE) clean --no-print-directory -C screeninit
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 
