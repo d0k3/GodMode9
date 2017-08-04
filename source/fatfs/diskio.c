@@ -12,6 +12,7 @@
 #include "ramdrive.h"
 #include "nand.h"
 #include "sdmmc.h"
+#include "rtc.h"
 
 
 #define FREE_MIN_SECTORS 0x2000 // minimum sectors for the free drive to appear (4MB)
@@ -62,6 +63,26 @@ FATpartition DriveInfo[13] = {
 };
 
 static BYTE imgnand_mode = 0x00; 
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Get current FAT time                                                      */
+/*-----------------------------------------------------------------------*/
+
+DWORD get_fattime( void ) {
+    DsTime dstime;
+    get_dstime(&dstime);
+    DWORD fattime =
+        ((DSTIMEGET(&dstime, bcd_s)&0x3F) >> 1 ) |
+        ((DSTIMEGET(&dstime, bcd_m)&0x3F) << 5 ) |
+        ((DSTIMEGET(&dstime, bcd_h)&0x3F) << 11) |
+        ((DSTIMEGET(&dstime, bcd_D)&0x1F) << 16) |
+        ((DSTIMEGET(&dstime, bcd_M)&0x0F) << 21) |
+        (((DSTIMEGET(&dstime, bcd_Y)+(2000-1980))&0x7F) << 25);
+    
+    return fattime;
+}
 
 
 

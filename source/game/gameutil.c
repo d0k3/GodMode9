@@ -1444,7 +1444,7 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     WordWrapString(desc_s, lwrap);
     WordWrapString(pub, lwrap);
     ShowIconString(icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s\n%s\n%s", desc_l, desc_s, pub);
-    InputWait();
+    InputWait(0);
     ClearScreenF(true, false, COLOR_STD_BG);
     return 0;
 }
@@ -1460,7 +1460,7 @@ u32 ShowNdsFileTitleInfo(const char* path) {
         return 1;
     WordWrapString(desc, lwrap);
     ShowIconString(icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
-    InputWait();
+    InputWait(0);
     ClearScreenF(true, false, COLOR_STD_BG);
     return 0;
     

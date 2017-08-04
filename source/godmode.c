@@ -24,6 +24,7 @@
 #include "qlzcomp.h"
 #include "timer.h"
 #include "power.h"
+#include "rtc.h"
 #include "i2c.h"
 #include QLZ_SPLASH_H
 
@@ -124,6 +125,17 @@ static inline char* LineSeek(const char* text, u32 len, u32 ww, const char* line
     }
 }
 
+void GetTimeString(char* timestr, bool forced_update) {
+    static DsTime dstime;
+    static u64 timer = (u64) -1; // this ensures we don't check the time too often
+    if (forced_update || (timer == (u64) -1) || (timer_sec(timer) > 30)) {
+        get_dstime(&dstime);
+        timer = timer_start();
+    }
+    if (timestr) snprintf(timestr, 31, "%02lX/%02lX/%02lX %02lX:%02lX",
+        (u32) dstime.bcd_D, (u32) dstime.bcd_M, (u32) dstime.bcd_Y, (u32) dstime.bcd_h, (u32) dstime.bcd_m);
+}
+
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
     const u32 n_cb_show = 8;
     const u32 bartxt_start = (FONT_HEIGHT_EXT == 10) ? 1 : 2;
@@ -162,8 +174,10 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
     } else {
+        char timestr[32];
+        GetTimeString(timestr, false);
         DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", FLAVOR);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", timestr);
     }
     
     // left top - current file info
@@ -434,7 +448,7 @@ u32 FileTextViewer(const char* path) {
         }
         
         // handle user input
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(0);
         if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
         else { // standard viewer mode
             char* line0_next = line0;
@@ -646,7 +660,7 @@ u32 FileHexViewer(const char* path) {
         }
         
         // handle user input
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(0);
         if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
         else if (!edit_mode) { // standard viewer mode
             u32 step_ud = (pad_state & BUTTON_R1) ? (0x1000  - (0x1000  % cols)) : cols;
@@ -1458,6 +1472,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
+    int clock = ++n_opt;
     int scripts = (PathExist(SCRIPT_PATH)) ? (int) ++n_opt : -1;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
@@ -1465,6 +1480,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
+    if (clock > 0) optionstr[clock - 1] = "Set RTC clock";
     if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
@@ -1546,6 +1562,17 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             GetDirContents(current_dir, current_path);
             return 0;
         }
+    } else if (user_select == clock) { // RTC clock setter
+        DsTime dstime;
+        get_dstime(&dstime);
+        if (ShowRtcSetterPrompt(&dstime, "Set RTC time/date")) {
+            char timestr[32];
+            set_dstime(&dstime);
+            GetTimeString(timestr, true);
+            ShowPrompt(false, "New RTC time/date is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.",
+                timestr);
+        }
+        return 0;
     } else if (user_select == scripts) { // scripts menu
         char script[256];
         if (FileSelector(script, "HOME scripts... menu.\nSelect action:", SCRIPT_PATH, "*.gm9", true, false)) {
@@ -1665,7 +1692,7 @@ u32 GodMode() {
         }
         
         // handle user input
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(30);
         bool switched = (pad_state & BUTTON_R1);
         
         // basic navigation commands

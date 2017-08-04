@@ -32,6 +32,7 @@ typedef enum {
 /* Prototypes for disk control functions */
 
 
+DWORD get_fattime( void ); // not a disk control function, but fits here
 DSTATUS disk_initialize (BYTE pdrv);
 DSTATUS disk_status (BYTE pdrv);
 DRESULT disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count);

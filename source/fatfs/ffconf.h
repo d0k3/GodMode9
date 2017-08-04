@@ -215,7 +215,7 @@
 /  Note that enabling exFAT discards ANSI C (C89) compatibility. */
 
 
-#define _FS_NORTC	1
+#define _FS_NORTC	0
 #define _NORTC_MON	1
 #define _NORTC_MDAY	1
 #define _NORTC_YEAR	2017

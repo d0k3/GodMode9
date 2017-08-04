@@ -31,6 +31,7 @@
 #define CART_EJECT    (1 << 15)
 #define SD_INSERT     (1 << 16)
 #define SD_EJECT      (1 << 17)
+#define TIMEOUT_HID   (1 << 31)
 
-u32 InputWait();
+u32 InputWait(u32 timeout_sec);
 bool CheckButton(u32 button);

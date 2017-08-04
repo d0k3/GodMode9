@@ -2,16 +2,18 @@
 #include "i2c.h"
 #include "timer.h"
 
-u32 InputWait() {
+u32 InputWait(u32 timeout_sec) {
     static u64 delay = 0;
     u32 pad_state_old = HID_STATE;
     u32 cart_state_old = CART_STATE;
     u32 sd_state_old = SD_STATE;
-    u64 timer_dpad = timer_start();
-    u64 timer_mcu = timer_dpad;
+    u64 timer = timer_start();
+    u64 timer_mcu = timer;
     delay = (delay) ? 72 : 128;
     while (true) {
         u32 pad_state = HID_STATE;
+        if (timeout_sec && (timer_sec(timer) >= timeout_sec))
+            return TIMEOUT_HID; // HID timeout
         if (!(pad_state & BUTTON_ANY)) { // no buttons pressed
             u32 cart_state = CART_STATE;
             if (cart_state != cart_state_old)
@@ -33,7 +35,7 @@ u32 InputWait() {
         }
         if ((pad_state == pad_state_old) &&
             (!(pad_state & BUTTON_ARROW) ||
-            (delay && (timer_msec(timer_dpad) < delay))))
+            (delay && (timer_msec(timer) < delay))))
             continue;
         // make sure the key is pressed
         u32 t_pressed = 0;

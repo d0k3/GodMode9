@@ -9,6 +9,7 @@
 
 #include "font.h"
 #include "ui.h"
+#include "rtc.h"
 #include "timer.h"
 #include "hid.h"
 
@@ -266,7 +267,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
     DrawStringF(MAIN_SCREEN, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
     
     while (true) {
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(0);
         if (pad_state & BUTTON_A) break;
         else if (pad_state & BUTTON_B) {
             ret = false;
@@ -341,7 +342,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
         }
         if (lvl == len)
             break;
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(0);
         if (!(pad_state & BUTTON_ANY))
             continue;
         else if (pad_state & sequences[seqlvl][lvl])
@@ -388,7 +389,7 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
             DrawStringF(MAIN_SCREEN, x, yopt + (12*i), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
                 (sel == i) ? "->" : "", options[i]);
         }
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(0);
         if (pad_state & BUTTON_DOWN) sel = (sel+1) % n;
         else if (pad_state & BUTTON_UP) sel = (sel+n-1) % n;
         else if (pad_state & BUTTON_A) break;
@@ -460,7 +461,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         if (cursor_a < 0) {
             for (cursor_a = alphabet_size - 1; (cursor_a > 0) && (alphabet[cursor_a] != inputstr[cursor_s]); cursor_a--);
         }
-        u32 pad_state = InputWait();
+        u32 pad_state = InputWait(0);
         if (pad_state & BUTTON_A) {
             ret = true;
             break;
@@ -596,6 +597,75 @@ bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
     va_end(va);
     
     return ret; 
+}
+
+
+bool ShowRtcSetterPrompt(void* time, const char *format, ...) {
+    DsTime* dstime = (DsTime*) time;
+    u32 str_width, str_height;
+    u32 x, y;
+    
+    char str[STRBUF_SIZE] = { 0 };
+    va_list va;
+    va_start(va, format);
+    vsnprintf(str, STRBUF_SIZE, format, va);
+    va_end(va);
+    
+    // check the initial time
+    if (!is_valid_dstime(dstime)) {
+        dstime->bcd_h = dstime->bcd_m = dstime->bcd_s = 0x00;
+        dstime->bcd_D = dstime->bcd_M = 0x01;
+        dstime->bcd_Y = 0x00;
+    }
+    
+    str_width = GetDrawStringWidth(str);
+    str_height = GetDrawStringHeight(str) + (3*10);
+    if (str_width < (17 * FONT_WIDTH)) str_width = 17 * FONT_WIDTH;
+    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+    
+    int cursor = 0;
+    bool ret = false;
+    while (true) {
+        static const int val_max[] = { 23, 59, 59, 31, 12, 99 };
+        static const int val_min[] = {  0,  0,  0,  1,  1,  0 };
+        u8* bcd = &(((u8*)dstime)[(cursor<3) ? (2-cursor) : (cursor+1)]);
+        int val = BCD2NUM(*bcd);
+        int max = val_max[cursor];
+        int min = val_min[cursor];
+        DrawStringF(MAIN_SCREEN, x, y + str_height - 18, COLOR_STD_FONT, COLOR_STD_BG, "%02lX:%02lX:%02lX %02lX/%02lX/%02lX\n%-*.*s^^%-*.*s",
+            (u32) dstime->bcd_h, (u32) dstime->bcd_m, (u32) dstime->bcd_s, (u32) dstime->bcd_D, (u32) dstime->bcd_M, (u32) dstime->bcd_Y,
+            cursor * 3, cursor * 3, "", 17 - 2 - (cursor * 3), 17 - 2 - (cursor * 3), "");
+            
+        // user input
+        u32 pad_state = InputWait(0);
+        if ((pad_state & BUTTON_A) && is_valid_dstime(dstime)) {
+            ret = true;
+            break;
+        } else if (pad_state & BUTTON_B) {
+            break;
+        } else if (pad_state & BUTTON_UP) {
+            val += (pad_state & BUTTON_R1) ? 10 : 1;
+            if (val > max) val = max;
+        } else if (pad_state & BUTTON_DOWN) {
+            val -= (pad_state & BUTTON_R1) ? 10 : 1;
+            if (val < min) val = min;
+        } else if (pad_state & BUTTON_LEFT) {
+            if (--cursor < 0) cursor = 5;
+        } else if (pad_state & BUTTON_RIGHT) {
+            if (++cursor > 5) cursor = 0;
+        }
+        
+        // update bcd
+        *bcd = NUM2BCD(val);
+    }
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    
+    return ret;
 }
 
 bool ShowProgress(u64 current, u64 total, const char* opstr)
