@@ -25,10 +25,12 @@ void sha_update(const void* src, u32 size)
 }
 
 void sha_get(void* res) {
+    u32 hash_size = (*REG_SHACNT&SHA224_MODE) ? (224/8) :
+                    (*REG_SHACNT&SHA1_MODE) ? (160/8) : (256/8);
     *REG_SHACNT = (*REG_SHACNT & ~SHA_NORMAL_ROUND) | SHA_FINAL_ROUND;
     while(*REG_SHACNT & SHA_FINAL_ROUND);
     while(*REG_SHACNT & 1);
-    memcpy(res, (void*)REG_SHAHASH, (256 / 8));
+    if (hash_size) memcpy(res, (void*)REG_SHAHASH, hash_size);
 }
 
 void sha_quick(void* res, const void* src, u32 size, u32 mode) {
