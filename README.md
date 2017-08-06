@@ -15,8 +15,10 @@ These short instructions apply to all users who have ARM9loaderhax or SigHax and
 * *[A9LH only]* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * *[SigHax only]* Rename `GodMode9.firm`(from the release archive) to `X_GodMode9.firm`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
 * Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/gm9/support` (optional but recommended for full functionality).
+* It is also recommended you setup the RTC clock if you're running GodMode9 for the first time. Find the option via HOME button -> `More...`. Also keep in mind that you should fix your system OS clock afterwards.
 * Helpful hint #1: Go [here](https://3ds.guide/godmode9-usage) for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
 * Helpful hint #2: __Never unlock the red write permission level unless you know exactly what you're doing__. You will notice that prompt when it comes up, it features a completely red screen. It is recommended you stay on the yellow permission level or below at all times to be completely safe. Also read more on the write permissions system below.
+* Helpful hint #3: A known perfect `aeskeydb.bin` can be found somewhere on the net, is exactly 1024 byte big and has an MD5 of A5B28945A7C051D7A0CD18AF0E580D1B. Have fun hunting!
 
 You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
@@ -24,11 +26,7 @@ You may now run GodMode9 via holding the X Button (or any other button you chose
 ## How to run this / entry points / developer info
 GodMode9 can be built to run from a number of entry points, descriptions are below. Note that you need to be on or below 3DS firmware version v11.2 (v9.2 if not using SafeHax/FastHax) or have ARM9loaderhax installed for any of these to work. All entrypoint files are included in the release archive.
 * __SigHax / Boot9Strap__: Copy `GodMode9.firm` to somewhere on your SD card (maybe refer to your CFW instructions) and run it from there. FIRM payloads can be ran from [Luma3DS](https://github.com/AuroraWright/Luma3DS) or [Boot9Strap](https://github.com/SciresM/Boot9Strap). Build this with `make firm` (requires [firmtool](https://github.com/TuxSH/firmtool) installed).
-* __A9LH, Brahma & SafeHax__: Copy `GodMode9.bin` to somewhere on your SD card and run it via either [arm9loaderhax](https://3ds.guide/), [Brahma](https://github.com/delebile/Brahma2) or [FastHax](https://github.com/nedwill/fasthax)/[SafeHax](https://github.com/TiniVi/safehax). Brahma derivatives / loaders (such as [BrahmaLoader](https://gbatemp.net/threads/release-easily-load-payloads-in-hb-launcher-via-brahma-2-mod.402857/)) and A9LH chainloaders (such as [BootCTR9](https://github.com/hartmannaf/BootCtr9)) will work with this as well. Build this with `make binary`.
-* __Homebrew Launcher__: Copy `GodMode9.3dsx` & `GodMode9.smdh` into `/3DS/GodMode9` on your SD card. Run this via [Smealums Homebrew Launcher](http://smealum.github.io/3ds/), [Mashers Grid Launcher](https://gbatemp.net/threads/release-homebrew-launcher-with-grid-layout.397527/) or any other compatible software. Build this with `make brahma`.
-* __CakeHax Browser__: Copy `GodMode9.dat` to the root of your SD card. You can then run it via http://dukesrg.github.io/?GodMode9.dat from your 3DS browser. Build this via `make cakehax`.
-* __CakeHax MSET__: Copy `GodMode9.dat` to the root of your SD card and `GodMode9.nds` to anywhere on the SD card. You can then run it either via MSET and GodMode9.nds. Build this via `make cakerop`.
-* __Gateway Browser Exploit__: Copy Launcher.dat to your SD card root and run this via http://go.gateway-3ds.com/ from your 3DS browser. Build this with `make gateway`. Please note: __this entrypoint is deprecated__. While it may still work at the present time with little to no problems, bugs will no more be fixed and it may be completely removed at a later time. Use CakeHax instead.
+* __A9LH__: Copy `GodMode9.bin` as `arm9loaderhax_si.bin` to somewhere on your SD card and run it via arm9loaderhax. A9LH chainloaders (such as [BootCTR9](https://github.com/hartmannaf/BootCtr9)) will work with this as well. Build this with `make binary`.
 
 If you are a developer and you are building this, you may also just run `make release` to build all files at once. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
 
@@ -85,17 +83,19 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
 * __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain files, write permissions can't be enabled.
 * __View text files in a text viewer__: Press the A button on a file and select `Show in Textviewer` (only shows up for actual text files). You can enable wordwrapped mode via R+Y, and navigate around the file via R+X and the dpad.
+* __Chainload FIRM payloads__: Press the A button on a file, select `FIRM options` -> `Boot FIRM`. Keep in mind you should not run FIRMs from dubious sources and that the write permissions system is no more in place after booting a payload.
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
 
 # Scripting functionality
 * __Run .gm9 scripts from anywhere on your SD card__: You can run scripts in .gm9 format via the A button menu. .gm9 scripts use a shell-like language and can be edited in any text editor. For an overview of usable commands have a look into the `HelloScript.gm9` included in the release archive. *Don't run scripts from untrusted sources.*
-* __Run .gm9 scripts via a neat menu__: Press the HOME Home button, select `More...` -> `Scripts...`. Any script you put into `0:/gm9/scripts` (subdirs included) will be found here. Scripts ran via this method won't have the confirmation at the beginning either.
+* __Run .gm9 scripts via a neat menu__: Press the HOME button, select `More...` -> `Scripts...`. Any script you put into `0:/gm9/scripts` (subdirs included) will be found here. Scripts ran via this method won't have the confirmation at the beginning either.
 
 # SD card handling
 * __Format your SD card / setup an EmuNAND__: Press the HOME button, select `More...` -> `SD format menu`. This also allows to setup a RedNAND or GW type EmuNAND on your SD card. You will get a warning prompt and an unlock sequence before any operation starts.
 * __Handle multiple EmuNANDs__: Press the HOME button, select `More...` -> `Switch EmuNAND` to switch between EmuNANDs / RedNANDs. (Only available on multi EmuNAND / RedNAND systems.)
 * __Run it without an SD card / unmount the SD card__: If no SD card is found, you will be offered to run without the SD card. You can also unmount and remount your SD card from the file system root at any point.
 * __Direct access to SD installed contents__: Just take a look inside the `A:`/`B:` drives. On-the-fly-crypto is taken care for, you can access this the same as any other content.
+* __Set (and use) the RTC clock__: For correct modification / creation dates in your file system, you need to setup the RTC clock first. Press the HOME Button and select `More...` to find the option. Keep in mind that modifying the RTC clock means you should also fix system OS time afterwards.
 
 # Game file handling
 * __List titles installed on your system__: Press R+A on a /title dir or a subdir below that (such dirs are found on `CTRNAND`, `TWLN` and on `A:`/`B:`). This will list all titles installed in the selected location. Works best with the below two features.
@@ -144,7 +144,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
-* **Wolfvak** for the ARM9 binary launcher and other improvements
+* **Wolfvak** for the FIRM binary launcher, and help on countless occasions
 * **WinterMute** and **YodaDaCoda** for help testing DSi cart dumping
 * **Al3x_10m**, **Supster131**, **imanoob**, **Kasher_CS** and all other fearless testers
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
