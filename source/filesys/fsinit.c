@@ -35,13 +35,12 @@ bool InitExtFS() {
 
 bool InitImgFS(const char* path) {
     // find drive # of the last image FAT drive
+    u32 type = IdentifyFileType(path);
     u32 drv_i = NORM_FS - IMGN_FS;
-    for (; drv_i < NORM_FS; drv_i++) {
-        char fsname[8];
-        snprintf(fsname, 7, "%lu:", drv_i);
-        if (!(DriveType(fsname)&DRV_IMAGE))
-            break;
-    }
+    if (type & IMG_NAND)
+        drv_i += IMGN_FS;
+    else
+        drv_i += 1;
     // deinit image filesystem
     DismountDriveType(DRV_IMAGE);
     // (re)mount image, done if path == NULL
