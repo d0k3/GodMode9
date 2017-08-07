@@ -144,7 +144,6 @@ release:
 	@$(MAKE) --no-print-directory binary
 	@$(MAKE) --no-print-directory firm
 	@[ -d $(RELEASE) ] || mkdir -p $(RELEASE)
-	@cp $(OUTPUT).bin $(RELEASE)
 	@cp $(OUTPUT).firm $(RELEASE)
 	@cp $(CURDIR)/README.md $(RELEASE)
 	@cp $(CURDIR)/HelloScript.gm9 $(RELEASE)

@@ -11,24 +11,22 @@ __As always, be smart, keep backups, just to be safe__.
 
 
 ## Quick start guide
-These short instructions apply to all users who have ARM9loaderhax or SigHax and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
-* *[A9LH only]* Rename `GodMode9.bin`(from the release archive) to `X_GodMode9.bin`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
-* *[SigHax only]* Rename `GodMode9.firm`(from the release archive) to `X_GodMode9.firm`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
-* Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `aeskeydb.bin`, `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these three files into `sd:/gm9/support` (optional but recommended for full functionality).
+These short instructions apply to all users who have [Boot9Strap](https://github.com/SciresM/boot9strap) and [Luma3DS](https://github.com/AuroraWright/Luma3DS) installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
+* Rename `GodMode9.firm`(from the release archive) to `X_GodMode9.firm`(change `X`to the button of your choice) and put it into `sd:/luma/payloads/`
+* Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `seeddb.bin` and `encTitlekeys.bin` from somewhere (don't ask me!) and put these two files into `sd:/gm9/support` (optional but recommended for full functionality).
 * It is also recommended you setup the RTC clock if you're running GodMode9 for the first time. Find the option via HOME button -> `More...`. Also keep in mind that you should fix your system OS clock afterwards.
 * Helpful hint #1: Go [here](https://3ds.guide/godmode9-usage) for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
 * Helpful hint #2: __Never unlock the red write permission level unless you know exactly what you're doing__. You will notice that prompt when it comes up, it features a completely red screen. It is recommended you stay on the yellow permission level or below at all times to be completely safe. Also read more on the write permissions system below.
-* Helpful hint #3: A known perfect `aeskeydb.bin` can be found somewhere on the net, is exactly 1024 byte big and has an MD5 of A5B28945A7C051D7A0CD18AF0E580D1B. Have fun hunting!
 
 You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
 
-## How to run this / entry points / developer info
-GodMode9 can be built to run from a number of entry points, descriptions are below. Note that you need to be on or below 3DS firmware version v11.2 (v9.2 if not using SafeHax/FastHax) or have ARM9loaderhax installed for any of these to work. All entrypoint files are included in the release archive.
-* __SigHax / Boot9Strap__: Copy `GodMode9.firm` to somewhere on your SD card (maybe refer to your CFW instructions) and run it from there. FIRM payloads can be ran from [Luma3DS](https://github.com/AuroraWright/Luma3DS) or [Boot9Strap](https://github.com/SciresM/Boot9Strap). Build this with `make firm` (requires [firmtool](https://github.com/TuxSH/firmtool) installed).
-* __A9LH__: Copy `GodMode9.bin` as `arm9loaderhax_si.bin` to somewhere on your SD card and run it via arm9loaderhax. A9LH chainloaders (such as [BootCTR9](https://github.com/hartmannaf/BootCtr9)) will work with this as well. Build this with `make binary`.
+## How to run this / developer info
+Copy `GodMode9.firm` to somewhere on your SD card (maybe refer to your CFW instructions) and run it from there. FIRM payloads can be ran from [Luma3DS](https://github.com/AuroraWright/Luma3DS) or [Boot9Strap](https://github.com/SciresM/Boot9Strap). Build this with `make firm` (requires [firmtool](https://github.com/TuxSH/firmtool) installed).
 
-If you are a developer and you are building this, you may also just run `make release` to build all files at once. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
+Entrypoints other than [Boot9Strap](https://github.com/SciresM/Boot9Strap) may require a aeskeydb.bin file. A known perfect `aeskeydb.bin` can be found somewhere on the net, is exactly 1024 byte big and has an MD5 of A5B28945A7C051D7A0CD18AF0E580D1B. Have fun hunting!
+
+If you are a developer and you are building this, you may also just run `make release` to get a nice, release-ready package of all requried files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
 
 
 ## Write permissions system
