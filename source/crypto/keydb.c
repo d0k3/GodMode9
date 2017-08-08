@@ -2,6 +2,9 @@
 #include "aes.h"
 #include "sha.h"
 #include "ff.h"
+#ifdef HARDCODE_KEYS
+#include "aeskeydb_bin.h"
+#endif
 
 typedef struct {
     u8   slot;           // keyslot, 0x00...0x39 
@@ -109,6 +112,41 @@ u32 CheckKeySlot(u32 keyslot, char type)
     return 1;
 }
 
+u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
+    UINT fsize = 0;
+    FIL fp;
+    
+    if (path_db) {
+        if (f_open(&fp, path_db, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
+            if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize))
+                fsize = 0;
+            f_close(&fp);
+        }
+    } else {
+        #ifdef HARDCODE_KEYS
+        fsize = (aeskeydb_bin_size <= bsize) ? aeskeydb_bin_size : 0;
+        if (fsize) memcpy(keydb, aeskeydb_bin, aeskeydb_bin_size);
+        #else
+        // try to load aeskeydb.bin file
+        const char* base[] = { SUPPORT_PATHS };
+        for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
+            char path[64];
+            snprintf(path, 64, "%s/%s", base[i], KEYDB_NAME);
+            if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
+                if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize)) fsize = 0;
+                f_close(&fp);
+                break;
+            }
+        }
+        #endif
+    }
+    
+    u32 nkeys = 0;
+    if (fsize && !(fsize % sizeof(AesKeyInfo)))
+        nkeys = fsize / sizeof(AesKeyInfo);
+    return nkeys;
+}
+
 u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
 {
     const char* base[] = { SUPPORT_PATHS };
@@ -126,25 +164,19 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
     if (!key) key = keystore;
     
     // try to get key from 'aeskeydb.bin' file
-    for (u32 i = 0; !found && (i < (sizeof(base)/sizeof(char*))); i++) {
-        FIL fp;
-        char path[64];
-        AesKeyInfo info;
-        UINT btr;
-        snprintf(path, 64, "%s/%s", base[i], KEYDB_NAME);
-        if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) continue;
-        while ((f_read(&fp, &info, sizeof(AesKeyInfo), &btr) == FR_OK) && (btr == sizeof(AesKeyInfo))) {
-            if ((info.slot == keyslot) && (info.type == type) && 
-                ((!id && !(info.id[0])) || (id && (strncmp(id, info.id, 10) == 0))) &&
-                (!info.keyUnitType || (info.keyUnitType == GetUnitKeysType()))) {
-                found = true;
-                if (info.isEncrypted)
-                    CryptAesKeyInfo(&info);
-                memcpy(key, info.key, 16);
-                break;
-            }
-        }
-        f_close(&fp);
+    AesKeyInfo* keydb = (AesKeyInfo*) TEMP_BUFFER;
+    u32 nkeys = LoadKeyDb(NULL, keydb, TEMP_BUFFER_SIZE);
+    for (u32 i = 0; i < nkeys; i++) {
+        AesKeyInfo* info = &(keydb[i]);
+        if (!((info->slot == keyslot) && (info->type == type) && 
+            ((!id && !(info->id[0])) || (id && (strncmp(id, info->id, 10) == 0))) &&
+            (!info->keyUnitType || (info->keyUnitType == GetUnitKeysType()))))
+            continue;
+        found = true;
+        if (info->isEncrypted)
+            CryptAesKeyInfo(info);
+        memcpy(key, info->key, 16);
+        break;
     }
     
     // load legacy slot0x??Key?.bin file instead
@@ -191,24 +223,10 @@ u32 InitKeyDb( void )
     // use this to quickly initialize all applicable keys in aeskeydb.bin
     static const u64 keyslot_whitelist = (1ull<<0x02)|(1ull<<0x03)|(1ull<<0x05)|(1ull<<0x18)|(1ull<<0x19)|(1ull<<0x1A)|(1ull<<0x1B)|
         (1ull<<0x1C)|(1ull<<0x1D)|(1ull<<0x1E)|(1ull<<0x1F)|(1ull<<0x24)|(1ull<<0x25)|(1ull<<0x2F);
-    AesKeyInfo* keydb = (AesKeyInfo*) (void*) TEMP_BUFFER;
-    u32 nkeys = 0;
     
     // try to load aeskeydb.bin file
-    const char* base[] = { SUPPORT_PATHS };
-    for (u32 i = 0; !nkeys && (i < (sizeof(base)/sizeof(char*))); i++) {
-        FIL fp;
-        UINT btr;
-        char path[64];
-        snprintf(path, 64, "%s/%s", base[i], KEYDB_NAME);
-        if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) continue;
-        if ((f_read(&fp, keydb, TEMP_BUFFER_SIZE, &btr) == FR_OK) &&
-            (btr > 0) && (btr < TEMP_BUFFER_SIZE) && !(btr % sizeof(AesKeyInfo)))
-            nkeys = btr / sizeof(AesKeyInfo);
-        f_close(&fp);
-    }
-    
-    // failed if arriving here with empty hands
+    AesKeyInfo* keydb = (AesKeyInfo*) (void*) TEMP_BUFFER;
+    u32 nkeys = LoadKeyDb(NULL, keydb, TEMP_BUFFER_SIZE);
     if (!nkeys) return 1;
     
     // apply all applicable keys

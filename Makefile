@@ -58,6 +58,10 @@ ifeq ($(SWITCH_SCREENS),1)
 	CFLAGS += -DSWITCH_SCREENS
 endif
 
+ifneq ("$(wildcard $(CURDIR)/data/aeskeydb.bin)","")
+	CFLAGS += -DHARDCODE_KEYS
+endif
+
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)
@@ -90,9 +94,11 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/gm9*.*)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/gm9*.*))) \
+				$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/aeskeydb.bin)))
 ifeq ($(SAFEMODE),1)
-	BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/sm9*.*)))
+	BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/sm9*.*))) \
+					$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/aeskeydb.bin)))
 endif
 
 #---------------------------------------------------------------------------------
@@ -178,6 +184,11 @@ $(OUTPUT).elf	:	$(OFILES)
 # you need a rule like this for each extension you use as binary data
 #---------------------------------------------------------------------------------
 %_qlz.h %.qlz.o: %.qlz
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
+#---------------------------------------------------------------------------------
+%_bin.h %.bin.o: %.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
