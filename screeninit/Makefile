@@ -12,9 +12,11 @@ dir_source := source
 dir_build := build
 dir_out := ../$(dir_build)
 
-ASFLAGS := -mcpu=mpcore -mfloat-abi=hard
-CFLAGS  := -Wall -Wextra -MMD -MP -mthumb -mthumb-interwork $(ASFLAGS) -fno-builtin -std=c11 -Wno-main -O2 -flto -ffast-math
-LDFLAGS := -nostdlib
+ASFLAGS := -mcpu=mpcore -mfloat-abi=soft
+CFLAGS  := -DARM11 -Wall -Wextra -MMD -MP -marm -mno-thumb-interwork \
+           $(ASFLAGS) -fno-builtin -std=c11 -Wno-main -O2 -flto -ffast-math \
+           -I$(dir_source) -I../common
+LDFLAGS := -nostdlib -nostartfiles
 
 objects = $(patsubst $(dir_source)/%.s, $(dir_build)/%.o, \
           $(patsubst $(dir_source)/%.c, $(dir_build)/%.o, \

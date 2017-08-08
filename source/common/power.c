@@ -2,6 +2,23 @@
 #include "i2c.h"
 #include "cache.h"
 #include "timer.h"
+#include "pxi.h"
+
+static const u8 br_settings[] = {0x1F, 0x3F, 0x7F, 0xBF};
+static int prev_brightness = -1;
+void CheckBrightness() {
+    u8 curSlider;
+    I2C_readRegBuf(I2C_DEV_MCU, 0x09, &curSlider, 1);
+    curSlider >>= 4;
+    if (curSlider != prev_brightness) {
+        PXI_Wait();
+        PXI_Send(br_settings[curSlider]);
+        PXI_SetRemote(PXI_SETBRIGHTNESS);
+        PXI_Sync();
+        prev_brightness = curSlider;
+    }
+    return;
+}
 
 void ScreenOn() {
     wait_msec(3); // wait 3ms (cause profi200 said so)

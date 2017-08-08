@@ -23,7 +23,7 @@ endif
 BUILD		:=	build
 SOURCES		:=	source source/common source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
 DATA		:=	data
-INCLUDES	:=	source source/common source/font source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
+INCLUDES	:=	common source source/common source/font source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz
 
 #---------------------------------------------------------------------------------
 # options for code generation

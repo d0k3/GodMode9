@@ -1,26 +1,33 @@
 // screeninit source taken over from https://github.com/AuroraWright/arm9loaderhax/tree/master/payload_stage2/arm11
 // check there for license info
 // thanks go to AuroraWright
-#include "types.h"
+#include <types.h>
+#include <cpu.h>
+#include <gic.h>
+#include <pxi.h>
 
 // see: https://github.com/AuroraWright/Luma3DS/blob/53209b9be0c264af00fb81b32146d27f0d9498ac/source/screen.h#L32-L34
 #define PDN_GPU_CNT (*(vu8  *)0x10141200)
 #define ARESCREENSINITIALIZED (PDN_GPU_CNT != 1)
 
-#define BRIGHTNESS (0xBF)
+#define BASE_BRIGHTNESS (0x1F)
 
-void main(void)
+static volatile struct fb {
+     u8 *top_left;
+     u8 *top_right;
+     u8 *bottom;
+} *const fb = (volatile struct fb *)0x23FFFE00;
+
+void screen_init(void)
 {
     char do_disco = !ARESCREENSINITIALIZED;
-    vu32 *arm11Entry = (vu32 *)0x1FFFFFFC;
-    u32 entry;
 
     *(vu32 *)0x10141200 = 0x1007F;
     *(vu32 *)0x10202014 = 0x00000001;
     *(vu32 *)0x1020200C &= 0xFFFEFFFE;
 
-    *(vu32 *)0x10202240 = BRIGHTNESS;
-    *(vu32 *)0x10202A40 = BRIGHTNESS;
+    *(vu32 *)0x10202240 = BASE_BRIGHTNESS;
+    *(vu32 *)0x10202A40 = BASE_BRIGHTNESS;
     *(vu32 *)0x10202244 = 0x1023E;
     *(vu32 *)0x10202A44 = 0x1023E;
 
@@ -107,21 +114,59 @@ void main(void)
          *REGs_PSC1 = (vu32 *)0x10400020;
 
     REGs_PSC0[0] = (u32)fb->top_left >> 3; //Start address
-    REGs_PSC0[1] = (u32)(fb->top_left + SCREEN_TOP_FBSIZE) >> 3; //End address
+    REGs_PSC0[1] = (u32)(fb->top_left + 0x46500) >> 3; //End address
     REGs_PSC0[2] = 0; //Fill value
     REGs_PSC0[3] = (2 << 8) | 1; //32-bit pattern; start
 
     REGs_PSC1[0] = (u32)fb->bottom >> 3; //Start address
-    REGs_PSC1[1] = (u32)(fb->bottom + SCREEN_BOTTOM_FBSIZE) >> 3; //End address
+    REGs_PSC1[1] = (u32)(fb->bottom + 0x38400) >> 3; //End address
     REGs_PSC1[2] = 0; //Fill value
     REGs_PSC1[3] = (2 << 8) | 1; //32-bit pattern; start
 
     while(!((REGs_PSC0[3] & 2) && (REGs_PSC1[3] & 2)));
+    return;
+}
+
+void set_brightness(u8 brightness)
+{
+    *(vu32 *)0x10202240 = brightness;
+    *(vu32 *)0x10202A40 = brightness;
+}
+
+void pxi_interrupt_handler(__attribute__((unused)) u32 xrq_n)
+{
+    u8 msg = PXI_GetRemote();
+    switch(msg) {
+    case PXI_NOCMD:
+        break;
+    case PXI_SETBRIGHTNESS:
+        set_brightness(PXI_Recv());
+        break;
+    }
+    PXI_SetRemote(PXI_NOCMD);
+    return;
+}
+
+void main(void)
+{
+    vu32 *arm11Entry = (vu32 *)0x1FFFFFFC;
+    u32 entry;
+
+    PXI_Reset();
+    GIC_Reset();
+    screen_init();
 
     // Clear ARM11 entrypoint
     *arm11Entry = 0;
 
+    GIC_Configure(IRQ_PXI_SYNC, pxi_interrupt_handler);
+    PXI_EnableIRQ();
+    CPU_EnableIRQ();
+
     //Wait for the entrypoint to be set, then branch to it
     while((entry=*arm11Entry) == 0);
+
+    CPU_DisableIRQ();
+    PXI_DisableIRQ();
     ((void (*)())(entry))();
 }
