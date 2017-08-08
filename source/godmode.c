@@ -132,8 +132,8 @@ void GetTimeString(char* timestr, bool forced_update) {
         get_dstime(&dstime);
         timer = timer_start();
     }
-    if (timestr) snprintf(timestr, 31, "%02lX/%02lX/%02lX %02lX:%02lX",
-        (u32) dstime.bcd_D, (u32) dstime.bcd_M, (u32) dstime.bcd_Y, (u32) dstime.bcd_h, (u32) dstime.bcd_m);
+    if (timestr) snprintf(timestr, 31, "20%02lX-%02lX-%02lX %02lX:%02lX",
+        (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D, (u32) dstime.bcd_h, (u32) dstime.bcd_m);
 }
 
 void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
@@ -1480,7 +1480,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     if (multi > 0) optionstr[multi - 1] = "Switch EmuNAND";
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
-    if (clock > 0) optionstr[clock - 1] = "Set RTC clock";
+    if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
     if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
@@ -1565,11 +1565,11 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     } else if (user_select == clock) { // RTC clock setter
         DsTime dstime;
         get_dstime(&dstime);
-        if (ShowRtcSetterPrompt(&dstime, "Set RTC time/date")) {
+        if (ShowRtcSetterPrompt(&dstime, "Set RTC date&time:")) {
             char timestr[32];
             set_dstime(&dstime);
             GetTimeString(timestr, true);
-            ShowPrompt(false, "New RTC time/date is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.",
+            ShowPrompt(false, "New RTC date&time is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.",
                 timestr);
         }
         return 0;

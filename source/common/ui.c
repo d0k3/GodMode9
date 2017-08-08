@@ -619,8 +619,8 @@ bool ShowRtcSetterPrompt(void* time, const char *format, ...) {
     }
     
     str_width = GetDrawStringWidth(str);
-    str_height = GetDrawStringHeight(str) + (3*10);
-    if (str_width < (17 * FONT_WIDTH)) str_width = 17 * FONT_WIDTH;
+    str_height = GetDrawStringHeight(str) + (4*10);
+    if (str_width < (19 * FONT_WIDTH)) str_width = 19 * FONT_WIDTH;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
@@ -630,14 +630,15 @@ bool ShowRtcSetterPrompt(void* time, const char *format, ...) {
     int cursor = 0;
     bool ret = false;
     while (true) {
-        static const int val_max[] = { 23, 59, 59, 31, 12, 99 };
-        static const int val_min[] = {  0,  0,  0,  1,  1,  0 };
-        u8* bcd = &(((u8*)dstime)[(cursor<3) ? (2-cursor) : (cursor+1)]);
+        static const int val_max[] = { 99, 12, 31, 23, 59, 59 };
+        static const int val_min[] = {  0,  1,  1,  0,  0,  0 };
+        u8* bcd = &(((u8*)dstime)[(cursor<3) ? (6-cursor) : (6-1-cursor)]);
         int val = BCD2NUM(*bcd);
         int max = val_max[cursor];
         int min = val_min[cursor];
-        DrawStringF(MAIN_SCREEN, x, y + str_height - 18, COLOR_STD_FONT, COLOR_STD_BG, "%02lX:%02lX:%02lX %02lX/%02lX/%02lX\n%-*.*s^^%-*.*s",
-            (u32) dstime->bcd_h, (u32) dstime->bcd_m, (u32) dstime->bcd_s, (u32) dstime->bcd_D, (u32) dstime->bcd_M, (u32) dstime->bcd_Y,
+        DrawStringF(MAIN_SCREEN, x, y + str_height - 28, COLOR_STD_FONT, COLOR_STD_BG, "YYYY-MM-DD hh:mm:ss");
+        DrawStringF(MAIN_SCREEN, x, y + str_height - 18, COLOR_STD_FONT, COLOR_STD_BG, "20%02lX-%02lX-%02lX %02lX:%02lX:%02lX\n  %-*.*s^^%-*.*s",
+            (u32) dstime->bcd_Y, (u32) dstime->bcd_M, (u32) dstime->bcd_D, (u32) dstime->bcd_h, (u32) dstime->bcd_m, (u32) dstime->bcd_s,
             cursor * 3, cursor * 3, "", 17 - 2 - (cursor * 3), 17 - 2 - (cursor * 3), "");
             
         // user input
