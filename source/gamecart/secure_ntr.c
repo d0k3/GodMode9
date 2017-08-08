@@ -322,10 +322,7 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
 
     if(!iCardDevice) //CycloDS doesn't like the dsi secure area being decrypted
     {
-        if(secureArea[0] != 0x72636e65/*'encr'*/ || secureArea[1] != 0x6a624f79/*'yObj'*/) // already decrypted?
-        {
-            NTR_DecryptSecureArea (iGameCode, iCardHash, nCardHash, iKeyCode, secureArea, iCardDevice);
-        }
+		NTR_DecryptSecureArea (iGameCode, iCardHash, nCardHash, iKeyCode, secureArea, iCardDevice);
 	}
 
     //Debug("secure area %08X %08X", secureArea[0], secureArea[1]);
