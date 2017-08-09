@@ -28,13 +28,12 @@ INCLUDES	:=	common source source/common source/font source/filesys source/crypto
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork -flto
+ARCH	:=	-DARM9 -march=armv5te -mthumb -mthumb-interwork -flto
 
-CFLAGS	:=	-g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2\
-			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu11\
-			$(ARCH)
-
-CFLAGS	+=	$(INCLUDE) -DARM9
+ASFLAGS	:=	$(ARCH) -g -x assembler-with-cpp $(INCLUDE)
+CFLAGS	:=	$(ARCH) -g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2 \
+			-mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu11 \
+			$(INCLUDE)
 
 CFLAGS	+=	-DBUILD_NAME="\"$(TARGET) (`date +'%Y/%m/%d'`)\""
 
@@ -60,7 +59,6 @@ endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
-ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-T../link.ld -nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
 
 LIBS	:=

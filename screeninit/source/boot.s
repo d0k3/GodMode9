@@ -3,10 +3,12 @@
 .section .text.boot
 .arm
 
+#include <arm.h>
+
 .global __boot
 __boot:
     @ Disable interrupts and switch to IRQ
-    cpsid aif, #0x12
+    cpsid aif, #(SR_SVC_MODE)
 
     @ Writeback and invalidate caches
     mov r0, #0
@@ -14,11 +16,7 @@ __boot:
     mcr p15, 0, r0, c7, c14, 0
     mcr p15, 0, r0, c7, c10, 4
 
-    ldr sp, =__irq_stack
-
-    @ Switch to SVC
-    cpsid aif, #0x13
-    ldr sp, =__prg_stack
+    ldr sp, =__stack_top
 
     @ Reset values
     ldr r0, =0x00054078

@@ -2,11 +2,13 @@
 .align 4
 .arm
 
+#include <arm.h>
+
 @ make sure not to clobber r0-r2
 .global _start
 _start:
     @ Switch to supervisor mode and disable interrupts
-    msr cpsr_c, #0xD3
+    msr cpsr_c, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
 
     @ Short delay (not always necessary, just in case)
     mov r3, #0x40000
