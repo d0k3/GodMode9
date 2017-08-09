@@ -133,7 +133,7 @@ void set_brightness(u8 brightness)
     *(vu32 *)0x10202A40 = brightness;
 }
 
-void pxi_interrupt_handler(__attribute__((unused)) u32 xrq_n)
+void pxi_interrupt_handler(void)
 {
     u8 msg = PXI_GetRemote();
     switch(msg) {

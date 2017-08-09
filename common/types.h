@@ -7,6 +7,7 @@
 #endif
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define BIT(x) (1<<(x))
 
