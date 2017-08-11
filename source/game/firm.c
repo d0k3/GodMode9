@@ -11,9 +11,9 @@
 
 // valid addresses for FIRM section loading, pairs of start / end address, provided by Wolfvak
 #define FIRM_VALID_ADDRESS  \
-    0x08006000, 0x08800000, \
+    0x08000040, 0x08100000, \
     0x18000000, 0x18600000, \
-    0x1FFF0000, 0x1FFFFFFC, \
+    0x1FF80000, 0x1FFFFFFC, \
     0x20000000, 0x23FFFE00, \
     0x24000000, 0x27FFFB00
 
@@ -29,7 +29,7 @@ u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
         if (section->offset < firm_size) return 1;
-        if ((section->offset % 512) || (section->address % 512) || (section->size % 512)) return 1;
+        if ((section->offset % 512) || (section->address % 16) || (section->size % 512)) return 1;
         if ((header->entry_arm11 >= section->address) &&
             (header->entry_arm11 < section->address + section->size))
             section_arm11 = i;
