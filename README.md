@@ -28,6 +28,8 @@ Entrypoints other than [Boot9Strap](https://github.com/SciresM/Boot9Strap) may r
 
 If you are a developer and you are building this, you may also just run `make release` to get a nice, release-ready package of all requried files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
 
+To build a .firm signed with SPI boot keys (for ntrboothax and the like), run `make ntrboot`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some minor features such as decrypted OTP are not currently available from the ntrboot environment.
+
 
 ## Write permissions system
 GodMode9 provides a write permissions system, which will protect you from accidentually damaging you system, losing data and/or modifying important system data. To unlock a write permission, an unlock sequence must be entered. This is not possible by accident. The write permission system is based on colors and the top bar on the top screen will change color according to the current write permission level. No permission above the yellow level can be unlocked on SafeMode9.
