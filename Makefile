@@ -129,7 +129,7 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 .PHONY: common clean all firm binary screeninit release
 
 #---------------------------------------------------------------------------------
-all: firm
+all: firm ntrboot
 
 common:
 	@[ -d $(OUTPUT_D) ] || mkdir -p $(OUTPUT_D)
@@ -144,6 +144,10 @@ binary: common
 firm: binary screeninit
 	firmtool build $(OUTPUT).firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-retail -g
 	firmtool build $(OUTPUT)_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-dev -g
+
+ntrboot: binary screeninit
+	firmtool build $(OUTPUT)_ntr.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-retail -g
+	firmtool build $(OUTPUT)_ntr_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-dev -g
 
 release:
 	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
