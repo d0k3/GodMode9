@@ -78,7 +78,11 @@ BootFirm_stub:
         @ R2 = 0x0000BEEF
         @ R3-R14 are undefined
 
-        mov r0, #2
+        @ Check screen-init flag
+        ldrb r3, [r10, #0x10]
+        tst r3, #1
+        movne r0, #2
+        moveq r0, #1
         ldr r1, =ARGV_LOC
         ldr r2, =ARG_MAGIC
 
@@ -86,8 +90,8 @@ BootFirm_stub:
     @ Setup argv
     str r9, [r1, #0x00] @ FIRM path / argv[0]
 
-    ldr r3, =FBPTR_LOC
-    str r3, [r1, #0x04] @ Framebuffers / argv[1]
+    ldrne r3, =FBPTR_LOC
+    strne r3, [r1, #0x04] @ Framebuffers / argv[1]
 
     @ Fetch FIRM entrypoints
     ldr r3, [r10, #0x08] @ ARM11 entrypoint
