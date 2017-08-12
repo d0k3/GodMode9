@@ -23,7 +23,7 @@ irq_handler GIC_AckIRQ(void)
     return ret;
 }
 
-void GIC_Configure(u32 irq_id, irq_handler hndl)
+void GIC_SetIRQ(u32 irq_id, irq_handler hndl)
 {
     handler_table[irq_id] = hndl;
     DIC_CLRENABLE[irq_id/32] |= BIT(irq_id & 0x1F);
@@ -34,30 +34,27 @@ void GIC_Configure(u32 irq_id, irq_handler hndl)
 
 void GIC_Reset(void)
 {
-    *DIC_CONTROL = 0;
-    *GIC_CONTROL = 0;
+    *GIC_CONTROL = 1;
+    *DIC_CONTROL = 1;
 
     *GIC_PRIOMASK = ~0;
-    for (int i = 0; i < 0x80; i++) {
+    for (int i = 0; i < MAX_IRQ; i++) {
+        handler_table[i] = NULL;
         *GIC_IRQEND = i;
     }
 
-    for (int i = 0; i < (0x20/4); i++) {
+    for (int i = 0; i < (0x08); i++) {
         DIC_CLRENABLE[i] = ~0;
         DIC_PRIORITY[i] = 0;
     }
 
     while(*GIC_PENDING != SPURIOUS_IRQ) {
-        for (int i=0; i < (0x20/4); i++) {
+        for (int i=0; i < (0x08); i++) {
             DIC_CLRPENDING[i] = ~0;
         }
     }
 
     IRQ_BASE[1] = (u32)&main_irq_handler;
     IRQ_BASE[0] = 0xE51FF004;
-
-    *GIC_CONTROL = 1;
-    *DIC_CONTROL = 1;
-
     return;
 }

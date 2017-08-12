@@ -3,8 +3,9 @@
 .arm
 
 #include <arm.h>
+#include <brf.h>
 
-@ make sure not to clobber r0-r2
+@ Make sure to preserve r0-r2
 .global _start
 _start:
     @ Switch to supervisor mode and disable interrupts
@@ -33,7 +34,7 @@ _start:
     mov r5, r0
     mov r6, r1
     mov r7, r2
-    ldr r3, =0xFFFF0830       @ Writeback & Invalidate DCache
+    ldr r3, =BRF_WB_INV_DCACHE
     blx r3
     mov r0, r5
     mov r1, r6
@@ -57,12 +58,13 @@ _start_gm:
     movne r9, #0
 
     @ Disable caches / mpu
-    mrc p15, 0, r4, c1, c0, 0  @ read control register
-    bic r4, #(1<<16)           @ - dtcm disable (mandated by the docs, before you change the dtcm's address)
-    bic r4, #(1<<12)           @ - instruction cache disable
-    bic r4, #(1<<2)            @ - data cache disable
-    bic r4, #(1<<0)            @ - mpu disable
-    mcr p15, 0, r4, c1, c0, 0  @ write control register
+    ldr r1, =(CR_ENABLE_MPU | CR_ENABLE_DCACHE | CR_ENABLE_ICACHE | \
+              CR_ENABLE_DTCM)
+    ldr r2, =(CR_ENABLE_ITCM | CR_CACHE_RROBIN)
+    mrc p15, 0, r0, c1, c0, 0
+    bic r0, r1
+    orr r0, r2
+    mcr p15, 0, r0, c1, c0, 0
 
     @ Clear bss
     ldr r0, =__bss_start
@@ -84,53 +86,61 @@ _start_gm:
     mcr p15, 0, r5, c5, c0, 2 @ write data access
     mcr p15, 0, r5, c5, c0, 3 @ write instruction access
 
-    @ Sets MPU permissions and cache settings
-    ldr r0, =0xFFFF001F	@ ffff0000 64k  | bootrom (unprotected / protected)
-    ldr r1, =0x3000801B	@ 30008000 16k  | dtcm
-    ldr r2, =0x01FF801D	@ 01ff8000 32k  | itcm
-    ldr r3, =0x08000029	@ 08000000 2M   | arm9 mem (O3DS / N3DS)
-    ldr r4, =0x10000029	@ 10000000 2M   | io mem (ARM9 / first 2MB)
-    ldr r5, =0x20000037	@ 20000000 256M | fcram (O3DS / N3DS)
-    ldr r6, =0x1FF00027	@ 1FF00000 1M   | dsp / axi wram
-    ldr r7, =0x1800002D	@ 18000000 8M   | vram (+ 2MB)
-    mov r8, #0b00101101 @ bootrom/itcm/arm9 mem and fcram are cacheable/bufferable
-    mcr p15, 0, r0, c6, c0, 0
-    mcr p15, 0, r1, c6, c1, 0
-    mcr p15, 0, r2, c6, c2, 0
-    mcr p15, 0, r3, c6, c3, 0
-    mcr p15, 0, r4, c6, c4, 0
-    mcr p15, 0, r5, c6, c5, 0
-    mcr p15, 0, r6, c6, c6, 0
-    mcr p15, 0, r7, c6, c7, 0
-    mcr p15, 0, r8, c3, c0, 0	@ Write bufferable 0, 2, 5
-    mcr p15, 0, r8, c2, c0, 0	@ Data cacheable 0, 2, 5
-    mcr p15, 0, r8, c2, c0, 1	@ Inst cacheable 0, 2, 5
+    @ Sets MPU regions and cache settings
+    adr r0, __mpu_regions
+    ldmia r0, {r1-r8}
+    mov r0, #0b00101101 @ bootrom/itcm/arm9 mem and fcram are cacheable/bufferable
+    mcr p15, 0, r1, c6, c0, 0
+    mcr p15, 0, r2, c6, c1, 0
+    mcr p15, 0, r3, c6, c2, 0
+    mcr p15, 0, r4, c6, c3, 0
+    mcr p15, 0, r5, c6, c4, 0
+    mcr p15, 0, r6, c6, c5, 0
+    mcr p15, 0, r7, c6, c6, 0
+    mcr p15, 0, r8, c6, c7, 0
+    mcr p15, 0, r0, c3, c0, 0	@ Write bufferable 0, 2, 5
+    mcr p15, 0, r0, c2, c0, 0	@ Data cacheable 0, 2, 5
+    mcr p15, 0, r0, c2, c0, 1	@ Inst cacheable 0, 2, 5
 
     @ Enable dctm
-    ldr r1, =0x3000800A        @ set dtcm
-    mcr p15, 0, r1, c9, c1, 0  @ set the dtcm Region Register
+    ldr r0, =0x3000800A        @ set dtcm
+    mcr p15, 0, r0, c9, c1, 0  @ set the dtcm Region Register
 
-    @ Wait for screen init
-    mov r0, #0x20000000
-    .Lwaitforsi:
-        ldr r1, [r0, #-4]
-        cmp r1, #0
-        bne .Lwaitforsi
+    @ Install exception handlers
+    ldr r0, =XRQ_Start
+    ldr r1, =XRQ_End
+    ldr r2, =0x00000000
+    .LXRQ_Install:
+        cmp r0, r1
+        ldrlt r3, [r0], #4
+        strlt r3, [r2], #4
+        blt .LXRQ_Install
 
-    @ Enable caches
-    mrc p15, 0, r4, c1, c0, 0  @ read control register
-    orr r4, r4, #(1<<18)       @ - itcm enable
-    orr r4, r4, #(1<<16)       @ - dtcm enable
-    orr r4, r4, #(1<<12)       @ - instruction cache enable
-    orr r4, r4, #(1<<2)        @ - data cache enable
-    orr r4, r4, #(1<<0)        @ - mpu enable
-    mcr p15, 0, r4, c1, c0, 0  @ write control register
+    @ Enable caches / select low exception vectors
+    ldr r1, =(CR_ALT_VECTORS | CR_DISABLE_TBIT)
+    ldr r2, =(CR_ENABLE_MPU | CR_ENABLE_DCACHE | CR_ENABLE_ICACHE | \
+              CR_ENABLE_DTCM)
+    mrc p15, 0, r0, c1, c0, 0
+    bic r0, r1
+    orr r0, r2
+    mcr p15, 0, r0, c1, c0, 0
 
     @ Fixes mounting of SDMC
-    ldr r0, =0x10000020
+    ldr r0, =0x10000000
     mov r1, #0x340
-    str r1, [r0]
+    str r1, [r0, #0x20]
 
     mov r0, r9
     mov r1, r10
-    b main
+
+    bl main
+
+__mpu_regions:
+    .word 0xFFFF001F @ ffff0000 64k  | bootrom (unprotected / protected)
+    .word 0x3000801B @ 30008000 16k  | dtcm
+    .word 0x00000035 @ 00000000 128M | itcm
+    .word 0x08000029 @ 08000000 2M   | arm9 mem (O3DS / N3DS)
+    .word 0x10000029 @ 10000000 2M   | io mem (ARM9 / first 2MB)
+    .word 0x20000037 @ 20000000 256M | fcram (O3DS / N3DS)
+    .word 0x1FF00027 @ 1FF00000 1M   | dsp / axi wram
+    .word 0x1800002D @ 18000000 8M   | vram (+ 2MB)

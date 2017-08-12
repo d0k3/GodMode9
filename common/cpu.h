@@ -37,7 +37,7 @@ static inline void CPU_WriteCR(u32 cr)
 static inline void CPU_DisableIRQ(void)
 {
     #ifdef ARM9
-    CPU_WriteCPSR_c(CPU_ReadCPSR() | (0xC0));
+    CPU_WriteCPSR_c(CPU_ReadCPSR() | (SR_IRQ | SR_FIQ));
     #else
     asm("cpsid if\n\t");
     #endif
@@ -47,7 +47,7 @@ static inline void CPU_DisableIRQ(void)
 static inline void CPU_EnableIRQ(void)
 {
     #ifdef ARM9
-    CPU_WriteCPSR_c(CPU_ReadCPSR() & ~(0xC0));
+    CPU_WriteCPSR_c(CPU_ReadCPSR() & ~(SR_IRQ | SR_FIQ));
     #else
     asm("cpsie if\n\t");
     #endif
