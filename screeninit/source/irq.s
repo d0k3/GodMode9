@@ -8,7 +8,7 @@
 main_irq_handler:
     sub lr, lr, #4             @ Fix return address
     srsdb sp!, #(SR_SVC_MODE)  @ Store IRQ mode LR and SPSR on the SVC stack
-    cps #(SR_SVC_MODE)         @ Switch to SVC mode
+    cpsid i, #(SR_SVC_MODE)    @ Switch to SVC mode
     push {r0-r3,r12}           @ Preserve registers
     and r1, sp, #4
     sub sp, sp, r1             @ Word-align stack
@@ -18,9 +18,7 @@ main_irq_handler:
     cmp r0, #0
     beq .Lskip_irq
 
-    cpsie i
-    blx r0                     @ Branch to interrupt handler with IRQs enabled
-    cpsid i
+    blx r0                     @ Branch to interrupt handler
 
     .Lskip_irq:
     pop {r1,lr}

@@ -8,7 +8,7 @@
 .global __boot
 __boot:
     @ Disable interrupts and switch to IRQ
-    cpsid aif, #(SR_SVC_MODE)
+    cpsid if, #(SR_SVC_MODE)
 
     @ Writeback and invalidate caches
     mov r0, #0
@@ -32,8 +32,8 @@ __boot:
     ldr r1, =__bss_end
     mov r2, #0
     .Lclearbss:
-        str r2, [r0], #4
         cmp r0, r1
+        strlt r2, [r0], #4
         blt .Lclearbss
 
     bl main

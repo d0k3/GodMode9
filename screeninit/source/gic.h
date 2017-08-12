@@ -30,5 +30,5 @@ typedef void (*irq_handler)(void);
 #define DIC_PROCTGT    ((vu8*) (DIC_BASE + 0x800))
 #define DIC_CFGREG     ((vu32*)(DIC_BASE + 0xC00))
 
-void GIC_Configure(u32 irq_id, irq_handler hndl);
+void GIC_SetIRQ(u32 irq_id, irq_handler hndl);
 void GIC_Reset(void);
