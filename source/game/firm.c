@@ -71,12 +71,11 @@ u32 ValidateFirm(void* firm, u32 firm_size) {
         u32 valid_address[] = { FIRM_VALID_ADDRESS };
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
-        if (sha_cmp(section->hash, (u8*) firm + section->offset, section->size, SHA256_MODE) != 0) {
+        if (sha_cmp(section->hash, ((u8*) firm) + section->offset, section->size, SHA256_MODE) != 0)
             return 1;
-        }
         bool is_valid_address = false;
         for (u32 a = 0; a < sizeof(valid_address) / (2*sizeof(u32)); a++) {
-            if ((valid_address[2*a] >= section->address) && (valid_address[(2*a)+1] <= section->address + section->size))
+            if ((section->address >= valid_address[2*a]) && (section->address + section->size <= valid_address[(2*a)+1]))
                 is_valid_address = true;
         }
         if (!is_valid_address) return 1;

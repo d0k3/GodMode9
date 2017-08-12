@@ -1423,7 +1423,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             ShowPrompt(false, "FIRM too big, can't launch"); // unlikely
         } else if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024)) {
             if ((FileGetData(curr_entry->path, TEMP_BUFFER, firm_size, 0) == firm_size) &&
-                (ValidateFirm(TEMP_BUFFER, firm_size) != 0)) {
+                (ValidateFirm(TEMP_BUFFER, firm_size) == 0)) {
                 // fix the boot path first ("sdmc"/"nand" for Luma et al, hacky af)
                 const char* bootpath = curr_entry->path;
                 char fixpath[256] = { 0 };
