@@ -13,7 +13,7 @@ int ReadVGameFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
 // int WriteVGameFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count); // writing is not enabled
 
 bool FindVirtualFileInLv3Dir(VirtualFile* vfile, const VirtualDir* vdir, const char* name);
-bool GetVGameLv3Filename(char* name, const VirtualFile* vfile, u32 n_chars);
-bool MatchVGameLv3Filename(const char* name, const VirtualFile* vfile, u32 n_chars);
+bool GetVGameFilename(char* name, const VirtualFile* vfile, u32 n_chars);
+bool MatchVGameFilename(const char* name, const VirtualFile* vfile, u32 n_chars);
 
 u64 GetVGameDriveSize(void);

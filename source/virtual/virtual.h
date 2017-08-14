@@ -19,14 +19,15 @@
 #define VFLAG_ROOT      (1UL<<17)
 #define VFLAG_LV3       (1UL<<18)
 
+
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
                     {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_TICKDB}, {'C', VRT_CART}
 
 // virtual file flag (subject to change):
 // bits 0...9  : reserved for NAND virtual sources and info
 // bits 10...15: reserved for other virtual sources
-// bits 16...21: reserved for external flags
-// bits 22...31: reserved for internal flags (different per source)
+// bits 16...19: reserved for external flags
+// bits 20...31: reserved for internal flags (different per source)
 typedef struct {
     char name[32];
     u64 offset; // must be a multiple of 0x200 (for NAND access)

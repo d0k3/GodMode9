@@ -111,8 +111,8 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
         if (!(vdir.flags & VFLAG_LV3)) { // standard method
             while (true) {
                 if (!ReadVirtualDir(vfile, &vdir)) return false;
-                if ((!(vfile->flags & VFLAG_LV3) && (strncasecmp(name, vfile->name, 32) == 0)) ||
-                    ((vfile->flags & VFLAG_LV3) && MatchVGameLv3Filename(name, vfile, 256)))
+                if ((!(vfile->flags & VRT_GAME) && (strncasecmp(name, vfile->name, 32) == 0)) ||
+                    ((vfile->flags & VRT_GAME) && MatchVGameFilename(name, vfile, 256)))
                     break; // entry found
             }
         } else { // use lv3 hashes for quicker search
@@ -132,8 +132,8 @@ bool GetVirtualDir(VirtualDir* vdir, const char* path) {
 }
 
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
-    if (!(vfile->flags & VFLAG_LV3)) strncpy(name, vfile->name, n_chars);
-    else if (!GetVGameLv3Filename(name, vfile, n_chars)) return false;
+    if (!(vfile->flags & VRT_GAME)) strncpy(name, vfile->name, n_chars);
+    else if (!GetVGameFilename(name, vfile, n_chars)) return false;
     return true;
 }
 

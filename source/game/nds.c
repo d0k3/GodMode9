@@ -3,6 +3,19 @@
 
 #define CRC16_TABVAL  0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400
 
+
+typedef struct {
+    u32 subtable_offset;
+    u16 file0_id;
+    u16 parent_id; // total # of dirs for root entry
+} __attribute__((packed)) NitroFntBaseEntry;
+
+typedef struct {
+    u32 start_address;
+    u32 end_address;
+} __attribute__((packed)) NitroFatEntry;
+
+
 // see: https://github.com/TASVideos/desmume/blob/master/desmume/src/bios.cpp#L1070tions
 u16 crc16_quick(const void* src, u32 len) {
     const u16 tabval[] = { CRC16_TABVAL };
@@ -73,5 +86,52 @@ u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon) {
             }
         }
     }
+    return 0;
+}
+
+u32 ReadNitroRomDir(u32 dirid, u64* offset, u64* size, bool* is_dir, u8** fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat) {
+    static u32 fileid = 0;
+    static u8* subtbl_end = NULL;
+    NitroFntBaseEntry* fnt_base = (NitroFntBaseEntry*) fnt;
+    NitroFntBaseEntry* fnt_dir = &((NitroFntBaseEntry*) fnt)[dirid];
+    NitroFatEntry* fat_lut = (NitroFatEntry*) fat;
+    
+    if (dirid >= fnt_base->parent_id) return 1; // dir ID out of bounds
+    if (*fnt_entry && (*fnt_entry - fnt >= (int) hdr->fnt_size)) return 1; // FNT entry out of bounds
+    if (fnt_base->parent_id*sizeof(NitroFntBaseEntry) > fnt_base->subtable_offset) return 1; // invalid FNT
+    
+    if (!*fnt_entry) { // if *fnt_entry is NULL: reset file id and start with first entry
+        *fnt_entry = fnt + fnt_dir->subtable_offset;
+        fileid = fnt_dir->file0_id;
+        for (subtbl_end = *fnt_entry; *subtbl_end && (subtbl_end < fnt + hdr->fnt_size); subtbl_end++);
+    } else { // advance to next entry
+        u32 pfnlen = **fnt_entry & ~0x80;
+        bool was_dir = **fnt_entry & 0x80;
+        *fnt_entry += 1 + pfnlen + (was_dir?2:0);
+        if (!was_dir) fileid++;
+    }
+    
+    // check for trouble
+    if (*fnt_entry > subtbl_end)
+        return 1;
+    
+    // check for end of subtable
+    if (!**fnt_entry) { // end of subtable reached
+        *fnt_entry = NULL;
+        return 0;
+    }
+    
+    *is_dir = **fnt_entry & 0x80;
+    if (!(*is_dir)) { // for files
+        if (fileid*sizeof(NitroFatEntry) > hdr->fat_size) return 1; // corrupt fnt / fat
+        if (fat_lut[fileid].start_address > fat_lut[fileid].end_address) return 1; // corrupt fat
+        *offset = fat_lut[fileid].start_address;
+        *size = fat_lut[fileid].end_address - fat_lut[fileid].start_address;
+    } else { // for dirs
+        u32 fnlen = **fnt_entry & ~0x80;
+        *offset = (u64) ((*fnt_entry)[1+fnlen]|((*fnt_entry)[1+fnlen+1]<<8)) & 0xFFF; // dir ID goes in offset
+        *size = 0;
+    }
+    
     return 0;
 }
