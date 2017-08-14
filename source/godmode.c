@@ -1437,7 +1437,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     } else if (!user_select) bootpath = "";
                 }
                 if ((*bootpath == '0') || (*bootpath == '1'))
-                    snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", curr_entry->path + 1);
+                    snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
                 else strncpy(fixpath, bootpath, 256);
                 // actually boot the FIRM (if we got a proper fixpath)
                 if (*fixpath) {
@@ -1473,7 +1473,6 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
-    int scripts = (PathExist(SCRIPT_PATH)) ? (int) ++n_opt : -1;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1481,7 +1480,6 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
-    if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1573,12 +1571,6 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
                 timestr);
         }
         return 0;
-    } else if (user_select == scripts) { // scripts menu
-        char script[256];
-        if (FileSelector(script, "HOME scripts... menu.\nSelect action:", SCRIPT_PATH, "*.gm9", true, false)) {
-            ExecuteGM9Script(script);
-            return 0;
-        }
     } else return 1;
     
     return HomeMoreMenu(current_path, current_dir, clipboard);
@@ -1977,16 +1969,46 @@ u32 GodMode() {
             exit_mode = (switched || (pad_state & BUTTON_LEFT)) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
             break;
         } else if (pad_state & (BUTTON_HOME|BUTTON_POWER)) { // Home menu
-            const char* optionstr[] = { "Poweroff system", "Reboot system", "More..." };
+            const char* optionstr[8];
             const char* buttonstr = (pad_state & BUTTON_HOME) ? "HOME" : "POWER";
-            u32 n_opt = 3;
-            u32 user_select = 0;
-            while (((user_select = ShowSelectPrompt(n_opt, optionstr, "%s button pressed.\nSelect action:", buttonstr)) == 3) &&
-                (HomeMoreMenu(current_path, current_dir, clipboard) == 1)); // more... menu
-            if (user_select == 1) { 
+            u32 n_opt = 0;
+            int poweroff = ++n_opt;
+            int reboot = ++n_opt;
+            int scripts = (PathExist(SCRIPT_PATH)) ? (int) ++n_opt : -1;
+            int payloads = (PathExist(PAYLOAD_PATH)) ? (int) ++n_opt : -1;
+            int more = ++n_opt;
+            if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
+            if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
+            if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
+            if (payloads > 0) optionstr[payloads - 1] = "Payloads...";
+            if (more > 0) optionstr[more - 1] = "More...";
+            
+            int user_select = 0;
+            while ((user_select = ShowSelectPrompt(n_opt, optionstr, "%s button pressed.\nSelect action:", buttonstr)) &&
+                (user_select != poweroff) && (user_select != reboot)) {
+                char loadpath[256];
+                if ((user_select == more) && (HomeMoreMenu(current_path, current_dir, clipboard) == 0)) break; // more... menu
+                else if ((user_select == scripts) && (FileSelector(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
+                    ExecuteGM9Script(loadpath);
+                    break;
+                } else if ((user_select == payloads) && (FileSelector(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
+                    size_t firm_size = FileGetData(loadpath, TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
+                    if (firm_size && (firm_size < TEMP_BUFFER_SIZE) && 
+                        (ValidateFirm(TEMP_BUFFER, firm_size) == 0)) {
+                        char fixpath[256] = { 0 };
+                        if ((*loadpath == '0') || (*loadpath == '1'))
+                            snprintf(fixpath, 256, "%s%s", (*loadpath == '0') ? "sdmc" : "nand", loadpath + 1);
+                        else strncpy(fixpath, loadpath, 256);
+                        BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
+                        while(1);
+                    }
+                }
+            }
+            
+            if (user_select == poweroff) { 
                 exit_mode = GODMODE_EXIT_POWEROFF;
                 break;
-            } else if (user_select == 2) { 
+            } else if (user_select == reboot) { 
                 exit_mode = GODMODE_EXIT_REBOOT;
                 break;
             }

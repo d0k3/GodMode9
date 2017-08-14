@@ -40,11 +40,12 @@
 #endif
 
 // GodMode9 version
-#define VERSION "1.3.1"
+#define VERSION "1.3.2"
 
 // input / output paths
 #define SUPPORT_PATHS   "0:/gm9/support", "0:", "0:/files9" // legacy paths
 #define SCRIPT_PATH     "0:/gm9/scripts"
+#define PAYLOAD_PATH    "0:/gm9/payloads"
 #define OUTPUT_PATH     "0:/gm9/out"
 
 // buffer area defines (in use by godmode.c)
