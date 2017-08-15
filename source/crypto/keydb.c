@@ -218,7 +218,7 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
     return 0;
 }
 
-u32 InitKeyDb( void )
+u32 InitKeyDb(const char* path)
 {
     // use this to quickly initialize all applicable keys in aeskeydb.bin
     static const u64 keyslot_whitelist = (1ull<<0x02)|(1ull<<0x03)|(1ull<<0x05)|(1ull<<0x18)|(1ull<<0x19)|(1ull<<0x1A)|(1ull<<0x1B)|
@@ -226,7 +226,7 @@ u32 InitKeyDb( void )
     
     // try to load aeskeydb.bin file
     AesKeyInfo* keydb = (AesKeyInfo*) (void*) TEMP_BUFFER;
-    u32 nkeys = LoadKeyDb(NULL, keydb, TEMP_BUFFER_SIZE);
+    u32 nkeys = LoadKeyDb(path, keydb, TEMP_BUFFER_SIZE);
     if (!nkeys) return 1;
     
     // apply all applicable keys
@@ -234,7 +234,7 @@ u32 InitKeyDb( void )
         AesKeyInfo* info = &(keydb[i]);
         if ((info->slot >= 0x40) || ((info->type != 'X') && (info->type != 'Y') && (info->type != 'N') && (info->type != 'I')))
             return 1; // looks faulty, better stop right here
-        if (!((1ull<<info->slot)&keyslot_whitelist)) continue; // not in keyslot whitelist
+        if (!path && !((1ull<<info->slot)&keyslot_whitelist)) continue; // not in keyslot whitelist
         if ((info->type == 'I') || (*(info->id)) || (info->keyUnitType && (info->keyUnitType != GetUnitKeysType())) ||
             (CheckKeySlot(info->slot, info->type) == 0)) continue; // most likely valid, but not applicable or already set
         if (info->isEncrypted) CryptAesKeyInfo(info); // decrypt key

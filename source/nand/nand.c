@@ -171,7 +171,7 @@ bool InitNandCrypto(bool init_full)
         LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
     
     // part #5: FULL INIT
-    if (init_full) InitKeyDb();
+    if (init_full) InitKeyDb(NULL);
     
     return true;
 }

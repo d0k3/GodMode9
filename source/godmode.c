@@ -904,11 +904,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
+    bool keyinitable = (FTYPE_KEYINIT(filetype));
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype) && !(drvtype & DRV_VIRTUAL));
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
         tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
-        ebackupable || bootable || scriptable;
+        ebackupable || keyinitable || bootable || scriptable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -1063,6 +1064,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
+    int keyinit = (keyinitable) ? ++n_opt : -1;
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
@@ -1083,6 +1085,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
+    if (keyinit > 0) optionstr[keyinit-1] = "Init " KEYDB_NAME;
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
     
@@ -1416,6 +1419,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         ShowPrompt(false, "%s\nBackup update: %s", pathstr, (!required) ? "not required" :
             (success) ? "completed" : "failed!");
         GetDirContents(current_dir, current_path);
+        return 0;
+    } else if ((user_select == keyinit)) {
+        if (ShowPrompt(true, "Warning: Keys are not verified.\nContinue on your own risk?"))
+            ShowPrompt(false, "%s\nAESkeydb init %s", pathstr, (InitKeyDb(curr_entry->path) == 0) ? "success" : "failed");
         return 0;
     } else if ((user_select == boot)) {
         size_t firm_size = FileGetSize(curr_entry->path);
