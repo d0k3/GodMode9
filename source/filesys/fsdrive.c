@@ -196,13 +196,13 @@ uint64_t GetFreeSpace(const char* path)
     if (f_getfree(fsname, &free_clusters, &fsptr) != FR_OK)
         return 0;
 
-    return (uint64_t) free_clusters * fsobj->csize * _MAX_SS;
+    return (uint64_t) free_clusters * fsobj->csize * FF_MAX_SS;
 }
 
 uint64_t GetTotalSpace(const char* path)
 {
     FATFS* fsobj = GetMountedFSObject(path);
-    return (fsobj) ? ((uint64_t) (fsobj->n_fatent - 2) * fsobj->csize * _MAX_SS) :
+    return (fsobj) ? ((uint64_t) (fsobj->n_fatent - 2) * fsobj->csize * FF_MAX_SS) :
         GetVirtualDriveSize(path);
 }
 
