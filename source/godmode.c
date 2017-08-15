@@ -1699,11 +1699,14 @@ u32 GodMode() {
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
                 const char* optionstr[4] = { NULL };
+                char tpath[16] = { 0 };
+                if (!*current_path) snprintf(tpath, 15, "%s/title", curr_entry->path);
                 int n_opt = 0;
-                int srch_t = (strncmp(curr_entry->path + 1, ":/title", 7) == 0) ? ++n_opt : -1;
+                int srch_t = ((strncmp(curr_entry->path + 1, ":/title", 7) == 0) ||
+                    (*tpath && PathExist(tpath))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
                 int dirnfo = ++n_opt;
-                int stdcpy = (strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
+                int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
                 if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
                 if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
                 if (dirnfo > 0) optionstr[dirnfo-1] = "Directory info";
