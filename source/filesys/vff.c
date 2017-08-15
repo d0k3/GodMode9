@@ -3,14 +3,14 @@
 #include "ffconf.h"
 #include "vff.h"
 
-#if _USE_LFN != 0
-#define _MAX_FN_LEN (_MAX_LFN)
+#if FF_USE_LFN != 0
+#define _MAX_FN_LEN (FF_MAX_LFN)
 #else
 #define _MAX_FN_LEN (8+3)
 #endif
     
 #define _VFIL_ENABLED    (!_FS_TINY)
-#define _VDIR_ENABLED    ((sizeof(DIR) - sizeof(_FDID) >= sizeof(VirtualDir)) && (_USE_LFN != 0))
+#define _VDIR_ENABLED    ((sizeof(DIR) - sizeof(FFOBJID) >= sizeof(VirtualDir)) && (FF_USE_LFN != 0))
 
 #define VFIL(fp) ((VirtualFile*) (void*) fp->buf)
 #define VDIR(dp) ((VirtualDir*) (void*) &(dp->dptr))
@@ -86,7 +86,7 @@ FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
             fno->fdate = fno->ftime = 0;
             fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
             // could be better...
-            if (_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
+            if (FF_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, FF_MAX_LFN + 1);
         }
         return FR_OK;
     } else return fa_stat( path, fno );
@@ -133,7 +133,7 @@ FRESULT fvx_readdir (DIR* dp, FILINFO* fno) {
                 fno->fsize = vfile.size;
                 fno->fdate = fno->ftime = 0;
                 fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
-                GetVirtualFilename(fno->fname, &vfile, _MAX_LFN + 1);
+                GetVirtualFilename(fno->fname, &vfile, FF_MAX_LFN + 1);
             } else *(fno->fname) = 0;
             return FR_OK;
         }
