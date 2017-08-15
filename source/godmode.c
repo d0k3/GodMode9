@@ -1698,7 +1698,7 @@ u32 GodMode() {
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
-                const char* optionstr[4] = { NULL };
+                const char* optionstr[8] = { NULL };
                 char tpath[16] = { 0 };
                 if (!*current_path) snprintf(tpath, 15, "%s/title", curr_entry->path);
                 int n_opt = 0;
@@ -1706,10 +1706,12 @@ u32 GodMode() {
                     (*tpath && PathExist(tpath))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
                 int dirnfo = ++n_opt;
+                int drvnfo = (!*current_path) ? ++n_opt : -1;
                 int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
                 if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
                 if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
                 if (dirnfo > 0) optionstr[dirnfo-1] = "Directory info";
+                if (drvnfo > 0) optionstr[drvnfo-1] = "Drive info";
                 if (stdcpy > 0) optionstr[stdcpy-1] = "Copy to " OUTPUT_PATH;
                 char namestr[32+1];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
@@ -1735,6 +1737,13 @@ u32 GodMode() {
                         FormatBytes(bytestr, tsize);
                         ShowPrompt(false, "%s\n%lu files & %lu subdirs\n%s total", namestr, tfiles, tdirs, bytestr);
                     } else ShowPrompt(false, "Analyze dir: failed!");
+                } else if (user_select == drvnfo) {
+                    char freestr[32];
+                    char bytestr[32];
+                    ShowString("Analyzing drive, please wait...");
+                    FormatBytes(freestr, GetFreeSpace(curr_entry->path));
+                    FormatBytes(bytestr, GetTotalSpace(curr_entry->path));
+                    ShowPrompt(false, "%s\n%s free\n%s total", namestr, freestr, bytestr);
                 } else if (user_select == stdcpy) {
                     StandardCopy(&cursor, current_dir);
                 }
