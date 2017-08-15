@@ -425,24 +425,17 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
             ShowProgress(0, 0, orig); // reinit progress bar
         }
         
-        fsize = fvx_size(&ofile);
-        if (!to_virtual && (GetFreeSpace(dest) < fsize)) {
-            if (!silent) ShowPrompt(false, "%s\nError: Not enough space in drive", deststr);
-            fvx_close(&ofile);
-            return false;
-        }
-        
         if (fvx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
             if (!silent) ShowPrompt(false, "%s\nError: Cannot open destination file", deststr);
             fvx_close(&ofile);
             return false;
         }
         
-        if (to_virtual && (fvx_size(&dfile) < fsize)) {
-            if (!silent) ShowPrompt(false, "%s\nError: Not enough virtual space", deststr);
-            fvx_close(&ofile);
-            fvx_close(&dfile);
-            return false;
+        ret = true; // destination file exists by now, so we need to handle deletion
+        fsize = fvx_size(&ofile); // check space via cluster preallocation
+        if ((fvx_lseek(&dfile, fsize) != FR_OK) || (fvx_sync(&dfile) != FR_OK)) {
+            if (!silent) ShowPrompt(false, "%s\nError: Not enough space available", deststr);
+            ret = false;
         }
         
         fvx_lseek(&dfile, 0);
@@ -450,7 +443,6 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
         fvx_lseek(&ofile, 0);
         fvx_sync(&ofile);
         
-        ret = true;
         if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
         for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
             UINT bytes_read = 0;

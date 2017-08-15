@@ -25,7 +25,6 @@
 #include "timer.h"
 #include "power.h"
 #include "rtc.h"
-#include "i2c.h"
 #include QLZ_SPLASH_H
 
 #define N_PANES 2
@@ -161,22 +160,27 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
         state_prev = state_curr;
     }
     
-    // top bar - current path & free/total storage
+    // top bar - current path & free/total storage (or clock)
     DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
-    if (strncmp(curr_path, "", 256) != 0) {
+    if (*curr_path) TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
+    else snprintf(tempstr, 16, "[root]");
+    DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
+    bool show_time = true;
+    #ifdef SHOW_FREE
+    if (*curr_path) {
         char bytestr0[32];
         char bytestr1[32];
-        TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
-        DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
+        // DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
         FormatBytes(bytestr1, GetTotalSpace(curr_path));
         snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
-    } else {
+        show_time = false;
+    }
+    #endif
+    if (show_time) {
         char timestr[32];
         GetTimeString(timestr, false);
-        DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "[root]");
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", timestr);
     }
     
@@ -1627,15 +1631,12 @@ u32 GodMode() {
     }
     
     SplashInit();
-    u64 timer = timer_start(); // show splash for at least 1 sec
+    u64 timer = timer_start(); // show splash
     
     InitSDCardFS();
     AutoEmuNandBase(true);
     InitNandCrypto(true);
     InitExtFS();
-    
-    // this takes long - do it while splash is displayed
-    GetFreeSpace("0:");
     
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
@@ -1654,7 +1655,7 @@ u32 GodMode() {
         }
     }
     
-    while(timer_sec( timer ) < 1); // show splash for at least 1 sec
+    while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
     while (true) { // this is the main loop

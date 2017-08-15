@@ -63,8 +63,10 @@ FRESULT fvx_close (FIL* fp) {
 FRESULT fvx_lseek (FIL* fp, FSIZE_t ofs) {
     #if _VFIL_ENABLED
     if (fp->obj.fs == NULL) {
-        fp->fptr = ofs;
-        return FR_OK;
+        if (fvx_size(fp) >= ofs) {
+            fp->fptr = ofs;
+            return FR_OK;
+        } else return FR_DENIED;
     }
     #endif
     return f_lseek( fp, ofs );
