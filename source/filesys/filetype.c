@@ -67,7 +67,8 @@ u32 IdentifyFileType(const char* path) {
         } else if (memcmp(header, smdh_magic, sizeof(smdh_magic)) == 0) {
             return GAME_SMDH; // SMDH file
         } else if (ValidateTwlHeader((TwlHeader*) data) == 0) {
-            return GAME_NDS; // NDS rom file
+            if (((TwlHeader*)data)->ntr_rom_size <= fsize)
+                return GAME_NDS; // NDS rom file
         }
     }
     if ((fsize > sizeof(BossHeader)) &&

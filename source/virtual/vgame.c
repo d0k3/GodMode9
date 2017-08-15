@@ -3,8 +3,9 @@
 #include "game.h"
 #include "aes.h"
 
-#define VFLAG_NITRO         (1UL<<20)
-#define VFLAG_NDS           (1UL<<21)
+#define VFLAG_NDS           (1UL<<19)
+#define VFLAG_NITRO_DIR     (1UL<<20)
+#define VFLAG_NITRO         (1UL<<21)
 #define VFLAG_FIRM_SECTION  (1UL<<22)
 #define VFLAG_FIRM_ARM9     (1UL<<23)
 #define VFLAG_FIRM          (1UL<<24)
@@ -15,7 +16,7 @@
 #define VFLAG_NCCH          (1UL<<29)
 #define VFLAG_EXEFS         (1UL<<30)
 #define VFLAG_ROMFS         (1UL<<31)
-#define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NDS|VFLAG_NITRO)
+#define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NDS|VFLAG_NITRO_DIR|VFLAG_NITRO)
 
 #define NAME_FIRM_HEADER    "header.bin"
 #define NAME_FIRM_ARM9BIN   "arm9dec.bin"
@@ -48,6 +49,17 @@
 #define NAME_NCCH_EXEFSDIR  "exefs"
 #define NAME_NCCH_ROMFSDIR  "romfs"
 
+#define NAME_NDS_HEADER     "header.bin"
+#define NAME_NDS_ARM9       "arm9.bin"
+#define NAME_NDS_ARM9I      "arm9i.bin"
+#define NAME_NDS_ARM9OVL    "arm9overlay.bin"
+#define NAME_NDS_ARM7       "arm7.bin"
+#define NAME_NDS_ARM7I      "arm7i.bin"
+#define NAME_NDS_ARM7OVL    "arm7overlay.bin"
+#define NAME_NDS_BANNER     "banner.bin"
+#define NAME_NDS_DATADIR    "data"
+
+
 
 static u32 vgame_type = 0;
 static u32 base_vdir = 0;
@@ -55,13 +67,15 @@ static u32 base_vdir = 0;
 static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 56kb reserved (enough for 1024 entries)
 static VirtualFile* templates_firm  = (VirtualFile*) (VGAME_BUFFER + 0xE000); // 2kb reserved (enough for 36 entries)
 static VirtualFile* templates_ncsd  = (VirtualFile*) (VGAME_BUFFER + 0xE800); // 2kb reserved (enough for 36 entries)
-static VirtualFile* templates_ncch  = (VirtualFile*) (VGAME_BUFFER + 0xF000); // 2kb reserved (enough for 36 entries)
+static VirtualFile* templates_ncch  = (VirtualFile*) (VGAME_BUFFER + 0xF000); // 1kb reserved (enough for 18 entries)
+static VirtualFile* templates_nds   = (VirtualFile*) (VGAME_BUFFER + 0xF400); // 1kb reserved (enough for 18 entries)
 static VirtualFile* templates_exefs = (VirtualFile*) (VGAME_BUFFER + 0xF800); // 2kb reserved (enough for 36 entries)
 static int n_templates_cia   = -1;
 static int n_templates_firm  = -1;
 static int n_templates_ncsd  = -1;
 static int n_templates_ncch  = -1;
 static int n_templates_exefs = -1;
+static int n_templates_nds   = -1;
 
 static u64 offset_firm  = (u64) -1;
 static u64 offset_a9bin = (u64) -1;
@@ -73,6 +87,7 @@ static u64 offset_romfs = (u64) -1;
 static u64 offset_lv3   = (u64) -1;
 static u64 offset_lv3fd = (u64) -1;
 static u64 offset_nds   = (u64) -1;
+static u64 offset_nitro = (u64) -1;
 
 static CiaStub* cia = (CiaStub*) (void*) (VGAME_BUFFER + 0x10000); // 61kB reserved - should be enough by far
 static TwlHeader* twl = (TwlHeader*) (void*) (VGAME_BUFFER + 0x1F400); // 512 byte reserved (not the full thing)
@@ -365,6 +380,104 @@ bool BuildVGameCiaDir(void) {
     return true;
 }
 
+bool BuildVGameNdsDir(void) {
+    VirtualFile* templates = templates_nds;
+    u32 n = 0;
+    
+    // header
+    strncpy(templates[n].name, NAME_NDS_HEADER, 32);
+    templates[n].offset = offset_nds + 0;
+    templates[n].size = (twl->unit_code == TWL_UNITCODE_NTR) ? 0x200 : sizeof(TwlHeader);
+    templates[n].keyslot = 0xFF;
+    templates[n].flags = 0;
+    n++;
+    
+    // banner
+    if (twl->icon_offset) {
+        u16 v = 0;
+        ReadImageBytes(&v, offset_nds + twl->icon_offset, sizeof(u16));
+        strncpy(templates[n].name, NAME_NDS_BANNER, 32);
+        templates[n].offset = offset_nds + twl->icon_offset;
+        templates[n].size = TWLICON_SIZE_DATA(v);
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // ARM9 section
+    if (twl->arm9_size) {
+        strncpy(templates[n].name, NAME_NDS_ARM9, 32);
+        templates[n].offset = offset_nds + twl->arm9_rom_offset;
+        templates[n].size = twl->arm9_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // ARM9 overlay section
+    if (twl->arm9_overlay_size) {
+        strncpy(templates[n].name, NAME_NDS_ARM9OVL, 32);
+        templates[n].offset = offset_nds + twl->arm9_overlay_offset;
+        templates[n].size = twl->arm9_overlay_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // ARM9i section
+    if ((twl->unit_code != TWL_UNITCODE_NTR) && (twl->arm9i_size)) {
+        strncpy(templates[n].name, NAME_NDS_ARM9I, 32);
+        templates[n].offset = offset_nds + twl->arm9i_rom_offset;
+        templates[n].size = twl->arm9i_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // ARM7 section
+    if (twl->arm7_size) {
+        strncpy(templates[n].name, NAME_NDS_ARM7, 32);
+        templates[n].offset = offset_nds + twl->arm7_rom_offset;
+        templates[n].size = twl->arm7_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // ARM7 overlay section
+    if (twl->arm7_overlay_size) {
+        strncpy(templates[n].name, NAME_NDS_ARM7OVL, 32);
+        templates[n].offset = offset_nds + twl->arm7_overlay_offset;
+        templates[n].size = twl->arm7_overlay_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // ARM7i section
+    if ((twl->unit_code != TWL_UNITCODE_NTR) && (twl->arm7i_size)) {
+        strncpy(templates[n].name, NAME_NDS_ARM7I, 32);
+        templates[n].offset = offset_nds + twl->arm7i_rom_offset;
+        templates[n].size = twl->arm7i_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = 0;
+        n++;
+    }
+    
+    // data
+    if (twl->fnt_size && twl->fat_size && (twl->fnt_offset < twl->fat_offset)) {
+        strncpy(templates[n].name, NAME_NDS_DATADIR, 32);
+        templates[n].offset = offset_nds + 0;
+        templates[n].size = twl->ntr_rom_size;
+        templates[n].keyslot = 0xFF;
+        templates[n].flags = VFLAG_NITRO_DIR | VFLAG_DIR;
+        n++;
+    }
+    
+    n_templates_nds = n;
+    return true;
+}
+
 bool BuildVGameFirmDir(void) {
     VirtualFile* templates = templates_firm;
     u32 n = 0;
@@ -471,6 +584,7 @@ u32 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_lv3   = (u64) -1;
     offset_lv3fd = (u64) -1;
     offset_nds   = (u64) -1;
+    offset_nitro = (u64) -1;
     
     base_vdir =
         (type & SYS_FIRM  ) ? VFLAG_FIRM  :
@@ -554,7 +668,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         offset_exefs = vdir->offset;
         if (!BuildVGameExeFsDir()) return false;
     } else if ((vdir->flags & VFLAG_ROMFS) && (offset_romfs != vdir->offset)) {
-        offset_nds = (u64) -1; // mutually exclusive
+        offset_nitro = (u64) -1; // mutually exclusive
         // validate romFS magic
         u8 magic[] = { ROMFS_MAGIC };
         u8 header[sizeof(magic)];
@@ -577,29 +691,33 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         offset_romfs = vdir->offset;
         BuildLv3Index(&lv3idx, romfslv3);
     } else if ((vdir->flags & VFLAG_NDS) && (offset_nds != vdir->offset)) {
-        offset_romfs = (u64) -1; // mutually exclusive
-        // validate NDS header
         if ((ReadImageBytes(twl, vdir->offset, 0x200) != 0) ||
-            (ValidateTwlHeader(twl) != 0) ||
+            (ValidateTwlHeader(twl) != 0))
+            return false;
+        offset_nds = vdir->offset;
+        if (!BuildVGameNdsDir()) return false;
+    } else if ((vdir->flags & VFLAG_NITRO_DIR) && (offset_nitro != offset_nds)) {
+        offset_romfs = (u64) -1; // mutually exclusive
+        // sanity checks
+        if (!twl->fnt_size || !twl->fat_size ||
             (twl->fnt_offset >= twl->fat_offset))
             return false;
         // load NitroFNT & NitroFAT to memory
-        u32 offset_nitro = twl->fnt_offset;
-        u32 size_nitro = (twl->fat_offset + twl->fat_size) - offset_nitro;
+        u32 size_nitro = (twl->fat_offset + twl->fat_size) - twl->fnt_offset;
         if ((size_nitro > VGAME_BUFFER_SIZE - 0x20000) ||
-            (ReadImageBytes(nitrofs, vdir->offset + offset_nitro, size_nitro) != 0))
-            return 1;
-        offset_nds = vdir->offset;
+            (ReadImageBytes(nitrofs, vdir->offset + twl->fnt_offset, size_nitro) != 0))
+            return false;
+        offset_nitro = offset_nds;
     }
     
-    // for romfs/nds dir: switch to lv3/nitro dir object 
-    if (vdir->flags & (VFLAG_ROMFS|VFLAG_NDS)) {
+    // for romfs/nitro dir: switch to lv3/nitro object 
+    if (vdir->flags & (VFLAG_ROMFS|VFLAG_NITRO_DIR)) {
         vdir->index = -1;
         vdir->offset = 0;
         vdir->size = 0;
         if (vdir->flags & VFLAG_ROMFS) vdir->flags |= VFLAG_LV3;
-        if (vdir->flags & VFLAG_NDS) vdir->flags |= VFLAG_NITRO;
-        vdir->flags &= ~(VFLAG_ROMFS|VFLAG_NDS);
+        if (vdir->flags & VFLAG_NITRO_DIR) vdir->flags |= VFLAG_NITRO;
+        vdir->flags &= ~(VFLAG_ROMFS|VFLAG_NITRO_DIR);
     }
     
     return true;
@@ -727,6 +845,9 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     } else if (vdir->flags & VFLAG_EXEFS) {
         templates = templates_exefs;
         n = n_templates_exefs;
+    } else if (vdir->flags & VFLAG_NDS) {
+        templates = templates_nds;
+        n = n_templates_nds;
     } else if (vdir->flags & VFLAG_LV3) {
         return ReadVGameDirLv3(vfile, vdir);
     } else if (vdir->flags & VFLAG_NITRO) {
@@ -817,6 +938,8 @@ bool GetVGameNitroFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     if (name_len >= n_chars) return false;
     memset(name, 0, n_chars);
     memcpy(name, fnt_entry + 1, name_len);
+    for (u32 i = 0; i < name_len; i++)
+        if (name[i] == '%') name[i] = '_';
     
     return true;
 }
