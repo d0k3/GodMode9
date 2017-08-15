@@ -2,6 +2,7 @@
 // check there for license info
 // thanks go to AuroraWright
 #include <types.h>
+#include <arm.h>
 #include <cpu.h>
 #include <gic.h>
 #include <pxi.h>
@@ -133,7 +134,7 @@ void set_brightness(u8 brightness)
     *(vu32 *)0x10202A40 = brightness;
 }
 
-void pxi_interrupt_handler(__attribute__((unused)) u32 xrq_n)
+void pxi_interrupt_handler(void)
 {
     u8 msg = PXI_GetRemote();
     switch(msg) {
@@ -154,16 +155,16 @@ void main(void)
 
     PXI_Reset();
     GIC_Reset();
+    GIC_SetIRQ(IRQ_PXI_SYNC, pxi_interrupt_handler);
     screen_init();
+
+    PXI_EnableIRQ();
+    CPU_EnableIRQ();
 
     // Clear ARM11 entrypoint
     *arm11Entry = 0;
 
-    GIC_Configure(IRQ_PXI_SYNC, pxi_interrupt_handler);
-    PXI_EnableIRQ();
-    CPU_EnableIRQ();
-
-    //Wait for the entrypoint to be set, then branch to it
+    // Wait for the entrypoint to be set, then branch to it
     while((entry=*arm11Entry) == 0);
 
     CPU_DisableIRQ();

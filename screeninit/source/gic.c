@@ -10,21 +10,20 @@
 #define IRQ_BASE ((vu32*)0x1FFFFFA0)
 
 irq_handler handler_table[MAX_IRQ];
+extern void (*main_irq_handler)(void);
 
-void __attribute__((interrupt("IRQ"))) gic_irq_handler(void)
+irq_handler GIC_AckIRQ(void)
 {
-    u32 xrq, ss;
-    CPU_EnterCritical(&ss);
-    xrq = *GIC_IRQACK;
+    u32 xrq = *GIC_IRQACK;
+    irq_handler ret = NULL;
     if (xrq < MAX_IRQ && handler_table[xrq]) {
-        (handler_table[xrq])(xrq);
+        ret = handler_table[xrq];
+        *GIC_IRQEND = xrq;
     }
-    *GIC_IRQEND = xrq;
-    CPU_LeaveCritical(&ss);
-    return;
+    return ret;
 }
 
-void GIC_Configure(u32 irq_id, irq_handler hndl)
+void GIC_SetIRQ(u32 irq_id, irq_handler hndl)
 {
     handler_table[irq_id] = hndl;
     DIC_CLRENABLE[irq_id/32] |= BIT(irq_id & 0x1F);
@@ -35,23 +34,27 @@ void GIC_Configure(u32 irq_id, irq_handler hndl)
 
 void GIC_Reset(void)
 {
-    *GIC_CONTROL = 0;
-    *GIC_PRIOMASK = ~0;
+    *GIC_CONTROL = 1;
+    *DIC_CONTROL = 1;
 
-    for (int i = 0; i < (BIT(9)-1); i++) {
-        *GIC_IRQEND |= i;
+    *GIC_PRIOMASK = ~0;
+    for (int i = 0; i < MAX_IRQ; i++) {
+        handler_table[i] = NULL;
+        *GIC_IRQEND = i;
     }
 
-    *DIC_CONTROL = 0;
-    for (int i = 0; i < (0x20/4); i++) {
+    for (int i = 0; i < (0x08); i++) {
         DIC_CLRENABLE[i] = ~0;
         DIC_PRIORITY[i] = 0;
     }
 
-    *DIC_CONTROL = 1;
-    *GIC_CONTROL = 1;
+    while(*GIC_PENDING != SPURIOUS_IRQ) {
+        for (int i=0; i < (0x08); i++) {
+            DIC_CLRPENDING[i] = ~0;
+        }
+    }
 
-    IRQ_BASE[1] = (u32)gic_irq_handler;
+    IRQ_BASE[1] = (u32)&main_irq_handler;
     IRQ_BASE[0] = 0xE51FF004;
     return;
 }
