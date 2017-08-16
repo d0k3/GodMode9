@@ -32,7 +32,6 @@ XRQ_Registers:
     .space (17*4)
 
 XRQ_Reset:
-    msr cpsr_c, #(SR_ABT_MODE | SR_IRQ | SR_FIQ)
     XRQ_FATAL 0
 
 XRQ_Undefined:
@@ -52,10 +51,6 @@ XRQ_MainHandler:
     mrs r9, spsr
     mov r8, lr
 
-    @ Disable interrupts
-    orr r0, r0, #(SR_IRQ | SR_FIQ)
-    msr cpsr, r0
-
     @ Disable mpu / caches
     ldr r4, =BRF_WB_INV_DCACHE
     ldr r5, =BRF_INVALIDATE_ICACHE
@@ -67,23 +62,23 @@ XRQ_MainHandler:
     @ Retrieve banked registers
     and r0, r9, #(SR_PMODE_MASK)
     cmp r0, #(SR_USR_MODE)
-    orreq r0, r9, #(SR_SYS_MODE)
+    orreq r0, #(SR_SYS_MODE)
     orr r0, #(SR_IRQ | SR_FIQ)
 
-    msr cpsr_c, r0 @ Switch to previous mode
+    msr cpsr_c, r0   @ Switch to previous mode
     mov r0, sp
     mov r1, lr
-    msr cpsr, r10  @ Return to abort
+    msr cpsr_c, r10  @ Return to abort
 
     stmia sp!, {r0,r1,r8,r9}
 
-    ldr sp, =__stack_abt
-    ldr r2, =XRQ_DumpRegisters
+    ldr sp, =0x8000
+    ldr r2, =XRQ_DumpRegisters @ void XRQ_DumpRegisters(u32 xrq_id, u32 *regs)
     adr r1, XRQ_Registers
     mov r0, r11
     blx r2
 
-    msr cpsr_c, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
+    msr cpsr, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
     mov r0, #0
     .LXRQ_WFI:
         mcr p15, 0, r0, c7, c0, 4
@@ -93,3 +88,4 @@ XRQ_MainHandler:
 
 .global XRQ_End
 XRQ_End:
+    .word 0

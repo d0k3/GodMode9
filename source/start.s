@@ -9,7 +9,7 @@
 .global _start
 _start:
     @ Switch to supervisor mode and disable interrupts
-    msr cpsr_c, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
+    msr cpsr_c, #(SR_SYS_MODE | SR_IRQ | SR_FIQ)
 
     @ Short delay (not always necessary, just in case)
     mov r3, #0x40000
@@ -136,7 +136,7 @@ _start_gm:
     bl main
 
 __mpu_regions:
-    .word 0xFFFF001F @ ffff0000 64k  | bootrom (unprotected / protected)
+    .word 0xFFFF001F @ FFFF0000 64k  | bootrom (unprotected / protected)
     .word 0x3000801B @ 30008000 16k  | dtcm
     .word 0x00000035 @ 00000000 128M | itcm
     .word 0x08000029 @ 08000000 2M   | arm9 mem (O3DS / N3DS)
