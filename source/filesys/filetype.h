@@ -49,5 +49,6 @@
 #define FTYPE_KEYINIT(tp)       (tp&(BIN_KEYDB))
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
 #define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
+#define FTYPE_INSTALLABLE(tp)   (tp&(SYS_FIRM))
 
 u32 IdentifyFileType(const char* path);

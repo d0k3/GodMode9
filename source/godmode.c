@@ -911,9 +911,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool keyinitable = (FTYPE_KEYINIT(filetype));
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype) && !(drvtype & DRV_VIRTUAL));
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable ||
-        tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable ||
-        ebackupable || keyinitable || bootable || scriptable;
+    bool installable = (FTYPE_INSTALLABLE(filetype) && !(drvtype & DRV_VIRTUAL));
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || keyinitable || bootable || scriptable || installable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -1069,6 +1068,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     int keyinit = (keyinitable) ? ++n_opt : -1;
+    int install = (installable) ? ++n_opt : -1;
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
@@ -1090,6 +1090,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (keyinit > 0) optionstr[keyinit-1] = "Init " KEYDB_NAME;
+    if (install > 0) optionstr[install-1] = "Install FIRM";
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
     
@@ -1427,6 +1428,18 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     } else if ((user_select == keyinit)) {
         if (ShowPrompt(true, "Warning: Keys are not verified.\nContinue on your own risk?"))
             ShowPrompt(false, "%s\nAESkeydb init %s", pathstr, (InitKeyDb(curr_entry->path) == 0) ? "success" : "failed");
+        return 0;
+    } else if ((user_select == install)) {
+        size_t firm_size = FileGetSize(curr_entry->path);
+        u32 slots = 1;
+        if (GetNandPartitionInfo(NULL, NP_TYPE_FIRM, NP_SUBTYPE_CTR, 1, NAND_SYSNAND) == 0) {
+            optionstr[0] = "Install to FIRM0";
+            optionstr[1] = "Install to FIRM1";
+            optionstr[2] = "Install to both";
+            // this only works up to FIRM1;
+            slots = ShowSelectPrompt(3, optionstr, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024);
+        } else slots = ShowPrompt(true, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024) ? 1 : 0;
+        if (slots) SafeInstallFirm(curr_entry->path, slots);
         return 0;
     } else if ((user_select == boot)) {
         size_t firm_size = FileGetSize(curr_entry->path);

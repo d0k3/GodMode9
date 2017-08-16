@@ -106,13 +106,10 @@ u32 GetArm9BinarySize(FirmA9LHeader* a9l) {
 }
 
 u32 SetupSecretKey(u32 keynum) {
+    // try to get key from sector 0x96
     static u8 __attribute__((aligned(32))) sector[0x200];
-    
-    // safety check
-    if (keynum >= 0x200/0x10) return 1;
-    
-    // seach for secret sector data...
-    if (GetLegitSector0x96(sector) == 0) {
+    ReadNandSectors(sector, 0x96, 1, 0x11, NAND_SYSNAND);
+    if ((keynum < 0x200/0x10) && (ValidateSecretSector(sector) == 0)) {
         setup_aeskey(0x11, sector + (keynum*0x10));
         use_aeskey(0x11);
         return 0;

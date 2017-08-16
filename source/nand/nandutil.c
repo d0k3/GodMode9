@@ -6,6 +6,7 @@
 #include "image.h"
 #include "fsinit.h"
 #include "fsperm.h"
+#include "sighax.h"
 #include "unittype.h"
 #include "sha.h"
 #include "ui.h"
@@ -297,4 +298,101 @@ u32 SafeRestoreNandDump(const char* path) {
     WriteNandSectors((u8*) essential, ESSENTIAL_SECTOR, (sizeof(EssentialBackup) + 0x1FF) / 0x200, 0xFF, NAND_SYSNAND);
     
     return ret;
+}
+
+u32 SafeInstallFirm(const char* path, u32 slots) {
+    char pathstr[32 + 1]; // truncated path string
+    TruncateString(pathstr, path, 32, 8);
+    
+    // load / check FIRM
+    u8* firm = (u8*) TEMP_BUFFER;
+    UINT firm_size;
+    if ((fvx_qread(path, firm, 0, TEMP_BUFFER_SIZE, &firm_size) != FR_OK) ||
+        !firm_size || (firm_size >= TEMP_BUFFER_SIZE) || (ValidateFirm(firm, firm_size) != 0)) {
+        ShowPrompt(false, "%s\nFIRM load/verify error.", pathstr);
+        return 1;
+    }
+    
+    // inject sighax signature, get hash
+    u8 firm_sha[0x20];
+    memcpy(firm + 0x100, (IS_DEVKIT) ? sig_nand_firm_dev : sig_nand_firm_retail, 0x200);
+    sha_quick(firm_sha, firm, firm_size, SHA256_MODE);
+    
+    // check install slots
+    for (u32 s = 0; s < 8; s++) {
+        u8 firm_magic[] = { FIRM_MAGIC };
+        u8 lmagic[sizeof(firm_magic)];
+        NandPartitionInfo info;
+        if (!((slots>>s)&0x1)) continue;
+        if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
+            ((info.count * 0x200) < firm_size)) {
+            ShowPrompt(false, "%s\nFIRM%lu not found or too small.", pathstr, s);
+            return 1;
+        }
+        if ((ReadNandBytes(lmagic, info.sector*0x200, sizeof(firm_magic), info.keyslot, NAND_SYSNAND) != 0) ||
+            (memcmp(lmagic, firm_magic, sizeof(firm_magic)) != 0)) {
+            ShowPrompt(false, "%s\nFIRM%lu crypto fail.", pathstr, s);
+            return 1;
+        }
+    }
+    
+    // check sector 0x96 on N3DS, offer fix if required
+    u8 sector0x96[0x200];
+    bool fix_sector0x96 = false;
+    ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND);
+    if (!IS_O3DS && !CheckSector0x96Crypto()) {
+        ShowPrompt(false, "%s\nSector 0x96 crypto fail.", pathstr);
+        return 1;
+    }
+    if (!IS_O3DS && (ValidateSecretSector(sector0x96) != 0)) {
+        char path_sector[256];
+        strncpy(path_sector, path, 256);
+        char* slash = strrchr(path_sector, '/');
+        if (slash) strncpy(slash+1, "secret_sector.bin", 256 - (slash+1-path_sector));
+        else *path_sector = '\0';
+        if ((fvx_qread(path_sector, sector0x96, 0, 0x200, NULL) != FR_OK) ||
+            (ValidateSecretSector(sector0x96) != 0)) {
+            ShowPrompt(false, "%s\nSector 0x96 is corrupted.\n \nProvide \"secret_sector.bin\"\nto fix sector 0x96.", pathstr);
+            return 1;
+        } else if (ShowPrompt(true, "%s\nSector 0x96 is corrupted.\n \nFix sector 0x96 during\nthe installation?", pathstr)) {
+            fix_sector0x96 = true;
+        } else return 1;
+    }
+    
+    // all checked, ready to go
+    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will install the\nprovided FIRM to the SysNAND.\n \nInstalling an unsupported FIRM\nwill BRICK your console!")) return 1;
+    // if (!SetWritePermissions(PERM_SYS_LVL3, true)) return 1; // one unlock sequence is enough
+    
+    // point of no return
+    ShowString(false, "Installing FIRM, please wait...");
+    if (fix_sector0x96 && (WriteNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0)) {
+        ShowPrompt(false, "!THIS IS BAD!\n \nFailed writing sector 0x96.\nTry to fix before reboot!");
+        return 1;
+    }
+    for (u32 s = 0; s < 8; s++) {
+        NandPartitionInfo info;
+        if (!((slots>>s)&0x1)) continue;
+        if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
+            (WriteNandBytes(firm, info.sector*0x200, firm_size, info.keyslot, NAND_SYSNAND) != 0)) {
+            ShowPrompt(false, "!THIS IS BAD!\n \nFailed writing FIRM%lu.\nTry to fix before reboot!", s);
+            return 1;
+        }
+    }
+    
+    // done, now check the installation
+    ShowString(false, "Checking installation, please wait...");
+    if (fix_sector0x96 && ((ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0) ||
+        (ValidateSecretSector(sector0x96) != 0))) {
+        ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying sector 0x96.\nTry to fix before reboot!");
+    }
+    for (u32 s = 0; s < 8; s++) {
+        NandPartitionInfo info;
+        if (!((slots>>s)&0x1)) continue;
+        if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
+            (ReadNandBytes(firm, info.sector*0x200, firm_size, info.keyslot, NAND_SYSNAND) != 0) ||
+            (sha_cmp(firm_sha, firm, firm_size, SHA256_MODE) != 0))
+            ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying FIRM%lu.\nTry to fix before reboot!", s);
+    }
+    
+    return 0;
 }

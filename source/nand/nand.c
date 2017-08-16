@@ -56,6 +56,7 @@ static const u8 sector0x96dev_sha256[0x20] = { // hash for legit sector 0x96 (di
 static u8 CtrNandCtr[16];
 static u8 TwlNandCtr[16];
 static u8 OtpSha256[32] = { 0 };
+static bool Crypto0x96 = false;
 
 static u32 emunand_base_sector = 0x000000;
 
@@ -88,6 +89,7 @@ bool InitNandCrypto(bool init_full)
     if (IS_UNLOCKED) { // if OTP is unlocked
         // see: https://www.3dbrew.org/wiki/OTP_Registers
         sha_quick(OtpSha256, (u8*) 0x10012000, 0x90, SHA256_MODE);
+        Crypto0x96 = true; // valid 100% in that case, others need checking
     } else if (IS_A9LH) { // for a9lh
         // store the current SHA256 from register
         memcpy(OtpSha256, (void*) REG_SHAHASH, 32);
@@ -192,9 +194,12 @@ bool CheckSlot0x05Crypto(void)
 
 bool CheckSector0x96Crypto(void)
 {
-    u8 buffer[0x200];
-    ReadNandSectors(buffer, SECTOR_SECRET, 1, 0x11, NAND_SYSNAND);
-    return (sha_cmp(KEY95_SHA256, buffer, 16, SHA256_MODE) == 0);
+    if (!Crypto0x96) {
+        u8 buffer[0x200];
+        ReadNandSectors(buffer, SECTOR_SECRET, 1, 0x11, NAND_SYSNAND);
+        Crypto0x96 = (sha_cmp(KEY95_SHA256, buffer, 16, SHA256_MODE) == 0);
+    }
+    return Crypto0x96;
 }
 
 bool CheckGenuineNandNcsd(void)
@@ -376,6 +381,11 @@ int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32
     return 0;
 }
 
+u32 ValidateSecretSector(u8* sector)
+{
+    return (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0) ? 0 : 1;
+}
+
 // shamelessly stolen from myself
 // see: https://github.com/d0k3/GodMode9/blob/master/source/game/ncsd.c#L4
 u32 ValidateNandNcsdHeader(NandNcsdHeader* header)
@@ -522,24 +532,6 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
     }
     
     return 0;
-}
-
-u32 GetLegitSector0x96(u8* sector)
-{
-    // secret sector already in buffer?
-    if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
-        return 0;
-    
-    // search for valid secret sector in SysNAND / EmuNAND
-    const u32 nand_src[] = { NAND_SYSNAND, NAND_EMUNAND };
-    for (u32 i = 0; i < sizeof(nand_src) / sizeof(u32); i++) {
-        ReadNandSectors(sector, SECTOR_SECRET, 1, 0x11, nand_src[i]);
-        if (sha_cmp(SECTOR_SHA256, sector, 0x200, SHA256_MODE) == 0)
-            return 0;
-    }
-    
-    // failed if we arrive here
-    return 1;
 }
 
 // OTP hash is 32 byte in size
