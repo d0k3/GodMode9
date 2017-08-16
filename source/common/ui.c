@@ -19,7 +19,8 @@ void ClearScreen(u8* screen, int color)
 {
     int width = (screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT;
     if (color == COLOR_TRANSPARENT) color = COLOR_BLACK;
-    for (int i = 0; i < (width * SCREEN_HEIGHT); i++) {
+    if (!color) memset(screen, 0x00, (width * SCREEN_HEIGHT * 3));
+    else for (int i = 0; i < (width * SCREEN_HEIGHT); i++) {
         *(screen++) = color >> 16;  // B
         *(screen++) = color >> 8;   // G
         *(screen++) = color & 0xFF; // R
