@@ -426,7 +426,7 @@ u32 FileTextViewer(const char* path) {
             u32 llen = LineLen(text, len, ww, ptr);
             u32 ncpy = ((int) llen < off_disp) ? 0 : (llen - off_disp);
             if (ncpy > llen_disp) ncpy = llen_disp;
-            bool al = !ww && off_disp;
+            bool al = !ww && off_disp && (ptr != ptr_next);
             bool ar = !ww && (llen > off_disp + llen_disp);
             
             // build text string
