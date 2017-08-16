@@ -170,7 +170,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     if (*curr_path) {
         char bytestr0[32];
         char bytestr1[32];
-        // DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
         FormatBytes(bytestr1, GetTotalSpace(curr_path));
         snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
@@ -243,7 +243,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     // bottom: inctruction block
     char instr[512];
     snprintf(instr, 512, "%s\n%s%s%s%s%s%s%s%s",
-        FLAVOR " Explorer v"VERSION, // generic start part
+        FLAVOR " " VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - COPY files / [+R] CREATE entry\n" :
         "L - MARK files (use with \x18\x19\x1A\x1B)\nX - DELETE / [+R] RENAME file(s)\nY - PASTE files / [+R] CREATE entry\n") :
         ((GetWritePermissions() > PERM_BASE) ? "R+Y - Relock write permissions\n" : ""),
@@ -1588,7 +1588,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
 }
 
 u32 SplashInit() {
-    const char* namestr = FLAVOR " Explorer v" VERSION;
+    const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "loading...";
     const u32 pos_xb = 10;
     const u32 pos_yb = 10;
@@ -1655,6 +1655,7 @@ u32 GodMode() {
         }
     }
     
+    while (CheckButton(BUTTON_A)); // don't continue while A is held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     

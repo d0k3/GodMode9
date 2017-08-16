@@ -37,6 +37,9 @@ CFLAGS	:=	$(ARCH) -g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2 \
 
 CFLAGS	+=	-DBUILD_NAME="\"$(TARGET) (`date +'%Y/%m/%d'`)\""
 
+VERSION	:=	$(shell git describe --tags --abbrev=8)
+CFLAGS	+=	-DVERSION="\"$(VERSION)\""
+
 ifeq ($(FONT),ORIG)
 CFLAGS	+=	-DFONT_ORIGINAL
 else ifeq ($(FONT),6X10)

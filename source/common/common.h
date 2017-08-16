@@ -39,9 +39,6 @@
 #define QLZ_SPLASH sm9_splash_baby_qlz
 #endif
 
-// GodMode9 version
-#define VERSION "1.3.3"
-
 // input / output paths
 #define SUPPORT_PATHS   "0:/gm9/support", "0:", "0:/files9" // legacy paths
 #define SCRIPT_PATH     "0:/gm9/scripts"
