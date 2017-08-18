@@ -127,4 +127,7 @@ u32 ValidateTwlHeader(TwlHeader* twl);
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon);
 u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon);
 u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon);
-u32 ReadNitroRomDir(u32 dirid, u64* offset, u64* size, bool* is_dir, u8** fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat);
+
+u32 FindNitroRomDir(u32 dirid, u32* fileid, u8** fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat);
+u32 NextNitroRomEntry(u32* fileid, u8** fnt_entry);
+u32 ReadNitroRomEntry(u64* offset, u64* size, bool* is_dir, u32 fileid, u8* fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat);

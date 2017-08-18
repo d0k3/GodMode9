@@ -797,33 +797,41 @@ bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
 }
 
 bool ReadVGameDirNitro(VirtualFile* vfile, VirtualDir* vdir) {
-    static u8* fnt_entry = NULL;
+    u8* fnt = nitrofs;
+    u8* fat = nitrofs + twl->fat_offset - twl->fnt_offset;
+        
     vfile->name[0] = '\0';
     vfile->flags = VFLAG_NITRO;
     vfile->keyslot = 0;
     
     // start from parent dir object
     if (vdir->index == -1) {
-        fnt_entry = NULL;
-        vdir->index = 0; 
+        u8* fnt_entry = NULL;
+        u32 dirid = vdir->offset & 0xFFF;
+        u32 fileid = 0;
+        if (FindNitroRomDir(dirid, &fileid, &fnt_entry, twl, fnt, fat) == 0) {
+            vdir->index = fileid; // store fileid in index
+            vdir->offset = (vdir->offset&0xFFFFFFFF) | (((u64)(fnt_entry - fnt)) << 32); // store offsets in offset
+        } else vdir->index = -3; // error
     }
     
     // read directory entries until done
-    if (vdir->index == 0) {
-        u8* fnt = nitrofs;
-        u8* fat = nitrofs + twl->fat_offset - twl->fnt_offset;
-        u32 dirid = vdir->offset & 0xFFF;
+    if (vdir->index >= 0) {
+        u8* fnt_entry = fnt + (vdir->offset >> 32);
+        u32 fileid = vdir->index;
         bool is_dir;
-        if (ReadNitroRomDir(dirid, &(vfile->offset), &(vfile->size), &is_dir, &fnt_entry, twl, fnt, fat) != 0)
-            vdir->index = 2; // error reading dir
-        if (fnt_entry) {
+        if (ReadNitroRomEntry(&(vfile->offset), &(vfile->size), &is_dir, fileid, fnt_entry, twl, fnt, fat) == 0) {
             if (!is_dir) vfile->offset += offset_nds;
             vfile->offset |= ((u64)(fnt_entry - fnt)) << 32;
             if (is_dir) vfile->flags |= VFLAG_DIR;
-        } else vdir->index = 1; // end of dir
+            // advance to next entry
+            NextNitroRomEntry(&fileid, &fnt_entry);
+            vdir->index = fileid;
+            vdir->offset = (vdir->offset&0xFFFFFFFF) | (((u64)(fnt_entry - fnt)) << 32);
+        } else vdir->index = -2; // end of dir
     }
     
-    return (vdir->index == 0);
+    return (vdir->index >= 0);
 }
     
 bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {

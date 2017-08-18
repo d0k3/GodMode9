@@ -3,6 +3,11 @@
 
 #define CRC16_TABVAL  0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400
 
+#define FNT_ENTRY_ISDIR(e) ((bool)((*(u8*)(e))&0x80))
+#define FNT_ENTRY_FNLEN(e) ((*(u8*)(e))&~0x80)
+#define FNT_ENTRY_LEN(e)   (1 + FNT_ENTRY_FNLEN(e) + (FNT_ENTRY_ISDIR(e)?2:0))
+#define FNT_ENTRY_NEXT(e)  (((u8*)(e)) + FNT_ENTRY_LEN(e))
+
 
 typedef struct {
     u32 subtable_offset;
@@ -89,47 +94,62 @@ u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon) {
     return 0;
 }
 
-u32 ReadNitroRomDir(u32 dirid, u64* offset, u64* size, bool* is_dir, u8** fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat) {
-    static u32 fileid = 0;
-    static u8* subtbl_end = NULL;
+u32 FindNitroRomDir(u32 dirid, u32* fileid, u8** fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat) {
     NitroFntBaseEntry* fnt_base = (NitroFntBaseEntry*) fnt;
     NitroFntBaseEntry* fnt_dir = &((NitroFntBaseEntry*) fnt)[dirid];
     NitroFatEntry* fat_lut = (NitroFatEntry*) fat;
     
-    if (dirid >= fnt_base->parent_id) return 1; // dir ID out of bounds
-    if (*fnt_entry && (*fnt_entry - fnt >= (int) hdr->fnt_size)) return 1; // FNT entry out of bounds
+    // base sanity checks
     if (fnt_base->parent_id*sizeof(NitroFntBaseEntry) > fnt_base->subtable_offset) return 1; // invalid FNT
+    if (dirid >= fnt_base->parent_id) return 1; // dir ID out of bounds
     
-    if (!*fnt_entry) { // if *fnt_entry is NULL: reset file id and start with first entry
-        *fnt_entry = fnt + fnt_dir->subtable_offset;
-        fileid = fnt_dir->file0_id;
-        for (subtbl_end = *fnt_entry; *subtbl_end && (subtbl_end < fnt + hdr->fnt_size); subtbl_end++);
-    } else { // advance to next entry
-        u32 pfnlen = **fnt_entry & ~0x80;
-        bool was_dir = **fnt_entry & 0x80;
-        *fnt_entry += 1 + pfnlen + (was_dir?2:0);
-        if (!was_dir) fileid++;
+    // set first FNT entry / fileid
+    *fnt_entry = fnt + fnt_dir->subtable_offset;
+    *fileid = fnt_dir->file0_id;
+    
+    // check subtable / directory validity
+    if (*fnt_entry >= fnt + hdr->fnt_size) return 1;
+    u8* subtbl_end = NULL;
+    u32 fid = *fileid;
+    for (subtbl_end = *fnt_entry; *subtbl_end && (subtbl_end < fnt + hdr->fnt_size); subtbl_end++);
+    for (u8* entry = *fnt_entry; *entry; entry = FNT_ENTRY_NEXT(entry)) {
+        if (entry > subtbl_end) return 1; // corrupt subtable
+        if (fat_lut[fid].start_address > fat_lut[fid].end_address) return 1; // corrupt fat
+        if (!FNT_ENTRY_ISDIR(entry)) fid++;
     }
+    if (fid*sizeof(NitroFatEntry) > hdr->fat_size) return 1; // corrupt fnt / fat
     
-    // check for trouble
-    if (*fnt_entry > subtbl_end)
-        return 1;
+    
+    return 0;
+}
+
+u32 NextNitroRomEntry(u32* fileid, u8** fnt_entry) {
+    // check for end of subtable
+    if (!*fnt_entry || !**fnt_entry) return 1;
+    
+    // advance to next entry
+    if (!FNT_ENTRY_ISDIR(*fnt_entry)) (*fileid)++;
+    *fnt_entry += FNT_ENTRY_LEN(*fnt_entry);
     
     // check for end of subtable
-    if (!**fnt_entry) { // end of subtable reached
-        *fnt_entry = NULL;
-        return 0;
-    }
+    if (!**fnt_entry) return 1;
     
-    *is_dir = **fnt_entry & 0x80;
+    return 0;
+}
+
+u32 ReadNitroRomEntry(u64* offset, u64* size, bool* is_dir, u32 fileid, u8* fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat) {
+    // check for end of subtable
+    if (!fnt_entry || !*fnt_entry) return 1;
+    
+    // decipher FNT entry
+    *is_dir = FNT_ENTRY_ISDIR(fnt_entry);
     if (!(*is_dir)) { // for files
-        if (fileid*sizeof(NitroFatEntry) > hdr->fat_size) return 1; // corrupt fnt / fat
-        if (fat_lut[fileid].start_address > fat_lut[fileid].end_address) return 1; // corrupt fat
+        NitroFatEntry* fat_lut = (NitroFatEntry*) fat;
         *offset = fat_lut[fileid].start_address;
         *size = fat_lut[fileid].end_address - fat_lut[fileid].start_address;
     } else { // for dirs
-        u32 fnlen = **fnt_entry & ~0x80;
-        *offset = (u64) ((*fnt_entry)[1+fnlen]|((*fnt_entry)[1+fnlen+1]<<8)) & 0xFFF; // dir ID goes in offset
+        u32 fnlen = FNT_ENTRY_FNLEN(fnt_entry);
+        *offset = (u64) (fnt_entry[1+fnlen]|(fnt_entry[1+fnlen+1]<<8)) & 0xFFF; // dir ID goes in offset
         *size = 0;
     }
     
