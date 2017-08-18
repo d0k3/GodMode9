@@ -169,7 +169,7 @@ bool InitNandCrypto(bool init_full)
         LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL);
     
     // part #4: AGBSAVE CMAC KEY (set up on A9LH and SigHax)
-    if (IS_A9LH || IS_SIGHAX)
+    if (init_full && (IS_A9LH || IS_SIGHAX))
         LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
     
     // part #5: FULL INIT

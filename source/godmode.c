@@ -1620,7 +1620,7 @@ u32 SplashInit() {
     return 0;
 }
 
-u32 GodMode() {
+u32 GodMode(bool is_b9s) {
     const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
     u32 exit_mode = GODMODE_EXIT_REBOOT;
     
@@ -1648,7 +1648,7 @@ u32 GodMode() {
     
     InitSDCardFS();
     AutoEmuNandBase(true);
-    InitNandCrypto(true);
+    InitNandCrypto(!is_b9s);
     InitExtFS();
     
     GetDirContents(current_dir, "");
