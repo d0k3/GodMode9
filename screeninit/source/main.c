@@ -7,17 +7,13 @@
 #include <gic.h>
 #include <pxi.h>
 
+#include <vram.h>
+
 // see: https://github.com/AuroraWright/Luma3DS/blob/53209b9be0c264af00fb81b32146d27f0d9498ac/source/screen.h#L32-L34
 #define PDN_GPU_CNT (*(vu8  *)0x10141200)
 #define ARESCREENSINITIALIZED (PDN_GPU_CNT != 1)
 
 #define BASE_BRIGHTNESS (0x1F)
-
-static volatile struct fb {
-     u8 *top_left;
-     u8 *top_right;
-     u8 *bottom;
-} *const fb = (volatile struct fb *)0x23FFFE00;
 
 void screen_init(void)
 {
@@ -55,11 +51,14 @@ void screen_init(void)
     *(vu32 *)0x1040045C = 0x00f00190;
     *(vu32 *)0x10400460 = 0x01c100d1;
     *(vu32 *)0x10400464 = 0x01920002;
-    *(vu32 *)0x10400468 = 0x18300000;
+    *(vu32 *)0x10400468 = VRAM_TOP_LA;
+    *(vu32 *)0x1040046C = VRAM_TOP_LB;
     *(vu32 *)0x10400470 = 0x80341;
     *(vu32 *)0x10400474 = 0x00010501;
     *(vu32 *)0x10400478 = 0;
     *(vu32 *)0x10400490 = 0x000002D0;
+    *(vu32 *)0x10400494 = VRAM_TOP_RA;
+    *(vu32 *)0x10400498 = VRAM_TOP_RB;
     *(vu32 *)0x1040049C = 0x00000000;
 
     //Bottom screen
@@ -85,7 +84,8 @@ void screen_init(void)
     *(vu32 *)0x1040055C = 0x00f00140;
     *(vu32 *)0x10400560 = 0x01c100d1;
     *(vu32 *)0x10400564 = 0x01920052;
-    *(vu32 *)0x10400568 = 0x18346500;
+    *(vu32 *)0x10400568 = VRAM_BOT_A;
+    *(vu32 *)0x1040056C = VRAM_BOT_B;
     *(vu32 *)0x10400570 = 0x80301;
     *(vu32 *)0x10400574 = 0x00010501;
     *(vu32 *)0x10400578 = 0;
@@ -99,30 +99,18 @@ void screen_init(void)
         }
     }
 
-    //Set CakeBrah framebuffers
-    fb->top_left = (u8 *)0x18300000;
-    fb->top_right = (u8 *)0x18300000;
-    fb->bottom = (u8 *)0x18346500;
-
-    *(vu32 *)0x10400468 = (u32)fb->top_left;
-    *(vu32 *)0x1040046c = (u32)fb->top_left;
-    *(vu32 *)0x10400494 = (u32)fb->top_right;
-    *(vu32 *)0x10400498 = (u32)fb->top_right;
-    *(vu32 *)0x10400568 = (u32)fb->bottom;
-    *(vu32 *)0x1040056c = (u32)fb->bottom;
-
     vu32 *REGs_PSC0 = (vu32 *)0x10400010,
          *REGs_PSC1 = (vu32 *)0x10400020;
 
-    REGs_PSC0[0] = (u32)fb->top_left >> 3; //Start address
-    REGs_PSC0[1] = (u32)(fb->top_left + 0x46500) >> 3; //End address
-    REGs_PSC0[2] = 0; //Fill value
-    REGs_PSC0[3] = (2 << 8) | 1; //32-bit pattern; start
+    REGs_PSC0[0] = VRAM_START >> 3;
+    REGs_PSC0[1] = ((VRAM_START + VRAM_END) / 2) >> 3;
+    REGs_PSC0[2] = 0;
+    REGs_PSC0[3] = (2 << 8) | 1;
 
-    REGs_PSC1[0] = (u32)fb->bottom >> 3; //Start address
-    REGs_PSC1[1] = (u32)(fb->bottom + 0x38400) >> 3; //End address
-    REGs_PSC1[2] = 0; //Fill value
-    REGs_PSC1[3] = (2 << 8) | 1; //32-bit pattern; start
+    REGs_PSC1[0] = ((VRAM_START + VRAM_END) / 2) >> 3;
+    REGs_PSC1[1] = VRAM_END >> 3;
+    REGs_PSC1[2] = 0;
+    REGs_PSC1[3] = (2 << 8) | 1;
 
     while(!((REGs_PSC0[3] & 2) && (REGs_PSC1[3] & 2)));
     return;
@@ -169,5 +157,7 @@ void main(void)
 
     CPU_DisableIRQ();
     PXI_DisableIRQ();
+    PXI_Reset();
+    GIC_Reset();
     ((void (*)())(entry))();
 }

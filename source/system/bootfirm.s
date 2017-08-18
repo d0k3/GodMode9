@@ -2,14 +2,19 @@
 .arm
 .align 4
 
-.equ ARG_MAGIC, 0xBEEF
+#include <arm.h>
+#include <vram.h>
+
+.equ ARG_MAGIC, 0x0000BEEF
 .equ MPCORE_LD, 0x27FFFB00
 .equ STUB_LOC,  0x27FFFC00
-.equ FBPTR_LOC, 0x23FFFE00
-.equ ARGV_LOC,  0x23FFFE20
+.equ ARGV_LOC,  0x27FFFE00
+.equ FBPTR_LOC, 0x27FFFE08
+.equ PATH_LOC,  0x27FFFF00
 
 .cpu mpcore
 MPCore_stub:
+    cpsid aif, #(SR_SVC_MODE)
     mov r0, #0x20000000
     mov r1, #0
     str r1, [r0, #-4]
@@ -59,7 +64,7 @@ BootFirm_stub:
         @ CPSR:
         @ ARM, Supervisor, IRQ/FIQs disabled
         @ Flags are undefined
-        msr cpsr_c, #0xD3
+        msr cpsr_c, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
 
         @ CP15:
         @ MPU and Caches are off
@@ -73,7 +78,7 @@ BootFirm_stub:
         blx r5
 
         @ Registers:
-        @ R0 = 0x00000002
+        @ R0 = 0x1 or 0x2
         @ R1 = 0x23FFFE10
         @ R2 = 0x0000BEEF
         @ R3-R14 are undefined
@@ -88,9 +93,8 @@ BootFirm_stub:
 
 
     @ Setup argv
-    str r9, [r1, #0x00] @ FIRM path / argv[0]
-
     ldrne r3, =FBPTR_LOC
+    str r9,   [r1, #0x00] @ FIRM path / argv[0]
     strne r3, [r1, #0x04] @ Framebuffers / argv[1]
 
     @ Fetch FIRM entrypoints
@@ -114,9 +118,23 @@ BootFirm_stub_end:
 .type BootFirm, %function
 BootFirm:
     mov r10, r0
+    mov r11, r1
+
+    @ Setup the framebuffer struct
+    ldr r0, =FBPTR_LOC
+    ldr r1, =VRAM_TOP_LA
+    ldr r2, =VRAM_TOP_RA
+    ldr r3, =VRAM_BOT_A
+    stmia r0!, {r1,r2,r3}
+
+    ldr r1, =VRAM_TOP_LB
+    ldr r2, =VRAM_TOP_RB
+    ldr r3, =VRAM_BOT_B
+    stmia r0!, {r1,r2,r3}
 
     @ Copy the FIRM path somewhere safe
-    ldr r0, =(ARGV_LOC+8)
+    ldr r0, =PATH_LOC
+    mov r1, r11
     mov r11, r0
     blx strcpy
 

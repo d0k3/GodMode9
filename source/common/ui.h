@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <vram.h>
 #include "common.h"
+
 
 #define BYTES_PER_PIXEL 3
 #define SCREEN_HEIGHT 240
@@ -52,8 +54,8 @@
 #define COLOR_STD_BG        COLOR_BLACK
 #define COLOR_STD_FONT      COLOR_WHITE
 
-#define TOP_SCREEN          ((u8*)(*(u32*)0x23FFFE00))
-#define BOT_SCREEN          ((u8*)(*(u32*)0x23FFFE08))
+#define TOP_SCREEN          ((u8*)VRAM_TOP_LA)
+#define BOT_SCREEN          ((u8*)VRAM_BOT_A)
 
 #ifdef SWITCH_SCREENS
 #define MAIN_SCREEN         TOP_SCREEN
