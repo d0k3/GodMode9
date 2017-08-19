@@ -315,7 +315,7 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
     
     // inject sighax signature, get hash
     u8 firm_sha[0x20];
-    memcpy(firm + 0x100, (IS_DEVKIT) ? sig_nand_firm_dev : sig_nand_firm_retail, 0x200);
+    memcpy(firm + 0x100, (IS_DEVKIT) ? sig_nand_firm_dev : sig_nand_firm_retail, 0x100);
     sha_quick(firm_sha, firm, firm_size, SHA256_MODE);
     
     // check install slots
