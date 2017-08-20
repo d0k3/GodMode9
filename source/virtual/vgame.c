@@ -820,7 +820,7 @@ bool ReadVGameDirNitro(VirtualFile* vfile, VirtualDir* vdir) {
         u8* fnt_entry = fnt + (vdir->offset >> 32);
         u32 fileid = vdir->index;
         bool is_dir;
-        if (ReadNitroRomEntry(&(vfile->offset), &(vfile->size), &is_dir, fileid, fnt_entry, twl, fnt, fat) == 0) {
+        if (ReadNitroRomEntry(&(vfile->offset), &(vfile->size), &is_dir, fileid, fnt_entry, fat) == 0) {
             if (!is_dir) vfile->offset += offset_nds;
             vfile->offset |= ((u64)(fnt_entry - fnt)) << 32;
             if (is_dir) vfile->flags |= VFLAG_DIR;

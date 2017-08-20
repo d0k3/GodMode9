@@ -137,7 +137,7 @@ u32 NextNitroRomEntry(u32* fileid, u8** fnt_entry) {
     return 0;
 }
 
-u32 ReadNitroRomEntry(u64* offset, u64* size, bool* is_dir, u32 fileid, u8* fnt_entry, TwlHeader* hdr, u8* fnt, u8* fat) {
+u32 ReadNitroRomEntry(u64* offset, u64* size, bool* is_dir, u32 fileid, u8* fnt_entry, u8* fat) {
     // check for end of subtable
     if (!fnt_entry || !*fnt_entry) return 1;
     
