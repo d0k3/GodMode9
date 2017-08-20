@@ -308,7 +308,7 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
     u8* firm = (u8*) TEMP_BUFFER;
     UINT firm_size;
     if ((fvx_qread(path, firm, 0, TEMP_BUFFER_SIZE, &firm_size) != FR_OK) ||
-        !firm_size || (firm_size >= TEMP_BUFFER_SIZE) || (ValidateFirm(firm, firm_size) != 0)) {
+        !firm_size || (firm_size >= TEMP_BUFFER_SIZE) || (ValidateFirm(firm, firm_size, true) != 0)) {
         ShowPrompt(false, "%s\nFIRM load/verify error.", pathstr);
         return 1;
     }

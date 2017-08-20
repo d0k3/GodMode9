@@ -9,13 +9,22 @@
 // 0 -> pre 9.5 / 1 -> 9.5 / 2 -> post 9.5
 #define A9L_CRYPTO_TYPE(hdr) ((hdr->k9l[3] == 0xFF) ? 0 : (hdr->k9l[3] == '1') ? 1 : 2)
 
-// valid addresses for FIRM section loading, pairs of start / end address, provided by Wolfvak
+// valid addresses for FIRM section loading
+// pairs of start / end address, provided by Wolfvak
 #define FIRM_VALID_ADDRESS  \
     0x08000040, 0x08100000, \
     0x18000000, 0x18600000, \
-    0x1FF80000, 0x1FFFFFFC, \
-    0x20000000, 0x23FFFE00, \
-    0x24000000, 0x27FFFB00
+    0x1FF80000, 0x1FFFFFFC
+
+// valid addresses (installable) for FIRM section loading
+#define FIRM_VALID_ADDRESS_INSTALL  \
+    FIRM_VALID_ADDRESS, \
+    0x10000000, 0x10200000
+    
+// valid addresses (bootable) for FIRM section loading
+#define FIRM_VALID_ADDRESS_BOOT \
+    FIRM_VALID_ADDRESS, \
+    0x20000000, 0x27FFFA00
 
 u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
     u8 magic[] = { FIRM_MAGIC };
@@ -59,7 +68,7 @@ u32 ValidateFirmA9LHeader(FirmA9LHeader* header) {
     return sha_cmp((IS_DEVKIT) ? enckeyX0x15devhash : enckeyX0x15hash, header->keyX0x15, 0x10, SHA256_MODE);
 }
 
-u32 ValidateFirm(void* firm, u32 firm_size) {
+u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
     FirmHeader* header = (FirmHeader*) firm;
     
     // validate firm header
@@ -68,21 +77,28 @@ u32 ValidateFirm(void* firm, u32 firm_size) {
     
     // hash verify all available sections and check load address
     for (u32 i = 0; i < 4; i++) {
-        u32 valid_address[] = { FIRM_VALID_ADDRESS };
+        u32 whitelist_boot[] = { FIRM_VALID_ADDRESS_BOOT };
+        u32 whitelist_install[] = { FIRM_VALID_ADDRESS_INSTALL };
+        u32* whitelist = (installable) ? whitelist_install : whitelist_boot;
+        u32 whitelist_size = ((installable) ? sizeof(whitelist_install) : sizeof(whitelist_boot)) / (2*sizeof(u32));
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
         if (sha_cmp(section->hash, ((u8*) firm) + section->offset, section->size, SHA256_MODE) != 0)
             return 1;
-        bool is_valid_address = false;
-        for (u32 a = 0; a < sizeof(valid_address) / (2*sizeof(u32)); a++) {
-            if ((section->address >= valid_address[2*a]) && (section->address + section->size <= valid_address[(2*a)+1]))
-                is_valid_address = true;
+        bool is_whitelisted = false;
+        for (u32 a = 0; a < whitelist_size; a++) {
+            if ((section->address >= whitelist[2*a]) && (section->address + section->size <= whitelist[(2*a)+1]))
+                is_whitelisted = true;
         }
-        if (!is_valid_address) return 1;
+        if (!is_whitelisted) return 1;
     }
     
-    // section for arm9 entrypoint not found?
-    if (!FindFirmArm9Section(header))
+    // ARM9 / ARM11 entrypoints available?
+    if (!header->entry_arm9 || (installable && !header->entry_arm11))
+        return 1;
+    
+    // B9S screeninit flag?
+    if (installable && (header->reserved0[0]&0x1))
         return 1;
     
     return 0;

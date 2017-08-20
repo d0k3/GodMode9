@@ -23,7 +23,7 @@ typedef struct {
     u8  dec_magic[4];
     u32 entry_arm11;
     u32 entry_arm9;
-    u8  reserved1[0x30];
+    u8  reserved0[0x30];
     FirmSectionHeader sections[4];
     u8  signature[0x100];
 } __attribute__((packed, aligned(16))) FirmHeader;
@@ -43,7 +43,7 @@ typedef struct {
 
 u32 ValidateFirmHeader(FirmHeader* header, u32 data_size);
 u32 ValidateFirmA9LHeader(FirmA9LHeader* header);
-u32 ValidateFirm(void* firm, u32 firm_size);
+u32 ValidateFirm(void* firm, u32 firm_size, bool installable);
 
 FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm);
 u32 GetArm9BinarySize(FirmA9LHeader* a9l);

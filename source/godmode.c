@@ -1447,7 +1447,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             ShowPrompt(false, "FIRM too big, can't launch"); // unlikely
         } else if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024)) {
             if ((FileGetData(curr_entry->path, TEMP_BUFFER, firm_size, 0) == firm_size) &&
-                (ValidateFirm(TEMP_BUFFER, firm_size) == 0)) {
+                (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0)) {
                 // fix the boot path first ("sdmc"/"nand" for Luma et al, hacky af)
                 const char* bootpath = curr_entry->path;
                 char fixpath[256] = { 0 };
@@ -2028,7 +2028,7 @@ u32 GodMode(bool is_b9s) {
                 } else if ((user_select == payloads) && (FileSelector(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
                     size_t firm_size = FileGetData(loadpath, TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
                     if (firm_size && (firm_size < TEMP_BUFFER_SIZE) && 
-                        (ValidateFirm(TEMP_BUFFER, firm_size) == 0)) {
+                        (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0)) {
                         char fixpath[256] = { 0 };
                         if ((*loadpath == '0') || (*loadpath == '1'))
                             snprintf(fixpath, 256, "%s%s", (*loadpath == '0') ? "sdmc" : "nand", loadpath + 1);
