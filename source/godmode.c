@@ -1468,7 +1468,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
                     while(1);
                 }
-            } else ShowPrompt(false, "Not a vaild FIRM, can't launch");
+            } else ShowPrompt(false, "Not a bootable FIRM, can't boot");
         }
         return 0;
     } else if ((user_select == script)) {

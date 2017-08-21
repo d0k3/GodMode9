@@ -155,6 +155,11 @@ verify S:/firm1.bin
 # -l / --legit force CIA to be legit (only works for legit system installed titles)
 # buildcia 0:/x.ncch
 
+# 'boot' COMMAND
+# Use this command to chainload a compatible FIRM
+# boot 0:/boot.firm
+# disabled cause it would leave the script
+
 # 'reboot' / 'poweroff' COMMAND
 # These are used to reboot or power off the 3DS console
 set ERRORMSG "Test script finished,\n(without reboot)\n \nIgnore the error message."

@@ -7,6 +7,8 @@
 #include "gameutil.h"
 #include "keydbutil.h"
 #include "filetype.h"
+#include "bootfirm.h"
+#include "firm.h"
 #include "power.h"
 #include "vff.h"
 #include "rtc.h"
@@ -85,7 +87,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
-    // { CMD_ID_BOOT    , "boot"    , 1, 0 },  // not supported yet
+    { CMD_ID_BOOT    , "boot"    , 1, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
 };    
@@ -470,6 +472,18 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     } else if (id == CMD_ID_BUILDCIA) {
         ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('n'))) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
+    } else if (id == CMD_ID_BOOT) {
+        size_t firm_size = FileGetData(argv[0], TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
+        ret = firm_size && (firm_size < TEMP_BUFFER_SIZE) &&
+            (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0);
+        if (ret) {
+            char fixpath[256] = { 0 };
+            if ((*argv[0] == '0') || (*argv[0] == '1'))
+                snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
+            else strncpy(fixpath, argv[0], 256);
+            BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
+            while(1);
+        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
     } else if (id == CMD_ID_REBOOT) {
         Reboot();
     } else if (id == CMD_ID_POWEROFF) {
