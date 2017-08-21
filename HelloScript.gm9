@@ -128,6 +128,12 @@ set ERRORMSG "SHA check failed (this was expected)"
 sha -o $[RENPATH] $[TESTPATH].sha
 set ERRORMSG ""
 
+# 'fixcmac' COMMAND
+# Use this to fix the CMACs for a file or a whole folder (recursively)
+# This will count as success if a file does not contain a CMAC
+# More info on CMACs: http://3dbrew.org/wiki/Savegames#AES_CMAC_header
+# fixcmac 1:/data
+
 # 'verify' COMMAND
 # Certain file formats (NAND, NCCH, NCSD, CIA, FIRM, ...) can also be verified. Use 'verify' to do so.
 # verify -o s:/firm0.bin # As drive letters are case sensitive, this would fail

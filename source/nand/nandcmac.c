@@ -6,14 +6,14 @@
 #include "vff.h"
 
 // CMAC types, see:
-// https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
+// https://3dbrew.org/wiki/Savegames#AES_CMAC_header
 // https://3dbrew.org/wiki/Nand/private/movable.sed
 // https://3dbrew.org/wiki/3DS_Virtual_Console#NAND_Savegame
 #define CMAC_EXTDATA_SD     1
 #define CMAC_EXTDATA_SYS    2
 #define CMAC_SAVEDATA_SYS   3
 #define CMAC_SAVE_GAMECARD  4
-#define CMAC_SAVEGAME       5 // this is not calclated into a CMAC
+#define CMAC_SAVEGAME       5 // this is not calculated into a CMAC
 #define CMAC_SAVEDATA_SD    6
 #define CMAC_TITLEDB_SYS    7
 #define CMAC_TITLEDB_SD     8
@@ -232,4 +232,40 @@ u32 CheckFileCmac(const char* path) {
 u32 FixFileCmac(const char* path) {
     u8 ccmac[16];
     return ((CalculateFileCmac(path, ccmac) == 0) && (WriteFileCmac(path, ccmac) == 0)) ? 0 : 1;
+}
+
+u32 RecursiveFixFileCmacWorker(char* path) {
+    FILINFO fno;
+    
+    if (fvx_stat(path, &fno) != FR_OK) return 1; // path does not exist
+    if (fno.fattrib & AM_DIR) { // process folder contents
+        DIR pdir;
+        char* fname = path + strnlen(path, 255);
+        if (fvx_opendir(&pdir, path) != FR_OK) return 1;
+        *(fname++) = '/';
+        
+        while (f_readdir(&pdir, &fno) == FR_OK) {
+            if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+                continue; // filter out virtual entries
+            strncpy(fname, fno.fname, path + 255 - fname);
+            if (fno.fname[0] == 0) {
+                break;
+            } else if (fno.fattrib & AM_DIR) { // directory, recurse through it
+                if (RecursiveFixFileCmacWorker(path) != 0) return 1;
+            } else if (CheckCmacPath(path) == 0) { // file, try to fix the CMAC
+                if (FixFileCmac(path) != 0) return 1;
+            }
+        }
+        f_closedir(&pdir);
+        *(--fname) = '\0';
+    } else if (CheckCmacPath(path) == 0)
+        return FixFileCmac(path);
+    
+    return 0;
+}
+
+u32 RecursiveFixFileCmac(const char* path) {
+    char lpath[256] = { 0 };
+    strncpy(lpath, path, 255);
+    return RecursiveFixFileCmacWorker(lpath);
 }

@@ -2,6 +2,7 @@
 #include "fsutil.h"
 #include "fsinit.h"
 #include "fsperm.h"
+#include "nandcmac.h"
 #include "nandutil.h"
 #include "gameutil.h"
 #include "keydbutil.h"
@@ -46,6 +47,7 @@ typedef enum {
     CMD_ID_DECRYPT,
     CMD_ID_ENCRYPT,
     CMD_ID_BUILDCIA,
+    CMD_ID_BOOT,
     CMD_ID_REBOOT,
     CMD_ID_POWEROFF
 } cmd_id;
@@ -78,11 +80,12 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FIND    , "find"    , 2, 0 },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
-    // { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 }, // not supported yet
+    { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 },
     { CMD_ID_VERIFY  , "verify"  , 1, 0 },
     { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
+    // { CMD_ID_BOOT    , "boot"    , 1, 0 },  // not supported yet
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
 };    
@@ -445,6 +448,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = (memcmp(sha256_fil, sha256_cmp, 0x20) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha does not match");
         }
+    } else if (id == CMD_ID_FIXCMAC) {
+        ShowString("Fixing CMACs...");
+        ret = (RecursiveFixFileCmac(argv[0]) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "fixcmac failed");
     } else if (id == CMD_ID_VERIFY) {
         u32 filetype = IdentifyFileType(argv[0]);
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
