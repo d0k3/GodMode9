@@ -75,6 +75,9 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
     if (ValidateFirmHeader(header, firm_size) != 0)
         return 1;
     
+    // check for boot9strap magic
+    bool b9s_fix = installable && (memcmp(&(header->reserved0[0x2D]), "B9S", 3) == 0);
+    
     // hash verify all available sections and check load address
     for (u32 i = 0; i < 4; i++) {
         u32 whitelist_boot[] = { FIRM_VALID_ADDRESS_BOOT };
@@ -85,8 +88,8 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
         if (!section->size) continue;
         if (sha_cmp(section->hash, ((u8*) firm) + section->offset, section->size, SHA256_MODE) != 0)
             return 1;
-        bool is_whitelisted = false;
-        for (u32 a = 0; a < whitelist_size; a++) {
+        bool is_whitelisted = (b9s_fix && (i == 3)); // don't check last section in b9s
+        for (u32 a = 0; (a < whitelist_size) && !is_whitelisted; a++) {
             if ((section->address >= whitelist[2*a]) && (section->address + section->size <= whitelist[(2*a)+1]))
                 is_whitelisted = true;
         }
