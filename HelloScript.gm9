@@ -121,6 +121,9 @@ sha $[RENPATH] $[TESTPATH].sha
 #                x: origin offset (in hex)
 #                y: origin size, starting at x (in hex)
 #                z: destination offset (in hex)
+# If destination does not exist or z is not given, a new destination file will be created(!)
+# If x is not given, the full origin file size is used to inject
+# If y is not given, everything starting from x is used to inject
 # -n / --no_cancel prevents user cancels (useful on critical operations)
 inject S:/nand_hdr.bin@100:4 $[RENPATH]@200 # offsets and sizes are in hex
 # As we just deliberately corrupted our test file, the subsequent SHA check will fail

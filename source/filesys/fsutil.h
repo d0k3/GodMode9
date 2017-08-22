@@ -8,9 +8,10 @@
 #define SILENT          (1UL<<2)
 #define CALC_SHA        (1UL<<3)
 #define BUILD_PATH      (1UL<<4)
-#define ASK_ALL         (1UL<<5)
-#define SKIP_ALL        (1UL<<6)
-#define OVERWRITE_ALL   (1UL<<7)
+#define ALLOW_EXPAND    (1UL<<5)
+#define ASK_ALL         (1UL<<6)
+#define SKIP_ALL        (1UL<<7)
+#define OVERWRITE_ALL   (1UL<<8)
 
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();

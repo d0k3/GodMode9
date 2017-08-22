@@ -394,17 +394,15 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 sz_org = 0;
             }
         }
-        if (!atstr_dst) {
-            ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "missing dest offset");
-        } else {
-            u32 flags_ext = 0;
-            u64 at_dst = 0;
+        u64 at_dst = 0;
+        if (atstr_dst) {
             *(atstr_dst++) = '\0';
-            if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
-            ret = ((sscanf(atstr_dst, "%llX", &at_dst) == 1) && FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, &flags_ext));
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "inject fail");
-        }
+            if (sscanf(atstr_dst, "%llX", &at_dst) != 1) at_dst = 0;
+        } else fvx_unlink(argv[1]); // force new file when no offset is given
+        u32 flags_ext = ALLOW_EXPAND;
+        if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
+        ret = FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, &flags_ext);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "inject fail");
     } else if (id == CMD_ID_RM) {
         char pathstr[_ERR_STR_LEN];
         TruncateString(pathstr, argv[0], 24, 8);

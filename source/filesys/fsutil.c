@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<<8)
-#define OVERWRITE_CUR   (1UL<<9)
+#define SKIP_CUR        (1UL<< 9)
+#define OVERWRITE_CUR   (1UL<<10)
 
 #define _MAX_FS_OPT     8 // max file selector options
 
@@ -204,6 +204,7 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
 bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_orig, u64 size, u32* flags) {
     FIL ofile;
     FIL dfile;
+    bool allow_expand = (flags && (*flags & ALLOW_EXPAND));
     
     if (!CheckWritePermissions(dest)) return false;
     if (strncmp(dest, orig, 256) == 0) {
@@ -212,7 +213,7 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
     }
     
     // open destination / origin
-    if (fvx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+    if (fvx_open(&dfile, dest, FA_WRITE | ((allow_expand) ? FA_OPEN_ALWAYS : FA_OPEN_EXISTING)) != FR_OK)
         return false;
     if ((fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) &&
         (!FileUnlock(orig) || (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))) {
@@ -225,7 +226,7 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
         size = fvx_size(&ofile) - off_orig;
     
     // check file limits
-    if (off_dest + size > fvx_size(&dfile)) {
+    if (!allow_expand && (off_dest + size > fvx_size(&dfile))) {
         ShowPrompt(false, "Operation would write beyond end of file");
         fvx_close(&dfile);
         fvx_close(&ofile);
