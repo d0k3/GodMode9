@@ -15,57 +15,63 @@
 #endif
 
 enum {
-    PXI_NOCMD = 0,
-    PXI_SETBRIGHTNESS = 1
+    PXI_NONE = 0,
+    PXI_READY,
+    PXI_BUSY,
+    PXI_BRIGHTNESS
 };
 
-#define PXI_SYNC_RECV ((volatile uint8_t*)(PXI_BASE + 0x00))
-#define PXI_SYNC_SEND ((volatile uint8_t*)(PXI_BASE + 0x01))
-#define PXI_SYNC_IRQ  ((volatile uint8_t*)(PXI_BASE + 0x03))
-#define PXI_CNT       ((volatile uint16_t*)(PXI_BASE + 0x04))
-#define PXI_SEND      ((volatile uint32_t*)(PXI_BASE + 0x08))
-#define PXI_RECV      ((volatile uint32_t*)(PXI_BASE + 0x0C))
+#define PXI_MAXBUFLEN (2048)
+#define PXI_FIFO_LEN  (16)
 
-#define PXI_CNT_SEND_FIFO_EMPTY       (1<<0)
-#define PXI_CNT_SEND_FIFO_FULL        (1<<1)
-#define PXI_CNT_SEND_FIFO_EMPTY_IRQ   (1<<2)
-#define PXI_CNT_SEND_FIFO_FLUSH       (1<<3)
-#define PXI_CNT_RECV_FIFO_EMPTY       (1<<8)
-#define PXI_CNT_RECV_FIFO_FULL        (1<<9)
-#define PXI_CNT_RECV_FIFO_NEMPTY_IRQ  (1<<10)
-#define PXI_CNT_ERROR_ACK             (1<<14)
-#define PXI_CNT_ENABLE_FIFO           (1<<15)
+#define PXI_SYNC_RECV ((vu8*)(PXI_BASE + 0x00))
+#define PXI_SYNC_SEND ((vu8*)(PXI_BASE + 0x01))
+#define PXI_SYNC_IRQ  ((vu8*)(PXI_BASE + 0x03))
+#define PXI_SYNC      ((vu32*)(PXI_BASE + 0x00))
+#define PXI_CNT       ((vu16*)(PXI_BASE + 0x04))
+#define PXI_SEND      ((vu32*)(PXI_BASE + 0x08))
+#define PXI_RECV      ((vu32*)(PXI_BASE + 0x0C))
 
-#define PXI_SYNC_TRIGGER_MPCORE (1<<5)
-#define PXI_SYNC_TRIGGER_OLDARM (1<<6)
-#define PXI_SYNC_ENABLE_IRQ     (1<<7)
+#define PXI_CNT_SEND_FIFO_EMPTY       (BIT(0))
+#define PXI_CNT_SEND_FIFO_FULL        (BIT(1))
+#define PXI_CNT_SEND_FIFO_EMPTY_IRQ   (BIT(2))
+#define PXI_CNT_SEND_FIFO_FLUSH       (BIT(3))
+#define PXI_CNT_RECV_FIFO_EMPTY       (BIT(8))
+#define PXI_CNT_RECV_FIFO_FULL        (BIT(9))
+#define PXI_CNT_RECV_FIFO_NEMPTY_IRQ  (BIT(10))
+#define PXI_CNT_ERROR_ACK             (BIT(14))
+#define PXI_CNT_ENABLE_FIFO           (BIT(15))
 
-static inline void PXI_SetRemote(u8 msg)
+#define PXI_SYNC_TRIGGER_MPCORE (BIT(5))
+#define PXI_SYNC_TRIGGER_OLDARM (BIT(6))
+#define PXI_SYNC_ENABLE_IRQ     (BIT(7))
+
+void PXI_SetRemote(u8 msg)
 {
     *PXI_SYNC_SEND = msg;
 }
 
-static inline u8 PXI_GetRemote(void)
+u8 PXI_GetRemote(void)
 {
     return *PXI_SYNC_RECV;
 }
 
-static inline void PXI_EnableIRQ(void)
+void PXI_WaitRemote(u8 msg)
+{
+    while(*PXI_SYNC_RECV != msg);
+}
+
+void PXI_EnableIRQ(void)
 {
     *PXI_SYNC_IRQ = PXI_SYNC_ENABLE_IRQ;
 }
 
-static inline void PXI_DisableIRQ(void)
+void PXI_DisableIRQ(void)
 {
     *PXI_SYNC_IRQ = 0;
 }
 
-static inline void PXI_Wait(void)
-{
-    while(PXI_GetRemote() != PXI_NOCMD);
-}
-
-static inline void PXI_Sync(void)
+void PXI_Sync(void)
 {
     #ifdef ARM9
     *PXI_SYNC_IRQ |= PXI_SYNC_TRIGGER_MPCORE;
@@ -74,14 +80,19 @@ static inline void PXI_Sync(void)
     #endif
 }
 
-static inline void PXI_Reset(void)
+void PXI_Reset(void)
 {
-    *PXI_SYNC_SEND = 0;
-    *PXI_SYNC_IRQ = 0;
-    *PXI_CNT = PXI_CNT_SEND_FIFO_FLUSH | PXI_CNT_ENABLE_FIFO;
+    *PXI_SYNC = 0;
+    *PXI_CNT = PXI_CNT_SEND_FIFO_FLUSH;
+    for (int i=0; i<16; i++) {
+        *PXI_RECV;
+    }
+    *PXI_CNT = 0;
+    *PXI_CNT = PXI_CNT_ENABLE_FIFO;
+    return;
 }
 
-static inline void PXI_Send(u32 w)
+void PXI_Send(u32 w)
 {
     while(*PXI_CNT & PXI_CNT_SEND_FIFO_FULL);
     do {
@@ -90,7 +101,7 @@ static inline void PXI_Send(u32 w)
     return;
 }
 
-static inline u32 PXI_Recv(void)
+u32 PXI_Recv(void)
 {
     u32 ret;
     while(*PXI_CNT & PXI_CNT_RECV_FIFO_EMPTY);
@@ -98,4 +109,32 @@ static inline u32 PXI_Recv(void)
         ret = *PXI_RECV;
     } while(*PXI_CNT & PXI_CNT_ERROR_ACK);
     return ret;
+}
+
+void PXI_SendArray(const u32 *w, u32 c)
+{
+    if (c>PXI_FIFO_LEN) c=PXI_FIFO_LEN;
+    for (u32 i=0; i<c; i++) {
+        PXI_Send(w[i]);
+    }
+    return;
+}
+
+void PXI_RecvArray(u32 *w, u32 c)
+{
+    if (c>PXI_FIFO_LEN) c=PXI_FIFO_LEN;
+    for (u32 i=0; i<c; i++) {
+        w[i] = PXI_Recv();
+    }
+    return;
+}
+
+void PXI_DoCMD(u8 cmd, u32 *args, u32 argc)
+{
+    PXI_WaitRemote(PXI_READY);
+    PXI_SendArray(args, argc);
+    PXI_SetRemote(cmd);
+    PXI_Sync();
+    PXI_WaitRemote(PXI_READY);
+    return;
 }

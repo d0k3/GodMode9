@@ -1,13 +1,8 @@
-/*
- Written by Wolfvak, specially sublicensed under the GPLv2
- Read LICENSE for more details
-*/
-
 #include <types.h>
 #include <cpu.h>
 #include <gic.h>
 
-#define IRQ_BASE ((vu32*)0x1FFFFFA0)
+#define IRQVECTOR_BASE ((vu32*)0x1FFFFFA0)
 
 irq_handler handler_table[MAX_IRQ];
 extern void (*main_irq_handler)(void);
@@ -54,7 +49,7 @@ void GIC_Reset(void)
         }
     }
 
-    IRQ_BASE[1] = (u32)&main_irq_handler;
-    IRQ_BASE[0] = 0xE51FF004;
+    IRQVECTOR_BASE[1] = (u32)&main_irq_handler;
+    IRQVECTOR_BASE[0] = 0xE51FF004;
     return;
 }

@@ -1,8 +1,3 @@
-/*
- Written by Wolfvak, specially sublicensed under the GPLv2
- Read LICENSE for more details
-*/
-
 #pragma once
 #include <types.h>
 

@@ -9,12 +9,10 @@ static int prev_brightness = -1;
 void CheckBrightness() {
     u8 curSlider;
     I2C_readRegBuf(I2C_DEV_MCU, 0x09, &curSlider, 1);
+    // Volume Slider value is always between 0x00 and 0x3F
     curSlider >>= 2;
     if (curSlider != prev_brightness) {
-        PXI_Wait();
-        PXI_Send(br_settings[curSlider]);
-        PXI_SetRemote(PXI_SETBRIGHTNESS);
-        PXI_Sync();
+        PXI_DoCMD(PXI_BRIGHTNESS, (u32[]){br_settings[curSlider]}, 1);
         prev_brightness = curSlider;
     }
     return;
@@ -22,7 +20,6 @@ void CheckBrightness() {
 
 void ScreenOn() {
     wait_msec(3); // wait 3ms (cause profi200 said so)
-    flushDCacheRange((u8*)0x23FFFE00, sizeof(u8*)*3); // this assumes CakeHax framebuffers, see ui.h
     I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A); // poweron LCD
 }
 

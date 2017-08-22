@@ -1,16 +1,12 @@
-@ This file was kindly provided by Wolfvak - thank you!
-
 .section .text.boot
-.arm
+.align 4
 
 #include <arm.h>
 
 .global __boot
 __boot:
-    @ Disable interrupts and switch to IRQ
-    cpsid if, #(SR_SVC_MODE)
+	cpsid aif, #(SR_SVC_MODE)
 
-    @ Writeback and invalidate caches
     mov r0, #0
     mcr p15, 0, r0, c7, c7, 0
     mcr p15, 0, r0, c7, c14, 0
@@ -23,7 +19,6 @@ __boot:
     ldr r1, =0x0000000F
     ldr r2, =0x00000000
 
-    @ MMU disabled, Caches disabled, other misc crap going on
     mcr p15, 0, r0, c1, c0, 0
     mcr p15, 0, r1, c1, c0, 1
     mcr p15, 0, r2, c1, c0, 2
@@ -37,5 +32,4 @@ __boot:
         blt .Lclearbss
 
     bl main
-
     b __boot

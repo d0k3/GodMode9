@@ -17,6 +17,7 @@ INCLUDE := -I$(dir_source) -I../common
 
 ASFLAGS := $(ARCH) -x assembler-with-cpp $(INCLUDE)
 CFLAGS  := $(ARCH) -Wall -Wextra -MMD -MP -fno-builtin \
+           -Wno-unused-function -Wno-unused-variable \
            -std=c11 -O2 -flto -ffast-math -Wno-main $(INCLUDE)
 LDFLAGS := -nostdlib -nostartfiles
 

@@ -1,6 +1,5 @@
 #include "godmode.h"
 #include "power.h"
-#include "pxi.h"
 
 void main(int argc, char** argv)
 {
