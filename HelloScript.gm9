@@ -114,6 +114,8 @@ find $[RENPATH] NULL
 sha $[RENPATH] $[TESTPATH].sha
 # Instead of an .sha file you can also use the SHA256 in hex as second argument
 # sha S:/sector0x96.bin 82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3
+# This also allows partial SHA checks (for @x:y handling see below)
+# sha S:/firm0.bin@100:100 078CC0CFD850A27093DDA2630C3603CA0C96969BD1F26DA48AC7B1BAE5DD5219
 
 # 'inject' COMMAND
 # This command is used to inject part of one file into another
@@ -122,8 +124,8 @@ sha $[RENPATH] $[TESTPATH].sha
 #                y: origin size, starting at x (in hex)
 #                z: destination offset (in hex)
 # If destination does not exist or z is not given, a new destination file will be created(!)
-# If x is not given, the full origin file size is used to inject
-# If y is not given, everything starting from x is used to inject
+# If x is not given, the full origin file size, starting from offset 0, is used to inject
+# If y is not given, everything starting from offset x is used to inject
 # -n / --no_cancel prevents user cancels (useful on critical operations)
 inject S:/nand_hdr.bin@100:4 $[RENPATH]@200 # offsets and sizes are in hex
 # As we just deliberately corrupted our test file, the subsequent SHA check will fail

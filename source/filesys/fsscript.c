@@ -347,6 +347,20 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
 bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     bool ret = true; // true unless some cmd messes up
     
+    // process arg0 @string
+    u64 at_org = 0;
+    u64 sz_org = 0;
+    if ((id == CMD_ID_SHA) || (id == CMD_ID_INJECT)) {
+        char* atstr_org = strrchr(argv[0], '@');
+        if (atstr_org) {
+            *(atstr_org++) = '\0';
+            if (sscanf(atstr_org, "%llX:%llX", &at_org, &sz_org) != 2) {
+                if (sscanf(atstr_org, "%llX", &at_org) != 1) at_org = 0;
+                sz_org = 0;
+            }
+        }
+    }
+    
     // perform command
     if (id == CMD_ID_ECHO) {
         ShowPrompt(false, argv[0]);
@@ -384,16 +398,6 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "move fail");
     } else if (id == CMD_ID_INJECT) {
         char* atstr_dst = strrchr(argv[1], '@');
-        char* atstr_org = strrchr(argv[0], '@');
-        u64 at_org = 0;
-        u64 sz_org = 0;
-        if (atstr_org) {
-            *(atstr_org++) = '\0';
-            if (sscanf(atstr_org, "%llX:%llX", &at_org, &sz_org) != 2) {
-                if (sscanf(atstr_org, "%llX", &at_org) != 1) at_org = 0;
-                sz_org = 0;
-            }
-        }
         u64 at_dst = 0;
         if (atstr_dst) {
             *(atstr_dst++) = '\0';
@@ -438,7 +442,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     } else if (id == CMD_ID_SHA) {
         u8 sha256_fil[0x20];
         u8 sha256_cmp[0x20];
-        if (!FileGetSha256(argv[0], sha256_fil)) {
+        if (!FileGetSha256(argv[0], sha256_fil, at_org, sz_org)) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
         } else if ((FileGetData(argv[1], sha256_cmp, 0x20, 0) != 0x20) && !strntohex(argv[1], sha256_cmp, 0x20)) {

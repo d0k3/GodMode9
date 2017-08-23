@@ -789,7 +789,7 @@ u32 Sha256Calculator(const char* path) {
     char pathstr[32 + 1];
     u8 sha256[32];
     TruncateString(pathstr, path, 32, 8);
-    if (!FileGetSha256(path, sha256)) {
+    if (!FileGetSha256(path, sha256, 0, 0)) {
         ShowPrompt(false, "Calculating SHA-256: failed!");
         return 1;
     } else {

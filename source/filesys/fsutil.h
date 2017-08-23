@@ -35,7 +35,7 @@ size_t FileGetData(const char* path, void* data, size_t size, size_t foffset);
 size_t FileGetSize(const char* path);
 
 /** Get SHA-256 of file **/
-bool FileGetSha256(const char* path, u8* sha256);
+bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size);
 
 /** Find data in file **/
 u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);

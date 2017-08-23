@@ -136,7 +136,7 @@ size_t FileGetSize(const char* path) {
     return fno.fsize;
 }
 
-bool FileGetSha256(const char* path, u8* sha256) {
+bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size) {
     bool ret = true;
     FIL file;
     u64 fsize;
@@ -144,14 +144,17 @@ bool FileGetSha256(const char* path, u8* sha256) {
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return false;
     fsize = fvx_size(&file);
-    fvx_lseek(&file, 0);
+    if (offset + size > fsize) return false;
+    if (!size) size = fsize - offset;
+    fvx_lseek(&file, offset);
     ShowProgress(0, 0, path);
     sha_init(SHA256_MODE);
-    for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+    for (u64 pos = 0; (pos < size) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT read_bytes = min(MAIN_BUFFER_SIZE, size - pos);
         UINT bytes_read = 0;
-        if (fvx_read(&file, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK)
+        if (fvx_read(&file, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK)
             ret = false;
-        if (!ShowProgress(pos + bytes_read, fsize, path))
+        if (!ShowProgress(pos + bytes_read, size, path))
             ret = false;
         sha_update(MAIN_BUFFER, bytes_read);
     }
