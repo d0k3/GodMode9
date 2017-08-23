@@ -14,7 +14,7 @@
 #define FIRM_VALID_ADDRESS  \
     0x08000040, 0x08100000, \
     0x18000000, 0x18600000, \
-    0x1FF80000, 0x1FFFFFFC
+    0x1FF00000, 0x1FFFFC00
 
 // valid addresses (installable) for FIRM section loading
 #define FIRM_VALID_ADDRESS_INSTALL  \
