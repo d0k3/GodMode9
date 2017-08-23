@@ -1439,7 +1439,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             // this only works up to FIRM1;
             slots = ShowSelectPrompt(3, optionstr, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024);
         } else slots = ShowPrompt(true, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024) ? 1 : 0;
-        if (slots) SafeInstallFirm(curr_entry->path, slots);
+        if (slots) ShowPrompt(false, "%s (%dkB)\nInstall %s", pathstr, firm_size / 1024,
+            (SafeInstallFirm(curr_entry->path, slots) == 0) ? "success" : "failed!");
         return 0;
     } else if ((user_select == boot)) {
         size_t firm_size = FileGetSize(curr_entry->path);
@@ -1654,9 +1655,6 @@ u32 GodMode(bool is_b9s) {
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
     memset(panedata, 0x00, 0x10000);
-    
-    // I2C init
-    // I2C_init();
     
     // check for embedded essential backup
     if (IS_SIGHAX && !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
