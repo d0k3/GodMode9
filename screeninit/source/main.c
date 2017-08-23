@@ -1,6 +1,7 @@
 #include <cpu.h>
 #include <pxi.h>
 #include <gic.h>
+#include <i2c.h>
 #include <gpulcd.h>
 #include <vram.h>
 #include <types.h>
@@ -46,7 +47,7 @@ void PXI_IRQHandler(void)
 
 void main(void)
 {
-    u32 entry=0;
+    u32 entry;
     PXI_Reset();
 
     GPU_Init();
@@ -57,6 +58,8 @@ void main(void)
 
     GPU_SetFramebufferMode(0, PDC_RGB24);
     GPU_SetFramebufferMode(1, PDC_RGB24);
+
+    I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A);
 
     GIC_Reset();
     GIC_SetIRQ(IRQ_PXI_SYNC, PXI_IRQHandler);

@@ -16,9 +16,38 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
-#include "i2c.h"
+#pragma once
 
+#include <types.h>
+#include <stdbool.h>
+
+
+#define I2C_STOP          (1u)
+#define I2C_START         (1u<<1)
+#define I2C_ERROR         (1u<<2)
+#define I2C_ACK           (1u<<4)
+#define I2C_DIRE_WRITE    (0u)
+#define I2C_DIRE_READ     (1u<<5)
+#define I2C_IRQ_ENABLE    (1u<<6)
+#define I2C_ENABLE        (1u<<7)
+
+#define I2C_GET_ACK(reg)  ((bool)((reg)>>4 & 1u))
+
+
+typedef enum
+{
+	I2C_DEV_POWER     = 0, 	// Unconfirmed
+	I2C_DEV_CAMERA    = 1, 	// Unconfirmed
+	I2C_DEV_CAMERA2   = 2, 	// Unconfirmed
+	I2C_DEV_MCU       = 3,
+	I2C_DEV_GYRO      = 10,
+	I2C_DEV_DEBUG_PAD = 12,
+	I2C_DEV_IR        = 13,
+	I2C_DEV_EEPROM    = 14, // Unconfirmed
+	I2C_DEV_NFC       = 15,
+	I2C_DEV_QTM       = 16,
+	I2C_DEV_N3DS_HID  = 17
+} I2cDevice;
 
 #define I2C1_REGS_BASE  (0x10161000)
 #define REG_I2C1_DATA   *((vu8* )(I2C1_REGS_BASE + 0x00))
@@ -65,14 +94,12 @@ static const struct
 	{2,	0x54}
 };
 
-
-
-static void i2cWaitBusy(vu8 *cntReg)
+static inline void i2cWaitBusy(vu8 *cntReg)
 {
 	while(*cntReg & I2C_ENABLE);
 }
 
-static vu8* i2cGetBusRegsBase(u8 busId)
+static inline vu8* i2cGetBusRegsBase(u8 busId)
 {
 	vu8 *base;
 	if(!busId)          base = (vu8*)I2C1_REGS_BASE;
@@ -134,7 +161,7 @@ static bool i2cStartTransfer(I2cDevice devId, u8 regAddr, bool read, vu8 *regsBa
 	else return false;
 }
 
-void I2C_init(void)
+static void I2C_init(void)
 {
 	i2cWaitBusy(i2cGetBusRegsBase(0));
 	REG_I2C1_CNTEX = 2;  // ?
@@ -149,7 +176,7 @@ void I2C_init(void)
 	REG_I2C3_SCL = 1280; // ?
 }
 
-bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
+static bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
 {
 	const u8 busId = i2cDevTable[devId].busId;
 	vu8 *const i2cData = i2cGetBusRegsBase(busId);
@@ -172,7 +199,7 @@ bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
 	return true;
 }
 
-bool I2C_writeReg(I2cDevice devId, u8 regAddr, u8 data)
+static bool I2C_writeReg(I2cDevice devId, u8 regAddr, u8 data)
 {
 	const u8 busId = i2cDevTable[devId].busId;
 	vu8 *const i2cData = i2cGetBusRegsBase(busId);

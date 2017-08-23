@@ -8,7 +8,7 @@
 
 
 #define LCD_CFG(x)  ((vu32*)(0x10202000 + (x)))
-void LCD_SetBrightness(u32 screen, u32 brightness);
+void LCD_SetBrightness(u32 screen, u8 brightness);
 void LCD_Deinitialize(void);
 
 #define GPU_PSC0(x) ((vu32*)(0x10400010 + (x)))
@@ -43,5 +43,5 @@ void GPU_PSCFill(u32 start, u32 end, u32 fv);
 #define PDC_FIXSTRIP   (BIT(7))
 
 void GPU_SetFramebuffers(const u32 *framebuffers);
-void GPU_SetFramebufferMode(u32 screen, u32 mode);
+void GPU_SetFramebufferMode(u32 screen, u8 mode);
 void GPU_Init();

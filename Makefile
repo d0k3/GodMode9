@@ -33,7 +33,7 @@ ARCH	:=	-DARM9 -march=armv5te -mthumb -mthumb-interwork -flto
 ASFLAGS	:=	$(ARCH) -g -x assembler-with-cpp $(INCLUDE)
 CFLAGS	:=	$(ARCH) -g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2 \
 			-mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu11 \
-			$(INCLUDE)
+			$(INCLUDE) -Wno-unused-function
 
 CFLAGS	+=	-DBUILD_NAME="\"$(TARGET) (`date +'%Y/%m/%d'`)\""
 

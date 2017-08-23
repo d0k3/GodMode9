@@ -116,13 +116,6 @@ _start_gm:
         strlt r3, [r2], #4
         blt .LXRQ_Install
 
-    @ Wait for the ARM11 to do its thing
-    mov r0, #0x20000000
-    .LWaitMPC:
-        ldr r1, [r0, #-4]
-        cmp r1, #0
-        bne .LWaitMPC
-
     @ Enable caches / select low exception vectors
     ldr r1, =(CR_ALT_VECTORS | CR_DISABLE_TBIT)
     ldr r2, =(CR_ENABLE_MPU | CR_ENABLE_DCACHE | CR_ENABLE_ICACHE | \

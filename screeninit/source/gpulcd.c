@@ -2,7 +2,7 @@
 #include <gpulcd.h>
 #include <types.h>
 
-void LCD_SetBrightness(u32 screen, u32 brightness)
+void LCD_SetBrightness(u32 screen, u8 brightness)
 {
     vu32 *lcd_reg;
     if (screen & 1) {
@@ -10,20 +10,19 @@ void LCD_SetBrightness(u32 screen, u32 brightness)
     } else {
         lcd_reg = LCD_CFG(0x240);
     }
-    *lcd_reg = brightness & 0xFF;
+    *lcd_reg = brightness;
     return;
 }
 
-void LCD_Initialize(u32 brightness)
+void LCD_Initialize(u8 brightness)
 {
-    brightness &= 0xFF;
-
     *LCD_CFG(0x014) = 0x00000001;
     *LCD_CFG(0x00C) &= 0xFFFEFFFE;
     *LCD_CFG(0x240) = brightness;
     *LCD_CFG(0xA40) = brightness;
     *LCD_CFG(0x244) = 0x1023E;
     *LCD_CFG(0xA44) = 0x1023E;
+    return;
 }
 
 void LCD_Deinitialize(void)
@@ -38,9 +37,8 @@ void LCD_Deinitialize(void)
 void GPU_PSCFill(u32 start, u32 end, u32 fv)
 {
     u32 mp;
-    if (start > end) {
+    if (start > end)
         return;
-    }
 
     start = GPU_ADDR(start);
     end   = GPU_ADDR(end);
@@ -74,7 +72,7 @@ void GPU_SetFramebuffers(const u32 *framebuffers)
     return;
 }
 
-void GPU_SetFramebufferMode(u32 screen, u32 mode)
+void GPU_SetFramebufferMode(u32 screen, u8 mode)
 {
     u32 stride, cfg;
     vu32 *fbcfg_reg, *fbstr_reg;
@@ -140,6 +138,7 @@ void GPU_Init(void)
         *GPU_PDC0(0x6C) = VRAM_START;
         *GPU_PDC0(0x70) = 0x00080340;
         *GPU_PDC0(0x74) = 0x00010501;
+        *GPU_PDC0(0x78) = 0x00000000;
         *GPU_PDC0(0x90) = 0x000003C0;
         *GPU_PDC0(0x94) = VRAM_START;
         *GPU_PDC0(0x98) = VRAM_START;
@@ -174,6 +173,7 @@ void GPU_Init(void)
         *GPU_PDC1(0x6C) = VRAM_START;
         *GPU_PDC1(0x70) = 0x00080300;
         *GPU_PDC1(0x74) = 0x00010501;
+        *GPU_PDC1(0x78) = 0x00000000;
         *GPU_PDC1(0x90) = 0x000003C0;
         *GPU_PDC1(0x9C) = 0x00000000;
 

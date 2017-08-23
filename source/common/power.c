@@ -18,11 +18,6 @@ void CheckBrightness() {
     return;
 }
 
-void ScreenOn() {
-    wait_msec(3); // wait 3ms (cause profi200 said so)
-    I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A); // poweron LCD
-}
-
 void Reboot() {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
     flushEntireDCache();
