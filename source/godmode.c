@@ -1391,11 +1391,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             optionstr[n_opt] = "Transfer to EmuNAND";
             destdrv[n_opt++] = "4:";
         }
-        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
-        if (user_select) {
-            ShowPrompt(false, "%s\nCTRNAND transfer %s", pathstr,
-                (TransferCtrNandImage(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
-        }
+        if (n_opt) {
+            user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : 1;
+            if (user_select) {
+                ShowPrompt(false, "%s\nCTRNAND transfer %s", pathstr,
+                    (TransferCtrNandImage(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+            }
+        } else ShowPrompt(false, "%s\nNo valid destination found");
         return 0;
     } else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
