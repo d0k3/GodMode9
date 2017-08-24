@@ -1898,11 +1898,11 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
                 char region[8] = { 0 };
                 if (twl->region_flags == TWL_REGION_FREE) snprintf(region, 8, "W");
                 snprintf(region, 8, "%s%s%s%s%s",
-                    (twl->region_flags & TWL_REGION_JAP) ? "J" : "",
-                    (twl->region_flags & TWL_REGION_USA) ? "U" : "",
-                    (twl->region_flags & TWL_REGION_EUR) ? "E" : "",
-                    (twl->region_flags & TWL_REGION_CHN) ? "C" : "",
-                    (twl->region_flags & TWL_REGION_KOR) ? "K" : "");
+                    (twl->region_flags & REGION_MASK_JPN) ? "J" : "",
+                    (twl->region_flags & REGION_MASK_USA) ? "U" : "",
+                    (twl->region_flags & REGION_MASK_EUR) ? "E" : "",
+                    (twl->region_flags & REGION_MASK_CHN) ? "C" : "",
+                    (twl->region_flags & REGION_MASK_KOR) ? "K" : "");
                 if (strncmp(region, "JUECK", 8) == 0) snprintf(region, 8, "W");
                 if (!*region) snprintf(region, 8, "UNK");
                 
@@ -1926,12 +1926,12 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
             char region[8] = { 0 };
             if (smdh->region_lockout == SMDH_REGION_FREE) snprintf(region, 8, "W");
             snprintf(region, 8, "%s%s%s%s%s%s",
-                (smdh->region_lockout & SMDH_REGION_JAP) ? "J" : "",
-                (smdh->region_lockout & SMDH_REGION_USA) ? "U" : "",
-                (smdh->region_lockout & SMDH_REGION_EUR) ? "E" : "",
-                (smdh->region_lockout & SMDH_REGION_CHN) ? "C" : "",
-                (smdh->region_lockout & SMDH_REGION_KOR) ? "K" : "",
-                (smdh->region_lockout & SMDH_REGION_TWN) ? "T" : "");
+                (smdh->region_lockout & REGION_MASK_JPN) ? "J" : "",
+                (smdh->region_lockout & REGION_MASK_USA) ? "U" : "",
+                (smdh->region_lockout & REGION_MASK_EUR) ? "E" : "",
+                (smdh->region_lockout & REGION_MASK_CHN) ? "C" : "",
+                (smdh->region_lockout & REGION_MASK_KOR) ? "K" : "",
+                (smdh->region_lockout & REGION_MASK_TWN) ? "T" : "");
             if (strncmp(region, "JUECKT", 8) == 0) snprintf(region, 8, "W");
             if (!*region) snprintf(region, 8, "UNK");
             

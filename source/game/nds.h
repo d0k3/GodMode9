@@ -1,10 +1,11 @@
 #pragma once
 
 #include "common.h"
+#include "region.h"
 
 // size of the icon struct:
 // see: http://problemkaputt.de/gbatek.htm#dscartridgeicontitle
-// v0x0001 -> 0x0840 byte (contains JAP, USA, FRE, GER, ITA, ESP titles)
+// v0x0001 -> 0x0840 byte (contains JPN, USA, FRE, GER, ITA, ESP titles)
 // v0x0002 -> 0x0940 byte (adds CHN title)
 // v0x0003 -> 0x0A40 byte (adds KOR title) 
 // v0x0103 -> 0x23C0 byte (adds TWL animated icon data)
@@ -18,14 +19,6 @@
 #define TWL_UNITCODE_NTR    0x00
 #define TWL_UNITCODE_TWLNTR 0x02
 #define TWL_UNITCODE_TWL    0x03
-
-#define TWL_REGION_JAP      0x01
-#define TWL_REGION_USA      0x02
-#define TWL_REGION_EUR      0x04
-#define TWL_REGION_AUS      0x08
-#define TWL_REGION_CHN      0x10
-#define TWL_REGION_KOR      0x20
-#define TWL_REGION_FREE     0xFFFFFFFF
 
 // see: http://problemkaputt.de/gbatek.htm#dscartridgeicontitle
 typedef struct {
