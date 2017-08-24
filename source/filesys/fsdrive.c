@@ -174,7 +174,7 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
 }
 
 void GetDirContents(DirStruct* contents, const char* path) {
-    if (*search_path && DriveType(path) & DRV_SEARCH) {
+    if (*search_path && (DriveType(path) & DRV_SEARCH)) {
         ShowString("Searching, please wait...");
         SearchDirContents(contents, search_path, search_pattern, true);
         if (search_title_mode) SetDirGoodNames(contents);

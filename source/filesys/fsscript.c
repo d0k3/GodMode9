@@ -378,10 +378,16 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ret = ShowPrompt(true, argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
     } else if (id == CMD_ID_INPUT) {
+        char input[_VAR_CNT_LEN] = { 0 };
         char* var = get_var(argv[1], NULL);
-        if (!*var) set_var(argv[1], ""); // make sure the var exists
-        ret = ShowStringPrompt(var, _VAR_CNT_LEN, argv[0]);
+        strncpy(input, var, _VAR_CNT_LEN);
+        ret = ShowStringPrompt(input, _VAR_CNT_LEN, argv[0]);
+        if (ret) set_var(argv[1], "");
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+        if (ret) {
+            ret = set_var(argv[1], input);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+        }
     } else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "set fail");
@@ -432,22 +438,20 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     } else if (id == CMD_ID_UMOUNT) {
         InitImgFS(NULL);
     } else if (id == CMD_ID_FIND) {
-        char* path = set_var(argv[1], ""); // setup the variable, get pointer
-        if (!path) {
-            ret = false;
+        char path[_VAR_CNT_LEN];
+        ret = (fvx_findpath(path, argv[0]) == FR_OK);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "find fail");
+        if (ret) {
+            ret = set_var(argv[1], path);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
-        } else {
-            ret = (fvx_findpath(path, argv[0]) == FR_OK);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "find fail");
         }
     } else if (id == CMD_ID_FINDNOT) {
-        char* path = set_var(argv[1], ""); // setup the variable, get pointer
-        if (!path) {
-            ret = false;
+        char path[_VAR_CNT_LEN];
+        ret = (fvx_findnopath(path, argv[0]) == FR_OK);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "findnot fail");
+        if (ret) {
+            ret = set_var(argv[1], path);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
-        } else {
-            ret = (fvx_findnopath(path, argv[0]) == FR_OK);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "findnot fail");
         }
     } else if (id == CMD_ID_SHA) {
         u8 sha256_fil[0x20];
