@@ -111,42 +111,6 @@ static inline bool strntohex(const char* str, u8* hex, u32 len) {
     return true;
 }
 
-char* get_var(const char* name, char** endptr) {
-    Gm9ScriptVar* vars = (Gm9ScriptVar*) VAR_BUFFER;
-    u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
-    
-    u32 name_len = 0;
-    char* vname = NULL;
-    if (!endptr) { // no endptr, varname is verbatim
-        vname = (char*) name;
-        name_len = strnlen(vname, _VAR_NAME_LEN);
-    } else { // endptr given, varname is in [VAR] format
-        vname = (char*) name + 1;
-        if (*name != '[') return NULL;
-        for (name_len = 0; vname[name_len] != ']'; name_len++)
-            if ((name_len >= _VAR_NAME_LEN) || !vname[name_len]) return NULL;
-        *endptr = vname + name_len + 1;
-    }
-    
-    u32 n_var = 0;
-    for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++) {
-        if (!*(var->name) || (strncmp(var->name, vname, name_len) == 0)) break;
-    }
-    
-    if (n_var >= max_vars || !*(vars[n_var].name)) n_var = 0;
-    if (n_var && (strncmp(vars[n_var].name, "DATESTAMP", _VAR_NAME_LEN) == 0)) {
-        DsTime dstime;
-        get_dstime(&dstime);
-        snprintf(vars[n_var].content, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
-    } else if (n_var && (strncmp(vars[n_var].name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) {
-        DsTime dstime;
-        get_dstime(&dstime);
-        snprintf(vars[n_var].content, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
-    }
-    
-    return vars[n_var].content;
-}
-
 char* set_var(const char* name, const char* content) {
     Gm9ScriptVar* vars = (Gm9ScriptVar*) VAR_BUFFER;
     u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
@@ -166,15 +130,80 @@ char* set_var(const char* name, const char* content) {
     return vars[n_var].content;
 }
 
+void upd_var(const char* name) {
+    // device serial
+    if (!name || (strncmp(name, "SERIAL", _VAR_NAME_LEN) == 0)) {
+        char env_serial[16] = { 0 };
+        if ((FileGetData("1:/rw/sys/SecureInfo_A", (u8*) env_serial, 0xF, 0x102) != 0xF) &&
+            (FileGetData("1:/rw/sys/SecureInfo_B", (u8*) env_serial, 0xF, 0x102) != 0xF))
+            snprintf(env_serial, 0xF, "UNKNOWN");
+        set_var("SERIAL", env_serial);
+    }
+    
+    // device sysnand / emunand id0
+    for (u32 emu = 0; emu <= 1; emu++) {
+        const char* env_id0_name = (emu) ? "EMUID0" : "SYSID0";
+        if (!name || (strncmp(name, env_id0_name, _VAR_NAME_LEN) == 0)) {
+            const char* path = emu ? "4:/private/movable.sed" : "1:/private/movable.sed";
+            char env_id0[32+1];
+            u8 sd_keyy[0x10];
+            if (FileGetData(path, sd_keyy, 0x10, 0x110) == 0x10) {
+                u32 sha256sum[8];
+                sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
+                snprintf(env_id0, 32+1, "%08lx%08lx%08lx%08lx",
+                    sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+            } else snprintf(env_id0, 0xF, "UNKNOWN");
+            set_var(env_id0_name, env_id0);
+        }
+    }
+    
+    // datestamp & timestamp
+    if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)  || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) {
+        DsTime dstime;
+        get_dstime(&dstime);
+        char env_date[16+1];
+        char env_time[16+1];
+        snprintf(env_date, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
+        snprintf(env_time, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
+        if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)) set_var("DATESTAMP", env_date);
+        if (!name || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) set_var("TIMESTAMP", env_time);
+    }
+}
+
+char* get_var(const char* name, char** endptr) {
+    Gm9ScriptVar* vars = (Gm9ScriptVar*) VAR_BUFFER;
+    u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
+    
+    u32 name_len = 0;
+    char* pname = NULL;
+    if (!endptr) { // no endptr, varname is verbatim
+        pname = (char*) name;
+        name_len = strnlen(pname, _VAR_NAME_LEN);
+    } else { // endptr given, varname is in [VAR] format
+        pname = (char*) name + 1;
+        if (*name != '[') return NULL;
+        for (name_len = 0; pname[name_len] != ']'; name_len++)
+            if ((name_len >= _VAR_NAME_LEN) || !pname[name_len]) return NULL;
+        *endptr = pname + name_len + 1;
+    }
+    
+    char vname[_VAR_NAME_LEN];
+    strncpy(vname, pname, name_len);
+    upd_var(vname); // handle dynamic env vars
+    
+    u32 n_var = 0;
+    for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++) {
+        if (!*(var->name) || (strncmp(var->name, vname, name_len) == 0)) break;
+    }
+    
+    if (n_var >= max_vars || !*(vars[n_var].name)) n_var = 0;
+    
+    return vars[n_var].content;
+}
+
 bool init_vars(const char* path_script) {
     // reset var buffer
     memset(VAR_BUFFER, 0x00, VAR_BUFFER_SIZE);
-    
-    // device serial
-    char env_serial[16] = { 0 };
-    if ((FileGetData("1:/rw/sys/SecureInfo_A", (u8*) env_serial, 0xF, 0x102) != 0xF) &&
-        (FileGetData("1:/rw/sys/SecureInfo_B", (u8*) env_serial, 0xF, 0x102) != 0xF))
-        snprintf(env_serial, 0xF, "UNKNOWN");
     
     // current path
     char curr_dir[_VAR_CNT_LEN];
@@ -182,30 +211,11 @@ bool init_vars(const char* path_script) {
     char* slash = strrchr(curr_dir, '/');
     if (slash) *slash = '\0';
     
-    // device sysnand / emunand id0
-    char env_sys_id0[32+1];
-    char env_emu_id0[32+1];
-    for (u32 emu = 0; emu <= 1; emu++) {
-        u8 sd_keyy[0x10];
-        char* env_id0 = emu ? env_emu_id0 : env_sys_id0;
-        char* path = emu ? "4:/private/movable.sed" : "1:/private/movable.sed";
-        if (FileGetData(path, sd_keyy, 0x10, 0x110) == 0x10) {
-            u32 sha256sum[8];
-            sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
-            snprintf(env_id0, 32+1, "%08lx%08lx%08lx%08lx",
-                sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
-        } else snprintf(env_id0, 0xF, "UNKNOWN");
-    }
-    
     // set env vars
     set_var("NULL", ""); // this one is special and should not be changed later 
-    set_var("SERIAL", env_serial);
-    set_var("GM9OUT", OUTPUT_PATH);
-    set_var("CURRDIR", curr_dir);
-    set_var("SYSID0", env_sys_id0);
-    set_var("EMUID0", env_emu_id0);
-    set_var("DATESTAMP", ""); // needs to be set on every access
-    set_var("TIMESTAMP", ""); // needs to be set on every access
+    set_var("CURRDIR", curr_dir); // script path, never changes
+    set_var("GM9OUT", OUTPUT_PATH); // output path, never changes
+    upd_var(NULL); // set all dynamic environment vars
     
     return true;
 }
