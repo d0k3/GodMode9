@@ -113,7 +113,7 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->offset = tick_entry->offset;
             vfile->size = sizeof(Ticket);
             vfile->keyslot = 0xFF;
-            vfile->flags = vdir->flags & ~VFLAG_DIR;
+            vfile->flags = (vdir->flags | VFLAG_READONLY) & ~VFLAG_DIR;
             
             return true; // found
         }
@@ -123,6 +123,7 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
         while (++vdir->index < n_templates) {
             // copy current template to vfile
             memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
+            vfile->flags |= VFLAG_READONLY;
             return true; // found
         }
     }

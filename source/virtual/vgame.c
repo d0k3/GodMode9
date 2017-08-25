@@ -726,7 +726,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
 bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
     vfile->name[0] = '\0';
     BuildLv3Index(&lv3idx, romfslv3);
-    vfile->flags = VFLAG_LV3;
+    vfile->flags = VFLAG_LV3 | VFLAG_READONLY;
     vfile->keyslot = ((offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch)) ? 
         0x2C : 0xFF; // actual keyslot may be different
     
@@ -801,7 +801,7 @@ bool ReadVGameDirNitro(VirtualFile* vfile, VirtualDir* vdir) {
     u8* fat = nitrofs + twl->fat_offset - twl->fnt_offset;
         
     vfile->name[0] = '\0';
-    vfile->flags = VFLAG_NITRO;
+    vfile->flags = VFLAG_NITRO | VFLAG_READONLY;
     vfile->keyslot = 0;
     
     // start from parent dir object
@@ -863,8 +863,9 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     }
     
     if (++vdir->index < n) {
-        // copy current template to vfile
+        // copy current template to vfile and set readonly flag
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
+        vfile->flags |= VFLAG_READONLY;
         return true;
     }
     

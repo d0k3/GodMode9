@@ -170,7 +170,9 @@ int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u
         count = vfile->size - offset;
     if (bytes_written) *bytes_written = count;
     
-    if (vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND)) {
+    if (vfile->flags & VFLAG_READONLY) {
+        return -1;
+    } else if (vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND)) {
         return WriteVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return WriteVMemFile(vfile, buffer, offset, count);

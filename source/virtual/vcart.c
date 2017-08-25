@@ -22,6 +22,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     GetCartName(name, cdata);
     memset(vfile, 0, sizeof(VirtualFile));
     vfile->keyslot = 0xFF; // unused
+    vfile->flags = VFLAG_READONLY;
         
     while (++vdir->index <= 5) {
         if ((vdir->index == 0) && (cdata->data_size < FAT_LIMIT)) { // standard full rom
@@ -45,7 +46,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
         } else if ((vdir->index == 5) && (cdata->cart_type & CART_CTR)) { // private header
             snprintf(vfile->name, 32, "%s-priv.bin", name);
             vfile->size = PRIV_HDR_SIZE;
-            vfile->flags = VFLAG_PRIV_HDR;
+            vfile->flags |= VFLAG_PRIV_HDR;
             return true;
         }
     }

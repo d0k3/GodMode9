@@ -50,6 +50,7 @@ bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir) {
         vfile->offset = vdir->index * sizeof(AesKeyInfo);
         vfile->size = 16; // standard size of a key
         vfile->keyslot = 0xFF;
+        vfile->flags = VFLAG_READONLY;
         
         return true; // found
     }
