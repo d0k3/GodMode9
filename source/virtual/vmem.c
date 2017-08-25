@@ -2,6 +2,7 @@
 #include "unittype.h"
 #include "sha.h"
 #include "aes.h"
+#include "keydb.h"
 #include "sdmmc.h"
 #include "itcm.h"
 #include "i2c.h"
@@ -78,7 +79,7 @@ static const VirtualFile vMemFileTemplates[] = {
 
     // Custom callback implementations.
     // Keyslot field has arbitrary meaning, and may not actually be a keyslot.
-    { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, OTP_LEN   , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP | VFLAG_BOOT9 },
+    { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, OTP_LEN   , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP },
     { "mcu_3ds_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
     { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
     { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
@@ -113,9 +114,19 @@ int ReadVMemOTPDecrypted(const VirtualFile* vfile, void* buffer, u64 offset, u64
 
     alignas(32) u8 otp_local[OTP_LEN];
     alignas(32) u8 otp_iv[0x10];
+    alignas(32) u8 otp_key[0x10];
     u8* otp_mem = (u8*) OTP_POS;
-    memcpy(otp_iv, OTP_IV, 0x10);
-    setup_aeskey(0x11, OTP_KEY);
+    
+    if (HAS_BOOT9) { // easy setup when boot9 available
+        memcpy(otp_iv, OTP_IV, 0x10);
+        memcpy(otp_key, OTP_KEY, 0x10);
+    } else { // a little bit more complicated without
+        if ((LoadKeyFromFile(otp_key, 0x11, 'N', "OTP") != 0) ||
+            (LoadKeyFromFile(otp_iv , 0x11, 'I', "OTP") != 0))
+            return 1; // crypto not available
+    }
+    
+    setup_aeskey(0x11, otp_key);
     use_aeskey(0x11);
     cbc_decrypt(otp_mem, otp_local, OTP_LEN / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, otp_iv);
     memcpy(buffer, otp_local + offset, count);

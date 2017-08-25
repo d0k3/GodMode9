@@ -71,8 +71,7 @@ bool GetOtp0x90(void* otp0x90, u32 len)
     if (len > 0x90) len = 0x90;
     memcpy(otp0x90, (u8*) 0x01FFB800, len);
     if ((LoadKeyFromFile(otp_key, 0x11, 'N', "OTP") == 0) &&
-        ((LoadKeyFromFile(otp_iv, 0x11, 'I', "IVOTP") == 0) ||
-         (LoadKeyFromFile(otp_iv, 0x11, 'I', "OTP") == 0))) {
+        (LoadKeyFromFile(otp_iv, 0x11, 'I', "OTP") == 0)) {
         setup_aeskey(0x11, otp_key);
         use_aeskey(0x11);
         cbc_encrypt(otp0x90, otp0x90, len / 0x10, AES_CNT_TITLEKEY_ENCRYPT_MODE, otp_iv);
