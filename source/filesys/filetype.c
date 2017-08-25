@@ -71,6 +71,7 @@ u32 IdentifyFileType(const char* path) {
                 return GAME_NDS; // NDS rom file
         }
     }
+    
     if ((fsize > sizeof(BossHeader)) &&
         (ValidateBossHeader((BossHeader*) data, fsize) == 0)) {
         return GAME_BOSS; // BOSS (SpotPass) file
@@ -78,16 +79,7 @@ u32 IdentifyFileType(const char* path) {
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
-    } else if ((strnlen(fname, 16) == 8) && (sscanf(fname, "%08lx", &id) == 1)) {
-        char path_cdn[256];
-        char* name_cdn = path_cdn + (fname - path);
-        strncpy(path_cdn, path, 256);
-        strncpy(name_cdn, "tmd", 4);
-        if (FileGetSize(path_cdn) > 0)
-            return GAME_NUSCDN; // NUS/CDN type 1
-        strncpy(name_cdn, "cetk", 5);
-        if (FileGetSize(path_cdn) > 0)
-            return GAME_NUSCDN; // NUS/CDN type 1
+    
     } else if (ext && ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0))) {
         char path_cetk[256];
         char* ext_cetk = path_cetk + (ext - path);
@@ -103,9 +95,21 @@ u32 IdentifyFileType(const char* path) {
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
     } else if (ValidateText((char*) data, (fsize > 0X200) ? 0x200 : fsize)) {
+        u32 type = 0;
         if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
-            return TXT_SCRIPT | TXT_GENERIC; // should be a script (which is also generic text)
-        else if (fsize < TEMP_BUFFER_SIZE) return TXT_GENERIC;
+            type |= TXT_SCRIPT; // should be a script (which is also generic text)
+        if (fsize < TEMP_BUFFER_SIZE) type |= TXT_GENERIC;
+        return type;
+    } else if ((strnlen(fname, 16) == 8) && (sscanf(fname, "%08lx", &id) == 1)) {
+        char path_cdn[256];
+        char* name_cdn = path_cdn + (fname - path);
+        strncpy(path_cdn, path, 256);
+        strncpy(name_cdn, "tmd", 4);
+        if (FileGetSize(path_cdn) > 0)
+            return GAME_NUSCDN; // NUS/CDN type 1
+        strncpy(name_cdn, "cetk", 5);
+        if (FileGetSize(path_cdn) > 0)
+            return GAME_NUSCDN; // NUS/CDN type 1
     }
     
     return 0;
