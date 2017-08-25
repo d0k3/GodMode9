@@ -2,7 +2,10 @@
 #include "unittype.h"
 #include "sha.h"
 #include "aes.h"
+#include "itcm.h"
+#include "i2c.h"
 
+#define VFLAG_CALLBACK      (1UL<<27)
 #define VFLAG_BOOT9         (1UL<<28)
 #define VFLAG_BOOT11        (1UL<<29)
 #define VFLAG_OTP           (1UL<<30)
@@ -13,6 +16,10 @@
 #define BOOT11_POS  0x08090000
 #define BOOT9_LEN   0x00010000
 #define BOOT11_LEN  0x00010000
+
+// checks for boot9 / boot11
+#define HAS_BOOT9   (sha_cmp(boot9_sha256, (u8*) BOOT9_POS, BOOT9_LEN, SHA256_MODE) == 0)
+#define HAS_BOOT11  (sha_cmp(boot11_sha256, (u8*) BOOT11_POS, BOOT11_LEN, SHA256_MODE) == 0)
 
 // see: https://www.youtube.com/watch?v=wogNzUypLuI
 u8 boot9_sha256[0x20] = {
@@ -27,24 +34,49 @@ u8 boot11_sha256[0x20] = {
 // see: https://github.com/SciresM/CTRAesEngine/blob/8312adc74b911a6b9cb9e03982ba3768b8e2e69c/CTRAesEngine/AesEngine.cs#L672-L688
 #define OTP_KEY ((u8*) BOOT9_POS + ((IS_DEVKIT) ?  + 0xD700 : 0xD6E0))
 #define OTP_IV  (OTP_KEY + 0x10)
+#define OTP_POS 0x10012000
+#define OTP_LEN sizeof(Otp)
+
+// Custom read/write handlers.
+typedef int ReadVMemFileCallback(const VirtualFile* vfile, void* buffer, u64 offset, u64 count);
+
+enum VMemCallbackType {
+    VMEM_CALLBACK_OTP_DECRYPTED,
+    VMEM_CALLBACK_MCU_REGISTERS,
+    VMEM_NUM_CALLBACKS
+};
+
+ReadVMemFileCallback ReadVMemOTPDecrypted;
+ReadVMemFileCallback ReadVMemMCURegisters;
+
+static ReadVMemFileCallback* const vMemCallbacks[] = {
+    ReadVMemOTPDecrypted,
+    ReadVMemMCURegisters,
+};
+STATIC_ASSERT(sizeof(vMemCallbacks) / sizeof(vMemCallbacks[0]) == VMEM_NUM_CALLBACKS);
 
 // see: http://3dbrew.org/wiki/Memory_layout#ARM9
 static const VirtualFile vMemFileTemplates[] = {
     { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, 0 },
     { "arm9.mem"         , 0x08000000, 0x00100000, 0xFF, 0 },
     { "arm9ext.mem"      , 0x08100000, 0x00080000, 0xFF, VFLAG_N3DS_ONLY },
-    { "boot9.bin"        , BOOT9_POS , BOOT9_LEN , 0xFF, VFLAG_BOOT9 },
-    { "boot11.bin"       , BOOT11_POS, BOOT11_LEN, 0xFF, VFLAG_BOOT11 },
+    { "boot9.bin"        , BOOT9_POS , BOOT9_LEN , 0xFF, VFLAG_READONLY | VFLAG_BOOT9 },
+    { "boot11.bin"       , BOOT11_POS, BOOT11_LEN, 0xFF, VFLAG_READONLY | VFLAG_BOOT11 },
     { "vram.mem"         , 0x18000000, 0x00600000, 0xFF, 0 },
     { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, 0 },
     { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, 0 },
     { "fcram.mem"        , 0x20000000, 0x08000000, 0xFF, 0 },
     { "fcramext.mem"     , 0x28000000, 0x08000000, 0xFF, VFLAG_N3DS_ONLY },
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, 0 },
-    { "otp.mem"          , 0x10012000, 0x00000100, 0xFF, VFLAG_OTP },
-    { "otp_dec.mem"      , 0x10012000, 0x00000100, 0x11, VFLAG_OTP | VFLAG_BOOT9 },
+    { "otp.mem"          , OTP_POS   , OTP_LEN   , 0xFF, VFLAG_READONLY | VFLAG_OTP },
     // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
     // { "bootrom_unp.mem"  , 0xFFFF0000, 0x00008000, 0xFF, 0 }
+
+    // Custom callback implementations.
+    // Keyslot field has arbitrary meaning, and may not actually be a keyslot.
+    { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, OTP_LEN   , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP | VFLAG_BOOT9 },
+    { "mcu_3ds_regs.bin" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
+    { "mcu_dsi_regs.bin" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
@@ -58,8 +90,8 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
         // process special flags
         if (((vfile->flags & VFLAG_N3DS_ONLY) && (IS_O3DS)) || // this is not on O3DS consoles
             ((vfile->flags & VFLAG_OTP) && !(IS_UNLOCKED)) || // OTP still locked
-            ((vfile->flags & VFLAG_BOOT9) && (sha_cmp(boot9_sha256, (u8*) BOOT9_POS, BOOT9_LEN, SHA256_MODE) != 0)) || // boot9 not found
-            ((vfile->flags & VFLAG_BOOT11) && (sha_cmp(boot11_sha256, (u8*) BOOT11_POS, BOOT11_LEN, SHA256_MODE) != 0))) // boot11 not found
+            ((vfile->flags & VFLAG_BOOT9) && !(HAS_BOOT9)) || // boot9 not found
+            ((vfile->flags & VFLAG_BOOT11) && !(HAS_BOOT11))) // boot11 not found
             continue; 
         
         // found if arriving here
@@ -69,29 +101,52 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
     return false;
 }
 
-int ReadVMemFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
-    if ((vfile->flags & VFLAG_OTP) && (vfile->keyslot == 0x11)) {
-        u8 __attribute__((aligned(32))) otp_local[vfile->size];
-        u8 __attribute__((aligned(32))) otp_iv[0x10];
-        u8* otp_mem = (u8*) (u32) vfile->offset;
-        memcpy(otp_iv, OTP_IV, 0x10);
-        setup_aeskey(0x11, OTP_KEY);
-        use_aeskey(0x11);
-        cbc_decrypt(otp_mem, otp_local, vfile->size / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, otp_iv);
-        memcpy(buffer, otp_local + offset, count);
-    } else {
-        u32 foffset = vfile->offset + offset;
-        memcpy(buffer, (u8*) foffset, count);
-    }
+// Read decrypted OTP.
+int ReadVMemOTPDecrypted(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
+    (void) vfile;
+
+    alignas(32) u8 otp_local[OTP_LEN];
+    alignas(32) u8 otp_iv[0x10];
+    u8* otp_mem = (u8*) OTP_POS;
+    memcpy(otp_iv, OTP_IV, 0x10);
+    setup_aeskey(0x11, OTP_KEY);
+    use_aeskey(0x11);
+    cbc_decrypt(otp_mem, otp_local, OTP_LEN / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, otp_iv);
+    memcpy(buffer, otp_local + offset, count);
     return 0;
 }
 
+// Read MCU registers.
+int ReadVMemMCURegisters(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
+    // While it is possible to write MCU registers, that's a good way to
+    // brick your system in a way that even ntrboothax can't fix.
+
+    // The table puts the device ID into the keyslot field.
+    u8 device = (u8) vfile->keyslot;
+
+    // Read the data.
+    u8* dest = (u8*) buffer;
+    return (I2C_readRegBuf(device, (u8) offset, dest, (u32) count)) ? 0 : 1;
+}
+
+int ReadVMemFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
+    if (vfile->flags & VFLAG_CALLBACK) {
+        if ((offset + count > vfile->size) || (0u + offset + count < offset))
+            return 1;
+        return vMemCallbacks[vfile->offset](vfile, buffer, offset, count);
+    } else {
+        u32 foffset = vfile->offset + offset;
+        memcpy(buffer, (u8*) foffset, count);
+        return 0;
+    }
+}
+
 int WriteVMemFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
-    if (vfile->flags & (VFLAG_OTP|VFLAG_BOOT9|VFLAG_BOOT11)) {
+    if (vfile->flags & (VFLAG_READONLY|VFLAG_CALLBACK)) {
         return 1; // not writable / writes blocked
     } else {
         u32 foffset = vfile->offset + offset;
         memcpy((u8*) foffset, buffer, count);
+        return 0;
     }
-    return 0;
 }
