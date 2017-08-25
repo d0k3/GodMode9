@@ -25,6 +25,7 @@
 #include "timer.h"
 #include "power.h"
 #include "rtc.h"
+#include "sysinfo.h"
 #include QLZ_SPLASH_H
 
 #define N_PANES 2
@@ -1500,6 +1501,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
+    int sysinfo = ++n_opt;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1507,6 +1509,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
+    if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1597,6 +1600,15 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
             ShowPrompt(false, "New RTC date&time is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.",
                 timestr);
         }
+        return 0;
+    } else if (user_select == sysinfo) { // Myria's system info
+        const char* sysinfo_path = OUTPUT_PATH "/sysinfo.txt";
+        char* sysinfo_txt = (char*) TEMP_BUFFER;
+        ShowString("Calculating system info...");
+        MyriaSysinfo(sysinfo_txt);
+        FileSetData(sysinfo_path, sysinfo_txt, strnlen(sysinfo_txt, TEMP_BUFFER_SIZE), 0, true);
+        FileTextViewer(sysinfo_path);
+        ShowPrompt(false, "System info written to\n%s", sysinfo_path);
         return 0;
     } else return 1;
     

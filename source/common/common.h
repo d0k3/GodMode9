@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <types.h>
+#include <stdalign.h>
 
 #define max(a,b) \
     (((a) > (b)) ? (a) : (b))
@@ -27,6 +28,11 @@
     ((((u64) getle32(d+4))<<32) | ((u64) getle32(d)))
 #define align(v,a) \
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
+#define countof(x) \
+    (sizeof(x) / sizeof((x)[0]))
+
+#define STATIC_ASSERT(...) \
+    _Static_assert((__VA_ARGS__), #__VA_ARGS__)
 
 // GodMode9 / SafeMode9 ("flavor" / splash screen)
 #ifndef SAFEMODE

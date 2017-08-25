@@ -19,3 +19,14 @@
 
 // A9LH + unlocked == SigHax
 #define IS_SIGHAX   (IS_A9LH && IS_UNLOCKED)
+
+// System models
+enum SystemModel {
+    MODEL_OLD_3DS = 0,
+    MODEL_OLD_3DS_XL,
+    MODEL_NEW_3DS,
+    MODEL_OLD_2DS,
+    MODEL_NEW_3DS_XL,
+    MODEL_NEW_2DS_XL,
+    NUM_MODELS
+};
