@@ -1476,10 +1476,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         }
         return 0;
     } else if ((user_select == script)) {
-        static bool show_disclaimer = true;
-        if (show_disclaimer) ShowPrompt(false, "Warning: Do not run scripts\nfrom untrusted sources.");
-        show_disclaimer = false;
-        if (ShowPrompt(true, "%s\nExecute script?", pathstr))
+        if (ShowPrompt(true, "%s\nWarning: Do not run scripts\nfrom untrusted sources.\n \nExecute script?", pathstr))
             ShowPrompt(false, "%s\nScript execute %s", pathstr, ExecuteGM9Script(curr_entry->path) ? "success" : "failure");
         GetDirContents(current_dir, current_path);
         return 0;
