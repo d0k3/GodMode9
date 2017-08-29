@@ -857,15 +857,15 @@ u32 StandardCopy(u32* cursor, DirStruct* current_dir) {
             if (!current_dir->entry[i].marked) 
                 continue;
             flags |= ASK_ALL;
-            current_dir->entry[i].marked = false;
+            DrawDirContents(current_dir, (*cursor = i), scroll);
             if (PathCopy(OUTPUT_PATH, path, &flags)) n_success++;
-            else { // on failure: set cursor on failed item, break;
+            else { // on failure: show error, break
                 char currstr[32+1];
                 TruncateString(currstr, path, 32, 12);
                 ShowPrompt(false, "%s\nFailed copying item", currstr);
-                *cursor = i;
                 break;
             }
+            current_dir->entry[i].marked = false;
         }
         if (n_success) ShowPrompt(false, "%lu items copied to %s", n_success, OUTPUT_PATH);
     } else {
@@ -1146,15 +1146,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     n_unencrypted++;
                     continue;
                 }
-                current_dir->entry[i].marked = false;
+                DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, false) == 0)) n_success++;
-                else { // on failure: set cursor on failed title, break;
+                else { // on failure: show error, break
                     TruncateString(pathstr, path, 32, 8);
                     ShowPrompt(false, "%s\nDecryption failed", pathstr);
-                    *cursor = i;
                     break;
                 }
+                current_dir->entry[i].marked = false;
             }
             if (n_other || n_unencrypted) {
                 ShowPrompt(false, "%lu/%lu files decrypted ok\n%lu/%lu not encrypted\n%lu/%lu not of same type",
@@ -1193,15 +1193,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     n_other++;
                     continue;
                 }
-                current_dir->entry[i].marked = false;
+                DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, true) == 0)) n_success++;
-                else { // on failure: set cursor on failed title, break;
+                else { // on failure: show error, break
                     TruncateString(pathstr, path, 32, 8);
                     ShowPrompt(false, "%s\nEncryption failed", pathstr);
-                    *cursor = i;
                     break;
                 }
+                current_dir->entry[i].marked = false;
             }
             if (n_other) {
                 ShowPrompt(false, "%lu/%lu files encrypted ok\n%lu/%lu not of same type",
@@ -1229,15 +1229,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     n_other++;
                     continue;
                 }
-                current_dir->entry[i].marked = false;
+                DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (((user_select != cxi_dump) && (BuildCiaFromGameFile(path, force_legit) == 0)) ||
                     ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(path) == 0))) n_success++;
-                else { // on failure: set *cursor on failed title, break;
+                else { // on failure: show error, break
                     TruncateString(pathstr, path, 32, 8);
                     ShowPrompt(false, "%s\nBuild %s failed", pathstr, type);
-                    *cursor = i;
                     break;
                 }
+                current_dir->entry[i].marked = false;
             }
             if (n_other) ShowPrompt(false, "%lu/%lu %ss built ok\n%lu/%lu not of same type",
                 n_success, n_marked, type, n_other, n_marked);
@@ -1267,16 +1267,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
                     n_other++;
                     continue;
                 }
-                current_dir->entry[i].marked = false;
-                if (filetype & IMG_NAND) {
-                    if (ValidateNandDump(path) == 0) n_success++;
-                } else if (VerifyGameFile(path) == 0) n_success++;
-                else { // on failure: set *cursor on failed title, break;
+                DrawDirContents(current_dir, (*cursor = i), scroll);
+                if ((filetype & IMG_NAND) && (ValidateNandDump(path) == 0)) n_success++;
+                else if (VerifyGameFile(path) == 0) n_success++;
+                else { // on failure: show error, break
                     TruncateString(pathstr, path, 32, 8);
                     ShowPrompt(false, "%s\nVerification failed", pathstr);
-                    *cursor = i;
                     break;
                 }
+                current_dir->entry[i].marked = false;
             }
             if (n_other) ShowPrompt(false, "%lu/%lu files verified ok\n%lu/%lu not of same type",
                 n_success, n_marked, n_other, n_marked);
