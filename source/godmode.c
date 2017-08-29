@@ -136,14 +136,44 @@ void GetTimeString(char* timestr, bool forced_update) {
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D, (u32) dstime.bcd_h, (u32) dstime.bcd_m);
 }
 
-void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
-    const u32 n_cb_show = 8;
+void DrawTopBar(const char* curr_path) {
     const u32 bartxt_start = (FONT_HEIGHT_EXT == 10) ? 1 : 2;
     const u32 bartxt_x = 2;
     const u32 bartxt_rx = SCREEN_WIDTH_TOP - (19*FONT_WIDTH_EXT) - bartxt_x;
+    const u32 len_path = SCREEN_WIDTH_TOP - 120;
+    char tempstr[64];
+    
+    // top bar - current path
+    DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
+    if (*curr_path) TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
+    else snprintf(tempstr, 16, "[root]");
+    DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
+    bool show_time = true;
+    
+    #ifdef SHOW_FREE
+    if (*curr_path) { // free & total storage
+        char bytestr0[32];
+        char bytestr1[32];
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
+        FormatBytes(bytestr0, GetFreeSpace(curr_path));
+        FormatBytes(bytestr1, GetTotalSpace(curr_path));
+        snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
+        show_time = false;
+    }
+    #endif
+    
+    if (show_time) { // clock
+        char timestr[32];
+        GetTimeString(timestr, false);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", timestr);
+    }
+}
+
+void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
+    const u32 n_cb_show = 8;
     const u32 info_start = (MAIN_SCREEN == TOP_SCREEN) ? 18 : 2; // leave space for the topbar when required
     const u32 instr_x = (SCREEN_WIDTH_MAIN - (34*FONT_WIDTH_EXT)) / 2;
-    const u32 len_path = SCREEN_WIDTH_TOP - 120;
     const u32 len_info = (SCREEN_WIDTH_MAIN - ((SCREEN_WIDTH_MAIN >= 400) ? 80 : 20)) / 2;
     char tempstr[64];
     
@@ -159,30 +189,6 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
     if (state_prev != state_curr) {
         ClearScreenF(true, false, COLOR_STD_BG);
         state_prev = state_curr;
-    }
-    
-    // top bar - current path & free/total storage (or clock)
-    DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
-    if (*curr_path) TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
-    else snprintf(tempstr, 16, "[root]");
-    DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
-    bool show_time = true;
-    #ifdef SHOW_FREE
-    if (*curr_path) {
-        char bytestr0[32];
-        char bytestr1[32];
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
-        FormatBytes(bytestr0, GetFreeSpace(curr_path));
-        FormatBytes(bytestr1, GetTotalSpace(curr_path));
-        snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
-        show_time = false;
-    }
-    #endif
-    if (show_time) {
-        char timestr[32];
-        GetTimeString(timestr, false);
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", timestr);
     }
     
     // left top - current file info
@@ -260,14 +266,12 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* c
 
 void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     const int str_width = (SCREEN_WIDTH_ALT-3) / FONT_WIDTH_EXT;
-    const u32 bar_height_min = 32;
-    const u32 bar_width = 2;
     const u32 stp_y = 12;
-    const u32 start_y = (MAIN_SCREEN == TOP_SCREEN) ? 2 : 2 + stp_y;
+    const u32 start_y = (MAIN_SCREEN == TOP_SCREEN) ? 0 : stp_y;
     const u32 pos_x = 0;
-    const u32 lines = (SCREEN_HEIGHT-start_y+stp_y-1) / stp_y;
-    u32 pos_y = start_y;
-     
+    const u32 lines = (SCREEN_HEIGHT-(start_y+2)+(stp_y-1)) / stp_y;
+    u32 pos_y = start_y + 2;
+    
     if (*scroll > cursor) *scroll = cursor;
     else if (*scroll + lines <= cursor) *scroll = cursor - lines + 1;
     if (*scroll + lines > contents->n_entries)
@@ -291,15 +295,18 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
         pos_y += stp_y;
     }
     
-    if (contents->n_entries > lines) { // draw position bar at the right      
-        u32 bar_height = (lines * SCREEN_HEIGHT) / contents->n_entries;
+    const u32 flist_height = (SCREEN_HEIGHT - start_y);
+    const u32 bar_width = 2;
+    if (contents->n_entries > lines) { // draw position bar at the right
+        const u32 bar_height_min = 32;
+        u32 bar_height = (lines * flist_height) / contents->n_entries;
         if (bar_height < bar_height_min) bar_height = bar_height_min;
-        u32 bar_pos = ((u64) *scroll * (SCREEN_HEIGHT - bar_height)) / (contents->n_entries - lines);
+        const u32 bar_pos = ((u64) *scroll * (flist_height - bar_height)) / (contents->n_entries - lines) + start_y;
         
-        DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, 0, bar_width, bar_pos, COLOR_STD_BG);
-        DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, bar_pos + bar_height, bar_width, SCREEN_WIDTH_ALT - (bar_pos + bar_height), COLOR_STD_BG);
+        DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, start_y, bar_width, (bar_pos - start_y), COLOR_STD_BG);
+        DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, bar_pos + bar_height, bar_width, SCREEN_HEIGHT - (bar_pos + bar_height), COLOR_STD_BG);
         DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
-    } else DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, 0, bar_width, SCREEN_HEIGHT, COLOR_STD_BG);
+    } else DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, start_y, bar_width, flist_height, COLOR_STD_BG);
 }
 
 u32 SdFormatMenu(void) {
@@ -841,7 +848,7 @@ u32 CmacCalculator(const char* path) {
     return 0;
 }
 
-u32 StandardCopy(u32* cursor, DirStruct* current_dir) {
+u32 StandardCopy(u32* cursor, u32* scroll, DirStruct* current_dir) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     u32 n_marked = 0;
     if (curr_entry->marked) {
@@ -1023,7 +1030,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         }
         return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
     } else if (user_select == copystd) { // -> copy to OUTPUT_PATH
-        StandardCopy(cursor, current_dir);
+        StandardCopy(cursor, scroll, current_dir);
         return 0;
     } else if (user_select == inject) { // -> inject data from clipboard
         char origstr[18 + 1];
@@ -1703,6 +1710,7 @@ u32 GodMode(bool is_b9s) {
             curr_entry->marked = mark_next;
             mark_next = -2;
         }
+        DrawTopBar(current_path);
         DrawDirContents(current_dir, cursor, &scroll);
         DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
         
@@ -1767,7 +1775,7 @@ u32 GodMode(bool is_b9s) {
                     FormatBytes(bytestr, GetTotalSpace(curr_entry->path));
                     ShowPrompt(false, "%s\n%s free\n%s total", namestr, freestr, bytestr);
                 } else if (user_select == stdcpy) {
-                    StandardCopy(&cursor, current_dir);
+                    StandardCopy(&cursor, &scroll, current_dir);
                 }
             } else { // one level up
                 u32 user_select = 1;
