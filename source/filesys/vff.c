@@ -322,14 +322,17 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern) {
     FILINFO fno;
     FRESULT res;
     if ((res = fvx_opendir(&pdir, path)) != FR_OK) return res;
-    if (fvx_preaddir(&pdir, &fno, npattern) != FR_OK) *(fno.fname) = '\0';
-    fvx_closedir( &pdir );
     
     *(fname++) = '/';
-    strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
-    if (!*(fno.fname)) return FR_NO_PATH;
+    *fname = '\0';
     
-    return res;
+    while ((fvx_preaddir(&pdir, &fno, npattern) == FR_OK) && *(fno.fname)) {
+        if (strncmp(fno.fname, fname, _MAX_FN_LEN) > 0)
+            strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
+    }
+    fvx_closedir( &pdir );
+    
+    return (*fname) ? FR_OK : FR_NO_PATH;
 }
 
 FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
