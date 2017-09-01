@@ -151,16 +151,19 @@ ntrboot: binary screeninit
 	firmtool build $(OUTPUT)_ntr_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-dev -g
 
 release:
-	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
+	@-rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 	@$(MAKE) --no-print-directory binary
 	@$(MAKE) --no-print-directory firm
 	@$(MAKE) --no-print-directory ntrboot
 	@[ -d $(RELEASE) ] || mkdir -p $(RELEASE)
+	@[ -d $(RELEASE)/ntrboot ] || mkdir -p $(RELEASE)/ntrboot
 	@cp $(OUTPUT).firm $(RELEASE)
 	@cp $(CURDIR)/README.md $(RELEASE)
 	@cp $(CURDIR)/HelloScript.gm9 $(RELEASE)
+	@cp $(OUTPUT)_ntr.firm $(RELEASE)/ntrboot
+	@cp $(OUTPUT)_ntr_dev.firm $(RELEASE)/ntrboot
 	@cp -R $(CURDIR)/resources/gm9 $(RELEASE)/gm9
-	@-7z a $(RELEASE)/$(TARGET)-`date +'%Y%m%d-%H%M%S'`.zip $(RELEASE)/*
+	@-7z a $(RELEASE)/$(TARGET)-$(VERSION)-`date +'%Y%m%d-%H%M%S'`.zip $(RELEASE)/*
 
 #---------------------------------------------------------------------------------
 clean:
