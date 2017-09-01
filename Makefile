@@ -35,10 +35,10 @@ CFLAGS	:=	$(ARCH) -g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2 \
 			-mtune=arm946e-s -fomit-frame-pointer -ffast-math -std=gnu11 \
 			$(INCLUDE) -Wno-unused-function
 
-CFLAGS	+=	-DBUILD_NAME="\"$(TARGET) (`date +'%Y/%m/%d'`)\""
-
 VERSION	:=	$(shell git describe --tags --abbrev=8)
-CFLAGS	+=	-DVERSION="\"$(VERSION)\""
+DBUILTS	:=	$(shell date +'%Y%m%d%H%M%S')
+DBUILTL :=	$(shell date +'%Y-%m-%d %H:%M:%S')
+CFLAGS	+=	-DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\""
 
 ifeq ($(FONT),ORIG)
 CFLAGS	+=	-DFONT_ORIGINAL
@@ -163,7 +163,7 @@ release:
 	@cp $(OUTPUT)_ntr.firm $(RELEASE)/ntrboot
 	@cp $(OUTPUT)_ntr_dev.firm $(RELEASE)/ntrboot
 	@cp -R $(CURDIR)/resources/gm9 $(RELEASE)/gm9
-	@-7z a $(RELEASE)/$(TARGET)-$(VERSION)-`date +'%Y%m%d-%H%M%S'`.zip $(RELEASE)/*
+	@-7z a $(RELEASE)/$(TARGET)-$(VERSION)-$(DBUILTS).zip $(RELEASE)/*
 
 #---------------------------------------------------------------------------------
 clean:
