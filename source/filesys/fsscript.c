@@ -41,6 +41,8 @@ typedef enum {
     CMD_ID_MKDIR,
     CMD_ID_MOUNT,
     CMD_ID_UMOUNT,
+    CMD_ID_SDMOUNT,
+    CMD_ID_SDUMOUNT,
     CMD_ID_FIND,
     CMD_ID_FINDNOT,
     CMD_ID_SHA,
@@ -79,6 +81,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_MKDIR   , "mkdir"   , 1, 0 },
     { CMD_ID_MOUNT   , "imgmount", 1, 0 },
     { CMD_ID_UMOUNT  , "imgumount",0, 0 },
+    { CMD_ID_SDMOUNT , "sdmount" , 0, 0 },
+    { CMD_ID_SDUMOUNT, "sdumount", 0, 0 },
     { CMD_ID_FIND    , "find"    , 2, 0 },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
@@ -437,6 +441,18 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "mount fail");
     } else if (id == CMD_ID_UMOUNT) {
         InitImgFS(NULL);
+    } else if (id == CMD_ID_SDMOUNT) {
+        DeinitExtFS();
+        if (CheckSDMountState()) DeinitSDCardFS(); // unmount+remount if already mounted
+        if (!CheckSDMountState()) {
+            ret = InitSDCardFS();
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "mount fail");
+        }
+        InitExtFS();
+    } else if (id == CMD_ID_SDUMOUNT) {
+        DeinitExtFS();
+        if (CheckSDMountState()) DeinitSDCardFS();
+        InitExtFS();
     } else if (id == CMD_ID_FIND) {
         char path[_VAR_CNT_LEN];
         ret = (fvx_findpath(path, argv[0]) == FR_OK);
