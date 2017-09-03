@@ -135,18 +135,21 @@ You may use this under the terms of the GNU General Public License GPL v2 or und
 
 
 ## Credits
-This tool would not have been possible without the help of numerous people. Thanks go to...
+This tool would not have been possible without the help of numerous people. Thanks go to (in no particular order)...
 * **Archshift**, for providing the base project infrastructure
-* **Normmatt**, for sdmmc.c / sdmmc.h and gamecart code
+* **Normmatt**, for sdmmc.c / sdmmc.h and gamecart code, and for being of great help on countless other occasions
 * **Cha(N)**, **Kane49**, and all other FatFS contributors for FatFS
 * **SciresM** for helping me figure out RomFS and for boot9strap
 * **SciresM**, **Myria**, **Normmatt**, **TuxSH** and **hedgeberg** for figuring out sighax and giving us access to bootrom
+* **ihaveamac** for first developing the simple CIA generation method and for being of great help in porting it
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
-* **Wolfvak** for the FIRM binary launcher, and help on countless occasions
-* **WinterMute** and **YodaDaCoda** for help testing DSi cart dumping
-* **Al3x_10m**, **Supster131**, **imanoob**, **Kasher_CS** and all other fearless testers
+* **Wolfvak** for all ARM11 code, for the FIRM binary launcher, and for help on countless other occasions
+* **Al3x_10m** for help with countless hours of testing and useful advice
+* **WinterMute** for helping me with his vast knowledge on everything gamecart related
+* **profi200** for always useful advice and helpful hints on various things
+* **JaySea**, **YodaDaCoda**, **liomajor**, **Supster131**, **imanoob**, **Kasher_CS** and countless others from freenode #Cakey and the GBAtemp forums for testing, feedback and helpful hints
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
 * **Amazingmax fonts** for the Amazdoom font
