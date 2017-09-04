@@ -6,7 +6,7 @@
 #include "fsutil.h"
 #include "fsperm.h"
 #include "fsgame.h"
-#include "fsscript.h"
+#include "scripting.h"
 #include "gameutil.h"
 #include "keydbutil.h"
 #include "nandutil.h"

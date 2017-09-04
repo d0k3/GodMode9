@@ -1,4 +1,4 @@
-#include "fsscript.h"
+#include "scripting.h"
 #include "fsutil.h"
 #include "fsinit.h"
 #include "fsperm.h"

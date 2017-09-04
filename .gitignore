@@ -39,4 +39,5 @@
 
 # User additions
 /data/aeskeydb.bin
+/data/aeskeydb_.bin
 /zzz_backup

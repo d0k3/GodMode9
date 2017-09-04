@@ -5,7 +5,7 @@
 #include "game.h"
 #include "keydb.h"
 #include "ctrtransfer.h"
-#include "fsscript.h"
+#include "scripting.h"
 
 u32 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };

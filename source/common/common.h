@@ -78,7 +78,7 @@
 // buffer area defines (in use by sddata.c)
 #define SDCRYPT_BUFFER      ((u8*)0x21400000)
 #define SDCRYPT_BUFFER_SIZE (0x100000)
-// buffer area defines (in use by fsscript.c)
+// buffer area defines (in use by scripting.c)
 #define SCRIPT_BUFFER       ((u8*)0x21500000)
 #define SCRIPT_BUFFER_SIZE  (0x100000)
 // buffer area defines (in use by vgame.c)
