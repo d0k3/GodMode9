@@ -22,6 +22,7 @@
 #include "secure_ntr.h"
 #include "card_ntr.h"
 // #include "draw.h"
+#include "timer.h"
 #include "delay.h"
 
 
@@ -179,18 +180,25 @@ void NTR_DecryptSecureArea (u32 aGameCode, u32* pCardHash, int nCardHash, u32* p
     for(int ii=0;ii<0x200;ii+=2) NTR_CryptDown (pCardHash, pSecureArea + ii);
 }
 
-//	Causes the timer to count at (33.514 / 1024) Mhz.
+// Count timeout at (33.514 / 1024) Mhz.
+void NTR_SecureDelay(u16 aTimeout)
+{
+    u64 tTimeout = (((u64)(aTimeout&0x3FFF)+3)<<10);
+    u64 timer = timer_start();
+    while (timer_ticks(timer) < tTimeout);
+}
+
+/*// Causes the timer to count at (33.514 / 1024) Mhz.
 #define TIMER_DIV_1024  (3)
 #define TIMER0_DATA    (*(vu16*)0x10003000)
 #define TIMER0_CR   (*(vu16*)0x10003002)
 #define TIMER_ENABLE    (1<<7)
 void NTR_SecureDelay(u16 aTimeout)
 {
-  /* Using a while loop to check the timeout,
-     so we have to wait until one before overflow.
-     This also requires an extra 1 for the timer data.
-     See GBATek for the normal formula used for card timeout.
-  */
+  // Using a while loop to check the timeout,
+  // so we have to wait until one before overflow.
+  // This also requires an extra 1 for the timer data.
+  // See GBATek for the normal formula used for card timeout.
   TIMER0_DATA=0x10000-(((aTimeout&0x3FFF)+3));
   //TIMER0_CR=TIMER_DIV_256|TIMER_ENABLE;
   TIMER0_CR=TIMER_DIV_1024|TIMER_ENABLE;
@@ -199,7 +207,7 @@ void NTR_SecureDelay(u16 aTimeout)
   // Clear out the timer registers
   TIMER0_CR=0;
   TIMER0_DATA=0;
-}
+}*/
 
 u32 NTR_GetIDSafe (u32 flags, const u8* command)
 {
