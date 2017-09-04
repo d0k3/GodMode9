@@ -106,16 +106,23 @@ mv -w -k $[TESTPATH] $[RENPATH]
 # The 'find' command has two main uses, (1) checking if files / dirs exist and (2) finding files / dirs
 # Here we use it to check for RENPATH, thus we use NULL as second argument (we're not interested in the output)
 find $[RENPATH] NULL
-# Wildcards ('*' / '?') are allowed when searching for a file / directory name:
-# find S:/nand.* NANDIMAGE
+# Wildcards ('*' / '?') are allowed when searching for a file / directory name
+# If wildcards are used, 'find' will always return the last alphanumerical match
+find S:/nand.* NANDIMAGE
 
 # 'sha' COMMAND
 # Use this to check a files' SHA256
 sha $[RENPATH] $[TESTPATH].sha
 # Instead of an .sha file you can also use the SHA256 in hex as second argument
 # sha S:/sector0x96.bin 82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3
-# This also allows partial SHA checks (for @x:y handling see below)
+# This also allows partial SHA checks (for @x:y handling see 'inject' below)
 # sha S:/firm0.bin@100:100 078CC0CFD850A27093DDA2630C3603CA0C96969BD1F26DA48AC7B1BAE5DD5219
+
+# 'shaget' COMMAND
+# Use this to calculate and store a files' SHA256
+# shaget 0:/boot.firm 0:/boot.firm.sha
+# Partial SHA calculation is also possible (for @x:y handling see 'inject' below)
+# shaget 0:/boot.firm@100:100 0:/boot.firm.partial.sha
 
 # 'inject' COMMAND
 # This command is used to inject part of one file into another
@@ -164,6 +171,10 @@ verify S:/firm1.bin
 # Use this command to chainload a compatible FIRM
 # boot 0:/boot.firm
 # disabled cause it would leave the script
+
+# 'switchsd' COMMAND
+# Use this to allow the user to switch the SD card
+# switchsd "Please switch SD card."
 
 # 'reboot' / 'poweroff' COMMAND
 # These are used to reboot or power off the 3DS console

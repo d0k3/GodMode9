@@ -2,6 +2,7 @@
 #include "fsutil.h"
 #include "fsinit.h"
 #include "fsperm.h"
+#include "nand.h"
 #include "nandcmac.h"
 #include "nandutil.h"
 #include "gameutil.h"
@@ -13,6 +14,7 @@
 #include "vff.h"
 #include "rtc.h"
 #include "sha.h"
+#include "hid.h"
 #include "ui.h"
 
 #define _MAX_ARGS       2
@@ -44,12 +46,14 @@ typedef enum {
     CMD_ID_FIND,
     CMD_ID_FINDNOT,
     CMD_ID_SHA,
+    CMD_ID_SHAGET,
     CMD_ID_FIXCMAC,
     CMD_ID_VERIFY,
     CMD_ID_DECRYPT,
     CMD_ID_ENCRYPT,
     CMD_ID_BUILDCIA,
     CMD_ID_BOOT,
+    CMD_ID_SWITCHSD,
     CMD_ID_REBOOT,
     CMD_ID_POWEROFF
 } cmd_id;
@@ -82,12 +86,14 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FIND    , "find"    , 2, 0 },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
+    { CMD_ID_SHAGET  , "shaget"  , 2, 0 },
     { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 },
     { CMD_ID_VERIFY  , "verify"  , 1, 0 },
     { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
+    { CMD_ID_SWITCHSD, "switchsd", 1, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
 };    
@@ -466,6 +472,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = (memcmp(sha256_fil, sha256_cmp, 0x20) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha does not match");
         }
+    } else if (id == CMD_ID_SHAGET) {
+        u8 sha256_fil[0x20];
+        if (!(ret = FileGetSha256(argv[0], sha256_fil, at_org, sz_org))) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
+        } else if (!(ret = FileSetData(argv[1], sha256_fil, 0x20, 0, true))) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha write fail");
+        }
     } else if (id == CMD_ID_FIXCMAC) {
         ShowString("Fixing CMACs...");
         ret = (RecursiveFixFileCmac(argv[0]) == 0);
@@ -500,6 +513,27 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
             while(1);
         } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
+    } else if (id == CMD_ID_SWITCHSD) {
+        DeinitExtFS();
+        if (!(ret = CheckSDMountState())) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "SD not mounted");
+        } else {
+            u32 pad_state;
+            DeinitSDCardFS();
+            ShowString("%s\n \nEject SD card...", argv[0]);
+            while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_EJECT)));
+            if (pad_state & SD_EJECT) {
+                ShowString("%s\n \nInsert SD card...", argv[0]);
+                while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_INSERT)));
+            }
+            if (pad_state & BUTTON_B) {
+                ret = false;
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+            }
+        }
+        InitSDCardFS();
+        AutoEmuNandBase(true);
+        InitExtFS();
     } else if (id == CMD_ID_REBOOT) {
         Reboot();
     } else if (id == CMD_ID_POWEROFF) {
