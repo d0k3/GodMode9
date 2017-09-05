@@ -642,6 +642,7 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
 
 bool PathDelete(const char* path) {
     if (!CheckDirWritePermissions(path)) return false;
+	if (!FileUnlock(path)) return false;
     return (fvx_runlink(path) == FR_OK);
 }
 
@@ -650,6 +651,7 @@ bool PathRename(const char* path, const char* newname) {
     char* oldname = strrchr(path, '/');
     
     if (!CheckDirWritePermissions(path)) return false;
+	if (!FileUnlock(path)) return false;
     if (!oldname) return false;
     oldname++;
     strncpy(npath, path, oldname - path);
