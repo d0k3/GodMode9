@@ -94,7 +94,7 @@ u32 IdentifyFileType(const char* path) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
-    } else if (ValidateText((char*) data, (fsize > 0X200) ? 0x200 : fsize)) {
+    } else if (ValidateText((char*) data, (fsize > 0x200) ? 0x200 : fsize)) {
         u32 type = 0;
         if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
             type |= TXT_SCRIPT; // should be a script (which is also generic text)

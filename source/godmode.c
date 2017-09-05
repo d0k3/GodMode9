@@ -44,86 +44,11 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
-#define COLOR_TVOFFS    RGB(0x40, 0x60, 0x50)
-#define COLOR_TVOFFSL   RGB(0x20, 0x40, 0x30)
-#define COLOR_TVTEXT    RGB(0x30, 0x85, 0x30)
-
 typedef struct {
     char path[256];
     u32 cursor;
     u32 scroll;
 } PaneData;
-
-static inline u32 LineLen(const char* text, u32 len, u32 ww, const char* line) {
-    char* line0 = (char*) line;
-    char* line1 = (char*) line;
-    u32 llen = 0;
-    
-    // non wordwrapped length
-    while ((line1 < (text + len)) && (*line1 != '\n') && *line1) line1++;
-    while ((line1 > line0) && (*(line1-1) <= ' ')) line1--;
-    llen = line1 - line0;
-    if (ww && (llen > ww)) { // wordwrapped length
-        for (llen = ww; (llen > 0) && (line[llen] != ' '); llen--); 
-        if (!llen) llen = ww; // workaround for long strings
-    }
-    return llen;
-}
-
-static inline char* LineSeek(const char* text, u32 len, u32 ww, const char* line, int add) {
-    // safety checks / 
-    if (line < text) return NULL;
-    if ((line >= (text + len)) && (add >= 0)) return (char*) line;
-    
-    if (!ww) { // non wordwrapped mode
-        char* lf = ((char*) line - 1);
-    
-        // ensure we are at the start of the line
-        while ((lf > text) && (*lf != '\n')) lf--;
-        
-        // handle backwards search
-        for (; (add < 0) && (lf >= text); add++)
-            for (lf--; (lf >= text) && (*lf != '\n'); lf--);
-        
-        // handle forwards search
-        for (; (add > 0) && (lf < text + len); add--)
-            for (lf++; (lf < text + len) && (*lf != '\n'); lf++);
-        
-        return lf + 1;
-    } else { // wordwrapped mode
-        char* l0 = (char*) line;
-        
-        // handle forwards wordwrapped search
-        while ((add > 0) && (l0 < text + len)) {
-            u32 llen = LineLen(text, len, 0, l0);
-            for (; (add > 0) && (llen > ww); add--) {
-                u32 llenww = LineLen(text, len, ww, l0);
-                llen -= llenww;
-                l0 += llenww;
-            }
-            if (add > 0) {
-                l0 = LineSeek(text, len, 0, l0, 1);
-                add--;
-            }
-        }
-        
-        // handle backwards wordwrapped search
-        while ((add < 0) && (l0 > text)) {
-            char* l1 = LineSeek(text, len, 0, l0, -1);
-            int nlww = 0; // count wordwrapped lines in paragraph
-            for (char* ld = l1; ld < l0; ld = LineSeek(text, len, ww, ld, 1), nlww++);
-            if (add + nlww < 0) {
-                add += nlww;
-                l0 = l1;
-            } else {
-                l0 = LineSeek(text, len, ww, l1, nlww + add);
-                add = 0;
-            }
-        }
-        
-        return l0;
-    }
-}
 
 void GetTimeString(char* timestr, bool forced_update) {
     static DsTime dstime;
@@ -366,137 +291,6 @@ u32 SdFormatMenu(void) {
             ShowPrompt(false, "Cloning SysNAND to EmuNAND: failed!");
         DeinitSDCardFS();
     }
-    
-    return 0;
-}
-
-u32 FileTextViewer(const char* path) {
-    const u32 vpad = 1;
-    const u32 hpad = 0;
-    const u32 lnos = 4;
-    u32 ww = 0;
-    
-    // load text file (completely into memory)
-    char* text = (char*) TEMP_BUFFER;
-    u32 flen = FileGetData(path, text, TEMP_BUFFER_SIZE, 0);
-    u32 len = 0; // actual length may be shorter due to zero symbol
-    for (len = 0; (len < flen) && text[len]; len++);
-    
-    // check if this really is a text file
-    if (!ValidateText(text, len)) {
-        ShowPrompt(false, "Error: Not a valid text file");
-        return 1;
-    }
-    
-    // clear screens
-    ClearScreenF(true, true, COLOR_STD_BG);
-    
-    // instructions
-    static const char* instr = "Textviewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
-    ShowString(instr);
-    
-    // no of lines and length to display
-    u32 nlin_disp = SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*vpad));
-    u32 llen_disp = (SCREEN_WIDTH_TOP - (2*hpad)) / FONT_WIDTH_EXT;
-    
-    // block placements
-    const char* al_str = "<< ";
-    const char* ar_str = " >>";
-    if (lnos) llen_disp -= (lnos + 1); // make room for line numbers
-    u32 x_txt = (lnos) ? hpad + ((lnos+1)*FONT_WIDTH_EXT) : hpad;
-    u32 x_lno = hpad;
-    u32 p_al = 0;
-    u32 p_ar = llen_disp - strnlen(ar_str, 16);
-    u32 x_al = x_txt + (p_al * FONT_WIDTH_EXT);
-    u32 x_ar = x_txt + (p_ar * FONT_WIDTH_EXT);
-    
-    // find maximum line len
-    u32 llen_max = 0;
-    for (char* ptr = (char*) text; ptr < (text + len); ptr = LineSeek(text, len, 0, ptr, 1)) {
-        u32 llen = LineLen(text, len, 0, ptr);
-        if (llen > llen_max) llen_max = llen;
-    }
-    
-    // find last allowed lines (ww and nonww)
-    char* llast_nww = LineSeek(text, len, 0, text + len, -nlin_disp);
-    char* llast_ww = LineSeek(text, len, llen_disp, text + len, -nlin_disp);
-    
-    char* line0 = (char*) text;
-    int lcurr = 1;
-    int off_disp = 0;
-    while (true) {
-        // display text on screen
-        char txtstr[128]; // should be more than enough
-        char* ptr = line0;
-        u32 nln = lcurr;
-        for (u32 y = vpad; y < SCREEN_HEIGHT; y += FONT_HEIGHT_EXT + (2*vpad)) {
-            char* ptr_next = LineSeek(text, len, ww, ptr, 1);
-            u32 llen = LineLen(text, len, ww, ptr);
-            u32 ncpy = ((int) llen < off_disp) ? 0 : (llen - off_disp);
-            if (ncpy > llen_disp) ncpy = llen_disp;
-            bool al = !ww && off_disp && (ptr != ptr_next);
-            bool ar = !ww && (llen > off_disp + llen_disp);
-            
-            // build text string
-            snprintf(txtstr, llen_disp + 1, "%-*.*s", (int) llen_disp, (int) llen_disp, "");
-            if (ncpy) memcpy(txtstr, ptr + off_disp, ncpy);
-            for (char* d = txtstr; *d; d++) if (*d < ' ') *d = ' ';
-            if (al) memcpy(txtstr + p_al, al_str, strnlen(al_str, 16));
-            if (ar) memcpy(txtstr + p_ar, ar_str, strnlen(ar_str, 16));
-            
-            // draw line number & text
-            DrawStringF(TOP_SCREEN, x_txt, y, COLOR_TVTEXT, COLOR_STD_BG, txtstr);
-            if (lnos && (ptr != ptr_next)) DrawStringF(TOP_SCREEN, x_lno, y,
-                ((ptr == text) || (*(ptr-1) == '\n')) ? COLOR_TVOFFS : COLOR_TVOFFSL, COLOR_STD_BG, "%0*lu", lnos, nln);
-            else DrawStringF(TOP_SCREEN, x_lno, y, COLOR_TVOFFSL, COLOR_STD_BG, "%*.*s", lnos, lnos, " ");
-            
-            // colorize arrows
-            if (al) DrawStringF(TOP_SCREEN, x_al, y, COLOR_TVOFFS, COLOR_TRANSPARENT, al_str);
-            if (ar) DrawStringF(TOP_SCREEN, x_ar, y, COLOR_TVOFFS, COLOR_TRANSPARENT, ar_str);
-            
-            // advance pointer / line number
-            for (char* c = ptr; c < ptr_next; c++) if (*c == '\n') ++nln;
-            ptr = ptr_next;
-        }
-        
-        // handle user input
-        u32 pad_state = InputWait(0);
-        if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
-        else { // standard viewer mode
-            char* line0_next = line0;
-            u32 step_ud = (pad_state & BUTTON_R1) ? nlin_disp : 1;
-            u32 step_lr = (pad_state & BUTTON_R1) ? llen_disp : 1;
-            bool switched = (pad_state & BUTTON_R1);
-            if (pad_state & BUTTON_DOWN) line0_next = LineSeek(text, len, ww, line0, step_ud);
-            else if (pad_state & BUTTON_UP) line0_next = LineSeek(text, len, ww, line0, -step_ud);
-            else if (pad_state & BUTTON_RIGHT) off_disp += step_lr;
-            else if (pad_state & BUTTON_LEFT) off_disp -= step_lr;
-            else if (switched && (pad_state & BUTTON_X)) {
-                u64 lnext64 = ShowNumberPrompt(lcurr, "Current line: %i\nEnter new line below.", lcurr);
-                if (lnext64 && (lnext64 != (u64) -1)) line0_next = LineSeek(text, len, 0, line0, (int) lnext64 - lcurr);
-                ShowString(instr);
-            } else if (switched && (pad_state & BUTTON_Y)) {
-                ww = ww ? 0 : llen_disp;
-                line0_next = LineSeek(text, len, ww, line0, 0);
-            } else if (pad_state & (BUTTON_B|BUTTON_START)) break;
-            
-            // check for problems, apply changes
-            if (!ww && (line0_next > llast_nww)) line0_next = llast_nww;
-            else if (ww && (line0_next > llast_ww)) line0_next = llast_ww;
-            if (line0_next < line0) { // fix line number for decrease
-                do if (*(--line0) == '\n') lcurr--;
-                while (line0 > line0_next);
-            } else { // fix line number for increase / same
-                for (; line0_next > line0; line0++)
-                    if (*line0 == '\n') lcurr++;
-            }
-            if (off_disp + llen_disp > llen_max) off_disp = llen_max - llen_disp;
-            if ((off_disp < 0) || ww) off_disp = 0;
-        }
-    }
-    
-    // clear screens
-    ClearScreenF(true, true, COLOR_STD_BG);
     
     return 0;
 }
@@ -980,7 +774,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         FileHexViewer(curr_entry->path);
         return 0;
     } else if (user_select == textviewer) { // -> show in text viewer
-        FileTextViewer(curr_entry->path);
+        FileTextViewer(curr_entry->path, scriptable);
         return 0;
     } else if (user_select == calcsha) { // -> calculate SHA-256
         Sha256Calculator(curr_entry->path);
@@ -1485,6 +1279,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (ShowPrompt(true, "%s\nWarning: Do not run scripts\nfrom untrusted sources.\n \nExecute script?", pathstr))
             ShowPrompt(false, "%s\nScript execute %s", pathstr, ExecuteGM9Script(curr_entry->path) ? "success" : "failure");
         GetDirContents(current_dir, current_path);
+        ClearScreenF(true, true, COLOR_STD_BG);
         return 0;
     }
     
@@ -1605,13 +1400,9 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         }
         return 0;
     } else if (user_select == sysinfo) { // Myria's system info
-        const char* sysinfo_path = OUTPUT_PATH "/sysinfo.txt";
         char* sysinfo_txt = (char*) TEMP_BUFFER;
-        ShowString("Calculating system info...");
         MyriaSysinfo(sysinfo_txt);
-        FileSetData(sysinfo_path, sysinfo_txt, strnlen(sysinfo_txt, TEMP_BUFFER_SIZE), 0, true);
-        FileTextViewer(sysinfo_path);
-        ShowPrompt(false, "System info written to\n%s", sysinfo_path);
+        MemTextViewer(sysinfo_txt, strnlen(sysinfo_txt, TEMP_BUFFER_SIZE), false);
         return 0;
     } else return 1;
     
@@ -2055,6 +1846,8 @@ u32 GodMode(bool is_b9s) {
                 if ((user_select == more) && (HomeMoreMenu(current_path, current_dir, clipboard) == 0)) break; // more... menu
                 else if ((user_select == scripts) && (FileSelector(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
                     ExecuteGM9Script(loadpath);
+                    GetDirContents(current_dir, current_path);
+                    ClearScreenF(true, true, COLOR_STD_BG);
                     break;
                 } else if ((user_select == payloads) && (FileSelector(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
                     size_t firm_size = FileGetData(loadpath, TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);

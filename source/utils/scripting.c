@@ -24,6 +24,23 @@
 
 #define VAR_BUFFER      (SCRIPT_BUFFER + SCRIPT_BUFFER_SIZE - VAR_BUFFER_SIZE)
 
+// macros for textviewer
+#define TV_VPAD         1 // vertical padding per line (above / below)
+#define TV_HPAD         0 // horizontal padding per line (left)
+#define TV_LNOS         4 // # of digits in line numbers (0 to disable)
+
+#define TV_NLIN_DISP    (SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*TV_VPAD)))
+#define TV_LLEN_DISP    (((SCREEN_WIDTH_TOP - (2*TV_HPAD)) / FONT_WIDTH_EXT) - (TV_LNOS + 1))
+
+// text viewer colors
+#define COLOR_TVOFFS    RGB(0x40, 0x60, 0x50)
+#define COLOR_TVOFFSL   RGB(0x20, 0x40, 0x30)
+#define COLOR_TVTEXT    RGB(0x30, 0x85, 0x30)
+#define COLOR_TVRUN     RGB(0xC0, 0x00, 0x00)
+#define COLOR_TVCMT     RGB(0x10, 0x40, 0x10)
+#define COLOR_TVCMD     RGB(0x30, 0x85, 0x45)
+
+
 // some useful macros
 #define IS_WHITESPACE(c)    ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
 #define _FLG(c)             (1 << (c - 'a'))
@@ -115,6 +132,77 @@ static inline bool strntohex(const char* str, u8* hex, u32 len) {
         hex[i] = (u8) bytehex;
     }
     return true;
+}
+
+static inline u32 line_len(const char* text, u32 len, u32 ww, const char* line) {
+    char* line0 = (char*) line;
+    char* line1 = (char*) line;
+    u32 llen = 0;
+    
+    // non wordwrapped length
+    while ((line1 < (text + len)) && (*line1 != '\n') && *line1) line1++;
+    while ((line1 > line0) && (*(line1-1) <= ' ')) line1--;
+    llen = line1 - line0;
+    if (ww && (llen > ww)) { // wordwrapped length
+        for (llen = ww; (llen > 0) && (line[llen] != ' '); llen--); 
+        if (!llen) llen = ww; // workaround for long strings
+    }
+    return llen;
+}
+
+static inline char* line_seek(const char* text, u32 len, u32 ww, const char* line, int add) {
+    // safety checks / 
+    if (line < text) return NULL;
+    if ((line >= (text + len)) && (add >= 0)) return (char*) line;
+    
+    if (!ww) { // non wordwrapped mode
+        char* lf = ((char*) line - 1);
+    
+        // ensure we are at the start of the line
+        while ((lf > text) && (*lf != '\n')) lf--;
+        
+        // handle backwards search
+        for (; (add < 0) && (lf >= text); add++)
+            for (lf--; (lf >= text) && (*lf != '\n'); lf--);
+        
+        // handle forwards search
+        for (; (add > 0) && (lf < text + len); add--)
+            for (lf++; (lf < text + len) && (*lf != '\n'); lf++);
+        
+        return lf + 1;
+    } else { // wordwrapped mode
+        char* l0 = (char*) line;
+        
+        // handle forwards wordwrapped search
+        while ((add > 0) && (l0 < text + len)) {
+            u32 llen = line_len(text, len, 0, l0);
+            for (; (add > 0) && (llen > ww); add--) {
+                u32 llenww = line_len(text, len, ww, l0);
+                llen -= llenww;
+                l0 += llenww;
+            }
+            if (add > 0) {
+                l0 = line_seek(text, len, 0, l0, 1);
+                add--;
+            }
+        }
+        
+        // handle backwards wordwrapped search
+        while ((add < 0) && (l0 > text)) {
+            char* l1 = line_seek(text, len, 0, l0, -1);
+            int nlww = 0; // count wordwrapped lines in paragraph
+            for (char* ld = l1; ld < l0; ld = line_seek(text, len, ww, ld, 1), nlww++);
+            if (add + nlww < 0) {
+                add += nlww;
+                l0 = l1;
+            } else {
+                l0 = line_seek(text, len, ww, l1, nlww + add);
+                add = 0;
+            }
+        }
+        
+        return l0;
+    }
 }
 
 char* set_var(const char* name, const char* content) {
@@ -592,6 +680,158 @@ bool ValidateText(const char* text, u32 len) {
     return true;
 }
 
+void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, u32 ww, u32 mno, bool is_script) {
+    // block placements
+    const char* al_str = "<< ";
+    const char* ar_str = " >>";
+    u32 x_txt = (TV_LNOS >= 0) ? TV_HPAD + ((TV_LNOS+1)*FONT_WIDTH_EXT) : TV_HPAD;
+    u32 x_lno = TV_HPAD;
+    u32 p_al = 0;
+    u32 p_ar = TV_LLEN_DISP - strnlen(ar_str, 16);
+    u32 x_al = x_txt + (p_al * FONT_WIDTH_EXT);
+    u32 x_ar = x_txt + (p_ar * FONT_WIDTH_EXT);
+    
+    // display text on screen
+    char txtstr[128]; // should be more than enough
+    char* ptr = line0;
+    u32 nln = lno;
+    for (u32 y = TV_VPAD; y < SCREEN_HEIGHT; y += FONT_HEIGHT_EXT + (2*TV_VPAD)) {
+        char* ptr_next = line_seek(text, len, ww, ptr, 1);
+        u32 llen = line_len(text, len, ww, ptr);
+        u32 ncpy = ((int) llen < off_disp) ? 0 : (llen - off_disp);
+        if (ncpy > TV_LLEN_DISP) ncpy = TV_LLEN_DISP;
+        bool al = !ww && off_disp && (ptr != ptr_next);
+        bool ar = !ww && ((int) llen > off_disp + TV_LLEN_DISP);
+        
+        // set text color / find start of comment of scripts
+        u32 color_text = (nln == mno) ? COLOR_TVRUN : (is_script) ? COLOR_TVCMD : COLOR_TVTEXT;
+        int cmt_start = llen;
+        if (is_script && (nln != mno)) {
+            char* hash = line_seek(text, len, 0, ptr, 0);
+            for (; *hash != '#' && (hash - ptr < (int) llen); hash++);
+            cmt_start = (hash - ptr) - off_disp;
+        }
+        if (cmt_start <= 0) color_text = COLOR_TVCMT;
+        
+        // build text string
+        snprintf(txtstr, TV_LLEN_DISP + 1, "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
+        if (ncpy) memcpy(txtstr, ptr + off_disp, ncpy);
+        for (char* d = txtstr; *d; d++) if (*d < ' ') *d = ' ';
+        if (al) memcpy(txtstr + p_al, al_str, strnlen(al_str, 16));
+        if (ar) memcpy(txtstr + p_ar, ar_str, strnlen(ar_str, 16));
+        
+        // draw line number & text
+        DrawStringF(TOP_SCREEN, x_txt, y, color_text, COLOR_STD_BG, txtstr);
+        if (TV_LNOS > 0) { // line number
+            if (ptr != ptr_next)
+                DrawStringF(TOP_SCREEN, x_lno, y, ((ptr == text) || (*(ptr-1) == '\n')) ? COLOR_TVOFFS : COLOR_TVOFFSL, COLOR_STD_BG, "%0*lu", TV_LNOS, nln);
+            else DrawStringF(TOP_SCREEN, x_lno, y, COLOR_TVOFFSL, COLOR_STD_BG, "%*.*s", TV_LNOS, TV_LNOS, " ");
+        }
+        
+        // colorize comment if is_script
+        if (cmt_start < (int) llen) {
+            for (int i = 0; i < (int) llen; i++)
+                if (i < cmt_start) txtstr[i] = ' ';
+            DrawStringF(TOP_SCREEN, x_txt, y, COLOR_TVCMT, COLOR_TRANSPARENT, txtstr);
+        }
+        
+        // colorize arrows
+        if (al) DrawStringF(TOP_SCREEN, x_al, y, COLOR_TVOFFS, COLOR_TRANSPARENT, al_str);
+        if (ar) DrawStringF(TOP_SCREEN, x_ar, y, COLOR_TVOFFS, COLOR_TRANSPARENT, ar_str);
+        
+        // advance pointer / line number
+        for (char* c = ptr; c < ptr_next; c++) if (*c == '\n') ++nln;
+        ptr = ptr_next;
+    }
+}
+
+bool MemTextViewer(const char* text, u32 len, bool as_script) {
+    u32 ww = 0;
+    
+    // check if this really is text
+    if (!ValidateText(text, len)) {
+        ShowPrompt(false, "Error: Invalid text data");
+        return false;
+    }
+    
+    // clear screens
+    ClearScreenF(true, true, COLOR_STD_BG);
+    
+    // instructions
+    static const char* instr = "Textviewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
+    ShowString(instr);
+    
+    // find maximum line len
+    u32 llen_max = 0;
+    for (char* ptr = (char*) text; ptr < (text + len); ptr = line_seek(text, len, 0, ptr, 1)) {
+        u32 llen = line_len(text, len, 0, ptr);
+        if (llen > llen_max) llen_max = llen;
+    }
+    
+    // find last allowed lines (ww and nonww)
+    char* llast_nww = line_seek(text, len, 0, text + len, -TV_NLIN_DISP);
+    char* llast_ww = line_seek(text, len, TV_LLEN_DISP, text + len, -TV_NLIN_DISP);
+    
+    char* line0 = (char*) text;
+    int lcurr = 1;
+    int off_disp = 0;
+    while (true) {
+        // display text on screen
+        MemTextView(text, len, line0, off_disp, lcurr, ww, 0, as_script);
+        
+        // handle user input
+        u32 pad_state = InputWait(0);
+        if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
+        else { // standard viewer mode
+            char* line0_next = line0;
+            u32 step_ud = (pad_state & BUTTON_R1) ? TV_NLIN_DISP : 1;
+            u32 step_lr = (pad_state & BUTTON_R1) ? TV_LLEN_DISP : 1;
+            bool switched = (pad_state & BUTTON_R1);
+            if (pad_state & BUTTON_DOWN) line0_next = line_seek(text, len, ww, line0, step_ud);
+            else if (pad_state & BUTTON_UP) line0_next = line_seek(text, len, ww, line0, -step_ud);
+            else if (pad_state & BUTTON_RIGHT) off_disp += step_lr;
+            else if (pad_state & BUTTON_LEFT) off_disp -= step_lr;
+            else if (switched && (pad_state & BUTTON_X)) {
+                u64 lnext64 = ShowNumberPrompt(lcurr, "Current line: %i\nEnter new line below.", lcurr);
+                if (lnext64 && (lnext64 != (u64) -1)) line0_next = line_seek(text, len, 0, line0, (int) lnext64 - lcurr);
+                ShowString(instr);
+            } else if (switched && (pad_state & BUTTON_Y)) {
+                ww = ww ? 0 : TV_LLEN_DISP;
+                line0_next = line_seek(text, len, ww, line0, 0);
+            } else if (pad_state & (BUTTON_B|BUTTON_START)) break;
+            
+            // check for problems, apply changes
+            if (!ww && (line0_next > llast_nww)) line0_next = llast_nww;
+            else if (ww && (line0_next > llast_ww)) line0_next = llast_ww;
+            if (line0_next < line0) { // fix line number for decrease
+                do if (*(--line0) == '\n') lcurr--;
+                while (line0 > line0_next);
+            } else { // fix line number for increase / same
+                for (; line0_next > line0; line0++)
+                    if (*line0 == '\n') lcurr++;
+            }
+            if (off_disp + TV_LLEN_DISP > (int) llen_max) off_disp = llen_max - TV_LLEN_DISP;
+            if ((off_disp < 0) || ww) off_disp = 0;
+        }
+    }
+    
+    // clear screens
+    ClearScreenF(true, true, COLOR_STD_BG);
+    
+    return true;
+}
+
+bool FileTextViewer(const char* path, bool as_script) {
+    // load text file (completely into memory)
+    char* text = (char*) TEMP_BUFFER;
+    u32 flen = FileGetData(path, text, TEMP_BUFFER_SIZE, 0);
+    u32 len = 0; // actual length may be shorter due to zero symbol
+    for (len = 0; (len < flen) && text[len]; len++);
+    
+    // let MemTextViewer take over
+    return MemTextViewer(text, len, as_script);
+}
+
 bool ExecuteGM9Script(const char* path_script) {
     // revert mount state?
     char* script = (char*) SCRIPT_BUFFER;
@@ -607,12 +847,28 @@ bool ExecuteGM9Script(const char* path_script) {
     // initialise variables
     init_vars(path_script);
     
-    for (u32 line = 1; ptr < end; line++) {
+    // clear screen (only if script viewer is used
+    if (MAIN_SCREEN != TOP_SCREEN)
+        ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+    
+    // script execute loop
+    for (u32 lno = 1; ptr < end; lno++) {
         u32 flags = 0;
         
         // find line end
         char* line_end = strchr(ptr, '\n');
         if (!line_end) line_end = ptr + strlen(ptr);
+        
+        // update script viewer
+        if (MAIN_SCREEN != TOP_SCREEN) {
+            if (lno <= (TV_NLIN_DISP/2)) {
+                MemTextView(script, script_size, script, 0, 1, 0, lno, true);
+            } else {
+                char* ptr_view = line_seek(script, script_size, 0, ptr, -(TV_NLIN_DISP/2));
+                u32 lno_view = lno - (TV_NLIN_DISP/2); 
+                MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true);
+            }
+        }
         
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
@@ -633,7 +889,7 @@ bool ExecuteGM9Script(const char* path_script) {
                     else snprintf(line_str, 32+1, "%.*s", lptr1 - lptr0, lptr0);
                     char path_str[32+1];
                     TruncateString(path_str, path_script, 32, 12);
-                    ShowPrompt(false, "%s\nline %lu: %s\n%s", path_str, line, err_str, line_str);
+                    ShowPrompt(false, "%s\nline %lu: %s\n%s", path_str, lno, err_str, line_str);
                 }
             }
             if (!(flags & _FLG('o'))) return false; // failed if not optional
@@ -645,5 +901,6 @@ bool ExecuteGM9Script(const char* path_script) {
     
     char* msg_okay = get_var("SUCCESSMSG", NULL);
     if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
+    
     return true;
 }
