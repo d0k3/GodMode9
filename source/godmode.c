@@ -1684,6 +1684,20 @@ u32 GodMode(bool is_b9s) {
         }
     }
     
+    // check internal clock
+    if (IS_SIGHAX) { // we could actually do this on any entrypoint
+        DsTime dstime;
+        get_dstime(&dstime);
+        if ((DSTIMEGET(&dstime, bcd_Y) < 17) &&
+             ShowPrompt(true, "RTC date&time seems to be\nwrong. Set it now?") &&
+             ShowRtcSetterPrompt(&dstime, "Set RTC date&time:")) {
+            char timestr[32];
+            set_dstime(&dstime);
+            GetTimeString(timestr, true);
+            ShowPrompt(false, "New RTC date&time is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.", timestr);
+        }
+    }
+    
     while (CheckButton(BUTTON_A)); // don't continue while A is held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
