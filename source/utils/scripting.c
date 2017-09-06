@@ -100,7 +100,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_MKDIR   , "mkdir"   , 1, 0 },
     { CMD_ID_MOUNT   , "imgmount", 1, 0 },
     { CMD_ID_UMOUNT  , "imgumount",0, 0 },
-    { CMD_ID_FIND    , "find"    , 2, 0 },
+    { CMD_ID_FIND    , "find"    , 2, _FLG('f') },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
     { CMD_ID_SHAGET  , "shaget"  , 2, 0 },
@@ -369,6 +369,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     if ((len < 2) || (*str != '-')) flag_char = '\0';
     else if (len == 2) flag_char = str[1];
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
+    else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
     else if (strncmp(str, "--legit", len) == 0) flag_char = 'l';
@@ -533,7 +534,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         InitImgFS(NULL);
     } else if (id == CMD_ID_FIND) {
         char path[_VAR_CNT_LEN];
-        ret = (fvx_findpath(path, argv[0]) == FR_OK);
+        u8 mode = (flags & _FLG('f')) ? FN_LOWEST : FN_HIGHEST;
+        ret = (fvx_findpath(path, argv[0], mode) == FR_OK);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "find fail");
         if (ret) {
             ret = set_var(argv[1], path);

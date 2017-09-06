@@ -107,7 +107,8 @@ mv -w -k $[TESTPATH] $[RENPATH]
 # Here we use it to check for RENPATH, thus we use NULL as second argument (we're not interested in the output)
 find $[RENPATH] NULL
 # Wildcards ('*' / '?') are allowed when searching for a file / directory name
-# If wildcards are used, 'find' will always return the last alphanumerical match
+# If wildcards are used, 'find' will return the last alphanumerical match
+# -f / --first return the first alphanumerical match instead
 find S:/nand.* NANDIMAGE
 
 # 'sha' COMMAND

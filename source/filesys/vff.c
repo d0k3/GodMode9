@@ -308,7 +308,7 @@ FRESULT fvx_preaddir (DIR* dp, FILINFO* fno, const TCHAR* pattern) {
     return res;
 }
 
-FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern) {
+FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode) {
     strncpy(path, pattern, _MAX_FN_LEN);
     TCHAR* fname = strrchr(path, '/');
     if (!fname) return FR_DENIED;
@@ -327,8 +327,10 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern) {
     *fname = '\0';
     
     while ((fvx_preaddir(&pdir, &fno, npattern) == FR_OK) && *(fno.fname)) {
-        if (strncmp(fno.fname, fname, _MAX_FN_LEN) > 0)
+        int cmp = strncmp(fno.fname, fname, _MAX_FN_LEN);
+        if (((mode & FN_HIGHEST) && (cmp > 0)) || ((mode & FN_LOWEST) && (cmp < 0)) || !(*fname))
             strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
+        if (!(mode & (FN_HIGHEST|FN_LOWEST))) break;
     }
     fvx_closedir( &pdir );
     

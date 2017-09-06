@@ -8,6 +8,10 @@
 #define fvx_tell(fp) ((fp)->fptr)
 #define fvx_size(fp) ((fp)->obj.objsize)
 
+#define FN_ANY      0x00
+#define FN_HIGHEST  0x01
+#define FN_LOWEST   0x02
+
 // wrapper functions for ff.h + sddata.h
 // incomplete(!) extension to FatFS to support a common interface for virtual and FAT
 FRESULT fvx_open (FIL* fp, const TCHAR* path, BYTE mode);
@@ -36,5 +40,5 @@ FRESULT fvx_runlink (const TCHAR* path);
 // additional wildcard based functions
 FRESULT fvx_match_name(const TCHAR* path, const TCHAR* pattern);
 FRESULT fvx_preaddir (DIR* dp, FILINFO* fno, const TCHAR* pattern);
-FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern);
+FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode);
 FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern);
