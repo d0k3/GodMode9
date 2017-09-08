@@ -253,7 +253,7 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
             ret = false;
         if (ret && !ShowProgress(pos + bytes_read, size, orig)) {
             if (flags && (*flags & NO_CANCEL)) {
-                ShowPrompt(false, "Cancel is now allowed here");
+                ShowPrompt(false, "Cancel is not allowed here");
             } else ret = !ShowPrompt(true, "B button detected. Cancel?");
             ShowProgress(0, 0, orig);
             ShowProgress(pos + bytes_read, size, orig);
@@ -457,7 +457,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
                 ret = false;
             if (ret && !ShowProgress(pos + bytes_read, fsize, orig)) {
                 if (flags && (*flags & NO_CANCEL)) {
-                    ShowPrompt(false, "%s\nCancel is now allowed here", deststr);
+                    ShowPrompt(false, "%s\nCancel is not allowed here", deststr);
                 } else ret = !ShowPrompt(true, "%s\nB button detected. Cancel?", deststr);
                 ShowProgress(0, 0, orig);
                 ShowProgress(pos + bytes_read, fsize, orig);
