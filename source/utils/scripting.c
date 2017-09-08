@@ -625,8 +625,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         AutoEmuNandBase(true);
         InitExtFS();
     } else if (id == CMD_ID_REBOOT) {
+        DeinitExtFS();
+        DeinitSDCardFS();
         Reboot();
     } else if (id == CMD_ID_POWEROFF) {
+        DeinitExtFS();
+        DeinitSDCardFS();
         PowerOff();
     } else { // command not recognized / bad number of arguments
         ret = false;
