@@ -706,7 +706,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool renamable = (FTYPE_RENAMABLE(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
-    bool hsinjectable = (FTYPE_HSINJECTABLE(filetype));
+    bool hsinjectable = (FTYPE_HASCODE(filetype));
+    bool extrcodeable = (FTYPE_HASCODE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
@@ -714,7 +715,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype) && !(drvtype & DRV_VIRTUAL));
     bool installable = (FTYPE_INSTALLABLE(filetype) && !(drvtype & DRV_VIRTUAL));
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || keyinitable || bootable || scriptable || installable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || extrcodeable || keyinitable || bootable || scriptable || installable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -866,6 +867,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int verify = (verificable) ? ++n_opt : -1;
     int ctrtransfer = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
+    int extrcode = (extrcodeable) ? ++n_opt : -1;
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -891,6 +893,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
+    if (extrcode > 0) optionstr[extrcode-1] = "Extract " EXEFS_CODE_NAME;
     if (keyinit > 0) optionstr[keyinit-1] = "Init " KEYDB_NAME;
     if (install > 0) optionstr[install-1] = "Install FIRM";
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
@@ -1180,6 +1183,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             ShowPrompt(false, "%s\nH&S inject %s", pathstr,
                 (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
+        return 0;
+    } else if (user_select == extrcode) { // -> Extract code
+        ShowString("%s\nExtracting .code,\nplease wait...", pathstr);
+        if (ExtractCodeFromCxiFile(curr_entry->path) == 0) {
+            ShowPrompt(false, "%s\n.code extracted to " OUTPUT_PATH, pathstr);
+        } else ShowPrompt(false, "%s\n.code extract failed", pathstr);
         return 0;
     } else if (user_select == ctrtransfer) { // -> transfer CTRNAND image to SysNAND
         char* destdrv[2] = { NULL };

@@ -86,11 +86,11 @@ u32 IdentifyFileType(const char* path) {
         strncpy(ext_cetk, "cetk", 5);
         if (FileGetSize(path_cetk) > 0)
             return GAME_NUSCDN; // NUS/CDN type 2
-    } else if (strncasecmp(fname, TIKDB_NAME_ENC, sizeof(TIKDB_NAME_ENC)) == 0) {
+    } else if (strncasecmp(fname, TIKDB_NAME_ENC, sizeof(TIKDB_NAME_ENC)+1) == 0) {
         return BIN_TIKDB | FLAG_ENC; // titlekey database / encrypted
-    } else if (strncasecmp(fname, TIKDB_NAME_DEC, sizeof(TIKDB_NAME_DEC)) == 0) {
+    } else if (strncasecmp(fname, TIKDB_NAME_DEC, sizeof(TIKDB_NAME_DEC)+1) == 0) {
         return BIN_TIKDB; // titlekey database / decrypted
-    } else if (strncasecmp(fname, KEYDB_NAME, sizeof(KEYDB_NAME)) == 0) {
+    } else if (strncasecmp(fname, KEYDB_NAME, sizeof(KEYDB_NAME)+1) == 0) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file

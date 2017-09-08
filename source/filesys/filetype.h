@@ -42,7 +42,7 @@
 #define FTYPE_TITLEINFO(tp)     (tp&(GAME_SMDH|GAME_NCCH|GAME_NCSD|GAME_CIA|GAME_TMD|GAME_NDS))
 #define FTYPE_RENAMABLE(tp)     (tp&(GAME_NCCH|GAME_NCSD|GAME_CIA|GAME_NDS))
 #define FTYPE_TRANSFERABLE(tp)  ((u32) (tp&(IMG_FAT|FLAG_CTR)) == (u32) (IMG_FAT|FLAG_CTR))
-#define FTYPE_HSINJECTABLE(tp)  ((u32) (tp&(GAME_NCCH|FLAG_CXI)) == (u32) (GAME_NCCH|FLAG_CXI))
+#define FTYPE_HASCODE(tp)       ((u32) (tp&(GAME_NCCH|FLAG_CXI)) == (u32) (GAME_NCCH|FLAG_CXI))
 #define FTYPE_RESTORABLE(tp)    (tp&(IMG_NAND))
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))
 #define FTYPE_XORPAD(tp)        (tp&(BIN_NCCHNFO))

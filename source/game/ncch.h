@@ -32,7 +32,7 @@
 typedef struct {
     char name[8];
     u8  reserved[0x5];
-    u8  flag; // bit 1 for SD
+    u8  flag; // bit 1 for SD, bit 0 for compressed .code
     u16 remaster_version;
     u8  sci_data[0x30];
     u8  dependencies[0x180];

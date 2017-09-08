@@ -121,7 +121,7 @@ u32 LoadCiaStub(CiaStub* stub, const char* path) {
     return 0;
 }
 
-u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u32 size_max) {
+u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u32 size_max, u32* bytes_read) {
     NcchHeader ncch;
     ExeFsHeader exefs;
     FIL file;
@@ -161,6 +161,7 @@ u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u3
         }
     } else ret = 1;
     
+    if (bytes_read) *bytes_read = btr;
     fvx_close(&file);
     return ret;
 }
@@ -172,7 +173,7 @@ u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
     // get dependencies from exthdr, icon from exeFS
     if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path, offset) != 0) ||
         (BuildCiaMeta(meta, &exthdr, NULL) != 0) ||
-        (LoadExeFsFile(meta->smdh, path, offset, "icon", sizeof(meta->smdh))))
+        (LoadExeFsFile(meta->smdh, path, offset, "icon", sizeof(meta->smdh), NULL)))
         return 1;
         
     return 0;
@@ -1256,7 +1257,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     // optional stuff (proper titlekey / meta data)
     FindTitleKey((&cia->ticket), title_id);
     if (exthdr && (BuildCiaMeta(meta, exthdr, NULL) == 0) &&
-        (LoadExeFsFile(meta->smdh, path_ncch, 0, "icon", sizeof(meta->smdh)) == 0) &&
+        (LoadExeFsFile(meta->smdh, path_ncch, 0, "icon", sizeof(meta->smdh), NULL) == 0) &&
         (InsertCiaMeta(path_cia, meta) == 0))
         cia->header.size_meta = CIA_META_SIZE;
     
@@ -1321,7 +1322,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     // optional stuff (proper titlekey / meta data)
     FindTitleKey(&(cia->ticket), title_id);
     if ((BuildCiaMeta(meta, exthdr, NULL) == 0) &&
-        (LoadExeFsFile(meta->smdh, path_ncsd, NCSD_CNT0_OFFSET, "icon", sizeof(meta->smdh)) == 0) &&
+        (LoadExeFsFile(meta->smdh, path_ncsd, NCSD_CNT0_OFFSET, "icon", sizeof(meta->smdh), NULL) == 0) &&
         (InsertCiaMeta(path_cia, meta) == 0))
         cia->header.size_meta = CIA_META_SIZE;
     
@@ -1401,6 +1402,37 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     return 0;
 }
 
+u32 ExtractCodeFromCxiFile(const char* path) {
+    u8* code = (u8*) TEMP_BUFFER;
+    u32 code_max_size = TEMP_BUFFER_SIZE;
+    
+    NcchHeader ncch;
+    NcchExtHeader exthdr;
+    
+    // load ncch, exthdr, .code
+    u32 code_size;
+    if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path, 0) != 0) ||
+        (LoadExeFsFile(code, path, 0, EXEFS_CODE_NAME, code_max_size, &code_size)))
+        return 1;
+    
+    // decompress code (only if required)
+    if ((exthdr.flag & 0x1) && (DecompressCodeLzss(code, &code_size, code_max_size) != 0))
+        return 1;
+    
+    // build output path
+    char dest[256];
+    snprintf(dest, 256, OUTPUT_PATH "/%016llX%s%s", ncch.programId, (exthdr.flag & 0x1) ? ".dec" : "", EXEFS_CODE_NAME);
+    
+    // write output file
+    fvx_unlink(dest);
+    if (fvx_qwrite(dest, code, 0, code_size, NULL) != FR_OK) {
+        fvx_unlink(dest);
+        return 1;
+    }
+        
+    return 0;
+}
+
 u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     u32 filetype = IdentifyFileType(path);
     
@@ -1408,9 +1440,9 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
         UINT btr;
         if ((fvx_qread(path, smdh, 0, sizeof(Smdh), &btr) == FR_OK) || (btr == sizeof(Smdh))) return 0;
     } else if (filetype & GAME_NCCH) { // NCCH file
-        if (LoadExeFsFile(smdh, path, 0, "icon", sizeof(Smdh)) == 0) return 0;
+        if (LoadExeFsFile(smdh, path, 0, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_NCSD) { // NCSD file
-        if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh)) == 0) return 0;
+        if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_CIA) { // CIA file
         CiaInfo info;
         UINT btr;
@@ -1419,7 +1451,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
             (GetCiaInfo(&info, (CiaHeader*) &info) != 0)) return 1;
         if ((info.offset_meta) && (fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), &btr) == FR_OK) &&
             (btr == sizeof(Smdh))) return 0;
-        else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh)) == 0) return 0;
+        else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_TMD) {
         char path_content[256];
         if (GetTmdContentPath(path_content, path) != 0) return 1;

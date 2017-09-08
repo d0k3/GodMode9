@@ -8,5 +8,6 @@
 #include "firm.h"
 #include "boss.h"
 #include "smdh.h"
+#include "codelzss.h"
 #include "nds.h"
 #include "ncchinfo.h"
