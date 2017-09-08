@@ -1402,7 +1402,7 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     return 0;
 }
 
-u32 ExtractCodeFromCxiFile(const char* path) {
+u32 ExtractCodeFromCxiFile(const char* path, const char* path_out) {
     u8* code = (u8*) TEMP_BUFFER;
     u32 code_max_size = TEMP_BUFFER_SIZE;
     
@@ -1419,9 +1419,13 @@ u32 ExtractCodeFromCxiFile(const char* path) {
     if ((exthdr.flag & 0x1) && (DecompressCodeLzss(code, &code_size, code_max_size) != 0))
         return 1;
     
-    // build output path
+    // build or take over output path
     char dest[256];
-    snprintf(dest, 256, OUTPUT_PATH "/%016llX%s%s", ncch.programId, (exthdr.flag & 0x1) ? ".dec" : "", EXEFS_CODE_NAME);
+    if (!path_out) {
+        // ensure the output dir exists
+        if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) return 1;
+        snprintf(dest, 256, OUTPUT_PATH "/%016llX%s%s", ncch.programId, (exthdr.flag & 0x1) ? ".dec" : "", EXEFS_CODE_NAME);
+    } else strncpy(dest, path_out, 256);
     
     // write output file
     fvx_unlink(dest);

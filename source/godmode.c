@@ -1186,7 +1186,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         return 0;
     } else if (user_select == extrcode) { // -> Extract code
         ShowString("%s\nExtracting .code, please wait...", pathstr);
-        if (ExtractCodeFromCxiFile(curr_entry->path) == 0) {
+        if (ExtractCodeFromCxiFile(curr_entry->path, NULL) == 0) {
             ShowPrompt(false, "%s\n.code extracted to " OUTPUT_PATH, pathstr);
         } else ShowPrompt(false, "%s\n.code extract failed", pathstr);
         return 0;
