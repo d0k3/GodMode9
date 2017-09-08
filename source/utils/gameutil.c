@@ -1386,6 +1386,7 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     // prepare output name
     snprintf(dest, 256, OUTPUT_PATH "/");
     char* dname = dest + strnlen(dest, 256);
+    if (!CheckWritePermissions(dest)) return 1;
     
     // ensure the output dir exists
     if (fvx_rmkdir(OUTPUT_PATH) != FR_OK)
@@ -1426,6 +1427,7 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out) {
         if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) return 1;
         snprintf(dest, 256, OUTPUT_PATH "/%016llX%s%s", ncch.programId, (exthdr.flag & 0x1) ? ".dec" : "", EXEFS_CODE_NAME);
     } else strncpy(dest, path_out, 256);
+    if (!CheckWritePermissions(dest)) return 1;
     
     // write output file
     fvx_unlink(dest);

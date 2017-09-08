@@ -527,7 +527,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ret = PathDelete(argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "remove fail");
     } else if (id == CMD_ID_MKDIR) {
-        ret = (fvx_rmkdir(argv[0]) == FR_OK);
+        ret = (CheckWritePermissions(argv[0])) && (fvx_rmkdir(argv[0]) == FR_OK);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "makedir fail");
     } else if (id == CMD_ID_MOUNT) {
         ret = InitImgFS(argv[0]);
