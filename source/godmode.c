@@ -27,6 +27,9 @@
 #include "rtc.h"
 #include "sysinfo.h"
 #include QLZ_SPLASH_H
+#ifdef AUTORUN_SCRIPT
+#include "autorun_gm9.h"
+#endif
 
 #define N_PANES 2
 
@@ -1907,3 +1910,32 @@ u32 GodMode(bool is_b9s) {
     
     return exit_mode;
 }
+
+#ifdef AUTORUN_SCRIPT
+u32 ScriptRunner(bool is_b9s) {
+    // show splash and initialize
+    ClearScreenF(true, true, COLOR_STD_BG);
+    SplashInit();
+    u64 timer = timer_start();
+    
+    InitSDCardFS();
+    AutoEmuNandBase(true);
+    InitNandCrypto(!is_b9s);
+    InitExtFS();
+    
+    while (CheckButton(BUTTON_A)); // don't continue while A is held
+    while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
+    ClearScreenF(true, true, COLOR_STD_BG); // clear splash
+    
+    // copy script to script buffer and run it
+    memset(SCRIPT_BUFFER, 0, SCRIPT_BUFFER_SIZE);
+    memcpy(SCRIPT_BUFFER, autorun_gm9, autorun_gm9_size);
+    ExecuteGM9Script(NULL);
+    
+    // deinit
+    DeinitExtFS();
+    DeinitSDCardFS();
+    
+    return GODMODE_EXIT_REBOOT;
+}
+#endif

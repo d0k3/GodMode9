@@ -60,8 +60,12 @@ ifeq ($(SWITCH_SCREENS),1)
 	CFLAGS += -DSWITCH_SCREENS
 endif
 
-ifneq ("$(wildcard $(CURDIR)/data/aeskeydb.bin)","")
+ifneq ("$(wildcard $(CURDIR)/../$(DATA)/aeskeydb.bin)","")
 	CFLAGS += -DHARDCODE_KEYS
+endif
+
+ifneq ("$(wildcard $(CURDIR)/../$(DATA)/autorun.gm9)","")
+	CFLAGS += -DAUTORUN_SCRIPT
 endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
@@ -95,11 +99,12 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/gm9*.*))) \
-				$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/aeskeydb.bin)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/aeskeydb.bin))) \
+				$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/autorun.gm9)))
 ifeq ($(SAFEMODE),1)
-	BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/sm9*.*))) \
-					$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/aeskeydb.bin)))
+	BINFILES	+=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/sm9*.*)))
+else
+	BINFILES	+=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/gm9*.*)))
 endif
 
 #---------------------------------------------------------------------------------
@@ -198,6 +203,11 @@ $(OUTPUT).elf	:	$(OFILES)
 	@$(bin2o)
 #---------------------------------------------------------------------------------
 %_bin.h %.bin.o: %.bin
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
+#---------------------------------------------------------------------------------
+%_gm9.h %.gm9.o: %.gm9
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)

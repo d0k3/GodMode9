@@ -851,13 +851,12 @@ bool FileTextViewer(const char* path, bool as_script) {
 }
 
 bool ExecuteGM9Script(const char* path_script) {
-    // revert mount state?
     char* script = (char*) SCRIPT_BUFFER;
     char* ptr = script;
     
-    // fetch script
-    u32 script_size;
-    if (!(script_size = FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0)))
+    // fetch script - if no path is given, assume script already in script buffer
+    u32 script_size = (path_script) ? FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0) : strnlen(script, SCRIPT_BUFFER_SIZE);
+    if (!script_size || (script_size >= SCRIPT_BUFFER_SIZE))
         return false;
     char* end = script + script_size;
     *end = '\0';
