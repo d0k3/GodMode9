@@ -52,8 +52,27 @@
 #define OUTPUT_PATH     "0:/gm9/out"
 
 // buffer area defines (in use by godmode.c)
-#define DIR_BUFFER          (0x21000000)
+#define DIR_BUFFER          (0x20000000)
 #define DIR_BUFFER_SIZE     (0x100000)
+// buffer area defines (in use by fsutil.c, fsinit.c and gameutil.c)
+#define MAIN_BUFFER         ((u8*)0x20100000)
+#define MAIN_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
+// buffer area defines (in use by nand.c)
+#define NAND_BUFFER         ((u8*)0x20200000)
+#define NAND_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
+// buffer area defines (in use by sddata.c)
+#define SDCRYPT_BUFFER      ((u8*)0x20300000)
+#define SDCRYPT_BUFFER_SIZE (0x100000)
+// buffer area defines (in use by scripting.c)
+#define SCRIPT_BUFFER       ((u8*)0x20400000)
+#define SCRIPT_BUFFER_SIZE  (0x100000)
+// buffer area defines (in use by vgame.c)
+#define VGAME_BUFFER        ((u8*)0x20500000)
+#define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
+// buffer area defines (in use by vcart.c)
+#define VCART_BUFFER        ((u8*)0x20700000)
+#define VCART_BUFFER_SIZE   (0x20000) // 128kB, this is more than enough
+
 // buffer area defines (temporary, in use by various functions)
 //  -> godmode.c hexviewer
 //  -> godmode.c loading payloads
@@ -66,27 +85,11 @@
 //  -> vgame.c for handling FIRMs
 //  -> vtickdb.c for parsing ticket.db
 //  -> qlzcomp.c for temporary compression stuff
+//  -> codelzss.c for decompressing .code
 // meaning: careful when using this!
-#define TEMP_BUFFER         ((u8*)0x21100000)
-#define TEMP_BUFFER_SIZE    (0x100000)
-// buffer area defines (in use by fsutil.c, fsinit.c and gameutil.c)
-#define MAIN_BUFFER         ((u8*)0x21200000)
-#define MAIN_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
-// buffer area defines (in use by nand.c)
-#define NAND_BUFFER         ((u8*)0x21300000)
-#define NAND_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
-// buffer area defines (in use by sddata.c)
-#define SDCRYPT_BUFFER      ((u8*)0x21400000)
-#define SDCRYPT_BUFFER_SIZE (0x100000)
-// buffer area defines (in use by scripting.c)
-#define SCRIPT_BUFFER       ((u8*)0x21500000)
-#define SCRIPT_BUFFER_SIZE  (0x100000)
-// buffer area defines (in use by vgame.c)
-#define VGAME_BUFFER        ((u8*)0x21600000)
-#define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
-// buffer area defines (in use by vcart.c)
-#define VCART_BUFFER        ((u8*)0x21800000)
-#define VCART_BUFFER_SIZE   (0x20000) // 128kB, this is more than enough
+#define TEMP_BUFFER         ((u8*)0x20800000)
+#define TEMP_BUFFER_SIZE    (0x1800000) // 24MB(!)
+
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER       ((u8*)0x24000000) // top half of FCRAM
 #define RAMDRV_SIZE_O3DS    (0x04000000) // 64MB
