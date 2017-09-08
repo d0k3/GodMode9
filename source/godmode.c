@@ -1501,6 +1501,11 @@ u32 GodMode(bool is_b9s) {
         }
     }
     
+    // check aeskeydb.bin / key state
+    if (!is_b9s && (CheckRecommendedKeyDb(NULL) != 0)) {
+        ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
+    }
+    
     while (CheckButton(BUTTON_A)); // don't continue while A is held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash

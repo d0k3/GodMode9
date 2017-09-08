@@ -22,3 +22,4 @@ u32 GetUnitKeysType(void);
 void CryptAesKeyInfo(AesKeyInfo* info);
 u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id);
 u32 InitKeyDb(const char* path);
+u32 CheckRecommendedKeyDb(const char* path);
