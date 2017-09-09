@@ -843,6 +843,14 @@ u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
         next_offset += size;
     }
     
+    // if not inplace: take over CIA metadata
+    if (!inplace && (info.size_meta == CIA_META_SIZE)) {
+        CiaMeta* meta = (CiaMeta*) (void*) (cia + 1);
+        if ((fvx_qread(orig, meta, info.offset_meta, CIA_META_SIZE, NULL) != FR_OK) ||
+            (fvx_qwrite(dest, meta, info.offset_meta, CIA_META_SIZE, NULL) != FR_OK))
+            return 1;
+    }
+    
     // fix TMD hashes, write CIA stub to destination
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, dest) != 0)) return 1;
