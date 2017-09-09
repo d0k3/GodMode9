@@ -5,8 +5,8 @@
 #include "image.h"
 #include "ff.h"
 
-// don't use this area for anything else!
-static FATFS* fs = (FATFS*) 0x20316000;
+// FATFS filesystem objects (x10)
+static FATFS fs[NORM_FS];
 
 // currently open file systems
 static bool fs_mounted[NORM_FS] = { false };
