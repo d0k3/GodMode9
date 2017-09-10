@@ -175,7 +175,7 @@ bool BuildVGameNcchDir(void) {
     // logo region
     if (ncch->size_logo) {
         strncpy(templates[n].name, NAME_NCCH_LOGO, 32);
-        templates[n].offset =offset_ncch + (ncch->offset_logo * NCCH_MEDIA_UNIT);
+        templates[n].offset = offset_ncch + (ncch->offset_logo * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_logo * NCCH_MEDIA_UNIT;
         templates[n].keyslot = 0xFF;
         templates[n].flags = 0;
@@ -260,11 +260,11 @@ bool BuildVGameNcsdDir(void) {
         templates[n].offset = partition->offset * NCSD_MEDIA_UNIT;
         templates[n].size = partition->size * NCSD_MEDIA_UNIT;
         templates[n].keyslot = 0xFF; // not encrypted
-        templates[n].flags = VFLAG_NCCH;
+        templates[n].flags = 0;
         n++;
         memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
         snprintf(templates[n].name, 32, NAME_NCSD_CONTENT, i, name_type[i], "");
-        templates[n].flags |= VFLAG_DIR;
+        templates[n].flags |= (VFLAG_NCCH | VFLAG_DIR);
         n++;
     }
     
@@ -363,13 +363,13 @@ bool BuildVGameCiaDir(void) {
             templates[n].offset = next_offset;
             templates[n].size = size;
             templates[n].keyslot = 0xFF; // even for encrypted stuff
-            templates[n].flags = cnt_type;
+            templates[n].flags = 0;
             n++;
             if (cnt_type) {
                 memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
                 snprintf(templates[n].name, 32, NAME_CIA_CONTENT,
                     getbe16(content_list[i].index), getbe32(content_list[i].id), "");
-                templates[n].flags |= VFLAG_DIR;
+                templates[n].flags |= (cnt_type | VFLAG_DIR);
                 n++;
             }
             next_offset += size;
@@ -532,11 +532,11 @@ bool BuildVGameFirmDir(void) {
                 templates[n].offset = offset_p9;
                 templates[n].size = p9_ncch->size * NCCH_MEDIA_UNIT;
                 templates[n].keyslot = (offset_a9bin == (u64) -1) ? 0xFF : 0x15;
-                templates[n].flags = VFLAG_NCCH;
+                templates[n].flags = 0;
                 n++;
                 memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
                 snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch->programId, name, "");
-                templates[n].flags |= VFLAG_DIR;
+                templates[n].flags |= (VFLAG_NCCH | VFLAG_DIR);
                 n++;
             }
         } else if (section->type == 1) { // ARM11 section, search for modules
@@ -555,11 +555,11 @@ bool BuildVGameFirmDir(void) {
                     templates[n].offset = section->offset + p;
                     templates[n].size = firm_ncch.size * NCCH_MEDIA_UNIT;
                     templates[n].keyslot = 0xFF;
-                    templates[n].flags = VFLAG_NCCH;
+                    templates[n].flags = 0;
                     n++;
                     memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
                     snprintf(templates[n].name, 32, NAME_FIRM_NCCH, firm_ncch.programId, name, "");
-                    templates[n].flags |= VFLAG_DIR;
+                    templates[n].flags |= (VFLAG_NCCH | VFLAG_DIR);
                     n++;
                 }
             }
