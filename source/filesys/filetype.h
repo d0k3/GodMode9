@@ -23,6 +23,8 @@
 #define BIN_LEGKEY  (1UL<<18)
 #define TXT_SCRIPT  (1UL<<19)
 #define TXT_GENERIC (1UL<<20)
+#define NOIMG_NAND  (1UL<<21)
+#define HDR_NAND    (1UL<<22)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_ENC    (1UL<<28)
@@ -42,6 +44,7 @@
 #define FTYPE_TITLEINFO(tp)     (tp&(GAME_SMDH|GAME_NCCH|GAME_NCSD|GAME_CIA|GAME_TMD|GAME_NDS))
 #define FTYPE_RENAMABLE(tp)     (tp&(GAME_NCCH|GAME_NCSD|GAME_CIA|GAME_NDS))
 #define FTYPE_TRANSFERABLE(tp)  ((u32) (tp&(IMG_FAT|FLAG_CTR)) == (u32) (IMG_FAT|FLAG_CTR))
+#define FTYPE_NCSDFIXABLE(tp)   (tp&(HDR_NAND|NOIMG_NAND))
 #define FTYPE_HASCODE(tp)       ((u32) (tp&(GAME_NCCH|FLAG_CXI)) == (u32) (GAME_NCCH|FLAG_CXI))
 #define FTYPE_RESTORABLE(tp)    (tp&(IMG_NAND))
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))

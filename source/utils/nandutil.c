@@ -13,6 +13,15 @@
 #include "vff.h"
 
 
+static const u8 twl_mbr_std[0x42] = {
+    0x00, 0x04, 0x18, 0x00, 0x06, 0x01, 0xA0, 0x3F, 0x97, 0x00, 0x00, 0x00, 0xA9, 0x7D, 0x04, 0x00,
+    0x00, 0x04, 0x8E, 0x40, 0x06, 0x01, 0xA0, 0xC3, 0x8D, 0x80, 0x04, 0x00, 0xB3, 0x05, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x55, 0xAA
+};
+
+
 u32 ReadNandFile(FIL* file, void* buffer, u32 sector, u32 count, u32 keyslot) {
     u32 offset = sector * 0x200;
     u32 size = count * 0x200;
@@ -106,6 +115,76 @@ u32 EmbedEssentialBackup(const char* path) {
         (btw != sizeof(EssentialBackup)))
         return 1;
     return 0;
+}
+
+u32 RebuildNandNcsdHeader(NandNcsdHeader* ncsd) {
+    // signature (retail or dev)
+    u8* signature = (IS_DEVKIT) ? sig_nand_ncsd_dev : sig_nand_ncsd_retail;
+    
+    // encrypted TWL MBR
+    u8 twl_mbr_data[0x200] = { 0 };
+    u8* twl_mbr = twl_mbr_data + (0x200 - sizeof(twl_mbr_std));
+    memcpy(twl_mbr, twl_mbr_std, sizeof(twl_mbr_std));
+    CryptNand(twl_mbr_data, 0, 1, 0x03);
+    
+    // rebuild NAND header for console
+    memset(ncsd, 0x00, sizeof(NandNcsdHeader)); 
+    memcpy(ncsd->signature, signature, 0x100); // signature
+    memcpy(ncsd->twl_mbr, twl_mbr, 0x42); // TWL MBR
+    memcpy(ncsd->magic, "NCSD", 0x4); // magic number
+    ncsd->size = (IS_O3DS) ? 0x200000 : 0x280000; // total size
+    
+    // TWL partition (0)
+    ncsd->partitions_fs_type[0] = 0x01;
+    ncsd->partitions_crypto_type[0] = 0x01;
+    ncsd->partitions[0].offset = 0x000000;
+    ncsd->partitions[0].size = 0x058800;
+    
+    // AGBSAVE partition (1)
+    ncsd->partitions_fs_type[1] = 0x04;
+    ncsd->partitions_crypto_type[1] = 0x02;
+    ncsd->partitions[1].offset = 0x058800;
+    ncsd->partitions[1].size = 0x000180;
+    
+    // FIRM0 partition (2)
+    ncsd->partitions_fs_type[2] = 0x03;
+    ncsd->partitions_crypto_type[2] = 0x02;
+    ncsd->partitions[2].offset = 0x058980;
+    ncsd->partitions[2].size = 0x002000;
+    
+    // FIRM1 partition (3)
+    ncsd->partitions_fs_type[3] = 0x03;
+    ncsd->partitions_crypto_type[3] = 0x02;
+    ncsd->partitions[3].offset = 0x05A980;
+    ncsd->partitions[3].size = 0x002000;
+    
+    // CTR partition (4)
+    ncsd->partitions_fs_type[4] = 0x01;
+    ncsd->partitions_crypto_type[4] = (IS_O3DS) ? 0x02 : 0x03;
+    ncsd->partitions[4].offset = 0x05C980;
+    ncsd->partitions[4].size = (IS_O3DS) ? 0x17AE80 : 0x20F680;
+    
+    // unknown stuff - whatever this is ¯\_(ツ)_/¯
+    ncsd->unknown[0x25] = 0x04;
+    ncsd->unknown[0x2C] = 0x01;
+    
+    // done
+    return 0;
+}
+
+u32 FixNandHeader(const char* path, bool check_size) {
+    NandNcsdHeader ncsd;
+    if (RebuildNandNcsdHeader(&ncsd) != 0) return 1;
+    
+    // safety check
+    FILINFO fno;
+    FSIZE_t min_size = check_size ? GetNandNcsdMinSizeSectors(&ncsd) * 0x200 : 0x200;
+    if ((fvx_stat(path, &fno) != FR_OK) || (min_size > fno.fsize))
+        return 1;
+    
+    // inject to path
+    if (!CheckWritePermissions(path)) return 1;
+    return (fvx_qwrite(path, &ncsd, 0x0, 0x200, NULL) == FR_OK) ? 0 : 1;
 }
 
 u32 ValidateNandDump(const char* path) {
@@ -235,6 +314,7 @@ u32 SafeRestoreNandDump(const char* path) {
     }
     
     // compare NCSD header partitioning
+    // FIRMS must be at the same place for image and local NAND
     bool header_inject = false;
     if (memcmp(&ncsd_loc, &ncsd_img, sizeof(NandNcsdHeader)) != 0) {
         for (int p = -1; p <= 8; p++) {
@@ -246,7 +326,7 @@ u32 SafeRestoreNandDump(const char* path) {
             bool np_loc = (GetNandNcsdPartitionInfo(&info_loc, type, subtype, idx, &ncsd_loc) == 0);
             bool np_img = (GetNandNcsdPartitionInfo(&info_img, type, subtype, idx, &ncsd_img) == 0);
             if (!np_loc && !np_img) {
-                if (p >= 1) header_inject = true;
+                if (p >= 1) header_inject = true; // at least one matching FIRM found
                 break;
             }
             if ((np_loc != np_img) || (memcmp(&info_loc, &info_img, sizeof(NandPartitionInfo)) != 0))

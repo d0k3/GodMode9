@@ -23,9 +23,11 @@ u32 IdentifyFileType(const char* path) {
     
     if (!fsize) return 0;
     if (fsize >= 0x200) {
-        if ((getbe32(header + 0x100) == 0x4E435344) && (getbe64(header + 0x110) == (u64) 0x0104030301000000) &&
-            (getbe64(header + 0x108) == (u64) 0) && (fsize >= 0x8FC8000)) {
-            return IMG_NAND; // NAND image
+        if (ValidateNandNcsdHeader((NandNcsdHeader*) data) == 0) {
+            return (fsize >= GetNandNcsdMinSizeSectors((NandNcsdHeader*) data) * 0x200) ?
+                IMG_NAND : (fsize == sizeof(NandNcsdHeader)) ? HDR_NAND : 0; // NAND image or just header
+        } else if ((strncasecmp(path, "S:/nand.bin", 16) == 0) || (strncasecmp(path, "E:/nand.bin", 16) == 0)) {
+            return NOIMG_NAND; // on NAND, but no proper NAND image
         } else if (ValidateFatHeader(header) == 0) {
             return IMG_FAT; // FAT image file
         } else if (ValidateMbrHeader((MbrHeader*) data) == 0) {

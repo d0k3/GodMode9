@@ -713,12 +713,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool extrcodeable = (FTYPE_HASCODE(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
+    bool ncsdfixable = (FTYPE_NCSDFIXABLE(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool keyinitable = (FTYPE_KEYINIT(filetype));
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype) && !(drvtype & DRV_VIRTUAL));
     bool installable = (FTYPE_INSTALLABLE(filetype) && !(drvtype & DRV_VIRTUAL));
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || extrcodeable || keyinitable || bootable || scriptable || installable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || bootable || scriptable || installable;
     
     char pathstr[32+1];
     TruncateString(pathstr, curr_entry->path, 32, 8);
@@ -763,7 +764,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & BIN_KEYDB)  ? "AESkeydb options..."   :
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
-        (filetype & TXT_SCRIPT) ? "Execute GM9 script" : "???";
+        (filetype & TXT_SCRIPT) ? "Execute GM9 script"    :
+        (filetype & HDR_NAND)   ? "Rebuild NCSD header"   :
+        (filetype & NOIMG_NAND) ? "Rebuild NCSD header" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
     if (textviewer > 0) optionstr[textviewer-1] = "Show in Textviewer";
@@ -776,6 +779,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
     if (user_select == hexviewer) { // -> show in hex viewer
         FileHexViewer(curr_entry->path);
+        GetDirContents(current_dir, current_path);
         return 0;
     } else if (user_select == textviewer) { // -> show in text viewer
         FileTextViewer(curr_entry->path, scriptable);
@@ -859,6 +863,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int mount = (mountable) ? ++n_opt : -1;
     int restore = (restorable) ? ++n_opt : -1;
     int ebackup = (ebackupable) ? ++n_opt : -1;
+    int ncsdfix = (ncsdfixable) ? ++n_opt : -1;
     int decrypt = (decryptable) ? ++n_opt : -1;
     int encrypt = (encryptable) ? ++n_opt : -1;
     int cia_build = (cia_buildable) ? ++n_opt : -1;
@@ -881,6 +886,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     if (mount > 0) optionstr[mount-1] = "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
+    if (ncsdfix > 0) optionstr[ncsdfix-1] = "Rebuild NCSD header";
     if (show_info > 0) optionstr[show_info-1] = "Show title info";
     if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
@@ -1216,7 +1222,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
             (SafeRestoreNandDump(curr_entry->path) == 0) ? "success" : "failed");
         return 0;
-    } else if ((user_select == xorpad) || (user_select == xorpad_inplace)) {
+    } else if (user_select == ncsdfix) { // -> inject sighaxed NCSD
+        ShowPrompt(false, "%s\nRebuild NCSD %s", pathstr,
+            (FixNandHeader(curr_entry->path, !(filetype == HDR_NAND)) == 0) ? "success" : "failed");
+        GetDirContents(current_dir, current_path);
+        InitExtFS(); // this might have fixed something, so try this
+        return 0;
+    } else if ((user_select == xorpad) || (user_select == xorpad_inplace)) { // -> build xorpads
         bool inplace = (user_select == xorpad_inplace);
         bool success = (BuildNcchInfoXorpads((inplace) ? current_path : OUTPUT_PATH, curr_entry->path) == 0);
         ShowPrompt(false, "%s\nNCCHinfo padgen %s%s", pathstr,
@@ -1232,7 +1244,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             *cursor = 1;
         }
         return 0;
-    } else if (user_select == ebackup) {
+    } else if (user_select == ebackup) { // -> update embedded backup
         ShowString("%s\nUpdating embedded backup...", pathstr);
         bool required = (CheckEmbeddedBackup(curr_entry->path) != 0);
         bool success = (required && (EmbedEssentialBackup(curr_entry->path) == 0));
@@ -1240,11 +1252,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             (success) ? "completed" : "failed!");
         GetDirContents(current_dir, current_path);
         return 0;
-    } else if ((user_select == keyinit)) {
+    } else if ((user_select == keyinit)) { // -> initialise keys from aeskeydb.bin
         if (ShowPrompt(true, "Warning: Keys are not verified.\nContinue on your own risk?"))
             ShowPrompt(false, "%s\nAESkeydb init %s", pathstr, (InitKeyDb(curr_entry->path) == 0) ? "success" : "failed");
         return 0;
-    } else if ((user_select == install)) {
+    } else if ((user_select == install)) { // -> install FIRM
         size_t firm_size = FileGetSize(curr_entry->path);
         u32 slots = 1;
         if (GetNandPartitionInfo(NULL, NP_TYPE_FIRM, NP_SUBTYPE_CTR, 1, NAND_SYSNAND) == 0) {
@@ -1257,7 +1269,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         if (slots) ShowPrompt(false, "%s (%dkB)\nInstall %s", pathstr, firm_size / 1024,
             (SafeInstallFirm(curr_entry->path, slots) == 0) ? "success" : "failed!");
         return 0;
-    } else if ((user_select == boot)) {
+    } else if ((user_select == boot)) { // -> boot FIRM
         size_t firm_size = FileGetSize(curr_entry->path);
         if (firm_size > TEMP_BUFFER_SIZE) {
             ShowPrompt(false, "FIRM too big, can't launch"); // unlikely
@@ -1287,7 +1299,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             } else ShowPrompt(false, "Not a bootable FIRM, can't boot");
         }
         return 0;
-    } else if ((user_select == script)) {
+    } else if ((user_select == script)) { // execute script
         if (ShowPrompt(true, "%s\nWarning: Do not run scripts\nfrom untrusted sources.\n \nExecute script?", pathstr))
             ShowPrompt(false, "%s\nScript execute %s", pathstr, ExecuteGM9Script(curr_entry->path) ? "success" : "failure");
         GetDirContents(current_dir, current_path);
