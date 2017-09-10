@@ -83,13 +83,6 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
             vfile->offset += 0x200 - 0x42;
             vfile->size = 0x42;
         }
-        if (vfile->flags & VFLAG_NAND_SIZE) {
-            if ((nand_src != VRT_SYSNAND) && (GetNandSizeSectors(NAND_SYSNAND) > GetNandSizeSectors(nand_src)))
-                continue; // EmuNAND / ImgNAND is too small
-            u64 nand_size = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
-            if (nand_size <= vfile->offset) continue;
-            vfile->size = nand_size - vfile->offset;
-        }
         if (vfile->flags & VFLAG_ESSENTIAL) {
             const u8 magic[] = { ESSENTIAL_MAGIC };
             u8 data[sizeof(magic)];

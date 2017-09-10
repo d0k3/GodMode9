@@ -444,6 +444,7 @@ u32 GetNandSizeSectors(u32 nand_src)
         u32 emunand_max_sectors = (partition_offset >= (emunand_base_sector + 1)) ? // +1 for safety
             partition_offset - (emunand_base_sector + 1) : 0;
         u32 emunand_min_sectors = (emunand_base_sector % 0x2000 == 0) ? sysnand_sectors : min_sectors;
+        if (!emunand_min_sectors) emunand_min_sectors = GetNandMinSizeSectors(NAND_SYSNAND);
         return (emunand_min_sectors > emunand_max_sectors) ? 0 : emunand_min_sectors;
     } else if (nand_src == NAND_IMGNAND) { // for images
         u32 img_sectors = (GetMountState() & IMG_NAND) ? GetMountSize() / 0x200 : 0;
