@@ -8,12 +8,16 @@
 #define ARM11NCCH_OFFSET 0, 0x2A000, 0x2B000, 0x2C000
 #define ARM9BIN_OFFSET 0x800
 
+#define FIRM_NDMA_CPY   0
+#define FIRM_XDMA_CPY   1
+#define FIRM_CPU_MEMCPY 2
+
 // see: https://www.3dbrew.org/wiki/FIRM#Firmware_Section_Headers
 typedef struct {
     u32 offset;
     u32 address;
     u32 size;
-    u32 type;
+    u32 method;
     u8  hash[0x20];
 } __attribute__((packed)) FirmSectionHeader;
 

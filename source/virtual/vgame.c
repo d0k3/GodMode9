@@ -565,13 +565,16 @@ bool BuildVGameFirmDir(void) {
     for (u32 i = 0; i < 4; i++) {
         FirmSectionHeader* section = firm->sections + i;
         if (!section->size) continue;
-        snprintf(templates[n].name, 32, NAME_FIRM_SECTION, i, (section->type == 0) ? "arm9" : "arm11");
+        snprintf(templates[n].name, 32, NAME_FIRM_SECTION, i,
+            (section->method == FIRM_NDMA_CPY) ? "ndma.arm9"  :
+            (section->method == FIRM_XDMA_CPY) ? "xdma.arm11" :
+            (section->method == FIRM_CPU_MEMCPY) ? "memcpy" : "unknown");
         templates[n].offset = section->offset;
         templates[n].size = section->size;
         templates[n].keyslot = 0xFF;
         templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
-        if (section->type == 0) { // ARM9 section, search for Process9
+        if (section->method == FIRM_NDMA_CPY) { // ARM9 section, search for Process9
             u8* buffer = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
             u32 buffer_size = TEMP_BUFFER_SIZE/4;
             NcchHeader* p9_ncch;
@@ -600,7 +603,7 @@ bool BuildVGameFirmDir(void) {
                 templates[n].flags |= (VFLAG_NCCH | VFLAG_DIR);
                 n++;
             }
-        } else if (section->type == 1) { // ARM11 section, search for modules
+        } else if (section->method == FIRM_XDMA_CPY) { // ARM11 section, search for modules
             const u32 arm11_ncch_offset[] = { ARM11NCCH_OFFSET };
             NcchHeader firm_ncch;
             for (u32 v = 0; v < sizeof(arm11_ncch_offset) / sizeof(u32); v++) {

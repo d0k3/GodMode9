@@ -110,7 +110,7 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
 FirmSectionHeader* FindFirmArm9Section(FirmHeader* firm) {
     for (u32 i = 0; i < 4; i++) {
         FirmSectionHeader* section = firm->sections + i;
-        if (section->size && (section->type == 0))
+        if (section->size && (section->method == FIRM_NDMA_CPY))
             return section;
     }
     return NULL;
