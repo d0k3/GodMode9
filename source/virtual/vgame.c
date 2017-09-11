@@ -3,11 +3,11 @@
 #include "game.h"
 #include "aes.h"
 
-#define VFLAG_NDS           (1UL<<19)
-#define VFLAG_NITRO_DIR     (1UL<<20)
-#define VFLAG_NITRO         (1UL<<21)
-#define VFLAG_FIRM_SECTION  (1UL<<22)
-#define VFLAG_FIRM_ARM9     (1UL<<23)
+#define VFLAG_NO_CRYPTO     (1UL<<19)
+#define VFLAG_CIA_CONTENT   (1UL<<20)
+#define VFLAG_NDS           (1UL<<21)
+#define VFLAG_NITRO_DIR     (1UL<<22)
+#define VFLAG_NITRO         (1UL<<23)
 #define VFLAG_FIRM          (1UL<<24)
 #define VFLAG_EXEFS_FILE    (1UL<<25)
 #define VFLAG_EXTHDR        (1UL<<26)
@@ -17,6 +17,7 @@
 #define VFLAG_EXEFS         (1UL<<30)
 #define VFLAG_ROMFS         (1UL<<31)
 #define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NDS|VFLAG_NITRO_DIR|VFLAG_NITRO)
+#define VFLAG_NCCH_CRYPTO   (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH)
 
 #define NAME_FIRM_HEADER    "header.bin"
 #define NAME_FIRM_ARM9BIN   "arm9dec.bin"
@@ -60,7 +61,6 @@
 #define NAME_NDS_DATADIR    "data"
 
 
-
 static u32 vgame_type = 0;
 static u32 base_vdir = 0;
 
@@ -88,6 +88,8 @@ static u64 offset_lv3   = (u64) -1;
 static u64 offset_lv3fd = (u64) -1;
 static u64 offset_nds   = (u64) -1;
 static u64 offset_nitro = (u64) -1;
+static u64 offset_ccnt  = (u64) -1;
+static u32 index_ccnt   = (u32) -1;
 
 static CiaStub* cia = (CiaStub*) (void*) (VGAME_BUFFER + 0x10000); // 61kB reserved - should be enough by far
 static TwlHeader* twl = (TwlHeader*) (void*) (VGAME_BUFFER + 0x1F400); // 512 byte reserved (not the full thing)
@@ -99,22 +101,76 @@ static ExeFsHeader* exefs = (ExeFsHeader*) (void*) (VGAME_BUFFER + 0x1FE00); // 
 static u8* romfslv3 = (u8*) (VGAME_BUFFER + 0x20000); // 1920kB reserved
 static u8* nitrofs = (u8*) (VGAME_BUFFER + 0x20000); // 1920kB reserved (FNT+FAT combined)
 static RomFsLv3Index lv3idx;
+static u8 cia_titlekey[16];
 
-int ReadFirmImageBytes(void* buffer, u64 offset, u64 count) {
-    int ret = ReadImageBytes(buffer, offset, count);
-    if ((offset_a9bin == (u64) -1) || (ret != 0)) return ret;
-    if (DecryptFirm(buffer, offset, count, firm, a9l) != 0)
+
+int ReadCiaContentImageBlocks(void* buffer, u64 block, u64 count, u32 cia_cnt_idx, u64 block0) {
+    int ret = ReadImageBytes(buffer, block * AES_BLOCK_SIZE, count * AES_BLOCK_SIZE);
+    if ((ret == 0) && (cia_cnt_idx <= 0xFFFF)) {
+        u8 ctr[AES_BLOCK_SIZE] = { 0 };
+        if (block == block0) {
+            ctr[0] = (cia_cnt_idx >> 0) & 0xFF;
+            ctr[1] = (cia_cnt_idx >> 8) & 0xFF;
+        } else {
+            if ((ret = ReadImageBytes(buffer, (block-1) * AES_BLOCK_SIZE, AES_BLOCK_SIZE)) != 0)
+                return ret;
+        }
+        if (DecryptCiaContentSequential(buffer, count * AES_BLOCK_SIZE, ctr, cia_titlekey) != 0)
+            return -1;
+    }
+    return ret;
+}
+
+int ReadCiaContentImageBytes(void* buffer, u64 offset, u64 count, u32 cia_cnt_idx, u64 offset0) {
+    u32 off_fix = offset % AES_BLOCK_SIZE;
+    u64 block0 = offset0 / AES_BLOCK_SIZE;
+    u8 __attribute__((aligned(32))) temp[AES_BLOCK_SIZE];
+    u8* buffer8 = (u8*) buffer;
+    int ret = 0;
+    
+    if (off_fix) { // misaligned offset (at beginning)
+        u32 fix_byte = ((off_fix + count) >= AES_BLOCK_SIZE) ? AES_BLOCK_SIZE - off_fix : count;
+        if ((ret = ReadCiaContentImageBlocks(temp, offset / AES_BLOCK_SIZE, 1, cia_cnt_idx, block0)) != 0)
+            return ret;
+        memcpy(buffer8, temp + off_fix, fix_byte);
+        buffer8 += fix_byte;
+        offset += fix_byte;
+        count -= fix_byte;
+    }
+    
+    if (count >= AES_BLOCK_SIZE) {
+        u64 blocks = count / AES_BLOCK_SIZE;
+        if ((ret = ReadCiaContentImageBlocks(buffer8, offset / AES_BLOCK_SIZE, blocks, cia_cnt_idx, block0)) != 0)
+            return ret;
+        buffer8 += AES_BLOCK_SIZE * blocks;
+        offset += AES_BLOCK_SIZE * blocks;
+        count -= AES_BLOCK_SIZE * blocks;
+    }
+    
+    if (count) { // misaligned offset (at end)
+        if ((ret = ReadCiaContentImageBlocks(temp, offset / AES_BLOCK_SIZE, 1, cia_cnt_idx, block0)) != 0)
+            return ret;
+        memcpy(buffer8, temp, count);
+        count = 0;
+    }
+    
+    return ret;
+}
+
+int ReadGameImageBytes(void* buffer, u64 offset, u64 count) {
+    int ret = ((offset_ccnt != (u64) -1) && (index_ccnt <= 0xFFFF)) ?
+        ReadCiaContentImageBytes(buffer, offset, count, index_ccnt, offset_ccnt) :
+        ReadImageBytes(buffer, offset, count);
+    if ((offset_a9bin != (u64) -1) && (DecryptFirm(buffer, offset, count, firm, a9l) != 0))
         return -1;
-    return 0;
+    return ret;
 }
 
 int ReadNcchImageBytes(void* buffer, u64 offset, u64 count) {
-    int ret = (offset_a9bin == (u64) - 1) ? ReadImageBytes(buffer, offset, count) : 
-        ReadFirmImageBytes(buffer, offset, count);
-    if ((offset_ncch == (u64) -1) || (ret != 0)) return ret;
-    if (NCCH_ENCRYPTED(ncch) && (DecryptNcch(buffer, offset - offset_ncch, count, ncch,
-        (offset_exefs == (u64) -1) ? NULL : exefs) != 0)) return -1;
-    return 0;
+    int ret = ReadGameImageBytes(buffer, offset, count);
+    if ((offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch) && (DecryptNcch(buffer, offset - offset_ncch, count,
+        ncch, (offset_exefs == (u64) -1) ? NULL : exefs) != 0)) return -1;
+    return ret;
 }
 
 bool BuildVGameExeFsDir(void) {
@@ -149,7 +205,7 @@ bool BuildVGameNcchDir(void) {
     templates[n].offset = offset_ncch + 0;
     templates[n].size = 0x200;
     templates[n].keyslot = 0xFF;
-    templates[n].flags = 0;
+    templates[n].flags = VFLAG_NCCH;
     n++;
     
     // extended header
@@ -168,7 +224,7 @@ bool BuildVGameNcchDir(void) {
         templates[n].offset = offset_ncch + (ncch->offset_plain * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_plain * NCCH_MEDIA_UNIT;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NCCH;
         n++;
     }
     
@@ -178,7 +234,7 @@ bool BuildVGameNcchDir(void) {
         templates[n].offset = offset_ncch + (ncch->offset_logo * NCCH_MEDIA_UNIT);
         templates[n].size = ncch->size_logo * NCCH_MEDIA_UNIT;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NCCH;
         n++;
     }
     
@@ -285,7 +341,7 @@ bool BuildVGameCiaDir(void) {
     templates[n].offset = 0;
     templates[n].size = info.size_header;
     templates[n].keyslot = 0xFF;
-    templates[n].flags = 0;
+    templates[n].flags = VFLAG_NO_CRYPTO;
     n++;
     
     // certificates
@@ -294,7 +350,7 @@ bool BuildVGameCiaDir(void) {
         templates[n].offset = info.offset_cert;
         templates[n].size = info.size_cert;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
     }
     
@@ -304,7 +360,7 @@ bool BuildVGameCiaDir(void) {
         templates[n].offset = info.offset_ticket;
         templates[n].size = info.size_ticket;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
     }
     
@@ -314,7 +370,7 @@ bool BuildVGameCiaDir(void) {
         templates[n].offset = info.offset_tmd;
         templates[n].size = info.size_tmd;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
     }
     
@@ -324,7 +380,7 @@ bool BuildVGameCiaDir(void) {
         templates[n].offset = info.offset_content_list;
         templates[n].size = info.size_content_list;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
     }
     
@@ -334,13 +390,13 @@ bool BuildVGameCiaDir(void) {
         templates[n].offset = info.offset_meta;
         templates[n].size = info.size_meta;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
         strncpy(templates[n].name, NAME_CIA_ICON, 32);
         templates[n].offset = info.offset_meta + 0x400;
         templates[n].size = info.size_meta - 0x400;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = 0;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
     }
     
@@ -350,28 +406,33 @@ bool BuildVGameCiaDir(void) {
         u32 content_count = getbe16(cia->tmd.content_count);
         u64 next_offset = info.offset_content;
         for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
-            u64 size = getbe64(content_list[i].size);
+            const u16 index = getbe16(content_list[i].index);
+            const u32 id = getbe32(content_list[i].id);
+            const u64 size = getbe64(content_list[i].size);
+            const u32 keyslot = (getbe16(content_list[i].type) & 0x1) ? index : (u32) -1;
+            
             u32 cnt_type = 0;
-            if (!(getbe16(content_list[i].type) & 0x1) && (size >= 0x200)) {
+            if (size >= 0x200) {
                 u8 header[0x200];
-                ReadImageBytes(header, next_offset, 0x200);
+                ReadCiaContentImageBytes(header, next_offset, 0x200, keyslot, next_offset);
                 cnt_type = (ValidateNcchHeader((NcchHeader*)(void*)header) == 0) ? VFLAG_NCCH :
                     (ValidateTwlHeader((TwlHeader*)(void*)header) == 0) ? VFLAG_NDS : 0;
             }
-            snprintf(templates[n].name, 32, NAME_CIA_CONTENT,
-                getbe16(content_list[i].index), getbe32(content_list[i].id), ".app");
+            
+            snprintf(templates[n].name, 32, NAME_CIA_CONTENT, index, id, ".app");
             templates[n].offset = next_offset;
             templates[n].size = size;
-            templates[n].keyslot = 0xFF; // even for encrypted stuff
-            templates[n].flags = 0;
+            templates[n].keyslot = keyslot; // keyslot is used for CIA content index here
+            templates[n].flags = VFLAG_CIA_CONTENT;
             n++;
+            
             if (cnt_type) {
                 memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
-                snprintf(templates[n].name, 32, NAME_CIA_CONTENT,
-                    getbe16(content_list[i].index), getbe32(content_list[i].id), "");
+                snprintf(templates[n].name, 32, NAME_CIA_CONTENT, index, id, "");
                 templates[n].flags |= (cnt_type | VFLAG_DIR);
                 n++;
             }
+            
             next_offset += size;
         }
     }
@@ -395,7 +456,7 @@ bool BuildVGameNdsDir(void) {
     // banner
     if (twl->icon_offset) {
         u16 v = 0;
-        ReadImageBytes(&v, offset_nds + twl->icon_offset, sizeof(u16));
+        ReadGameImageBytes(&v, offset_nds + twl->icon_offset, sizeof(u16));
         strncpy(templates[n].name, NAME_NDS_BANNER, 32);
         templates[n].offset = offset_nds + twl->icon_offset;
         templates[n].size = TWLICON_SIZE_DATA(v);
@@ -496,7 +557,7 @@ bool BuildVGameFirmDir(void) {
         templates[n].offset = offset_a9bin;
         templates[n].size = GetArm9BinarySize(a9l);
         templates[n].keyslot = 0x15;
-        templates[n].flags = VFLAG_FIRM_ARM9;
+        templates[n].flags = 0;
         n++;
     }
     
@@ -508,7 +569,7 @@ bool BuildVGameFirmDir(void) {
         templates[n].offset = section->offset;
         templates[n].size = section->size;
         templates[n].keyslot = 0xFF;
-        templates[n].flags = VFLAG_FIRM_SECTION;
+        templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
         if (section->type == 0) { // ARM9 section, search for Process9
             u8* buffer = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
@@ -518,11 +579,11 @@ bool BuildVGameFirmDir(void) {
             u32 offset_p9 = 0;
             for (u32 p = 0; (p < section->size) && (!offset_p9); p += buffer_size) {
                 u32 btr = min(buffer_size, (section->size - p));
-                if (ReadFirmImageBytes(buffer, section->offset + p, btr) != 0) break;
+                if (ReadGameImageBytes(buffer, section->offset + p, btr) != 0) break;
                 for (u32 s = 0; (s < btr) && (!offset_p9); s += 0x10) {
                     p9_ncch = (NcchHeader*) (void*) (buffer + s);
                     if ((ValidateNcchHeader(p9_ncch) == 0) &&
-                        (ReadFirmImageBytes((u8*) name, section->offset + p + s + 0x200, 8) == 0))
+                        (ReadGameImageBytes((u8*) name, section->offset + p + s + 0x200, 8) == 0))
                         offset_p9 = section->offset + p + s;
                 }
             }
@@ -620,6 +681,15 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         vdir->flags = ventry->flags;
     }
     
+    // CIA content special handling
+    if (vdir->flags & VFLAG_CIA) { // disable content crypto
+        offset_ccnt = (u64) -1;
+        index_ccnt = (u32) -1;
+    } else if (vdir->flags & VFLAG_CIA_CONTENT) { // enable content crypto
+        offset_ccnt = vdir->offset;
+        index_ccnt = ventry->keyslot;
+    }
+    
     // build directories where required
     if ((vdir->flags & VFLAG_FIRM) && (offset_firm != vdir->offset)) {
         if ((ReadImageBytes((u8*) firm, 0, sizeof(FirmHeader)) != 0) ||
@@ -631,7 +701,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             ((SetupArm9BinaryCrypto(a9l)) == 0))
             offset_a9bin = arm9s->offset + ARM9BIN_OFFSET;
         if (!BuildVGameFirmDir()) return false;
-    } if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
+    } else if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
         CiaInfo info;
         if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
             (ValidateCiaHeader(&(cia->header)) != 0) ||
@@ -639,6 +709,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
             return false;
         offset_cia = vdir->offset; // always zero(!)
+        GetTitleKey(cia_titlekey, &(cia->ticket));
         if (!BuildVGameCiaDir()) return false;
     } else if ((vdir->flags & VFLAG_NCSD) && (offset_ncsd != vdir->offset)) {
         if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
@@ -691,7 +762,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         offset_romfs = vdir->offset;
         BuildLv3Index(&lv3idx, romfslv3);
     } else if ((vdir->flags & VFLAG_NDS) && (offset_nds != vdir->offset)) {
-        if ((ReadImageBytes(twl, vdir->offset, 0x200) != 0) ||
+        if ((ReadGameImageBytes(twl, vdir->offset, 0x200) != 0) ||
             (ValidateTwlHeader(twl) != 0))
             return false;
         offset_nds = vdir->offset;
@@ -705,7 +776,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         // load NitroFNT & NitroFAT to memory
         u32 size_nitro = (twl->fat_offset + twl->fat_size) - twl->fnt_offset;
         if ((size_nitro > VGAME_BUFFER_SIZE - 0x20000) ||
-            (ReadImageBytes(nitrofs, vdir->offset + twl->fnt_offset, size_nitro) != 0))
+            (ReadGameImageBytes(nitrofs, vdir->offset + twl->fnt_offset, size_nitro) != 0))
             return false;
         offset_nitro = offset_nds;
     }
@@ -882,11 +953,13 @@ int ReadVGameFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
     } else if (vfile->flags & VFLAG_NITRO) {
         vfoffset = vfile->offset & 0xFFFFFFFF;
     }
-    if (vfile->flags & (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH))
+    if (vfile->flags & VFLAG_NO_CRYPTO)
+        return ReadImageBytes(buffer, vfoffset + offset, count);
+    else if (vfile->flags & VFLAG_CIA_CONTENT)
+        return ReadCiaContentImageBytes(buffer, vfoffset + offset, count, vfile->keyslot, offset);
+    else if (vfile->flags & VFLAG_NCCH_CRYPTO)
         return ReadNcchImageBytes(buffer, vfoffset + offset, count);
-    else if ((offset_a9bin != (u64) -1) && !(vfile->flags & VFLAG_FIRM_SECTION))
-        return ReadFirmImageBytes(buffer, vfoffset + offset, count);
-    else return ReadImageBytes(buffer, vfoffset + offset, count);
+    else return ReadGameImageBytes(buffer, vfoffset + offset, count);
 }
 
 bool FindVirtualFileInLv3Dir(VirtualFile* vfile, const VirtualDir* vdir, const char* name) {
