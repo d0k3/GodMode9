@@ -109,10 +109,10 @@ int ReadCiaContentImageBlocks(void* buffer, u64 block, u64 count, u32 cia_cnt_id
     if ((ret == 0) && (cia_cnt_idx <= 0xFFFF)) {
         u8 ctr[AES_BLOCK_SIZE] = { 0 };
         if (block == block0) {
-            ctr[0] = (cia_cnt_idx >> 0) & 0xFF;
-            ctr[1] = (cia_cnt_idx >> 8) & 0xFF;
+            ctr[0] = (cia_cnt_idx >> 8) & 0xFF;
+            ctr[1] = (cia_cnt_idx >> 0) & 0xFF;
         } else {
-            if ((ret = ReadImageBytes(buffer, (block-1) * AES_BLOCK_SIZE, AES_BLOCK_SIZE)) != 0)
+            if ((ret = ReadImageBytes(ctr, (block-1) * AES_BLOCK_SIZE, AES_BLOCK_SIZE)) != 0)
                 return ret;
         }
         if (DecryptCiaContentSequential(buffer, count * AES_BLOCK_SIZE, ctr, cia_titlekey) != 0)
@@ -959,7 +959,7 @@ int ReadVGameFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
     if (vfile->flags & VFLAG_NO_CRYPTO)
         return ReadImageBytes(buffer, vfoffset + offset, count);
     else if (vfile->flags & VFLAG_CIA_CONTENT)
-        return ReadCiaContentImageBytes(buffer, vfoffset + offset, count, vfile->keyslot, offset);
+        return ReadCiaContentImageBytes(buffer, vfoffset + offset, count, vfile->keyslot, vfoffset);
     else if (vfile->flags & VFLAG_NCCH_CRYPTO)
         return ReadNcchImageBytes(buffer, vfoffset + offset, count);
     else return ReadGameImageBytes(buffer, vfoffset + offset, count);
