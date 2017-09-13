@@ -48,6 +48,10 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
+#define BOOTLOADER_KEY  BUTTON_LEFT
+#define BOOTMENU_KEY    BUTTON_R1
+#define BOOTFIRM_PATH   "0:/boot.firm"
+
 typedef struct {
     char path[256];
     u32 cursor;
@@ -684,6 +688,51 @@ u32 StandardCopy(u32* cursor, u32* scroll, DirStruct* current_dir) {
     return 0;
 }
 
+u32 BootFirmHandler(const char* bootpath, bool verbose) {
+    char pathstr[32+1];
+    TruncateString(pathstr, bootpath, 32, 8);
+    
+    size_t firm_size = FileGetSize(bootpath);
+    if (firm_size > TEMP_BUFFER_SIZE) {
+        if (verbose) ShowPrompt(false, "%s\nFIRM too big, can't boot", pathstr); // unlikely
+        return 1;
+    }
+    
+    if (verbose && !ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024))
+        return 1;
+    
+    if ((FileGetData(bootpath, TEMP_BUFFER, firm_size, 0) != firm_size) &&
+        (ValidateFirm(TEMP_BUFFER, firm_size, false) != 0)) {
+        if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM", pathstr);
+        return 1;
+    }
+    
+    // unsupported location handling
+    char fixpath[256] = { 0 };
+    if (verbose && (*bootpath != '0') && (*bootpath != '1')) {
+        const char* optionstr[2] = { "Make a copy at " OUTPUT_PATH "/temp.firm", "Try to boot anyways" };
+        u32 user_select = ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from\nan unsupported location.", pathstr);
+        if (user_select == 1) {
+            FileSetData(OUTPUT_PATH "/temp.firm", TEMP_BUFFER, firm_size, 0, true);
+            bootpath = OUTPUT_PATH "/temp.firm";
+        } else if (!user_select) bootpath = "";
+    }
+    
+    // fix the boot path ("sdmc"/"nand" for Luma et al, hacky af)
+    if ((*bootpath == '0') || (*bootpath == '1'))
+        snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
+    else strncpy(fixpath, bootpath, 256);
+    
+    // boot the FIRM (if we got a proper fixpath)
+    if (*fixpath) {
+        BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
+        while(1);
+    }
+    
+    // a return was not intended
+    return 1;
+}
+
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* current_dir, DirStruct* clipboard) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     const char* optionstr[16];
@@ -1290,34 +1339,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             (SafeInstallFirm(curr_entry->path, slots) == 0) ? "success" : "failed!");
         return 0;
     } else if ((user_select == boot)) { // -> boot FIRM
-        size_t firm_size = FileGetSize(curr_entry->path);
-        if (firm_size > TEMP_BUFFER_SIZE) {
-            ShowPrompt(false, "FIRM too big, can't launch"); // unlikely
-        } else if (ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024)) {
-            if ((FileGetData(curr_entry->path, TEMP_BUFFER, firm_size, 0) == firm_size) &&
-                (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0)) {
-                // fix the boot path first ("sdmc"/"nand" for Luma et al, hacky af)
-                const char* bootpath = curr_entry->path;
-                char fixpath[256] = { 0 };
-                if ((*bootpath != '0') && (*bootpath != '1')) {
-                    optionstr[0] = "Make a copy at " OUTPUT_PATH "/temp.firm";
-                    optionstr[1] = "Try to boot anyways";
-                    user_select = (int) ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from\nan unsupported location.", pathstr);
-                    if (user_select == 1) {
-                        FileSetData(OUTPUT_PATH "/temp.firm", TEMP_BUFFER, firm_size, 0, true);
-                        bootpath = OUTPUT_PATH "/temp.firm";
-                    } else if (!user_select) bootpath = "";
-                }
-                if ((*bootpath == '0') || (*bootpath == '1'))
-                    snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
-                else strncpy(fixpath, bootpath, 256);
-                // actually boot the FIRM (if we got a proper fixpath)
-                if (*fixpath) {
-                    BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
-                    while(1);
-                }
-            } else ShowPrompt(false, "Not a bootable FIRM, can't boot");
-        }
+        BootFirmHandler(curr_entry->path, true);
         return 0;
     } else if ((user_select == script)) { // execute script
         if (ShowPrompt(true, "%s\nWarning: Do not run scripts\nfrom untrusted sources.\n \nExecute script?", pathstr))
@@ -1453,7 +1475,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     return HomeMoreMenu(current_path, current_dir, clipboard);
 }
 
-u32 SplashInit() {
+u32 SplashInit(const char* modestr) {
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "loading...";
     const u32 pos_xb = 10;
@@ -1463,6 +1485,9 @@ u32 SplashInit() {
     
     ClearScreenF(true, true, COLOR_STD_BG);
     QlzDecompress(TOP_SCREEN, QLZ_SPLASH, 0);
+    if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
+        SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
+    
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
         "------------------------------", "https://github.com/d0k3/GodMode9",
@@ -1476,7 +1501,7 @@ u32 SplashInit() {
 
 u32 GodMode(bool is_b9s) {
     const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
-    u32 exit_mode = GODMODE_EXIT_REBOOT;
+    u32 exit_mode = GODMODE_EXIT_POWEROFF;
     
     // reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
     static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
@@ -1491,14 +1516,18 @@ u32 GodMode(bool is_b9s) {
     u32 cursor = 0;
     u32 scroll = 0;
     
+    bool bootloader = !is_b9s && IS_SIGHAX && CheckButton(BOOTLOADER_KEY);
+    bool bootmenu = !is_b9s && IS_SIGHAX && CheckButton(BOOTMENU_KEY);
+    
+    
     ClearScreenF(true, true, COLOR_STD_BG);
+    SplashInit((bootloader || bootmenu) ? "bootloader mode" : NULL);
+    u64 timer = timer_start(); // show splash
+    
     if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {
         ShowPrompt(false, "Out of memory!"); // just to be safe
         return exit_mode;
     }
-    
-    SplashInit();
-    u64 timer = timer_start(); // show splash
     
     InitSDCardFS();
     AutoEmuNandBase(true);
@@ -1538,11 +1567,36 @@ u32 GodMode(bool is_b9s) {
         ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
     }
     
-    while (CheckButton(BUTTON_A)); // don't continue while A is held
+    while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
-    ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
-    while (true) { // this is the main loop
+    
+    if (bootmenu) {
+        while (true) {
+            const char* optionstr[5] = { "Boot " BOOTFIRM_PATH, "Select payload...", "Select scripts...",
+                "Poweroff system", "Reboot system" };
+            int user_select = ShowSelectPrompt(5, optionstr, FLAVOR " bootloader menu.\nSelect action:");
+            char loadpath[256];
+            if (user_select == 1) {
+                BootFirmHandler(BOOTFIRM_PATH, false);
+            } else if ((user_select == 2) && (FileSelector(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
+                BootFirmHandler(loadpath, false);
+            } else if ((user_select == 3) && (FileSelector(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
+                ExecuteGM9Script(loadpath);
+            } else if (user_select == 4) {
+                exit_mode = GODMODE_EXIT_POWEROFF;
+            } else if (user_select == 5) {
+                exit_mode = GODMODE_EXIT_REBOOT;
+            } else if (user_select) continue;
+            break;
+        }
+    } else if (bootloader) {
+        BootFirmHandler(BOOTFIRM_PATH, false);
+    }
+    
+    
+    ClearScreenF(true, true, COLOR_STD_BG); // clear splash
+    while (!bootloader && !bootmenu) { // this is the main loop
         int curr_drvtype = DriveType(current_path);
         
         // basic sanity checking
@@ -1915,16 +1969,7 @@ u32 GodMode(bool is_b9s) {
                     ClearScreenF(true, true, COLOR_STD_BG);
                     break;
                 } else if ((user_select == payloads) && (FileSelector(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
-                    size_t firm_size = FileGetData(loadpath, TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
-                    if (firm_size && (firm_size < TEMP_BUFFER_SIZE) && 
-                        (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0)) {
-                        char fixpath[256] = { 0 };
-                        if ((*loadpath == '0') || (*loadpath == '1'))
-                            snprintf(fixpath, 256, "%s%s", (*loadpath == '0') ? "sdmc" : "nand", loadpath + 1);
-                        else strncpy(fixpath, loadpath, 256);
-                        BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
-                        while(1);
-                    }
+                    BootFirmHandler(loadpath, false);
                 }
             }
             
@@ -1958,6 +2003,7 @@ u32 GodMode(bool is_b9s) {
         }
     }
     
+    
     DeinitExtFS();
     DeinitSDCardFS();
     
@@ -1968,7 +2014,7 @@ u32 GodMode(bool is_b9s) {
 u32 ScriptRunner(bool is_b9s) {
     // show splash and initialize
     ClearScreenF(true, true, COLOR_STD_BG);
-    SplashInit();
+    SplashInit("scriptrunner mode");
     u64 timer = timer_start();
     
     InitSDCardFS();
