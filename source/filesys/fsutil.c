@@ -105,7 +105,7 @@ bool FileUnlock(const char* path) {
     if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
         char pathstr[32 + 1];
         TruncateString(pathstr, path, 32, 8);
-        if (GetMountState() && (strncmp(path, GetMountPath(), 256) == 0) && 
+        if (GetMountState() && (strncasecmp(path, GetMountPath(), 256) == 0) && 
             (ShowPrompt(true, "%s\nFile is currently mounted.\nUnmount to unlock?", pathstr))) {
             InitImgFS(NULL);
             if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
@@ -210,7 +210,7 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
     bool allow_expand = (flags && (*flags & ALLOW_EXPAND));
     
     if (!CheckWritePermissions(dest)) return false;
-    if (strncmp(dest, orig, 256) == 0) {
+    if (strncasecmp(dest, orig, 256) == 0) {
         ShowPrompt(false, "Error: Can't inject file into itself");
         return false;
     }
@@ -510,7 +510,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
     
     // is destination part of origin?
     u32 olen = strnlen(lorig, 255);
-    if ((strncmp(ldest, lorig, olen) == 0) && (ldest[olen] == '/')) {
+    if ((strncasecmp(ldest, lorig, olen) == 0) && (ldest[olen] == '/')) {
         ShowPrompt(false, "%s\nError: Destination is part of origin", deststr);
         return false;
     }
@@ -522,7 +522,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         dname++;
         
         // check & fix destination == origin
-        while (strncmp(ldest, lorig, 255) == 0) {
+        while (strncasecmp(ldest, lorig, 255) == 0) {
             if (!ShowStringPrompt(dname, 255 - (dname - ldest), "%s\nDestination equals origin\nChoose another name?", deststr))
                 return false;
         }
@@ -561,30 +561,39 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         if (flags && (*flags & BUILD_PATH)) fvx_rmkpath(ldest);
         
         // actual move / copy operation
-        bool same_drv = (strncmp(lorig, ldest, 2) == 0);
+        bool same_drv = (strncasecmp(lorig, ldest, 2) == 0);
         bool res = PathMoveCopyRec(ldest, lorig, flags, move && same_drv);
         if (move && res && (!flags || !(*flags&SKIP_CUR))) PathDelete(lorig);
         return res;
     } else { // virtual destination handling
         // can't write an SHA file to a virtual destination
         if (flags) *flags |= ~CALC_SHA;
+        bool force_unmount = false;
+        
+        // handle NAND image unmounts
+        if (ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
+            FILINFO fno;
+            // virtual NAND files over 4 MB require unomunt, totally arbitrary limit (hacky!)
+            if ((fvx_stat(ldest, &fno) == FR_OK) && (fno.fsize > 4 * 1024 * 1024))
+                force_unmount = true;
+        }
         
         // prevent illegal operations
-        if (odrvtype & ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
+        if (force_unmount && (odrvtype & ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE))) {
             ShowPrompt(false, "Copy operation is not allowed");
             return false; 
         }
         
         // check destination == origin
-        if (strncmp(ldest, lorig, 255) == 0) {
+        if (strncasecmp(ldest, lorig, 255) == 0) {
             ShowPrompt(false, "%s\nDestination equals origin", deststr);
             return false;
         }
         
         // actual virtual copy operation
-        DismountDriveType(DriveType(ldest)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
+        if (force_unmount) DismountDriveType(DriveType(ldest)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
         bool res = PathMoveCopyRec(ldest, lorig, flags, false);
-        InitExtFS();
+        if (force_unmount) InitExtFS();
         return res;
     }
 }
