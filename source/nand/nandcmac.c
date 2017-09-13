@@ -130,13 +130,13 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     if (!cmac_type) { // path independent stuff
         const char* db_names[] = { SYS_DB_NAMES };
         for (sid = 0; sid < sizeof(db_names) / sizeof(char*); sid++)
-            if (strncmp(name, db_names[sid], 16) == 0) break;
+            if (strncasecmp(name, db_names[sid], 16) == 0) break;
         if (sid < sizeof(db_names) / sizeof(char*))
             cmac_type = ((drv == 'A') || (drv == 'B')) ? CMAC_TITLEDB_SD : CMAC_TITLEDB_SYS;
-        else if (strncmp(name, "movable.sed", 16) == 0)
+        else if (strncasecmp(name, "movable.sed", 16) == 0)
             cmac_type = CMAC_MOVABLE;
-        /* else if (strncmp(name, "agbsave.bin", 16) == 0)
-            cmac_type = CMAC_AGBSAVE; */
+        else if (strncasecmp(name, "agbsave.bin", 16) == 0)
+            cmac_type = CMAC_AGBSAVE;
     }
     
     // exit with cmac_type if (u8*) cmac is NULL
@@ -164,9 +164,9 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     // build hash data block, get size
     if (cmac_type == CMAC_AGBSAVE) { // agbsaves
         // see: https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
-        AgbSave* agbsave = (AgbSave*) (void*) data;
-        if ((fvx_qread(path, agbsave, 0, TEMP_BUFFER_SIZE, &br) != FR_OK) ||
-            (br >= TEMP_BUFFER_SIZE) || (0x200 + agbsave->save_size > br))
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) data;
+        if ((TEMP_BUFFER_SIZE < AGBSAVE_MAX_SIZE) || (fvx_qread(path, agbsave, 0, AGBSAVE_MAX_SIZE, &br) != FR_OK) ||
+            (br < 0x200) || (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br))
             return 1;
         hashsize = (0x200 - 0x30) + agbsave->save_size;
         hashdata = data + 0x30;
