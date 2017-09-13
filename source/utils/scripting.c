@@ -17,7 +17,7 @@
 #include "hid.h"
 #include "ui.h"
 
-#define _MAX_ARGS       2
+#define _MAX_ARGS       3
 #define _VAR_CNT_LEN    256
 #define _VAR_NAME_LEN   32
 #define _ERR_STR_LEN    32
@@ -51,6 +51,7 @@ typedef enum {
     CMD_ID_ECHO,
     CMD_ID_ASK,
     CMD_ID_INPUT,
+    CMD_ID_FILESEL,
     CMD_ID_SET,
     CMD_ID_ALLOW,
     CMD_ID_CP,
@@ -92,6 +93,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
     { CMD_ID_INPUT   , "input"   , 2, 0 },
+    { CMD_ID_FILESEL , "filesel" , 3, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
@@ -471,10 +473,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     // perform command
     if (id == CMD_ID_ECHO) {
         ShowPrompt(false, argv[0]);
-    } else if (id == CMD_ID_ASK) {
+    }
+    else if (id == CMD_ID_ASK) {
         ret = ShowPrompt(true, argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
-    } else if (id == CMD_ID_INPUT) {
+    }
+    else if (id == CMD_ID_INPUT) {
         char input[_VAR_CNT_LEN] = { 0 };
         char* var = get_var(argv[1], NULL);
         strncpy(input, var, _VAR_CNT_LEN);
@@ -485,14 +489,39 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = set_var(argv[1], input);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
         }
-    } else if (id == CMD_ID_SET) {
+    }
+    else if (id == CMD_ID_FILESEL) {
+        char choice[_VAR_CNT_LEN] = { 0 };
+        char* var = get_var(argv[2], NULL);
+        strncpy(choice, var, _VAR_CNT_LEN);
+        
+        char path[_VAR_CNT_LEN];
+        strncpy(path, argv[1], _VAR_CNT_LEN);
+        char* npattern = strrchr(path, '/');
+        if (!npattern) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
+        } else {
+            *(npattern++) = '\0';
+            ret = FileSelector(choice, argv[0], path, npattern, false, true);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
+        }
+        
+        if (ret) {
+            ret = set_var(argv[2], choice);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+        }
+    }
+    else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "set fail");
-    } else if (id == CMD_ID_ALLOW) {
+    }
+    else if (id == CMD_ID_ALLOW) {
         if (flags & _FLG('a')) ret = CheckDirWritePermissions(argv[0]);
         else ret = CheckWritePermissions(argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "permission fail");
-    } else if (id == CMD_ID_CP) {
+    }
+    else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
         if (flags & _FLG('h')) flags_ext |= CALC_SHA;
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
@@ -501,7 +530,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, false);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "copy fail");
-    } else if (id == CMD_ID_MV) {
+    }
+    else if (id == CMD_ID_MV) {
         u32 flags_ext = BUILD_PATH;
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         if (flags & _FLG('s')) flags_ext |= SILENT;
@@ -509,7 +539,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, true);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "move fail");
-    } else if (id == CMD_ID_INJECT) {
+    }
+    else if (id == CMD_ID_INJECT) {
         char* atstr_dst = strrchr(argv[1], '@');
         u64 at_dst = 0;
         if (atstr_dst) {
@@ -520,21 +551,26 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         ret = FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, &flags_ext);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "inject fail");
-    } else if (id == CMD_ID_RM) {
+    }
+    else if (id == CMD_ID_RM) {
         char pathstr[_ERR_STR_LEN];
         TruncateString(pathstr, argv[0], 24, 8);
         ShowString("Deleting %s...", pathstr);
         ret = PathDelete(argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "remove fail");
-    } else if (id == CMD_ID_MKDIR) {
+    }
+    else if (id == CMD_ID_MKDIR) {
         ret = (CheckWritePermissions(argv[0])) && (fvx_rmkdir(argv[0]) == FR_OK);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "makedir fail");
-    } else if (id == CMD_ID_MOUNT) {
+    }
+    else if (id == CMD_ID_MOUNT) {
         ret = InitImgFS(argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "mount fail");
-    } else if (id == CMD_ID_UMOUNT) {
+    }
+    else if (id == CMD_ID_UMOUNT) {
         InitImgFS(NULL);
-    } else if (id == CMD_ID_FIND) {
+    }
+    else if (id == CMD_ID_FIND) {
         char path[_VAR_CNT_LEN];
         u8 mode = (flags & _FLG('f')) ? FN_LOWEST : FN_HIGHEST;
         ret = (fvx_findpath(path, argv[0], mode) == FR_OK);
@@ -543,7 +579,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = set_var(argv[1], path);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
         }
-    } else if (id == CMD_ID_FINDNOT) {
+    }
+    else if (id == CMD_ID_FINDNOT) {
         char path[_VAR_CNT_LEN];
         ret = (fvx_findnopath(path, argv[0]) == FR_OK);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "findnot fail");
@@ -551,7 +588,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = set_var(argv[1], path);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
         }
-    } else if (id == CMD_ID_SHA) {
+    }
+    else if (id == CMD_ID_SHA) {
         u8 sha256_fil[0x20];
         u8 sha256_cmp[0x20];
         if (!FileGetSha256(argv[0], sha256_fil, at_org, sz_org)) {
@@ -564,36 +602,43 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = (memcmp(sha256_fil, sha256_cmp, 0x20) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha does not match");
         }
-    } else if (id == CMD_ID_SHAGET) {
+    }
+    else if (id == CMD_ID_SHAGET) {
         u8 sha256_fil[0x20];
         if (!(ret = FileGetSha256(argv[0], sha256_fil, at_org, sz_org))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
         } else if (!(ret = FileSetData(argv[1], sha256_fil, 0x20, 0, true))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha write fail");
         }
-    } else if (id == CMD_ID_FIXCMAC) {
+    }
+    else if (id == CMD_ID_FIXCMAC) {
         ShowString("Fixing CMACs...");
         ret = (RecursiveFixFileCmac(argv[0]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "fixcmac failed");
-    } else if (id == CMD_ID_VERIFY) {
+    }
+    else if (id == CMD_ID_VERIFY) {
         u32 filetype = IdentifyFileType(argv[0]);
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
         else ret = (VerifyGameFile(argv[0]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "verification failed");
-    } else if (id == CMD_ID_DECRYPT) {
+    }
+    else if (id == CMD_ID_DECRYPT) {
         u32 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
         else ret = (CryptGameFile(argv[0], true, false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "decrypt failed");
-    } else if (id == CMD_ID_ENCRYPT) {
+    }
+    else if (id == CMD_ID_ENCRYPT) {
         u32 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
         else ret = (CryptGameFile(argv[0], true, true) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "encrypt failed");
-    } else if (id == CMD_ID_BUILDCIA) {
+    }
+    else if (id == CMD_ID_BUILDCIA) {
         ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('n'))) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
-    } else if (id == CMD_ID_EXTRCODE) {
+    }
+    else if (id == CMD_ID_EXTRCODE) {
         u32 filetype = IdentifyFileType(argv[0]);
         if ((filetype&(GAME_NCCH|FLAG_CXI)) != (GAME_NCCH|FLAG_CXI)) {
             ret = false;
@@ -603,7 +648,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = (ExtractCodeFromCxiFile(argv[0], argv[1]) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "extract .code failed");
         }
-    } else if (id == CMD_ID_BOOT) {
+    }
+    else if (id == CMD_ID_BOOT) {
         size_t firm_size = FileGetData(argv[0], TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
         ret = firm_size && (firm_size < TEMP_BUFFER_SIZE) &&
             (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0);
@@ -615,7 +661,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
             while(1);
         } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
-    } else if (id == CMD_ID_SWITCHSD) {
+    }
+    else if (id == CMD_ID_SWITCHSD) {
         DeinitExtFS();
         if (!(ret = CheckSDMountState())) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "SD not mounted");
@@ -636,15 +683,18 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         InitSDCardFS();
         AutoEmuNandBase(true);
         InitExtFS();
-    } else if (id == CMD_ID_REBOOT) {
+    }
+    else if (id == CMD_ID_REBOOT) {
         DeinitExtFS();
         DeinitSDCardFS();
         Reboot();
-    } else if (id == CMD_ID_POWEROFF) {
+    }
+    else if (id == CMD_ID_POWEROFF) {
         DeinitExtFS();
         DeinitSDCardFS();
         PowerOff();
-    } else { // command not recognized / bad number of arguments
+    }
+    else { // command not recognized / bad number of arguments
         ret = false;
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown error");
     }

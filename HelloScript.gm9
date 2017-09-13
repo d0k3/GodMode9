@@ -56,6 +56,12 @@ set USERINPUT "Hello World"
 input "Enter something please?" USERINPUT
 echo "You entered:\n$[USERINPUT]"
 
+# 'filesel' COMMAND
+# The 'filesel' command allows the user to choose a file inside a directory
+# The path is stored inside a variable, and the selection can be limited via wildcards
+filesel "Please select a file" 0:/*.* SELFILE
+echo "You selected $[SELFILE]\nWe'll do nothing with that :)."
+
 # 'allow' COMMAND
 # typically used at the beginning of a script, prompts to allow writes to the location given in the argument
 # doing this from the beginning is preferable, so that no actions are taken unless all required write permissions are unlocked
