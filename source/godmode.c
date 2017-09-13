@@ -1592,13 +1592,11 @@ u32 GodMode(bool is_b9s) {
                 int srch_f = ++n_opt;
                 int fixcmac = (!*current_path && (strspn(curr_entry->path, "14AB") == 1)) ? ++n_opt : -1;
                 int dirnfo = ++n_opt;
-                int drvnfo = (!*current_path) ? ++n_opt : -1;
                 int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
                 if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
                 if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
                 if (fixcmac > 0) optionstr[fixcmac-1] = "Fix CMACs for drive";
-                if (dirnfo > 0) optionstr[dirnfo-1] = "Directory info";
-                if (drvnfo > 0) optionstr[drvnfo-1] = "Drive info";
+                if (dirnfo > 0) optionstr[dirnfo-1] = (*current_path) ? "Show directory info" : "Show drive info";
                 if (stdcpy > 0) optionstr[stdcpy-1] = "Copy to " OUTPUT_PATH;
                 char namestr[32+1];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
@@ -1619,23 +1617,36 @@ u32 GodMode(bool is_b9s) {
                     ShowString("%s\nFixing CMACs for drive...", namestr);
                     RecursiveFixFileCmac(curr_entry->path);
                 } else if (user_select == dirnfo) {
+                    bool is_drive = (!*current_path);
+                    FILINFO fno;
                     u64 tsize = 0;
                     u32 tdirs = 0;
                     u32 tfiles = 0;
-                    if (DirInfo(curr_entry->path, &tsize, &tdirs, &tfiles)) {
+                    
+                    ShowString("Analyzing %s, please wait...", is_drive ? "drive" : "dir");
+                    if ((is_drive || (fvx_stat(curr_entry->path, &fno) == FR_OK)) &&
+                        DirInfo(curr_entry->path, &tsize, &tdirs, &tfiles)) {
                         char bytestr[32];
                         FormatBytes(bytestr, tsize);
-                        ShowPrompt(false, "%s\n%lu files & %lu subdirs\n%s total", namestr, tfiles, tdirs, bytestr);
-                    } else ShowPrompt(false, "Analyze dir: failed!");
-                } else if (user_select == drvnfo) {
-                    char freestr[32];
-                    char bytestr[32];
-                    ShowString("Analyzing drive, please wait...");
-                    FormatBytes(freestr, GetFreeSpace(curr_entry->path));
-                    FormatBytes(bytestr, GetTotalSpace(curr_entry->path));
-                    ShowPrompt(false, "%s\n%s free\n%s total", namestr, freestr, bytestr);
-                } else if (user_select == stdcpy) {
-                    StandardCopy(&cursor, &scroll, current_dir);
+                        if (is_drive) {
+                            char freestr[32];
+                            char drvsstr[32];
+                            char usedstr[32];
+                            FormatBytes(freestr, GetFreeSpace(curr_entry->path));
+                            FormatBytes(drvsstr, GetTotalSpace(curr_entry->path));
+                            FormatBytes(usedstr, GetTotalSpace(curr_entry->path) - GetFreeSpace(curr_entry->path));
+                            ShowPrompt(false, "%s\n \n%lu files & %lu subdirs\n%s total size\n \nspace free: %s\nspace used: %s\nspace total: %s",
+                                namestr, tfiles, tdirs, bytestr, freestr, usedstr, drvsstr);
+                        } else {
+                            ShowPrompt(false, "%s\n \ncreated: %04lu-%02lu-%02lu %02lu:%02lu:%02lu\n%lu files & %lu subdirs\n%s total size\n \n[%c] read-only [%c] hidden\n[%c] system    [%c] archive\n[%c] virtual",
+                                namestr,
+                                1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0x0F, (fno.fdate >> 0) & 0x1F,
+                                (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, ((fno.ftime >> 0) & 0x1F) << 1,
+                                tfiles, tdirs, bytestr,
+                                (fno.fattrib & AM_RDO) ? 'X' : ' ', (fno.fattrib & AM_HID) ? 'X' : ' ', (fno.fattrib & AM_SYS) ? 'X' : ' ' ,
+                                (fno.fattrib & AM_ARC) ? 'X' : ' ', (fno.fattrib & AM_VRT) ? 'X' : ' ');
+                        }
+                    } else ShowPrompt(false, "Analyze %s: failed!", is_drive ? "drive" : "dir");
                 }
             } else { // one level up
                 u32 user_select = 1;

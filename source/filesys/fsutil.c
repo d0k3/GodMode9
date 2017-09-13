@@ -340,7 +340,6 @@ bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
     char fpath[256];
     strncpy(fpath, path, 255);
     *tsize = *tdirs = *tfiles = 0;
-    ShowString("Analyzing dir, please wait...");
     bool res = DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles);
     return res;
 }
