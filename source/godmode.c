@@ -1570,11 +1570,13 @@ u32 GodMode(bool is_b9s) {
                 int srch_t = ((strncmp(curr_entry->path + 1, ":/title", 7) == 0) ||
                     (*tpath && PathExist(tpath))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
+                int fixcmac = (!*current_path && (strspn(curr_entry->path, "14AB") == 1)) ? ++n_opt : -1;
                 int dirnfo = ++n_opt;
                 int drvnfo = (!*current_path) ? ++n_opt : -1;
                 int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
                 if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
                 if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
+                if (fixcmac > 0) optionstr[fixcmac-1] = "Fix CMACs for drive";
                 if (dirnfo > 0) optionstr[dirnfo-1] = "Directory info";
                 if (drvnfo > 0) optionstr[drvnfo-1] = "Drive info";
                 if (stdcpy > 0) optionstr[stdcpy-1] = "Copy to " OUTPUT_PATH;
@@ -1593,6 +1595,9 @@ u32 GodMode(bool is_b9s) {
                         cursor = 1;
                         scroll = 0;
                     }
+                } else if (user_select == fixcmac) {
+                    ShowString("%s\nFixing CMACs for drive...", namestr);
+                    RecursiveFixFileCmac(curr_entry->path);
                 } else if (user_select == dirnfo) {
                     u64 tsize = 0;
                     u32 tdirs = 0;

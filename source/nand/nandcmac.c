@@ -236,12 +236,10 @@ u32 FixFileCmac(const char* path) {
 
 u32 RecursiveFixFileCmacWorker(char* path) {
     FILINFO fno;
+    DIR pdir;
     
-    if (fvx_stat(path, &fno) != FR_OK) return 1; // path does not exist
-    if (fno.fattrib & AM_DIR) { // process folder contents
-        DIR pdir;
+    if (fvx_opendir(&pdir, path) == FR_OK) { // process folder contents
         char* fname = path + strnlen(path, 255);
-        if (fvx_opendir(&pdir, path) != FR_OK) return 1;
         *(fname++) = '/';
         
         while (f_readdir(&pdir, &fno) == FR_OK) {
@@ -258,7 +256,7 @@ u32 RecursiveFixFileCmacWorker(char* path) {
         }
         f_closedir(&pdir);
         *(--fname) = '\0';
-    } else if (CheckCmacPath(path) == 0)
+    } else if (CheckCmacPath(path) == 0) // fix single file CMAC
         return FixFileCmac(path);
     
     return 0;
