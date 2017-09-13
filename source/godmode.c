@@ -19,13 +19,14 @@
 #include "nandcmac.h"
 #include "ctrtransfer.h"
 #include "ncchinfo.h"
+#include "sysinfo.h"
 #include "image.h"
 #include "bootfirm.h"
 #include "qlzcomp.h"
 #include "timer.h"
-#include "power.h"
 #include "rtc.h"
-#include "sysinfo.h"
+#include "power.h"
+#include "vff.h"
 #include QLZ_SPLASH_H
 #ifdef AUTORUN_SCRIPT
 #include "autorun_gm9.h"
@@ -737,6 +738,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     int textviewer = (filetype & TXT_GENERIC) ? ++n_opt : -1;
     int calcsha = ++n_opt;
     int calccmac = (CheckCmacPath(curr_entry->path) == 0) ? ++n_opt : -1;
+    int fileinfo = ++n_opt;
     int copystd = (!in_output_path) ? ++n_opt : -1;
     int inject = ((clipboard->n_entries == 1) &&
         (clipboard->entry[0].type == T_FILE) &&
@@ -769,6 +771,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         (filetype & NOIMG_NAND) ? "Rebuild NCSD header" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
     optionstr[calcsha-1] = "Calculate SHA-256";
+    optionstr[fileinfo-1] = "Show file info";
     if (textviewer > 0) optionstr[textviewer-1] = "Show in Textviewer";
     if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
@@ -831,6 +834,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             return 0;
         }
         return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
+    } else if (user_select == fileinfo) { // -> show file info
+        FILINFO fno;
+        if (fvx_stat(curr_entry->path, &fno) != FR_OK) {
+            ShowPrompt(false, "%s\nFile info failed!", pathstr);
+            return 0;
+        };
+        char sizestr[32];
+        char namestr[32];
+        FormatNumber(sizestr, fno.fsize);
+        TruncateString(namestr, fno.fname, 32, 8);
+        ShowPrompt(false, "%s\n \nfilesize: %s byte\nmodified: %04lu-%02lu-%02lu %02lu:%02lu:%02lu\n \n[%c] read-only [%c] hidden\n[%c] system    [%c] archive\n[%c] virtual",
+            namestr, sizestr,
+            1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0x0F, (fno.fdate >> 0) & 0x1F,
+            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, ((fno.ftime >> 0) & 0x1F) << 1,
+            (fno.fattrib & AM_RDO) ? 'X' : ' ', (fno.fattrib & AM_HID) ? 'X' : ' ', (fno.fattrib & AM_SYS) ? 'X' : ' ' ,
+            (fno.fattrib & AM_ARC) ? 'X' : ' ', (fno.fattrib & AM_VRT) ? 'X' : ' ');
+        return 0;
     } else if (user_select == copystd) { // -> copy to OUTPUT_PATH
         StandardCopy(cursor, scroll, current_dir);
         return 0;

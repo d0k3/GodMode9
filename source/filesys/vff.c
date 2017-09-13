@@ -85,7 +85,8 @@ FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
         if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
         if (fno) {
             fno->fsize = vfile.size;
-            fno->fdate = fno->ftime = 0;
+            fno->fdate = (1<<5)|(1<<0); // 1 for month / day
+            fno->ftime = 0;
             fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
             // could be better...
             if (FF_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, FF_MAX_LFN + 1);
