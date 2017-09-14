@@ -50,7 +50,7 @@
 
 #define BOOTLOADER_KEY  BUTTON_LEFT
 #define BOOTMENU_KEY    BUTTON_R1
-#define BOOTFIRM_PATH   "0:/boot.firm"
+#define BOOTFIRM_PATHS  "0:/boot.firm", "1:/boot.firm", "S:/firm1.bin"
 
 typedef struct {
     char path[256];
@@ -693,6 +693,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose) {
     TruncateString(pathstr, bootpath, 32, 8);
     
     size_t firm_size = FileGetSize(bootpath);
+    if (!firm_size) return 1;
     if (firm_size > TEMP_BUFFER_SIZE) {
         if (verbose) ShowPrompt(false, "%s\nFIRM too big, can't boot", pathstr); // unlikely
         return 1;
@@ -701,7 +702,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose) {
     if (verbose && !ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024))
         return 1;
     
-    if ((FileGetData(bootpath, TEMP_BUFFER, firm_size, 0) != firm_size) &&
+    if ((FileGetData(bootpath, TEMP_BUFFER, firm_size, 0) != firm_size) ||
         (ValidateFirm(TEMP_BUFFER, firm_size, false) != 0)) {
         if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM", pathstr);
         return 1;
@@ -1518,6 +1519,10 @@ u32 GodMode(bool is_b9s) {
     
     bool bootloader = !is_b9s && IS_SIGHAX && CheckButton(BOOTLOADER_KEY);
     bool bootmenu = !is_b9s && IS_SIGHAX && CheckButton(BOOTMENU_KEY);
+    #ifdef AL3X10MODE
+    bootloader = !is_b9s && IS_SIGHAX && !bootloader; // default bootloader
+    #endif
+    bool godmode9 = !bootloader && !bootmenu;
     
     
     ClearScreenF(true, true, COLOR_STD_BG);
@@ -1572,31 +1577,38 @@ u32 GodMode(bool is_b9s) {
     
     
     if (bootmenu) {
-        while (true) {
-            const char* optionstr[5] = { "Boot " BOOTFIRM_PATH, "Select payload...", "Select scripts...",
+        bootloader = false;
+        while (!bootloader && !godmode9) {
+            const char* optionstr[6] = { "Resume bootloader", "Resume GodMode9", "Select payload...", "Select script...",
                 "Poweroff system", "Reboot system" };
-            int user_select = ShowSelectPrompt(5, optionstr, FLAVOR " bootloader menu.\nSelect action:");
+            int user_select = ShowSelectPrompt(6, optionstr, FLAVOR " bootloader menu.\nSelect action:");
             char loadpath[256];
             if (user_select == 1) {
-                BootFirmHandler(BOOTFIRM_PATH, false);
-            } else if ((user_select == 2) && (FileSelector(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
+                bootloader = true;
+            } else if (user_select == 2) {
+                godmode9 = true;
+            } else if ((user_select == 3) && (FileSelector(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
                 BootFirmHandler(loadpath, false);
-            } else if ((user_select == 3) && (FileSelector(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
+            } else if ((user_select == 4) && (FileSelector(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
                 ExecuteGM9Script(loadpath);
-            } else if (user_select == 4) {
-                exit_mode = GODMODE_EXIT_POWEROFF;
             } else if (user_select == 5) {
+                exit_mode = GODMODE_EXIT_POWEROFF;
+            } else if (user_select == 6) {
                 exit_mode = GODMODE_EXIT_REBOOT;
             } else if (user_select) continue;
             break;
         }
-    } else if (bootloader) {
-        BootFirmHandler(BOOTFIRM_PATH, false);
+    }
+    if (bootloader) {
+        const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
+        for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
+            BootFirmHandler(bootfirm_paths[i], false);
+        }
     }
     
     
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
-    while (!bootloader && !bootmenu) { // this is the main loop
+    while (godmode9) { // this is the main loop
         int curr_drvtype = DriveType(current_path);
         
         // basic sanity checking

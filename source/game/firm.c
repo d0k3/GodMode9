@@ -72,7 +72,7 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
     FirmHeader* header = (FirmHeader*) firm;
     
     // validate firm header
-    if (ValidateFirmHeader(header, firm_size) != 0)
+    if ((firm_size < sizeof(FirmHeader)) || (ValidateFirmHeader(header, firm_size) != 0))
         return 1;
     
     // check for boot9strap magic
