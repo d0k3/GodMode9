@@ -170,7 +170,9 @@ release:
 	@cp $(CURDIR)/README.md $(RELEASE)
 	@cp $(CURDIR)/HelloScript.gm9 $(RELEASE)
 	@cp $(OUTPUT)_ntr.firm $(RELEASE)/ntrboot
+	@cp $(OUTPUT)_ntr.firm.sha $(RELEASE)/ntrboot
 	@cp $(OUTPUT)_ntr_dev.firm $(RELEASE)/ntrboot
+	@cp $(OUTPUT)_ntr_dev.firm.sha $(RELEASE)/ntrboot
 	@cp -R $(CURDIR)/resources/gm9 $(RELEASE)/gm9
 	@-7z a $(RELEASE)/$(TARGET)-$(VERSION)-$(DBUILTS).zip $(RELEASE)/*
 
