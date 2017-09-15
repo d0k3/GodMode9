@@ -1713,6 +1713,8 @@ u32 GodMode(bool is_b9s) {
                                 (fno.fattrib & AM_ARC) ? 'X' : ' ', (fno.fattrib & AM_VRT) ? 'X' : ' ');
                         }
                     } else ShowPrompt(false, "Analyze %s: failed!", is_drive ? "drive" : "dir");
+                } else if (user_select == stdcpy) {
+                    StandardCopy(&cursor, &scroll, current_dir);
                 }
             } else { // one level up
                 u32 user_select = 1;
