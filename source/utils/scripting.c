@@ -914,10 +914,6 @@ bool ExecuteGM9Script(const char* path_script) {
     // initialise variables
     init_vars(path_script);
     
-    // clear screen (only if script viewer is used
-    if (MAIN_SCREEN != TOP_SCREEN)
-        ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-    
     // script execute loop
     for (u32 lno = 1; ptr < end; lno++) {
         u32 flags = 0;
@@ -925,17 +921,6 @@ bool ExecuteGM9Script(const char* path_script) {
         // find line end
         char* line_end = strchr(ptr, '\n');
         if (!line_end) line_end = ptr + strlen(ptr);
-        
-        // update script viewer
-        if (MAIN_SCREEN != TOP_SCREEN) {
-            if (lno <= (TV_NLIN_DISP/2)) {
-                MemTextView(script, script_size, script, 0, 1, 0, lno, true);
-            } else {
-                char* ptr_view = line_seek(script, script_size, 0, ptr, -(TV_NLIN_DISP/2));
-                u32 lno_view = lno - (TV_NLIN_DISP/2); 
-                MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true);
-            }
-        }
         
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
