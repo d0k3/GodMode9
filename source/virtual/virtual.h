@@ -18,7 +18,8 @@
 #define VFLAG_DIR       (1UL<<10)
 #define VFLAG_ROOT      (1UL<<11)
 #define VFLAG_READONLY  (1UL<<12)
-#define VFLAG_LV3       (1UL<<13)
+#define VFLAG_DELETABLE (1UL<<13)
+#define VFLAG_LV3       (1UL<<14)
 
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
@@ -59,5 +60,6 @@ bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars);
 
 int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count, u32* bytes_read);
 int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written);
+int DeleteVirtualFile(const VirtualFile* vfile);
 
 u64 GetVirtualDriveSize(const char* path);

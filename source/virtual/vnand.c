@@ -22,12 +22,12 @@ typedef struct {
 static const VirtualNandTemplate vNandTemplates[] = {
     { "nand_hdr.bin"     , NP_TYPE_NCSD  , NP_SUBTYPE_CTR  , 0, 0 },
     { "twlmbr.bin"       , NP_TYPE_STD   , NP_SUBTYPE_TWL  , 0, VFLAG_MBR },
-    { "essential.exefs"  , NP_TYPE_D0K3  , NP_SUBTYPE_NONE , 0, VFLAG_ESSENTIAL },
+    { "essential.exefs"  , NP_TYPE_D0K3  , NP_SUBTYPE_NONE , 0, VFLAG_DELETABLE | VFLAG_ESSENTIAL },
     { "sector0x96.bin"   , NP_TYPE_SECRET, NP_SUBTYPE_CTR_N, 0, VFLAG_NEEDS_OTP },
     { "twln.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 0, 0 },
     { "twlp.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 1, 0 },
-    { "agbsave.bin"      , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, 0 },
-    { "gbavc.sav"        , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, VFLAG_GBA_VC },
+    { "agbsave.bin"      , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, VFLAG_DELETABLE },
+    { "gbavc.sav"        , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, VFLAG_DELETABLE | VFLAG_GBA_VC },
     { "firm0.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 0, 0 },
     { "firm1.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 1, 0 },
     { "firm2.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 2, 0 },
@@ -40,7 +40,7 @@ static const VirtualNandTemplate vNandTemplates[] = {
     { "ctrnand_full.bin" , NP_TYPE_STD   , NP_SUBTYPE_CTR_N, 0, 0 },
     { "ctrnand_fat.bin"  , NP_TYPE_FAT   , NP_SUBTYPE_CTR  , 0, 0 },
     { "ctrnand_fat.bin"  , NP_TYPE_FAT   , NP_SUBTYPE_CTR_N, 0, 0 },
-    { "bonus.bin"        , NP_TYPE_BONUS , NP_SUBTYPE_CTR  , 0, 0 },
+    { "bonus.bin"        , NP_TYPE_BONUS , NP_SUBTYPE_CTR  , 0, VFLAG_DELETABLE },
     { "nand.bin"         , NP_TYPE_NONE  , NP_SUBTYPE_NONE , 0, VFLAG_NAND_SIZE },
     { "nand_minsize.bin" , NP_TYPE_NONE  , NP_SUBTYPE_NONE , 0, 0 }
 };

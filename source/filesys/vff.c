@@ -101,8 +101,12 @@ FRESULT fvx_rename (const TCHAR* path_old, const TCHAR* path_new) {
 }
 
 FRESULT fvx_unlink (const TCHAR* path) {
-    if (GetVirtualSource(path)) return FR_DENIED;
-    return fa_unlink( path );
+    if (GetVirtualSource(path)) {
+        VirtualFile vfile;
+        if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
+        if (DeleteVirtualFile(&vfile) != 0) return FR_DENIED;
+        return FR_OK;
+    } else return fa_unlink( path );
 }
 
 FRESULT fvx_mkdir (const TCHAR* path) {
@@ -237,7 +241,7 @@ FRESULT worker_fvx_runlink (TCHAR* tpath) {
     FRESULT res;
     
     // this code handles directory content deletion
-    if ((res = fa_stat(tpath, &fno)) != FR_OK) return res; // tpath does not exist
+    if ((res = fvx_stat(tpath, &fno)) != FR_OK) return res; // tpath does not exist
     if (fno.fattrib & AM_DIR) { // process folder contents
         DIR pdir;
         TCHAR* fname = tpath + strnlen(tpath, 255);
@@ -246,7 +250,7 @@ FRESULT worker_fvx_runlink (TCHAR* tpath) {
         if ((res = fa_opendir(&pdir, tpath)) != FR_OK) return res;
         *(fname++) = '/';
         
-        while (f_readdir(&pdir, &fno) == FR_OK) {
+        while (fvx_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
             strncpy(fname, fno.fname, tpath + 255 - fname);
@@ -256,11 +260,11 @@ FRESULT worker_fvx_runlink (TCHAR* tpath) {
                 worker_fvx_runlink(tpath);
             }
         }
-        f_closedir(&pdir);
+        fvx_closedir(&pdir);
         *(--fname) = '\0';
     }
     
-    return fa_unlink( tpath );
+    return fvx_unlink( tpath );
 }
 #endif
 
