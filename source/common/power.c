@@ -1,7 +1,6 @@
 #include "power.h"
 #include "i2c.h"
 #include "cache.h"
-#include "timer.h"
 #include "pxi.h"
 
 static const u8 br_settings[] = {0x10, 0x17, 0x1E, 0x25, 0x2C, 0x34, 0x3C, 0x44, 0x4D, 0x56, 0x60, 0x6B, 0x79, 0x8C, 0xA7, 0xD2};
@@ -16,6 +15,12 @@ void CheckBrightness() {
         prev_brightness = curSlider;
     }
     return;
+}
+
+u32 GetBatteryPercent() {
+    u8 battery = 0;
+    I2C_readRegBuf(I2C_DEV_MCU, 0x0B, &battery, 1);
+    return battery;
 }
 
 void Reboot() {

@@ -59,15 +59,25 @@ typedef struct {
     u32 scroll;
 } PaneData;
 
-void GetTimeString(char* timestr, bool forced_update) {
+void GetTimeString(char* timestr, bool forced_update, bool full_year) {
     static DsTime dstime;
     static u64 timer = (u64) -1; // this ensures we don't check the time too often
     if (forced_update || (timer == (u64) -1) || (timer_sec(timer) > 30)) {
         get_dstime(&dstime);
         timer = timer_start();
     }
-    if (timestr) snprintf(timestr, 31, "20%02lX-%02lX-%02lX %02lX:%02lX",
+    if (timestr) snprintf(timestr, 31, "%s%02lX-%02lX-%02lX %02lX:%02lX", full_year ? "20" : "",
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D, (u32) dstime.bcd_h, (u32) dstime.bcd_m);
+}
+
+u32 GetBatteryPercentSafe() {
+    static u32 battery = 0;
+    static u64 timer = (u64) -1; // this ensures we don't check the battery too often
+    if ((timer == (u64) -1) || (timer_sec(timer) > 120)) {
+        battery = GetBatteryPercent();
+        timer = timer_start();
+    }
+    return battery;
 }
 
 void DrawTopBar(const char* curr_path) {
@@ -97,10 +107,11 @@ void DrawTopBar(const char* curr_path) {
     }
     #endif
     
-    if (show_time) { // clock
+    if (show_time) { // clock & battery
         char timestr[32];
-        GetTimeString(timestr, false);
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", timestr);
+        GetTimeString(timestr, false, false);
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%14.14s %3lu%%", timestr,
+            GetBatteryPercentSafe());
     }
 }
 
@@ -1463,7 +1474,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         if (ShowRtcSetterPrompt(&dstime, "Set RTC date&time:")) {
             char timestr[32];
             set_dstime(&dstime);
-            GetTimeString(timestr, true);
+            GetTimeString(timestr, true, true);
             ShowPrompt(false, "New RTC date&time is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.",
                 timestr);
         }
@@ -1564,7 +1575,7 @@ u32 GodMode(bool is_b9s) {
              ShowRtcSetterPrompt(&dstime, "Set RTC date&time:")) {
             char timestr[32];
             set_dstime(&dstime);
-            GetTimeString(timestr, true);
+            GetTimeString(timestr, true, true);
             ShowPrompt(false, "New RTC date&time is:\n%s\n \nHint: HOMEMENU time needs\nmanual adjustment after\nsetting the RTC.", timestr);
         }
     }
