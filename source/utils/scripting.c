@@ -117,7 +117,13 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_SWITCHSD, "switchsd", 1, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 }
-};    
+};
+
+// global vars for preview
+static u32 preview_mode = 0; // 0 -> off 1 -> quick 2 -> full
+static u32 preview_color_active = 0;
+static u32 preview_color_comment = 0;
+static u32 preview_color_code = 0;
 
 static inline bool strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
@@ -209,6 +215,26 @@ static inline char* line_seek(const char* text, u32 len, u32 ww, const char* lin
     }
 }
 
+void set_preview(const char* name, const char* content) {
+    if (strncmp(name, "PREVIEW_MODE", _VAR_NAME_LEN) == 0) {
+        if (strncasecmp(content, "off", _VAR_CNT_LEN) == 0) preview_mode = 0;
+        else if (strncasecmp(content, "quick", _VAR_CNT_LEN) == 0) preview_mode = 1;
+        else if (strncasecmp(content, "full", _VAR_CNT_LEN) == 0) preview_mode = 2;
+    } else if (strncmp(name, "PREVIEW_COLOR_ACTIVE", _VAR_NAME_LEN) == 0) {
+        u8 rgb[4] = { 0 };
+        if (strntohex(content, rgb, 3))
+            preview_color_active = getle32(rgb);
+    } else if (strncmp(name, "PREVIEW_COLOR_COMMENT", _VAR_NAME_LEN) == 0) {
+        u8 rgb[4] = { 0 };
+        if (strntohex(content, rgb, 3))
+            preview_color_comment = getle32(rgb);
+    } else if (strncmp(name, "PREVIEW_COLOR_CODE", _VAR_NAME_LEN) == 0) {
+        u8 rgb[4] = { 0 };
+        if (strntohex(content, rgb, 3))
+            preview_color_code = getle32(rgb);
+    }
+}
+
 char* set_var(const char* name, const char* content) {
     Gm9ScriptVar* vars = (Gm9ScriptVar*) VAR_BUFFER;
     u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
@@ -224,6 +250,9 @@ char* set_var(const char* name, const char* content) {
     strncpy(vars[n_var].name, name, _VAR_NAME_LEN);
     strncpy(vars[n_var].content, content, _VAR_CNT_LEN);
     if (!n_var) *(vars[n_var].content) = '\0'; // NULL var
+    
+    // update preview stuff
+    set_preview(name, content);
     
     return vars[n_var].content;
 }
@@ -772,14 +801,14 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         bool ar = !ww && ((int) llen > off_disp + TV_LLEN_DISP);
         
         // set text color / find start of comment of scripts
-        u32 color_text = (nln == mno) ? COLOR_TVRUN : (is_script) ? COLOR_TVCMD : COLOR_TVTEXT;
+        u32 color_text = (nln == mno) ? preview_color_active : (is_script) ? preview_color_code : COLOR_TVTEXT;
         int cmt_start = llen;
         if (is_script && (nln != mno)) {
             char* hash = line_seek(text, len, 0, ptr, 0);
             for (; *hash != '#' && (hash - ptr < (int) llen); hash++);
             cmt_start = (hash - ptr) - off_disp;
         }
-        if (cmt_start <= 0) color_text = COLOR_TVCMT;
+        if (cmt_start <= 0) color_text = preview_color_comment;
         
         // build text string
         snprintf(txtstr, TV_LLEN_DISP + 1, "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
@@ -800,7 +829,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         if (cmt_start < (int) llen) {
             for (int i = 0; i < (int) llen; i++)
                 if (i < cmt_start) txtstr[i] = ' ';
-            DrawStringF(TOP_SCREEN, x_txt, y, COLOR_TVCMT, COLOR_TRANSPARENT, txtstr);
+            DrawStringF(TOP_SCREEN, x_txt, y, preview_color_comment, COLOR_TRANSPARENT, txtstr);
         }
         
         // colorize arrows
@@ -914,9 +943,15 @@ bool ExecuteGM9Script(const char* path_script) {
     // initialise variables
     init_vars(path_script);
     
-    // clear screen (only if script viewer is used
-    if (MAIN_SCREEN != TOP_SCREEN)
+    // setup script preview (only if used)
+    u32 preview_mode_local = 0;
+    if (MAIN_SCREEN != TOP_SCREEN) {
         ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+        preview_mode = 2; // 0 -> off 1 -> quick 2 -> full
+        preview_color_active = COLOR_TVRUN;
+        preview_color_comment = COLOR_TVCMT;
+        preview_color_code = COLOR_TVCMD;
+    }
     
     // script execute loop
     for (u32 lno = 1; ptr < end; lno++) {
@@ -928,12 +963,32 @@ bool ExecuteGM9Script(const char* path_script) {
         
         // update script viewer
         if (MAIN_SCREEN != TOP_SCREEN) {
-            if (lno <= (TV_NLIN_DISP/2)) {
-                MemTextView(script, script_size, script, 0, 1, 0, lno, true);
-            } else {
-                char* ptr_view = line_seek(script, script_size, 0, ptr, -(TV_NLIN_DISP/2));
-                u32 lno_view = lno - (TV_NLIN_DISP/2); 
-                MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true);
+            bool show_preview = preview_mode;
+            if (preview_mode != preview_mode_local) {
+                if (!preview_mode || !preview_mode_local) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+                if (!preview_mode) DrawString(TOP_SCREEN, "(preview disabled)",
+                    (SCREEN_WIDTH_TOP - (18*FONT_WIDTH_EXT)) / 2,
+                    (SCREEN_HEIGHT - FONT_HEIGHT_EXT) / 2,
+                    COLOR_STD_FONT, COLOR_STD_BG);
+                preview_mode_local = preview_mode;
+            }
+            if (preview_mode == 1) {
+                show_preview = false;
+                for (char* c = ptr; (c < line_end) && !show_preview; c++) {
+                    // check for comments
+                    if (IS_WHITESPACE(*c)) continue;
+                    else if (*c == '#') break;
+                    else show_preview = true;
+                }
+            }
+            if (show_preview) {
+                if (lno <= (TV_NLIN_DISP/2)) {
+                    MemTextView(script, script_size, script, 0, 1, 0, lno, true);
+                } else {
+                    char* ptr_view = line_seek(script, script_size, 0, ptr, -(TV_NLIN_DISP/2));
+                    u32 lno_view = lno - (TV_NLIN_DISP/2); 
+                    MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true);
+                }
             }
         }
         

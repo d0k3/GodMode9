@@ -43,6 +43,15 @@ set SUCCESSMSG "HelloScript testing script success"
 # set ERRORMSG ""
 # set SUCCESSMSG ""
 
+# PREVIEW_MODE, PREVIEW_COLOR_ACTIVE, PREVIEW_COLOR_COMMENT and PREVIEW_COLOR_CODE
+# PREVIEW_MODE controls how the preview on the top screen is displayed, set it it to off, quick or full
+# PREVIEW_COLOR_ACTIVE, PREVIEW_COLOR_COMMENT and PREVIEW_COLOR_CODE set the colors of the preview (RGB, hex)
+set PREVIEW_MODE quick
+# we don't want these ugly colors
+# set PREVIEW_COLOR_ACTIVE 00FF00
+# set PREVIEW_COLOR_COMMENT 0000FF
+# set PREVIEW_COLOR_CODE FF0000
+
 # CREATING VARS
 # You can also create new variables using 'set'
 # Notice how you can use variables when setting variables
