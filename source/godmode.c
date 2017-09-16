@@ -50,7 +50,8 @@
 
 #define BOOTLOADER_KEY  BUTTON_LEFT
 #define BOOTMENU_KEY    BUTTON_R1
-#define BOOTFIRM_PATHS  "0:/boot.firm", "1:/boot.firm", "S:/firm1.bin"
+#define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm", "S:/firm1.bin"
+#define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
 
 typedef struct {
     char path[256];
@@ -688,7 +689,7 @@ u32 StandardCopy(u32* cursor, u32* scroll, DirStruct* current_dir) {
     return 0;
 }
 
-u32 BootFirmHandler(const char* bootpath, bool verbose) {
+u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     char pathstr[32+1];
     TruncateString(pathstr, bootpath, 32, 8);
     
@@ -726,6 +727,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose) {
     
     // boot the FIRM (if we got a proper fixpath)
     if (*fixpath) {
+        if (delete) PathDelete(bootpath);
         BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
         while(1);
     }
@@ -1340,7 +1342,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             (SafeInstallFirm(curr_entry->path, slots) == 0) ? "success" : "failed!");
         return 0;
     } else if ((user_select == boot)) { // -> boot FIRM
-        BootFirmHandler(curr_entry->path, true);
+        BootFirmHandler(curr_entry->path, true, false);
         return 0;
     } else if ((user_select == script)) { // execute script
         if (ShowPrompt(true, "%s\nWarning: Do not run scripts\nfrom untrusted sources.\n \nExecute script?", pathstr))
@@ -1588,7 +1590,7 @@ u32 GodMode(bool is_b9s) {
             } else if (user_select == 2) {
                 godmode9 = true;
             } else if ((user_select == 3) && (FileSelector(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
-                BootFirmHandler(loadpath, false);
+                BootFirmHandler(loadpath, false, false);
             } else if ((user_select == 4) && (FileSelector(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
                 ExecuteGM9Script(loadpath);
             } else if (user_select == 5) {
@@ -1602,7 +1604,7 @@ u32 GodMode(bool is_b9s) {
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
-            BootFirmHandler(bootfirm_paths[i], false);
+            BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
     }
     
@@ -1983,7 +1985,7 @@ u32 GodMode(bool is_b9s) {
                     ClearScreenF(true, true, COLOR_STD_BG);
                     break;
                 } else if ((user_select == payloads) && (FileSelector(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
-                    BootFirmHandler(loadpath, false);
+                    BootFirmHandler(loadpath, false, false);
                 }
             }
             
