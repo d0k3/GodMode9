@@ -82,8 +82,8 @@ static const VirtualFile vMemFileTemplates[] = {
     { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, OTP_LEN   , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP },
     { "mcu_3ds_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
     { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY }
+    { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
+    { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY }
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
