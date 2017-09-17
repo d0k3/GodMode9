@@ -1536,6 +1536,16 @@ u32 GodMode(bool is_b9s) {
     bootloader = !is_b9s && IS_SIGHAX && !bootloader; // default bootloader
     #endif
     bool godmode9 = !bootloader && !bootmenu;
+    FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
+    if (bootloader || bootmenu) {
+        for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x24000000; addr += 0x400000) {
+            if (ValidateFirmHeader((FirmHeader*) (void*) addr, 0x100000) == 0) {
+                memmove(firm_in_mem, addr, 0x100000);
+                if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
+                break;
+            }
+        }
+    }
     
     
     ClearScreenF(true, true, COLOR_STD_BG);
@@ -1551,10 +1561,6 @@ u32 GodMode(bool is_b9s) {
     AutoEmuNandBase(true);
     InitNandCrypto(!is_b9s);
     InitExtFS();
-    
-    GetDirContents(current_dir, "");
-    clipboard->n_entries = 0;
-    memset(panedata, 0x00, 0x10000);
     
     // check for embedded essential backup
     if (IS_SIGHAX && !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
@@ -1589,6 +1595,7 @@ u32 GodMode(bool is_b9s) {
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
     
+    // bootmenu handler
     if (bootmenu) {
         bootloader = false;
         while (!bootloader && !godmode9) {
@@ -1614,13 +1621,18 @@ u32 GodMode(bool is_b9s) {
     }
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
+        if (ValidateFirm(firm_in_mem, 0x100000, false) == 0) BootFirm(firm_in_mem, "0:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
     }
     
     
+    GetDirContents(current_dir, "");
+    clipboard->n_entries = 0;
+    memset(panedata, 0x00, 0x10000);
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
+    
     while (godmode9) { // this is the main loop
         int curr_drvtype = DriveType(current_path);
         
