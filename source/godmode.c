@@ -70,20 +70,65 @@ void GetTimeString(char* timestr, bool forced_update, bool full_year) {
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D, (u32) dstime.bcd_h, (u32) dstime.bcd_m);
 }
 
-u32 GetBatteryPercentSafe() {
-    static u32 battery = 0;
-    static u64 timer = (u64) -1; // this ensures we don't check the battery too often
-    if ((timer == (u64) -1) || (timer_sec(timer) > 120)) {
-        battery = GetBatteryPercent();
-        timer = timer_start();
+void CheckBattery(u32* battery, bool* is_charging) {
+    if (battery) {
+        static u32 battery_l = 0;
+        static u64 timer_b = (u64) -1; // this ensures we don't check too often
+        if ((timer_b == (u64) -1) || (timer_sec(timer_b) >= 120)) {
+            battery_l = GetBatteryPercent();
+            timer_b = timer_start();
+        }
+        *battery = battery_l;
     }
-    return battery;
+    
+    if (is_charging) {
+        static bool is_charging_l = false;
+        static u64 timer_c = (u64) -1;
+        if ((timer_c == (u64) -1) || (timer_sec(timer_c) >= 1)) {
+            is_charging_l = IsCharging();
+            timer_c = timer_start();
+        }
+        *is_charging = is_charging_l;
+    }
+}
+
+void GenerateBatteryBitmap(u8* bitmap, u32 width, u32 height, u32 color_bg) {
+    const u32 color_outline = COLOR_BLACK;
+    const u32 color_inline = COLOR_WHITE;
+    const u32 color_inside = COLOR_GREY;
+    
+    if ((width < 8) || (height < 6)) return;
+    
+    u32 battery;
+    bool is_charging;
+    CheckBattery(&battery, &is_charging);
+    
+    u32 color_battery = (is_charging) ? COLOR_BLUE :
+        (battery > 70) ? COLOR_GREEN : (battery > 30) ? COLOR_YELLOW : COLOR_RED;
+    u32 nub_size = (height < 12) ? 1 : 2;
+    u32 width_inside = width - 4 - nub_size;
+    u32 width_battery = (battery >= 100) ? width_inside : ((battery * width_inside) + 50) / 100;
+    
+    for (u32 y = 0; y < height; y++) {
+        const u32 mirror_y = (y >= (height+1) / 2) ? height - 1 - y : y;
+        for (u32 x = 0; x < width; x++) {
+            const u32 rev_x = width - x - 1;
+            u32 color = 0;
+            if (mirror_y == 0) color = (rev_x >= nub_size) ? color_outline : color_bg;
+            else if (mirror_y == 1) color = ((x == 0) || (rev_x == nub_size)) ? color_outline : (rev_x < nub_size) ? color_bg : color_inline;
+            else if (mirror_y == 2) color = ((x == 0) || (rev_x <= nub_size)) ? color_outline : ((x == 1) || (rev_x == (nub_size+1))) ? color_inline : color_inside;
+            else color = ((x == 0) || (rev_x == 0)) ? color_outline : ((x == 1) || (rev_x <= (nub_size+1))) ? color_inline : color_inside;
+            if ((color == color_inside) && (x < (2 + width_battery))) color = color_battery;
+            *(bitmap++) = color >> 16;  // B
+            *(bitmap++) = color >> 8;   // G
+            *(bitmap++) = color & 0xFF; // R
+        }
+    }
 }
 
 void DrawTopBar(const char* curr_path) {
     const u32 bartxt_start = (FONT_HEIGHT_EXT == 10) ? 1 : 2;
     const u32 bartxt_x = 2;
-    const u32 bartxt_rx = SCREEN_WIDTH_TOP - (19*FONT_WIDTH_EXT) - bartxt_x;
     const u32 len_path = SCREEN_WIDTH_TOP - 120;
     char tempstr[64];
     
@@ -96,6 +141,7 @@ void DrawTopBar(const char* curr_path) {
     
     #ifdef SHOW_FREE
     if (*curr_path) { // free & total storage
+        const u32 bartxt_rx = SCREEN_WIDTH_TOP - (19*FONT_WIDTH_EXT) - bartxt_x;
         char bytestr0[32];
         char bytestr1[32];
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", "LOADING...");
@@ -108,10 +154,19 @@ void DrawTopBar(const char* curr_path) {
     #endif
     
     if (show_time) { // clock & battery
+        const u32 battery_width = 16;
+        const u32 battery_height = 9;
+        const u32 battery_x = SCREEN_WIDTH_TOP - battery_width - bartxt_x;
+        const u32 battery_y = (12 - battery_height) / 2;
+        const u32 clock_x = battery_x - (15*FONT_WIDTH_EXT);
+        
         char timestr[32];
         GetTimeString(timestr, false, false);
-        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%14.14s %3lu%%", timestr,
-            GetBatteryPercentSafe());
+        DrawStringF(TOP_SCREEN, clock_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%14.14s", timestr);
+        
+        u8 bitmap[battery_width * battery_height * BYTES_PER_PIXEL];
+        GenerateBatteryBitmap(bitmap, battery_width, battery_height, COLOR_TOP_BAR);
+        DrawBitmap(TOP_SCREEN, battery_x, battery_y, battery_width, battery_height, bitmap);
     }
 }
 
@@ -1668,7 +1723,7 @@ u32 GodMode(bool is_b9s) {
         }
         
         // handle user input
-        u32 pad_state = InputWait(30);
+        u32 pad_state = InputWait(3);
         bool switched = (pad_state & BUTTON_R1);
         
         // basic navigation commands

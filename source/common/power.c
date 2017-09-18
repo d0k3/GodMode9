@@ -23,6 +23,12 @@ u32 GetBatteryPercent() {
     return battery;
 }
 
+bool IsCharging() {
+    u8 flags = 0;
+    I2C_readRegBuf(I2C_DEV_MCU, 0x0F, &flags, 1);
+    return flags & (1<<4);
+}
+
 void Reboot() {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
     flushEntireDCache();
