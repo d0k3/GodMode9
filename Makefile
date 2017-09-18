@@ -21,9 +21,9 @@ ifeq ($(SAFEMODE),1)
 	export TARGET	:=	SafeMode9
 endif
 BUILD		:=	build
-SOURCES		:=	source source/common source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz source/system source/utils
+SOURCES		:=	source source/common source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz source/qrcodegen source/system source/utils
 DATA		:=	data
-INCLUDES	:=	common source source/common source/font source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz source/system source/utils
+INCLUDES	:=	common source source/common source/font source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz source/qrcodegen source/system source/utils
 
 #---------------------------------------------------------------------------------
 # options for code generation

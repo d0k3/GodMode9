@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "qrcodegen.h"
 #include "font.h"
 #include "ui.h"
 #include "rtc.h"
@@ -55,9 +56,42 @@ void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap)
         int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
         int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
         u8* screenPos = screen + xDisplacement + yDisplacement;
-        for (int xx = w - 1; xx >= 0; xx--) {
+        for (int xx = 0; xx < w; xx++) {
             memcpy(screenPos, bitmapPos, BYTES_PER_PIXEL);
             bitmapPos += BYTES_PER_PIXEL;
+            screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
+        }
+    }
+}
+
+void DrawQrCode(u8* screen, u8* qrcode)
+{
+    const u32 size_qr = qrcodegen_getSize(qrcode);
+    u32 size_qr_s = size_qr;
+    u32 size_canvas = size_qr + 8;
+    
+    // handle scaling
+    u32 scale = 1;
+    for (; size_canvas * (scale+1) < SCREEN_HEIGHT; scale++);
+    size_qr_s *= scale;
+    size_canvas *= scale;
+    
+    // clear screen, draw the canvas
+    u32 x_canvas = (SCREEN_WIDTH(screen) - size_canvas) / 2;
+    u32 y_canvas = (SCREEN_HEIGHT - size_canvas) / 2;
+    ClearScreen(screen, COLOR_STD_BG);
+    DrawRectangle(screen, x_canvas, y_canvas, size_canvas, size_canvas, COLOR_WHITE);
+    
+    // draw the QR code
+    u32 x_qr = (SCREEN_WIDTH(screen) - size_qr_s) / 2;
+    u32 y_qr = (SCREEN_HEIGHT - size_qr_s) / 2;
+    int xDisplacement = (x_qr * BYTES_PER_PIXEL * SCREEN_HEIGHT);
+    for (u32 y = 0; y < size_qr_s; y++) {
+        int yDisplacement = ((SCREEN_HEIGHT - (y_qr + y) - 1) * BYTES_PER_PIXEL);
+        u8* screenPos = screen + xDisplacement + yDisplacement;
+        for (u32 x = 0; x < size_qr_s; x++) {
+            u8 c = qrcodegen_getModule(qrcode, x/scale, y/scale) ? 0x00 : 0xFF;
+            memset(screenPos, c, BYTES_PER_PIXEL);
             screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
         }
     }

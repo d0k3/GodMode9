@@ -10,6 +10,7 @@
 
 #define BYTES_PER_PIXEL 3
 #define SCREEN_HEIGHT 240
+#define SCREEN_WIDTH(s) ((s == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT)
 #define SCREEN_WIDTH_TOP 400
 #define SCREEN_WIDTH_BOT 320
 #ifdef FONT_6X10
@@ -73,6 +74,7 @@ void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_main, bool clear_alt, int color);
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
 void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap);
+void DrawQrCode(u8* screen, u8* qrcode);
 
 void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
 void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);

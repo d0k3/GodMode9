@@ -6,6 +6,7 @@
 #include "common.h"
 #include "fsinit.h"
 #include "fsutil.h"
+#include "qrcodegen.h"
 #include "power.h"
 #include "rtc.h"
 #include "hid.h"
@@ -75,15 +76,6 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, draw_x, draw_y, COLOR_STD_FONT, COLOR_STD_BG, dumpstr);
 
-    
-    /* Reinitialize SD */
-    DrawStringF(MAIN_SCREEN, draw_x, draw_y_upd, COLOR_STD_FONT, COLOR_STD_BG,
-        "%-29.29s", "Reinitializing SD card...");
-    while (!InitSDCardFS()) {
-        if (InputWait(1) & BUTTON_POWER) PowerOff();
-        DeinitSDCardFS();
-    }
-
 
     /* Dump STACK */
     sp = regs[13] & ~0xF;
@@ -100,6 +92,26 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
         wstr += XRQ_DumpData_u16(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
     } else {
         wstr += XRQ_DumpData_u32(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
+    }
+    
+    
+    /* Draw QR Code */
+    u8 qrcode[qrcodegen_BUFFER_LEN_MAX];
+    u8 temp[qrcodegen_BUFFER_LEN_MAX];
+    DrawStringF(MAIN_SCREEN, draw_x, draw_y_upd, COLOR_STD_FONT, COLOR_STD_BG,
+        "%-29.29s", "Generating QR code...");
+    if (qrcodegen_encodeText(dumpstr, temp, qrcode, qrcodegen_Ecc_LOW,
+        qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true)) {
+        DrawQrCode(ALT_SCREEN, qrcode);
+    }
+
+    
+    /* Reinitialize SD */
+    DrawStringF(MAIN_SCREEN, draw_x, draw_y_upd, COLOR_STD_FONT, COLOR_STD_BG,
+        "%-29.29s", "Reinitializing SD card...");
+    while (!InitSDCardFS()) {
+        if (InputWait(1) & BUTTON_POWER) PowerOff();
+        DeinitSDCardFS();
     }
 
 
