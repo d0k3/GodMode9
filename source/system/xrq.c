@@ -48,14 +48,13 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
 {
     u32 sp, st, pc;
     char dumpstr[2048], *wstr = dumpstr;
-    
+
     DsTime dstime;
     get_dstime(&dstime);
 
-    
     /* Dump registers */
     wstr += sprintf(wstr, "Exception: %s (%lu)\n", XRQ_Name[xrq&7], xrq);
-    wstr += sprintf(wstr, "20%02lX-%02lX-%02lX %02lX:%02lX:%02lX\n \n",
+    wstr += sprintf(wstr, "20%02lX-%02lX-%02lX %02lX:%02lX:%02lX\n\n",
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D,
         (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
     for (int i = 0; i < 8; i++) {
@@ -65,7 +64,6 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     }
     wstr += sprintf(wstr, "CPSR: %08lX\n\n", regs[16]);
 
-    
     /* Output registers to main screen */
     u32 draw_width = GetDrawStringWidth(dumpstr);
     u32 draw_height = GetDrawStringHeight(dumpstr);
@@ -93,8 +91,8 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     } else {
         wstr += XRQ_DumpData_u32(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
     }
-    
-    
+
+
     /* Draw QR Code */
     u8 qrcode[qrcodegen_BUFFER_LEN_MAX];
     u8 temp[qrcodegen_BUFFER_LEN_MAX];
