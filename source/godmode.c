@@ -1593,12 +1593,13 @@ u32 GodMode(bool is_b9s) {
     bool godmode9 = !bootloader && !bootmenu;
     FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
     if (bootloader || bootmenu) {
+        bool found = false;
         for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x24000000; addr += 0x400000) {
-            if (ValidateFirmHeader((FirmHeader*) (void*) addr, 0x100000) == 0) {
-                memmove(firm_in_mem, addr, 0x100000);
-                if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
-                break;
-            }
+            if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
+            if (ValidateFirmHeader((FirmHeader*) (void*) addr, 0x100000) != 0) continue;
+            if (!found) memmove(firm_in_mem, addr, 0x100000);
+            if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
+            found = true;
         }
     }
     
