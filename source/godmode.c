@@ -48,9 +48,8 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
-#define BOOTLOADER_KEY  BUTTON_LEFT
-#define BOOTMENU_KEY    BUTTON_R1
-#define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm", "S:/firm1.bin"
+#define BOOTMENU_KEY    BUTTON_R1|BUTTON_LEFT
+#define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm"
 #define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
 
 typedef struct {
@@ -1585,14 +1584,11 @@ u32 GodMode(bool is_b9s) {
     u32 cursor = 0;
     u32 scroll = 0;
     
-    bool bootloader = !is_b9s && IS_SIGHAX && CheckButton(BOOTLOADER_KEY);
-    bool bootmenu = !is_b9s && IS_SIGHAX && CheckButton(BOOTMENU_KEY);
-    #ifdef AL3X10MODE
-    bootloader = !is_b9s && IS_SIGHAX && !bootloader; // default bootloader
-    #endif
-    bool godmode9 = !bootloader && !bootmenu;
+    bool bootloader = !is_b9s && IS_SIGHAX; // only when installed to FIRM
+    bool bootmenu = bootloader && CheckButton(BOOTMENU_KEY);
+    bool godmode9 = !bootloader;
     FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
-    if (bootloader || bootmenu) {
+    if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
         bool found = false;
         for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x24000000; addr += 0x400000) {
             if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
@@ -1605,7 +1601,7 @@ u32 GodMode(bool is_b9s) {
     
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    SplashInit((bootloader || bootmenu) ? "bootloader mode" : NULL);
+    SplashInit(bootmenu ? "bootmenu mode" : bootloader ? "bootloader mode" : NULL);
     u64 timer = timer_start(); // show splash
     
     if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {
@@ -1647,7 +1643,9 @@ u32 GodMode(bool is_b9s) {
         ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
     }
     
+    #ifndef AL3X10MODE
     while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
+    #endif
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
     
