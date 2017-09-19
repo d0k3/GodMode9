@@ -109,8 +109,9 @@ u32 FindNitroRomDir(u32 dirid, u32* fileid, u8** fnt_entry, TwlHeader* hdr, u8* 
     
     // check subtable / directory validity
     u32 fid = *fileid;
-    for (u8* entry = *fnt_entry; *entry; entry = FNT_ENTRY_NEXT(entry)) {
+    for (u8* entry = *fnt_entry;; entry = FNT_ENTRY_NEXT(entry)) {
         if (entry >= fnt + hdr->fnt_size) return 1; // corrupt subtable
+        if (!*entry) break; // end of table reached
         if (fat_lut[fid].start_address > fat_lut[fid].end_address) return 1; // corrupt fat
         if (!FNT_ENTRY_ISDIR(entry)) fid++;
     }
