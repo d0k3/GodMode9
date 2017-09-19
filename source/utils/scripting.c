@@ -9,6 +9,7 @@
 #include "keydbutil.h"
 #include "filetype.h"
 #include "bootfirm.h"
+#include "qrcodegen.h"
 #include "firm.h"
 #include "power.h"
 #include "vff.h"
@@ -49,6 +50,7 @@
 typedef enum {
     CMD_ID_NONE = 0,
     CMD_ID_ECHO,
+    CMD_ID_QR,
     CMD_ID_ASK,
     CMD_ID_INPUT,
     CMD_ID_FILESEL,
@@ -74,7 +76,8 @@ typedef enum {
     CMD_ID_BOOT,
     CMD_ID_SWITCHSD,
     CMD_ID_REBOOT,
-    CMD_ID_POWEROFF
+    CMD_ID_POWEROFF,
+    CMD_ID_BKPT
 } cmd_id;
 
 typedef struct {
@@ -91,6 +94,7 @@ typedef struct {
 
 Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
+    { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
     { CMD_ID_INPUT   , "input"   , 2, 0 },
     { CMD_ID_FILESEL , "filesel" , 3, 0 },
@@ -116,7 +120,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
     { CMD_ID_SWITCHSD, "switchsd", 1, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
-    { CMD_ID_POWEROFF, "poweroff", 0, 0 }
+    { CMD_ID_POWEROFF, "poweroff", 0, 0 },
+    { CMD_ID_BKPT    , "bkpt"    , 0, 0 }
 };
 
 // global vars for preview
@@ -503,6 +508,18 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     if (id == CMD_ID_ECHO) {
         ShowPrompt(false, argv[0]);
     }
+    else if (id == CMD_ID_QR) {
+        u8 qrcode[qrcodegen_BUFFER_LEN_MAX];
+        u8 temp[qrcodegen_BUFFER_LEN_MAX];
+        ret = qrcodegen_encodeText(argv[1], temp, qrcode, qrcodegen_Ecc_LOW,
+            qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
+        if (ret) {
+            memcpy(TEMP_BUFFER, ALT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_ALT * 3));
+            DrawQrCode(ALT_SCREEN, qrcode);
+            ShowPrompt(false, argv[0]);
+            memcpy(ALT_SCREEN, TEMP_BUFFER, (SCREEN_HEIGHT * SCREEN_WIDTH_ALT * 3));
+        }
+    }
     else if (id == CMD_ID_ASK) {
         ret = ShowPrompt(true, argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
@@ -722,6 +739,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         DeinitExtFS();
         DeinitSDCardFS();
         PowerOff();
+    }
+    else if (id == CMD_ID_BKPT) {
+        asm("bkpt\n\t");
+        while(1);
     }
     else { // command not recognized / bad number of arguments
         ret = false;

@@ -12,7 +12,11 @@
 # Unknown commands lead to script abort (remove the '#' below to test)
 # iamunknown test test
 
-# 'ask' COMMAND / (-o/-s) SWITCHES
+# 'qr' COMMAND
+# The 'qr' command does the same as the echo command, but also displays a QR code on the top screen
+qr "Scan for cool stuff!" https://github.com/d0k3/GodMode9
+
+# 'ask' COMMAND
 # The 'ask' command is similar to the 'echo' command, but will allow the user to abort
 # Note that normally any failed command (like a negative user response on 'ask') will result in script abort
 ask "Continue running this script?"
