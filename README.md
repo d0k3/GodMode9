@@ -29,6 +29,12 @@ If you are a developer and you are building this, you may also just run `make re
 To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make ntrboot`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some features such as boot9 / boot11 access are not currently available from the ntrboot environment.
 
 
+## Bootloader mode / NTRboot mode
+Same as [boot9strap](https://github.com/SciresM/boot9strap), GodMode9 can be installed to the system FIRM partition ('FIRM0'). When executed from a FIRM partition, GodMode9 will default to bootloader mode and try to boot, in order, `FIRM from FCRAM` (see [A9NC](https://github.com/d0k3/A9NC/releases), `0:/bootonce.firm` (will be deleted on a succesful boot), `0:/boot.firm`, `1:/boot.firm`. In bootloader mode, hold R+LEFT on boot to enter the boot menu. *Installing GodMode9 to a FIRM partition is only recommended for developers and will overwrite [boot9strap](https://github.com/SciresM/boot9strap)*.
+
+When flashed directly to a [NTRboot](https://github.com/kitling/ntrboot_flasher) compatible flashcard, GodMode9 will default to ntrboot mode, which is the same as bootloader mode but automatically enters the boot menu.
+
+
 ## Write permissions system
 GodMode9 provides a write permissions system, which will protect you from accidentually damaging you system, losing data and/or modifying important system data. To unlock a write permission, an unlock sequence must be entered. This is not possible by accident. The write permission system is based on colors and the top bar on the top screen will change color according to the current write permission level. No permission above the yellow level can be unlocked on SafeMode9.
 * __Green:__ Modification to system files is not possible on this permission level. You can't edit or delete savegames and installed data. However, keep in mind that any non-system related or custom stuff on your SD card is not protected.
