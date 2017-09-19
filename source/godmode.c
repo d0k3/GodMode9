@@ -1584,8 +1584,9 @@ u32 GodMode(bool is_b9s) {
     u32 cursor = 0;
     u32 scroll = 0;
     
-    bool bootloader = !is_b9s && IS_SIGHAX; // only when installed to FIRM
-    bool bootmenu = bootloader && CheckButton(BOOTMENU_KEY);
+    bool bootloader = !is_b9s && IS_SIGHAX; // only when installed to FIRM / on NTRBOOT
+    bool ntrboot = bootloader && IS_NTRBOOT;
+    bool bootmenu = bootloader && (ntrboot || CheckButton(BOOTMENU_KEY));
     bool godmode9 = !bootloader;
     FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
@@ -1601,7 +1602,7 @@ u32 GodMode(bool is_b9s) {
     
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    SplashInit(bootmenu ? "bootmenu mode" : bootloader ? "bootloader mode" : NULL);
+    SplashInit(ntrboot ? "ntrboot mode" : bootmenu ? "bootmenu mode" : bootloader ? "bootloader mode" : NULL);
     u64 timer = timer_start(); // show splash
     
     if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {

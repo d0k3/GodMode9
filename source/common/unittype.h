@@ -9,6 +9,9 @@
 // see: https://www.3dbrew.org/wiki/OTP_Registers#Plaintext_OTP
 #define IS_DEVKIT   ((*(vu8*) (0x01FFB800+0x19)) != 0x0)
 
+// check first 8 byte of NTRBOOT blowfish data (0x6A0 in DTCM)
+#define IS_NTRBOOT  ((*(vu64*) (0x300086A0)) == 0xBFEFD1CD2683A24E)
+
 // see: https://3dbrew.org/wiki/CONFIG11_Registers
 // (also returns true for sighaxed systems, maybe change the name later?)
 #define IS_A9LH     ((*(vu32*) 0x101401C0) == 0)
