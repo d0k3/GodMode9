@@ -3,11 +3,14 @@
 #include "firm.h"
 #include "fatmbr.h"
 #include "essentials.h" // for essential backup struct
+#include "nandcmac.h"
+#include "agbsave.h"
 #include "image.h"
 #include "fsinit.h"
 #include "fsperm.h"
 #include "sighax.h"
 #include "unittype.h"
+#include "sdmmc.h"
 #include "sha.h"
 #include "ui.h"
 #include "vff.h"
@@ -81,7 +84,7 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     InitImgFS(path_bak);
     
     // fill nand cid / otp hash
-    if (GetNandCid(&(essential->nand_cid)) != 0) return 1;
+    sdmmc_get_cid(1, (u32*) (void*) &(essential->nand_cid));
     if (!IS_UNLOCKED) memset(&(filelist[5]), 0, 3 * sizeof(ExeFsFileHeader));
     else memcpy(&(essential->otp), (u8*) 0x10012000, 0x100);
     
@@ -115,6 +118,62 @@ u32 EmbedEssentialBackup(const char* path) {
         (btw != sizeof(EssentialBackup)))
         return 1;
     return 0;
+}
+
+u32 DumpGbaVcSavegame(const char* path) {
+    if (TEMP_BUFFER_SIZE < AGBSAVE_MAX_SIZE) return 1;
+    AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) TEMP_BUFFER;
+    u8* savegame = (u8*) (agbsave + 1);
+    
+    // read full AGBsave to memory
+    if ((fvx_qread(path, agbsave, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) || (ValidateAgbSaveHeader(agbsave) != 0) ||
+        (fvx_qread(path, savegame, sizeof(AgbSaveHeader), agbsave->save_size, NULL) != FR_OK)) return 1; // not a proper AGBSAVE file
+        
+    // byteswap for eeprom type saves (512 byte / 8 kB)
+    if ((agbsave->save_size == GBASAVE_EEPROM_512) || (agbsave->save_size == GBASAVE_EEPROM_8K)) {
+        for (u8* ptr = savegame; (ptr - savegame) < (int) agbsave->save_size; ptr += 8)
+            *(u64*) (void*) ptr = getbe64(ptr);
+    }
+    
+    // generate output path
+    char path_vcsav[64];
+    snprintf(path_vcsav, 64, OUTPUT_PATH "/%016llX.gbavc.sav", agbsave->title_id);
+    if (fvx_qwrite(path_vcsav, savegame, 0, agbsave->save_size, NULL) != FR_OK) return 1; // write fail
+    
+    return 0;        
+}
+
+u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
+    if (TEMP_BUFFER_SIZE < AGBSAVE_MAX_SIZE) return 1;
+    AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) TEMP_BUFFER;
+    u8* savegame = (u8*) (agbsave + 1);
+    
+    // basic sanity checks for path_vcsave
+    FILINFO fno;
+    char* ext = strrchr(path_vcsave, '.');
+    if (!ext || (strncasecmp(++ext, "sav", 4) != 0)) return 1; // bad extension
+    if ((fvx_stat(path_vcsave, &fno) != FR_OK) || !GBASAVE_VALID(fno.fsize))
+        return 1; // bad size
+    
+    // read AGBsave header, savegame to memory
+    if ((fvx_qread(path, agbsave, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) || (ValidateAgbSaveHeader(agbsave) != 0) ||
+        (fvx_qread(path_vcsave, savegame, 0, agbsave->save_size, NULL) != FR_OK)) return 1; // not a proper savegame for header
+    
+    // byteswap for eeprom type saves (512 byte / 8 kB)
+    if ((agbsave->save_size == GBASAVE_EEPROM_512) || (agbsave->save_size == GBASAVE_EEPROM_8K)) {
+        for (u8* ptr = savegame; (ptr - savegame) < (int) agbsave->save_size; ptr += 8)
+            *(u64*) (void*) ptr = getbe64(ptr);
+    }
+    
+    // rewrite AGBSAVE file, fix CMAC
+    if (fvx_qwrite(path, agbsave, 0, sizeof(AgbSaveHeader) + agbsave->save_size, NULL) != FR_OK) return 1; // write fail
+    if (FixFileCmac(path) != 0) return 1; // cmac fail (this is not efficient, but w/e)
+    
+    // set CFG_BOOTENV to 0x7 so the save is taken over
+    // https://www.3dbrew.org/wiki/CONFIG_Registers#CFG_BOOTENV
+    if (strncasecmp(path, "S:/agbsave.bin", 256) == 0) *(u32*) 0x10010000 = 0x7;
+    
+    return 0;        
 }
 
 u32 RebuildNandNcsdHeader(NandNcsdHeader* ncsd) {

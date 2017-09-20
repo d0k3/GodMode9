@@ -534,19 +534,6 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
     return 0;
 }
 
-// OTP hash is 32 byte in size
-u32 GetOtpHash(void* hash) {
-    if (!CheckSector0x96Crypto()) return 1;
-    memcpy(hash, OtpSha256, 0x20);
-    return 0;
-}
-
-// NAND CID is 16 byte in size
-u32 GetNandCid(void* cid) {
-    sdmmc_get_cid(1, (u32*) cid);
-    return 0;
-}
-
 bool CheckMultiEmuNand(void)
 {
     // this only checks for the theoretical possibility

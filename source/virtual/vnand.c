@@ -4,9 +4,8 @@
 #include "essentials.h"
 #include "unittype.h"
 
-#define VFLAG_MBR           (1UL<<27)
-#define VFLAG_ESSENTIAL     (1UL<<28)
-#define VFLAG_GBA_VC        (1UL<<29)
+#define VFLAG_MBR           (1UL<<28)
+#define VFLAG_ESSENTIAL     (1UL<<29)
 #define VFLAG_NEEDS_OTP     (1UL<<30)
 #define VFLAG_NAND_SIZE     (1UL<<31)
 
@@ -27,7 +26,6 @@ static const VirtualNandTemplate vNandTemplates[] = {
     { "twln.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 0, 0 },
     { "twlp.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 1, 0 },
     { "agbsave.bin"      , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, VFLAG_DELETABLE },
-    { "gbavc.sav"        , NP_TYPE_AGB   , NP_SUBTYPE_CTR  , 0, VFLAG_DELETABLE | VFLAG_GBA_VC },
     { "firm0.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 0, 0 },
     { "firm1.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 1, 0 },
     { "firm2.bin"        , NP_TYPE_FIRM  , NP_SUBTYPE_CTR  , 2, 0 },
@@ -73,7 +71,7 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         
         // handle special cases
         if (!vfile->size) continue;
-        if ((nand_src == VRT_XORPAD) && ((vfile->keyslot == 0x11) || (vfile->keyslot >= 0x40) || (vfile->flags & VFLAG_GBA_VC)))
+        if ((nand_src == VRT_XORPAD) && ((vfile->keyslot == 0x11) || (vfile->keyslot >= 0x40)))
             continue;
         if ((vfile->keyslot == 0x05) && !CheckSlot0x05Crypto())
             continue; // keyslot 0x05 not properly set up
@@ -90,12 +88,6 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
             if (memcmp(data, magic, sizeof(magic)) != 0) continue;
             vfile->size = sizeof(EssentialBackup);
         }
-        if (vfile->flags & VFLAG_GBA_VC) {
-            if (CheckAgbSaveCmac(nand_src) != 0) continue;
-            vfile->offset += 0x200;
-            vfile->size = GetAgbSaveSize(nand_src);
-        }
-        
         
         // found if arriving here
         vfile->flags |= nand_src;
@@ -113,7 +105,6 @@ int ReadVNandFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
 int WriteVNandFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
     u32 nand_dst = vfile->flags & (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD);
     int res = WriteNandBytes(buffer, vfile->offset + offset, count, vfile->keyslot, nand_dst);
-    if ((res == 0) && (vfile->flags & VFLAG_GBA_VC)) res = FixAgbSaveCmac(nand_dst);
     return res;
 }
 

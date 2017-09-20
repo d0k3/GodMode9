@@ -3,6 +3,7 @@
 #include "fatmbr.h"
 #include "nand.h"
 #include "game.h"
+#include "agbsave.h"
 #include "keydb.h"
 #include "ctrtransfer.h"
 #include "scripting.h"
@@ -64,6 +65,8 @@ u32 IdentifyFileType(const char* path) {
             return GAME_TICKET; // Ticket file (not used for anything right now)
         } else if (ValidateFirmHeader((FirmHeader*) data, fsize) == 0) {
             return SYS_FIRM; // FIRM file
+        } else if ((ValidateAgbSaveHeader((AgbSaveHeader*) data) == 0) && (fsize >= AGBSAVE_MAX_SIZE)) {
+            return SYS_AGBSAVE; // AGBSAVE file
         } else if (memcmp(header + 0x100, tickdb_magic, sizeof(tickdb_magic)) == 0) {
             return SYS_TICKDB; // ticket.db
         } else if (memcmp(header, smdh_magic, sizeof(smdh_magic)) == 0) {

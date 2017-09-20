@@ -16,15 +16,16 @@
 #define GAME_SMDH   (1UL<<11)
 #define GAME_NDS    (1UL<<12)
 #define SYS_FIRM    (1UL<<13)
-#define SYS_TICKDB  (1UL<<14)
-#define BIN_NCCHNFO (1UL<<15)
-#define BIN_TIKDB   (1UL<<16)
-#define BIN_KEYDB   (1UL<<17)
-#define BIN_LEGKEY  (1UL<<18)
-#define TXT_SCRIPT  (1UL<<19)
-#define TXT_GENERIC (1UL<<20)
-#define NOIMG_NAND  (1UL<<21)
-#define HDR_NAND    (1UL<<22)
+#define SYS_AGBSAVE (1UL<<14)
+#define SYS_TICKDB  (1UL<<15)
+#define BIN_NCCHNFO (1UL<<16)
+#define BIN_TIKDB   (1UL<<17)
+#define BIN_KEYDB   (1UL<<18)
+#define BIN_LEGKEY  (1UL<<19)
+#define TXT_SCRIPT  (1UL<<20)
+#define TXT_GENERIC (1UL<<21)
+#define NOIMG_NAND  (1UL<<22)
+#define HDR_NAND    (1UL<<23)
 #define TYPE_BASE   0x00FFFFFF // 24 bit reserved for base types
 
 #define FLAG_ENC    (1UL<<28)
@@ -53,5 +54,6 @@
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
 #define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 #define FTYPE_INSTALLABLE(tp)   (tp&(SYS_FIRM))
+#define FTPYE_AGBSAVE(tp)       (tp&(SYS_AGBSAVE))
 
 u32 IdentifyFileType(const char* path);
