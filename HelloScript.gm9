@@ -32,12 +32,16 @@ ask -o -s "Really continue running this script?\n(I will completely ignore your 
 # SERIAL is the serial number of your device
 # GM9OUT is the standard output path
 # CURRDIR is the directory the script is running from
+# HAX is the hax the system is currently running from ("ntrboot", "sighax", "a9lh" or empty)
+# ONTYPE is the console type ("O3DS" or "N3DS")
+# RDTYPE is the unit type ("devkit" or "retail")
 # SYSID0 is the id0 belonging to your SysNAND
 # EMUID0 is the id0 belonging to your EmuNAND (if available)
 # TIMESTAMP is the current time in hhmmss format
 # DATESTAMP is the current date in YYMMDD format
 # Use $[VAR] to get the *content* of a variable VAR
-echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
+echo "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent hax is $[HAX]\nYour system is a $[RDTYPE] $[ONTYPE]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
+qr "You can also have this as a QR code :)" "Your serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent hax is $[HAX]\nYour system is a $[RDTYPE] $[ONTYPE]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
 
 # ERRORMSG and SUCCESSMSG / 'set' COMMAND
 # These two are special environment vars, allowing you to control the message on script failure or success
@@ -46,6 +50,17 @@ set SUCCESSMSG "HelloScript testing script success"
 # you can also reset these to return to default script messages
 # set ERRORMSG ""
 # set SUCCESSMSG ""
+
+# 'chk' COMMAND
+# Using the check command, you can check if two arguments match (not case sensitive)
+# -u / -unequal check if not matching instead
+# These checks will (most likely) pass
+chk "hello" "HeLlo"
+chk "0:/gm9/out" $[GM9OUT]
+chk $[SYSID0] $[SYSID0]
+# unsure about these
+chk -o $[HAX] "sighax"
+chk -o -u $[HAX] "" 
 
 # PREVIEW_MODE, PREVIEW_COLOR_ACTIVE, PREVIEW_COLOR_COMMENT and PREVIEW_COLOR_CODE
 # PREVIEW_MODE controls how the preview on the top screen is displayed, set it it to off, quick or full

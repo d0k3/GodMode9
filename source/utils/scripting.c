@@ -13,12 +13,14 @@
 #include "firm.h"
 #include "power.h"
 #include "vff.h"
+#include "unittype.h"
 #include "rtc.h"
 #include "sha.h"
 #include "hid.h"
 #include "ui.h"
 
 #define _MAX_ARGS       3
+#define _ARG_MAX_LEN    512
 #define _VAR_CNT_LEN    256
 #define _VAR_NAME_LEN   32
 #define _ERR_STR_LEN    32
@@ -55,6 +57,7 @@ typedef enum {
     CMD_ID_INPUT,
     CMD_ID_FILESEL,
     CMD_ID_SET,
+    CMD_ID_CHK,
     CMD_ID_ALLOW,
     CMD_ID_CP,
     CMD_ID_MV,
@@ -99,6 +102,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_INPUT   , "input"   , 2, 0 },
     { CMD_ID_FILESEL , "filesel" , 3, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
+    { CMD_ID_CHK     , "chk"     , 2, _FLG('u') },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
@@ -339,14 +343,19 @@ bool init_vars(const char* path_script) {
     
     // current path
     char curr_dir[_VAR_CNT_LEN];
-    strncpy(curr_dir, path_script, _VAR_CNT_LEN);
-    char* slash = strrchr(curr_dir, '/');
-    if (slash) *slash = '\0';
+    if (path_script) {
+        strncpy(curr_dir, path_script, _VAR_CNT_LEN);
+        char* slash = strrchr(curr_dir, '/');
+        if (slash) *slash = '\0';
+    } else strncpy(curr_dir, "(null)",  _VAR_CNT_LEN);
     
     // set env vars
     set_var("NULL", ""); // this one is special and should not be changed later 
     set_var("CURRDIR", curr_dir); // script path, never changes
     set_var("GM9OUT", OUTPUT_PATH); // output path, never changes
+    set_var("HAX", IS_NTRBOOT ? "ntrboot" : IS_SIGHAX ? "sighax" : IS_A9LH ? "a9lh" : ""); // type of hax running from
+    set_var("ONTYPE", IS_O3DS ? "O3DS" : "N3DS"); // type of the console
+    set_var("RDTYPE", IS_DEVKIT ? "devkit" : "retail"); // devkit / retail
     upd_var(NULL); // set all dynamic environment vars
     
     return true;
@@ -357,7 +366,7 @@ bool expand_arg(char* argex, const char* arg, u32 len) {
     
     for (char* in = (char*) arg; in - arg < (int) len; in++) {
         u32 out_len = out - argex;
-        if (out_len >= (_VAR_CNT_LEN-1)) return false; // maximum arglen reached
+        if (out_len >= (_ARG_MAX_LEN-1)) return false; // maximum arglen reached
         
         if (*in == '\\') { // escape line breaks (no other escape is handled)
             if (*(++in) == 'n') *(out++) = '\n';
@@ -414,6 +423,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--no_cancel", len) == 0) flag_char = 'n';
     else if (strncmp(str, "--optional", len) == 0) flag_char = 'o';
     else if (strncmp(str, "--silent", len) == 0) flag_char = 's';
+    else if (strncmp(str, "--unequal", len) == 0) flag_char = 'u';
     else if (strncmp(str, "--overwrite", len) == 0) flag_char = 'w';
     
     if ((flag_char < 'a') && (flag_char > 'z')) {
@@ -561,6 +571,15 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "set fail");
+    }
+    else if (id == CMD_ID_CHK) {
+        if (flags & _FLG('u')) {
+            ret = (strncasecmp(argv[0], argv[1], _VAR_CNT_LEN) != 0);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "arg match");
+        } else {
+            ret = (strncasecmp(argv[0], argv[1], _VAR_CNT_LEN) == 0);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "no arg match");
+        }
     }
     else if (id == CMD_ID_ALLOW) {
         if (flags & _FLG('a')) ret = CheckDirWritePermissions(argv[0]);
@@ -753,22 +772,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
 }
 
 bool run_line(const char* line_start, const char* line_end, u32* flags, char* err_str) {
-    char* argv[_MAX_ARGS] = { NULL };
+    char args[_MAX_ARGS][_ARG_MAX_LEN];
+    char* argv[_MAX_ARGS];
     u32 argc = 0;
     cmd_id cmdid;
+    
+    // set up argv array
+    for (u32 i = 0; i < _MAX_ARGS; i++)
+        argv[i] = args[i];
     
     // flags handling (if no pointer given)
     u32 lflags;
     if (!flags) flags = &lflags;
     *flags = 0;
-    
-    // set up argv vars (if not already done)
-    for (u32 i = 0; i < _MAX_ARGS; i++) {
-        char name[16];
-        snprintf(name, 16, "ARGV%01lu", i);
-        argv[i] = set_var(name, "");
-        if (!argv[i]) return false;
-    }
     
     // parse current line, grab cmd / flags / args
     if (!parse_line(line_start, line_end, &cmdid, flags, &argc, argv, err_str)) {
