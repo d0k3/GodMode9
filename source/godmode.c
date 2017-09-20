@@ -93,8 +93,8 @@ void CheckBattery(u32* battery, bool* is_charging) {
 
 void GenerateBatteryBitmap(u8* bitmap, u32 width, u32 height, u32 color_bg) {
     const u32 color_outline = COLOR_BLACK;
-    const u32 color_inline = COLOR_WHITE;
-    const u32 color_inside = COLOR_GREY;
+    const u32 color_inline = COLOR_LIGHTGREY;
+    const u32 color_inside = COLOR_LIGHTERGREY;
     
     if ((width < 8) || (height < 6)) return;
     
@@ -1642,20 +1642,24 @@ u32 GodMode(bool is_b9s) {
     bool bootmenu = bootloader && (ntrboot || CheckButton(BOOTMENU_KEY));
     bool godmode9 = !bootloader;
     FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
+    memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
-        bool found = false;
         for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x24000000; addr += 0x400000) {
             if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
             if (ValidateFirmHeader((FirmHeader*) (void*) addr, 0x100000) != 0) continue;
-            if (!found) memmove(firm_in_mem, addr, 0x100000);
+            if (memcmp(firm_in_mem, "FIRM", 4) != 0) memmove(firm_in_mem, addr, 0x100000);
             if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
-            found = true;
         }
     }
     
+    const char* disp_mode =
+        ntrboot ? "ntrboot mode" :
+        bootmenu ? "bootmenu mode" :
+        bootloader ? "bootloader mode" :
+        !is_b9s ? "oldloader mode" : NULL;
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    SplashInit(ntrboot ? "ntrboot mode" : bootmenu ? "bootmenu mode" : bootloader ? "bootloader mode" : NULL);
+    SplashInit(disp_mode);
     u64 timer = timer_start(); // show splash
     
     if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {
