@@ -155,13 +155,18 @@ u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
     if ((fvx_stat(path_vcsave, &fno) != FR_OK) || !GBASAVE_VALID(fno.fsize))
         return 1; // bad size
     
-    // read AGBsave header, savegame to memory
-    if ((fvx_qread(path, agbsave, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) || (ValidateAgbSaveHeader(agbsave) != 0) ||
-        (fvx_qread(path_vcsave, savegame, 0, agbsave->save_size, NULL) != FR_OK)) return 1; // not a proper savegame for header
+    // read AGBsave header to memory
+    if ((fvx_qread(path, agbsave, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) ||
+        (ValidateAgbSaveHeader(agbsave) != 0)) return 1; // not a proper header
+        
+    // read savegame to memory
+    u32 inject_save_size = min(agbsave->save_size, fno.fsize);
+    memset(savegame, 0xFF, agbsave->save_size); // pad with 0xFF
+    if (fvx_qread(path_vcsave, savegame, 0, inject_save_size, NULL) != FR_OK) return 1;
     
     // byteswap for eeprom type saves (512 byte / 8 kB)
     if ((agbsave->save_size == GBASAVE_EEPROM_512) || (agbsave->save_size == GBASAVE_EEPROM_8K)) {
-        for (u8* ptr = savegame; (ptr - savegame) < (int) agbsave->save_size; ptr += 8)
+        for (u8* ptr = savegame; (ptr - savegame) < (int) inject_save_size; ptr += 8)
             *(u64*) (void*) ptr = getbe64(ptr);
     }
     
