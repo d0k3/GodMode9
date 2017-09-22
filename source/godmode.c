@@ -1913,10 +1913,10 @@ u32 GodMode(bool is_b9s) {
             InitExtFS();
             GetDirContents(current_dir, current_path);
             if (cursor >= current_dir->n_entries) cursor = 0;
-        } else if ((pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor down
+        } else if (!switched && (pad_state & BUTTON_DOWN) && (cursor + 1 < current_dir->n_entries))  { // cursor down
             if (pad_state & BUTTON_L1) mark_next = curr_entry->marked;
             cursor++;
-        } else if ((pad_state & BUTTON_UP) && cursor) { // cursor up
+        } else if (!switched && (pad_state & BUTTON_UP) && cursor) { // cursor up
             if (pad_state & BUTTON_L1) mark_next = curr_entry->marked;
             cursor--;
         } else if (switched && (pad_state & (BUTTON_RIGHT|BUTTON_LEFT))) { // switch pane
@@ -1929,6 +1929,8 @@ u32 GodMode(bool is_b9s) {
             memcpy(current_path, pane->path, 256);  // get state from next pane
             cursor = pane->cursor;
             scroll = pane->scroll;
+            GetDirContents(current_dir, current_path);
+        } else if (switched && (pad_state & BUTTON_DOWN)) { // force reload file list
             GetDirContents(current_dir, current_path);
         } else if ((pad_state & BUTTON_RIGHT) && !(pad_state & BUTTON_L1)) { // cursor down (quick)
             cursor += quick_stp;
