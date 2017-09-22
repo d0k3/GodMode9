@@ -814,7 +814,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
     
     // special stuff, only available for known filetypes (see int special below)
-    bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & DRV_IMAGE));
+    bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & DRV_IMAGE) &&
+        !((drvtype & (DRV_SYSNAND|DRV_EMUNAND)) && (drvtype & DRV_VIRTUAL) && (filetype & IMG_FAT)));
     bool verificable = (FYTPE_VERIFICABLE(filetype));
     bool decryptable = (FYTPE_DECRYPTABLE(filetype));
     bool encryptable = (FYTPE_ENCRYPTABLE(filetype));
