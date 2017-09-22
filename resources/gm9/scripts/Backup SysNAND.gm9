@@ -8,4 +8,4 @@ set SUCCESSMSGMSG "SysNAND backup success"
 ask "Create a SysNAND backup in $[GM9OUT]?"
 findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_sysnand_???.bin OUTPATH
 cp -h S:/nand_minsize.bin $[OUTPATH]
-echo "Backup created succesfully:\n$[OUTPATH]"
+echo "Backup created successfully:\n$[OUTPATH]"

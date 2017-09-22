@@ -8,4 +8,4 @@ set SUCCESSMSGMSG "EmuNAND backup success"
 ask "Create a EmuNAND backup in $[GM9OUT]?"
 findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_emunand_???.bin OUTPATH
 cp -h E:/nand_minsize.bin $[OUTPATH]
-echo "Backup created succesfully:\n$[OUTPATH]"
+echo "Backup created successfully:\n$[OUTPATH]"
