@@ -175,7 +175,7 @@ u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
     if (FixFileCmac(path) != 0) return 1; // cmac fail (this is not efficient, but w/e)
     
     // set CFG_BOOTENV to 0x7 so the save is taken over
-    // https://www.3dbrew.org/wiki/CONFIG_Registers#CFG_BOOTENV
+    // https://www.3dbrew.org/wiki/CONFIG9_Registers#CFG9_BOOTENV
     if (strncasecmp(path, "S:/agbsave.bin", 256) == 0) *(u32*) 0x10010000 = 0x7;
     
     return 0;        

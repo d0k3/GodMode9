@@ -7,6 +7,11 @@
 #define NAND_IMGNAND    (1UL<<2)
 #define NAND_ZERONAND   (1UL<<3)
 
+#define BOOT_UNKNOWN    0
+#define BOOT_NAND       (1UL<<0)
+#define BOOT_NTRBOOT    (1UL<<1)
+#define BOOT_WIFI_SPI   (1UL<<2)
+
 // hardcoded start sectors
 #define SECTOR_D0K3     0x000001
 #define SECTOR_SECRET   0x000096
@@ -74,6 +79,7 @@ u32 GetNandMinSizeSectors(u32 nand_src);
 u32 GetNandSizeSectors(u32 nand_src);
 u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, NandNcsdHeader* ncsd);
 u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, u32 nand_src);
+u32 GetBootOrigin(void);
 
 u32 ValidateSecretSector(u8* sector);
 bool CheckMultiEmuNand(void);

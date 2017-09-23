@@ -13,5 +13,5 @@ SECTIONS
 
     . = ALIGN(4);
 
-    __stack_top = 0x1FFFF800;
+    __stack_top = 0x1FFFE000;
 }

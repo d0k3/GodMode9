@@ -32,8 +32,6 @@ To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make
 ## Bootloader mode / NTRboot mode
 Same as [boot9strap](https://github.com/SciresM/boot9strap), GodMode9 can be installed to the system FIRM partition ('FIRM0'). When executed from a FIRM partition, GodMode9 will default to bootloader mode and try to boot, in order, `FIRM from FCRAM` (see [A9NC](https://github.com/d0k3/A9NC/releases), `0:/bootonce.firm` (will be deleted on a successful boot), `0:/boot.firm`, `1:/boot.firm`. In bootloader mode, hold R+LEFT on boot to enter the boot menu. *Installing GodMode9 to a FIRM partition is only recommended for developers and will overwrite [boot9strap](https://github.com/SciresM/boot9strap)*.
 
-When flashed directly to a [NTRboot](https://github.com/kitling/ntrboot_flasher) compatible flashcard, GodMode9 will default to ntrboot mode, which is the same as bootloader mode but automatically enters the boot menu.
-
 
 ## Write permissions system
 GodMode9 provides a write permissions system, which will protect you from accidentually damaging you system, losing data and/or modifying important system data. To unlock a write permission, an unlock sequence must be entered. This is not possible by accident. The write permission system is based on colors and the top bar on the top screen will change color according to the current write permission level. No permission above the yellow level can be unlocked on SafeMode9.

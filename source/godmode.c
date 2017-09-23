@@ -1638,9 +1638,9 @@ u32 GodMode(bool is_b9s) {
     u32 cursor = 0;
     u32 scroll = 0;
     
-    bool bootloader = !is_b9s && IS_SIGHAX; // only when installed to FIRM / on NTRBOOT
-    bool ntrboot = bootloader && IS_NTRBOOT;
-    bool bootmenu = bootloader && (ntrboot || CheckButton(BOOTMENU_KEY));
+    u32 boot_origin = GetBootOrigin();
+    bool bootloader = !is_b9s && IS_SIGHAX && (boot_origin & BOOT_NAND);
+    bool bootmenu = bootloader && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
     FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
     memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
@@ -1653,11 +1653,12 @@ u32 GodMode(bool is_b9s) {
         }
     }
     
-    const char* disp_mode =
-        ntrboot ? "ntrboot mode" :
-        bootmenu ? "bootmenu mode" :
-        bootloader ? "bootloader mode" :
-        !is_b9s ? "oldloader mode" : NULL;
+    // get mode string for splash screen
+    const char* disp_mode = NULL;
+    if (bootloader) disp_mode = "bootloader mode";
+    else if (!is_b9s && !IS_SIGHAX) disp_mode = "oldloader mode";
+    else if (!is_b9s && IS_SIGHAX && (boot_origin & BOOT_NTRBOOT)) disp_mode = "ntrboot mode";
+    // else if (!is_b9s || !IS_SIGHAX) disp_mode = "unknown mode";
     
     ClearScreenF(true, true, COLOR_STD_BG);
     SplashInit(disp_mode);
@@ -1703,6 +1704,7 @@ u32 GodMode(bool is_b9s) {
     }
     
     #ifndef AL3X10MODE
+    bootmenu = bootloader && CheckButton(BOOTMENU_KEY); // second check for boot menu keys
     while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
     #endif
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
