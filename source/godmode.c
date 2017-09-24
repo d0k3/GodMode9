@@ -1703,7 +1703,7 @@ u32 GodMode(bool is_b9s) {
     }
     
     #ifndef AL3X10MODE
-    bootmenu = bootloader && CheckButton(BOOTMENU_KEY); // second check for boot menu keys
+    bootmenu = bootmenu || (bootloader && CheckButton(BOOTMENU_KEY)); // second check for boot menu keys
     while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
     #endif
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
