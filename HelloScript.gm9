@@ -154,8 +154,12 @@ sha $[RENPATH] $[TESTPATH].sha
 # sha S:/firm0.bin@100:100 078CC0CFD850A27093DDA2630C3603CA0C96969BD1F26DA48AC7B1BAE5DD5219
 
 # 'shaget' COMMAND
-# Use this to calculate and store a files' SHA256
+# Use this to calculate (and store) a files' SHA256
+# If the second argument is a filename, the SHA256 will be stored there
 # shaget 0:/boot.firm 0:/boot.firm.sha
+# If it's a variable, it will be stored there temporarily instead
+shaget S:/nand_hdr.bin NANDHDRSHA
+sha S:/nand_hdr.bin $[NANDHDRSHA]
 # Partial SHA calculation is also possible (for @x:y handling see 'inject' below)
 # shaget 0:/boot.firm@100:100 0:/boot.firm.partial.sha
 

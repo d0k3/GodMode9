@@ -673,6 +673,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         u8 sha256_fil[0x20];
         if (!(ret = FileGetSha256(argv[0], sha256_fil, at_org, sz_org))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
+        } else if (!strchr(argv[1], ':')) {
+            char sha256_str[64+1];
+            snprintf(sha256_str, 64+1, "%016llX%016llX%016llX%016llX", getbe64(sha256_fil + 0), getbe64(sha256_fil + 8),
+                getbe64(sha256_fil + 16), getbe64(sha256_fil + 24));
+            ret = set_var(argv[1], sha256_str);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
         } else if (!(ret = FileSetData(argv[1], sha256_fil, 0x20, 0, true))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha write fail");
         }
