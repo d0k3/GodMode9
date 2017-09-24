@@ -1,0 +1,35 @@
+# SysNAND safe restore GM9 script
+# This will restore a backup from 0:/gm9/out, expecting the name scheme from the backup scripts
+# author: Kazuma77
+
+set SUCCESSMSG "Successfully Restored SysNAND."
+
+set ERRORMSG "No qualifying exploit was found.\nAborting to avoid bricking the unit."
+chk -u $[HAX] ""
+
+set ERRORMSG "Safe restore is not available on\nntrboot. Aborting to avoid a brick."
+chk -u $[HAX] "ntrboot"
+
+set ERRORMSG "SysNAND not changed."
+filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
+ask "Safe restore\n$[NANDBAK]\nto SysNAND?"
+allow S:/ctrnand_full.bin
+allow S:/twln.bin
+allow S:/twlp.bin
+
+set ERRORMSG "Not a valid NAND backup."
+imgmount $[NANDBAK]
+find I:/ctrnand_full.bin NULL
+find I:/twln.bin NULL
+find I:/twlp.bin NULL
+
+# Uncomment the "verify" line below to enable verification.
+# I left it out since the firm partitions are not being touched.
+# If you do not want the script to even try to recover content from a bricked image, enable it.
+#verify I:/nand_minsize.bin
+
+set ERRORMSG "An error occurred during the transfer.\nPlease try again."
+cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
+cp -w -n I:/twln.bin S:/twln.bin
+cp -w -n I:/twlp.bin S:/twlp.bin
+imgumount

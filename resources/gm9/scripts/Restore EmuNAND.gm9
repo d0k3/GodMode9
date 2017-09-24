@@ -1,0 +1,23 @@
+# EmuNAND restore GM9 script
+# This will restore a backup from 0:/gm9/out, expecting the name scheme from the backup scripts
+# author: Kazuma77
+
+set SUCCESSMSG "Successfully Restored EmuNAND."
+
+set ERRORMSG "EmuNAND not changed."
+filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
+ask "Restore\n$[NANDBAK]\nto EmuNAND?"
+allow E:/nand.bin
+
+set ERRORMSG "Not a valid NAND backup."
+imgmount $[NANDBAK]
+find I:/nand_minsize.bin NULL
+
+# Uncomment the "verify" line below to enable verification.
+# I left it out since EmuNAND isn't vital.
+# Besides, EmuNANDs don't even use their firm partitions.
+#verify I:/nand_minsize.bin
+
+set ERRORMSG "An error occurred during the transfer\nPlease try again."
+inject -n I:/nand_minsize.bin E:/nand.bin@0
+imgumount

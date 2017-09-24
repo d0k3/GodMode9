@@ -1,5 +1,5 @@
 # SysNAND backup GM9 script
-# This will create a backup named [SERIAL]_nandmin_???.bin
+# This will create a backup named [DATESTAMP]_[SERIAL]_sysnand_???.bin
 # author: d0k3
 
 set ERRORMSG      "SysNAND backup failed"

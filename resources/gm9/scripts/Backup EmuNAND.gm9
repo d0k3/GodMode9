@@ -1,5 +1,5 @@
 # EmuNAND backup GM9 script
-# This will create a backup named [SERIAL]_nandmin_???.bin
+# This will create a backup named [DATESTAMP]_[SERIAL]_emunand_???.bin
 # author: d0k3
 
 set ERRORMSG      "EmuNAND backup failed"
