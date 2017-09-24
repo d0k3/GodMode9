@@ -130,9 +130,9 @@ Gm9ScriptCmd cmd_list[] = {
 
 // global vars for preview
 static u32 preview_mode = 0; // 0 -> off 1 -> quick 2 -> full
-static u32 preview_color_active = 0;
-static u32 preview_color_comment = 0;
-static u32 preview_color_code = 0;
+static u32 script_color_active = 0;
+static u32 script_color_comment = 0;
+static u32 script_color_code = 0;
 
 static inline bool strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
@@ -232,15 +232,15 @@ void set_preview(const char* name, const char* content) {
     } else if (strncmp(name, "PREVIEW_COLOR_ACTIVE", _VAR_NAME_LEN) == 0) {
         u8 rgb[4] = { 0 };
         if (strntohex(content, rgb, 3))
-            preview_color_active = getle32(rgb);
+            script_color_active = getle32(rgb);
     } else if (strncmp(name, "PREVIEW_COLOR_COMMENT", _VAR_NAME_LEN) == 0) {
         u8 rgb[4] = { 0 };
         if (strntohex(content, rgb, 3))
-            preview_color_comment = getle32(rgb);
+            script_color_comment = getle32(rgb);
     } else if (strncmp(name, "PREVIEW_COLOR_CODE", _VAR_NAME_LEN) == 0) {
         u8 rgb[4] = { 0 };
         if (strntohex(content, rgb, 3))
-            preview_color_code = getle32(rgb);
+            script_color_code = getle32(rgb);
     }
 }
 
@@ -845,14 +845,14 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         bool ar = !ww && ((int) llen > off_disp + TV_LLEN_DISP);
         
         // set text color / find start of comment of scripts
-        u32 color_text = (nln == mno) ? preview_color_active : (is_script) ? preview_color_code : COLOR_TVTEXT;
+        u32 color_text = (nln == mno) ? script_color_active : (is_script) ? script_color_code : COLOR_TVTEXT;
         int cmt_start = llen;
         if (is_script && (nln != mno)) {
             char* hash = line_seek(text, len, 0, ptr, 0);
             for (; *hash != '#' && (hash - ptr < (int) llen); hash++);
             cmt_start = (hash - ptr) - off_disp;
         }
-        if (cmt_start <= 0) color_text = preview_color_comment;
+        if (cmt_start <= 0) color_text = script_color_comment;
         
         // build text string
         snprintf(txtstr, TV_LLEN_DISP + 1, "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
@@ -873,7 +873,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         if (cmt_start < (int) llen) {
             for (int i = 0; i < (int) llen; i++)
                 if (i < cmt_start) txtstr[i] = ' ';
-            DrawStringF(TOP_SCREEN, x_txt, y, preview_color_comment, COLOR_TRANSPARENT, txtstr);
+            DrawStringF(TOP_SCREEN, x_txt, y, script_color_comment, COLOR_TRANSPARENT, txtstr);
         }
         
         // colorize arrows
@@ -901,6 +901,13 @@ bool MemTextViewer(const char* text, u32 len, bool as_script) {
     // instructions
     static const char* instr = "Textviewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
     ShowString(instr);
+    
+    // set script colors
+    if (as_script) {
+        script_color_active = COLOR_TVRUN;
+        script_color_comment = COLOR_TVCMT;
+        script_color_code = COLOR_TVCMD;
+    }
     
     // find maximum line len
     u32 llen_max = 0;
@@ -992,9 +999,9 @@ bool ExecuteGM9Script(const char* path_script) {
     if (MAIN_SCREEN != TOP_SCREEN) {
         ClearScreen(TOP_SCREEN, COLOR_STD_BG);
         preview_mode = 2; // 0 -> off 1 -> quick 2 -> full
-        preview_color_active = COLOR_TVRUN;
-        preview_color_comment = COLOR_TVCMT;
-        preview_color_code = COLOR_TVCMD;
+        script_color_active = COLOR_TVRUN;
+        script_color_comment = COLOR_TVCMT;
+        script_color_code = COLOR_TVCMD;
     }
     
     // script execute loop
