@@ -1770,9 +1770,9 @@ u32 GodMode(bool is_b9s) {
             curr_entry->marked = mark_next;
             mark_next = -2;
         }
-        DrawTopBar(current_path);
         DrawDirContents(current_dir, cursor, &scroll);
         DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
+        DrawTopBar(current_path);
         
         // check write permissions
         if (~last_write_perm & GetWritePermissions()) {
