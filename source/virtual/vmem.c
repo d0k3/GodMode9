@@ -11,7 +11,7 @@
 #define VFLAG_BOOT9         (1UL<<28)
 #define VFLAG_BOOT11        (1UL<<29)
 #define VFLAG_OTP           (1UL<<30)
-#define VFLAG_N3DS_ONLY     (1UL<<31)
+#define VFLAG_N3DS_EXT      (1UL<<31)
 
 // offsets provided by SciresM
 #define BOOT9_POS   0x08080000
@@ -64,14 +64,14 @@ STATIC_ASSERT(sizeof(vMemCallbacks) / sizeof(vMemCallbacks[0]) == VMEM_NUM_CALLB
 static const VirtualFile vMemFileTemplates[] = {
     { "itcm.mem"         , 0x01FF8000, 0x00008000, 0xFF, 0 },
     { "arm9.mem"         , 0x08000000, 0x00100000, 0xFF, 0 },
-    { "arm9ext.mem"      , 0x08100000, 0x00080000, 0xFF, VFLAG_N3DS_ONLY },
+    { "arm9ext.mem"      , 0x08100000, 0x00080000, 0xFF, VFLAG_N3DS_EXT },
     { "boot9.bin"        , BOOT9_POS , BOOT9_LEN , 0xFF, VFLAG_READONLY | VFLAG_BOOT9 },
     { "boot11.bin"       , BOOT11_POS, BOOT11_LEN, 0xFF, VFLAG_READONLY | VFLAG_BOOT11 },
     { "vram.mem"         , 0x18000000, 0x00600000, 0xFF, 0 },
     { "dsp.mem"          , 0x1FF00000, 0x00080000, 0xFF, 0 },
     { "axiwram.mem"      , 0x1FF80000, 0x00080000, 0xFF, 0 },
     { "fcram.mem"        , 0x20000000, 0x08000000, 0xFF, 0 },
-    { "fcramext.mem"     , 0x28000000, 0x08000000, 0xFF, VFLAG_N3DS_ONLY },
+    { "fcramext.mem"     , 0x28000000, 0x08000000, 0xFF, VFLAG_N3DS_EXT },
     { "dtcm.mem"         , 0x30008000, 0x00004000, 0xFF, 0 },
     { "otp.mem"          , OTP_POS   , OTP_LEN   , 0xFF, VFLAG_READONLY | VFLAG_OTP },
     // { "bootrom.mem"      , 0xFFFF0000, 0x00010000, 0xFF, 0 },
@@ -95,7 +95,7 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
         
         // process special flags
-        if (((vfile->flags & VFLAG_N3DS_ONLY) && (IS_O3DS)) || // this is not on O3DS consoles
+        if (((vfile->flags & VFLAG_N3DS_EXT) && (IS_O3DS || IS_SIGHAX)) || // this is not on O3DS consoles and locked by sighax
             ((vfile->flags & VFLAG_OTP) && !(IS_UNLOCKED)) || // OTP still locked
             ((vfile->flags & VFLAG_BOOT9) && !(HAS_BOOT9)) || // boot9 not found
             ((vfile->flags & VFLAG_BOOT11) && !(HAS_BOOT11))) // boot11 not found
