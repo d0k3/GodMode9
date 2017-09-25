@@ -833,7 +833,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
     u32 x_ar = x_txt + (p_ar * FONT_WIDTH_EXT);
     
     // display text on screen
-    char txtstr[128]; // should be more than enough
+    char txtstr[TV_LLEN_DISP + 1];
     char* ptr = line0;
     u32 nln = lno;
     for (u32 y = TV_VPAD; y < SCREEN_HEIGHT; y += FONT_HEIGHT_EXT + (2*TV_VPAD)) {
@@ -846,7 +846,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         
         // set text color / find start of comment of scripts
         u32 color_text = (nln == mno) ? script_color_active : (is_script) ? script_color_code : COLOR_TVTEXT;
-        int cmt_start = llen;
+        int cmt_start = TV_LLEN_DISP; // start of comment in current displayed line (may be negative)
         if (is_script && (nln != mno)) {
             char* hash = line_seek(text, len, 0, ptr, 0);
             for (; *hash != '#' && (hash - ptr < (int) llen); hash++);
@@ -870,9 +870,8 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         }
         
         // colorize comment if is_script
-        if (cmt_start < (int) llen) {
-            for (int i = 0; i < (int) llen; i++)
-                if (i < cmt_start) txtstr[i] = ' ';
+        if ((cmt_start > 0) && (cmt_start < TV_LLEN_DISP)) {
+            memset(txtstr, ' ', cmt_start);
             DrawStringF(TOP_SCREEN, x_txt, y, script_color_comment, COLOR_TRANSPARENT, txtstr);
         }
         
