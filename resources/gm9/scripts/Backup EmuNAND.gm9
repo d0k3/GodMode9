@@ -2,8 +2,8 @@
 # This will create a backup named [DATESTAMP]_[SERIAL]_emunand_???.bin
 # author: d0k3
 
-set ERRORMSG      "EmuNAND backup failed"
-set SUCCESSMSGMSG "EmuNAND backup success"
+set ERRORMSG   "EmuNAND backup failed"
+set SUCCESSMSG "EmuNAND backup success"
 
 ask "Create a EmuNAND backup in $[GM9OUT]?"
 findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_emunand_???.bin OUTPATH
