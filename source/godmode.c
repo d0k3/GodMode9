@@ -1598,7 +1598,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
 
 u32 SplashInit(const char* modestr) {
     const char* namestr = FLAVOR " " VERSION;
-    const char* loadstr = "loading...";
+    const char* loadstr = "booting...";
     const u32 pos_xb = 10;
     const u32 pos_yb = 10;
     const u32 pos_xu = SCREEN_WIDTH_BOT - 10 - GetDrawStringWidth(loadstr);
@@ -1607,7 +1607,7 @@ u32 SplashInit(const char* modestr) {
     ClearScreenF(true, true, COLOR_STD_BG);
     QlzDecompress(TOP_SCREEN, QLZ_SPLASH, 0);
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
-        SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
+        SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
     
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
@@ -1655,7 +1655,7 @@ u32 GodMode(bool is_b9s) {
     
     // get mode string for splash screen
     const char* disp_mode = NULL;
-    if (bootloader) disp_mode = "bootloader mode";
+    if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
     else if (!is_b9s && !IS_SIGHAX) disp_mode = "oldloader mode";
     else if (!is_b9s && IS_SIGHAX && (boot_origin & BOOT_NTRBOOT)) disp_mode = "ntrboot mode";
     // else if (!is_b9s || !IS_SIGHAX) disp_mode = "unknown mode";
