@@ -91,6 +91,6 @@
 #define TEMP_BUFFER_SIZE    (0x1800000) // 24MB(!)
 
 // buffer area defines (in use by image.c, for RAMdrive)
-#define RAMDRV_BUFFER       ((u8*)0x24000000) // top half of FCRAM
-#define RAMDRV_SIZE_O3DS    (0x04000000) // 64MB
-#define RAMDRV_SIZE_N3DS    (0x0C000000) // 192MB
+#define RAMDRV_BUFFER       ((u8*)0x22800000) // top of STACK
+#define RAMDRV_SIZE_O3DS    (0x5800000) // 88MB
+#define RAMDRV_SIZE_N3DS    (0xD800000) // 216MB

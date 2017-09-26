@@ -19,7 +19,7 @@ ASFLAGS := $(ARCH) -x assembler-with-cpp $(INCLUDE)
 CFLAGS  := $(ARCH) -Wall -Wextra -MMD -MP -fno-builtin \
            -Wno-unused-function -Wno-unused-variable \
            -std=c11 -O2 -flto -ffast-math -Wno-main $(INCLUDE)
-LDFLAGS := -nostdlib -nostartfiles
+LDFLAGS := -nostdlib -nostartfiles -Wl,-z,max-page-size=512
 
 objects = $(patsubst $(dir_source)/%.s, $(dir_build)/%.o, \
           $(patsubst $(dir_source)/%.c, $(dir_build)/%.o, \

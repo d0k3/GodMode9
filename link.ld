@@ -4,7 +4,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x23F00000;
+    . = 0x08006000;
     __start__ = ABSOLUTE(.);
 
     .text.start : ALIGN(4) { *(.text.start) }
@@ -17,7 +17,7 @@ SECTIONS
 
     __end__ = ABSOLUTE(.);
 
-    __stack_abt = __start__;
-    __stack_top = __start__ - 0x80000;
+    __stack_abt = 0x22800000;
+    __stack_top = __stack_abt - 0x80000;
     __code_size__ = __end__ - __start__;
 }

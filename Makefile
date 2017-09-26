@@ -74,7 +74,7 @@ endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
-LDFLAGS	=	-T../link.ld -nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
+LDFLAGS	=	-T../link.ld -nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map,-z,max-page-size=512
 
 LIBS	:=
 
@@ -152,12 +152,12 @@ binary: common
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 firm: binary screeninit
-	firmtool build $(OUTPUT).firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-retail -g
-	firmtool build $(OUTPUT)_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-dev -g
+	firmtool build $(OUTPUT).firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-retail -g
+	firmtool build $(OUTPUT)_dev.firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-dev -g
 
 ntrboot: binary screeninit
-	firmtool build $(OUTPUT)_ntr.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-retail -g
-	firmtool build $(OUTPUT)_ntr_dev.firm -n 0x08006000 -A 0x08006000 -D $(OUTPUT).bin $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-dev -g
+	firmtool build $(OUTPUT)_ntr.firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-retail -g
+	firmtool build $(OUTPUT)_ntr_dev.firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-dev -g
 
 release:
 	@-rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)

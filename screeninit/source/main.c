@@ -1,7 +1,6 @@
 #include <cpu.h>
 #include <pxi.h>
 #include <gic.h>
-#include <i2c.h>
 #include <gpulcd.h>
 #include <vram.h>
 #include <types.h>
@@ -18,6 +17,21 @@ void PXI_IRQHandler(void)
     switch (pxi_cmd) {
     default:
         break;
+
+    case PXI_SCREENINIT:
+    {
+        GPU_Init();
+        GPU_PSCFill(VRAM_START, VRAM_END, 0);
+        GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
+                                    VRAM_TOP_RA, VRAM_TOP_RB,
+                                    VRAM_BOT_A,  VRAM_BOT_B});
+
+        GPU_SetFramebufferMode(0, PDC_RGB24);
+        GPU_SetFramebufferMode(1, PDC_RGB24);
+
+        PXI_SetRemote(PXI_BUSY);
+        break;
+    }
 
     case PXI_BRIGHTNESS:
     {
@@ -49,17 +63,6 @@ void main(void)
 {
     u32 entry;
     PXI_Reset();
-
-    GPU_Init();
-    GPU_PSCFill(VRAM_START, VRAM_END, 0);
-    GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
-                                VRAM_TOP_RA, VRAM_TOP_RB,
-                                VRAM_BOT_A, VRAM_BOT_B});
-
-    GPU_SetFramebufferMode(0, PDC_RGB24);
-    GPU_SetFramebufferMode(1, PDC_RGB24);
-
-    I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A);
 
     GIC_Reset();
     GIC_SetIRQ(IRQ_PXI_SYNC, PXI_IRQHandler);

@@ -18,6 +18,7 @@ enum {
     PXI_NONE = 0,
     PXI_READY,
     PXI_BUSY,
+    PXI_SCREENINIT,
     PXI_BRIGHTNESS
 };
 
