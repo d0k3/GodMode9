@@ -136,6 +136,12 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
+ifeq ("$(wildcard $(CURDIR)/$(DATA)/vram0.img)","")
+	export FTCOMMON	:=	-D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA
+else
+    export FTCOMMON	:=	-A 0x18000000 -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf $(CURDIR)/$(DATA)/vram0.img -C NDMA XDMA memcpy
+endif
+
 .PHONY: common clean all firm binary screeninit release
 
 #---------------------------------------------------------------------------------
@@ -152,16 +158,15 @@ binary: common
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 firm: binary screeninit
-	firmtool build $(OUTPUT).firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-retail -g
-	firmtool build $(OUTPUT)_dev.firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S nand-dev -g
+	firmtool build $(OUTPUT).firm $(FTCOMMON) -S nand-retail -g
+	firmtool build $(OUTPUT)_dev.firm $(FTCOMMON) -S nand-dev -g
 
 ntrboot: binary screeninit
-	firmtool build $(OUTPUT)_ntr.firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-retail -g
-	firmtool build $(OUTPUT)_ntr_dev.firm -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA -S spi-dev -g
+	firmtool build $(OUTPUT)_ntr.firm $(FTCOMMON) -S spi-retail -g
+	firmtool build $(OUTPUT)_ntr_dev.firm $(FTCOMMON) -S spi-dev -g
 
 release:
 	@-rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
-	@$(MAKE) --no-print-directory binary
 	@$(MAKE) --no-print-directory firm
 	@$(MAKE) --no-print-directory ntrboot
 	@[ -d $(RELEASE) ] || mkdir -p $(RELEASE)

@@ -24,13 +24,15 @@ You may now run GodMode9 via holding the X Button (or any other button you chose
 ## How to run this / developer info
 Copy `GodMode9.firm` to somewhere on your SD card (maybe refer to your CFW instructions) and run it from there. FIRM payloads can be ran from [Luma3DS](https://github.com/AuroraWright/Luma3DS), [boot9strap](https://github.com/SciresM/boot9strap) or from GodMode9 itself. Build this with `make firm` (requires [firmtool](https://github.com/TuxSH/firmtool) installed).
 
-If you are a developer and you are building this, you may also just run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`. Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the data folder when compiling). A standalone script runner is compiled by providing `autorun.gm9` inside the data folder. 
+If you are a developer and you are building this, you may also just run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
+
+Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the data folder when compiling). To preset `M:/vram.mem` with data of your choice (a filesystem image, maybe) provide `vram0.img` inside the data folder, but keep in mind there's a hard 3MB limit. A standalone script runner is compiled by providing `autorun.gm9` (again, in the data folder). 
 
 To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make ntrboot`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some features such as boot9 / boot11 access are not currently available from the ntrboot environment.
 
 
-## Bootloader mode / NTRboot mode
-Same as [boot9strap](https://github.com/SciresM/boot9strap), GodMode9 can be installed to the system FIRM partition ('FIRM0'). When executed from a FIRM partition, GodMode9 will default to bootloader mode and try to boot, in order, `FIRM from FCRAM` (see [A9NC](https://github.com/d0k3/A9NC/releases), `0:/bootonce.firm` (will be deleted on a successful boot), `0:/boot.firm`, `1:/boot.firm`. In bootloader mode, hold R+LEFT on boot to enter the boot menu. *Installing GodMode9 to a FIRM partition is only recommended for developers and will overwrite [boot9strap](https://github.com/SciresM/boot9strap)*.
+## Bootloader mode
+Same as [boot9strap](https://github.com/SciresM/boot9strap), GodMode9 can be installed to the system FIRM partition ('FIRM0'). When executed from a FIRM partition, GodMode9 will default to bootloader mode and try to boot, in order, `FIRM from FCRAM` (see [A9NC](https://github.com/d0k3/A9NC/releases)), `0:/bootonce.firm` (will be deleted on a successful boot), `0:/boot.firm`, `1:/boot.firm`. In bootloader mode, hold R+LEFT on boot to enter the boot menu. *Installing GodMode9 to a FIRM partition is only recommended for developers and will overwrite [boot9strap](https://github.com/SciresM/boot9strap)*.
 
 
 ## Write permissions system
