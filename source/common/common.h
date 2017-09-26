@@ -88,7 +88,8 @@
 //  -> codelzss.c for decompressing .code
 // meaning: careful when using this!
 #define TEMP_BUFFER         ((u8*)0x20800000)
-#define TEMP_BUFFER_SIZE    (0x1800000) // 24MB(!)
+#define TEMP_BUFFER_SIZE    (0x400000) // 4MB
+#define TEMP_BUFFER_EXTSIZE (0x1800000) // 24MB(!) (only used by codelzss.c right now)
 
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER       ((u8*)0x22800000) // top of STACK

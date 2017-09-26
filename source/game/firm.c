@@ -25,11 +25,11 @@
 #define FIRM_VALID_ADDRESS_BOOT \
     FIRM_VALID_ADDRESS, \
     0x20000000, 0x27FFFA00
-
-u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
+    
+u32 GetFirmSize(FirmHeader* header) {
     u8 magic[] = { FIRM_MAGIC };
     if (memcmp(header->magic, magic, sizeof(magic)) != 0)
-        return 1;
+        return 0;
     
     u32 firm_size = sizeof(FirmHeader);
     int section_arm11 = -1;
@@ -37,8 +37,8 @@ u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
     for (u32 i = 0; i < 4; i++) {
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
-        if (section->offset < firm_size) return 1;
-        if ((section->offset % 512) || (section->address % 16) || (section->size % 512)) return 1;
+        if (section->offset < firm_size) return 0;
+        if ((section->offset % 512) || (section->address % 16) || (section->size % 512)) return 0;
         if ((header->entry_arm11 >= section->address) &&
             (header->entry_arm11 < section->address + section->size))
             section_arm11 = i;
@@ -48,12 +48,16 @@ u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
         firm_size = section->offset + section->size;
     }
     
-    if ((firm_size > FIRM_MAX_SIZE) || (data_size && (firm_size > data_size)))
-        return 1;
+    if (firm_size > FIRM_MAX_SIZE) return 0;
     if ((header->entry_arm11 && (section_arm11 < 0)) || (header->entry_arm9 && (section_arm9 < 0)))
-        return 1;
+        return 0;
     
-    return 0;
+    return firm_size;
+}
+
+u32 ValidateFirmHeader(FirmHeader* header, u32 data_size) {
+    u32 firm_size = GetFirmSize(header);
+    return (!firm_size || (data_size && (firm_size > data_size))) ? 1 : 0;
 }
 
 u32 ValidateFirmA9LHeader(FirmA9LHeader* header) {

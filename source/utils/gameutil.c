@@ -1413,7 +1413,7 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
 
 u32 ExtractCodeFromCxiFile(const char* path, const char* path_out) {
     u8* code = (u8*) TEMP_BUFFER;
-    u32 code_max_size = TEMP_BUFFER_SIZE;
+    u32 code_max_size = TEMP_BUFFER_EXTSIZE; // uses the extended temp buffer size
     
     NcchHeader ncch;
     NcchExtHeader exthdr;

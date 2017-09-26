@@ -1641,13 +1641,14 @@ u32 GodMode(bool is_b9s) {
     bool bootloader = !is_b9s && IS_SIGHAX && (boot_origin & BOOT_NAND);
     bool bootmenu = bootloader && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
-    FirmHeader* firm_in_mem = (FirmHeader*) DIR_BUFFER;
+    FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
     memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
         for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x24000000; addr += 0x400000) {
             if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
-            if (ValidateFirmHeader((FirmHeader*) (void*) addr, 0x100000) != 0) continue;
-            if (memcmp(firm_in_mem, "FIRM", 4) != 0) memmove(firm_in_mem, addr, 0x100000);
+            u32 firm_size = GetFirmSize((FirmHeader*) (void*) addr);
+            if (!firm_size || (firm_size > (0x400000 - 0x200))) continue;
+            if (memcmp(firm_in_mem, "FIRM", 4) != 0) memmove(firm_in_mem, addr, firm_size);
             if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
         }
     }
@@ -1735,7 +1736,7 @@ u32 GodMode(bool is_b9s) {
     }
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
-        if (ValidateFirm(firm_in_mem, 0x100000, false) == 0) BootFirm(firm_in_mem, "0:/bootonce.firm");
+        if (ValidateFirm(firm_in_mem, FIRM_MAX_SIZE, false) == 0) BootFirm(firm_in_mem, "0:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
