@@ -908,6 +908,10 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     // write back FIRM header
     fvx_lseek(&file, 0);
     memcpy(firm.dec_magic, dec_magic, sizeof(dec_magic));
+    // see: https://github.com/AuroraWright/Luma3DS/blob/master/source/firm.c#L349
+    // and: https://github.com/AuroraWright/Luma3DS/blob/master/source/firm.c#L424
+    // and: https://github.com/AuroraWright/Luma3DS/blob/master/source/firm.c#L463
+    firm.entry_arm9 = (firm.sections[3].offset) ?  0x801301C : 0x0801B01C;
     if (fvx_write(&file, &firm, sizeof(FirmHeader), &btr) != FR_OK) {
         fvx_close(&file);
         return 1;
