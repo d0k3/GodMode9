@@ -21,7 +21,7 @@
 
 #define NAME_FIRM_HEADER    "header.bin"
 #define NAME_FIRM_ARM9BIN   "arm9dec.bin"
-#define NAME_FIRM_SECTION   "section%lu.%s.bin" // number.arm9/.arm11
+#define NAME_FIRM_SECTION   "section%lu.%08lX.%s.bin" // number.address.arm9/.arm11
 #define NAME_FIRM_NCCH      "%016llX.%.8s%s" // name.title_id(.ext)
 
 #define NAME_CIA_HEADER     "header.bin"
@@ -565,9 +565,9 @@ bool BuildVGameFirmDir(void) {
     for (u32 i = 0; i < 4; i++) {
         FirmSectionHeader* section = firm->sections + i;
         if (!section->size) continue;
-        snprintf(templates[n].name, 32, NAME_FIRM_SECTION, i,
-            (section->method == FIRM_NDMA_CPY) ? "ndma.arm9"  :
-            (section->method == FIRM_XDMA_CPY) ? "xdma.arm11" :
+        snprintf(templates[n].name, 32, NAME_FIRM_SECTION, i, section->address,
+            (section->method == FIRM_NDMA_CPY) ? "ndma.a9"  :
+            (section->method == FIRM_XDMA_CPY) ? "xdma.a11" :
             (section->method == FIRM_CPU_MEMCPY) ? "memcpy" : "unknown");
         templates[n].offset = section->offset;
         templates[n].size = section->size;
@@ -576,7 +576,7 @@ bool BuildVGameFirmDir(void) {
         n++;
         if (section->method == FIRM_NDMA_CPY) { // ARM9 section, search for Process9
             u8* buffer = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-            u32 buffer_size = TEMP_BUFFER_SIZE/4;
+            u32 buffer_size = TEMP_BUFFER_SIZE/2;
             NcchHeader* p9_ncch;
             char name[8];
             u32 offset_p9 = 0;
