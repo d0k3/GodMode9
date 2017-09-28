@@ -108,6 +108,10 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
     if (installable && (header->reserved0[0]&0x1))
         return 1;
     
+    // Nintendo style entrypoints?
+    if (installable && ((header->entry_arm9 % 0x10) || (header->entry_arm11 % 0x10)))
+        return 1;
+    
     return 0;
 }
 
@@ -232,6 +236,7 @@ u32 DecryptFirm(void* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeade
 
 u32 DecryptFirmSequential(void* data, u32 offset, u32 size) {
     // warning: this will only work for sequential processing
+    // also, only for blocks aligned to 0x200 bytes
     // unexpected results otherwise
     static FirmHeader firm = { 0 };
     static FirmA9LHeader a9l = { 0 };

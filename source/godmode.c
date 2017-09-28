@@ -1432,7 +1432,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             optionstr[0] = "Install to FIRM0";
             optionstr[1] = "Install to FIRM1";
             optionstr[2] = "Install to both";
-            // this only works up to FIRM1;
+            // this only works up to FIRM1
             slots = ShowSelectPrompt(3, optionstr, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024);
         } else slots = ShowPrompt(true, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024) ? 1 : 0;
         if (slots) ShowPrompt(false, "%s (%dkB)\nInstall %s", pathstr, firm_size / 1024,
@@ -1644,7 +1644,7 @@ u32 GodMode(bool is_b9s) {
     FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
     memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
-        for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x24000000; addr += 0x400000) {
+        for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x22000000; addr += 0x400000) {
             if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
             u32 firm_size = GetFirmSize((FirmHeader*) (void*) addr);
             if (!firm_size || (firm_size > (0x400000 - 0x200))) continue;
@@ -1734,6 +1734,8 @@ u32 GodMode(bool is_b9s) {
             break;
         }
     }
+    
+    // bootloader handler
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
         if (ValidateFirm(firm_in_mem, FIRM_MAX_SIZE, false) == 0) BootFirm(firm_in_mem, "0:/bootonce.firm");
