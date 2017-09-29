@@ -723,8 +723,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     }
     else if (id == CMD_ID_BOOT) {
         size_t firm_size = FileGetData(argv[0], TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
-        ret = firm_size && (firm_size < TEMP_BUFFER_SIZE) &&
-            (ValidateFirm(TEMP_BUFFER, firm_size, false) == 0);
+        ret = firm_size && IsBootableFirm(TEMP_BUFFER, firm_size);
         if (ret) {
             char fixpath[256] = { 0 };
             if ((*argv[0] == '0') || (*argv[0] == '1'))

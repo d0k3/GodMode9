@@ -264,3 +264,24 @@ u32 DecryptFirmSequential(void* data, u32 offset, u32 size) {
     
     return (a9lptr) ? DecryptFirm(data, offset, size, firmptr, a9lptr) : 0;
 }
+
+u32 DecryptFirmFull(void* data, u32 size) {
+    // this expects the full FIRM being in memory
+    FirmHeader* firm = (FirmHeader*) data;
+    FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
+    if (ValidateFirmHeader(firm, size) != 0) return 1; // not a proper firm
+    if (!arm9s) return 0; // no ARM9 section -> not encrypted -> done
+    
+    FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) data + arm9s->offset);
+    if (ValidateFirmA9LHeader(a9l) != 0) return 0; // no ARM9bin -> not encrypted -> done
+    
+    // decrypt FIRM and ARM9loader header
+    if ((DecryptFirm(data, 0, size, firm, a9l) != 0) || (DecryptA9LHeader(a9l) != 0))
+        return 1;
+    
+    // fix ARM9 section SHA and ARM9 entrypoint
+    sha_quick(arm9s->hash, (u8*) data + arm9s->offset, arm9s->size, SHA256_MODE);
+    firm->entry_arm9 = ARM9ENTRY_FIX(firm);
+    
+    return 0;
+}

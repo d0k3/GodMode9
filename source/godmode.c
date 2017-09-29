@@ -768,19 +768,28 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     if (verbose && !ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024))
         return 1;
     
-    if ((FileGetData(bootpath, TEMP_BUFFER, firm_size, 0) != firm_size) ||
-        (ValidateFirm(TEMP_BUFFER, firm_size, false) != 0)) {
-        if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM", pathstr);
+    void* firm = (void*) TEMP_BUFFER;
+    if ((FileGetData(bootpath, firm, firm_size, 0) != firm_size) ||
+        !IsBootableFirm(firm, firm_size)) {
+        if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM.", pathstr);
         return 1;
     }
     
+    // encrypted firm handling
+    FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
+    FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) firm + arm9s->offset);
+    if (verbose && (ValidateFirmA9LHeader(a9l) == 0) &&
+        ShowPrompt(true, "%s\nFIRM is encrypted.\n \nDecrypt before boot?", pathstr) &&
+        (DecryptFirmFull(firm, firm_size) != 0))
+        return 1;
+        
     // unsupported location handling
     char fixpath[256] = { 0 };
     if (verbose && (*bootpath != '0') && (*bootpath != '1')) {
         const char* optionstr[2] = { "Make a copy at " OUTPUT_PATH "/temp.firm", "Try to boot anyways" };
-        u32 user_select = ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from\nan unsupported location.", pathstr);
+        u32 user_select = ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from an\nunsupported location.", pathstr);
         if (user_select == 1) {
-            FileSetData(OUTPUT_PATH "/temp.firm", TEMP_BUFFER, firm_size, 0, true);
+            FileSetData(OUTPUT_PATH "/temp.firm", firm, firm_size, 0, true);
             bootpath = OUTPUT_PATH "/temp.firm";
         } else if (!user_select) bootpath = "";
     }
@@ -793,7 +802,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     // boot the FIRM (if we got a proper fixpath)
     if (*fixpath) {
         if (delete) PathDelete(bootpath);
-        BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
+        BootFirm((FirmHeader*) firm, fixpath);
         while(1);
     }
     
@@ -836,8 +845,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool xorpadable = (FTYPE_XORPAD(filetype));
     bool keyinitable = (FTYPE_KEYINIT(filetype));
     bool scriptable = (FTYPE_SCRIPT(filetype));
-    bool bootable = (FTYPE_BOOTABLE(filetype) && !(drvtype & DRV_VIRTUAL));
-    bool installable = (FTYPE_INSTALLABLE(filetype) && !(drvtype & DRV_VIRTUAL));
+    bool bootable = (FTYPE_BOOTABLE(filetype));
+    bool installable = (FTYPE_INSTALLABLE(filetype));
     bool agbexportable = (FTPYE_AGBSAVE(filetype));
     bool agbimportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || bootable || scriptable || installable || agbexportable || agbimportable;
@@ -1738,7 +1747,7 @@ u32 GodMode(bool is_b9s) {
     // bootloader handler
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
-        if (ValidateFirm(firm_in_mem, FIRM_MAX_SIZE, false) == 0) BootFirm(firm_in_mem, "0:/bootonce.firm");
+        if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "0:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
