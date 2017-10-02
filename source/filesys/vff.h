@@ -3,7 +3,7 @@
 #include "common.h"
 #include "ff.h"
 
-#define AM_VRT 0x40	// Virtual (FILINFO FAT attribute)
+#define AM_VRT 0x40 // Virtual (FILINFO FAT attribute)
 
 #define fvx_tell(fp) ((fp)->fptr)
 #define fvx_size(fp) ((fp)->obj.objsize)

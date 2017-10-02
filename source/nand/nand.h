@@ -43,20 +43,20 @@ typedef struct {
 } __attribute__((packed)) NandPartitionInfo;
 
 typedef struct {
-	u32 offset;
-	u32 size;
+    u32 offset;
+    u32 size;
 } __attribute__((packed)) NandNcsdPartition;
 
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
 typedef struct {
-	u8  signature[0x100];
-	u8  magic[4];
-	u32 size;
-	u64 mediaId; // this is zero
-	u8  partitions_fs_type[8];
-	u8  partitions_crypto_type[8];
-	NandNcsdPartition partitions[8];
-	u8  unknown[0x5E];
+    u8  signature[0x100];
+    u8  magic[4];
+    u32 size;
+    u64 mediaId; // this is zero
+    u8  partitions_fs_type[8];
+    u8  partitions_crypto_type[8];
+    NandNcsdPartition partitions[8];
+    u8  unknown[0x5E];
     u8  twl_mbr[0x42];
 } __attribute__((packed)) NandNcsdHeader;
 

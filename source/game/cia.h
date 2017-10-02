@@ -10,7 +10,7 @@
 
 // see: https://www.3dbrew.org/wiki/CIA#Meta
 typedef struct {
-	u8  dependencies[0x180]; // from ExtHeader
+    u8  dependencies[0x180]; // from ExtHeader
     u8  reserved0[0x180];
     u32 core_version; // 2 normally
     u8  reserved1[0xFC];

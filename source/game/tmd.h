@@ -17,44 +17,44 @@
 
 // from: https://github.com/profi200/Project_CTR/blob/02159e17ee225de3f7c46ca195ff0f9ba3b3d3e4/ctrtool/tmd.h#L18-L59;
 typedef struct {
-	u8 id[4];
-	u8 index[2];
+    u8 id[4];
+    u8 index[2];
     u8 type[2];
     u8 size[8];
     u8 hash[0x20];
 } __attribute__((packed)) TmdContentChunk;
 
 typedef struct {
-	u8 index[2];
-	u8 cmd_count[2];
-	u8 hash[0x20];
+    u8 index[2];
+    u8 cmd_count[2];
+    u8 hash[0x20];
 } __attribute__((packed)) TmdContentInfo;
 
 typedef struct {
     u8 sig_type[4];
     u8 signature[0x100];
-	u8 padding[0x3C];
-	u8 issuer[0x40];
+    u8 padding[0x3C];
+    u8 issuer[0x40];
     u8 version;
     u8 ca_crl_version;
     u8 signer_crl_version;
-	u8 reserved0;
-	u8 system_version[8];
-	u8 title_id[8];
-	u8 title_type[4];
-	u8 group_id[2];
-	u8 save_size[4];
-	u8 twl_privsave_size[4];
-	u8 reserved1[4];
-	u8 twl_flag;
-	u8 reserved2[0x31];
-	u8 access_rights[4];
-	u8 title_version[2];
-	u8 content_count[2];
-	u8 boot_content[2];
-	u8 reserved3[2];
-	u8 contentinfo_hash[0x20];
-	TmdContentInfo contentinfo[64];
+    u8 reserved0;
+    u8 system_version[8];
+    u8 title_id[8];
+    u8 title_type[4];
+    u8 group_id[2];
+    u8 save_size[4];
+    u8 twl_privsave_size[4];
+    u8 reserved1[4];
+    u8 twl_flag;
+    u8 reserved2[0x31];
+    u8 access_rights[4];
+    u8 title_version[2];
+    u8 content_count[2];
+    u8 boot_content[2];
+    u8 reserved3[2];
+    u8 contentinfo_hash[0x20];
+    TmdContentInfo contentinfo[64];
 } __attribute__((packed)) TitleMetaData;
 
 u32 ValidateTmd(TitleMetaData* tmd);

@@ -15,7 +15,7 @@ typedef struct {
     u8  title_id[8];
     u8  titlekey[16];
     u8  ticket_id[8];
-	u8  console_id[4];
+    u8  console_id[4];
     u8  eshop_id[4];
 } __attribute__((packed)) TickDbEntry;
 

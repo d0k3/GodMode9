@@ -62,26 +62,26 @@ typedef struct {
     u8  rom_version;
     u8  autostart; // bit2: skip "press button" after Health & Safety
     u32 arm9_rom_offset;
-	u32 arm9_entry_address;
-	u32 arm9_ram_address;
-	u32 arm9_size;
-	u32 arm7_rom_offset;
-	u32 arm7_entry_address;
-	u32 arm7_ram_address;
-	u32 arm7_size;
+    u32 arm9_entry_address;
+    u32 arm9_ram_address;
+    u32 arm9_size;
+    u32 arm7_rom_offset;
+    u32 arm7_entry_address;
+    u32 arm7_ram_address;
+    u32 arm7_size;
     u32 fnt_offset;
     u32 fnt_size;
     u32 fat_offset;
     u32 fat_size;
     u32 arm9_overlay_offset;
-	u32 arm9_overlay_size;
-	u32 arm7_overlay_offset;
-	u32 arm7_overlay_size;
-	u32 rom_control_normal; // 0x00416657 for OneTimePROM
-	u32 rom_control_key1; // 0x081808F8 for OneTimePROM
-	u32 icon_offset;
-	u16 secure_area_crc;
-	u16 secure_area_delay;
+    u32 arm9_overlay_size;
+    u32 arm7_overlay_offset;
+    u32 arm7_overlay_size;
+    u32 rom_control_normal; // 0x00416657 for OneTimePROM
+    u32 rom_control_key1; // 0x081808F8 for OneTimePROM
+    u32 icon_offset;
+    u16 secure_area_crc;
+    u16 secure_area_delay;
     u32 arm9_auto_load;
     u32 arm7_auto_load;
     u64 secure_area_disable;

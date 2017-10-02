@@ -22,7 +22,7 @@
 
 // see: http://3dbrew.org/wiki/3DS_Virtual_Console#NAND_Savegame
 typedef struct {
-	u8  magic[4]; // ".SAV"
+    u8  magic[4]; // ".SAV"
     u8  reserved0[0xC]; // always 0xFF
     u8  cmac[0x10];
     u8  reserved1[0x10]; // always 0xFF
