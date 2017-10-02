@@ -861,7 +861,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         if (ar) memcpy(txtstr + p_ar, ar_str, strnlen(ar_str, 16));
         
         // draw line number & text
-        DrawStringF(TOP_SCREEN, x_txt, y, color_text, COLOR_STD_BG, txtstr);
+        DrawString(TOP_SCREEN, txtstr, x_txt, y, color_text, COLOR_STD_BG);
         if (TV_LNOS > 0) { // line number
             if (ptr != ptr_next)
                 DrawStringF(TOP_SCREEN, x_lno, y, ((ptr == text) || (*(ptr-1) == '\n')) ? COLOR_TVOFFS : COLOR_TVOFFSL, COLOR_STD_BG, "%0*lu", TV_LNOS, nln);
@@ -871,7 +871,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         // colorize comment if is_script
         if ((cmt_start > 0) && (cmt_start < TV_LLEN_DISP)) {
             memset(txtstr, ' ', cmt_start);
-            DrawStringF(TOP_SCREEN, x_txt, y, script_color_comment, COLOR_TRANSPARENT, txtstr);
+            DrawString(TOP_SCREEN, txtstr, x_txt, y, script_color_comment, COLOR_TRANSPARENT);
         }
         
         // colorize arrows
