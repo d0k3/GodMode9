@@ -135,6 +135,10 @@ u32 DumpGbaVcSavegame(const char* path) {
             *(u64*) (void*) ptr = getbe64(ptr);
     }
     
+    // ensure the output dir exists
+    if (fvx_rmkdir(OUTPUT_PATH) != FR_OK)
+        return 1;
+    
     // generate output path
     char path_vcsav[64];
     snprintf(path_vcsav, 64, OUTPUT_PATH "/%016llX.gbavc.sav", agbsave->title_id);
