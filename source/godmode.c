@@ -31,6 +31,12 @@
 #ifdef AUTORUN_SCRIPT
 #include "autorun_gm9.h"
 #endif
+#ifdef HARDCODE_README
+#include "README_md.h"
+#else
+#define README_md NULL
+#define README_md_size 0
+#endif
 
 #define N_PANES 2
 
@@ -1490,6 +1496,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
     int sysinfo = ++n_opt;
+    int readme = (README_md != NULL) ? (int) ++n_opt : -1;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1498,6 +1505,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
     if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
+    if (readme > 0) optionstr[readme - 1] = "Show ReadMe";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1598,7 +1606,11 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
     else if (user_select == sysinfo) { // Myria's system info
         char* sysinfo_txt = (char*) TEMP_BUFFER;
         MyriaSysinfo(sysinfo_txt);
-        MemTextViewer(sysinfo_txt, strnlen(sysinfo_txt, TEMP_BUFFER_SIZE), false);
+        MemTextViewer(sysinfo_txt, strnlen(sysinfo_txt, TEMP_BUFFER_SIZE), 1, false);
+        return 0;
+    }
+    else if (user_select == readme) { // Display GodMode9 readme
+        MemToCViewer((const char*) README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
     } else return 1;
     

@@ -884,8 +884,8 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
     }
 }
 
-bool MemTextViewer(const char* text, u32 len, bool as_script) {
-    u32 ww = 0;
+bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
+    u32 ww = TV_LLEN_DISP;
     
     // check if this really is text
     if (!ValidateText(text, len)) {
@@ -921,6 +921,7 @@ bool MemTextViewer(const char* text, u32 len, bool as_script) {
     char* line0 = (char*) text;
     int lcurr = 1;
     int off_disp = 0;
+    for (; lcurr < (int) start; line0 = line_seek(text, len, 0, line0, 1), lcurr++);
     while (true) {
         // display text on screen
         MemTextView(text, len, line0, off_disp, lcurr, ww, 0, as_script);
@@ -967,6 +968,81 @@ bool MemTextViewer(const char* text, u32 len, bool as_script) {
     return true;
 }
 
+// right now really only intended for use with the GodMode9 readme
+// (misses safety checks for wider compatibility)
+bool MemToCViewer(const char* text, u32 len, const char* title) {
+    const u32 max_captions = 24; // we assume this is enough
+    char* captions[max_captions];
+    u32 lineno[max_captions];
+    u32 ww = TV_LLEN_DISP;
+    
+    // check if this really is text
+    if (!ValidateText(text, len)) {
+        ShowPrompt(false, "Error: Invalid text data");
+        return false;
+    }
+    
+    // clear screens / view start of readme on top
+    script_color_active = COLOR_TVRUN;
+    ClearScreenF(true, true, COLOR_STD_BG);
+    MemTextView(text, len, (char*) text, 0, 1, ww, 0, false);
+    
+    // parse text for markdown captions
+    u32 n_captions = 0;
+    char* ptr = (char*) text;
+    for (u32 lno = 1;; lno++) {
+        char* ptr_next = line_seek(text, len, 0, ptr, 1);
+        if (ptr == ptr_next) break;
+        if (*ptr == '#') {
+            captions[n_captions] = ptr;
+            lineno[n_captions] = lno;
+            if ((lno > 1) && (++n_captions >= max_captions)) break;
+        }
+        ptr = ptr_next;
+    }
+    
+    int cursor = -1;
+    while (true) {
+        // display ToC
+        u32 y0 = TV_VPAD;
+        u32 x0 = (SCREEN_WIDTH_BOT - GetDrawStringWidth(title)) / 2;
+        DrawStringF(BOT_SCREEN, x0, y0, COLOR_TVTEXT, COLOR_STD_BG, "%s\n%*.*s", title,
+            strnlen(title, 40), strnlen(title, 40), "========================================");
+        y0 += 2 * (FONT_HEIGHT_EXT + (2*TV_VPAD));
+        for (u32 i = 0; (i < n_captions) && (y0 < SCREEN_HEIGHT); i++) {
+            u32 text_color = ((int) i == cursor) ? COLOR_TVRUN : COLOR_TVTEXT;
+            char* caption = captions[i];
+            u32 len = 0;
+            u32 lvl = 0;
+            for (; *caption == '#'; caption++, lvl++);
+            for (; IS_WHITESPACE(*caption); caption++);
+            for (; caption[len] != '\n' && caption[len] != '\r'; len++);
+            DrawStringF(BOT_SCREEN, x0 + (lvl-1) * (FONT_WIDTH_EXT/2), y0, text_color, COLOR_STD_BG,
+                "%*.*s", len, len, caption);
+            y0 += FONT_HEIGHT_EXT + (2*TV_VPAD);
+        }
+        
+        // handle user input
+        u32 pad_state = InputWait(0);
+        if ((cursor >= 0) && (pad_state & BUTTON_A)) {
+            return MemTextViewer(text, len, lineno[cursor], false);
+        } else if (pad_state & BUTTON_B) {
+            break;
+        } else if (pad_state & BUTTON_UP) {
+            cursor = (cursor <= 0) ? ((int) n_captions - 1) : cursor - 1;
+            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false);
+        } else if (pad_state & BUTTON_DOWN) {
+            if (++cursor >= (int) n_captions) cursor = 0;
+            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false);
+        }
+    }
+    
+    // clear screens
+    ClearScreenF(true, true, COLOR_STD_BG);
+    
+    return true;
+}
+
 bool FileTextViewer(const char* path, bool as_script) {
     // load text file (completely into memory)
     char* text = (char*) TEMP_BUFFER;
@@ -975,7 +1051,7 @@ bool FileTextViewer(const char* path, bool as_script) {
     for (len = 0; (len < flen) && text[len]; len++);
     
     // let MemTextViewer take over
-    return MemTextViewer(text, len, as_script);
+    return MemTextViewer(text, len, 1, as_script);
 }
 
 bool ExecuteGM9Script(const char* path_script) {
