@@ -504,7 +504,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     // process arg0 @string
     u64 at_org = 0;
     u64 sz_org = 0;
-    if ((id == CMD_ID_SHA) || (id == CMD_ID_INJECT)) {
+    if ((id == CMD_ID_SHA) || (id == CMD_ID_SHAGET) || (id == CMD_ID_INJECT)) {
         char* atstr_org = strrchr(argv[0], '@');
         if (atstr_org) {
             *(atstr_org++) = '\0';
