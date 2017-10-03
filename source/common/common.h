@@ -46,7 +46,7 @@
 #endif
 
 // input / output paths
-#define SUPPORT_PATHS   "0:/gm9/support", "0:", "0:/files9" // legacy paths
+#define SUPPORT_PATH    "0:/gm9/support"
 #define SCRIPT_PATH     "0:/gm9/scripts"
 #define PAYLOAD_PATH    "0:/gm9/payloads"
 #define OUTPUT_PATH     "0:/gm9/out"

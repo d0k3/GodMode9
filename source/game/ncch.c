@@ -108,26 +108,22 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     }
     
     // not found -> try seeddb.bin
-    const char* base[] = { SUPPORT_PATHS };
-    for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
+    if (f_open(&file, SUPPORT_PATH "/" SEEDDB_NAME, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
         SeedInfo* seeddb = (SeedInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-        snprintf(path, 128, "%s/%s", base[i], SEEDDB_NAME);
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            continue;
         f_read(&file, seeddb, TEMP_BUFFER_SIZE / 2, &btr);
         f_close(&file);
-        if (seeddb->n_entries > (btr - 16) / 32)
-            continue; // filesize / seeddb size mismatch
-        for (u32 s = 0; s < seeddb->n_entries; s++) {
-            if (titleId != seeddb->entries[s].titleId)
-                continue;
-            memcpy(lseed, seeddb->entries[s].seed, 16);
-            sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
-            if (hash_seed == sha256sum[0]) {
-                memcpy(seed, lseed, 16);
-                return 0; // found!
+        if (seeddb->n_entries <= (btr - 16) / 32) { // check filesize / seeddb size
+            for (u32 s = 0; s < seeddb->n_entries; s++) {
+                if (titleId != seeddb->entries[s].titleId)
+                    continue;
+                memcpy(lseed, seeddb->entries[s].seed, 16);
+                sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
+                if (hash_seed == sha256sum[0]) {
+                    memcpy(seed, lseed, 16);
+                    return 0; // found!
+                }
             }
-        } 
+        }
     }
     
     // out of options -> failed!

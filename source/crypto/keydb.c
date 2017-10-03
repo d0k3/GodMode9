@@ -128,15 +128,9 @@ u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
         if (fsize) memcpy(keydb, aeskeydb_bin, aeskeydb_bin_size);
         #else
         // try to load aeskeydb.bin file
-        const char* base[] = { SUPPORT_PATHS };
-        for (u32 i = 0; i < (sizeof(base)/sizeof(char*)); i++) {
-            char path[64];
-            snprintf(path, 64, "%s/%s", base[i], KEYDB_NAME);
-            if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-                if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize)) fsize = 0;
-                f_close(&fp);
-                break;
-            }
+        if (f_open(&fp, SUPPORT_PATH "/" KEYDB_NAME, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
+            if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize)) fsize = 0;
+            f_close(&fp);
         }
         #endif
     }
@@ -149,7 +143,6 @@ u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
 
 u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
 {
-    const char* base[] = { SUPPORT_PATHS };
     u8 keystore[16] __attribute__((aligned(32))) = {0};
     bool found = false;
     
@@ -181,15 +174,13 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
     
     // load legacy slot0x??Key?.bin file instead
     if (!found && (type != 'I')) {
-        for (u32 i = 0; !found && (i < (sizeof(base)/sizeof(char*))); i++) {
-            FIL fp;
-            char path[64];
-            UINT btr;
-            snprintf(path, 64, "%s/slot0x%02lXKey%s%s.bin", base[i], keyslot,
-                (type == 'X') ? "X" : (type == 'Y') ? "Y" : (type == 'I') ? "IV" : "", (id) ? id : "");
-            if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) continue;
-            if ((f_read(&fp, key, 16, &btr) == FR_OK) && (btr == 16))
-                found = true;
+        char path[64];
+        FIL fp;
+        UINT btr;
+        snprintf(path, 64, "%s/slot0x%02lXKey%s%s.bin", SUPPORT_PATH, keyslot,
+            (type == 'X') ? "X" : (type == 'Y') ? "Y" : (type == 'I') ? "IV" : "", (id) ? id : "");
+        if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
+            found = ((f_read(&fp, key, 16, &btr) == FR_OK) && (btr == 16));
             f_close(&fp);
         }
     }

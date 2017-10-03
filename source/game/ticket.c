@@ -105,31 +105,27 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
     // when found, add it to the ticket
     for (u32 enc = 0; (enc <= 1) && !found; enc++) {
-        const char* base[] = { SUPPORT_PATHS };
-        for (u32 i = 0; (i < (sizeof(base)/sizeof(char*))) && !found; i++) {
-            TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-            char path[64];
-            FIL file;
-            UINT btr;
-            
-            snprintf(path, 64, "%s/%s", base[i], (enc) ? TIKDB_NAME_ENC : TIKDB_NAME_DEC);
-            if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
+        const char* path = (enc) ? SUPPORT_PATH "/" TIKDB_NAME_ENC : SUPPORT_PATH "/" TIKDB_NAME_DEC;
+        FIL file;
+        UINT btr;
+        
+        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+            continue;
+        f_read(&file, tikdb, TEMP_BUFFER_SIZE / 2, &btr);
+        f_close(&file);
+        if (tikdb->n_entries > (btr - 16) / 32)
+            continue; // filesize / titlekey db size mismatch
+        for (u32 t = 0; t < tikdb->n_entries; t++) {
+            TitleKeyEntry* tik = tikdb->entries + t;
+            if (memcmp(title_id, tik->title_id, 8) != 0)
                 continue;
-            f_read(&file, tikdb, TEMP_BUFFER_SIZE / 2, &btr);
-            f_close(&file);
-            if (tikdb->n_entries > (btr - 16) / 32)
-                continue; // filesize / titlekey db size mismatch
-            for (u32 t = 0; t < tikdb->n_entries; t++) {
-                TitleKeyEntry* tik = tikdb->entries + t;
-                if (memcmp(title_id, tik->title_id, 8) != 0)
-                    continue;
-                if (!enc && (CryptTitleKey(tik, true, TICKET_DEVKIT(ticket)) != 0)) // encrypt the key first
-                    continue;
-                memcpy(ticket->titlekey, tik->titlekey, 16);
-                ticket->commonkey_idx = tik->commonkey_idx;
-                found = true; // found, inserted
-                break;
-            } 
+            if (!enc && (CryptTitleKey(tik, true, TICKET_DEVKIT(ticket)) != 0)) // encrypt the key first
+                continue;
+            memcpy(ticket->titlekey, tik->titlekey, 16);
+            ticket->commonkey_idx = tik->commonkey_idx;
+            found = true; // found, inserted
+            break;
         }
     }
     
