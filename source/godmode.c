@@ -27,6 +27,7 @@
 #include "rtc.h"
 #include "power.h"
 #include "vff.h"
+
 #include QLZ_SPLASH_H
 #ifdef AUTORUN_SCRIPT
 #include "autorun_gm9.h"
@@ -57,6 +58,10 @@
 #define BOOTMENU_KEY    BUTTON_R1|BUTTON_LEFT
 #define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm"
 #define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
+
+#ifdef SALTMODE // ShadowHand's own bootmenu key override
+#define BOOTMENU_KEY    BUTTON_START
+#endif
 
 typedef struct {
     char path[256];
@@ -1680,10 +1685,17 @@ u32 GodMode(bool is_b9s) {
     else if (!is_b9s && !IS_SIGHAX) disp_mode = "oldloader mode";
     else if (!is_b9s && IS_SIGHAX && (boot_origin & BOOT_NTRBOOT)) disp_mode = "ntrboot mode";
     // else if (!is_b9s || !IS_SIGHAX) disp_mode = "unknown mode";
+	
+	bool show_splash = true;
+	#ifdef SALTMODE
+	if (bootmenu) disp_mode = "bootmenu mode";
+    show_splash = show_splash && bootmenu;
+    #endif
     
+	// show splash screen (if enabled)
     ClearScreenF(true, true, COLOR_STD_BG);
-    SplashInit(disp_mode);
-    u64 timer = timer_start(); // show splash
+    if (show_splash) SplashInit(disp_mode);
+    u64 timer = timer_start(); // for splash delay
     
     if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {
         ShowPrompt(false, "Out of memory!"); // just to be safe
@@ -1724,12 +1736,11 @@ u32 GodMode(bool is_b9s) {
         ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
     }
     
-    #ifndef AL3X10MODE
+    #if !defined(AL3X10MODE) && !defined(SALTMODE)
     bootmenu = bootmenu || (bootloader && CheckButton(BOOTMENU_KEY)); // second check for boot menu keys
     while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
     #endif
-    while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
-    
+    if (show_splash) while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
     // bootmenu handler
     if (bootmenu) {
