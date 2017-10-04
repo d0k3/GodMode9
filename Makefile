@@ -60,6 +60,10 @@ ifeq ($(AL3X10MODE),1)
 	CFLAGS += -DAL3X10MODE
 endif
 
+ifeq ($(SALTMODE),1)
+	CFLAGS += -DSALTMODE
+endif
+
 ifeq ($(SWITCH_SCREENS),1)
 	CFLAGS += -DSWITCH_SCREENS
 endif
