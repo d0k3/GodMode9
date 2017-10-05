@@ -36,12 +36,12 @@
 #define TV_LLEN_DISP    (((SCREEN_WIDTH_TOP - (2*TV_HPAD)) / FONT_WIDTH_EXT) - (TV_LNOS + 1))
 
 // text viewer colors
-#define COLOR_TVOFFS    RGB(0x40, 0x60, 0x50)
-#define COLOR_TVOFFSL   RGB(0x20, 0x40, 0x30)
-#define COLOR_TVTEXT    RGB(0x30, 0x85, 0x30)
+#define COLOR_TVOFFS    RGB(0x40, 0x40, 0x40)
+#define COLOR_TVOFFSL   RGB(0x30, 0x30, 0x30)
+#define COLOR_TVTEXT    RGB(0xA0, 0xA0, 0xA0)
 #define COLOR_TVRUN     RGB(0xC0, 0x00, 0x00)
-#define COLOR_TVCMT     RGB(0x10, 0x40, 0x10)
-#define COLOR_TVCMD     RGB(0x30, 0x85, 0x45)
+#define COLOR_TVCMT     RGB(0x60, 0x60, 0x70)
+#define COLOR_TVCMD     RGB(0xA0, 0xA0, 0xA0)
 
 
 // some useful macros
@@ -983,7 +983,6 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
     }
     
     // clear screens / view start of readme on top
-    script_color_active = COLOR_TVRUN;
     ClearScreenF(true, true, COLOR_STD_BG);
     MemTextView(text, len, (char*) text, 0, 1, ww, 0, false);
     
