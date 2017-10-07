@@ -206,6 +206,12 @@ verify S:/firm1.bin
 # -l / --legit force CIA to be legit (only works for legit system installed titles)
 # buildcia 0:/x.ncch
 
+# 'unzip' COMMAND
+# You can extract noncompressed zip file. Use 'unzip' to do so.
+# -w / --overwite forces overwrite on existing files
+# -k / --skip forces skip on existing files
+# unzip 0:/test.zip 0:/testdir
+
 # 'boot' COMMAND
 # Use this command to chainload a compatible FIRM
 # boot 0:/boot.firm

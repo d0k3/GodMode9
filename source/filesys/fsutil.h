@@ -12,6 +12,8 @@
 #define ASK_ALL         (1UL<<6)
 #define SKIP_ALL        (1UL<<7)
 #define OVERWRITE_ALL   (1UL<<8)
+#define SKIP_CUR        (1UL<<9)
+#define OVERWRITE_CUR   (1UL<<10)
 
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();
