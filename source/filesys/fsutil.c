@@ -11,8 +11,6 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<< 9)
-#define OVERWRITE_CUR   (1UL<<10)
 
 #define _MAX_FS_OPT     8 // max file selector options
 
