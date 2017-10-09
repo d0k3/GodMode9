@@ -60,6 +60,7 @@
 #define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
 
 #ifdef SALTMODE // ShadowHand's own bootmenu key override
+#undef  BOOTMENU_KEY
 #define BOOTMENU_KEY    BUTTON_START
 #endif
 
@@ -387,12 +388,12 @@ u32 FileHexViewer(const char* path) {
     u8* bottom_cpy = TEMP_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
     u32 fsize = FileGetSize(path);
     
-    bool dual_screen;
-    int x_off, x_hex, x_ascii;
-    u32 vpad, hlpad, hrpad;
-    u32 rows, cols;
-    u32 total_shown;
-    u32 total_data;
+    bool dual_screen = 0;
+    int x_off = 0, x_hex = 0, x_ascii = 0;
+    u32 vpad = 0, hlpad = 0, hrpad = 0;
+    u32 rows = 0, cols = 0;
+    u32 total_shown = 0;
+    u32 total_data = 0;
     
     u32 last_mode = 0xFF;
     u32 last_offset = (u32) -1;
@@ -405,7 +406,7 @@ u32 FileHexViewer(const char* path) {
     bool edit_mode = false;
     u8* edit_buffer = TEMP_BUFFER;
     u8* edit_buffer_cpy = TEMP_BUFFER + edit_bsize;
-    u32 edit_start;
+    u32 edit_start = 0;
     int cursor = 0;
     
     static bool show_instr = true;
@@ -1681,7 +1682,7 @@ u32 GodMode(bool is_b9s) {
     
     // get mode string for splash screen
     const char* disp_mode = NULL;
-    if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
+	if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
     else if (!is_b9s && !IS_SIGHAX) disp_mode = "oldloader mode";
     else if (!is_b9s && IS_SIGHAX && (boot_origin & BOOT_NTRBOOT)) disp_mode = "ntrboot mode";
     // else if (!is_b9s || !IS_SIGHAX) disp_mode = "unknown mode";

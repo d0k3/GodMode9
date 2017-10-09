@@ -909,7 +909,7 @@ bool ReadVGameDirNitro(VirtualFile* vfile, VirtualDir* vdir) {
 }
     
 bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
-    VirtualFile* templates;
+    VirtualFile* templates = NULL;
     int n = 0;
     
     if (vdir->flags & VFLAG_FIRM) {

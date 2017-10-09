@@ -28,7 +28,7 @@ INCLUDES	:=	common source source/common source/font source/filesys source/crypto
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-DARM9 -march=armv5te -mthumb -mthumb-interwork -flto
+ARCH	:=	-DARM9 -march=armv5te -mthumb -mthumb-interwork
 
 ASFLAGS	:=	$(ARCH) -g -x assembler-with-cpp $(INCLUDE)
 CFLAGS	:=	$(ARCH) -g -Wall -Wextra -Wpedantic -Wcast-align -Wno-main -O2 \

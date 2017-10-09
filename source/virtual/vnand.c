@@ -63,7 +63,7 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
             prt_info.keyslot = 0xFF;
         } else if (GetNandPartitionInfo(&prt_info, template->type, template->subtype, template->index, nand_src) != 0)
             continue;
-        snprintf(vfile->name, 32, "%s%s", template->name, (nand_src == VRT_XORPAD) ? ".xorpad" : "");
+        snprintf(vfile->name, 32, "%.24s%s", template->name, (nand_src == VRT_XORPAD) ? ".xorpad" : "");
         vfile->offset = ((u64) prt_info.sector) * 0x200;
         vfile->size = ((u64) prt_info.count) * 0x200;
         vfile->keyslot = prt_info.keyslot;

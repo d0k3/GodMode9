@@ -52,7 +52,7 @@ u32 AddTickDbInfo(TickDbInfo* info, Ticket* ticket, u32 offset) {
     for (; t < info->n_entries; t++) {
         TickDbEntry* entry0 = info->entries + t;
         if (memcmp(entry->title_id, entry0->title_id, 8) != 0) continue;
-        if (!getbe64(entry0->console_id)) // replace this
+        if (!getbe32(entry0->console_id)) // replace this
             memcpy(entry0, entry, sizeof(TickDbEntry));
         break;
     }

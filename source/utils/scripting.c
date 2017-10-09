@@ -844,7 +844,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         bool ar = !ww && ((int) llen > off_disp + TV_LLEN_DISP);
         
         // set text color / find start of comment of scripts
-        u32 color_text = (nln == mno) ? script_color_active : (is_script) ? script_color_code : COLOR_TVTEXT;
+        u32 color_text = (nln == mno) ? script_color_active : (is_script) ? script_color_code : (u32) COLOR_TVTEXT;
         int cmt_start = TV_LLEN_DISP; // start of comment in current displayed line (may be negative)
         if (is_script && (nln != mno)) {
             char* hash = line_seek(text, len, 0, ptr, 0);
