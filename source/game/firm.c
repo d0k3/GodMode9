@@ -133,18 +133,29 @@ u32 GetArm9BinarySize(FirmA9LHeader* a9l) {
 }
 
 u32 SetupSecretKey(u32 keynum) {
-    // try to get key from sector 0x96
     static u8 __attribute__((aligned(32))) sector[0x200];
-    ReadNandSectors(sector, 0x96, 1, 0x11, NAND_SYSNAND);
-    if ((keynum < 0x200/0x10) && (ValidateSecretSector(sector) == 0)) {
-        setup_aeskey(0x11, sector + (keynum*0x10));
+    static u32 got_keys = 0;
+    u8* key = sector + (keynum*0x10);
+    
+    if (keynum >= 0x200/0x10)
+        return 1; // safety
+    
+    // try to load full secret sector or key from file
+    if (!(got_keys & (0x1<<keynum))) {
+        ReadNandSectors(sector, 0x96, 1, 0x11, NAND_SYSNAND);
+        if (ValidateSecretSector(sector) == 0) {
+            got_keys = 0xFFFFFFFF; // => got them all
+        } else if ((keynum < 2) && (LoadKeyFromFile(key, 0x11, 'N', (keynum == 0) ? "95" : "96"))) {
+            got_keys |= (0x1<<keynum); // got at least this one
+        }
+    }
+    
+    // setup the key
+    if (got_keys & (0x1<<keynum)) {
+        setup_aeskey(0x11, key);
         use_aeskey(0x11);
         return 0;
     }
-    
-    // try to load from key database
-    if ((keynum < 2) && (LoadKeyFromFile(NULL, 0x11, 'N', (keynum == 0) ? "95" : "96")))
-        return 0; // key found in keydb, done
     
     // out of options
     return 1;
