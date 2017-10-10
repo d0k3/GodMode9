@@ -1666,7 +1666,7 @@ u32 GodMode(bool is_b9s) {
     
     u32 boot_origin = GetBootOrigin();
     bool bootloader = !is_b9s && IS_SIGHAX && (boot_origin & BOOT_NAND);
-    bool bootmenu = bootloader && CheckButton(BOOTMENU_KEY);
+    bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
     FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
     memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
@@ -1689,8 +1689,7 @@ u32 GodMode(bool is_b9s) {
 	
 	bool show_splash = true;
 	#ifdef SALTMODE
-	if (bootmenu) disp_mode = "bootmenu mode";
-    show_splash = show_splash && bootmenu;
+    show_splash = !bootloader;
     #endif
     
 	// show splash screen (if enabled)
@@ -1737,7 +1736,10 @@ u32 GodMode(bool is_b9s) {
         ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
     }
     
-    #if !defined(AL3X10MODE) && !defined(SALTMODE)
+    #if defined(SALTMODE)
+    show_splash = bootmenu = (bootloader && CheckButton(BOOTMENU_KEY));
+    if (show_splash) SplashInit("saltmode");
+    #elif !defined(AL3X10MODE) // standard behaviour
     bootmenu = bootmenu || (bootloader && CheckButton(BOOTMENU_KEY)); // second check for boot menu keys
     while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
     #endif
