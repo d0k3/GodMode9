@@ -860,7 +860,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     bool bootable = (FTYPE_BOOTABLE(filetype));
     bool installable = (FTYPE_INSTALLABLE(filetype));
     bool agbexportable = (FTPYE_AGBSAVE(filetype));
-    bool agbimportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool agbimportable = (FTPYE_AGBSAVE(filetype));
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || bootable || scriptable || installable || agbexportable || agbimportable;
     
     char pathstr[32+1];
@@ -1771,7 +1771,7 @@ u32 GodMode(bool is_b9s) {
     // bootloader handler
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
-        if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "0:/bootonce.firm");
+        if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
