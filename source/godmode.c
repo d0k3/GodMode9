@@ -1106,7 +1106,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowPrompt(false, "Mounting image: failed");
             InitImgFS(NULL);
         } else { // open in next pane?
-            if (ShowPrompt(true, "%s\nMounted as drive %s\Enter path now?", pathstr, drv_path)) {
+            if (ShowPrompt(true, "%s\nMounted as drive %s\nEnter path now?", pathstr, drv_path)) {
                 if (N_PANES) {
                     memcpy((*pane)->path, current_path, 256);  // store current pane state
                     (*pane)->cursor = *cursor;
