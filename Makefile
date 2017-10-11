@@ -68,6 +68,10 @@ ifeq ($(SWITCH_SCREENS),1)
 	CFLAGS += -DSWITCH_SCREENS
 endif
 
+ifeq ($(DISABLE_SLIDER),1)
+	CFLAGS += -DDISABLE_SLIDER
+endif
+
 ifneq ("$(wildcard $(CURDIR)/../$(DATA)/README.md)","")
 	CFLAGS += -DHARDCODE_README
 endif
