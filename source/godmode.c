@@ -55,7 +55,7 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
-#define BOOTMENU_KEY    BUTTON_R1|BUTTON_LEFT
+#define BOOTMENU_KEY    (BUTTON_R1|BUTTON_LEFT)
 #define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm"
 #define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
 
@@ -69,6 +69,12 @@ typedef struct {
     u32 cursor;
     u32 scroll;
 } PaneData;
+
+// reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
+static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
+static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
+static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
+
 
 void GetTimeString(char* timestr, bool forced_update, bool full_year) {
     static DsTime dstime;
@@ -181,7 +187,7 @@ void DrawTopBar(const char* curr_path) {
     }
 }
 
-void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, DirStruct* clipboard, u32 curr_pane) {
+void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pane) {
     const u32 n_cb_show = 8;
     const u32 info_start = (MAIN_SCREEN == TOP_SCREEN) ? 18 : 2; // leave space for the topbar when required
     const u32 instr_x = (SCREEN_WIDTH_MAIN - (34*FONT_WIDTH_EXT)) / 2;
@@ -728,7 +734,7 @@ u32 CmacCalculator(const char* path) {
     return 0;
 }
 
-u32 StandardCopy(u32* cursor, u32* scroll, DirStruct* current_dir) {
+u32 StandardCopy(u32* cursor, u32* scroll) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     u32 n_marked = 0;
     if (curr_entry->marked) {
@@ -822,7 +828,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     return 1;
 }
 
-u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* current_dir, DirStruct* clipboard) {
+u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pane) {
     DirEntry* curr_entry = &(current_dir->entry[*cursor]);
     const char* optionstr[16];
     
@@ -977,7 +983,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
             }
             return 0;
         }
-        return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
+        return FileHandlerMenu(current_path, cursor, scroll, pane);
     }
     else if (user_select == fileinfo) { // -> show file info
         FILINFO fno;
@@ -998,7 +1004,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         return 0;
     }
     else if (user_select == copystd) { // -> copy to OUTPUT_PATH
-        StandardCopy(cursor, scroll, current_dir);
+        StandardCopy(cursor, scroll);
         return 0;
     }
     else if (user_select == inject) { // -> inject data from clipboard
@@ -1085,24 +1091,33 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
     user_select = (n_opt <= 1) ? n_opt : (int) ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
         "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
     if (user_select == mount) { // -> mount file as image
+        const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:" }; // maybe move that to fsdrive.h
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
         InitImgFS(curr_entry->path);
-        if (!(DriveType("7:")||DriveType("G:")||DriveType("K:")||DriveType("T:"))) {
+        
+        const char* drv_path = NULL; // find path of mounted drive
+        for (u32 i = 0; i < (sizeof(mnt_drv_paths) / sizeof(const char*)); i++) {
+            if (DriveType((drv_path = mnt_drv_paths[i]))) break;
+            drv_path = NULL;
+        }
+        
+        if (!drv_path) {
             ShowPrompt(false, "Mounting image: failed");
             InitImgFS(NULL);
-        } else {
-            *cursor = 0;
-            *current_path = '\0';
-            GetDirContents(current_dir, current_path);
-            for (u32 i = 0; i < current_dir->n_entries; i++) {
-                if (strspn(current_dir->entry[i].path, "7GKTI") == 0)
-                    continue;
-                strncpy(current_path, current_dir->entry[i].path, 256);
+        } else { // open in next pane?
+            if (ShowPrompt(true, "%s\nMounted as drive %s\Enter path now?", pathstr, drv_path)) {
+                if (N_PANES) {
+                    memcpy((*pane)->path, current_path, 256);  // store current pane state
+                    (*pane)->cursor = *cursor;
+                    (*pane)->scroll = *scroll;
+                    if (++*pane >= panedata + N_PANES) *pane -= N_PANES;
+                }
+                
+                strncpy(current_path, drv_path, 256);
                 GetDirContents(current_dir, current_path);
                 *cursor = 1;
                 *scroll = 0;
-                break;
             }
         }
         return 0;
@@ -1485,10 +1500,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, DirStruct* cur
         return 0;
     }
     
-    return FileHandlerMenu(current_path, cursor, scroll, current_dir, clipboard);
+    return FileHandlerMenu(current_path, cursor, scroll, pane);
 }
 
-u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboard) {
+u32 HomeMoreMenu(char* current_path) {
     NandPartitionInfo np_info;
     if (GetNandPartitionInfo(&np_info, NP_TYPE_BONUS, NP_SUBTYPE_CTR, 0, NAND_SYSNAND) != 0) np_info.count = 0;
     
@@ -1620,7 +1635,7 @@ u32 HomeMoreMenu(char* current_path, DirStruct* current_dir, DirStruct* clipboar
         return 0;
     } else return 1;
     
-    return HomeMoreMenu(current_path, current_dir, clipboard);
+    return HomeMoreMenu(current_path);
 }
 
 u32 SplashInit(const char* modestr) {
@@ -1651,18 +1666,15 @@ u32 GodMode(bool is_b9s) {
     const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
     u32 exit_mode = GODMODE_EXIT_POWEROFF;
     
-    // reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
-    static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
-    static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
-    static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
-    PaneData* pane = panedata;
     char current_path[256] = { 0x00 };
+    PaneData* pane = panedata;
+    u32 cursor = 0;
+    u32 scroll = 0;
     
     int mark_next = -1;
     u32 last_write_perm = GetWritePermissions();
     u32 last_clipboard_size = 0;
-    u32 cursor = 0;
-    u32 scroll = 0;
+    
     
     u32 boot_origin = GetBootOrigin();
     bool bootloader = !is_b9s && IS_SIGHAX && (boot_origin & BOOT_NAND);
@@ -1809,7 +1821,7 @@ u32 GodMode(bool is_b9s) {
             mark_next = -2;
         }
         DrawDirContents(current_dir, cursor, &scroll);
-        DrawUserInterface(current_path, curr_entry, clipboard, N_PANES ? pane - panedata + 1 : 0);
+        DrawUserInterface(current_path, curr_entry, N_PANES ? pane - panedata + 1 : 0);
         DrawTopBar(current_path);
         
         // check write permissions
@@ -1891,7 +1903,7 @@ u32 GodMode(bool is_b9s) {
                         }
                     } else ShowPrompt(false, "Analyze %s: failed!", is_drive ? "drive" : "dir");
                 } else if (user_select == stdcpy) {
-                    StandardCopy(&cursor, &scroll, current_dir);
+                    StandardCopy(&cursor, &scroll);
                 }
             } else { // one level up
                 u32 user_select = 1;
@@ -1915,7 +1927,7 @@ u32 GodMode(bool is_b9s) {
                 }
             }
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
-            FileHandlerMenu(current_path, &cursor, &scroll, current_dir, clipboard); // processed externally
+            FileHandlerMenu(current_path, &cursor, &scroll, &pane); // processed externally
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) {
             if (switched) { // use R+B to return to root fast
@@ -2155,7 +2167,7 @@ u32 GodMode(bool is_b9s) {
             while ((user_select = ShowSelectPrompt(n_opt, optionstr, "%s button pressed.\nSelect action:", buttonstr)) &&
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
-                if ((user_select == more) && (HomeMoreMenu(current_path, current_dir, clipboard) == 0)) break; // more... menu
+                if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
                 else if ((user_select == scripts) && (FileSelector(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
                     ExecuteGM9Script(loadpath);
                     GetDirContents(current_dir, current_path);
