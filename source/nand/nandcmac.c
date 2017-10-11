@@ -48,7 +48,22 @@
 //  "%c:/agbsave.bin"                                           virtual AGBSAVE file
 
 
-u32 CheckAgbSaveHeader(const char* path) {
+u32 SetupSlot0x30(char drv) {
+    u8 keyy[16] __attribute__((aligned(32)));
+    char movable_path[32];
+    
+    if ((drv == 'A') || (drv == 'S')) drv = '1';
+    else if ((drv == 'B') || (drv == 'E')) drv = '4';
+    
+    snprintf(movable_path, 32, "%c:/private/movable.sed", drv);
+    if (fvx_qread(movable_path, keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
+    setup_aeskeyY(0x30, keyy);
+    use_aeskey(0x30);
+    
+    return 0;
+}
+
+/*u32 CheckAgbSaveHeader(const char* path) {
     AgbSaveHeader agbsave;
     UINT br;
     
@@ -56,7 +71,7 @@ u32 CheckAgbSaveHeader(const char* path) {
         return 1;
     
     return ValidateAgbSaveHeader(&agbsave);
-}
+}*/
 
 u32 CheckCmacHeader(const char* path) {
     u8 cmac_hdr[0x100];
@@ -74,31 +89,18 @@ u32 CheckCmacPath(const char* path) {
     return (CalculateFileCmac(path, NULL)) ? 0 : 1;
 }
 
-u32 ReadFileCmac(const char* path, u8* cmac) {
+u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
     u32 cmac_type = CalculateFileCmac(path, NULL);
     u32 offset = 0;
-    UINT br;
     
     if (!cmac_type) return 1;
     else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
     else if ((cmac_type == CMAC_AGBSAVE) ||  (cmac_type == CMAC_AGBSAVE_SD)) offset = 0x010;
     else offset = 0x000;
     
-    return ((fvx_qread(path, cmac, offset, 0x10, &br) != FR_OK) || (br != 0x10)) ? 1 : 0;
-}
-
-u32 WriteFileCmac(const char* path, u8* cmac) {
-    u32 cmac_type = CalculateFileCmac(path, NULL);
-    u32 offset = 0;
-    UINT bw;
-    
-    if (!cmac_type) return 1;
-    else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
-    else if ((cmac_type == CMAC_AGBSAVE) ||  (cmac_type == CMAC_AGBSAVE_SD)) offset = 0x010;
-    else offset = 0x000;
-    
-    if (!CheckWritePermissions(path)) return 1;
-    return ((fvx_qwrite(path, cmac, offset, 0x10, &bw) != FR_OK) || (bw != 0x10)) ? 1 : 0;
+    if (do_write && !CheckWritePermissions(path)) return 1;
+    if (!do_write) return (fvx_qread(path, cmac, offset, 0x10, NULL) != FR_OK) ? 1 : 0;
+    else return (fvx_qwrite(path, cmac, offset, 0x10, NULL) != FR_OK) ? 1 : 0;
 }
 
 u32 CalculateFileCmac(const char* path, u8* cmac) {
@@ -123,7 +125,8 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             cmac_type = CMAC_EXTDATA_SD;
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/data/%08lx.sav", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "sav", 4) == 0)) {
-            cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : (CheckAgbSaveHeader(path) == 0) ? CMAC_AGBSAVE_SD : 0;
+            // cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : (CheckAgbSaveHeader(path) == 0) ? CMAC_AGBSAVE_SD : 0;
+            cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : 0;
         }
     } else if ((drv == '1') || (drv == '4') || (drv == '7')) { // data on CTRNAND
         u64 id0_high, id0_low; // ID0
@@ -163,14 +166,8 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     UINT br;
     
     // setup slot 0x30 via movable.sed
-    if (keyslot == 0x30) {
-        u8 keyy[16] __attribute__((aligned(32)));
-        char movable_path[32];
-        snprintf(movable_path, 32, "%c:/private/movable.sed", (drv == 'A') ? '1' : (drv == 'B') ? '4' : drv);
-        if ((fvx_qread(movable_path, keyy, 0x110, 0x10, &br) != FR_OK) || (br != 0x10)) return 1;
-        setup_aeskeyY(0x30, keyy);
-        use_aeskey(0x30);
-    }
+    if ((keyslot == 0x30) && (SetupSlot0x30(drv) != 0))
+        return 1;
     
     // build hash data block, get size
     if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) { // agbsaves
@@ -178,24 +175,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         if ((TEMP_BUFFER_SIZE < AGBSAVE_MAX_SIZE) || (fvx_qread(path, agbsave, 0, AGBSAVE_MAX_SIZE, &br) != FR_OK) ||
             (br < 0x200) || (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br))
             return 1;
-        hashsize = (0x200 - 0x30) + agbsave->save_size;
-        hashdata = data + 0x30;
-        if (cmac_type == CMAC_AGBSAVE_SD) {
-            // see: https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
-            // thanks to TuxSH, AuroraWright and Wolfvak for helping me
-            // reverse engineering P9 and figuring out AGBSAVE on SD CMACs
-            // this won't work on devkits(!!!)
-            const char* cmac_savetype[] = { CMAC_SAVETYPE };
-            u8* hashdata0 = data + AGBSAVE_MAX_SIZE;
-            memcpy(hashdata0 + 0x00, cmac_savetype[CMAC_SAVEGAME], 8);
-            sha_quick(hashdata0 + 0x08, hashdata, hashsize, SHA256_MODE);
-            
-            hashdata = data;
-            memcpy(hashdata + 0x00, cmac_savetype[CMAC_SAVEDATA_SD], 8);
-            memcpy(hashdata + 0x08, &(agbsave->title_id), 8);
-            sha_quick(hashdata + 0x10, hashdata0, 0x28, SHA256_MODE);
-            hashsize = 0x30;
-        }
+        return FixAgbSaveCmac(data, cmac, (cmac_type == CMAC_AGBSAVE) ? NULL : path);
     } else if (cmac_type == CMAC_MOVABLE) { // movable.sed
         // see: https://3dbrew.org/wiki/Nand/private/movable.sed
         if ((fvx_qread(path, data, 0, 0x140, &br) != FR_OK) || (br != 0x140))
@@ -258,6 +238,42 @@ u32 CheckFileCmac(const char* path) {
 u32 FixFileCmac(const char* path) {
     u8 ccmac[16];
     return ((CalculateFileCmac(path, ccmac) == 0) && (WriteFileCmac(path, ccmac) == 0)) ? 0 : 1;
+}
+
+u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
+    AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) data;
+    u8 temp[0x30]; // final hash @temp+0x00
+    
+    // safety check
+    if (ValidateAgbSaveHeader(agbsave) != 0)
+        return 1;
+    
+    if (!sddrv) { // NAND partition mode
+        sha_quick(temp + 0x00, (u8*) data + 0x30, (0x200 - 0x30) + agbsave->save_size, SHA256_MODE);
+    } else {
+        // see: http://3dbrew.org/wiki/3DS_Virtual_Console#NAND_Savegame_on_SD
+        // thanks to TuxSH, AuroraWright and Wolfvak for helping me
+        // reverse engineering P9 and figuring out AGBSAVE on SD CMACs
+        // this won't work on devkits(!!!)
+        const char* cmac_savetype[] = { CMAC_SAVETYPE };
+        if (SetupSlot0x30(*sddrv) != 0) return 1;
+        
+        // first hash (hash0 = AGBSAVE_hash)
+        sha_quick(temp + 0x08, (u8*) data + 0x30, (0x200 - 0x30) + agbsave->save_size, SHA256_MODE);
+        // second hash (hash1 = CTR-SAV0 + hash0)
+        memcpy(temp + 0x00, cmac_savetype[CMAC_SAVEGAME], 8);
+        sha_quick(temp + 0x10, temp, 0x28, SHA256_MODE);
+        // final hash (hash2 = CTR-SIGN + titleID + hash1)
+        memcpy(temp + 0x00, cmac_savetype[CMAC_SAVEDATA_SD], 8);
+        memcpy(temp + 0x08, &(agbsave->title_id), 8);
+        sha_quick(temp + 0x00, temp, 0x30, SHA256_MODE);
+    }
+    
+    use_aeskey((sddrv) ? 0x30 : 0x24);
+    aes_cmac(temp, &(agbsave->cmac), 2);
+    if (cmac) memcpy(cmac, &(agbsave->cmac), 0x10);
+    
+    return 0;
 }
 
 u32 RecursiveFixFileCmacWorker(char* path) {
