@@ -829,14 +829,14 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
 }
 
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pane) {
-    DirEntry* curr_entry = &(current_dir->entry[*cursor]);
+    const char* file_path = (&(current_dir->entry[*cursor]))->path;
     const char* optionstr[16];
     
     // check for file lock
-    if (!FileUnlock(curr_entry->path)) return 1;
+    if (!FileUnlock(file_path)) return 1;
     
-    u64 filetype = IdentifyFileType(curr_entry->path);
-    u32 drvtype = DriveType(curr_entry->path);
+    u64 filetype = IdentifyFileType(file_path);
+    u32 drvtype = DriveType(file_path);
     
     bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
     
@@ -867,13 +867,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool installable = (FTYPE_INSTALLABLE(filetype));
     bool agbexportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool agbimportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    
+    char cxi_path[256] = { 0 }; // special options for TMD
+    if ((filetype & GAME_TMD) && !(filetype & FLAG_NUSCDN) &&
+        (GetTmdContentPath(cxi_path, file_path) == 0) &&
+        (PathExist(cxi_path))) {
+        u64 filetype_cxi = IdentifyFileType(cxi_path);
+        mountable = (FTYPE_MOUNTABLE(filetype_cxi) && !(drvtype & DRV_IMAGE));
+        extrcodeable = (FTYPE_HASCODE(filetype_cxi));
+    }
+    
     bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || bootable || scriptable || installable || agbexportable || agbimportable;
     
     char pathstr[32+1];
-    TruncateString(pathstr, curr_entry->path, 32, 8);
+    TruncateString(pathstr, file_path, 32, 8);
     
     u32 n_marked = 0;
-    if (curr_entry->marked) {
+    if ((&(current_dir->entry[*cursor]))->marked) {
         for (u32 i = 0; i < current_dir->n_entries; i++) 
             if (current_dir->entry[i].marked) n_marked++;
     }
@@ -884,12 +894,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int hexviewer = ++n_opt;
     int textviewer = (filetype & TXT_GENERIC) ? ++n_opt : -1;
     int calcsha = ++n_opt;
-    int calccmac = (CheckCmacPath(curr_entry->path) == 0) ? ++n_opt : -1;
+    int calccmac = (CheckCmacPath(file_path) == 0) ? ++n_opt : -1;
     int fileinfo = ++n_opt;
     int copystd = (!in_output_path) ? ++n_opt : -1;
     int inject = ((clipboard->n_entries == 1) &&
         (clipboard->entry[0].type == T_FILE) &&
-        (strncmp(clipboard->entry[0].path, curr_entry->path, 256) != 0)) ?
+        (strncmp(clipboard->entry[0].path, file_path, 256) != 0)) ?
         (int) ++n_opt : -1;
     int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
     if (special > 0) optionstr[special-1] =
@@ -929,16 +939,16 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int user_select = ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
         "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
     if (user_select == hexviewer) { // -> show in hex viewer
-        FileHexViewer(curr_entry->path);
+        FileHexViewer(file_path);
         GetDirContents(current_dir, current_path);
         return 0;
     }
     else if (user_select == textviewer) { // -> show in text viewer
-        FileTextViewer(curr_entry->path, scriptable);
+        FileTextViewer(file_path, scriptable);
         return 0;
     }
     else if (user_select == calcsha) { // -> calculate SHA-256
-        Sha256Calculator(curr_entry->path);
+        Sha256Calculator(file_path);
         GetDirContents(current_dir, current_path);
         return 0;
     }
@@ -948,7 +958,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         optionstr[2] = "Fix CMAC for all";
         user_select = (n_marked > 1) ? ShowSelectPrompt(3, optionstr, "%s\n%(%lu files selected)", pathstr, n_marked) : 1;
         if (user_select == 1) {
-            CmacCalculator(curr_entry->path);
+            CmacCalculator(file_path);
             return 0;
         } else if ((user_select == 2) || (user_select == 3)) {
             bool fix = (user_select == 3);
@@ -988,7 +998,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == fileinfo) { // -> show file info
         FILINFO fno;
-        if (fvx_stat(curr_entry->path, &fno) != FR_OK) {
+        if (fvx_stat(file_path, &fno) != FR_OK) {
             ShowPrompt(false, "%s\nFile info failed!", pathstr);
             return 0;
         };
@@ -1013,14 +1023,14 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         TruncateString(origstr, clipboard->entry[0].name, 18, 10);
         u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecifiy offset below.", origstr);
         if (offset != (u64) -1) {
-            if (!FileInjectFile(curr_entry->path, clipboard->entry[0].path, (u32) offset, 0, 0, NULL))
+            if (!FileInjectFile(file_path, clipboard->entry[0].path, (u32) offset, 0, 0, NULL))
                 ShowPrompt(false, "Failed injecting %s", origstr);
             clipboard->n_entries = 0;
         }
         return 0;
     }
     else if (user_select == searchdrv) { // -> search drive, open containing path
-        char* last_slash = strrchr(curr_entry->path, '/');
+        char* last_slash = strrchr(file_path, '/');
         if (last_slash) {
             if (N_PANES) { // switch to next pane
                 memcpy((*pane)->path, current_path, 256);  // store current pane state
@@ -1028,10 +1038,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 (*pane)->scroll = *scroll;
                 if (++*pane >= panedata + N_PANES) *pane -= N_PANES;
             }
-            snprintf(current_path, last_slash - curr_entry->path + 1, "%s", curr_entry->path);
+            snprintf(current_path, last_slash - file_path + 1, "%s", file_path);
             GetDirContents(current_dir, current_path);
-            *cursor = 1;
             *scroll = 0;
+            for (*cursor = 1; *cursor < current_dir->n_entries; (*cursor)++) {
+                DirEntry* entry = &(current_dir->entry[*cursor]);
+                if (strncasecmp(entry->path, file_path, 256) == 0) break;
+            }
+            if (*cursor >= current_dir->n_entries)
+                *cursor = 1;
         }
         return 0;
     }
@@ -1067,7 +1082,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int script = (scriptable) ? ++n_opt : -1;
     int agbexport = (agbexportable) ? ++n_opt : -1;
     int agbimport = (agbimportable) ? ++n_opt : -1;
-    if (mount > 0) optionstr[mount-1] = "Mount image to drive";
+    if (mount > 0) optionstr[mount-1] = (filetype & GAME_TMD) ? "Mount CXI/NDS to drive" : "Mount image to drive";
     if (restore > 0) optionstr[restore-1] = "Restore SysNAND (safe)";
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
     if (ncsdfix > 0) optionstr[ncsdfix-1] = "Rebuild NCSD header";
@@ -1101,7 +1116,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:" }; // maybe move that to fsdrive.h
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
-        InitImgFS(curr_entry->path);
+        InitImgFS((filetype & GAME_TMD) ? cxi_path : file_path);
         
         const char* drv_path = NULL; // find path of mounted drive
         for (u32 i = 0; i < (sizeof(mnt_drv_paths) / sizeof(const char*)); i++) {
@@ -1171,11 +1186,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             } else ShowPrompt(false, "%lu/%lu files decrypted ok", n_success, n_marked);
             if (!inplace && n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
         } else {
-            if (!(filetype & BIN_KEYDB) && (CheckEncryptedGameFile(curr_entry->path) != 0)) {
+            if (!(filetype & BIN_KEYDB) && (CheckEncryptedGameFile(file_path) != 0)) {
                 ShowPrompt(false, "%s\nFile is not encrypted", pathstr);
             } else {
-                u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(curr_entry->path, inplace, false) :
-                    CryptGameFile(curr_entry->path, inplace, false);
+                u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(file_path, inplace, false) :
+                    CryptGameFile(file_path, inplace, false);
                 if (inplace || (ret != 0)) ShowPrompt(false, "%s\nDecryption %s", pathstr, (ret == 0) ? "success" : "failed");
                 else ShowPrompt(false, "%s\nDecrypted to %s", pathstr, OUTPUT_PATH);
             }
@@ -1219,8 +1234,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             } else ShowPrompt(false, "%lu/%lu files encrypted ok", n_success, n_marked);
             if (!inplace && n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
         } else {
-            u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(curr_entry->path, inplace, true) :
-                CryptGameFile(curr_entry->path, inplace, true);
+            u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(file_path, inplace, true) :
+                CryptGameFile(file_path, inplace, true);
             if (inplace || (ret != 0)) ShowPrompt(false, "%s\nEncryption %s", pathstr, (ret == 0) ? "success" : "failed");
             else ShowPrompt(false, "%s\nEncrypted to %s", pathstr, OUTPUT_PATH);
         }
@@ -1256,8 +1271,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             if (n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
             if (n_success && in_output_path) GetDirContents(current_dir, current_path);
         } else {
-            if (((user_select != cxi_dump) && (BuildCiaFromGameFile(curr_entry->path, force_legit) == 0)) ||
-                ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(curr_entry->path) == 0))) {
+            if (((user_select != cxi_dump) && (BuildCiaFromGameFile(file_path, force_legit) == 0)) ||
+                ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(file_path) == 0))) {
                 ShowPrompt(false, "%s\n%s built to %s", pathstr, type, OUTPUT_PATH);
                 if (in_output_path) GetDirContents(current_dir, current_path);
             } else ShowPrompt(false, "%s\n%s build failed", pathstr, type);
@@ -1296,9 +1311,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowString("%s\nVerifying file, please wait...", pathstr);
             if (filetype & IMG_NAND) {
                 ShowPrompt(false, "%s\nNAND validation %s", pathstr,
-                    (ValidateNandDump(curr_entry->path) == 0) ? "success" : "failed");
+                    (ValidateNandDump(file_path) == 0) ? "success" : "failed");
             } else ShowPrompt(false, "%s\nVerification %s", pathstr,
-                (VerifyGameFile(curr_entry->path) == 0) ? "success" : "failed");
+                (VerifyGameFile(file_path) == 0) ? "success" : "failed");
         }
         return 0;
     }
@@ -1327,7 +1342,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 else ShowPrompt(false, "%s\n%lu/%lu files processed", path_out, n_success, n_marked); 
             } else ShowPrompt(false, "%s\nBuild database failed.", path_out);
         } else ShowPrompt(false, "%s\nBuild database %s.", path_out, 
-            (BuildTitleKeyInfo(curr_entry->path, dec, true) == 0) ? "success" : "failed");
+            (BuildTitleKeyInfo(file_path, dec, true) == 0) ? "success" : "failed");
         return 0;
     }
     else if (user_select == key_build) { // -> (Re)Build AES key database
@@ -1354,7 +1369,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 else ShowPrompt(false, "%s\n%lu/%lu files processed", path_out, n_success, n_marked); 
             } else ShowPrompt(false, "%s\nBuild database failed.", path_out);
         } else ShowPrompt(false, "%s\nBuild database %s.", path_out, 
-            (BuildKeyDb(curr_entry->path, true) == 0) ? "success" : "failed");
+            (BuildKeyDb(file_path, true) == 0) ? "success" : "failed");
         return 0;
     }
     else if (user_select == rename) { // -> Game file renamer
@@ -1376,7 +1391,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == show_info) { // -> Show title info
-        if (ShowGameFileTitleInfo(curr_entry->path) != 0)
+        if (ShowGameFileTitleInfo(file_path) != 0)
             ShowPrompt(false, "Title info: not found");
         return 0;
     }
@@ -1394,14 +1409,14 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
         if (user_select) {
             ShowPrompt(false, "%s\nH&S inject %s", pathstr,
-                (InjectHealthAndSafety(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+                (InjectHealthAndSafety(file_path, destdrv[user_select-1]) == 0) ? "success" : "failed");
         }
         return 0;
     }
     else if (user_select == extrcode) { // -> Extract code
         char extstr[8] = { 0 };
         ShowString("%s\nExtracting .code, please wait...", pathstr);
-        if (ExtractCodeFromCxiFile(curr_entry->path, NULL, extstr) == 0) {
+        if (ExtractCodeFromCxiFile((filetype & GAME_TMD) ? cxi_path : file_path, NULL, extstr) == 0) {
             ShowPrompt(false, "%s\n%s extracted to " OUTPUT_PATH, pathstr, extstr);
         } else ShowPrompt(false, "%s\n.code extract failed", pathstr);
         return 0;
@@ -1421,33 +1436,33 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : 1;
             if (user_select) {
                 ShowPrompt(false, "%s\nCTRNAND transfer %s", pathstr,
-                    (TransferCtrNandImage(curr_entry->path, destdrv[user_select-1]) == 0) ? "success" : "failed");
+                    (TransferCtrNandImage(file_path, destdrv[user_select-1]) == 0) ? "success" : "failed");
             }
         } else ShowPrompt(false, "%s\nNo valid destination found");
         return 0;
     }
     else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
         ShowPrompt(false, "%s\nNAND restore %s", pathstr,
-            (SafeRestoreNandDump(curr_entry->path) == 0) ? "success" : "failed");
+            (SafeRestoreNandDump(file_path) == 0) ? "success" : "failed");
         return 0;
     }
     else if (user_select == ncsdfix) { // -> inject sighaxed NCSD
         ShowPrompt(false, "%s\nRebuild NCSD %s", pathstr,
-            (FixNandHeader(curr_entry->path, !(filetype == HDR_NAND)) == 0) ? "success" : "failed");
+            (FixNandHeader(file_path, !(filetype == HDR_NAND)) == 0) ? "success" : "failed");
         GetDirContents(current_dir, current_path);
         InitExtFS(); // this might have fixed something, so try this
         return 0;
     }
     else if ((user_select == xorpad) || (user_select == xorpad_inplace)) { // -> build xorpads
         bool inplace = (user_select == xorpad_inplace);
-        bool success = (BuildNcchInfoXorpads((inplace) ? current_path : OUTPUT_PATH, curr_entry->path) == 0);
+        bool success = (BuildNcchInfoXorpads((inplace) ? current_path : OUTPUT_PATH, file_path) == 0);
         ShowPrompt(false, "%s\nNCCHinfo padgen %s%s", pathstr,
             (success) ? "success" : "failed", 
             (!success || inplace) ? "" : "\nOutput dir: " OUTPUT_PATH);
         GetDirContents(current_dir, current_path);
         for (; *cursor < current_dir->n_entries; (*cursor)++) {
-            curr_entry = &(current_dir->entry[*cursor]);
-            if (strncasecmp(curr_entry->name, NCCHINFO_NAME, 32) == 0) break;
+            DirEntry* entry = &(current_dir->entry[*cursor]);
+            if (strncasecmp(entry->name, NCCHINFO_NAME, 32) == 0) break;
         }
         if (*cursor >= current_dir->n_entries) {
             *scroll = 0;
@@ -1457,8 +1472,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == ebackup) { // -> update embedded backup
         ShowString("%s\nUpdating embedded backup...", pathstr);
-        bool required = (CheckEmbeddedBackup(curr_entry->path) != 0);
-        bool success = (required && (EmbedEssentialBackup(curr_entry->path) == 0));
+        bool required = (CheckEmbeddedBackup(file_path) != 0);
+        bool success = (required && (EmbedEssentialBackup(file_path) == 0));
         ShowPrompt(false, "%s\nBackup update: %s", pathstr, (!required) ? "not required" :
             (success) ? "completed" : "failed!");
         GetDirContents(current_dir, current_path);
@@ -1466,11 +1481,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == keyinit) { // -> initialise keys from aeskeydb.bin
         if (ShowPrompt(true, "Warning: Keys are not verified.\nContinue on your own risk?"))
-            ShowPrompt(false, "%s\nAESkeydb init %s", pathstr, (InitKeyDb(curr_entry->path) == 0) ? "success" : "failed");
+            ShowPrompt(false, "%s\nAESkeydb init %s", pathstr, (InitKeyDb(file_path) == 0) ? "success" : "failed");
         return 0;
     }
     else if (user_select == install) { // -> install FIRM
-        size_t firm_size = FileGetSize(curr_entry->path);
+        size_t firm_size = FileGetSize(file_path);
         u32 slots = 1;
         if (GetNandPartitionInfo(NULL, NP_TYPE_FIRM, NP_SUBTYPE_CTR, 1, NAND_SYSNAND) == 0) {
             optionstr[0] = "Install to FIRM0";
@@ -1480,22 +1495,22 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             slots = ShowSelectPrompt(3, optionstr, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024);
         } else slots = ShowPrompt(true, "%s (%dkB)\nInstall to SysNAND?", pathstr, firm_size / 1024) ? 1 : 0;
         if (slots) ShowPrompt(false, "%s (%dkB)\nInstall %s", pathstr, firm_size / 1024,
-            (SafeInstallFirm(curr_entry->path, slots) == 0) ? "success" : "failed!");
+            (SafeInstallFirm(file_path, slots) == 0) ? "success" : "failed!");
         return 0;
     }
     else if (user_select == boot) { // -> boot FIRM
-        BootFirmHandler(curr_entry->path, true, false);
+        BootFirmHandler(file_path, true, false);
         return 0;
     }
     else if (user_select == script) { // execute script
         if (ShowPrompt(true, "%s\nWarning: Do not run scripts\nfrom untrusted sources.\n \nExecute script?", pathstr))
-            ShowPrompt(false, "%s\nScript execute %s", pathstr, ExecuteGM9Script(curr_entry->path) ? "success" : "failure");
+            ShowPrompt(false, "%s\nScript execute %s", pathstr, ExecuteGM9Script(file_path) ? "success" : "failure");
         GetDirContents(current_dir, current_path);
         ClearScreenF(true, true, COLOR_STD_BG);
         return 0;
     }
     else if (user_select == agbexport) { // export GBA VC save
-        if (DumpGbaVcSavegame(curr_entry->path) == 0)
+        if (DumpGbaVcSavegame(file_path) == 0)
             ShowPrompt(false, "Savegame dumped to " OUTPUT_PATH);
         else ShowPrompt(false, "Savegame dump failed!");
         return 0;
@@ -1504,7 +1519,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         if (clipboard->n_entries != 1) {
             ShowPrompt(false, "GBA VC savegame has to\nbe in the clipboard.");
         } else ShowPrompt(false, "Savegame inject %s",
-            (InjectGbaVcSavegame(curr_entry->path, clipboard->entry[0].path) == 0) ? "success" : "failed!");
+            (InjectGbaVcSavegame(file_path, clipboard->entry[0].path) == 0) ? "success" : "failed!");
         return 0;
     }
     

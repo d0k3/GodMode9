@@ -48,7 +48,7 @@ u64 IdentifyFileType(const char* path) {
                 return GAME_NCSD; // NCSD (".3DS") file
         } else if (ValidateNcchHeader((NcchHeader*) data) == 0) {
             NcchHeader* ncch = (NcchHeader*) data;
-            u32 type = GAME_NCCH;
+            u64 type = GAME_NCCH;
             if (NCCH_IS_CXI(ncch)) {
                 type |= FLAG_CXI;
                 NcchExtHeader exhdr;
@@ -109,7 +109,7 @@ u64 IdentifyFileType(const char* path) {
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
     } else if (ValidateText((char*) data, (fsize > 0x200) ? 0x200 : fsize)) {
-        u32 type = 0;
+        u64 type = 0;
         if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
             type |= TXT_SCRIPT; // should be a script (which is also generic text)
         if (fsize < TEMP_BUFFER_SIZE) type |= TXT_GENERIC;
