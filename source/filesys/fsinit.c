@@ -44,7 +44,7 @@ bool InitImgFS(const char* path) {
     // deinit image filesystem
     DismountDriveType(DRV_IMAGE);
     // (re)mount image, done if path == NULL
-    u32 type = MountImage(path);
+    u64 type = MountImage(path);
     InitVirtualImageDrive();
     if ((type&IMG_NAND) && (drv_i < NORM_FS)) drv_i = NORM_FS;
     else if ((type&IMG_FAT) && (drv_i < NORM_FS - IMGN_FS + 1)) drv_i = NORM_FS - IMGN_FS + 1;

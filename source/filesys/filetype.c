@@ -3,12 +3,11 @@
 #include "fatmbr.h"
 #include "nand.h"
 #include "game.h"
-#include "agbsave.h"
 #include "keydb.h"
 #include "ctrtransfer.h"
 #include "scripting.h"
 
-u32 IdentifyFileType(const char* path) {
+u64 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
     const u8 smdh_magic[] = { SMDH_MAGIC };
@@ -20,7 +19,7 @@ u32 IdentifyFileType(const char* path) {
     char* ext = (fname) ? strrchr(++fname, '.') : NULL;
     u32 id = 0;
     if (ext) ext++;
-    if (FileGetData(path, header, 0x200, 0) < ((fsize > 0x200) ? 0x200 : fsize)) return 0;
+    if (FileGetData(path, header, 0x200, 0) < min(0x200, fsize)) return 0;
     
     if (!fsize) return 0;
     if (fsize >= 0x200) {
@@ -49,7 +48,15 @@ u32 IdentifyFileType(const char* path) {
                 return GAME_NCSD; // NCSD (".3DS") file
         } else if (ValidateNcchHeader((NcchHeader*) data) == 0) {
             NcchHeader* ncch = (NcchHeader*) data;
-            u32 type = GAME_NCCH | (NCCH_IS_CXI(ncch) ? FLAG_CXI : 0);
+            u32 type = GAME_NCCH;
+            if (NCCH_IS_CXI(ncch)) {
+                type |= FLAG_CXI;
+                NcchExtHeader exhdr;
+                if ((FileGetData(path, &exhdr, 0x400, 0x200) == 0x400) && // read only what we need
+                    (DecryptNcch(&exhdr, 0x200, 0x400, ncch, NULL) == 0) &&
+                    NCCH_IS_GBAVC(&exhdr))
+                    type |= FLAG_GBAVC;
+            }
             if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
                 return type; // NCCH (".APP") file
         } else if (ValidateExeFsHeader((ExeFsHeader*) data, fsize) == 0) {
@@ -77,14 +84,16 @@ u32 IdentifyFileType(const char* path) {
         }
     }
     
-    if ((fsize > sizeof(BossHeader)) &&
+    if ((fsize > sizeof(AgbHeader)) &&
+        (ValidateAgbHeader((AgbHeader*) data) == 0)) {
+        return GAME_GBA;
+    } else if ((fsize > sizeof(BossHeader)) &&
         (ValidateBossHeader((BossHeader*) data, fsize) == 0)) {
         return GAME_BOSS; // BOSS (SpotPass) file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
-    
     } else if (ext && ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0))) {
         char path_cetk[256];
         char* ext_cetk = path_cetk + (ext - path);

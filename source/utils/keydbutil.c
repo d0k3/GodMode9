@@ -78,7 +78,7 @@ u32 BuildKeyDb(const char* path, bool dump) {
         else return 0;
     }
     
-    u32 filetype = path_in ? IdentifyFileType(path_in) : 0;
+    u64 filetype = path_in ? IdentifyFileType(path_in) : 0;
     if (filetype & BIN_KEYDB) { // AES key database
         AesKeyInfo* key_info_merge = (AesKeyInfo*) TEMP_BUFFER;
         if ((fvx_qread(path_in, key_info_merge, 0, TEMP_BUFFER_SIZE, &br) != FR_OK) ||

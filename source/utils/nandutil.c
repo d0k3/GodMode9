@@ -5,7 +5,7 @@
 #include "fatmbr.h"
 #include "essentials.h" // for essential backup struct
 #include "nandcmac.h"
-#include "agbsave.h"
+#include "gba.h"
 #include "image.h"
 #include "fsinit.h"
 #include "fsperm.h"

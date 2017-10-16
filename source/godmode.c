@@ -835,7 +835,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     // check for file lock
     if (!FileUnlock(curr_entry->path)) return 1;
     
-    u32 filetype = IdentifyFileType(curr_entry->path);
+    u64 filetype = IdentifyFileType(curr_entry->path);
     u32 drvtype = DriveType(curr_entry->path);
     
     bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
@@ -905,6 +905,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
         (filetype & GAME_NDS)   ? "NDS image options..."  :
+        (filetype & GAME_GBA)   ? "GBA image options..."  :
         (filetype & GAME_TICKET)? "Ticket options..."     :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_AGBSAVE)? (agbimportable) ? "AGBSAVE options..." : "Dump GBA VC save" :
@@ -1398,9 +1399,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == extrcode) { // -> Extract code
+        char extstr[8] = { 0 };
         ShowString("%s\nExtracting .code, please wait...", pathstr);
-        if (ExtractCodeFromCxiFile(curr_entry->path, NULL) == 0) {
-            ShowPrompt(false, "%s\n.code extracted to " OUTPUT_PATH, pathstr);
+        if (ExtractCodeFromCxiFile(curr_entry->path, NULL, extstr) == 0) {
+            ShowPrompt(false, "%s\n%s extracted to " OUTPUT_PATH, pathstr, extstr);
         } else ShowPrompt(false, "%s\n.code extract failed", pathstr);
         return 0;
     }

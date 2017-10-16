@@ -10,6 +10,7 @@
 
 #define NCCH_ENCRYPTED(ncch) (!((ncch)->flags[7] & 0x04))
 #define NCCH_IS_CXI(ncch) ((ncch)->flags[5] & 0x02)
+#define NCCH_IS_GBAVC(exhdr) (getle32((exhdr)->aci_data + 8) == 0x00000202)
 
 #define NCCH_NOCRYPTO  0x0004
 #define NCCH_STDCRYPTO 0x0000

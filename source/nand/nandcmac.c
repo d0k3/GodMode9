@@ -1,6 +1,6 @@
 #include "nandcmac.h"
 #include "fsperm.h"
-#include "agbsave.h"
+#include "gba.h"
 #include "sha.h"
 #include "aes.h"
 #include "vff.h"

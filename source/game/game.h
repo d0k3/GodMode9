@@ -10,4 +10,5 @@
 #include "smdh.h"
 #include "codelzss.h"
 #include "nds.h"
+#include "gba.h"
 #include "ncchinfo.h"

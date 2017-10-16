@@ -595,7 +595,7 @@ u32 VerifyBossFile(const char* path) {
 }
 
 u32 VerifyGameFile(const char* path) {
-    u32 filetype = IdentifyFileType(path);
+    u64 filetype = IdentifyFileType(path);
     if (filetype & GAME_CIA)
         return VerifyCiaFile(path);
     else if (filetype & GAME_NCSD)
@@ -704,7 +704,7 @@ u32 CheckEncryptedBossFile(const char* path) {
 }
 
 u32 CheckEncryptedGameFile(const char* path) {
-    u32 filetype = IdentifyFileType(path);
+    u64 filetype = IdentifyFileType(path);
     if (filetype & GAME_CIA)
         return CheckEncryptedCiaFile(path);
     else if (filetype & GAME_NCSD)
@@ -985,7 +985,7 @@ u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
 }
 
 u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
-    u32 filetype = IdentifyFileType(path);
+    u64 filetype = IdentifyFileType(path);
     u16 crypto = encrypt ? CRYPTO_ENCRYPT : CRYPTO_DECRYPT;
     char dest[256];
     char* destptr = (char*) path;
@@ -1345,7 +1345,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
 }
 
 u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
-    u32 filetype = IdentifyFileType(path);
+    u64 filetype = IdentifyFileType(path);
     char dest[256];
     u32 ret = 0;
     
@@ -1388,7 +1388,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
 
 // this has very limited uses right now
 u32 DumpCxiSrlFromTmdFile(const char* path) {
-    u32 filetype = 0;
+    u64 filetype = 0;
     char path_cxi[256];
     char dest[256];
     
@@ -1412,7 +1412,7 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     return 0;
 }
 
-u32 ExtractCodeFromCxiFile(const char* path, const char* path_out) {
+u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr) {
     u8* code = (u8*) TEMP_BUFFER;
     u32 code_max_size = TEMP_BUFFER_EXTSIZE; // uses the extended temp buffer size
     
@@ -1422,19 +1422,28 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out) {
     // load ncch, exthdr, .code
     u32 code_size;
     if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path, 0) != 0) ||
-        (LoadExeFsFile(code, path, 0, EXEFS_CODE_NAME, code_max_size, &code_size)))
+        ((LoadExeFsFile(code, path, 0, EXEFS_CODE_NAME, code_max_size, &code_size) != 0) &&
+         (LoadExeFsFile(code, path, 0, ".firm", code_max_size, &code_size) != 0)))
         return 1;
     
     // decompress code (only if required)
     if ((exthdr.flag & 0x1) && (DecompressCodeLzss(code, &code_size, code_max_size) != 0))
         return 1;
     
+    // decide extension
+    char* ext = EXEFS_CODE_NAME;
+    if (code_size >= 0x200) {
+        if (ValidateFirmHeader((FirmHeader*)(void*) code, code_size) == 0) ext = ".firm";
+        else if (ValidateAgbHeader((AgbHeader*)(void*) code) == 0) ext = ".gba";
+    }
+    if (extstr) strncpy(extstr, ext, 7);
+    
     // build or take over output path
     char dest[256];
     if (!path_out) {
         // ensure the output dir exists
         if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) return 1;
-        snprintf(dest, 256, OUTPUT_PATH "/%016llX%s%s", ncch.programId, (exthdr.flag & 0x1) ? ".dec" : "", EXEFS_CODE_NAME);
+        snprintf(dest, 256, OUTPUT_PATH "/%016llX%s%s", ncch.programId, (exthdr.flag & 0x1) ? ".dec" : "", ext);
     } else strncpy(dest, path_out, 256);
     if (!CheckWritePermissions(dest)) return 1;
     
@@ -1449,7 +1458,7 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out) {
 }
 
 u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
-    u32 filetype = IdentifyFileType(path);
+    u64 filetype = IdentifyFileType(path);
     
     if (filetype & GAME_SMDH) { // SMDH file
         UINT btr;
@@ -1496,6 +1505,17 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     return 0;
 }
 
+u32 ShowGbaFileTitleInfo(const char* path) {
+    AgbHeader agb;
+    if ((fvx_qread(path, &agb, 0, sizeof(AgbHeader), NULL) != FR_OK) ||
+        (ValidateAgbHeader(&agb) != 0)) return 1;
+    ShowString("%.12s (AGB-%.4s)\n%s", agb.game_title, agb.game_code, AGB_DESTSTR(agb.game_code));
+    InputWait(0);
+    ClearScreenF(true, false, COLOR_STD_BG);
+    return 0;
+    
+}
+
 u32 ShowNdsFileTitleInfo(const char* path) {
     const u32 lwrap = 24;
     TwlIconData* twl_icon = (TwlIconData*) TEMP_BUFFER;
@@ -1522,10 +1542,11 @@ u32 ShowGameFileTitleInfo(const char* path) {
         path = path_content;
     }
     
-    // try loading SMDH, then try NDS
+    // try loading SMDH, then try NDS / GBA
     if (LoadSmdhFromGameFile(path, smdh) == 0)
         return ShowSmdhTitleInfo(smdh);
-    else return ShowNdsFileTitleInfo(path);
+    else if (ShowNdsFileTitleInfo(path) == 0) return 0;
+    else return ShowGbaFileTitleInfo(path);
 }
 
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
@@ -1715,7 +1736,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
         else return 0;
     }
     
-    u32 filetype = path_in ? IdentifyFileType(path_in) : 0;
+    u64 filetype = path_in ? IdentifyFileType(path_in) : 0;
     if (filetype & GAME_TICKET) {
         Ticket* ticket = (Ticket*) TEMP_BUFFER;
         if ((fvx_qread(path_in, ticket, 0, TICKET_SIZE, &br) != FR_OK) || (br != TICKET_SIZE) ||
@@ -1852,7 +1873,7 @@ u32 BuildSeedInfo(const char* path, bool dump) {
 }
 
 u32 LoadNcchFromGameFile(const char* path, NcchHeader* ncch) {
-    u32 filetype = IdentifyFileType(path);
+    u64 filetype = IdentifyFileType(path);
     UINT br;
     
     if (filetype & GAME_NCCH) {
@@ -1899,14 +1920,16 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
     // name scheme (TWL+ICON): <title_id> <title_name> (<product_code>) (<DSi unitcode>) (<region>).<extension>
     // name scheme (NTR): <name_short> (<product_code>).<extension>
     // name scheme (TWL): <title_id> (<product_code>).<extension>
+    // name scheme (AGB): <name_short> (<product_code>).<extension>
     
     const char* path_donor = path;
-    u32 type_donor = IdentifyFileType(path);
+    u64 type_donor = IdentifyFileType(path);
     char* ext =
         (type_donor & GAME_CIA)  ? "cia" :
         (type_donor & GAME_NCSD) ? "3ds" :
         (type_donor & GAME_NCCH) ? ((type_donor & FLAG_CXI) ? "cxi" : "cfa") :
         (type_donor & GAME_NDS)  ? "nds" :
+        (type_donor & GAME_GBA)  ? "gba" :
         (type_donor & GAME_TMD)  ? "tmd" : "";
     if (!*ext) return 1;
     
@@ -1925,7 +1948,11 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         type_donor = IdentifyFileType(path_donor);
     }
     
-    if (type_donor & GAME_NDS) { // NTR or TWL
+    if (type_donor & GAME_GBA) { // AGB
+        AgbHeader* agb = (AgbHeader*) TEMP_BUFFER;
+        if (fvx_qread(path_donor, agb, 0, sizeof(AgbHeader), NULL) != FR_OK) return 1;
+        snprintf(name, 128, "%.12s (AGB-%.4s).%s", agb->game_title, agb->game_code, ext);
+    } else if (type_donor & GAME_NDS) { // NTR or TWL
         TwlHeader* twl = (TwlHeader*) TEMP_BUFFER;
         TwlIconData* icon = (TwlIconData*) (TEMP_BUFFER + sizeof(TwlHeader));
         if (LoadTwlMetaData(path_donor, twl, quick ? NULL : icon) != 0) return 1;

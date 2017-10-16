@@ -689,19 +689,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "fixcmac failed");
     }
     else if (id == CMD_ID_VERIFY) {
-        u32 filetype = IdentifyFileType(argv[0]);
+        u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
         else ret = (VerifyGameFile(argv[0]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "verification failed");
     }
     else if (id == CMD_ID_DECRYPT) {
-        u32 filetype = IdentifyFileType(argv[0]);
+        u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
         else ret = (CryptGameFile(argv[0], true, false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "decrypt failed");
     }
     else if (id == CMD_ID_ENCRYPT) {
-        u32 filetype = IdentifyFileType(argv[0]);
+        u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
         else ret = (CryptGameFile(argv[0], true, true) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "encrypt failed");
@@ -711,13 +711,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
     }
     else if (id == CMD_ID_EXTRCODE) {
-        u32 filetype = IdentifyFileType(argv[0]);
+        u64 filetype = IdentifyFileType(argv[0]);
         if ((filetype&(GAME_NCCH|FLAG_CXI)) != (GAME_NCCH|FLAG_CXI)) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a CXI file");
         } else {
             ShowString("Extracting .code, please wait...");
-            ret = (ExtractCodeFromCxiFile(argv[0], argv[1]) == 0);
+            ret = (ExtractCodeFromCxiFile(argv[0], argv[1], NULL) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "extract .code failed");
         }
     }

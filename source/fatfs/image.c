@@ -2,7 +2,7 @@
 #include "vff.h"
 
 static FIL mount_file;
-static u32 mount_state = 0;
+static u64 mount_state = 0;
 
 static char mount_path[256] = { 0 };
 
@@ -47,7 +47,7 @@ u64 GetMountSize(void) {
     return mount_state ? fvx_size(&mount_file) : 0;
 }
 
-u32 GetMountState(void) {
+u64 GetMountState(void) {
     return mount_state;
 }
 
@@ -55,8 +55,8 @@ const char* GetMountPath(void) {
     return mount_path;
 }
 
-u32 MountImage(const char* path) {
-    u32 type = (path) ? IdentifyFileType(path) : 0;
+u64 MountImage(const char* path) {
+    u64 type = (path) ? IdentifyFileType(path) : 0;
     if (mount_state) {
         fvx_close(&mount_file);
         mount_state = 0;
