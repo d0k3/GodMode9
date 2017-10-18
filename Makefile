@@ -56,10 +56,6 @@ ifeq ($(SAFEMODE),1)
 	CFLAGS += -DSAFEMODE
 endif
 
-ifeq ($(AL3X10MODE),1)
-	CFLAGS += -DAL3X10MODE
-endif
-
 ifeq ($(SALTMODE),1)
 	CFLAGS += -DSALTMODE
 endif

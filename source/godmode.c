@@ -55,6 +55,7 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
+#define BOOTPAUSE_KEY   (BUTTON_R1|BUTTON_UP)
 #define BOOTMENU_KEY    (BUTTON_R1|BUTTON_LEFT)
 #define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm"
 #define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
@@ -1774,10 +1775,10 @@ u32 GodMode(bool is_b9s) {
     #if defined(SALTMODE)
     show_splash = bootmenu = (bootloader && CheckButton(BOOTMENU_KEY));
     if (show_splash) SplashInit("saltmode");
-    #elif !defined(AL3X10MODE) // standard behaviour
+    #else // standard behaviour
     bootmenu = bootmenu || (bootloader && CheckButton(BOOTMENU_KEY)); // second check for boot menu keys
-    while (HID_STATE & BUTTON_ANY); // don't continue while any button is held
     #endif
+    while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys is held
     if (show_splash) while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
     // bootmenu handler
