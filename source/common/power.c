@@ -7,9 +7,13 @@ static const u8 br_settings[] = {0x10, 0x17, 0x1E, 0x25, 0x2C, 0x34, 0x3C, 0x44,
 static int prev_brightness = -1;
 void CheckBrightness() {
     u8 curSlider;
+    #ifndef FIXED_BRIGHTNESS
     I2C_readRegBuf(I2C_DEV_MCU, 0x09, &curSlider, 1);
     // Volume Slider value is always between 0x00 and 0x3F
     curSlider >>= 2;
+    #else
+    curSlider = FIXED_BRIGHTNESS;
+    #endif
     if (curSlider != prev_brightness) {
         PXI_DoCMD(PXI_BRIGHTNESS, (u32[]){br_settings[curSlider]}, 1);
         prev_brightness = curSlider;

@@ -24,9 +24,7 @@ u32 InputWait(u32 timeout_sec) {
                 return sd_state ? SD_INSERT : SD_EJECT;
             u8 special_key;
             if ((timer_msec(timer_mcu) >= 64) && (I2C_readRegBuf(I2C_DEV_MCU, 0x10, &special_key, 1))) {
-                #ifndef DISABLE_SLIDER
                 CheckBrightness();
-                #endif
                 if (special_key == 0x01)
                     return pad_state | BUTTON_POWER;
                 else if (special_key == 0x04)
