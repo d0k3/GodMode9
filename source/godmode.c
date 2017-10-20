@@ -122,7 +122,7 @@ void GenerateBatteryBitmap(u8* bitmap, u32 width, u32 height, u32 color_bg) {
     CheckBattery(&battery, &is_charging);
     
     u32 color_battery = (is_charging) ? COLOR_BATTERY_CHARGING :
-        (battery > 70) ? COLOR_BATTERY_GREEN : (battery > 30) ? COLOR_BATTERY_MEDIUM : COLOR_BATTERY_LOW;
+        (battery > 70) ? COLOR_BATTERY_FULL : (battery > 30) ? COLOR_BATTERY_MEDIUM : COLOR_BATTERY_LOW;
     u32 nub_size = (height < 12) ? 1 : 2;
     u32 width_inside = width - 4 - nub_size;
     u32 width_battery = (battery >= 100) ? width_inside : ((battery * width_inside) + 50) / 100;
