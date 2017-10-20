@@ -55,6 +55,11 @@
 #define COLOR_HVASCII   RGB(0x40, 0x80, 0x50)
 #define COLOR_HVHEX(i)  ((i % 2) ? RGB(0x30, 0x90, 0x30) : RGB(0x30, 0x80, 0x30))
 
+#define COLOR_BATTERY_CHARGING  RGB(0x3D, 0xB7, 0xE4)
+#define COLOR_BATTERY_FULL      RGB(0x0F, 0xB0, 0x1B)
+#define COLOR_BATTERY_MEDIUM    RGB(0xFF, 0x88, 0x49)
+#define COLOR_BATTERY_LOW       RGB(0xB4, 0x00, 0x00)
+
 #define BOOTPAUSE_KEY   (BUTTON_R1|BUTTON_UP)
 #define BOOTMENU_KEY    (BUTTON_R1|BUTTON_LEFT)
 #define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm"
@@ -121,8 +126,8 @@ void GenerateBatteryBitmap(u8* bitmap, u32 width, u32 height, u32 color_bg) {
     bool is_charging;
     CheckBattery(&battery, &is_charging);
     
-    u32 color_battery = (is_charging) ? COLOR_BLUE :
-        (battery > 70) ? COLOR_GREEN : (battery > 30) ? COLOR_YELLOW : COLOR_RED;
+    u32 color_battery = (is_charging) ? COLOR_BATTERY_CHARGING :
+        (battery > 70) ? COLOR_BATTERY_FULL : (battery > 30) ? COLOR_BATTERY_MEDIUM : COLOR_BATTERY_LOW;
     u32 nub_size = (height < 12) ? 1 : 2;
     u32 width_inside = width - 4 - nub_size;
     u32 width_battery = (battery >= 100) ? width_inside : ((battery * width_inside) + 50) / 100;
