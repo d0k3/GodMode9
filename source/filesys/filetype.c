@@ -18,10 +18,15 @@ u64 IdentifyFileType(const char* path) {
     char* fname = strrchr(path, '/');
     char* ext = (fname) ? strrchr(++fname, '.') : NULL;
     u32 id = 0;
+    
+    
+    // block crappy "._" files from getting recognized as filetype
+    if (strncmp(fname, "._", 2)) return 0;
+    
     if (ext) ext++;
     if (FileGetData(path, header, 0x200, 0) < min(0x200, fsize)) return 0;
-    
     if (!fsize) return 0;
+    
     if (fsize >= 0x200) {
         if (ValidateNandNcsdHeader((NandNcsdHeader*) data) == 0) {
             return (fsize >= GetNandNcsdMinSizeSectors((NandNcsdHeader*) data) * 0x200) ?
