@@ -51,6 +51,11 @@
 #define COLOR_DARKGREY      RGB(0x50, 0x50, 0x50)
 #define COLOR_DARKESTGREY   RGB(0x20, 0x20, 0x20)
 
+#define COLOR_BATTERY_CHARGING	RGB(0x3D, 0xB7, 0xE4)
+#define COLOR_BATTERY_FULL	RGB(0x0F, 0xB0, 0x1B)
+#define COLOR_BATTERY_MEDIUM	RGB(0xFF, 0x88, 0x49)
+#define COLOR_BATTERY_LOW	RGB(0xB4, 0x00, 0x00)
+
 #define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
 
 #define COLOR_STD_BG        COLOR_BLACK
