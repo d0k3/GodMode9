@@ -683,8 +683,9 @@ bool FileSelector(char* result, const char* text, const char* path, const char* 
             u32 n_opt = 0;
             for (; pos < contents->n_entries; pos++) {
                 DirEntry* entry = &(contents->entry[pos]);
-                if (!((entry->type == T_DIR) && (!no_dirs)) &&
-                    !((entry->type == T_FILE) && (fvx_match_name(entry->name, pattern) == FR_OK)))
+                if (((entry->type == T_DIR) && no_dirs) ||
+                    ((entry->type == T_FILE) && (fvx_match_name(entry->name, pattern) != FR_OK)) ||
+                    (entry->type == T_DOTDOT) || (strncmp(entry->name, "._", 2) == 0))
                     continue;
                 if (n_opt == _MAX_FS_OPT) {
                     snprintf(opt_names[n_opt++], 32, "[more...]");
