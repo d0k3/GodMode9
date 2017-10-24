@@ -21,7 +21,7 @@ u64 IdentifyFileType(const char* path) {
     
     
     // block crappy "._" files from getting recognized as filetype
-    if (strncmp(fname, "._", 2)) return 0;
+    if (strncmp(fname, "._", 2) == 0) return 0;
     
     if (ext) ext++;
     if (FileGetData(path, header, 0x200, 0) < min(0x200, fsize)) return 0;
