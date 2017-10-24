@@ -555,7 +555,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char path[_VAR_CNT_LEN];
         strncpy(path, argv[1], _VAR_CNT_LEN);
         char* npattern = strrchr(path, '/');
-        if (!npattern) {
+        if (strncmp(path, "Z:", 2) == 0) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "forbidden drive");
+        } else if (!npattern) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
         } else {
