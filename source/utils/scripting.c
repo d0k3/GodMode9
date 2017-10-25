@@ -3,6 +3,7 @@
 #include "fsinit.h"
 #include "fsperm.h"
 #include "nand.h"
+#include "nand/essentials.h"
 #include "nandcmac.h"
 #include "nandutil.h"
 #include "gameutil.h"
@@ -18,6 +19,7 @@
 #include "sha.h"
 #include "hid.h"
 #include "ui.h"
+#include "region.h"
 
 #define _MAX_ARGS       3
 #define _ARG_MAX_LEN    512
@@ -293,6 +295,35 @@ void upd_var(const char* name) {
         }
     }
     
+    // device region
+    if (!name || (strncmp(name, "REGION", _VAR_NAME_LEN) == 0)) {
+    	static char path[] = "1:/rw/sys/SecureInfo__";
+	
+    	SecureInfo data;
+    	char env_region[3 + 1];
+    	strncpy(env_region, "UNK", countof(env_region)); // UNKnown
+    	// Try SecureInfo_A then SecureInfo_B.
+    	bool got_data = false;
+    	for (char which = 'A'; which <= 'B'; ++which) {
+    	    path[countof(path) - 2] = which;
+    	    UINT got_size;
+    	    if (fvx_qread(path, &data, 0, sizeof(data), &got_size) == FR_OK) {
+    	        if (got_size == sizeof(data)) {
+    	            got_data = true;
+     	           break;
+    	        }
+    	    }
+    	}
+    	if (!got_data) {
+            return;
+    	}
+    	// Decode region.
+    	if (data.region < SMDH_NUM_REGIONS) {
+     	    strncpy(env_region, g_regionNamesShort[data.region], countof(env_region));
+	    set_var("REGION", env_region);
+   	}
+    }
+
     // datestamp & timestamp
     if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)  || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) {
         DsTime dstime;
