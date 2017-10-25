@@ -18,6 +18,7 @@
 #include "sha.h"
 #include "hid.h"
 #include "ui.h"
+#include "region.h"
 
 #define _MAX_ARGS       3
 #define _ARG_MAX_LEN    512
@@ -267,13 +268,22 @@ char* set_var(const char* name, const char* content) {
 }
 
 void upd_var(const char* name) {
-    // device serial
-    if (!name || (strncmp(name, "SERIAL", _VAR_NAME_LEN) == 0)) {
-        char env_serial[16] = { 0 };
-        if ((FileGetData("1:/rw/sys/SecureInfo_A", (u8*) env_serial, 0xF, 0x102) != 0xF) &&
-            (FileGetData("1:/rw/sys/SecureInfo_B", (u8*) env_serial, 0xF, 0x102) != 0xF))
+    // device serial / region
+    if (!name || (strncmp(name, "SERIAL", _VAR_NAME_LEN) == 0) ||
+        (strncmp(name, "REGION", _VAR_NAME_LEN) == 0)) {
+        u8 secinfo_data[1 + 1 + 16] = { 0 };
+        char* env_serial = (char*) secinfo_data + 2;
+        char env_region[3 + 1];
+        
+        snprintf(env_region, 0x4, "UNK");
+        if ((FileGetData("1:/rw/sys/SecureInfo_A", secinfo_data, 0x11, 0x100) != 0x11) &&
+            (FileGetData("1:/rw/sys/SecureInfo_B", secinfo_data, 0x11, 0x100) != 0x11))
             snprintf(env_serial, 0xF, "UNKNOWN");
+        else if (*secinfo_data < SMDH_NUM_REGIONS)
+     	    strncpy(env_region, g_regionNamesShort[*secinfo_data], countof(env_region));
+        
         set_var("SERIAL", env_serial);
+        set_var("REGION", env_region);
     }
     
     // device sysnand / emunand id0
