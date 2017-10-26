@@ -3,7 +3,7 @@
 #include "pxi.h"
 #include "i2c.h"
 
-void main(int argc, char** argv)
+void main(int argc, char** argv, int entrypoint)
 {
     (void) argv; // unused for now
 
