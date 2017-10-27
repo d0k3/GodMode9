@@ -79,7 +79,6 @@ u32 GetNandMinSizeSectors(u32 nand_src);
 u32 GetNandSizeSectors(u32 nand_src);
 u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, NandNcsdHeader* ncsd);
 u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 index, u32 nand_src);
-u32 GetBootOrigin(void);
 
 u32 ValidateSecretSector(u8* sector);
 bool CheckMultiEmuNand(void);

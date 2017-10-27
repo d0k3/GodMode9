@@ -5,7 +5,8 @@
 
 void main(int argc, char** argv, int entrypoint)
 {
-    (void) argv; // unused for now
+    (void) argc;
+    (void) argv;
 
     // Wait for ARM11
     PXI_WaitRemote(PXI_READY);
@@ -15,10 +16,10 @@ void main(int argc, char** argv, int entrypoint)
 
     #ifdef AUTORUN_SCRIPT
     // Run the script runner
-    if (ScriptRunner(argc) == GODMODE_EXIT_REBOOT)
+    if (ScriptRunner(entrypoint) == GODMODE_EXIT_REBOOT)
     #else
     // Run the main program
-    if (GodMode(argc) == GODMODE_EXIT_REBOOT)
+    if (GodMode(entrypoint) == GODMODE_EXIT_REBOOT)
     #endif
         Reboot();
 

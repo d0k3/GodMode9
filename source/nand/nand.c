@@ -534,30 +534,6 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
     return 0;
 }
 
-u32 GetBootOrigin(void)
-{
-    // see: https://github.com/AuroraWright/Luma3DS/blob/bc1aa15dd709a703b9af1a0f89ccded21fc08823/source/main.c#L58-L62
-    // and: https://www.3dbrew.org/wiki/Bootloader#BootROM_Errors
-    const vu8* bootMediaStatus = (vu8*) 0x1FFFE00C;
-    const vu8* bootNcsdStatus = (vu8*) 0x1FFFE010;
-    
-    if (!*(u64*) (void*) bootNcsdStatus) { // no NAND boot
-        bool ntrboot_ok = !(bootMediaStatus[1]);
-        bool shell_closed = (bootMediaStatus[3] == 2); // unsure of meaning(!)
-        if (ntrboot_ok && shell_closed) return BOOT_NTRBOOT;
-    } else if (!bootMediaStatus[0]) { // NAND boot okay, check partitions boot state
-        int n_boot_firm = -1;
-        for (u32 i = 0; i < 8; i++) {
-            if (bootNcsdStatus[i] != 0) continue; // not booted from here, continue
-            if (n_boot_firm >= 0) return BOOT_UNKNOWN; // booted from 2+ partitions?
-            n_boot_firm = i;
-        }
-        if (n_boot_firm >= 0) return BOOT_NAND;
-    }
-    
-    return BOOT_UNKNOWN;
-}
-
 bool CheckMultiEmuNand(void)
 {
     // this only checks for the theoretical possibility

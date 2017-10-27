@@ -353,8 +353,7 @@ bool init_vars(const char* path_script) {
     set_var("NULL", ""); // this one is special and should not be changed later 
     set_var("CURRDIR", curr_dir); // script path, never changes
     set_var("GM9OUT", OUTPUT_PATH); // output path, never changes
-    set_var("HAX", ((GetBootOrigin() & BOOT_NTRBOOT) && IS_SIGHAX) ? "ntrboot" :
-        IS_SIGHAX ? "sighax" : IS_A9LH ? "a9lh" : ""); // type of hax running from
+    set_var("HAX", IS_SIGHAX ? "sighax" : IS_A9LH ? "a9lh" : ""); // type of hax running from
     set_var("ONTYPE", IS_O3DS ? "O3DS" : "N3DS"); // type of the console
     set_var("RDTYPE", IS_DEVKIT ? "devkit" : "retail"); // devkit / retail
     upd_var(NULL); // set all dynamic environment vars

@@ -12,6 +12,7 @@
 #include "nandutil.h"
 #include "filetype.h"
 #include "unittype.h"
+#include "entrypoints.h"
 #include "nand.h"
 #include "virtual.h"
 #include "vcart.h"
@@ -1691,7 +1692,7 @@ u32 SplashInit(const char* modestr) {
     return 0;
 }
 
-u32 GodMode(bool is_b9s) {
+u32 GodMode(int entrypoint) {
     const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
     u32 exit_mode = GODMODE_EXIT_POWEROFF;
     
@@ -1705,8 +1706,7 @@ u32 GodMode(bool is_b9s) {
     u32 last_clipboard_size = 0;
     
     
-    u32 boot_origin = GetBootOrigin();
-    bool bootloader = !is_b9s && IS_SIGHAX && (boot_origin & BOOT_NAND);
+    bool bootloader = IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
     FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
@@ -1724,9 +1724,9 @@ u32 GodMode(bool is_b9s) {
     // get mode string for splash screen
     const char* disp_mode = NULL;
 	if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
-    else if (!is_b9s && !IS_SIGHAX) disp_mode = "oldloader mode";
-    else if (!is_b9s && IS_SIGHAX && (boot_origin & BOOT_NTRBOOT)) disp_mode = "ntrboot mode";
-    // else if (!is_b9s || !IS_SIGHAX) disp_mode = "unknown mode";
+    else if (!IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT)) disp_mode = "oldloader mode";
+    else if (entrypoint == ENTRY_NTRBOOT) disp_mode = "ntrboot mode";
+    else if (entrypoint == ENTRY_UNKNOWN) disp_mode = "unknown mode";
 	
 	bool show_splash = true;
 	#ifdef SALTMODE
@@ -1745,7 +1745,7 @@ u32 GodMode(bool is_b9s) {
     
     InitSDCardFS();
     AutoEmuNandBase(true);
-    InitNandCrypto(!is_b9s);
+    InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
     
     // check for embedded essential backup
@@ -1773,7 +1773,7 @@ u32 GodMode(bool is_b9s) {
     }
     
     // check aeskeydb.bin / key state
-    if (!is_b9s && (CheckRecommendedKeyDb(NULL) != 0)) {
+    if ((entrypoint != ENTRY_B9S) && (CheckRecommendedKeyDb(NULL) != 0)) {
         ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
     }
     
@@ -2245,7 +2245,7 @@ u32 GodMode(bool is_b9s) {
 }
 
 #ifdef AUTORUN_SCRIPT
-u32 ScriptRunner(bool is_b9s) {
+u32 ScriptRunner(int entrypoint) {
     // show splash and initialize
     ClearScreenF(true, true, COLOR_STD_BG);
     SplashInit("scriptrunner mode");
@@ -2253,7 +2253,7 @@ u32 ScriptRunner(bool is_b9s) {
     
     InitSDCardFS();
     AutoEmuNandBase(true);
-    InitNandCrypto(!is_b9s);
+    InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
     
     while (CheckButton(BUTTON_A)); // don't continue while A is held
