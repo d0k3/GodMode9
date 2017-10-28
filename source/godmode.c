@@ -1789,6 +1789,7 @@ u32 GodMode(int entrypoint) {
     // bootmenu handler
     if (bootmenu) {
         bootloader = false;
+        while (HID_STATE); // wait until no buttons are pressed
         while (!bootloader && !godmode9) {
             const char* optionstr[6] = { "Resume bootloader", "Resume GodMode9", "Select payload...", "Select script...",
                 "Poweroff system", "Reboot system" };
