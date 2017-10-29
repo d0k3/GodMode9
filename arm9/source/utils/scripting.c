@@ -13,11 +13,20 @@
 #include "hid.h"
 #include "ui.h"
 
-#define _MAX_ARGS       3
+
+#define _MAX_ARGS       4
 #define _ARG_MAX_LEN    512
 #define _VAR_CNT_LEN    256
 #define _VAR_NAME_LEN   32
 #define _ERR_STR_LEN    32
+
+#define _CMD_IF         "if"
+#define _CMD_ELSE       "else"
+#define _CMD_END        "end"
+#define _CMD_FOR        "for"
+#define _CMD_NEXT       "next"
+#define _ARG_TRUE       "TRUE"
+#define _ARG_FALSE      "FALSE"
 
 #define VAR_BUFFER      (SCRIPT_BUFFER + SCRIPT_BUFFER_SIZE - VAR_BUFFER_SIZE)
 
@@ -29,14 +38,18 @@
 #define TV_NLIN_DISP    (SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*TV_VPAD)))
 #define TV_LLEN_DISP    (((SCREEN_WIDTH_TOP - (2*TV_HPAD)) / FONT_WIDTH_EXT) - (TV_LNOS + 1))
 
-
 // some useful macros
 #define IS_WHITESPACE(c)    ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
+#define MATCH_STR(s,l,c)    ((l == strlen(c)) && (strncmp(s, c, l) == 0))
 #define _FLG(c)             (1 << (c - 'a'))
 
-// command ids
+// command ids (also entry into the cmd_list aray below)
 typedef enum {
     CMD_ID_NONE = 0,
+    CMD_ID_IF,
+    CMD_ID_ELSE,
+    CMD_ID_END,
+    CMD_ID_GOTO,
     CMD_ID_ECHO,
     CMD_ID_QR,
     CMD_ID_ASK,
@@ -82,6 +95,11 @@ typedef struct {
 } Gm9ScriptVar;
 
 Gm9ScriptCmd cmd_list[] = {
+    { CMD_ID_NONE    , "#"       , 0, 0 }, // dummy entry
+    { CMD_ID_IF      , _CMD_IF   , 1, 0 }, // control flow commands at the top of the list
+    { CMD_ID_ELSE    , _CMD_ELSE , 0, 0 },
+    { CMD_ID_END     , _CMD_END  , 0, 0 },
+    { CMD_ID_GOTO    , "goto"    , 1, 0 },
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
@@ -119,6 +137,13 @@ static u32 preview_mode = 0; // 0 -> off 1 -> quick 2 -> full
 static u32 script_color_active = 0;
 static u32 script_color_comment = 0;
 static u32 script_color_code = 0;
+
+// global vars for control flow
+static bool syntax_error = false;   // if true, severe error, script has to stop
+static bool skip_state = false;     // if true, skip the block that comes next
+static char* jump_ptr = NULL;       // next position after a jump
+static u32 ifcnt = 0;               // current # of 'if' nesting
+
 
 static inline bool strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
@@ -210,6 +235,17 @@ static inline char* line_seek(const char* text, u32 len, u32 ww, const char* lin
     }
 }
 
+static inline u32 get_lno(const char* text, u32 len, const char* line) {
+    u32 lno = 1;
+    
+    for (u32 i = 0; i < len; i++) {
+        if (line <= text + i) return lno;
+        else if (text[i] == '\n') lno++;
+    }
+    
+    return 0;
+}
+
 void set_preview(const char* name, const char* content) {
     if (strncmp(name, "PREVIEW_MODE", _VAR_NAME_LEN) == 0) {
         if (strncasecmp(content, "off", _VAR_CNT_LEN) == 0) preview_mode = 0;
@@ -265,7 +301,7 @@ void upd_var(const char* name) {
             (FileGetData("1:/rw/sys/SecureInfo_B", secinfo_data, 0x11, 0x100) != 0x11))
             snprintf(env_serial, 0xF, "UNKNOWN");
         else if (*secinfo_data < SMDH_NUM_REGIONS)
-     	    strncpy(env_region, g_regionNamesShort[*secinfo_data], countof(env_region));
+            strncpy(env_region, g_regionNamesShort[*secinfo_data], countof(env_region));
         
         set_var("SERIAL", env_serial);
         set_var("REGION", env_region);
@@ -402,7 +438,7 @@ cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unrecognized flags");
     } else return cmd_entry->id;
     
-    return 0;
+    return CMD_ID_NONE;
 }
 
 u32 get_flag(char* str, u32 len, char* err_str) {
@@ -455,6 +491,94 @@ char* get_string(char* ptr, const char* line_end, u32* len, char** next, char* e
     return str;
 }
 
+char* skip_block(char* ptr, bool ignore_else, bool stop_after_end) {
+    while (*ptr) {
+        // store line start / line end
+        char* line_start = ptr;
+        char* line_end = strchr(ptr, '\n');
+        if (!line_end) line_end = ptr + strlen(ptr);
+        
+        // grab first string
+        char* str = NULL;
+        u32 str_len = 0;
+        if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL)) || (str >= line_end)) {
+            // string error or empty line
+            ptr = line_end + 1;
+            continue; 
+        }
+        
+        // check string
+        if (MATCH_STR(str, str_len, _CMD_END)) { // stop at end
+            return line_start; // end of block found
+        } else if (!ignore_else && MATCH_STR(str, str_len, _CMD_ELSE)) { // stop at else
+            return line_start; // end of block found
+        } else if (MATCH_STR(str, str_len, _CMD_IF)) {
+            ptr = line_start = skip_block(line_end + 1, true, false);
+            if (ptr == NULL) return NULL;
+            
+            line_end = strchr(ptr, '\n');
+            if (!line_end) line_end = ptr + strlen(ptr);
+            
+            str = get_string(ptr, line_end, &str_len, &ptr, NULL);
+            if (!(MATCH_STR(str, str_len, _CMD_END))) return NULL;
+            if (stop_after_end) return line_end + 1;
+        }
+        
+        // move on to the next line
+        ptr = line_end + 1;
+    }
+    
+    // end of block not found
+    return NULL;
+}
+
+char* find_label(const char* label, const char* last_found) {
+    char* script = (char*) SCRIPT_BUFFER; // equals global, not a good solution
+    char* ptr = script;
+    
+    if (last_found) {
+        ptr = strchr(last_found, '\n');
+        if (!ptr) return NULL;
+        ptr++;
+    }
+    
+    char* next = ptr;
+    for (; next && *ptr; ptr = next) {
+        // store line start / get line end
+        char* line_start = ptr;
+        char* line_end = strchr(ptr, '\n');
+        if (!line_end) line_end = ptr + strlen(ptr);
+        next = line_end + 1;
+        
+        // search for label
+        char* str = NULL;
+        u32 str_len = 0;
+        if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL))) continue; // string error, ignore line
+        else if (str >= line_end) continue; // empty line
+        
+        if (*str == '@') {
+            // label found
+            str++; str_len--;
+            
+            // compare it manually (also check for '*' at end)
+            u32 pdiff = 0;
+            for (; (pdiff < str_len) && (label[pdiff] == str[pdiff]); pdiff++);
+            if ((pdiff != str_len) && (label[pdiff] != '*')) continue; // no match
+            // otherwise: potential regular or wildcard match
+            
+            // may be a match, see if there are more strings after it
+            if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL))) continue; // string error, ignore line
+            else if ((str < line_end) && (*str != '#')) continue; // neither end of line nor comment
+            
+            return line_start; // match found
+        } else if (MATCH_STR(str, str_len, _CMD_IF)) {
+            next = skip_block(line_start, true, true);
+        } // irrelevant line
+    }
+    
+    return NULL;
+}
+
 bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32* flags, u32* argc, char** argv, char* err_str) {
     char* ptr = (char*) line_start;
     char* str;
@@ -469,7 +593,13 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     char* cmd = NULL;
     u32 cmd_len = 0;
     if (!(cmd = get_string(ptr, line_end, &cmd_len, &ptr, err_str))) return false; // string error
-    if ((cmd >= line_end) || (*cmd == '#')) return true; // empty line or comment
+    if ((cmd >= line_end) || (*cmd == '#') || (*cmd == '@')) return true; // empty line or comment or label
+    
+    // special handling for "if"
+    if (MATCH_STR(cmd, cmd_len, _CMD_IF)) {
+        *cmdid = CMD_ID_IF;
+        return true;
+    }
     
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
@@ -510,7 +640,50 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     }
     
     // perform command
-    if (id == CMD_ID_ECHO) {
+    if (id == CMD_ID_IF) {
+        // check the argument
+        skip_state = (strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) != 0); // "if true" or "if false"
+        ifcnt++;
+        
+        if (syntax_error && err_str)
+            snprintf(err_str, _ERR_STR_LEN, "syntax error after 'if'");
+        ret = !syntax_error;
+    }
+    else if (id == CMD_ID_ELSE) {
+        // check syntax errors
+        if (ifcnt == 0) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' without 'if'");
+            syntax_error = true;
+            return false;
+        }
+        
+        // turn the skip state
+        skip_state = !skip_state;
+        
+        ret = true;
+    }
+    else if (id == CMD_ID_END) {
+        // check syntax errors
+        if (ifcnt == 0){
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' without 'if'");
+            syntax_error = true;
+            return false;
+        }
+        
+        // close last "if"
+        skip_state = false;
+        ifcnt--;
+        
+        ret = true;
+    }
+    else if (id == CMD_ID_GOTO) {
+        jump_ptr = find_label(argv[0], NULL);
+        if (!jump_ptr) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
+        }
+    }
+    else if (id == CMD_ID_ECHO) {
         ShowPrompt(false, argv[0]);
     }
     else if (id == CMD_ID_QR) {
@@ -774,12 +947,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     return ret;
 }
 
-bool run_line(const char* line_start, const char* line_end, u32* flags, char* err_str) {
+bool run_line(const char* line_start, const char* line_end, u32* flags, char* err_str, bool if_cond) {
     char args[_MAX_ARGS][_ARG_MAX_LEN];
     char* argv[_MAX_ARGS];
     u32 argc = 0;
     cmd_id cmdid;
-    
+
     // set up argv array
     for (u32 i = 0; i < _MAX_ARGS; i++)
         argv[i] = args[i];
@@ -791,8 +964,31 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     
     // parse current line, grab cmd / flags / args
     if (!parse_line(line_start, line_end, &cmdid, flags, &argc, argv, err_str)) {
-        *flags &= ~(_FLG('o')|_FLG('s')); // parsing errors are never silent or optional
-        return false; 
+        syntax_error = true;
+        return false;
+    }
+    
+    // block out of control flow commands
+    if (if_cond && ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELSE) || (cmdid == CMD_ID_END) || (cmdid == CMD_ID_GOTO))) {
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "control flow error");
+        syntax_error = true;
+        return false;
+    }
+    
+    // handle "if"
+    if (cmdid == CMD_ID_IF) {
+        // set defaults
+        argc = 1;
+        strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN);
+        
+        // skip to behind the "if" command
+        char* line_start_next = (char*) line_start;
+        for (; IS_WHITESPACE(*line_start_next); line_start_next++);
+        line_start_next += strlen(_CMD_IF);
+        
+        // run condition, take over result
+        if (run_line(line_start_next, line_end, flags, err_str, true))
+            strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN);
     }
     
     // run the command (if available)
@@ -1055,6 +1251,13 @@ bool FileTextViewer(const char* path, bool as_script) {
 bool ExecuteGM9Script(const char* path_script) {
     char* script = (char*) SCRIPT_BUFFER;
     char* ptr = script;
+    char path_str[32+1];
+    TruncateString(path_str, path_script, 32, 12);
+    
+    // reset control flow global vars
+    ifcnt = 0;
+    skip_state = false;
+    syntax_error = false;
     
     // fetch script - if no path is given, assume script already in script buffer
     u32 script_size = (path_script) ? FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0) : strnlen(script, SCRIPT_BUFFER_SIZE);
@@ -1077,7 +1280,8 @@ bool ExecuteGM9Script(const char* path_script) {
     }
     
     // script execute loop
-    for (u32 lno = 1; ptr < end; lno++) {
+    u32 lno = 1;
+    while (ptr < end) {
         u32 flags = 0;
         
         // find line end
@@ -1117,7 +1321,20 @@ bool ExecuteGM9Script(const char* path_script) {
         
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
-        if (!run_line(ptr, line_end, &flags, err_str)) { // error handling
+        bool result = run_line(ptr, line_end, &flags, err_str, false);
+        
+        // skip state handling
+        char* skip_ptr = ptr;
+        if (skip_state) {
+            skip_ptr = skip_block(line_end + 1, false, false);
+            if (!skip_ptr) snprintf(err_str, _ERR_STR_LEN, "unclosed conditional");
+        }
+        
+        
+        if (!result) { // error handling
+            if (syntax_error) // severe error, can't continue
+                flags &= ~(_FLG('o')|_FLG('s')); // never silent or optional
+            
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
                     char* msg_fail = get_var("ERRORMSG", NULL);
@@ -1132,8 +1349,6 @@ bool ExecuteGM9Script(const char* path_script) {
                     if ((lptr1 > lptr0) && (*(lptr1-1) == '\r')) lptr1--; // handle \r
                     if (lptr1 - lptr0 > 32) snprintf(line_str, 32+1, "%.29s...", lptr0);
                     else snprintf(line_str, 32+1, "%.*s", lptr1 - lptr0, lptr0);
-                    char path_str[32+1];
-                    TruncateString(path_str, path_script, 32, 12);
                     ShowPrompt(false, "%s\nline %lu: %s\n%s", path_str, lno, err_str, line_str);
                 }
             }
@@ -1141,9 +1356,27 @@ bool ExecuteGM9Script(const char* path_script) {
         }
         
         // reposition pointer
-        ptr = line_end + 1;
+        if (skip_ptr != ptr) {
+            ptr = skip_ptr;
+            lno = get_lno(script, script_size, ptr);
+        } else if (jump_ptr) {
+            ptr = jump_ptr;
+            lno = get_lno(script, script_size, ptr);
+            ifcnt = 0; // jumping into conditional block is unexpected/unsupported
+            jump_ptr = NULL;
+        } else {
+            ptr = line_end + 1;
+            lno++;
+        }
     }
     
+    // check for unresolved if here
+    if (ifcnt) {
+        ShowPrompt(false, "%s\nend of script: unresolved 'if'", path_str);
+        return false;
+    }
+    
+    // success message if applicable
     char* msg_okay = get_var("SUCCESSMSG", NULL);
     if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
     
