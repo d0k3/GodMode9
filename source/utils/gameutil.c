@@ -1469,17 +1469,22 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
         if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_CIA) { // CIA file
         CiaInfo info;
-        UINT btr;
         
-        if ((fvx_qread(path, &info, 0, 0x20, &btr) != FR_OK) || (btr != 0x20) ||
+        if ((fvx_qread(path, &info, 0, 0x20, NULL) != FR_OK) ||
             (GetCiaInfo(&info, (CiaHeader*) &info) != 0)) return 1;
-        if ((info.offset_meta) && (fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), &btr) == FR_OK) &&
-            (btr == sizeof(Smdh))) return 0;
+        if ((info.offset_meta) && (fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), NULL) == FR_OK)) return 0;
         else if (LoadExeFsFile(smdh, path, info.offset_content, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_TMD) {
         char path_content[256];
         if (GetTmdContentPath(path_content, path) != 0) return 1;
         return LoadSmdhFromGameFile(path_content, smdh);
+    } else if (filetype & GAME_3DSX) {
+        ThreedsxHeader threedsx;
+        if ((fvx_qread(path, &threedsx, 0, sizeof(ThreedsxHeader), NULL) != FR_OK) ||
+            (!threedsx.offset_smdh || (threedsx.size_smdh != sizeof(Smdh))) ||
+            (fvx_qread(path, smdh, threedsx.offset_smdh, sizeof(Smdh), NULL) != FR_OK))
+            return 1;
+        return 0;
     }
     
     return 1;

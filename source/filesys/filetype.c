@@ -11,6 +11,8 @@ u64 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
     const u8 smdh_magic[] = { SMDH_MAGIC };
+    const u8 threedsx_magic[] = { THREEDSX_EXT_MAGIC };
+    
     if (!path) return 0; // safety
     u8 header[0x200] __attribute__((aligned(32))); // minimum required size
     void* data = (void*) header;
@@ -95,6 +97,9 @@ u64 IdentifyFileType(const char* path) {
     } else if ((fsize > sizeof(BossHeader)) &&
         (ValidateBossHeader((BossHeader*) data, fsize) == 0)) {
         return GAME_BOSS; // BOSS (SpotPass) file
+    } else if ((fsize > sizeof(ThreedsxHeader)) &&
+        (memcmp(data, threedsx_magic, sizeof(threedsx_magic)) == 0)) {
+        return GAME_3DSX; // 3DSX (executable) file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {

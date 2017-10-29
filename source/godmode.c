@@ -924,6 +924,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_NDS)   ? "NDS image options..."  :
         (filetype & GAME_GBA)   ? "GBA image options..."  :
         (filetype & GAME_TICKET)? "Ticket options..."     :
+        (filetype & GAME_3DSX)  ? "Show 3DSX title info"  :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_AGBSAVE)? (agbimportable) ? "AGBSAVE options..." : "Dump GBA VC save" :
         (filetype & SYS_TICKDB) ? (tik_buildable) ? "Ticket.db options..." : "Mount as ticket.db" :
