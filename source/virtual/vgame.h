@@ -5,7 +5,7 @@
 #include "virtual.h"
 
 u64 InitVGameDrive(void);
-u32 CheckVGameDrive(void);
+u64 CheckVGameDrive(void);
 
 bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry);
 bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir);

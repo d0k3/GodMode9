@@ -235,7 +235,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
             ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMdrive" : (drvtype & DRV_GAME) ? "Game" :
             (drvtype & DRV_SYSNAND) ? "SysNAND" : (drvtype & DRV_EMUNAND) ? "EmuNAND" : (drvtype & DRV_IMAGE) ? "Image" :
             (drvtype & DRV_XORPAD) ? "XORpad" : (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" :
-            (drvtype & DRV_CART) ? "Gamecart" : (drvtype & DRV_SEARCH) ? "Search" : ""),
+            (drvtype & DRV_CART) ? "Gamecart" : (drvtype & DRV_VRAM) ? "VRAM" : (drvtype & DRV_SEARCH) ? "Search" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
         ResizeString(tempstr, drvstr, len_info / FONT_WIDTH_EXT, 8, false);
     } else {

@@ -5,7 +5,7 @@
 
 #define NORM_FS  10
 #define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  12
+#define VIRT_FS  13
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
@@ -23,10 +23,11 @@
 #define DRV_MEMORY      (1UL<<10)
 #define DRV_GAME        (1UL<<11)
 #define DRV_CART        (1UL<<12)
-#define DRV_ALIAS       (1UL<<13)
-#define DRV_BONUS       (1UL<<14)
-#define DRV_SEARCH      (1UL<<15)
-#define DRV_STDFAT      (1UL<<16) // standard FAT drive without limitations
+#define DRV_VRAM        (1UL<<13)
+#define DRV_ALIAS       (1UL<<14)
+#define DRV_BONUS       (1UL<<15)
+#define DRV_SEARCH      (1UL<<16)
+#define DRV_STDFAT      (1UL<<17) // standard FAT drive without limitations
 
 #define FS_DRVNAME \
         "SDCARD", \
@@ -36,11 +37,12 @@
         "GAMECART", \
         "GAME IMAGE", "AESKEYDB IMAGE", "TICKET.DB IMAGE", \
         "MEMORY VIRTUAL", \
+        "VRAM VIRTUAL", \
         "NAND XORPADS", \
         "LAST SEARCH" \
         
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "M:", "X:", "Z:"
+    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "M:", "V:", "X:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);

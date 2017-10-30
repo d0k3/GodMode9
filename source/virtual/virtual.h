@@ -12,8 +12,9 @@
 #define VRT_TICKDB  (1UL<<6)
 #define VRT_KEYDB   (1UL<<7)
 #define VRT_CART    (1UL<<8)
+#define VRT_VRAM    (1UL<<9)
 
-#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_TICKDB|VRT_KEYDB|VRT_CART)
+#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_TICKDB|VRT_KEYDB|VRT_CART|VRT_VRAM)
 
 #define VFLAG_DIR       (1UL<<10)
 #define VFLAG_ROOT      (1UL<<11)
@@ -23,7 +24,7 @@
 
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
-                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_TICKDB}, {'C', VRT_CART}
+                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_TICKDB}, {'C', VRT_CART}, {'V', VRT_VRAM}
 
 // virtual file flag (subject to change):
 // bits 0...3  : reserved for NAND virtual sources and info

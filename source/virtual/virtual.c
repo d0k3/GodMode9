@@ -5,6 +5,7 @@
 #include "vtickdb.h"
 #include "vkeydb.h"
 #include "vcart.h"
+#include "vvram.h"
 
 typedef struct {
     char drv_letter;
@@ -31,6 +32,8 @@ bool CheckVirtualDrive(const char* path) {
     u32 virtual_src = GetVirtualSource(path);
     if (virtual_src & (VRT_EMUNAND|VRT_IMGNAND))
         return CheckVNandDrive(virtual_src); // check virtual NAND drive for EmuNAND / ImgNAND
+    else if (virtual_src & VRT_VRAM)
+        return CheckVVramDrive();
     else if (virtual_src & VRT_GAME)
         return CheckVGameDrive();
     else if (virtual_src & VRT_TICKDB)
@@ -55,6 +58,8 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
         ret = ReadVKeyDbDir(vfile, vdir);
     } else if (virtual_src & VRT_CART) {
         ret = ReadVCartDir(vfile, vdir);
+    } else if (virtual_src & VRT_VRAM) {
+        ret = ReadVVramDir(vfile, vdir);
     }
     vfile->flags |= virtual_src; // add source flag
     return ret;
@@ -111,8 +116,9 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
         if (!(vdir.flags & VFLAG_LV3)) { // standard method
             while (true) {
                 if (!ReadVirtualDir(vfile, &vdir)) return false;
-                if ((!(vfile->flags & VRT_GAME) && (strncasecmp(name, vfile->name, 32) == 0)) ||
-                    ((vfile->flags & VRT_GAME) && MatchVGameFilename(name, vfile, 256)))
+                if ((!(vfile->flags & (VRT_GAME|VRT_VRAM)) && (strncasecmp(name, vfile->name, 32) == 0)) ||
+                    ((vfile->flags & VRT_GAME) && MatchVGameFilename(name, vfile, 256)) ||
+                    ((vfile->flags & VRT_VRAM) && MatchVVramFilename(name, vfile)))
                     break; // entry found
             }
         } else { // use lv3 hashes for quicker search
@@ -132,8 +138,10 @@ bool GetVirtualDir(VirtualDir* vdir, const char* path) {
 }
 
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
-    if (!(vfile->flags & VRT_GAME)) strncpy(name, vfile->name, n_chars);
-    else if (!GetVGameFilename(name, vfile, n_chars)) return false;
+    if (vfile->flags & VRT_GAME) return GetVGameFilename(name, vfile, n_chars);
+    else if (vfile->flags & VRT_VRAM) return GetVVramFilename(name, vfile);
+    
+    strncpy(name, vfile->name, n_chars);
     return true;
 }
 
@@ -157,6 +165,8 @@ int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 coun
         return ReadVKeyDbFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_CART) {
         return ReadVCartFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_VRAM) {
+        return ReadVVramFile(vfile, buffer, offset, count);
     }
     
     return -1;
@@ -176,7 +186,7 @@ int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u
         return WriteVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return WriteVMemFile(vfile, buffer, offset, count);
-    } // no write support for virtual game / tickdb / keydb / cart files
+    } // no write support for virtual game / tickdb / keydb / cart / vram files
     
     return -1;
 }
@@ -208,5 +218,7 @@ u64 GetVirtualDriveSize(const char* path) {
         return GetVKeyDbDriveSize();
     else if (virtual_src & VRT_CART)
         return GetVCartDriveSize();
+    else if (virtual_src & VRT_VRAM)
+        return GetVVramDriveSize();
     return 0;
 }

@@ -664,7 +664,7 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
     return type;
 }
 
-u32 CheckVGameDrive(void) {
+u64 CheckVGameDrive(void) {
     if (vgame_type != GetMountState()) vgame_type = 0; // very basic sanity check
     return vgame_type;
 }
@@ -799,7 +799,6 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
 
 bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
     vfile->name[0] = '\0';
-    BuildLv3Index(&lv3idx, romfslv3);
     vfile->flags = VFLAG_LV3 | VFLAG_READONLY;
     vfile->keyslot = ((offset_ncch != (u64) -1) && NCCH_ENCRYPTED(ncch)) ? 
         0x2C : 0xFF; // actual keyslot may be different
@@ -1038,7 +1037,7 @@ bool GetVGameFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
 
 bool MatchVGameFilename(const char* name, const VirtualFile* vfile, u32 n_chars) {
     if (vfile->flags & VFLAG_LV3) {
-         char lv3_name[256];
+        char lv3_name[256];
         if (!GetVGameLv3Filename(lv3_name, vfile, 256)) return false;
         return (strncasecmp(name, lv3_name, n_chars) == 0);
     } else if (vfile->flags & VFLAG_NITRO) {

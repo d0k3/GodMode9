@@ -827,7 +827,7 @@ bool ValidateText(const char* text, u32 len) {
         char c = text[i];
         if ((c == '\r') && ((i+1) < len) && (text[i+1] != '\n')) return false; // CR without LF
         if ((c < 0x20) && (c != '\t') && (c != '\r') && (c != '\n')) return false; // illegal control char
-        if ((c == 0x7F) || (c == 0xFF)) return false; // other illegal char
+        if (c == 0xFF) return false; // other illegal char
     }
     return true;
 }
