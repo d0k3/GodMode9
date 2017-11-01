@@ -2,9 +2,7 @@
 #include "aes.h"
 #include "sha.h"
 #include "ff.h"
-#ifdef HARDCODE_KEYS
-#include "aeskeydb_bin.h"
-#endif
+#include "vram0.h"
 
 typedef struct {
     u8   slot;           // keyslot, 0x00...0x39 
@@ -123,16 +121,17 @@ u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
             f_close(&fp);
         }
     } else {
-        #ifdef HARDCODE_KEYS
+        // check for hardcoded key database
+        u64 aeskeydb_bin_size = 0;
+        void* aeskeydb_bin = FindVTarFileInfo(VRAM0_AESKEY_DB, &aeskeydb_bin_size, NULL);
         fsize = (aeskeydb_bin_size <= bsize) ? aeskeydb_bin_size : 0;
         if (fsize) memcpy(keydb, aeskeydb_bin, aeskeydb_bin_size);
-        #else
+        
         // try to load aeskeydb.bin file
         if (f_open(&fp, SUPPORT_PATH "/" KEYDB_NAME, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
             if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize)) fsize = 0;
             f_close(&fp);
         }
-        #endif
     }
     
     u32 nkeys = 0;

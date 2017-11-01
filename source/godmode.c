@@ -28,17 +28,8 @@
 #include "rtc.h"
 #include "power.h"
 #include "vff.h"
+#include "vram0.h"
 
-#include QLZ_SPLASH_H
-#ifdef AUTORUN_SCRIPT
-#include "autorun_gm9.h"
-#endif
-#ifdef HARDCODE_README
-#include "README_md.h"
-#else
-#define README_md NULL
-#define README_md_size 0
-#endif
 
 #define N_PANES 2
 
@@ -70,6 +61,7 @@
 #undef  BOOTMENU_KEY
 #define BOOTMENU_KEY    BUTTON_START
 #endif
+
 
 typedef struct {
     char path[256];
@@ -1607,7 +1599,7 @@ u32 HomeMoreMenu(char* current_path) {
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
     int sysinfo = ++n_opt;
-    int readme = (README_md != NULL) ? (int) ++n_opt : -1;
+    int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL, NULL)) ? (int) ++n_opt : -1;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1721,7 +1713,9 @@ u32 HomeMoreMenu(char* current_path) {
         return 0;
     }
     else if (user_select == readme) { // Display GodMode9 readme
-        MemToCViewer((const char*) README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
+        u64 README_md_size;
+        char* README_md = FindVTarFileInfo(VRAM0_README_MD, &README_md_size, NULL);
+        MemToCViewer(README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
     } else return 1;
     
@@ -1729,6 +1723,7 @@ u32 HomeMoreMenu(char* current_path) {
 }
 
 u32 SplashInit(const char* modestr) {
+    void* splash = FindVTarFileInfo(VRAM0_SPLASH_QLZ, NULL, NULL);
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
     const u32 pos_xb = 10;
@@ -1737,7 +1732,8 @@ u32 SplashInit(const char* modestr) {
     const u32 pos_yu = SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr);
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    QlzDecompress(TOP_SCREEN, QLZ_SPLASH, 0);
+    if (splash) QlzDecompress(TOP_SCREEN, splash, 0);
+    else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(splash not found)");
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
     
@@ -2317,14 +2313,20 @@ u32 ScriptRunner(int entrypoint) {
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
     
-    while (CheckButton(BUTTON_A)); // don't continue while A is held
+    while (HID_STATE); // wait until no buttons are pressed
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
-    // copy script to script buffer and run it
-    memset(SCRIPT_BUFFER, 0, SCRIPT_BUFFER_SIZE);
-    memcpy(SCRIPT_BUFFER, autorun_gm9, autorun_gm9_size);
-    ExecuteGM9Script(NULL);
+    // get script from VRAM0 TAR
+    u64 autorun_gm9_size = 0;
+    void* autorun_gm9 = FindVTarFileInfo(VRAM0_AUTORUN_GM9, &autorun_gm9_size, NULL);
+    
+    if (autorun_gm9 && autorun_gm9_size) {
+        // copy script to script buffer and run it
+        memset(SCRIPT_BUFFER, 0, SCRIPT_BUFFER_SIZE);
+        memcpy(SCRIPT_BUFFER, autorun_gm9, autorun_gm9_size);
+        ExecuteGM9Script(NULL);
+    } else ShowPrompt(false, "Compiled as script autorunner\nbut no autorun.gm9 provided.\n \nDerp!");
     
     // deinit
     DeinitExtFS();

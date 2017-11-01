@@ -79,7 +79,6 @@ void* FindTarFileInfo(void* tardata, void* tardata_end, const char* fname, u64* 
         TarHeader* tar = tardata;
         
         if (ValidateTarHeader(tardata, tardata_end) != 0) break;
-        ShowPrompt(false, "%s\n%s", tar->fname, fname);
         if ((strncasecmp(tar->fname, fname, 100) == 0) && (tar->ftype == '0'))
             return GetTarFileInfo(tardata, NULL, fsize, is_dir);
         tardata = ((u8*) tardata) + sizeof(TarHeader) + align(ReadAsciiOctal(tar->fsize, 12), 512);

@@ -64,20 +64,12 @@ ifeq ($(SWITCH_SCREENS),1)
 	CFLAGS += -DSWITCH_SCREENS
 endif
 
+ifeq ($(AUTORUN_SCRIPT),1)
+	CFLAGS += -DAUTORUN_SCRIPT
+endif
+
 ifdef FIXED_BRIGHTNESS
 	CFLAGS += -DFIXED_BRIGHTNESS=$(FIXED_BRIGHTNESS)
-endif
-
-ifneq ("$(wildcard $(CURDIR)/../$(DATA)/README.md)","")
-	CFLAGS += -DHARDCODE_README
-endif
-
-ifneq ("$(wildcard $(CURDIR)/../$(DATA)/aeskeydb.bin)","")
-	CFLAGS += -DHARDCODE_KEYS
-endif
-
-ifneq ("$(wildcard $(CURDIR)/../$(DATA)/autorun.gm9)","")
-	CFLAGS += -DAUTORUN_SCRIPT
 endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
@@ -111,14 +103,7 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/README.md))) \
-				$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/aeskeydb.bin))) \
-				$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/autorun.gm9)))
-ifeq ($(SAFEMODE),1)
-	BINFILES	+=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/sm9*.*)))
-else
-	BINFILES	+=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/gm9*.*)))
-endif
+BINFILES	:=	
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -145,11 +130,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-ifeq ("$(wildcard $(CURDIR)/$(DATA)/vram0.img)","")
-	export FTCOMMON	:=	-D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf -C NDMA XDMA
-else
-    export FTCOMMON	:=	-A 0x18000000 -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf $(CURDIR)/$(DATA)/vram0.img -C NDMA XDMA memcpy
-endif
+export FTCOMMON	:=	-A 0x18000000 -D $(OUTPUT).elf $(OUTPUT_D)/screeninit.elf $(CURDIR)/resources/vram0.tar -C NDMA XDMA memcpy
 
 .PHONY: common clean all firm binary screeninit release
 
@@ -214,28 +195,6 @@ $(OUTPUT).elf	:	$(OFILES)
 	@$(OBJCOPY) --set-section-flags .bss=alloc,load,contents -O binary $< $@
 	@echo built ... $(notdir $@)
 
-#---------------------------------------------------------------------------------
-# you need a rule like this for each extension you use as binary data
-#---------------------------------------------------------------------------------
-%_qlz.h %.qlz.o: %.qlz
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-#---------------------------------------------------------------------------------
-%_bin.h %.bin.o: %.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-#---------------------------------------------------------------------------------
-%_gm9.h %.gm9.o: %.gm9
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-#---------------------------------------------------------------------------------
-%_md.h %.md.o: %.md
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
 
 -include $(DEPENDS)
 
