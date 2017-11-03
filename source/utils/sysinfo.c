@@ -3,8 +3,8 @@
 #include "itcm.h"
 #include "region.h"
 #include "unittype.h"
+#include "essentials.h" // for SecureInfo
 #include "vff.h"
-#include "nand/essentials.h" // For SecureInfo
 #include <ctype.h>
 #include <limits.h>
 #include <string.h>

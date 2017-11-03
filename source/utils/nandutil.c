@@ -1,20 +1,16 @@
 #include "nandutil.h"
-#include "gameutil.h"
+#include "nandcmac.h"
 #include "nand.h"
 #include "firm.h"
 #include "fatmbr.h"
-#include "essentials.h" // for essential backup struct
-#include "nandcmac.h"
 #include "gba.h"
-#include "image.h"
-#include "fsinit.h"
-#include "fsperm.h"
-#include "sighax.h"
-#include "unittype.h"
+#include "fs.h"
+#include "ui.h"
 #include "sdmmc.h"
 #include "sha.h"
-#include "ui.h"
-#include "vff.h"
+#include "sighax.h"
+#include "essentials.h" // for essential backup struct
+#include "unittype.h"
 
 
 static const u8 twl_mbr_std[0x42] = {

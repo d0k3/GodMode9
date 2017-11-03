@@ -1,10 +1,6 @@
 #include "ctrtransfer.h"
 #include "nandcmac.h"
-#include "fsutil.h"
-#include "fsinit.h"
-#include "fsperm.h"
-#include "image.h"
-#include "gameutil.h"
+#include "fs.h"
 #include "essentials.h"
 #include "ui.h"
 

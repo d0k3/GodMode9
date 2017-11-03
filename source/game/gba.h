@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.h"
-#include "gba.h"
     
 #define GBAVC_MAGIC         '.', 'C', 'A', 'A'
 #define AGBSAVE_MAGIC       '.', 'S', 'A', 'V'

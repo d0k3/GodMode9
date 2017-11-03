@@ -2,12 +2,10 @@
 #include "game.h"
 #include "hid.h"
 #include "ui.h"
-#include "fsperm.h"
-#include "filetype.h"
+#include "fs.h"
 #include "unittype.h"
 #include "aes.h"
 #include "sha.h"
-#include "vff.h"
 
 // use NCCH crypto defines for everything 
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO

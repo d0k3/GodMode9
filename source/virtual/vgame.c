@@ -104,24 +104,21 @@ static RomFsLv3Index lv3idx;
 static u8 cia_titlekey[16];
 
 
-int ReadCiaContentImageBlocks(void* buffer, u64 block, u64 count, u32 cia_cnt_idx, u64 block0) {
+int ReadCbcImageBlocks(void* buffer, u64 block, u64 count, u8* iv0, u64 block0) {
     int ret = ReadImageBytes(buffer, block * AES_BLOCK_SIZE, count * AES_BLOCK_SIZE);
-    if ((ret == 0) && (cia_cnt_idx <= 0xFFFF)) {
+    if ((ret == 0) && iv0) {
         u8 ctr[AES_BLOCK_SIZE] = { 0 };
-        if (block == block0) {
-            ctr[0] = (cia_cnt_idx >> 8) & 0xFF;
-            ctr[1] = (cia_cnt_idx >> 0) & 0xFF;
-        } else {
-            if ((ret = ReadImageBytes(ctr, (block-1) * AES_BLOCK_SIZE, AES_BLOCK_SIZE)) != 0)
-                return ret;
-        }
-        if (DecryptCiaContentSequential(buffer, count * AES_BLOCK_SIZE, ctr, cia_titlekey) != 0)
-            return -1;
+        if (block == block0) memcpy(ctr, iv0, AES_BLOCK_SIZE);
+        else if ((ret = ReadImageBytes(ctr, (block-1) * AES_BLOCK_SIZE, AES_BLOCK_SIZE)) != 0)
+            return ret;
+        
+        u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;
+        cbc_decrypt(buffer, buffer, count, mode, ctr);
     }
     return ret;
 }
 
-int ReadCiaContentImageBytes(void* buffer, u64 offset, u64 count, u32 cia_cnt_idx, u64 offset0) {
+int ReadCbcImageBytes(void* buffer, u64 offset, u64 count, u8* iv0, u64 offset0) {
     u32 off_fix = offset % AES_BLOCK_SIZE;
     u64 block0 = offset0 / AES_BLOCK_SIZE;
     u8 __attribute__((aligned(32))) temp[AES_BLOCK_SIZE];
@@ -130,7 +127,7 @@ int ReadCiaContentImageBytes(void* buffer, u64 offset, u64 count, u32 cia_cnt_id
     
     if (off_fix) { // misaligned offset (at beginning)
         u32 fix_byte = ((off_fix + count) >= AES_BLOCK_SIZE) ? AES_BLOCK_SIZE - off_fix : count;
-        if ((ret = ReadCiaContentImageBlocks(temp, offset / AES_BLOCK_SIZE, 1, cia_cnt_idx, block0)) != 0)
+        if ((ret = ReadCbcImageBlocks(temp, offset / AES_BLOCK_SIZE, 1, iv0, block0)) != 0)
             return ret;
         memcpy(buffer8, temp + off_fix, fix_byte);
         buffer8 += fix_byte;
@@ -140,7 +137,7 @@ int ReadCiaContentImageBytes(void* buffer, u64 offset, u64 count, u32 cia_cnt_id
     
     if (count >= AES_BLOCK_SIZE) {
         u64 blocks = count / AES_BLOCK_SIZE;
-        if ((ret = ReadCiaContentImageBlocks(buffer8, offset / AES_BLOCK_SIZE, blocks, cia_cnt_idx, block0)) != 0)
+        if ((ret = ReadCbcImageBlocks(buffer8, offset / AES_BLOCK_SIZE, blocks, iv0, block0)) != 0)
             return ret;
         buffer8 += AES_BLOCK_SIZE * blocks;
         offset += AES_BLOCK_SIZE * blocks;
@@ -148,13 +145,30 @@ int ReadCiaContentImageBytes(void* buffer, u64 offset, u64 count, u32 cia_cnt_id
     }
     
     if (count) { // misaligned offset (at end)
-        if ((ret = ReadCiaContentImageBlocks(temp, offset / AES_BLOCK_SIZE, 1, cia_cnt_idx, block0)) != 0)
+        if ((ret = ReadCbcImageBlocks(temp, offset / AES_BLOCK_SIZE, 1, iv0, block0)) != 0)
             return ret;
         memcpy(buffer8, temp, count);
         count = 0;
     }
     
     return ret;
+}
+
+int ReadCiaContentImageBytes(void* buffer, u64 offset, u64 count, u32 cia_cnt_idx, u64 offset0) {
+    // setup key for CIA
+    u8 tik[16] __attribute__((aligned(32)));
+    memcpy(tik, cia_titlekey, 16);
+    setup_aeskey(0x11, tik);
+    use_aeskey(0x11);
+    
+    // setup IV0
+    u8 iv0[AES_BLOCK_SIZE] = { 0 };
+    iv0[0] = (cia_cnt_idx >> 8) & 0xFF;
+    iv0[1] = (cia_cnt_idx >> 0) & 0xFF;
+    
+    // continue in next function
+    u8* iv0_ptr = (cia_cnt_idx <= 0xFFFF) ? iv0 : NULL;
+    return ReadCbcImageBytes(buffer, offset, count, iv0_ptr, offset0);
 }
 
 int ReadGameImageBytes(void* buffer, u64 offset, u64 count) {

@@ -1,9 +1,7 @@
 #include "keydbutil.h"
-#include "fsperm.h"
-#include "filetype.h"
-#include "unittype.h"
-#include "vff.h"
+#include "fs.h"
 #include "ui.h"
+#include "unittype.h"
 
 #define MAX_KEYDB_SIZE  (TEMP_BUFFER_SIZE)
 

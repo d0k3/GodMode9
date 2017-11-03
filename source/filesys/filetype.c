@@ -58,11 +58,14 @@ u64 IdentifyFileType(const char* path) {
             u64 type = GAME_NCCH;
             if (NCCH_IS_CXI(ncch)) {
                 type |= FLAG_CXI;
+                /* the below is unused for now
+                type |= NCCH_IS_FIRM(ncch) ? FLAG_FIRM : 0;
                 NcchExtHeader exhdr;
                 if ((FileGetData(path, &exhdr, 0x400, 0x200) == 0x400) && // read only what we need
                     (DecryptNcch(&exhdr, 0x200, 0x400, ncch, NULL) == 0) &&
                     NCCH_IS_GBAVC(&exhdr))
                     type |= FLAG_GBAVC;
+                */
             }
             if (fsize >= (ncch->size * NCCH_MEDIA_UNIT))
                 return type; // NCCH (".APP") file

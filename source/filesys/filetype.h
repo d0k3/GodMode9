@@ -30,7 +30,8 @@
 #define HDR_NAND    (1ULL<<25)
 #define TYPE_BASE   0xFFFFFFFFULL // 32 bit reserved for base types
 
-#define FLAG_GBAVC  (1ULL<<59)
+// #define FLAG_FIRM   (1ULL<<58) // <--- for CXIs containing FIRMs
+// #define FLAG_GBAVC  (1ULL<<59) // <--- for GBAVC CXIs
 #define FLAG_ENC    (1ULL<<60)
 #define FLAG_CTR    (1ULL<<61)
 #define FLAG_NUSCDN (1ULL<<62)
