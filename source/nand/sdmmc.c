@@ -397,6 +397,7 @@ static int SD_Init()
     u32 temp = (handleSD.error & 0x1) << 0x1E;
 
     u32 temp2 = 0;
+    s32 timeout = 0x80;
     do
     {
         do
@@ -404,10 +405,15 @@ static int SD_Init()
             sdmmc_send_command(&handleSD, 0x10437, handleSD.initarg << 0x10);
             sdmmc_send_command(&handleSD, 0x10769, 0x00FF8000 | temp);
             temp2 = 1;
+            timeout--;
         }
-        while(!(handleSD.error & 1));
+        while(!(handleSD.error & 1) && timeout > 0);
     }
-    while((handleSD.ret[0] & 0x80000000) == 0);
+    while((handleSD.ret[0] & 0x80000000) == 0 && timeout > 0);
+
+    if ((handleSD.ret[0] & 0x80000000) == 0) {
+        return 6;
+    }
 
     if(!((handleSD.ret[0] >> 30) & 1) || !temp)
         temp2 = 0;
