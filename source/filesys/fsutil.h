@@ -70,6 +70,9 @@ bool PathDelete(const char* path);
 /** Rename file / folder in path to new name **/
 bool PathRename(const char* path, const char* newname);
 
+/** Change the attributes on a file/directory **/
+bool PathAttr(const char* path, u8 attr, u8 mask);
+
 /** Select a file **/
 bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs);
 
