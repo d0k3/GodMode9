@@ -12,6 +12,7 @@
 #include "ui.h"
 #include "rtc.h"
 #include "timer.h"
+#include "power.h"
 #include "hid.h"
 
 #define STRBUF_SIZE 512 // maximum size of the string buffer
@@ -751,5 +752,6 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     
     last_prog_width = prog_width;
     
+    CheckBrightness();
     return !CheckButton(BUTTON_B);
 }
