@@ -666,6 +666,11 @@ bool PathRename(const char* path, const char* newname) {
     return (f_rename(path, npath) == FR_OK);
 }
 
+bool PathAttr(const char* path, u8 attr, u8 mask) {
+    if (!CheckDirWritePermissions(path)) return false;
+    return (f_chmod(path, attr, mask) == FR_OK);
+}
+
 bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs) {
     DirStruct* contents = (DirStruct*) (void*) TEMP_BUFFER;
     char path_local[256];
