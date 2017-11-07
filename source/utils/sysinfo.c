@@ -3,8 +3,10 @@
 #include "itcm.h"
 #include "region.h"
 #include "unittype.h"
-#include "essentials.h" // for SecureInfo
+#include "essentials.h" // For SecureInfo / movable
+#include "sdmmc.h" // for NAND / SD CID
 #include "vff.h"
+#include "sha.h"
 #include <ctype.h>
 #include <limits.h>
 #include <string.h>
@@ -58,6 +60,13 @@ typedef struct _SysInfo {
     char serial[15 + 1];
     char system_region[15 + 1];
     char sales_region[15 + 1];
+    // From movable.sed
+    char friendcodeseed[16 + 1];
+    char nand_id0[32 + 1];
+    // from emmc
+    char nand_cid[32 + 1];
+    char sd_cid[32 + 1];
+    char nand_id1[32 + 1];
     // From twln:
     char assembly_date[19 + 1];
     char original_firmware[15 + 1];
@@ -248,6 +257,51 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
             }
         }
     }
+}
+
+
+// Read movable.sed.
+void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
+    static char path[] = "_:/private/movable.sed";
+
+    MovableSed data;
+
+    path[0] = nand_drive;
+
+    strncpy(info->friendcodeseed, "<unknown>", countof(info->friendcodeseed));
+    strncpy(info->nand_id0, "<unknown>", countof(info->nand_id0));
+    
+    if (fvx_qread(path, &data, 0, sizeof(data), NULL) != FR_OK)
+        return;
+    
+    // The LocalFriendCodeSeed.
+    snprintf(info->friendcodeseed, 16 + 1, "%016llX", getbe64(data.codeseed_data.codeseed));
+    
+    // SysNAND ID0
+    unsigned int sha256sum[8];
+    sha_quick(sha256sum, data.codeseed_data.codeseed, 16, SHA256_MODE);
+    snprintf(info->nand_id0, 32 + 1, "%08X%08X%08X%08X", sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+}
+
+
+// Read sdmmc.
+void GetSysInfo_SDMMC(SysInfo* info, char nand_drive) {
+    (void) nand_drive;
+    
+    u8 nand_cid[16] = { 0 };
+    u8 sd_cid[16] = { 0 };
+    
+    strncpy(info->nand_cid, "<unknown>", countof(info->nand_cid));
+    strncpy(info->sd_cid, "<unknown>", countof(info->sd_cid));
+    strncpy(info->nand_id1, "<unknown>", countof(info->nand_id1));
+    
+    sdmmc_get_cid(1, (u32*) (void*) nand_cid);
+    snprintf(info->nand_cid, 32 + 1, "%016llX%016llX", getbe64(nand_cid), getbe64(nand_cid+8));
+    
+    sdmmc_get_cid(0, (u32*) (void*) sd_cid);
+    snprintf(info->sd_cid, 32 + 1, "%016llX%016llX", getbe64(sd_cid), getbe64(sd_cid+8));
+    snprintf(info->nand_id1, 32 + 1, "%08lX%08lX%08lX%08lX",
+        getle32(sd_cid+0), getle32(sd_cid+4), getle32(sd_cid+8), getle32(sd_cid+12));
 }
 
 
@@ -528,6 +582,8 @@ void MyriaSysinfo(char* sysinfo_txt) {
     GetSysInfo_Hardware(&info, '1');
     GetSysInfo_OTP(&info, '1');
     GetSysInfo_SecureInfo(&info, '1');
+    GetSysInfo_Movable(&info, '1');
+    GetSysInfo_SDMMC(&info, '1');
     GetSysInfo_TWLN(&info, '1');
 
     char** meow = &sysinfo_txt;
@@ -538,4 +594,10 @@ void MyriaSysinfo(char* sysinfo_txt) {
     MeowSprintf(meow, "SoC manufacturing date: %s\r\n", info.soc_date);
     MeowSprintf(meow, "System assembly date: %s\r\n", info.assembly_date);
     MeowSprintf(meow, "Original firmware: %s\r\n", info.original_firmware);
+    MeowSprintf(meow, "\r\n");
+    MeowSprintf(meow, "Friendcode seed: %s\r\n", info.friendcodeseed);
+    MeowSprintf(meow, "NAND CID: %s\r\n", info.nand_cid);
+    MeowSprintf(meow, "SD CID: %s\r\n", info.sd_cid);
+    MeowSprintf(meow, "System ID0: %s\r\n", info.nand_id0);
+    MeowSprintf(meow, "System ID1: %s\r\n", info.nand_id1);
 }
