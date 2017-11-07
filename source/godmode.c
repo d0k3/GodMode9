@@ -835,6 +835,94 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     return 1;
 }
 
+u32 FileAttrMenu(const char* file_path) {
+    FILINFO fno;
+    if (fvx_stat(file_path, &fno) != FR_OK) {
+        char pathstr[32 + 1];
+        TruncateString(pathstr, file_path, 32, 8);
+        ShowPrompt(false, "%s\nFile info failed!", pathstr);
+        return 1;
+    }
+
+    char namestr[32];
+    char sizestr[32];
+    TruncateString(namestr, fno.fname, 32, 8);
+    FormatNumber(sizestr, fno.fsize);
+    const bool vrt = (fno.fattrib & AM_VRT);
+    u8 new_attrib = fno.fattrib;
+
+    while (true) {
+        ShowString(
+            "%s\n"
+            " \n"
+            "filesize: %s byte\n"
+            "modified: %04lu-%02lu-%02lu %02lu:%02lu:%02lu\n"
+            " \n"
+            "[%c] %sread-only  [%c] %shidden\n"
+            "[%c] %ssystem     [%c] %sarchive\n"
+            "[%c] %svirtual\n"
+            " \n"
+            "%s"
+            "(<A> to continue)",
+            namestr, sizestr,
+            1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0x0F, (fno.fdate >> 0) & 0x1F,
+            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, ((fno.ftime >> 0) & 0x1F) << 1,
+            (new_attrib & AM_RDO) ? 'X' : ' ', (vrt ? "" : "\x18 "),
+            (new_attrib & AM_HID) ? 'X' : ' ', (vrt ? "" : "\x19 "),
+            (new_attrib & AM_SYS) ? 'X' : ' ', (vrt ? "" : "\x1A "),
+            (new_attrib & AM_ARC) ? 'X' : ' ', (vrt ? "" : "\x1B "),
+            vrt ? 'X' : ' ', (vrt ? "" : "  "),
+            (vrt ? "" : "(press arrow keys to change attributes)\n"));
+
+        while (true) {
+            u32 pad_state = InputWait(0);
+            if (pad_state & (BUTTON_A | BUTTON_B)) {
+                if (new_attrib != fno.fattrib) {
+                    bool rdo_chg = (new_attrib & AM_RDO) != (fno.fattrib & AM_RDO);
+                    bool hid_chg = (new_attrib & AM_HID) != (fno.fattrib & AM_HID);
+                    bool sys_chg = (new_attrib & AM_SYS) != (fno.fattrib & AM_SYS);
+                    bool arc_chg = (new_attrib & AM_ARC) != (fno.fattrib & AM_ARC);
+
+                    bool apply = ShowPrompt(true,
+                        "Apply these changes to %s?\n \n"
+                        "%s%s%s%s",
+                        namestr,
+                        rdo_chg ? (new_attrib & AM_RDO) ? "Set read-only\n" : "Unset read-only\n" : "",
+                        hid_chg ? (new_attrib & AM_HID) ? "Set hidden\n" : "Unset hidden\n" : "",
+                        sys_chg ? (new_attrib & AM_SYS) ? "Set system\n" : "Unset system\n" : "",
+                        arc_chg ? (new_attrib & AM_ARC) ? "Set archive\n" : "Unset archive\n" : "");
+
+                    const u8 mask = (AM_RDO | AM_HID | AM_SYS | AM_ARC);
+                    if (apply && !PathAttr(file_path, new_attrib & mask, mask)) {
+                        ShowPrompt(false, "Failed to set file attributes on %s.", namestr);
+                    }
+                }
+
+                ClearScreenF(true, false, COLOR_STD_BG);
+                return 0;
+            } else if (vrt) continue;
+
+            switch (pad_state) {
+                case BUTTON_UP:
+                    new_attrib ^= AM_RDO;
+                    break;
+                case BUTTON_DOWN:
+                    new_attrib ^= AM_HID;
+                    break;
+                case BUTTON_RIGHT:
+                    new_attrib ^= AM_SYS;
+                    break;
+                case BUTTON_LEFT:
+                    new_attrib ^= AM_ARC;
+                    break;
+                default:
+                    continue;
+            }
+            break;
+        }
+    }
+}
+
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pane) {
     const char* file_path = (&(current_dir->entry[*cursor]))->path;
     const char* optionstr[16];
@@ -1005,21 +1093,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return FileHandlerMenu(current_path, cursor, scroll, pane);
     }
     else if (user_select == fileinfo) { // -> show file info
-        FILINFO fno;
-        if (fvx_stat(file_path, &fno) != FR_OK) {
-            ShowPrompt(false, "%s\nFile info failed!", pathstr);
-            return 0;
-        };
-        char sizestr[32];
-        char namestr[32];
-        FormatNumber(sizestr, fno.fsize);
-        TruncateString(namestr, fno.fname, 32, 8);
-        ShowPrompt(false, "%s\n \nfilesize: %s byte\nmodified: %04lu-%02lu-%02lu %02lu:%02lu:%02lu\n \n[%c] read-only [%c] hidden\n[%c] system    [%c] archive\n[%c] virtual",
-            namestr, sizestr,
-            1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0x0F, (fno.fdate >> 0) & 0x1F,
-            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, ((fno.ftime >> 0) & 0x1F) << 1,
-            (fno.fattrib & AM_RDO) ? 'X' : ' ', (fno.fattrib & AM_HID) ? 'X' : ' ', (fno.fattrib & AM_SYS) ? 'X' : ' ' ,
-            (fno.fattrib & AM_ARC) ? 'X' : ' ', (fno.fattrib & AM_VRT) ? 'X' : ' ');
+        FileAttrMenu(file_path);
         return 0;
     }
     else if (user_select == copystd) { // -> copy to OUTPUT_PATH
