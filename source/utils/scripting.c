@@ -801,7 +801,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     return ret;
 }
 
-bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno) {
+bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno, char* end) {
     char args[_MAX_ARGS][_ARG_MAX_LEN];
     char* argv[_MAX_ARGS];
     char* line_end = *line_end_p; // line_end_p will be only used to jump by "goto"
@@ -839,12 +839,19 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     
     // reset static variables when running first line
     if (*lno == 1) {
-        // don't reset "lbl_table" because we limit access to "lbl_table" by "lblcnt"
+        // don't have to reset "lbl_table" because we will limit access to "lbl_table" by "lblcnt"
         for (u16 cntr = 0; cntr < _ARG_MAX_LEN + 1; cntr++) findlabel [cntr] = '\000';
         skip = false;
         ifcnt = 0;
         last_skip = _MAX_IF_NEST;
-        lblcnt = 0;    
+        lblcnt = 0;
+    }
+    
+    // the label to jump not found -> error ("label" in the line may solve so check for that)
+    if (!(line_end + 1 < end) && (findlabel [0] != '\000') && cmdid != CMD_ID_LABEL) {
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
+        *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+        return false;
     }
     
     // skip if looking for the label to jump by "goto"
@@ -852,12 +859,14 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     !(cmdid == CMD_ID_LABEL ||
       cmdid == CMD_ID_IF    ||
       cmdid == CMD_ID_END )) return true;
+      
     
     // handle control commands
     if (cmdid == CMD_ID_IF) {
         // check max "if" nesting
         if (ifcnt == _MAX_IF_NEST) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many nested 'if'");
+            *flags &= ~(_FLG('o')|_FLG('s')); // too many *** errors are never silent or optional
             return false;
         }
         
@@ -884,9 +893,11 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         // check syntax errors
         if (ifcnt == 0) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' without 'if'");
+            *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
             return false;
         }else if (else_his[ifcnt - 1]) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' already used");
+            *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
             return false;
         }
         
@@ -902,6 +913,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         // check syntax errors
         if (ifcnt == 0){
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' without 'if'");
+            *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
             return false;
         }
         
@@ -914,7 +926,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         // close recent "if"
         ifcnt--;
         
-        if (last_skip == ifcnt || !skip) { // "!skip" is for safety
+        if (last_skip == ifcnt || !skip) {
             skip = false;
             last_skip = _MAX_IF_NEST;
         }
@@ -926,6 +938,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         // max labels check
         if (lblcnt == _MAX_LABELS) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many labels");
+            *flags &= ~(_FLG('o')|_FLG('s')); // too many *** errors are never silent or optional
             return false;
         }
 
@@ -985,6 +998,13 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     
     // skip if skipping by if-else-end
     if (skip) return true;
+    
+    // check again : the label to jump not found -> error
+    if (!(line_end + 1 < end) && (findlabel [0] != '\000')) {
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
+        *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+        return false;
+    } 
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
@@ -1306,7 +1326,7 @@ bool ExecuteGM9Script(const char* path_script) {
         
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
-        if (!run_line(ptr, &line_end, &flags, err_str, &lno)) { // error handling
+        if (!run_line(ptr, &line_end, &flags, err_str, &lno, end)) { // error handling
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
                     char* msg_fail = get_var("ERRORMSG", NULL);
