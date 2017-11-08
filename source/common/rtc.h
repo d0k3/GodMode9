@@ -12,10 +12,11 @@ typedef struct {
     u8 bcd_s;
     u8 bcd_m;
     u8 bcd_h;
-    u8 unknown;
+    u8 weekday;
     u8 bcd_D;
     u8 bcd_M;
     u8 bcd_Y;
+	u8 leap_count;
 } __attribute__((packed)) DsTime;
 
 bool is_valid_dstime(DsTime* dstime);

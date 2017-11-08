@@ -28,13 +28,13 @@ bool is_valid_dstime(DsTime* dstime) {
 }
 
 bool get_dstime(DsTime* dstime) {
-    return (I2C_readRegBuf(I2C_DEV_MCU, 0x30, (void*) dstime, 7));
+    return (I2C_readRegBuf(I2C_DEV_MCU, 0x30, (void*) dstime, sizeof(DsTime)));
 }
 
 bool set_dstime(DsTime* dstime) {
     if (!is_valid_dstime(dstime)) return false;
-    for (u32 i = 0; i < 7; i++) {
-        if (i == 3) continue; // skip the unknown byte
+    for (u32 i = 0; i < sizeof(DsTime); i++) {
+        if ((i == 3) || (i == 7)) continue; // skip the unused bytes
         if (!I2C_writeReg(I2C_DEV_MCU, 0x30+i, ((u8*)dstime)[i]))
             return false;
     }
