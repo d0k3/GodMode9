@@ -804,23 +804,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
 bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno, char* end) {
     char args[_MAX_ARGS][_ARG_MAX_LEN];
     char* argv[_MAX_ARGS];
-    char* line_end = *line_end_p; // line_end_p will be only used to jump by "goto"
+    char* line_end = *line_end_p; // const, line_end_p is only used in "goto" command
     u32 argc = 0;
     cmd_id cmdid;
     
     // static variables for "if" - "else" - "end"
     static bool else_his [_MAX_IF_NEST]; // history of else used state about each level of "if"
     static bool skip = false;            // skipping state by if-else-end
+    static bool not_first_line;               // true if finding a label to jump
     static u8 ifcnt = 0;                 // current count of "if" nest
-    static u8 last_skip = _MAX_IF_NEST;  // the levle of the cause of skipping
+    static u8 last_skip = _MAX_IF_NEST;  // the level of the cause of skipping
     
     // for "goto" - "label"
-    static char lbl_table [_ARG_MAX_LEN + 1] [_MAX_LABELS];  // label table to save labels hisotry
-    static char* lbl_line_end [_MAX_LABELS];      // table of the "line_end" of each label
-    static u32 lbl_lno [_MAX_LABELS];             // table of the line number of each label
-    static u8 lbl_ifcnt [_MAX_LABELS];            // table of the "ifcnt" of each label
-    static char findlabel [_ARG_MAX_LEN + 1];     // '\0' if not finding a label, or the string finding
-    static u8 lblcnt = 0;                         // the number of labels
+    static char findlabel [_ARG_MAX_LEN + 1];     // '\0' if not finding a label, or the label string finding
 
     // set up argv array
     for (u32 i = 0; i < _MAX_ARGS; i++)
@@ -839,23 +835,27 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     
     // reset static variables when running first line
     if (*lno == 1) {
-        // don't have to reset "lbl_table" because we will limit access to "lbl_table" by "lblcnt"
-        for (u16 cntr = 0; cntr < _ARG_MAX_LEN + 1; cntr++) findlabel [cntr] = '\000';
-        skip = false;
-        ifcnt = 0;
-        last_skip = _MAX_IF_NEST;
-        lblcnt = 0;
+        if (not_first_line) {
+            // not actually running the first line, searching a label
+            not_first_line = false;
+        }else{
+            for (u16 cntr = 0; cntr < _ARG_MAX_LEN+1; cntr++) findlabel [cntr] = '\000';
+            skip = false;
+            ifcnt = 0;
+            last_skip = _MAX_IF_NEST;
+        }
     }
     
-    // the label to jump not found -> error ("label" in the line may solve so check for that)
-    if (!(line_end + 1 < end) && (findlabel [0] != '\000') && cmdid != CMD_ID_LABEL) {
+    // check label not found
+    if (!(line_end + 1 < end) && (findlabel [0] != '\000') &&
+        !(cmdid == CMD_ID_LABEL && strcmp(findlabel, argv[0]) == 0)) { // !(the label found!)
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
-        *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+        *flags &= ~(_FLG('o')|_FLG('s')); // static errors are never silent or optional
         return false;
     }
     
     // skip if looking for the label to jump by "goto"
-    if (!(findlabel [0] == '\000') &&
+    if (findlabel [0] != '\000' &&
     !(cmdid == CMD_ID_LABEL ||
       cmdid == CMD_ID_IF    ||
       cmdid == CMD_ID_END )) return true;
@@ -933,15 +933,6 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         
         return true;
     }else if (cmdid == CMD_ID_LABEL) {
-        // even skipping because of if-else-end, add label to the table
-        
-        // max labels check
-        if (lblcnt == _MAX_LABELS) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many labels");
-            *flags &= ~(_FLG('o')|_FLG('s')); // too many *** errors are never silent or optional
-            return false;
-        }
-
         // Check finding the label to jump by "goto"
         if (findlabel [0] != '\000') {
             if (strcmp(findlabel, argv[0]) == 0) {
@@ -953,58 +944,34 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
                 skip = false;
                 
                 // "else_his" is only used for syntax error check
-                // so to prevent unexpected syntax error, set all to false
-                for (u8 cntr = 0; cntr < _MAX_IF_NEST; cntr++) else_his [cntr] = false;
+                // To prevent showing unexpected syntax error, set all to false
+                // so may miss syntax errors in some cases
+                for (u16 cntr = 0; cntr < _MAX_IF_NEST; cntr++) else_his [cntr] = false;
             }
         }
-        
-        // check for duplicate label
-        for (u16 cntr = 0; cntr < lblcnt; cntr++) {
-            if (strcmp(lbl_table [cntr], argv[0]) == 0) {
-                return true; // the label already in the label table and shouldn't be added
-            }
-        }
-        
-        // reaching here means the label isn't in the label table yet and should be added
-        snprintf(lbl_table [lblcnt], _ARG_MAX_LEN, "%s", argv[0]);
-        lbl_line_end [lblcnt] = line_end;
-        lbl_lno [lblcnt] = *lno;
-        lblcnt++;
         
         return true;
     }else if (cmdid == CMD_ID_GOTO) {
         if (skip) return true; // "goto" command should be skipped if skipping by if-else-end
         
-        // look for the label to jump in the label table
-        for (u8 cntr = 0; cntr < lblcnt; cntr++) {
-            if (strcmp(argv[0], lbl_table[cntr]) == 0) {
-                // Restore
-                *line_end_p = lbl_line_end [cntr];
-                *lno = lbl_lno [cntr];
-                
-                // force not skipping
-                ifcnt = lbl_ifcnt [cntr];
-                last_skip = _MAX_IF_NEST;
-                for (u8 cntr = 0; cntr < _MAX_IF_NEST; cntr++) else_his [cntr] = false;
-                return true;
-            }
-        }
+        // search the label from the first line
+        *line_end_p = (char*) SCRIPT_BUFFER-1;
+        *lno = 1-1; // the first line will be executed as the next one to current one
         
-        // reaching here means the label to jump isn't found in the label table
-        // so skip until find the label
+        // set flag to prevent reset the static variables by misunderstandings
+        not_first_line = true;
+        
+        // reset
+        skip = false;
+        ifcnt = 0;
+        last_skip = _MAX_IF_NEST;
+        
         snprintf(findlabel, _ARG_MAX_LEN, "%s", argv[0]);
         return true;
     }
     
     // skip if skipping by if-else-end
     if (skip) return true;
-    
-    // check again : the label to jump not found -> error
-    if (!(line_end + 1 < end) && (findlabel [0] != '\000')) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
-        *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
-        return false;
-    } 
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
