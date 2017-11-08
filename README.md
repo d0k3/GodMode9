@@ -21,14 +21,14 @@ These short instructions apply to all users who have [boot9strap](https://github
 You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
 
-## How to run this / developer info
+## How to run & build this / developer info
 Copy `GodMode9.firm` to somewhere on your SD card (maybe refer to your CFW instructions) and run it from there. FIRM payloads can be ran from [Luma3DS](https://github.com/AuroraWright/Luma3DS), [boot9strap](https://github.com/SciresM/boot9strap) or from GodMode9 itself. Build this with `make firm` (requires [firmtool](https://github.com/TuxSH/firmtool) installed).
 
-If you are a developer and you are building this, you may also just run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`.
+If you are a developer and you are building this, you may also just run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make SAFEMODE=1`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`. You may also hardcode the brightness via `make FIXED_BRIGHTNESS=x`, whereas `x` is a value between 0...15.
 
-Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the data folder when compiling). To preset `M:/vram.mem` with data of your choice (a filesystem image, maybe) provide `vram0.img` inside the data folder, but keep in mind there's a hard 3MB limit. A standalone script runner is compiled by providing `autorun.gm9` (again, in the data folder). 
+Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the `data` folder when compiling). All files put into the `data` folder will turn up in the `V:` drive, but keep in mind there's a hard 3MB limit for all files inside, including overhead. A standalone script runner is compiled by providing `autorun.gm9` (again, in the data folder) and building with `make AUTORUN_SCRIPT=1`.
 
-To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make ntrboot`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some features such as boot9 / boot11 access are not currently available from the ntrboot environment.
+To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make NTRBOOT=1`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some features such as boot9 / boot11 access are not currently available from the ntrboot environment.
 
 
 ## Bootloader mode
@@ -87,7 +87,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
 * __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain files, write permissions can't be enabled.
 * __View text files in a text viewer__: Press the A button on a file and select `Show in Textviewer` (only shows up for actual text files). You can enable wordwrapped mode via R+Y, and navigate around the file via R+X and the dpad.
-* __Chainload FIRM payloads__: Press the A button on a FIRM file, select `FIRM options` -> `Boot FIRM`. Keep in mind you should not run FIRMs from dubious sources and that the write permissions system is no more in place after booting a payload.
+* __Chainload FIRM payloads__: Press the A button on a FIRM file, select `FIRM options` -> `Boot FIRM`. Keep in mind you should not run FIRMs from dubious sources and that the write permissions system is no longer in place after booting a payload.
 * __Chainload FIRM payloads from a neat menu__: The `payloads` menu is found inside the HOME button menu. It provides any FIRM found in `0:/gm9/payloads` for quick chainloading. 
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
 
@@ -103,14 +103,14 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Set (and use) the RTC clock__: For correct modification / creation dates in your file system, you need to setup the RTC clock first. Press the HOME Button and select `More...` to find the option. Keep in mind that modifying the RTC clock means you should also fix system OS time afterwards.
 
 ### Game file handling
-* __List titles installed on your system__: Press R+A on a /title dir or a subdir below that (such dirs are found on `CTRNAND`, `TWLN` and on `A:`/`B:`). This will list all titles installed in the selected location. Works best with the below two features.
+* __List titles installed on your system__: Press R+A on a /title dir or a subdir below that. This will also work directly for `CTRNAND`, `TWLN` and `A:`/`B:` drives. This will list all titles installed in the selected location. Works best with the below two features.
 * __Build CIAs from NCCH / NCSD (.3DS) / TMD (installed contents)__: Press A on the file you want converted and the option will be shown. Installed contents are found (among others) in `1:/titles/`(SysNAND) and `A:/titles/`(SD installed). Where applicable, you will also be able to generate legit CIAs. Note: this works also from a file search and title listing.
 * __Dump CXIs / NDS from TMD (installed contents)__: This works the same as building CIAs, but dumps decrypted CXIs or NDS rom dumps instead. Note: this works also from a file search and title listing.
 * __Decrypt, encrypt and verify NCCH / NCSD / CIA / BOSS / FIRM images__: Options are found inside the A button menu. You will be able to decrypt/encrypt to the standard output directory or (where applicable) in place.
 * __Decrypt content downloaded from CDN / NUS__: Press A on the file you want decrypted. For this to work, you need at least a TMD file (`encTitlekeys.bin` / `decTitlekeys.bin` also required, see _Support files_ below) or a CETK file. Either keep the names provided by CDN / NUS, or rename the downloaded content to `(anything).nus` or `(anything).cdn` and the CETK to `(anything).cetk`.
 * __Batch mode for the above operations__: Just select multiple files of the same type via the L button, then press the A button on one of the selected files.
 * __Access any file inside NCCH / NCSD / CIA / FIRM / NDS images__: Just mount the file via the A button menu and browse to the file you want. For CDN / NUS content, prior decryption is required for full access.
-* __Rename your NCCH / NCSD / CIA / NDS files to proper names__: Find this feature inside the A button menu. Proper names include title id, game name, product code and region.
+* __Rename your NCCH / NCSD / CIA / NDS / GBA files to proper names__: Find this feature inside the A button menu. Proper names include title id, game name, product code and region.
 * __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges.
 
 ### NAND handling
@@ -127,7 +127,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Check and fix CMACs (for any file that has them)__: The option will turn up in the A button menu if it is available for a given file (f.e. system savegames, `ticket.db`, etc...). This can also be done for multiple files at once if they are marked.
 * __Mount ticket.db files and dump tickets__: Mount the file via the A button menu. Tickets are sorted into `eshop` (stuff from eshop, probably legit), `system` (system tickets, probably legit) and `unknown` (everything else, never legit) categories.
 * __Inject any NCCH CXI file into Health & Safety__: The option is found inside the A button menu for any NCCH CXI file. NCCH CXIs are found, f.e. inside of CIAs. Keep in mind there is a (system internal) size restriction on H&S injectable apps.
-* __Inject and dump GBA VC saves__: Look for a file called `gbavc.sav` inside the `S:` drive. Keep in mind that you need to start the specific GBA game on your console before dumping / injecting the save.
+* __Inject and dump GBA VC saves__: Find the options to do this inside the A button menu for `agbsave.bin` in the `S:` drive. Keep in mind that you need to start the specific GBA game on your console before dumping / injecting the save.
 * __Dump a copy of boot9, boot11 & your OTP__: This works on sighax, via boot9strap only. These files are found inside the `M:` drive and can be copied from there to any other place.
 
 ### Support file handling
