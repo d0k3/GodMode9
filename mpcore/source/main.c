@@ -9,7 +9,7 @@ vu32 *entrypoint = (vu32*)0x1FFFFFFC;
 
 void PXI_IRQHandler(void)
 {
-    char pxi_buf[PXI_MAXBUFLEN] = {0};
+    // char pxi_buf[PXI_MAXBUFLEN] = {0};
     u32 pxi_args[PXI_FIFO_LEN]  = {0};
     u8 pxi_cmd;
 

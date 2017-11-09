@@ -49,3 +49,40 @@ u32 ValidateAgbHeader(AgbHeader* agb) {
     
     return 0;
 }
+
+/* u32 ValidateAgbVc(void* data, u32 len) {
+    const u8 magic[] = { GBAVC_MAGIC };
+    
+    if (len < sizeof(AgbHeader) + sizeof(AgbVcFooter))
+        return 1;
+    
+    AgbHeader* header = (AgbHeader*) data;
+    AgbVcFooter* footer = (AgbVcFooter*) (((u8*) data) + len - sizeof(AgbVcFooter));
+    
+    if ((ValidateAgbHeader(header) != 0) || (memcmp(footer->magic, magic, sizeof(magic)) != 0) ||
+        (footer->rom_size != len - sizeof(AgbVcFooter)))
+        return 1;
+        
+    return 0;
+} */
+
+// basically reverse ValidateAgbSaveHeader()
+/* u32 BuildAgbSaveHeader(AgbSaveHeader* header, u64 title_id, u32 save_size) {
+    const u8 magic[] = { AGBSAVE_MAGIC };
+    
+    memset(header, 0x00, sizeof(AgbSaveHeader));
+    memset(header->reserved0, 0xFF, sizeof(header->reserved0));
+    memset(header->reserved1, 0xFF, sizeof(header->reserved1));
+    memset(header->reserved2, 0xFF, sizeof(header->reserved2));
+    memset(header->reserved3, 0xFF, sizeof(header->reserved3));
+    
+    memcpy(header->magic, magic, sizeof(magic));
+    header->unknown0 = 0x01;
+    header->title_id = title_id;
+    header->save_start = 0x200;
+    header->save_size = save_size;
+    
+    sdmmc_get_cid(0, (u32*) (void*) &(header->sd_cid));
+    
+    return 0;
+} */
