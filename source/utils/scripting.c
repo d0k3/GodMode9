@@ -858,6 +858,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     if (findlabel [0] != '\000' &&
     !(cmdid == CMD_ID_LABEL ||
       cmdid == CMD_ID_IF    ||
+      cmdid == CMD_ID_ELSE ||
       cmdid == CMD_ID_END )) return true;
       
     
@@ -901,6 +902,12 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
             return false;
         }
         
+        // if searching for a label, just check syntax errors and return
+        if (findlabel != '\000') {
+            else_his[ifcnt - 1] = true;
+            return true;
+        }
+        
         // turn the skip state
         if (last_skip == (ifcnt - 1) || !skip) {
             else_his[ifcnt - 1] = true;
@@ -942,11 +949,6 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
                 
                 last_skip = _MAX_IF_NEST;
                 skip = false;
-                
-                // "else_his" is only used for syntax error check
-                // To prevent showing unexpected syntax error, set all to false
-                // so may miss syntax errors in some cases
-                for (u16 cntr = 0; cntr < _MAX_IF_NEST; cntr++) else_his [cntr] = false;
             }
         }
         
@@ -965,6 +967,9 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         skip = false;
         ifcnt = 0;
         last_skip = _MAX_IF_NEST;
+        // "else_his" is only used for syntax error check
+        // To prevent showing unexpected syntax error, set all to false
+        for (u16 cntr = 0; cntr < _MAX_IF_NEST; cntr++) else_his [cntr] = false;
         
         snprintf(findlabel, _ARG_MAX_LEN, "%s", argv[0]);
         return true;
