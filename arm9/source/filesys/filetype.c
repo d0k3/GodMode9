@@ -128,6 +128,9 @@ u64 IdentifyFileType(const char* path) {
         if (fsize < TEMP_BUFFER_SIZE) type |= TXT_GENERIC;
         return type;
     } else if ((strnlen(fname, 16) == 8) && (sscanf(fname, "%08lx", &id) == 1)) {
+        if (strncmp(path + 2, "/Nintendo DSiWare/", 18) == 0)
+            return GAME_DSIWE;
+        
         char path_cdn[256];
         char* name_cdn = path_cdn + (fname - path);
         strncpy(path_cdn, path, 256);

@@ -1,7 +1,9 @@
 #include "sddata.h"
+#include "dsiwareexp.h"
 #include "aes.h"
 #include "sha.h"
 
+#define DSIWARE_MAGIC "Nintendo DSiWare" // must be exactly 16 chars
 #define NUM_ALIAS_DRV 2
 #define NUM_FILCRYPTINFO 16
 
@@ -52,28 +54,117 @@ FilCryptInfo* fx_find_cryptinfo(FIL* fptr) {
     return info;
 }
 
+FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
+    const u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;
+    const u32 num_tbl = sizeof(DsiWareExpContentTable) / sizeof(u32);
+    const FSIZE_t ofs0 = f_tell(fp);
+    
+    u8 __attribute__((aligned(16))) iv[AES_BLOCK_SIZE];
+    u32 tbl[num_tbl];
+    u8 hdr[DSIWEXP_HEADER_LEN];
+    
+    FRESULT res;
+    UINT br;
+    
+    
+    // read and decrypt header
+    if ((res = f_lseek(fp, DSIWEXP_HEADER_OFFSET)) != FR_OK) return res;
+    if ((res = f_read(fp, hdr, DSIWEXP_HEADER_LEN, &br)) != FR_OK) return res;
+    if (br != DSIWEXP_HEADER_LEN) return FR_DENIED;
+    memcpy(iv, hdr + DSIWEXP_HEADER_LEN - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    cbc_decrypt(hdr, hdr, sizeof(DsiWareExpHeader) / AES_BLOCK_SIZE, mode, iv);
+    
+    // setup the table
+    if (BuildDsiWareExportContentTable(tbl, hdr) != 0) return FR_DENIED;
+    if (tbl[num_tbl-1] > f_size(fp)) return FR_DENIED; // obviously missing data
+    
+    
+    // process sections
+    u32 sct_start = 0;
+    u32 sct_end = 0;
+    for (u32 i = 0; i < num_tbl; i++, sct_start = sct_end) {
+        sct_end = tbl[i];
+        if (sct_start == sct_end) continue; // nothing in section
+        if ((ofs + len <= sct_start) || (ofs >= sct_end)) continue; // section not in data
+        
+        const u32 crypt_end = sct_end - (AES_BLOCK_SIZE * 2);
+        const u32 data_end = min(crypt_end, ofs + len);
+        u32 data_pos = max(ofs, sct_start);
+        if (ofs >= crypt_end) continue; // nothing to do
+        
+        if ((sct_start < ofs) || (sct_end > ofs + len)) { // incomplete section, ugh
+            u8 __attribute__((aligned(16))) block[AES_BLOCK_SIZE];
+            
+            // load iv0
+            FSIZE_t block0_ofs = data_pos - (data_pos % AES_BLOCK_SIZE);
+            FSIZE_t iv0_ofs = ((block0_ofs > sct_start) ? block0_ofs : sct_end) - AES_BLOCK_SIZE;
+            if ((res = f_lseek(fp, iv0_ofs)) != FR_OK) return res;
+            if ((res = f_read(fp, iv, AES_BLOCK_SIZE, &br)) != FR_OK) return res;
+            
+            // load and decrypt block0 (if misaligned)
+            if (data_pos % AES_BLOCK_SIZE) {
+                if ((res = f_lseek(fp, block0_ofs)) != FR_OK) return res;
+                if ((res = f_read(fp, block, AES_BLOCK_SIZE, &br)) != FR_OK) return res;
+                cbc_decrypt(block, block, 1, mode, iv);
+                data_pos = min(block0_ofs + AES_BLOCK_SIZE, data_end);
+                memcpy(buff, block + (ofs - block0_ofs), data_pos - ofs);
+            }
+            
+            // decrypt blocks in between
+            u32 num_blocks = (data_end - data_pos) / AES_BLOCK_SIZE;
+            if (num_blocks) {
+                u8* blocks = (u8*) buff + (data_pos - ofs);
+                cbc_decrypt(blocks, blocks, num_blocks, mode, iv);
+                data_pos += num_blocks * AES_BLOCK_SIZE;
+            }
+            
+            // decrypt last block
+            if (data_pos < data_end) {
+                u8* lbuff = (u8*) buff + (data_pos - ofs);
+                memcpy(block, lbuff, data_end - data_pos);
+                cbc_decrypt(block, block, 1, mode, iv);
+                memcpy(lbuff, block, data_end - data_pos);
+                data_pos = data_end;
+            }
+        } else { // complete section (thank god for these!)
+            u8* blocks = (u8*) buff + (sct_start - ofs);
+            u8* iv0 = (u8*) buff + (sct_end - ofs) - AES_BLOCK_SIZE;
+            u32 num_blocks = (crypt_end - sct_start) / AES_BLOCK_SIZE;
+            memcpy(iv, iv0, AES_BLOCK_SIZE);
+            cbc_decrypt(blocks, blocks, num_blocks, mode, iv);
+        }
+    }
+    
+    return f_lseek(fp, ofs0);
+}
+
 FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode) {
     int num = alias_num(path);
     FilCryptInfo* info = fx_find_cryptinfo(fp);
     if (info) info->fptr = NULL;
     
     if (info && (num >= 0)) {
-        // get AES counter, see: http://www.3dbrew.org/wiki/Extdata#Encryption
-        // path is the part of the full path after //Nintendo 3DS/<ID0>/<ID1>
-        u8 hashstr[256];
-        u8 sha256sum[32];
-        u32 plen = 0;
-        // poor man's UTF-8 -> UTF-16 / uppercase -> lowercase
-        for (plen = 0; plen < 128; plen++) {
-            u8 symbol = path[2 + plen];
-            if ((symbol >= 'A') && (symbol <= 'Z')) symbol += ('a' - 'A');
-            hashstr[2*plen] = symbol;
-            hashstr[2*plen+1] = 0;
-            if (symbol == 0) break;
+        // DSIWare Export, mark with the magic number
+        if (strncmp(path + 2, "/" DSIWARE_MAGIC, 1 + 16) == 0) {
+            memcpy(info->ctr, DSIWARE_MAGIC, 16);
+        } else {
+            // get AES counter, see: http://www.3dbrew.org/wiki/Extdata#Encryption
+            // path is the part of the full path after //Nintendo 3DS/<ID0>/<ID1>
+            u8 hashstr[256];
+            u8 sha256sum[32];
+            u32 plen = 0;
+            // poor man's UTF-8 -> UTF-16 / uppercase -> lowercase
+            for (plen = 0; plen < 128; plen++) {
+                u8 symbol = path[2 + plen];
+                if ((symbol >= 'A') && (symbol <= 'Z')) symbol += ('a' - 'A');
+                hashstr[2*plen] = symbol;
+                hashstr[2*plen+1] = 0;
+                if (symbol == 0) break;
+            }
+            sha_quick(sha256sum, hashstr, (plen + 1) * 2, SHA256_MODE);
+            for (u32 i = 0; i < 16; i++)
+                info->ctr[i] = sha256sum[i] ^ sha256sum[i+16];
         }
-        sha_quick(sha256sum, hashstr, (plen + 1) * 2, SHA256_MODE);
-        for (u32 i = 0; i < 16; i++)
-            info->ctr[i] = sha256sum[i] ^ sha256sum[i+16];
         // copy over key, FIL pointer
         memcpy(info->keyy, sd_keyy[num], 16);
         info->fptr = fp;
@@ -89,7 +180,8 @@ FRESULT fx_read (FIL* fp, void* buff, UINT btr, UINT* br) {
     if (info && info->fptr) {
         setup_aeskeyY(0x34, info->keyy);
         use_aeskey(0x34);
-        ctr_decrypt_byte(buff, buff, btr, off, AES_CNT_CTRNAND_MODE, info->ctr);
+        if (memcmp(info->ctr, DSIWARE_MAGIC, 16) == 0) fx_decrypt_dsiware(fp, buff, off, btr);
+        else ctr_decrypt_byte(buff, buff, btr, off, AES_CNT_CTRNAND_MODE, info->ctr);
     }
     return res;
 }
@@ -99,6 +191,7 @@ FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
     FSIZE_t off = f_tell(fp);
     FRESULT res = FR_OK;
     if (info && info->fptr) {
+        if (memcmp(info->ctr, DSIWARE_MAGIC, 16) == 0) return FR_DENIED;
         setup_aeskeyY(0x34, info->keyy);
         use_aeskey(0x34);
         *bw = 0;

@@ -11,5 +11,6 @@
 #include "codelzss.h"
 #include "nds.h"
 #include "gba.h"
+#include "dsiwareexp.h"
 #include "3dsx.h"
 #include "ncchinfo.h"
