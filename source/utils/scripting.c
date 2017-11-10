@@ -801,7 +801,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     return ret;
 }
 
-bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno, char* end) {
+bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno, const char* end) {
     char args[_MAX_ARGS][_ARG_MAX_LEN];
     char* argv[_MAX_ARGS];
     char* line_end = *line_end_p; // const, line_end_p is only used in "goto" command
@@ -903,7 +903,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         }
         
         // if searching for a label, just check syntax errors and return
-        if (findlabel != '\000') {
+        if (findlabel [0] != '\000') {
             else_his[ifcnt - 1] = true;
             return true;
         }
@@ -973,6 +973,13 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         
         snprintf(findlabel, _ARG_MAX_LEN, "%s", argv[0]);
         return true;
+    }
+    
+    // check "end" not found
+    if (!(line_end + 1 < end) && ifcnt != 0) {
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "'if' without 'end'");
+        *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+        return false;
     }
     
     // skip if skipping by if-else-end
