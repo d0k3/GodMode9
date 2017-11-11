@@ -397,7 +397,9 @@ static int SD_Init()
     u32 temp = (handleSD.error & 0x1) << 0x1E;
 
     u32 temp2 = 0;
-    s32 timeout = 0x80;
+#ifdef SD_TIMEOUT
+    s32 timeout = SD_TIMEOUT;
+#endif // SD_TIMEOUT
     do
     {
         do
@@ -405,15 +407,27 @@ static int SD_Init()
             sdmmc_send_command(&handleSD, 0x10437, handleSD.initarg << 0x10);
             sdmmc_send_command(&handleSD, 0x10769, 0x00FF8000 | temp);
             temp2 = 1;
+#ifdef SD_TIMEOUT
             timeout--;
+#endif // SD_TIMEOUT
         }
-        while(!(handleSD.error & 1) && timeout > 0);
+        while(!(handleSD.error & 1)
+#ifdef SD_TIMEOUT
+            && timeout > 0
+#endif // SD_TIMEOUT
+        );
     }
-    while((handleSD.ret[0] & 0x80000000) == 0 && timeout > 0);
+    while((handleSD.ret[0] & 0x80000000) == 0
+#ifdef SD_TIMEOUT
+        && timeout > 0
+#endif // SD_TIMEOUT
+    );
 
+#ifdef SD_TIMEOUT
     if ((handleSD.ret[0] & 0x80000000) == 0) {
         return 6;
     }
+#endif // SD_TIMEOUT
 
     if(!((handleSD.ret[0] >> 30) & 1) || !temp)
         temp2 = 0;
