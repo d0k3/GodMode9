@@ -873,6 +873,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         
         // if skipping by "goto", just increase the number of "if" nest
         if (findlabel [0] != '\000') {
+            else_his[ifcnt] = false; // reset
             ifcnt++;
             return true;
         }
