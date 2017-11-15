@@ -8,11 +8,7 @@
 #define VRAM0_AUTORUN_GM9       "autorun.gm9"
 #define VRAM0_README_MD         "README.md"
 #define VRAM0_AESKEY_DB         "aeskey.db"
-#ifndef SAFEMODE
-#define VRAM0_SPLASH_QLZ        "gm9_splash.qlz"
-#else
-#define VRAM0_SPLASH_QLZ        "sm9_splash_baby.qlz"
-#endif
+#define VRAM0_SPLASH_QLZ        FLAVOR "_splash.qlz"
 
 
 #define VRAM0_OFFSET    0x18000000

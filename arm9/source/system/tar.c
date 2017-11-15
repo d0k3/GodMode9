@@ -26,10 +26,6 @@ u32 ValidateTarHeader(void* tardata, void* tardata_end) {
     // filename prefix is not supported here
     if (*(tar->fname_prefix)) return 1;
     
-    // ustar magic
-    if (strncmp(tar->magic, USTAR_MAGIC, 5) != 0)
-        return 1;
-    
     // check filesize
     u64 fsize_max = ((u8*) tardata_end - (u8*) tardata) - sizeof(TarHeader);
     if (ReadAsciiOctal(tar->fsize, 12) > fsize_max)

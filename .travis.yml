@@ -7,7 +7,10 @@ before_install:
 
 install:
   - sudo perl devkitARMupdate.pl
-  - sudo apt-get -qq install lftp p7zip-full
+  - sudo apt-get -qq install python p7zip-full
+  - sudo pip install --upgrade pip setuptools
+  - sudo pip install cryptography
+  - sudo pip install git+https://github.com/TuxSH/firmtool.git
 
 script:
-  - make binary
+  - make release

@@ -15,22 +15,23 @@ export OUTDIR := output
 export RELDIR := release
 
 # Definitions for initial RAM disk
-VRAM_OUT   := $(OUTDIR)/vram0.tar
-VRAM_DIRS  := data/
-VRAM_FLAGS :=
+VRAM_OUT    := $(OUTDIR)/vram0.tar
+VRAM_FLAGS  := --format=v7 --blocking-factor=1
+VRAM_BASE   := README.md resources/$(FLAVOR)_splash.qlz
+VRAM_DATA   := data
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
 
 export ASFLAGS := -g -x assembler-with-cpp $(INCLUDE)
-export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\""\
+export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\"" -DFLAVOR="\"$(FLAVOR)"\" \
                   -g -O2 -Wall -Wextra -Wpedantic -Wcast-align -Wno-main \
                   -fomit-frame-pointer -ffast-math -std=gnu11 \
                   -Wno-unused-function $(INCLUDE)
 export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=512
-ELF := arm9/arm9.elf mpcore/mpcore.elf
+ELF := arm9/arm9.elf arm11/arm11.elf
 
-.PHONY: all firm clean
+.PHONY: all firm vram0 elf release clean
 all: firm
 
 clean:
@@ -39,8 +40,7 @@ clean:
 	done
 	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_OUT)
 
-release:
-	@$(MAKE) --no-print-directory clean
+release: clean
 	@$(MAKE) --no-print-directory firm
 	@$(MAKE) --no-print-directory firm NTRBOOT=1
 
@@ -58,16 +58,20 @@ release:
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
 	@-7z a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip $(RELDIR)/*
 
-$(VRAM_OUT):
-	@mkdir -p "$(@D)"
-	@echo "Creating $@"
-	@tar $(VRAM_FLAGS) cf $@ $(VRAM_DIRS)
+vram0:
+	@mkdir -p "$(OUTDIR)"
+	@echo "Creating $(VRAM_OUT)"
+	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^$(VRAM_DATA)\///' $(VRAM_DATA)/*
+	@tar rf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^.*\///' $(VRAM_BASE)
 
-%.elf:
-	@echo "Building $@"
-	@$(MAKE) --no-print-directory -C $(call dirname,"$@")
+elf:
+	@set -e; for elf in $(ELF); do \
+		echo "Building $$elf"; \
+		$(MAKE) --no-print-directory -C $$(dirname $$elf); \
+	done
 
-firm: $(ELF) $(VRAM_OUT)
+firm: elf vram0
+	@test `wc -c <$(VRAM_OUT)` -le 3145728
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
-	firmtool build $(FIRM) $(FTFLAGS) -g -A 0x18000000 -D $^ -C NDMA XDMA memcpy
-	firmtool build $(FIRMD) $(FTDFLAGS) -g -A 0x18000000 -D $^ -C NDMA XDMA memcpy
+	firmtool build $(FIRM) $(FTFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT) -C NDMA XDMA memcpy
+	firmtool build $(FIRMD) $(FTDFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT)  -C NDMA XDMA memcpy
