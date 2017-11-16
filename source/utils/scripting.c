@@ -115,7 +115,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ELSE    , "else"    , 0, 0 },
     { CMD_ID_END     , "end"     , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
-    { CMD_ID_LABEL   , "label"   , 1, 0 },
+    { CMD_ID_LABEL   , "@"   , 1, 0 },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
@@ -498,6 +498,21 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     if (!(cmd = get_string(ptr, line_end, &cmd_len, &ptr, err_str))) return false; // string error
     if ((cmd >= line_end) || (*cmd == '#')) return true; // empty line or comment
     
+    // label handling
+    if (*cmd == '@' && cmd_len > 1) { // if just '@', standard label command(@) can handle it
+        *cmdid = CMD_ID_LABEL;
+        if (!(str = get_string(ptr, line_end, &len, &ptr, err_str))) return false;
+        if (!(str >= line_end)) { // too many arguments(?)
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid label format");
+            return false;
+        }
+        
+        // don't process '@'
+        cmd++;
+        cmd_len--;
+        return (expand_arg(argv[(*argc)++], cmd, cmd_len));
+    }
+
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
         if ((str >= line_end) || (*str == '#')) // end of line or comment
