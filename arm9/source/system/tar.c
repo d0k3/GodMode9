@@ -32,7 +32,7 @@ u32 ValidateTarHeader(void* tardata, void* tardata_end) {
         return 1;
     
     // type can only be standard file or dir
-    if ((tar->ftype != '0') && (tar->ftype != '5'))
+    if (tar->ftype && (tar->ftype != '0') && (tar->ftype != '5'))
         return 1;
     
     // checksum
@@ -70,13 +70,13 @@ void* NextTarEntry(void* tardata, void* tardata_end) {
     return data;
 }
 
-void* FindTarFileInfo(void* tardata, void* tardata_end, const char* fname, u64* fsize, bool* is_dir) {
+void* FindTarFileInfo(void* tardata, void* tardata_end, const char* fname, u64* fsize) {
     while (tardata && (tardata < tardata_end)) {
         TarHeader* tar = tardata;
         
         if (ValidateTarHeader(tardata, tardata_end) != 0) break;
-        if ((strncasecmp(tar->fname, fname, 100) == 0) && (tar->ftype == '0'))
-            return GetTarFileInfo(tardata, NULL, fsize, is_dir);
+        if ((strncasecmp(tar->fname, fname, 100) == 0) && (!tar->ftype || (tar->ftype == '0')))
+            return GetTarFileInfo(tardata, NULL, fsize, NULL);
         tardata = ((u8*) tardata) + sizeof(TarHeader) + align(ReadAsciiOctal(tar->fsize, 12), 512);
     }
     

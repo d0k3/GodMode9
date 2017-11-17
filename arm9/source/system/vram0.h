@@ -34,5 +34,5 @@
 #define GetVTarFileInfo(tardata, fname, fsize, is_dir) \
     GetTarFileInfo(tardata, fname, fsize, is_dir)
     
-#define FindVTarFileInfo(fname, fsize, is_dir) \
-    FindTarFileInfo(TARDATA, TARDATA_END, fname, fsize, is_dir)
+#define FindVTarFileInfo(fname, fsize) \
+    FindTarFileInfo(TARDATA, TARDATA_END, fname, fsize)

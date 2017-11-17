@@ -123,7 +123,7 @@ u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
     } else {
         // check for hardcoded key database
         u64 aeskeydb_bin_size = 0;
-        void* aeskeydb_bin = FindVTarFileInfo(VRAM0_AESKEY_DB, &aeskeydb_bin_size, NULL);
+        void* aeskeydb_bin = FindVTarFileInfo(VRAM0_AESKEY_DB, &aeskeydb_bin_size);
         fsize = (aeskeydb_bin_size <= bsize) ? aeskeydb_bin_size : 0;
         if (fsize) memcpy(keydb, aeskeydb_bin, aeskeydb_bin_size);
         

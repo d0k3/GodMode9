@@ -1589,7 +1589,7 @@ u32 HomeMoreMenu(char* current_path) {
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
     int sysinfo = ++n_opt;
-    int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL, NULL)) ? (int) ++n_opt : -1;
+    int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL)) ? (int) ++n_opt : -1;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1704,7 +1704,7 @@ u32 HomeMoreMenu(char* current_path) {
     }
     else if (user_select == readme) { // Display GodMode9 readme
         u64 README_md_size;
-        char* README_md = FindVTarFileInfo(VRAM0_README_MD, &README_md_size, NULL);
+        char* README_md = FindVTarFileInfo(VRAM0_README_MD, &README_md_size);
         MemToCViewer(README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
     } else return 1;
@@ -1713,7 +1713,7 @@ u32 HomeMoreMenu(char* current_path) {
 }
 
 u32 SplashInit(const char* modestr) {
-    void* splash = FindVTarFileInfo(VRAM0_SPLASH_QLZ, NULL, NULL);
+    void* splash = FindVTarFileInfo(VRAM0_SPLASH_QLZ, NULL);
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
     const u32 pos_xb = 10;
@@ -1723,7 +1723,7 @@ u32 SplashInit(const char* modestr) {
     
     ClearScreenF(true, true, COLOR_STD_BG);
     if (splash) QlzDecompress(TOP_SCREEN, splash, 0);
-    else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(splash not found)");
+    else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_QLZ " not found)");
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
     
@@ -2309,7 +2309,7 @@ u32 ScriptRunner(int entrypoint) {
     
     // get script from VRAM0 TAR
     u64 autorun_gm9_size = 0;
-    void* autorun_gm9 = FindVTarFileInfo(VRAM0_AUTORUN_GM9, &autorun_gm9_size, NULL);
+    void* autorun_gm9 = FindVTarFileInfo(VRAM0_AUTORUN_GM9, &autorun_gm9_size);
     
     if (autorun_gm9 && autorun_gm9_size) {
         // copy script to script buffer and run it

@@ -32,4 +32,4 @@ typedef struct {
 u32 ValidateTarHeader(void* tardata, void* tardata_end);
 void* GetTarFileInfo(void* tardata, char* fname, u64* fsize, bool* is_dir);
 void* NextTarEntry(void* tardata, void* tardata_end);
-void* FindTarFileInfo(void* tardata, void* tardata_end, const char* fname, u64* fsize, bool* is_dir);
+void* FindTarFileInfo(void* tardata, void* tardata_end, const char* fname, u64* fsize);
