@@ -45,18 +45,20 @@ release: clean
 	@$(MAKE) --no-print-directory firm NTRBOOT=1
 
 	@mkdir -p $(RELDIR)
+	@mkdir -p $(RELDIR)/ntrboot
+	@mkdir -p $(RELDIR)/elf
+
 	@cp $(FIRM) $(RELDIR)
-	@[ -d $(RELDIR) ] || mkdir -p $(RELDIR)
-	@[ -d $(RELDIR)/ntrboot ] || mkdir -p $(RELDIR)/ntrboot
 	@cp $(OUTDIR)/$(FLAVOR)_ntr.firm $(RELDIR)/ntrboot/
 	@cp $(OUTDIR)/$(FLAVOR)_ntr_dev.firm $(RELDIR)/ntrboot/
 	@cp $(OUTDIR)/$(FLAVOR).firm $(RELDIR)/
 	@cp $(OUTDIR)/$(FLAVOR)_dev.firm $(RELDIR)/
-	@cp $(ELF) $(RELDIR)
+	@cp $(ELF) $(RELDIR)/elf
 	@cp $(CURDIR)/README.md $(RELDIR)
 	@cp $(CURDIR)/HelloScript.gm9 $(RELDIR)
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
-	@-7z a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip $(RELDIR)/*
+
+	@-7z a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip ./$(RELDIR)/*
 
 vram0:
 	@mkdir -p "$(OUTDIR)"
