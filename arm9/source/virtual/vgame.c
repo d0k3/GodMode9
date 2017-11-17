@@ -4,7 +4,7 @@
 #include "aes.h"
 
 #define VFLAG_NO_CRYPTO     (1UL<<18)
-#define VFLAG_DSIWARE       (1UL<<19)
+#define VFLAG_TAD           (1UL<<19)
 #define VFLAG_CIA_CONTENT   (1UL<<20)
 #define VFLAG_NDS           (1UL<<21)
 #define VFLAG_NITRO_DIR     (1UL<<22)
@@ -17,7 +17,7 @@
 #define VFLAG_NCCH          (1UL<<29)
 #define VFLAG_EXEFS         (1UL<<30)
 #define VFLAG_ROMFS         (1UL<<31)
-#define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NDS|VFLAG_NITRO_DIR|VFLAG_NITRO|VFLAG_DSIWARE)
+#define VFLAG_GAMEDIR       (VFLAG_FIRM|VFLAG_CIA|VFLAG_NCSD|VFLAG_NCCH|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NDS|VFLAG_NITRO_DIR|VFLAG_NITRO|VFLAG_TAD)
 #define VFLAG_NCCH_CRYPTO   (VFLAG_EXEFS_FILE|VFLAG_EXTHDR|VFLAG_EXEFS|VFLAG_ROMFS|VFLAG_LV3|VFLAG_NCCH)
 
 #define NAME_FIRM_HEADER    "header.bin"
@@ -61,28 +61,28 @@
 #define NAME_NDS_BANNER     "banner.bin"
 #define NAME_NDS_DATADIR    "data"
 
-#define NAME_DSIWE_BANNER   "banner.bin"
-#define NAME_DSIWE_HEADER   "header.bin"
-#define NAME_DSIWE_FOOTER   "footer.bin"
-#define NAME_DSIWE_TYPES    "tmd", "srl", "02.unk", \
+#define NAME_TAD_BANNER     "banner.bin"
+#define NAME_TAD_HEADER     "header.bin"
+#define NAME_TAD_FOOTER     "footer.bin"
+#define NAME_TAD_TYPES      "tmd", "srl", "02.unk", \
                             "03.unk", "04.unk", "05.unk", \
                             "06.unk", "07.unk", "08.unk", \
                             "public.sav", "banner.sav", "11.unk"
-#define NAME_DSIWE_CONTENT  "%016llX.%s" // titleid.type
+#define NAME_TAD_CONTENT    "%016llX.%s" // titleid.type
 
 
 static u64 vgame_type = 0;
 static u32 base_vdir = 0;
 
 static VirtualFile* templates_cia   = (VirtualFile*) VGAME_BUFFER; // first 56kb reserved (enough for 1024 entries)
-static VirtualFile* templates_dsiwe = (VirtualFile*) (VGAME_BUFFER + 0xDC00); // 1kb reserved (enough for 18 entries)
+static VirtualFile* templates_tad   = (VirtualFile*) (VGAME_BUFFER + 0xDC00); // 1kb reserved (enough for 18 entries)
 static VirtualFile* templates_firm  = (VirtualFile*) (VGAME_BUFFER + 0xE000); // 2kb reserved (enough for 36 entries)
 static VirtualFile* templates_ncsd  = (VirtualFile*) (VGAME_BUFFER + 0xE800); // 2kb reserved (enough for 36 entries)
 static VirtualFile* templates_ncch  = (VirtualFile*) (VGAME_BUFFER + 0xF000); // 1kb reserved (enough for 18 entries)
 static VirtualFile* templates_nds   = (VirtualFile*) (VGAME_BUFFER + 0xF400); // 1kb reserved (enough for 18 entries)
 static VirtualFile* templates_exefs = (VirtualFile*) (VGAME_BUFFER + 0xF800); // 2kb reserved (enough for 36 entries)
 static int n_templates_cia   = -1;
-static int n_templates_dsiwe = -1;
+static int n_templates_tad   = -1;
 static int n_templates_firm  = -1;
 static int n_templates_ncsd  = -1;
 static int n_templates_ncch  = -1;
@@ -101,7 +101,7 @@ static u64 offset_lv3fd = (u64) -1;
 static u64 offset_nds   = (u64) -1;
 static u64 offset_nitro = (u64) -1;
 static u64 offset_ccnt  = (u64) -1;
-static u64 offset_dsiwe = (u64) -1;
+static u64 offset_tad   = (u64) -1;
 static u32 index_ccnt   = (u32) -1;
 
 static CiaStub* cia = (CiaStub*) (void*) (VGAME_BUFFER + 0x10000); // 61kB reserved - should be enough by far
@@ -661,53 +661,53 @@ bool BuildVGameFirmDir(void) {
     return true;
 }
 
-bool BuildVGameDsiWareDir(void) {
-    const char* name_type[] = { NAME_DSIWE_TYPES };
-    VirtualFile* templates = templates_dsiwe;
+bool BuildVGameTadDir(void) {
+    const char* name_type[] = { NAME_TAD_TYPES };
+    VirtualFile* templates = templates_tad;
     u32 content_offset = 0;
     u32 n = 0;
     
     // read header, setup table
-    DsiWareExpContentTable tbl;
-    DsiWareExpHeader hdr;
-    ReadGameImageBytes(&hdr, DSIWEXP_HEADER_OFFSET, DSIWEXP_HEADER_LEN);
-    if (BuildDsiWareExportContentTable(&tbl, &hdr) != 0) {
-        n_templates_dsiwe = 0;
+    TadContentTable tbl;
+    TadHeader hdr;
+    ReadGameImageBytes(&hdr, TAD_HEADER_OFFSET, TAD_HEADER_LEN);
+    if (BuildTadContentTable(&tbl, &hdr) != 0) {
+        n_templates_tad = 0;
         return false;
     }
     
     // banner
-    strncpy(templates[n].name, NAME_DSIWE_BANNER, 32);
+    strncpy(templates[n].name, NAME_TAD_BANNER, 32);
     templates[n].offset = content_offset;
-    templates[n].size = tbl.banner_end - content_offset - sizeof(DsiWareExpBlockMetaData);
+    templates[n].size = tbl.banner_end - content_offset - sizeof(TadBlockMetaData);
     templates[n].keyslot = 0xFF;
     templates[n].flags = 0;
     content_offset = tbl.banner_end;
     n++;
     
     // header
-    strncpy(templates[n].name, NAME_DSIWE_HEADER, 32);
+    strncpy(templates[n].name, NAME_TAD_HEADER, 32);
     templates[n].offset = content_offset;
-    templates[n].size = tbl.header_end - content_offset - sizeof(DsiWareExpBlockMetaData);
+    templates[n].size = tbl.header_end - content_offset - sizeof(TadBlockMetaData);
     templates[n].keyslot = 0xFF;
     templates[n].flags = 0;
     content_offset = tbl.header_end;
     n++;
     
     // footer
-    strncpy(templates[n].name, NAME_DSIWE_FOOTER, 32);
+    strncpy(templates[n].name, NAME_TAD_FOOTER, 32);
     templates[n].offset = content_offset;
-    templates[n].size = tbl.footer_end - content_offset - sizeof(DsiWareExpBlockMetaData);
+    templates[n].size = tbl.footer_end - content_offset - sizeof(TadBlockMetaData);
     templates[n].keyslot = 0xFF;
     templates[n].flags = 0;
     content_offset = tbl.footer_end;
     n++;
     
     // contents
-    for (u32 i = 0; i < DSIWEXP_NUM_CONTENT; content_offset = tbl.content_end[i++]) {
+    for (u32 i = 0; i < TAD_NUM_CONTENT; content_offset = tbl.content_end[i++]) {
         if (!hdr.content_size[i]) continue; // nothing in section
         // use proper names, fix TMD handling
-        snprintf(templates[n].name, 32, NAME_DSIWE_CONTENT, hdr.title_id, name_type[i]);
+        snprintf(templates[n].name, 32, NAME_TAD_CONTENT, hdr.title_id, name_type[i]);
         templates[n].offset = content_offset;
         templates[n].size = hdr.content_size[i];
         templates[n].keyslot = 0xFF;
@@ -715,7 +715,7 @@ bool BuildVGameDsiWareDir(void) {
         n++;
     }
     
-    n_templates_dsiwe = n;
+    n_templates_tad = n;
     return true;
 }
 
@@ -734,6 +734,7 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
     offset_lv3fd = (u64) -1;
     offset_nds   = (u64) -1;
     offset_nitro = (u64) -1;
+    offset_tad   = (u64) -1;
     
     base_vdir =
         (type & SYS_FIRM  ) ? VFLAG_FIRM  :
@@ -743,7 +744,7 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
         (type & GAME_EXEFS) ? VFLAG_EXEFS :
         (type & GAME_ROMFS) ? VFLAG_ROMFS :
         (type & GAME_NDS  ) ? VFLAG_NDS   :
-        (type & GAME_TAD  ) ? VFLAG_DSIWARE : 0;
+        (type & GAME_TAD  ) ? VFLAG_TAD : 0;
     if (!base_vdir) return 0;
     
     vgame_type = type;
@@ -790,9 +791,9 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             ((SetupArm9BinaryCrypto(a9l)) == 0))
             offset_a9bin = arm9s->offset + ARM9BIN_OFFSET;
         if (!BuildVGameFirmDir()) return false;
-    } else if ((vdir->flags & VFLAG_DSIWARE) && (offset_dsiwe != vdir->offset)) {
-        offset_dsiwe = vdir->offset; // always zero(!)
-        if (!BuildVGameDsiWareDir()) return false;
+    } else if ((vdir->flags & VFLAG_TAD) && (offset_tad != vdir->offset)) {
+        offset_tad = vdir->offset; // always zero(!)
+        if (!BuildVGameTadDir()) return false;
     } else if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
         CiaInfo info;
         if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
@@ -1018,9 +1019,9 @@ bool ReadVGameDir(VirtualFile* vfile, VirtualDir* vdir) {
     } else if (vdir->flags & VFLAG_NDS) {
         templates = templates_nds;
         n = n_templates_nds;
-    } else if (vdir->flags & VFLAG_DSIWARE) {
-        templates = templates_dsiwe;
-        n = n_templates_dsiwe;
+    } else if (vdir->flags & VFLAG_TAD) {
+        templates = templates_tad;
+        n = n_templates_tad;
     } else if (vdir->flags & VFLAG_LV3) {
         return ReadVGameDirLv3(vfile, vdir);
     } else if (vdir->flags & VFLAG_NITRO) {

@@ -129,9 +129,9 @@ u64 IdentifyFileType(const char* path) {
         return type;
     } else if ((strncmp(path + 2, "/Nintendo DSiWare/", 18) == 0) &&
         (sscanf(fname, "%08lx.bin", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0)) {
-        DsiWareExpHeader hdr;
-        if ((FileGetData(path, &hdr, DSIWEXP_HEADER_LEN, DSIWEXP_HEADER_OFFSET) == DSIWEXP_HEADER_LEN) &&
-            (strncmp(hdr.magic, DSIWEXP_HEADER_MAGIC, strlen(DSIWEXP_HEADER_MAGIC)) == 0))
+        TadHeader hdr;
+        if ((FileGetData(path, &hdr, TAD_HEADER_LEN, TAD_HEADER_OFFSET) == TAD_HEADER_LEN) &&
+            (strncmp(hdr.magic, TAD_HEADER_MAGIC, strlen(TAD_HEADER_MAGIC)) == 0))
             return GAME_TAD;
     } else if ((strnlen(fname, 16) == 8) && (sscanf(fname, "%08lx", &id) == 1)) {
         char path_cdn[256];

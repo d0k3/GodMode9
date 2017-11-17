@@ -1548,7 +1548,7 @@ u32 ShowGameFileTitleInfo(const char* path) {
     if (LoadSmdhFromGameFile(path, smdh) == 0)
         return ShowSmdhTitleInfo(smdh);
     else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
-        ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, DSIWEXP_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
+        ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
         return ShowTwlIconTitleInfo(twl_icon);
     else return ShowGbaFileTitleInfo(path);
 }

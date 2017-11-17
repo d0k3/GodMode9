@@ -1,5 +1,5 @@
 #include "sddata.h"
-#include "dsiwareexp.h"
+#include "tad.h"
 #include "aes.h"
 #include "sha.h"
 
@@ -56,26 +56,26 @@ FilCryptInfo* fx_find_cryptinfo(FIL* fptr) {
 
 FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
     const u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;
-    const u32 num_tbl = sizeof(DsiWareExpContentTable) / sizeof(u32);
+    const u32 num_tbl = sizeof(TadContentTable) / sizeof(u32);
     const FSIZE_t ofs0 = f_tell(fp);
     
     u8 __attribute__((aligned(16))) iv[AES_BLOCK_SIZE];
     u32 tbl[num_tbl];
-    u8 hdr[DSIWEXP_HEADER_LEN];
+    u8 hdr[TAD_HEADER_LEN];
     
     FRESULT res;
     UINT br;
     
     
     // read and decrypt header
-    if ((res = f_lseek(fp, DSIWEXP_HEADER_OFFSET)) != FR_OK) return res;
-    if ((res = f_read(fp, hdr, DSIWEXP_HEADER_LEN, &br)) != FR_OK) return res;
-    if (br != DSIWEXP_HEADER_LEN) return FR_DENIED;
-    memcpy(iv, hdr + DSIWEXP_HEADER_LEN - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-    cbc_decrypt(hdr, hdr, sizeof(DsiWareExpHeader) / AES_BLOCK_SIZE, mode, iv);
+    if ((res = f_lseek(fp, TAD_HEADER_OFFSET)) != FR_OK) return res;
+    if ((res = f_read(fp, hdr, TAD_HEADER_LEN, &br)) != FR_OK) return res;
+    if (br != TAD_HEADER_LEN) return FR_DENIED;
+    memcpy(iv, hdr + TAD_HEADER_LEN - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    cbc_decrypt(hdr, hdr, sizeof(TadHeader) / AES_BLOCK_SIZE, mode, iv);
     
     // setup the table
-    if (BuildDsiWareExportContentTable(tbl, hdr) != 0) return FR_DENIED;
+    if (BuildTadContentTable(tbl, hdr) != 0) return FR_DENIED;
     if (tbl[num_tbl-1] > f_size(fp)) return FR_DENIED; // obviously missing data
     
     
