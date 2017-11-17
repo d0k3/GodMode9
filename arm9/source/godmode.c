@@ -898,6 +898,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     
     bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
     
+    // don't handle TMDs inside the game drive, won't work properly anyways
+    if ((filetype & GAME_TMD) && (drvtype & DRV_GAME)) filetype &= ~GAME_TMD;
+    
     // special stuff, only available for known filetypes (see int special below)
     bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & DRV_IMAGE) &&
         !((drvtype & (DRV_SYSNAND|DRV_EMUNAND)) && (drvtype & DRV_VIRTUAL) && (filetype & IMG_FAT)));
@@ -975,6 +978,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_NDS)   ? "NDS image options..."  :
         (filetype & GAME_GBA)   ? "GBA image options..."  :
         (filetype & GAME_TICKET)? "Ticket options..."     :
+        (filetype & GAME_TAD)   ? "TAD image options..."  :
         (filetype & GAME_3DSX)  ? "Show 3DSX title info"  :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_AGBSAVE)? (agbimportable) ? "AGBSAVE options..." : "Dump GBA VC save" :

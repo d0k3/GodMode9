@@ -94,8 +94,9 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
                 (GetMountState() & GAME_NCCH ) ? "NCCH"  :
                 (GetMountState() & GAME_EXEFS) ? "EXEFS" :
                 (GetMountState() & GAME_ROMFS) ? "ROMFS" :
-                (GetMountState() & GAME_NDS)   ? "NDS"   :
-                (GetMountState() & SYS_FIRM)   ? "FIRM"  : "UNK", drvname[i]);
+                (GetMountState() & GAME_NDS  ) ? "NDS"   :
+                (GetMountState() & SYS_FIRM  ) ? "FIRM"  :
+                (GetMountState() & GAME_TAD  ) ? "DSIWARE" : "UNK", drvname[i]);
         else snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i], drvname[i]);
         entry->name = entry->path + 4;
         entry->size = GetTotalSpace(entry->path);

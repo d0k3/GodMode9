@@ -1508,6 +1508,20 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     return 0;
 }
 
+u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon) {
+    const u32 lwrap = 24;
+    u8* icon = (u8*) (TEMP_BUFFER + sizeof(TwlIconData));
+    char* desc = (char*) icon + TWLICON_SIZE_ICON;
+    if ((GetTwlIcon(icon, twl_icon) != 0) ||
+        (GetTwlTitle(desc, twl_icon) != 0))
+        return 1;
+    WordWrapString(desc, lwrap);
+    ShowIconString(icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
+    InputWait(0);
+    ClearScreenF(true, false, COLOR_STD_BG);
+    return 0;
+}
+
 u32 ShowGbaFileTitleInfo(const char* path) {
     AgbHeader agb;
     if ((fvx_qread(path, &agb, 0, sizeof(AgbHeader), NULL) != FR_OK) ||
@@ -1519,28 +1533,13 @@ u32 ShowGbaFileTitleInfo(const char* path) {
     
 }
 
-u32 ShowNdsFileTitleInfo(const char* path) {
-    const u32 lwrap = 24;
-    TwlIconData* twl_icon = (TwlIconData*) TEMP_BUFFER;
-    u8* icon = (u8*) (TEMP_BUFFER + sizeof(TwlIconData));
-    char* desc = (char*) icon + TWLICON_SIZE_ICON;
-    if ((LoadTwlMetaData(path, NULL, twl_icon) != 0) ||
-        (GetTwlIcon(icon, twl_icon) != 0) ||
-        (GetTwlTitle(desc, twl_icon) != 0))
-        return 1;
-    WordWrapString(desc, lwrap);
-    ShowIconString(icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
-    InputWait(0);
-    ClearScreenF(true, false, COLOR_STD_BG);
-    return 0;
-    
-}
-
 u32 ShowGameFileTitleInfo(const char* path) {
     Smdh* smdh = (Smdh*) (void*) TEMP_BUFFER;
+    TwlIconData* twl_icon = (TwlIconData*) (void*) TEMP_BUFFER;
     
     char path_content[256];
-    if (IdentifyFileType(path) & GAME_TMD) {
+    u64 itype = IdentifyFileType(path); // initial type
+    if (itype & GAME_TMD) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
         path = path_content;
     }
@@ -1548,7 +1547,9 @@ u32 ShowGameFileTitleInfo(const char* path) {
     // try loading SMDH, then try NDS / GBA
     if (LoadSmdhFromGameFile(path, smdh) == 0)
         return ShowSmdhTitleInfo(smdh);
-    else if (ShowNdsFileTitleInfo(path) == 0) return 0;
+    else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
+        ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, DSIWEXP_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
+        return ShowTwlIconTitleInfo(twl_icon);
     else return ShowGbaFileTitleInfo(path);
 }
 
