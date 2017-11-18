@@ -108,7 +108,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ELSE    , "else"    , 0, 0 },
     { CMD_ID_END     , "end"     , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
-    { CMD_ID_LABEL   , "@"   , 1, 0 },
+    { CMD_ID_LABEL   , "@"       , 1, 0 },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
@@ -819,7 +819,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     // static variables for "if" - "else" - "end"
     static bool else_his [_MAX_IF_NEST]; // history of else used state about each level of "if"
     static bool skip = false;            // skipping state by if-else-end
-    static bool not_first_line;               // true if finding a label to jump
+    static bool returned_first;          // flag to prevent resetting static vars on "goto"
     static u8 ifcnt = 0;                 // current count of "if" nest
     static u8 last_skip = _MAX_IF_NEST;  // the level of the cause of skipping
     
@@ -843,9 +843,9 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     
     // reset static variables when running first line
     if (*lno == 1) {
-        if (not_first_line) {
+        if (returned_first) {
             // not actually running the first line, searching a label
-            not_first_line = false;
+            returned_first = false;
         }else{
             for (u16 cntr = 0; cntr < _ARG_MAX_LEN+1; cntr++) findlabel [cntr] = '\000';
             skip = false;
@@ -969,8 +969,8 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         *line_end_p = (char*) SCRIPT_BUFFER-1;
         *lno = 1-1; // the first line will be executed as the next one to current one
         
-        // set flag to prevent reset the static variables by misunderstandings
-        not_first_line = true;
+        // set flag to avoid reset the static variables
+        returned_first = true;
         
         // reset
         skip = false;
@@ -986,7 +986,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     
     // check "end" not found
     if (!(line_end + 1 < end) && ifcnt != 0) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "'if' without 'end'");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' expected");
         *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
         return false;
     }
