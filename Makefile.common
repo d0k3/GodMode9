@@ -1,0 +1,53 @@
+
+dirname   = $(shell dirname $(1))
+
+rwildcard = $(foreach d, $(wildcard $1*), \
+            $(filter $(subst *, %, $2), $d) \
+            $(call rwildcard, $d/, $2))
+
+FLAVOR  :=  GodMode9
+
+ifeq ($(FONT),ORIG)
+CFLAGS  +=  -DFONT_ORIGINAL
+else ifeq ($(FONT),6X10)
+CFLAGS  +=  -DFONT_6X10
+else ifeq ($(FONT),ACORN)
+CFLAGS  +=  -DFONT_ACORN
+else ifeq ($(FONT),GB)
+CFLAGS  +=  -DFONT_GB
+else
+CFLAGS  +=  -DFONT_6X10
+endif
+
+ifeq ($(SAFEMODE),1)
+    CFLAGS += -DSAFEMODE
+    FLAVOR := SafeMode9
+endif
+
+ifeq ($(SALTMODE),1)
+    CFLAGS += -DSALTMODE
+endif
+
+ifeq ($(SWITCH_SCREENS),1)
+    CFLAGS += -DSWITCH_SCREENS
+endif
+
+ifeq ($(AUTORUN_SCRIPT),1)
+    CFLAGS += -DAUTORUN_SCRIPT
+endif
+
+ifdef FIXED_BRIGHTNESS
+    CFLAGS += -DFIXED_BRIGHTNESS=$(FIXED_BRIGHTNESS)
+endif
+
+ifdef NTRBOOT
+    FTFLAGS  = -S spi-retail
+    FTDFLAGS = -S spi-dev
+    FIRM     = $(OUTDIR)/$(FLAVOR)_ntr.firm
+    FIRMD    = $(OUTDIR)/$(FLAVOR)_ntr_dev.firm
+else
+    FTFLAGS  = -S nand-retail
+    FTDFLAGS = -S nand-dev
+    FIRM     = $(OUTDIR)/$(FLAVOR).firm
+    FIRMD    = $(OUTDIR)/$(FLAVOR)_dev.firm
+endif
