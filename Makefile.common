@@ -6,6 +6,8 @@ rwildcard = $(foreach d, $(wildcard $1*), \
             $(call rwildcard, $d/, $2))
 
 FLAVOR  :=  GodMode9
+README  :=  README.md
+SPLASH  =   resources/$(FLAVOR)_splash.qlz
 
 ifeq ($(FONT),ORIG)
 CFLAGS  +=  -DFONT_ORIGINAL
@@ -34,6 +36,7 @@ endif
 
 ifeq ($(AUTORUN_SCRIPT),1)
     CFLAGS += -DAUTORUN_SCRIPT
+    README := 
 endif
 
 ifdef FIXED_BRIGHTNESS

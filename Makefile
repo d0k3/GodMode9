@@ -17,14 +17,13 @@ export RELDIR := release
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_FLAGS  := --format=v7 --blocking-factor=1
-VRAM_BASE   := README.md resources/$(FLAVOR)_splash.qlz
 VRAM_DATA   := data
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
 
 export ASFLAGS := -g -x assembler-with-cpp $(INCLUDE)
-export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\"" -DFLAVOR="\"$(FLAVOR)"\" \
+export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\"" -DFLAVOR="\"$(FLAVOR)\"" \
                   -g -O2 -Wall -Wextra -Wpedantic -Wcast-align -Wno-main \
                   -fomit-frame-pointer -ffast-math -std=gnu11 \
                   -Wno-unused-function $(INCLUDE)
@@ -63,8 +62,8 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^$(VRAM_DATA)\///' $(VRAM_DATA)/*
-	@tar rf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^.*\///' $(VRAM_BASE)
+	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^.*\///' $(README) $(SPLASH)
+	@-tar rf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^$(VRAM_DATA)\///' $(VRAM_DATA)/*
 
 elf:
 	@set -e; for elf in $(ELF); do \

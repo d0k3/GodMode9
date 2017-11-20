@@ -34,17 +34,6 @@
 #define STATIC_ASSERT(...) \
     _Static_assert((__VA_ARGS__), #__VA_ARGS__)
 
-// GodMode9 / SafeMode9 ("flavor" / splash screen)
-#ifndef SAFEMODE
-#define FLAVOR "GodMode9"
-#define QLZ_SPLASH_H "gm9_splash_qlz.h"
-#define QLZ_SPLASH gm9_splash_qlz
-#else
-#define FLAVOR "SafeMode9"
-#define QLZ_SPLASH_H "sm9_splash_baby_qlz.h"
-#define QLZ_SPLASH sm9_splash_baby_qlz
-#endif
-
 // input / output paths
 #define SUPPORT_PATH    "0:/gm9/support"
 #define SCRIPT_PATH     "0:/gm9/scripts"

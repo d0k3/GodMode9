@@ -7,7 +7,6 @@
 // known file names inside VRAM0 TAR
 #define VRAM0_AUTORUN_GM9       "autorun.gm9"
 #define VRAM0_README_MD         "README.md"
-#define VRAM0_AESKEY_DB         "aeskey.db"
 #define VRAM0_SPLASH_QLZ        FLAVOR "_splash.qlz"
 
 

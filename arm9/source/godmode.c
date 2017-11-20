@@ -61,6 +61,33 @@ static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
 static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
 
 
+u32 SplashInit(const char* modestr) {
+    void* splash = FindVTarFileInfo(VRAM0_SPLASH_QLZ, NULL);
+    const char* namestr = FLAVOR " " VERSION;
+    const char* loadstr = "booting...";
+    const u32 pos_xb = 10;
+    const u32 pos_yb = 10;
+    const u32 pos_xu = SCREEN_WIDTH_BOT - 10 - GetDrawStringWidth(loadstr);
+    const u32 pos_yu = SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr);
+    
+    ClearScreenF(true, true, COLOR_STD_BG);
+    if (splash) QlzDecompress(TOP_SCREEN, splash, 0);
+    else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_QLZ " not found)");
+    if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
+        SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
+    
+    DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
+        namestr, strnlen(namestr, 64), strnlen(namestr, 64),
+        "------------------------------", "https://github.com/d0k3/GodMode9",
+        "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
+        "Hourlies:", "https://d0k3.secretalgorithm.com/");
+    DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
+    DrawStringF(BOT_SCREEN, pos_xb, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "built: " DBUILTL);
+    
+    return 0;
+}
+
+#ifndef AUTORUN_SCRIPT
 void GetTimeString(char* timestr, bool forced_update, bool full_year) {
     static DsTime dstime;
     static u64 timer = (u64) -1; // this ensures we don't check the time too often
@@ -1712,32 +1739,6 @@ u32 HomeMoreMenu(char* current_path) {
     return HomeMoreMenu(current_path);
 }
 
-u32 SplashInit(const char* modestr) {
-    void* splash = FindVTarFileInfo(VRAM0_SPLASH_QLZ, NULL);
-    const char* namestr = FLAVOR " " VERSION;
-    const char* loadstr = "booting...";
-    const u32 pos_xb = 10;
-    const u32 pos_yb = 10;
-    const u32 pos_xu = SCREEN_WIDTH_BOT - 10 - GetDrawStringWidth(loadstr);
-    const u32 pos_yu = SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr);
-    
-    ClearScreenF(true, true, COLOR_STD_BG);
-    if (splash) QlzDecompress(TOP_SCREEN, splash, 0);
-    else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_QLZ " not found)");
-    if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
-        SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
-    
-    DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
-        namestr, strnlen(namestr, 64), strnlen(namestr, 64),
-        "------------------------------", "https://github.com/d0k3/GodMode9",
-        "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
-        "Hourlies:", "https://d0k3.secretalgorithm.com/");
-    DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
-    DrawStringF(BOT_SCREEN, pos_xb, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "built: " DBUILTL);
-    
-    return 0;
-}
-
 u32 GodMode(int entrypoint) {
     const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
     u32 exit_mode = GODMODE_EXIT_POWEROFF;
@@ -2291,7 +2292,7 @@ u32 GodMode(int entrypoint) {
     return exit_mode;
 }
 
-#ifdef AUTORUN_SCRIPT
+#else
 u32 ScriptRunner(int entrypoint) {
     // show splash and initialize
     ClearScreenF(true, true, COLOR_STD_BG);
