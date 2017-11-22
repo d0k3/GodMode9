@@ -101,11 +101,13 @@ bool SetupBonusDrive(void) {
 
 bool FileUnlock(const char* path) {
     FIL file;
+    FRESULT res;
+    
     if (!(DriveType(path) & DRV_FAT)) return true; // can't really check this
-    if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+    if ((res = fx_open(&file, path, FA_READ | FA_OPEN_EXISTING)) != FR_OK) {
         char pathstr[32 + 1];
         TruncateString(pathstr, path, 32, 8);
-        if (GetMountState() && (strncasecmp(path, GetMountPath(), 256) == 0) && 
+        if (GetMountState() && (res == FR_LOCKED) && 
             (ShowPrompt(true, "%s\nFile is currently mounted.\nUnmount to unlock?", pathstr))) {
             InitImgFS(NULL);
             if (fx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
@@ -113,6 +115,7 @@ bool FileUnlock(const char* path) {
         } else return false;
     }
     fx_close(&file);
+    
     return true;
 }
 
