@@ -528,16 +528,22 @@ u32 FileHexViewer(const char* path) {
             u32 y = row * (FONT_HEIGHT_EXT + (2*vpad)) + vpad;
             u32 curr_pos = row * cols;
             u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
-            u32 marked0 = (found_size && (offset <= found_offset)) ? found_offset - offset : 0;
-            u32 marked1 = marked0 + found_size;
             u8* screen = TOP_SCREEN;
             u32 x0 = 0;
             
-            // fix marked0 / marked1 offsets for current row
-            marked0 = (marked0 < curr_pos) ? 0 : (marked0 >= curr_pos + cols) ? cols : marked0 - curr_pos;
-            marked1 = (marked1 < curr_pos) ? 0 : (marked1 >= curr_pos + cols) ? cols : marked1 - curr_pos;
+            // marked offsets handling
+            s32 marked0 = 0, marked1 = 0;
+            if ((found_size > 0) &&
+                (found_offset + found_size > offset + curr_pos) && 
+                (found_offset < offset + curr_pos + cols)) {
+                marked0 = (s32) found_offset - (offset + curr_pos);
+                marked1 = marked0 + found_size;
+                if (marked0 < 0) marked0 = 0;
+                if (marked1 > cols) marked1 = cols;
+            }
             
-            if (y >= SCREEN_HEIGHT) { // switch to bottom screen
+            // switch to bottom screen
+            if (y >= SCREEN_HEIGHT) {
                 y -= SCREEN_HEIGHT;
                 screen = BOT_SCREEN;
                 x0 = 40;
