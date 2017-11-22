@@ -316,28 +316,14 @@ bool ShowPrompt(bool ask, const char *format, ...)
     return ret;
 }
 
+#define PRNG (*(volatile u32*)0x10011000)
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
+    const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L D U
     const int seqcolors[7] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN, COLOR_BRIGHTYELLOW,
         COLOR_ORANGE, COLOR_BRIGHTBLUE, COLOR_RED, COLOR_DARKRED };
-    const u32 sequences[7][5] = {
-        { BUTTON_RIGHT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_A },
-        { BUTTON_LEFT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_UP, BUTTON_A },
-        { BUTTON_LEFT, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_UP, BUTTON_A },
-        { BUTTON_LEFT, BUTTON_UP, BUTTON_RIGHT, BUTTON_UP, BUTTON_A },
-        { BUTTON_RIGHT, BUTTON_DOWN, BUTTON_LEFT, BUTTON_DOWN, BUTTON_A },
-        { BUTTON_DOWN, BUTTON_LEFT, BUTTON_UP, BUTTON_LEFT, BUTTON_A },
-        { BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT, BUTTON_A }
-    };
-    const char seqsymbols[7][5] = { 
-        { '\x1A', '\x19', '\x1A', '\x19', 'A' },
-        { '\x1B', '\x19', '\x1A', '\x18', 'A' },
-        { '\x1B', '\x1A', '\x19', '\x18', 'A' },
-        { '\x1B', '\x18', '\x1A', '\x18', 'A' },
-        { '\x1A', '\x19', '\x1B', '\x19', 'A' },
-        { '\x19', '\x1B', '\x18', '\x1B', 'A' },
-        { '\x18', '\x19', '\x1B', '\x1A', 'A' }
-    };
-    const u32 len = 5;
+    const u32 seqlen_max = 7;
+    const u32 seqlen = seqlen_max - ((seqlvl < 3) ? 2 : (seqlvl < 4) ? 1 : 0);
+    
     
     u32 color_bg = COLOR_STD_BG;
     u32 color_font = COLOR_STD_FONT;
@@ -347,6 +333,22 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     u32 str_width, str_height;
     u32 x, y;
+    
+    
+    // generate sequence
+    u32 sequence[seqlen_max];
+    char seqsymbols[seqlen_max];
+    u32 lastlsh = (u32) -1;
+    for (u32 n = 0; n < (seqlen-1); n++) {
+        u32 lsh = lastlsh;
+        while (lsh == lastlsh) lsh = (PRNG & 0x3);
+        lastlsh = lsh;
+        sequence[n] = BUTTON_RIGHT << lsh;
+        seqsymbols[n] = dpad_symbols[lsh];
+    }
+    sequence[seqlen-1] = BUTTON_A;
+    seqsymbols[seqlen-1] = 'A';
+    
     
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
@@ -372,26 +374,26 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
     
     while (true) {
-        for (u32 n = 0; n < len; n++) {
-            DrawStringF(MAIN_SCREEN, x + (n*4*8), y + str_height - 18,
-                (lvl > n) ? color_on : color_off, color_bg, "<%c>", seqsymbols[seqlvl][n]);
+        for (u32 n = 0; n < seqlen; n++) {
+            DrawStringF(MAIN_SCREEN, x + (n*4*FONT_WIDTH_EXT), y + str_height - 18,
+                (lvl > n) ? color_on : color_off, color_bg, "<%c>", seqsymbols[n]);
         }
-        if (lvl == len)
+        if (lvl == seqlen)
             break;
         u32 pad_state = InputWait(0);
         if (!(pad_state & BUTTON_ANY))
             continue;
-        else if (pad_state & sequences[seqlvl][lvl])
+        else if (pad_state & sequence[lvl])
             lvl++;
         else if (pad_state & BUTTON_B)
             break;
-        else if (lvl == 0 || !(pad_state & sequences[seqlvl][lvl-1]))
+        else if (lvl == 0 || !(pad_state & sequence[lvl-1]))
             lvl = 0;
     }
     
     ClearScreenF(true, false, COLOR_STD_BG);
     
-    return (lvl >= len);
+    return (lvl >= seqlen);
 }
 
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
