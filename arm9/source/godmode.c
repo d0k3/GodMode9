@@ -786,7 +786,8 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         return 1;
     }
     
-    if (verbose && !ShowUnlockSequence(3, "%s (%dkB)\nBoot FIRM via chainloader?", pathstr, firm_size / 1024))
+    if (verbose && !ShowPrompt(true, "%s (%dkB)\nWarning: Do not boot FIRMs\nfrom untrusted sources.\n \nBoot FIRM?",
+        pathstr, firm_size / 1024))
         return 1;
     
     void* firm = (void*) TEMP_BUFFER;
