@@ -64,7 +64,7 @@
 #define NAME_TAD_BANNER     "banner.bin"
 #define NAME_TAD_HEADER     "header.bin"
 #define NAME_TAD_FOOTER     "footer.bin"
-#define NAME_TAD_TYPES      "tmd", "srl", "02.unk", \
+#define NAME_TAD_TYPES      "tmd", "srl.app", "02.unk", \
                             "03.unk", "04.unk", "05.unk", \
                             "06.unk", "07.unk", "08.unk", \
                             "public.sav", "banner.sav", "11.unk"
@@ -713,6 +713,12 @@ bool BuildVGameTadDir(void) {
         templates[n].keyslot = 0xFF;
         templates[n].flags = 0;
         n++;
+        if (i == 1) { // SRL content
+            memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
+            snprintf(templates[n].name, 32, NAME_TAD_CONTENT, hdr.title_id, "srl");
+            templates[n].flags |= (VFLAG_NDS | VFLAG_DIR);
+            n++;
+        }
     }
     
     n_templates_tad = n;
