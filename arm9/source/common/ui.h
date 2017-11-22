@@ -6,6 +6,7 @@
 
 #include <vram.h>
 #include "common.h"
+#include "colors.h"
 
 
 #define BYTES_PER_PIXEL 3
@@ -24,38 +25,6 @@
 #define FONT_HEIGHT_EXT 8
 #endif
 
-#define RGB(r,g,b) ((r)<<24|(b)<<16|(g)<<8|(r))
-
-#define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
-#define COLOR_WHITE         RGB(0xFF, 0xFF, 0xFF)
-#define COLOR_GREY          RGB(0x80, 0x80, 0x80)
-
-#define COLOR_RED           RGB(0xFF, 0x00, 0x00)
-#define COLOR_GREEN         RGB(0x00, 0xFF, 0x00)
-#define COLOR_BLUE          RGB(0x00, 0x00, 0xFF)
-#define COLOR_YELLOW        RGB(0xFF, 0xFF, 0x00)
-#define COLOR_CYAN          RGB(0xFF, 0x00, 0xFF)
-#define COLOR_ORANGE        RGB(0xFF, 0xA5, 0x00)
-
-#define COLOR_BRIGHTRED     RGB(0xFF, 0x30, 0x30)
-#define COLOR_DARKRED       RGB(0x80, 0x00, 0x00)
-#define COLOR_BRIGHTYELLOW  RGB(0xFF, 0xFF, 0x30)
-#define COLOR_BRIGHTGREEN   RGB(0x30, 0xFF, 0x30)
-#define COLOR_BRIGHTBLUE    RGB(0x30, 0x30, 0xFF)
-
-#define COLOR_TINTEDBLUE    RGB(0x60, 0x60, 0x80)
-#define COLOR_TINTEDYELLOW  RGB(0xD0, 0xD0, 0x60)
-#define COLOR_TINTEDGREEN   RGB(0x70, 0x80, 0x70)
-#define COLOR_LIGHTGREY     RGB(0xB0, 0xB0, 0xB0)
-#define COLOR_LIGHTERGREY   RGB(0xD0, 0xD0, 0xD0)
-#define COLOR_DARKGREY      RGB(0x50, 0x50, 0x50)
-#define COLOR_DARKESTGREY   RGB(0x20, 0x20, 0x20)
-
-#define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
-
-#define COLOR_STD_BG        COLOR_BLACK
-#define COLOR_STD_FONT      COLOR_WHITE
-
 #define TOP_SCREEN          ((u8*)VRAM_TOP_LA)
 #define BOT_SCREEN          ((u8*)VRAM_BOT_A)
 
@@ -70,6 +39,9 @@
 #define SCREEN_WIDTH_MAIN   SCREEN_WIDTH_BOT
 #define SCREEN_WIDTH_ALT    SCREEN_WIDTH_TOP
 #endif
+
+#define COLOR_TRANSPARENT   COLOR_SUPERFUCHSIA
+
 
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_main, bool clear_alt, int color);

@@ -29,14 +29,6 @@
 #define TV_NLIN_DISP    (SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*TV_VPAD)))
 #define TV_LLEN_DISP    (((SCREEN_WIDTH_TOP - (2*TV_HPAD)) / FONT_WIDTH_EXT) - (TV_LNOS + 1))
 
-// text viewer colors
-#define COLOR_TVOFFS    RGB(0x40, 0x40, 0x40)
-#define COLOR_TVOFFSL   RGB(0x30, 0x30, 0x30)
-#define COLOR_TVTEXT    RGB(0xA0, 0xA0, 0xA0)
-#define COLOR_TVRUN     RGB(0xC0, 0x00, 0x00)
-#define COLOR_TVCMT     RGB(0x60, 0x60, 0x70)
-#define COLOR_TVCMD     RGB(0xA0, 0xA0, 0xA0)
-
 
 // some useful macros
 #define IS_WHITESPACE(c)    ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
