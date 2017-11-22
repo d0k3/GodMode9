@@ -121,7 +121,9 @@ FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
             // decrypt last block
             if (data_pos < data_end) {
                 u8* lbuff = (u8*) buff + (data_pos - ofs);
-                memcpy(block, lbuff, data_end - data_pos);
+                // memcpy(block, lbuff, data_end - data_pos); // <--- this should work, but it doesn't
+                if ((res = f_lseek(fp, data_pos)) != FR_OK) return res;
+                if ((res = f_read(fp, block, AES_BLOCK_SIZE, &br)) != FR_OK) return res;
                 cbc_decrypt(block, block, 1, mode, iv);
                 memcpy(lbuff, block, data_end - data_pos);
                 data_pos = data_end;
