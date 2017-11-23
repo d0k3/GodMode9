@@ -136,15 +136,15 @@ static bool i2cStartTransfer(I2cDevice devId, u8 regAddr, bool read, vu8 *regsBa
 
 void I2C_init(void)
 {
-	i2cWaitBusy(i2cGetBusRegsBase(0));
+	i2cWaitBusy(i2cGetBusRegsBase(0) + 1);
 	REG_I2C1_CNTEX = 2;  // ?
 	REG_I2C1_SCL = 1280; // ?
 
-	i2cWaitBusy(i2cGetBusRegsBase(1));
+	i2cWaitBusy(i2cGetBusRegsBase(1) + 1);
 	REG_I2C2_CNTEX = 2;  // ?
 	REG_I2C2_SCL = 1280; // ?
 
-	i2cWaitBusy(i2cGetBusRegsBase(2));
+	i2cWaitBusy(i2cGetBusRegsBase(2) + 1);
 	REG_I2C3_CNTEX = 2;  // ?
 	REG_I2C3_SCL = 1280; // ?
 }

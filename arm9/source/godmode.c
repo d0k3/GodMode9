@@ -15,6 +15,7 @@
 #include "rtc.h"
 #include "power.h"
 #include "vram0.h"
+#include "i2c.h"
 
 
 #define N_PANES 2
@@ -1782,6 +1783,7 @@ u32 GodMode(int entrypoint) {
         return exit_mode;
     }
     
+    I2C_init();
     InitSDCardFS();
     AutoEmuNandBase(true);
     InitNandCrypto(entrypoint != ENTRY_B9S);
@@ -2291,6 +2293,7 @@ u32 ScriptRunner(int entrypoint) {
     SplashInit("scriptrunner mode");
     u64 timer = timer_start();
     
+    I2C_init();
     InitSDCardFS();
     AutoEmuNandBase(true);
     InitNandCrypto(entrypoint != ENTRY_B9S);
