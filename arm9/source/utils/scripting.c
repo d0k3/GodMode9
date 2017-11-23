@@ -140,6 +140,18 @@ static u32 script_color_active = 0;
 static u32 script_color_comment = 0;
 static u32 script_color_code = 0;
 
+
+// static variables for "if" - "else" - "end"
+static bool else_his [_MAX_IF_NEST]; // history of else used state about each level of "if"
+static u8 skip = 0;                  // 0-> not skipping 1-> if not match and skip until "else" or "end"
+                                     // 2-> if match and skip from "else" to "end" 3-> searching for a label
+static bool returned_first;          // flag to prevent resetting static vars on "goto"
+static u8 ifcnt = 0;                 // current count of "if" nest
+static u8 last_skip = _MAX_IF_NEST;  // the level of the cause of skipping
+    
+// for "goto" - "label"
+static char findlabel [_ARG_MAX_LEN + 1];     // '\0' if not finding a label, or the label string finding
+
 static inline bool strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
         len = strlen(str); 
@@ -809,22 +821,150 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     return ret;
 }
 
+u8 search_command(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno, const char* end) {
+	// This function is executed by ExecuteGM9Script() while skipping and searching for some commands
+	// skip is never 0 
+	char args[_MAX_ARGS][_ARG_MAX_LEN];
+    char* argv[_MAX_ARGS];
+    char* line_end = *line_end_p; // const, line_end_p is only used in "goto" command
+    u32 argc = 0;
+    cmd_id cmdid;
+
+    // set up argv array
+    for (u32 i = 0; i < _MAX_ARGS; i++)
+        argv[i] = args[i];
+    
+    // flags handling (if no pointer given)
+    u32 lflags;
+    if (!flags) flags = &lflags;
+    *flags = 0;
+    
+    // parse current line, grab cmd / flags / args
+    if (!parse_line(line_start, line_end, &cmdid, flags, &argc, argv, err_str)) {
+        *flags &= ~(_FLG('o')|_FLG('s')); // parsing errors are never silent or optional
+        return false;
+    }
+	
+	if (skip == 3 &&
+    !(cmdid == CMD_ID_LABEL ||
+      cmdid == CMD_ID_IF    ||
+      cmdid == CMD_ID_ELSE ||
+      cmdid == CMD_ID_END )) return 0;
+	  
+	
+    // handle control commands
+    if (cmdid == CMD_ID_IF) {
+        // check max "if" nesting
+        if (ifcnt == _MAX_IF_NEST) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many nested 'if'");
+            *flags &= ~(_FLG('o')|_FLG('s')); // too many *** errors are never silent or optional
+            return false;
+        }
+        
+        else_his[ifcnt] = false; // reset
+        ifcnt++;
+        return true;
+    }else if (cmdid == CMD_ID_ELSE) {
+        // check syntax errors
+        if (ifcnt == 0) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' without 'if'");
+            *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+            return false;
+        }else if (else_his[ifcnt - 1]) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' already used");
+            *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+            return false;
+        }
+        
+        // if searching for a label, just check syntax errors and return
+        if (skip == 3) {
+            else_his[ifcnt - 1] = true;
+            return true;
+        }
+        
+        // turn the skip state
+        if (last_skip == (ifcnt - 1)) {
+            else_his[ifcnt - 1] = true;
+            last_skip = skip ? _MAX_IF_NEST : (ifcnt - 1);
+            skip = 0;
+        }
+        
+        return true;
+    }else if (cmdid == CMD_ID_END) {
+        // check syntax errors
+        if (ifcnt == 0){
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' without 'if'");
+            *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+            return false;
+        }
+        
+        // if skipping by "goto", just decrease the number of "if" nest
+        if (skip == 3) {
+            ifcnt--;
+            return true;
+        }
+        
+        // close recent "if"
+        ifcnt--;
+        
+        if (last_skip == ifcnt || skip == 0) {
+            skip = 0;
+            last_skip = _MAX_IF_NEST;
+        }
+        
+        return true;
+    }else if (cmdid == CMD_ID_LABEL) {
+        // Check finding the label to jump by "goto"
+        if (skip == 3) {
+            if (strcmp(findlabel, argv[0]) == 0) {
+                // this label is the finding label! stop skipping
+                // reset "findlabel" to stop skipping and looking for the label
+                for (u32 cntr = 0; cntr < _ARG_MAX_LEN; cntr++) findlabel [cntr] = '\000';
+                
+                last_skip = _MAX_IF_NEST;
+                skip = 0;
+            }
+        }
+        
+        return true;
+    }else if (cmdid == CMD_ID_GOTO) {
+        if (skip != 0) return true; // "goto" command should be skipped if skipping by if-else-end
+        
+        // search the label from the first line
+        *line_end_p = (char*) SCRIPT_BUFFER-1;
+        *lno = 1-1; // the first line will be executed as the next one to current one
+        
+        // set flag to avoid reset the static variables
+        returned_first = true;
+        
+        // reset
+        skip = 0;
+        ifcnt = 0;
+        last_skip = _MAX_IF_NEST;
+        // "else_his" is only used for syntax error check
+        // To prevent showing unexpected syntax error, set all to false
+        for (u16 cntr = 0; cntr < _MAX_IF_NEST; cntr++) else_his [cntr] = false;
+        
+        snprintf(findlabel, _ARG_MAX_LEN, "%s", argv[0]);
+        return true;
+    }
+    
+    // check "end" not found
+    if (!(line_end + 1 < end) && ifcnt != 0) {
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' expected");
+        *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+        return 1;
+    }
+    
+	return 0;
+}
+
 bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_str, u32* lno, const char* end) {
     char args[_MAX_ARGS][_ARG_MAX_LEN];
     char* argv[_MAX_ARGS];
     char* line_end = *line_end_p; // const, line_end_p is only used in "goto" command
     u32 argc = 0;
     cmd_id cmdid;
-    
-    // static variables for "if" - "else" - "end"
-    static bool else_his [_MAX_IF_NEST]; // history of else used state about each level of "if"
-    static bool skip = false;            // skipping state by if-else-end
-    static bool returned_first;          // flag to prevent resetting static vars on "goto"
-    static u8 ifcnt = 0;                 // current count of "if" nest
-    static u8 last_skip = _MAX_IF_NEST;  // the level of the cause of skipping
-    
-    // for "goto" - "label"
-    static char findlabel [_ARG_MAX_LEN + 1];     // '\0' if not finding a label, or the label string finding
 
     // set up argv array
     for (u32 i = 0; i < _MAX_ARGS; i++)
@@ -841,21 +981,8 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         return false;
     }
     
-    // reset static variables when running first line
-    if (*lno == 1) {
-        if (returned_first) {
-            // not actually running the first line, searching a label
-            returned_first = false;
-        }else{
-            for (u16 cntr = 0; cntr < _ARG_MAX_LEN+1; cntr++) findlabel [cntr] = '\000';
-            skip = false;
-            ifcnt = 0;
-            last_skip = _MAX_IF_NEST;
-        }
-    }
-    
     // check label not found
-    if (!(line_end + 1 < end) && (findlabel [0] != '\000') &&
+    if (!(line_end + 1 < end) && (skip == 3) &&
         !(cmdid == CMD_ID_LABEL && strcmp(findlabel, argv[0]) == 0)) { // !(the label found!)
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
         *flags &= ~(_FLG('o')|_FLG('s')); // static errors are never silent or optional
@@ -863,7 +990,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     }
     
     // skip if looking for the label to jump by "goto"
-    if (findlabel [0] != '\000' &&
+    if (skip == 3 &&
     !(cmdid == CMD_ID_LABEL ||
       cmdid == CMD_ID_IF    ||
       cmdid == CMD_ID_ELSE ||
@@ -880,18 +1007,18 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         }
         
         // if skipping by "goto", just increase the number of "if" nest
-        if (findlabel [0] != '\000') {
+        if (skip == 3) {
             else_his[ifcnt] = false; // reset
             ifcnt++;
             return true;
         }
         
-        if (!skip) {
+        if (skip == 0) {
             // check if the two arguments are same
             if (strcmp(argv[0], argv[1]) == 0) {
-                skip = false;
+                skip = 0;
             }else{
-                skip = true;
+                skip = 1;
                 last_skip = ifcnt;
             }
         }
@@ -912,16 +1039,16 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         }
         
         // if searching for a label, just check syntax errors and return
-        if (findlabel [0] != '\000') {
+        if (skip == 3) {
             else_his[ifcnt - 1] = true;
             return true;
         }
         
         // turn the skip state
-        if (last_skip == (ifcnt - 1) || !skip) {
+        if (last_skip == (ifcnt - 1) || skip == 0) {
             else_his[ifcnt - 1] = true;
             last_skip = skip ? _MAX_IF_NEST : (ifcnt - 1);
-            skip = !skip;
+            skip = (skip == 0) ? 2 : 0;
         }
         
         return true;
@@ -934,7 +1061,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         }
         
         // if skipping by "goto", just decrease the number of "if" nest
-        if (findlabel [0] != '\000') {
+        if (skip == 3) {
             ifcnt--;
             return true;
         }
@@ -942,28 +1069,28 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         // close recent "if"
         ifcnt--;
         
-        if (last_skip == ifcnt || !skip) {
-            skip = false;
+        if (last_skip == ifcnt || skip == 0) {
+            skip = 0;
             last_skip = _MAX_IF_NEST;
         }
         
         return true;
     }else if (cmdid == CMD_ID_LABEL) {
         // Check finding the label to jump by "goto"
-        if (findlabel [0] != '\000') {
+        if (skip == 3) {
             if (strcmp(findlabel, argv[0]) == 0) {
                 // this label is the finding label! stop skipping
                 // reset "findlabel" to stop skipping and looking for the label
                 for (u32 cntr = 0; cntr < _ARG_MAX_LEN; cntr++) findlabel [cntr] = '\000';
                 
                 last_skip = _MAX_IF_NEST;
-                skip = false;
+                skip = 0;
             }
         }
         
         return true;
     }else if (cmdid == CMD_ID_GOTO) {
-        if (skip) return true; // "goto" command should be skipped if skipping by if-else-end
+        if (skip != 0) return true; // "goto" command should be skipped if skipping by if-else-end
         
         // search the label from the first line
         *line_end_p = (char*) SCRIPT_BUFFER-1;
@@ -973,7 +1100,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
         returned_first = true;
         
         // reset
-        skip = false;
+        skip = 0;
         ifcnt = 0;
         last_skip = _MAX_IF_NEST;
         // "else_his" is only used for syntax error check
@@ -992,7 +1119,7 @@ bool run_line(const char* line_start, char** line_end_p, u32* flags, char* err_s
     }
     
     // skip if skipping by if-else-end
-    if (skip) return true;
+    if (skip != 0) return true;
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
@@ -1253,6 +1380,12 @@ bool FileTextViewer(const char* path, bool as_script) {
 bool ExecuteGM9Script(const char* path_script) {
     char* script = (char*) SCRIPT_BUFFER;
     char* ptr = script;
+	
+	// reset some global var for "if" and "goto"
+    for (u16 cntr = 0; cntr < _ARG_MAX_LEN+1; cntr++) findlabel [cntr] = '\000';
+    skip = 0;
+    ifcnt = 0;
+    last_skip = _MAX_IF_NEST;
     
     // fetch script - if no path is given, assume script already in script buffer
     u32 script_size = (path_script) ? FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0) : strnlen(script, SCRIPT_BUFFER_SIZE);
@@ -1315,7 +1448,11 @@ bool ExecuteGM9Script(const char* path_script) {
         
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
-        if (!run_line(ptr, &line_end, &flags, err_str, &lno, end)) { // error handling
+		u8 result = 0;
+		if (skip == 0) result = !(run_line(ptr, &line_end, &flags, err_str, &lno, end)); // standard
+		else result = search_command(ptr, &line_end, &flags, err_str, &lno, end);
+		
+        if (result != 0) { // error handling
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
                     char* msg_fail = get_var("ERRORMSG", NULL);
