@@ -19,7 +19,7 @@
  */
 
 #include <stdbool.h>
-#include "common.h"
+#include "types.h"
 
 
 #define I2C_STOP          (1u)
@@ -51,6 +51,52 @@ typedef enum
 
 
 
+/**
+ * @brief      Initializes the I2C buses. Call this only once.
+ */
 void I2C_init(void);
+
+/**
+ * @brief      Reads data from a I2C register to a buffer.
+ *
+ * @param[in]  devId    The device ID. Use the enum above.
+ * @param[in]  regAddr  The register address.
+ * @param      out      The output buffer pointer.
+ * @param[in]  size     The read size.
+ *
+ * @return     Returns true on success and false on failure.
+ */
 bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size);
+
+/**
+ * @brief      Writes a buffer to a I2C register.
+ *
+ * @param[in]  devId    The device ID. Use the enum above.
+ * @param[in]  regAddr  The register address.
+ * @param[in]  in       The input buffer pointer.
+ * @param[in]  size     The write size.
+ *
+ * @return     Returns true on success and false on failure.
+ */
+bool I2C_writeRegBuf(I2cDevice devId, u8 regAddr, const u8 *in, u32 size);
+
+/**
+ * @brief      Reads a byte from a I2C register.
+ *
+ * @param[in]  devId    The device ID. Use the enum above.
+ * @param[in]  regAddr  The register address.
+ *
+ * @return     Returns the value read on success otherwise 0xFF.
+ */
+u8 I2C_readReg(I2cDevice devId, u8 regAddr);
+
+/**
+ * @brief      Writes a byte to a I2C register.
+ *
+ * @param[in]  devId    The device ID. Use the enum above.
+ * @param[in]  regAddr  The register address.
+ * @param[in]  data     The data to write.
+ *
+ * @return     Returns true on success and false on failure.
+ */
 bool I2C_writeReg(I2cDevice devId, u8 regAddr, u8 data);
