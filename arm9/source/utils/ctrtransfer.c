@@ -65,7 +65,9 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     snprintf(path_secnfo_c, 32, "%s/rw/sys/SecureInfo_C", drv);
     snprintf(path_tickdb, 32, "%s/dbs/ticket.db", drv);
     snprintf(path_tickdb_bak, 32, "%s/dbs/ticket.bak", drv);
+    
     // special handling for out of region images (create SecureInfo_C)
+    PathDelete(path_secnfo_c); // not required when transfering back to original region
     if (((FileGetData("7:/rw/sys/SecureInfo_A", (u8*) secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
          (FileGetData("7:/rw/sys/SecureInfo_B", (u8*) secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) &&
         ((FileGetData(path_secnfo_a, (u8*) secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
@@ -78,7 +80,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     PathDelete(path_tickdb_bak);
     PathRename(path_tickdb, "ticket.bak");
     
-    // actual transfer - db files / titles / H&S inject markfile
+    // actual transfer - db files / titles
     const char* dbnames[] = { "ticket.db", "certs.db", "title.db", "import.db", "tmp_t.db", "tmp_i.db" };
     char path_to[32];
     char path_from[32];
