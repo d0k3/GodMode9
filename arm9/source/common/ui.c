@@ -316,6 +316,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
     return ret;
 }
 
+#ifndef AUTO_UNLOCK
 #define PRNG (*(volatile u32*)0x10011000)
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L D U
@@ -395,6 +396,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     return (lvl >= seqlen);
 }
+#endif
 
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     u32 str_width, str_height;

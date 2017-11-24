@@ -171,19 +171,11 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             if (!ShowUnlockSequence(6, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\n%s", IS_SIGHAX ? "your B9S installation and/or\nBRICK your console!" : IS_A9LH ? "your A9LH installation and/or\nBRICK your console!" : "essential system files and/or\nBRICK your console!"))
                 return false;
             break;
-        case PERM_ALL: // not accessible from GM9
-            if (!ShowUnlockSequence(3, "!Better be careful!\n \nYou want to enable ALL\nwriting permissions.\n \nThis enables you to do some\nreally dangerous stuff!"))
-                return false;
-            break;
         default:
             ShowPrompt(false, "Unlock write permission is not allowed.");
             return false;
             break;
         #else
-        case PERM_ALL: // dito (???)
-            if (!ShowUnlockSequence(2, "You want to enable ALL safe\nwriting permissions.\n \nThis enables you to modify\nsystem data, installations,\nuser data & savegames."))
-                return false;
-            break;
         default:
             ShowPrompt(false, "Can't unlock write permission.\nTry GodMode9 instead!");
             return false;

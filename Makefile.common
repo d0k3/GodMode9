@@ -5,9 +5,9 @@ rwildcard = $(foreach d, $(wildcard $1*), \
             $(filter $(subst *, %, $2), $d) \
             $(call rwildcard, $d/, $2))
 
-FLAVOR  :=  GodMode9
+FLAVOR  ?=  GodMode9
 README  :=  README.md
-SPLASH  =   resources/$(FLAVOR)_splash.qlz
+SPLASH   =  resources/$(FLAVOR)_splash.qlz
 
 ifeq ($(FONT),ORIG)
 CFLAGS  +=  -DFONT_ORIGINAL
@@ -21,9 +21,8 @@ else
 CFLAGS  +=  -DFONT_6X10
 endif
 
-ifeq ($(SAFEMODE),1)
+ifeq ($(FLAVOR),SafeMode9)
     CFLAGS += -DSAFEMODE
-    FLAVOR := SafeMode9
 endif
 
 ifeq ($(SALTMODE),1)
@@ -39,8 +38,16 @@ ifeq ($(AUTORUN_SCRIPT),1)
     README := 
 endif
 
+ifeq ($(AUTO_UNLOCK),1)
+    CFLAGS += -DAUTO_UNLOCK
+endif
+
 ifdef FIXED_BRIGHTNESS
     CFLAGS += -DFIXED_BRIGHTNESS=$(FIXED_BRIGHTNESS)
+endif
+
+ifdef SD_TIMEOUT
+    CFLAGS += -DSD_TIMEOUT=$(SD_TIMEOUT)
 endif
 
 ifdef NTRBOOT
