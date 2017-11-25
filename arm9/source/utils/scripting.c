@@ -108,7 +108,6 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ELSE    , "else"    , 0, 0 },
     { CMD_ID_END     , "end"     , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
-    { CMD_ID_LABEL   , "@"       , 1, 0 },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
@@ -145,6 +144,8 @@ static u32 script_color_code = 0;
 static bool else_his [_MAX_IF_NEST]; // history of else used state about each level of "if"
 static bool return_first = false;    // flag to prevent resetting static vars on "goto"
 static bool syntax_error = false;    // flag to disable -o or -s, set in run_cmd() and used in ExecuteGM9Script()
+static bool running_cond = false;        // true if running the "if"'s condition commands
+static bool if_cond_res = false;         // result of condition commands
 static u8 ifcnt = 0;                 // current # of "if" nesting
 static u8 last_skip = _MAX_IF_NEST;  // the level of the cause of skipping
 static u8 skip = 0;                  // 0-> not skipping 1-> if not match and skip until "else" or "end"
@@ -429,7 +430,7 @@ cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
     
     if (!cmd_entry) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown cmd");
-    } else if (cmd_entry->n_args != argc) {
+    } else if (cmd_entry->n_args != argc && (strncmp(cmd, "if", 2) != 0)) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "bad # of args");
     } else if (~(cmd_entry->allowed_flags|_FLG('o')|_FLG('s')) & flags) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unrecognized flags");
@@ -518,7 +519,7 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
         cmd_len--;
         return (expand_arg(argv[(*argc)++], cmd, cmd_len));
     }
-
+	
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
         if ((str >= line_end) || (*str == '#')) // end of line or comment
@@ -647,8 +648,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             return true;
         }
         
-        // check if the two arguments are same
-        if (strcmp(argv[0], argv[1]) == 0) {
+        // check the result of condition command
+        if (if_cond_res) {
             skip = 0;
         }else{
             skip = 1;
@@ -714,7 +715,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         snprintf(findlabel, _ARG_MAX_LEN, "%s", argv[0]);
         return true;
     }
-    else if (id == CMD_ID_LABEL) {}
+    else if (id == CMD_ID_LABEL) {} // nothing to do
     else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
         if (flags & _FLG('h')) flags_ext |= CALC_SHA;
@@ -999,7 +1000,7 @@ bool search_label(char** ptr, char** line_end_p, u32* flags, char* err_str, u32*
     return false;
 }
 
-bool search_command(const char* line_start, char** line_end_p, u32* flags, char* err_str, const char* end) {
+bool search_command(const char* line_start, char** line_end_p, u32* flags, char* err_str) {
     // This function is executed by ExecuteGM9Script() while skipping and searching for some commands
     // "skip" is never 0 or 3
     
@@ -1093,6 +1094,18 @@ bool run_line(const char* line_start, char* line_end, u32* flags, char* err_str)
         *flags &= ~(_FLG('o')|_FLG('s')); // parsing errors are never silent or optional
         return false;
     }
+	
+	// handle "if"
+	if (cmdid == CMD_ID_IF) {
+		if (running_cond) {
+			if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid command as conditions");
+			return false;
+		}else{
+			running_cond = true; // set flag
+			if_cond_res = run_line(line_start+2, line_end, flags, err_str);
+			running_cond = false; // reset flag
+		}
+	}
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
@@ -1359,6 +1372,10 @@ bool ExecuteGM9Script(const char* path_script) {
     skip = 0;
     ifcnt = 0;
     last_skip = _MAX_IF_NEST;
+	running_cond = false;
+	if_cond_res = false;
+	syntax_error = false;
+	return_first = false;
     
     // fetch script - if no path is given, assume script already in script buffer
     u32 script_size = (path_script) ? FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0) : strnlen(script, SCRIPT_BUFFER_SIZE);
@@ -1423,7 +1440,7 @@ bool ExecuteGM9Script(const char* path_script) {
         char err_str[_ERR_STR_LEN+1] = { 0 };
         bool result = true;
         if (skip == 0) result = run_line(ptr, line_end, &flags, err_str); // standard
-        else if (skip != 3) result = search_command(ptr, &line_end, &flags, err_str, end); // while skipping
+        else if (skip != 3) result = search_command(ptr, &line_end, &flags, err_str); // while skipping
         else ShowPrompt(false, "unexpected goto jumping");
         
         // jump to the first line if start to search a label
