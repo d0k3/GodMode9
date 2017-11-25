@@ -519,7 +519,7 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
         cmd_len--;
         return (expand_arg(argv[(*argc)++], cmd, cmd_len));
     }
-	
+    
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
         if ((str >= line_end) || (*str == '#')) // end of line or comment
@@ -907,7 +907,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
 }
 
 bool search_label(char** ptr, char** line_end_p, u32* flags, char* err_str, u32* lno, const char* end) {
-	return_first = false; // reset flag if set
+    return_first = false; // reset flag if set
     *ptr = (char*) SCRIPT_BUFFER; // return to the first line
     
     for (*lno = 1; *ptr < end; (*lno)++) { // script execute loop
@@ -938,7 +938,7 @@ bool search_label(char** ptr, char** line_end_p, u32* flags, char* err_str, u32*
             *flags &= ~(_FLG('o')|_FLG('s')); // parsing errors are never silent or optional
             return false;
         }
-		
+        
         // handle control commands
         if (cmdid == CMD_ID_IF) {
             // check max "if" nesting
@@ -983,20 +983,20 @@ bool search_label(char** ptr, char** line_end_p, u32* flags, char* err_str, u32*
                 
                 last_skip = _MAX_IF_NEST;
                 skip = 0;
-				
+                
                 return true;
             }
         }
-		
+        
         // reposition pointer
         *ptr = *line_end_p + 1;
     }
-	
-	(*lno)--; // when exited for loop it is 1 larger than should be, so fix it
-	
-	// label not found and reached the end of the script
+    
+    (*lno)--; // when exited for loop it is 1 larger than should be, so fix it
+    
+    // label not found and reached the end of the script
     if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
-	*flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
+    *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
     return false;
 }
 
@@ -1070,7 +1070,7 @@ bool search_command(const char* line_start, char** line_end_p, u32* flags, char*
             last_skip = _MAX_IF_NEST;
         }
     }
-	
+    
     return true;
 }
 
@@ -1094,18 +1094,18 @@ bool run_line(const char* line_start, char* line_end, u32* flags, char* err_str)
         *flags &= ~(_FLG('o')|_FLG('s')); // parsing errors are never silent or optional
         return false;
     }
-	
-	// handle "if"
-	if (cmdid == CMD_ID_IF) {
-		if (running_cond) {
-			if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid command as conditions");
-			return false;
-		}else{
-			running_cond = true; // set flag
-			if_cond_res = run_line(line_start+2, line_end, flags, err_str);
-			running_cond = false; // reset flag
-		}
-	}
+    
+    // handle "if"
+    if (cmdid == CMD_ID_IF) {
+        if (running_cond) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid command as conditions");
+            return false;
+        }else{
+            running_cond = true; // set flag
+            if_cond_res = run_line(line_start+2, line_end, flags, err_str);
+            running_cond = false; // reset flag
+        }
+    }
     
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
@@ -1372,10 +1372,10 @@ bool ExecuteGM9Script(const char* path_script) {
     skip = 0;
     ifcnt = 0;
     last_skip = _MAX_IF_NEST;
-	running_cond = false;
-	if_cond_res = false;
-	syntax_error = false;
-	return_first = false;
+    running_cond = false;
+    if_cond_res = false;
+    syntax_error = false;
+    return_first = false;
     
     // fetch script - if no path is given, assume script already in script buffer
     u32 script_size = (path_script) ? FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0) : strnlen(script, SCRIPT_BUFFER_SIZE);
