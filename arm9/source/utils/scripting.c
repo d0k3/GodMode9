@@ -558,6 +558,17 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
     }
     
+    // block some commands as condition of "if"
+    if (running_cond && (
+        id == CMD_ID_IF   ||
+        id == CMD_ID_ELSE ||
+        id == CMD_ID_END  ||
+        id == CMD_ID_GOTO
+        )) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid command as conditions");
+            return false;
+    }
+    
     // perform command
     if (id == CMD_ID_ECHO) {
         ShowPrompt(false, argv[0]);
@@ -1097,10 +1108,7 @@ bool run_line(const char* line_start, char* line_end, u32* flags, char* err_str)
     
     // handle "if"
     if (cmdid == CMD_ID_IF) {
-        if (running_cond) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid command as conditions");
-            return false;
-        }else{
+        if (!running_cond) {
             running_cond = true; // set flag
             if_cond_res = run_line(line_start+2, line_end, flags, err_str);
             running_cond = false; // reset flag
