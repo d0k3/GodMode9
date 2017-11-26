@@ -23,5 +23,5 @@ main_irq_handler:
     .Lskip_irq:
     pop {r1,lr}
     add sp, sp, r1             @ Restore stack pointer
-    pop {r0-r3,lr}             @ Restore registers
+    pop {r0-r3,r12}            @ Restore registers
     rfeia sp!                  @ Return From Exception
