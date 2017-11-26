@@ -13,8 +13,8 @@ irq_handler GIC_AckIRQ(void)
     irq_handler ret = NULL;
     if (xrq < MAX_IRQ && handler_table[xrq]) {
         ret = handler_table[xrq];
-        *GIC_IRQEND = xrq;
     }
+    *GIC_IRQEND = xrq;
     return ret;
 }
 

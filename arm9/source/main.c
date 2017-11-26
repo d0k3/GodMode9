@@ -8,6 +8,9 @@ void main(int argc, char** argv, int entrypoint)
     (void) argc;
     (void) argv;
 
+    PXI_Reset();
+    I2C_init();
+
     // Wait for ARM11
     PXI_WaitRemote(PXI_READY);
 
