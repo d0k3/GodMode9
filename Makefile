@@ -16,8 +16,8 @@ export RELDIR := release
 
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
-VRAM_FLAGS  := --format=v7 --blocking-factor=1
 VRAM_DATA   := data
+VRAM_FLAGS  := --format=v7 --blocking-factor=1 --xform='s/^$(VRAM_DATA)\/\|^resources\///'
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
@@ -62,8 +62,7 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^.*\///' $(README) $(SPLASH)
-	@-tar rf $(VRAM_OUT) $(VRAM_FLAGS) --xform='s/^$(VRAM_DATA)\///' $(VRAM_DATA)/*
+	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
 
 elf:
 	@set -e; for elf in $(ELF); do \
