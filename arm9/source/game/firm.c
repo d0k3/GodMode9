@@ -108,10 +108,6 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
     if (installable && (header->reserved0[0]&0x1))
         return 1;
     
-    // Nintendo style entrypoints?
-    if (installable && ((header->entry_arm9 % 0x10) || (header->entry_arm11 % 0x10)))
-        return 1;
-    
     return 0;
 }
 
