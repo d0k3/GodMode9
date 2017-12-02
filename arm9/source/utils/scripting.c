@@ -1022,7 +1022,8 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
         // handle user input
         u32 pad_state = InputWait(0);
         if ((cursor >= 0) && (pad_state & BUTTON_A)) {
-            return MemTextViewer(text, len, lineno[cursor], false);
+            if (!MemTextViewer(text, len, lineno[cursor], false)) return false;
+            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false);
         } else if (pad_state & BUTTON_B) {
             break;
         } else if (pad_state & BUTTON_UP) {
