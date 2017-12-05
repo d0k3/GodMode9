@@ -57,7 +57,7 @@ release: clean
 	@cp $(CURDIR)/HelloScript.gm9 $(RELDIR)
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
 
-	@-7z a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip ./$(RELDIR)/*
+	@-7za a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip ./$(RELDIR)/*
 
 vram0:
 	@mkdir -p "$(OUTDIR)"
