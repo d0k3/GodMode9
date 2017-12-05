@@ -10,7 +10,7 @@
 #include "unittype.h"
 #include "entrypoints.h"
 #include "bootfirm.h"
-#include "qlzcomp.h"
+#include "pcx.h"
 #include "timer.h"
 #include "rtc.h"
 #include "power.h"
@@ -48,7 +48,8 @@ static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
 
 
 u32 SplashInit(const char* modestr) {
-    void* splash = FindVTarFileInfo(VRAM0_SPLASH_QLZ, NULL);
+    u64 splash_size;
+    u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PCX, &splash_size);
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
     const u32 pos_xb = 10;
@@ -57,8 +58,11 @@ u32 SplashInit(const char* modestr) {
     const u32 pos_yu = SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr);
     
     ClearScreenF(true, true, COLOR_STD_BG);
-    if (splash) QlzDecompress(TOP_SCREEN, splash, 0);
-    else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_QLZ " not found)");
+    
+    if (splash && PCX_Decompress(TEMP_BUFFER, TEMP_BUFFER_SIZE, splash, splash_size)) {
+        PCXHdr* hdr = (PCXHdr*) (void*) splash;
+        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), TEMP_BUFFER);
+    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PCX " not found)");
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
     

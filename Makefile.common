@@ -7,7 +7,7 @@ rwildcard = $(foreach d, $(wildcard $1*), \
 
 FLAVOR  ?=  GodMode9
 README  :=  README.md
-SPLASH   =  resources/$(FLAVOR)_splash.qlz
+SPLASH   =  resources/$(FLAVOR)_splash.pcx
 
 ifeq ($(FONT),ORIG)
 CFLAGS  +=  -DFONT_ORIGINAL

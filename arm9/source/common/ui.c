@@ -52,6 +52,10 @@ void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
 
 void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap)
 {
+    // on negative values: center the bitmap
+    if (x < 0) x = (SCREEN_WIDTH(screen) - w) >> 1;
+    if (y < 0) y = (SCREEN_HEIGHT - h) >> 1;
+    
     u8* bitmapPos = bitmap;
     for (int yy = 0; yy < h; yy++) {
         int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
@@ -319,7 +323,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
 #ifndef AUTO_UNLOCK
 #define PRNG (*(volatile u32*)0x10011000)
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
-    const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L D U
+    const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L U D
     const int seqcolors[7] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN, COLOR_BRIGHTYELLOW,
         COLOR_ORANGE, COLOR_BRIGHTBLUE, COLOR_RED, COLOR_DARKRED };
     const u32 seqlen_max = 7;
