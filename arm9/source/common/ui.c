@@ -323,7 +323,6 @@ bool ShowPrompt(bool ask, const char *format, ...)
 #ifndef AUTO_UNLOCK
 #define PRNG (*(volatile u32*)0x10011000)
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
-    const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L U D
     const int seqcolors[7] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN, COLOR_BRIGHTYELLOW,
         COLOR_ORANGE, COLOR_BRIGHTBLUE, COLOR_RED, COLOR_DARKRED };
     const u32 seqlen_max = 7;
@@ -338,21 +337,6 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     u32 str_width, str_height;
     u32 x, y;
-    
-    
-    // generate sequence
-    u32 sequence[seqlen_max];
-    char seqsymbols[seqlen_max];
-    u32 lastlsh = (u32) -1;
-    for (u32 n = 0; n < (seqlen-1); n++) {
-        u32 lsh = lastlsh;
-        while (lsh == lastlsh) lsh = (PRNG & 0x3);
-        lastlsh = lsh;
-        sequence[n] = BUTTON_RIGHT << lsh;
-        seqsymbols[n] = dpad_symbols[lsh];
-    }
-    sequence[seqlen-1] = BUTTON_A;
-    seqsymbols[seqlen-1] = 'A';
     
     
     char str[STRBUF_SIZE] = { 0 };
@@ -376,7 +360,25 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     ClearScreenF(true, false, color_bg);
     DrawStringF(MAIN_SCREEN, x, y, color_font, color_bg, str);
+    #ifndef TIMER_UNLOCK
     DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
+    
+    // generate sequence
+    const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L U D
+    
+    u32 sequence[seqlen_max];
+    char seqsymbols[seqlen_max];
+    u32 lastlsh = (u32) -1;
+    for (u32 n = 0; n < (seqlen-1); n++) {
+        u32 lsh = lastlsh;
+        while (lsh == lastlsh) lsh = (PRNG & 0x3);
+        lastlsh = lsh;
+        sequence[n] = BUTTON_RIGHT << lsh;
+        seqsymbols[n] = dpad_symbols[lsh];
+    }
+    sequence[seqlen-1] = BUTTON_A;
+    seqsymbols[seqlen-1] = 'A';
+    
     
     while (true) {
         for (u32 n = 0; n < seqlen; n++) {
@@ -395,6 +397,28 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
         else if (lvl == 0 || !(pad_state & sequence[lvl-1]))
             lvl = 0;
     }
+    #else
+    DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, hold <X>:");
+    
+    while (!CheckButton(BUTTON_B)) {
+        for (u32 n = 0; n < seqlen; n++) {
+            DrawStringF(MAIN_SCREEN, x + (n*4*FONT_WIDTH_EXT), y + str_height - 18,
+                (lvl > n) ? color_on : color_off, color_bg, "<%c>", (lvl > n) ? 'X' : ' ');
+        }
+        if (lvl == seqlen)
+            break;
+        
+        u32 prev_lvl = lvl;
+        while (lvl == prev_lvl) {
+            u64 timer = timer_start();
+            while ((lvl != 0) && CheckButton(BUTTON_X) && (timer_msec(timer) < 400));
+            
+            if (CheckButton(BUTTON_B)) break;
+            else if (CheckButton(BUTTON_X)) lvl++;
+            else lvl = 0;
+        }
+    }
+    #endif
     
     ClearScreenF(true, false, COLOR_STD_BG);
     
