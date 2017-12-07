@@ -33,7 +33,7 @@ ifeq ($(SWITCH_SCREENS),1)
     CFLAGS += -DSWITCH_SCREENS
 endif
 
-ifeq ($(AUTORUN_SCRIPT),1)
+ifeq ($(SCRIPT_RUNNER),1)
     CFLAGS += -DAUTORUN_SCRIPT
     README := 
 endif

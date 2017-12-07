@@ -77,7 +77,7 @@ u32 SplashInit(const char* modestr) {
     return 0;
 }
 
-#ifndef AUTORUN_SCRIPT
+#ifndef SCRIPT_RUNNER
 void GetTimeString(char* timestr, bool forced_update, bool full_year) {
     static DsTime dstime;
     static u64 timer = (u64) -1; // this ensures we don't check the time too often
@@ -2303,18 +2303,22 @@ u32 ScriptRunner(int entrypoint) {
     
     while (HID_STATE); // wait until no buttons are pressed
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
-    ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
     // get script from VRAM0 TAR
     u64 autorun_gm9_size = 0;
     void* autorun_gm9 = FindVTarFileInfo(VRAM0_AUTORUN_GM9, &autorun_gm9_size);
     
     if (autorun_gm9 && autorun_gm9_size) {
+        ClearScreenF(true, true, COLOR_STD_BG); // clear splash
         // copy script to script buffer and run it
         memset(SCRIPT_BUFFER, 0, SCRIPT_BUFFER_SIZE);
         memcpy(SCRIPT_BUFFER, autorun_gm9, autorun_gm9_size);
         ExecuteGM9Script(NULL);
-    } else ShowPrompt(false, "Compiled as script autorunner\nbut no autorun.gm9 provided.\n \nDerp!");
+    } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
+        char loadpath[256];
+        if (FileSelector(loadpath, FLAVOR " scripts menu.\nSelect script:", "V:/" VRAM0_SCRIPTS, "*.gm9", true, false))
+            ExecuteGM9Script(loadpath);
+    } else ShowPrompt(false, "Compiled as script autorunner\nbut no script provided.\n \nDerp!");
     
     // deinit
     DeinitExtFS();
