@@ -17,6 +17,7 @@
 #define PERM_GAME       (1UL<<11) // can't be enabled, placeholder
 #define PERM_XORPAD     (1UL<<12) // can't be enabled, placeholder
 #define PERM_CART       (1UL<<13) // can't be enabled, placeholder
+#define PERM_VRAM       (1UL<<14) // can't be enabled, placeholder
 #define PERM_BASE       (PERM_SDCARD | PERM_IMAGE | PERM_RAMDRIVE | PERM_EMU_LVL0 | PERM_SYS_LVL0)
 
 // permission levels / colors
