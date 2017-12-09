@@ -58,7 +58,6 @@ typedef enum {
     CMD_ID_ELSE,
     CMD_ID_END,
     CMD_ID_GOTO,
-    CMD_ID_LABEL,
     CMD_ID_ALLOW,
     CMD_ID_CP,
     CMD_ID_MV,
@@ -501,22 +500,7 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     char* cmd = NULL;
     u32 cmd_len = 0;
     if (!(cmd = get_string(ptr, line_end, &cmd_len, &ptr, err_str))) return false; // string error
-    if ((cmd >= line_end) || (*cmd == '#')) return true; // empty line or comment
-    
-    // label handling
-    if (*cmd == '@' && cmd_len > 1) { // if just '@', standard label command(@) can handle it
-        *cmdid = CMD_ID_LABEL;
-        if (!(str = get_string(ptr, line_end, &len, &ptr, err_str))) return false;
-        if (!(str >= line_end)) { // too many arguments(?)
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid label format");
-            return false;
-        }
-        
-        // don't process '@'
-        cmd++;
-        cmd_len--;
-        return (expand_arg(argv[(*argc)++], cmd, cmd_len));
-    }
+    if ((cmd >= line_end) || (*cmd == '#') || (*cmd == '@')) return true; // empty line or comment or label
     
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
@@ -652,14 +636,16 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         
         // check the result of condition command
         if (if_cond_res) {
+            // succeed
             skip = 0;
         }else{
+            // failed
             skip = 1;
             ifcnt_skipped = 0;
         }
         
         ifcnt++;
-        return true;
+        ret = true;
     }
     else if (id == CMD_ID_ELSE) {
         // check syntax errors
@@ -673,7 +659,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ifcnt_skipped = 0;
         skip = 2;
         
-        return true;
+        ret = true;
     }
     else if (id == CMD_ID_END) {
         // check syntax errors
@@ -688,7 +674,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         skip = 0;
         ifcnt_skipped = 0;
         
-        return true;
+        ret = true;
     }
     else if (id == CMD_ID_GOTO) {
         skip = 3; // searching for a label
@@ -698,9 +684,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ifcnt_skipped = 0;
         
         snprintf(findlabel, _ARG_MAX_LEN, "%s", argv[0]);
-        return true;
+        ret = true;
     }
-    else if (id == CMD_ID_LABEL) {} // nothing to do, prevent unexpected errors
     else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
         if (flags & _FLG('h')) flags_ext |= CALC_SHA;
@@ -900,75 +885,29 @@ bool search_label(char** ptr, char** line_end_p, u32* flags, char* err_str, u32*
         // find line end
         *line_end_p = strchr(*ptr, '\n');
         if (!*line_end_p) *line_end_p = *ptr + strlen(*ptr);
+		char* line_end = *line_end_p;
         
-        // parse line
-        char args[_MAX_ARGS][_ARG_MAX_LEN];
-        char* argv[_MAX_ARGS];
-        char* line_end = *line_end_p; // const, line_end_p is only used in "goto" command
-        u32 argc = 0;
-        cmd_id cmdid;
-        
-        // set up argv array
-        for (u32 i = 0; i < _MAX_ARGS; i++)
-            argv[i] = args[i];
+		// skip whitespaces
+		for (; IS_WHITESPACE(**ptr) && (*ptr < line_end); (*ptr)++);
+		if (*ptr >= line_end) continue; // end reached, all whitespaces
     
-        // flags handling (if no pointer given)
-        u32 lflags;
-        if (!flags) flags = &lflags;
-        *flags = 0;
-    
-        // parse current line, grab cmd / flags / args
-        if (!parse_line(*ptr, line_end, &cmdid, flags, &argc, argv, err_str)) {
-            *flags &= ~(_FLG('o')|_FLG('s')); // parsing errors are never silent or optional
-            return false;
-        }
-        
-        // handle control commands
-        if (cmdid == CMD_ID_IF) {
-            // check max "if" nesting
-            if (ifcnt == _MAX_IF_NEST) {
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many nested 'if'");
-                *flags &= ~(_FLG('o')|_FLG('s')); // too many *** errors are never silent or optional
-                return false;
-            }
-        
-            ifcnt++;
-        }else if (cmdid == CMD_ID_ELSE) {
-            // check syntax errors
-            if (ifcnt == 0) {
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' without 'if'");
-                *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
-                return false;
-            }
-        }else if (cmdid == CMD_ID_END) {
-            // check syntax errors
-            if (ifcnt == 0){
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' without 'if'");
-                *flags &= ~(_FLG('o')|_FLG('s')); // syntax errors are never silent or optional
-                return false;
-            }
-        
-            // just decrease the number of "if" nest
-            ifcnt--;
-        }else if (cmdid == CMD_ID_LABEL) {
-            // Check finding the label to jump by "goto"
-            if (strcmp(findlabel, argv[0]) == 0) {
-                // this label is the finding label! stop skipping
-                // reset "findlabel" to stop skipping and looking for the label
-                findlabel [0] = '\000';
-                
-                ifcnt_skipped = 0;
-                skip = 0;
-                
-                return true;
-            }
-        }
+		if (**ptr == '@') {
+			// count the length of a label name
+			u32 len = 0;
+			for (; !(IS_WHITESPACE(*(*ptr + len))) && ((*ptr + len) < line_end); len++);
+			if (strncmp(*ptr, findlabel, max(len, strlen(findlabel))) == 0) { // check if label name is the same
+				findlabel[0] = '\000';
+				ifcnt_skipped = 0;
+				skip = 0;
+				return true;
+			}
+		}
         
         // reposition pointer
         *ptr = *line_end_p + 1;
     }
     
-    (*lno)--; // when exited for loop it is 1 larger than should be, so fix it
+    (*lno)--; // when exited for loop, it is 1 larger than should be, so fix it
     
     // label not found and reached the end of the script
     if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
