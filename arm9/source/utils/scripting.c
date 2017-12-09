@@ -545,6 +545,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         id == CMD_ID_END  ||
         id == CMD_ID_GOTO
         )) {
+            syntax_error = true;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "Invalid command as conditions");
             return false;
     }
@@ -876,23 +877,23 @@ bool search_label(char** ptr, char** line_end_p, u32* flags, char* err_str, u32*
         // find line end
         *line_end_p = strchr(*ptr, '\n');
         if (!*line_end_p) *line_end_p = *ptr + strlen(*ptr);
-		char* line_end = *line_end_p;
+        char* line_end = *line_end_p;
         
-		// skip whitespaces
-		for (; IS_WHITESPACE(**ptr) && (*ptr < line_end); (*ptr)++);
-		if (*ptr >= line_end) continue; // end reached, all whitespaces
+        // skip whitespaces
+        for (; IS_WHITESPACE(**ptr) && (*ptr < line_end); (*ptr)++);
+        if (*ptr >= line_end) continue; // end reached, all whitespaces
     
-		if (**ptr == '@') {
-			// count the length of a label name
-			u32 len = 0;
-			for (; !(IS_WHITESPACE(*(*ptr + len))) && ((*ptr + len) < line_end); len++);
-			if (strncmp(*ptr, findlabel, max(len, strlen(findlabel))) == 0) { // check if label name is the same
-				findlabel[0] = '\000';
-				ifcnt_skipped = 0;
-				skip = 0;
-				return true;
-			}
-		}
+        if (**ptr == '@') {
+            // count the length of a label name
+            u32 len = 0;
+            for (; !(IS_WHITESPACE(*(*ptr + len))) && ((*ptr + len) < line_end); len++);
+            if (strncmp(*ptr, findlabel, max(len, strlen(findlabel))) == 0) { // check if label name is the same
+                findlabel[0] = '\000';
+                ifcnt_skipped = 0;
+                skip = 0;
+                return true;
+            }
+        }
         
         // reposition pointer
         *ptr = *line_end_p + 1;
@@ -1275,7 +1276,7 @@ bool ExecuteGM9Script(const char* path_script) {
     char* ptr = script;
     
     // reset some global var for "if" and "goto"
-    for (u16 cntr = 0; cntr < _ARG_MAX_LEN+1; cntr++) findlabel [cntr] = '\000';
+    findlabel [0] = '\000';
     skip = 0;
     ifcnt = 0;
     ifcnt_skipped = 0;
