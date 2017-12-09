@@ -13,9 +13,7 @@
 #include "hid.h"
 #include "ui.h"
 
-#define _MAX_ARGS       3
-#define _MAX_LABELS     255
-#define _MAX_IF_NEST    255
+#define _MAX_ARGS       4
 #define _ARG_MAX_LEN    512
 #define _VAR_CNT_LEN    256
 #define _VAR_NAME_LEN   32
@@ -143,8 +141,8 @@ static u32 script_color_code = 0;
 static bool syntax_error = false;    // flag to disable -o or -s, set in run_cmd() and used in ExecuteGM9Script()
 static bool running_cond = false;    // true if running the "if"'s condition commands
 static bool if_cond_res = false;     // result of condition commands
-static u8 ifcnt = 0;                 // current # of "if" nesting
-static u8 ifcnt_skipped = 0;         // ifcnt increase while skipping conditional blocks
+static u32 ifcnt = 0;                 // current # of "if" nesting
+static u32 ifcnt_skipped = 0;         // ifcnt increase while skipping conditional blocks
 static u8 skip = 0;                  // 0-> not skipping 1-> if not match and skip until "else" or "end"
                                      // 2-> if match and skip from "else" to "end" 3-> searching for a label
     
@@ -627,13 +625,6 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "permission fail");
     }
     else if (id == CMD_ID_IF) {
-        // check max "if" nesting
-        if (ifcnt == _MAX_IF_NEST) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many nested 'if'");
-            syntax_error = true; // syntax errors are never silent or optional
-            return false;
-        }
-        
         // check the result of condition command
         if (if_cond_res) {
             // succeed
@@ -951,13 +942,6 @@ bool skip_cond_block(char** ptr_p, char** line_end_p, u32* flags, char* err_str,
         
         // handle control commands
         if (cmdid == CMD_ID_IF) {
-            // check max "if" nesting
-            if (ifcnt == _MAX_IF_NEST) {
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many nested 'if'");
-                *flags &= ~(_FLG('o')|_FLG('s')); // too many *** errors are never silent or optional
-                return false;
-            }
-            
             ifcnt_skipped++;
             ifcnt++;
         }else if (cmdid == CMD_ID_ELSE) {
