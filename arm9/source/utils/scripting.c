@@ -144,7 +144,7 @@ static u32 ifcnt = 0;                // current # of "if" nesting
 static u32 ifcnt_skipped = 0;        // ifcnt increase while skipping conditional blocks
 static u8 skip = 0;                  // 0-> not skipping 1-> if not match and skip until "else" or "end"
                                      // 2-> if match and skip from "else" to "end" 3-> searching for a label
-									 
+                                     
 // for goto
 static char findlabel [_ARG_MAX_LEN + 1]; // the label name finding
 
@@ -885,8 +885,7 @@ bool search_label(char** ptr_p, char** line_end_p, u32* flags, char* err_str, u3
         (*ptr_p)++; // make it to point the start of a label name
         u32 len = 0;
         while (!IS_WHITESPACE(*(*ptr_p + len)) && (*ptr_p + len) < line_end) len++;
-		
-        // ShowPrompt(false, "label length : %u", len);
+        
         if (strncmp(*ptr_p, findlabel, len) == 0 && !findlabel[len]) {
             // searching label found
             findlabel[0] = '\000';
@@ -1009,14 +1008,12 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     
     // handle "if"
     if (cmdid == CMD_ID_IF && !running_cond) {
-		// get the pointer points just after "if"
-		u32 cnt = 0;
-		for (; IS_WHITESPACE(*(line_start + cnt)); cnt++);
-		
+        // get the pointer points just after "if"
+        u32 cnt = 0;
+        for (; IS_WHITESPACE(*(line_start + cnt)); cnt++);
+        
         running_cond = true; // set flag
-		// ShowPrompt(false, "Starting running condition\n line_start : %lx", line_start);
         if_cond_res = run_line(line_start+cnt+2, line_end, flags, err_str);
-		// ShowPrompt(false, "Finishing running condition\n line_start : %lx\nresult : %u", line_start, if_cond_res);
         running_cond = false; // reset flag
     }
     
@@ -1360,7 +1357,6 @@ bool ExecuteGM9Script(const char* path_script) {
         // search for a label if required
         if (skip == 3) result = search_label(&ptr, &line_end, &flags, err_str ,&lno, end); // searching a label
         
-        // ShowPrompt(false, "skipping : %s", skip ? "true" : "false");
         // skip conditional block if should
         if (skip == 1 || skip == 2) result = skip_cond_block(&ptr, &line_end, &flags, err_str, &lno, end);
         
