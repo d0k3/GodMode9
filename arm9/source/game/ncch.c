@@ -1,4 +1,5 @@
 #include "ncch.h"
+#include "support.h"
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
@@ -53,10 +54,6 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     static u8 lseed[16+8] = { 0 }; // seed plus title ID for easy validation
     u64 titleId = ncch->programId;
     u32 hash_seed = ncch->hash_seed;
-    
-    UINT btr = 0;
-    FIL file;
-    char path[128];
     u32 sha256sum[8];
     
     memcpy(lseed+16, &(ncch->programId), 8);
@@ -69,7 +66,11 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     // try to grab the seed from NAND database
     const u32 seed_offset[2] = {SEEDSAVE_AREA_OFFSETS};
     const char* nand_drv[] = {"1:", "4:"}; // SysNAND and EmuNAND
-    for (u32 i = 0; i < (sizeof(nand_drv)/sizeof(char*)); i++) {
+    for (u32 i = 0; i < countof(nand_drv); i++) {
+        UINT btr = 0;
+        FIL file;
+        char path[128];
+    
         // grab the key Y from movable.sed
         u8 movable_keyy[16];
         snprintf(path, 128, "%s/private/movable.sed", nand_drv[i]);
@@ -118,20 +119,17 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     }
     
     // not found -> try seeddb.bin
-    if (f_open(&file, SUPPORT_PATH "/" SEEDDB_NAME, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-        SeedInfo* seeddb = (SeedInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-        f_read(&file, seeddb, TEMP_BUFFER_SIZE / 2, &btr);
-        f_close(&file);
-        if (seeddb->n_entries <= (btr - 16) / 32) { // check filesize / seeddb size
-            for (u32 s = 0; s < seeddb->n_entries; s++) {
-                if (titleId != seeddb->entries[s].titleId)
-                    continue;
-                memcpy(lseed, seeddb->entries[s].seed, 16);
-                sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
-                if (hash_seed == sha256sum[0]) {
-                    memcpy(seed, lseed, 16);
-                    return 0; // found!
-                }
+    SeedInfo* seeddb = (SeedInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
+    size_t len = LoadSupportFile(SEEDDB_NAME, seeddb, (TEMP_BUFFER_SIZE/2)); 
+    if (len && (seeddb->n_entries <= (len - 16) / 32)) { // check filesize / seeddb size
+        for (u32 s = 0; s < seeddb->n_entries; s++) {
+            if (titleId != seeddb->entries[s].titleId)
+                continue;
+            memcpy(lseed, seeddb->entries[s].seed, 16);
+            sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
+            if (hash_seed == sha256sum[0]) {
+                memcpy(seed, lseed, 16);
+                return 0; // found!
             }
         }
     }

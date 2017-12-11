@@ -1,4 +1,5 @@
 #include "ticket.h"
+#include "support.h"
 #include "unittype.h"
 #include "aes.h"
 #include "sha.h"
@@ -106,15 +107,10 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     // when found, add it to the ticket
     for (u32 enc = 0; (enc <= 1) && !found; enc++) {
         TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-        const char* path = (enc) ? SUPPORT_PATH "/" TIKDB_NAME_ENC : SUPPORT_PATH "/" TIKDB_NAME_DEC;
-        FIL file;
-        UINT btr;
+        u32 len = LoadSupportFile((enc) ? TIKDB_NAME_ENC : TIKDB_NAME_DEC, tikdb, (TEMP_BUFFER_SIZE/2));
         
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            continue;
-        f_read(&file, tikdb, TEMP_BUFFER_SIZE / 2, &btr);
-        f_close(&file);
-        if (tikdb->n_entries > (btr - 16) / 32)
+        if (len == 0) continue; // file not found
+        if (tikdb->n_entries > (len - 16) / 32)
             continue; // filesize / titlekey db size mismatch
         for (u32 t = 0; t < tikdb->n_entries; t++) {
             TitleKeyEntry* tik = tikdb->entries + t;

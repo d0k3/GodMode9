@@ -1,4 +1,5 @@
 #include "godmode.h"
+#include "support.h"
 #include "ui.h"
 #include "hid.h"
 #include "fs.h"
@@ -1843,9 +1844,9 @@ u32 GodMode(int entrypoint) {
                 bootloader = true;
             } else if (user_select == 2) {
                 godmode9 = true;
-            } else if ((user_select == 3) && (FileSelector(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
+            } else if ((user_select == 3) && (FileSelectorSupport(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOADS_DIR, "*.firm", true, false))) {
                 BootFirmHandler(loadpath, false, false);
-            } else if ((user_select == 4) && (FileSelector(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
+            } else if ((user_select == 4) && (FileSelectorSupport(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPTS_DIR, "*.gm9", true, false))) {
                 ExecuteGM9Script(loadpath);
             } else if (user_select == 5) {
                 exit_mode = GODMODE_EXIT_POWEROFF;
@@ -2228,8 +2229,8 @@ u32 GodMode(int entrypoint) {
             u32 n_opt = 0;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
-            int scripts = (PathExist(SCRIPT_PATH)) ? (int) ++n_opt : -1;
-            int payloads = (PathExist(PAYLOAD_PATH)) ? (int) ++n_opt : -1;
+            int scripts = (CheckSupportDir(SCRIPTS_DIR)) ? (int) ++n_opt : -1;
+            int payloads = (CheckSupportDir(PAYLOADS_DIR)) ? (int) ++n_opt : -1;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
@@ -2242,12 +2243,12 @@ u32 GodMode(int entrypoint) {
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
-                else if ((user_select == scripts) && (FileSelector(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPT_PATH, "*.gm9", true, false))) {
+                else if ((user_select == scripts) && (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9", true, false))) {
                     ExecuteGM9Script(loadpath);
                     GetDirContents(current_dir, current_path);
                     ClearScreenF(true, true, COLOR_STD_BG);
                     break;
-                } else if ((user_select == payloads) && (FileSelector(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOAD_PATH, "*.firm", true, false))) {
+                } else if ((user_select == payloads) && (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm", true, false))) {
                     BootFirmHandler(loadpath, false, false);
                 }
             }

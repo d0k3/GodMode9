@@ -2,7 +2,7 @@
 #include "aes.h"
 #include "sha.h"
 #include "ff.h"
-#include "vram0.h"
+#include "support.h"
 
 typedef struct {
     u8   slot;           // keyslot, 0x00...0x39 
@@ -120,19 +120,7 @@ u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
                 fsize = 0;
             f_close(&fp);
         }
-    } else {
-        // check for hardcoded key database
-        u64 aeskeydb_bin_size = 0;
-        void* aeskeydb_bin = FindVTarFileInfo(KEYDB_NAME, &aeskeydb_bin_size);
-        fsize = (aeskeydb_bin_size <= bsize) ? aeskeydb_bin_size : 0;
-        if (fsize) memcpy(keydb, aeskeydb_bin, aeskeydb_bin_size);
-        
-        // try to load aeskeydb.bin file
-        if (f_open(&fp, SUPPORT_PATH "/" KEYDB_NAME, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-            if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize)) fsize = 0;
-            f_close(&fp);
-        }
-    }
+    } else fsize = LoadSupportFile(KEYDB_NAME, keydb, bsize); // load key database support file
     
     u32 nkeys = 0;
     if (fsize && !(fsize % sizeof(AesKeyInfo)))
@@ -173,15 +161,10 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
     
     // load legacy slot0x??Key?.bin file instead
     if (!found && (type != 'I')) {
-        char path[64];
-        FIL fp;
-        UINT btr;
-        snprintf(path, 64, "%s/slot0x%02lXKey%s%s.bin", SUPPORT_PATH, keyslot,
+        char fname[64];
+        snprintf(fname, 64, "slot0x%02lXKey%s%s.bin", keyslot,
             (type == 'X') ? "X" : (type == 'Y') ? "Y" : (type == 'I') ? "IV" : "", (id) ? id : "");
-        if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-            found = ((f_read(&fp, key, 16, &btr) == FR_OK) && (btr == 16));
-            f_close(&fp);
-        }
+        found = (LoadSupportFile(fname, key, 16) == 16);
     }
     
     // key still not found (duh)
@@ -254,7 +237,7 @@ u32 InitKeyDb(const char* path)
 
 u32 CheckRecommendedKeyDb(const char* path)
 {
-    // SHA-256 of the reommended aeskeydb.bin file
+    // SHA-256 of the recommended aeskeydb.bin file
     // equals MD5 A5B28945A7C051D7A0CD18AF0E580D1B
     const u8 recommended_sha[0x20] = {
         0x40, 0x76, 0x54, 0x3D, 0xA3, 0xFF, 0x91, 0x1C, 0xE1, 0xCC, 0x4E, 0xC7, 0x2F, 0x92, 0xE4, 0xB7,
