@@ -5,10 +5,6 @@
 
 #define ESSENTIAL_NAME  "essential.exefs"
 
-// start sector of the essential backup in NAND
-// careful with this, essential backup should never reach sector 0x96
-#define ESSENTIAL_SECTOR 0x1
-
 // magic number for essential backup
 #define ESSENTIAL_MAGIC 'n', 'a', 'n', 'd', '_', 'h', 'd', 'r', 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00
 

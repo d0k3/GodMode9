@@ -374,11 +374,6 @@ u32 SafeRestoreNandDump(const char* path) {
         return 1;
     if (!SetWritePermissions(PERM_SYS_LVL1, true)) return 1;
     
-    // build essential backup from NAND
-    EssentialBackup* essential = (EssentialBackup*) TEMP_BUFFER;
-    if (BuildEssentialBackup("1:/nand.bin", essential) != 0)
-        memset(essential, 0, sizeof(EssentialBackup));
-    
     // open file, get size
     FIL file;
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
@@ -432,14 +427,14 @@ u32 SafeRestoreNandDump(const char* path) {
     
     // main processing loop
     u32 ret = 0;
-    u32 sector0 = 1; // start at the sector after NCSD
+    u32 sector0 = SECTOR_SECRET + COUNT_SECRET; // start at the sector after secret sector
     if (!ShowProgress(0, 0, path)) ret = 1;
-    for (int p = -1; p < 8; p++) {
+    for (int p = 0; p < 8; p++) {
         NandPartitionInfo np_info;
-        u32 idx = (p < 0) ? 0 : p;
-        u32 type = (p < 0) ? NP_TYPE_SECRET : NP_TYPE_FIRM;
-        u32 subtype = (p < 0) ? NP_SUBTYPE_CTR_N : NP_SUBTYPE_CTR;
-        u32 sector1 = (GetNandNcsdPartitionInfo(&np_info, type, subtype, idx, &ncsd_loc) == 0) ? np_info.sector : fsize / 0x200;
+        u32 type = NP_TYPE_FIRM;
+        u32 subtype = NP_SUBTYPE_CTR;
+        u32 sector1 = (GetNandNcsdPartitionInfo(&np_info, type, subtype, p, &ncsd_loc) == 0) ? np_info.sector : fsize / 0x200;
+        if (sector1 < sector0) ret = 1; // safety check
         for (u32 s = sector0; (s < sector1) && (ret == 0); s += MAIN_BUFFER_SIZE / 0x200) {
             u32 count = min(MAIN_BUFFER_SIZE / 0x200, (sector1 - s));
             if (ReadNandFile(&file, MAIN_BUFFER, s, count, 0xFF)) ret = 1;
@@ -447,7 +442,7 @@ u32 SafeRestoreNandDump(const char* path) {
             if (!ShowProgress(s + count, fsize / 0x200, path)) ret = 1;
         }
         if (sector1 == fsize / 0x200) break; // at file end
-        sector0 = np_info.sector + np_info.count;
+        sector0 = np_info.sector + np_info.count; // skip partition
     }
     fvx_close(&file);
     
@@ -455,9 +450,6 @@ u32 SafeRestoreNandDump(const char* path) {
     if (header_inject && (ret == 0) &&
         (WriteNandSectors((u8*) &ncsd_img, 0, 1, 0xFF, NAND_SYSNAND) != 0))
         ret = 1;
-    
-    // inject essential backup to NAND
-    WriteNandSectors((u8*) essential, ESSENTIAL_SECTOR, (sizeof(EssentialBackup) + 0x1FF) / 0x200, 0xFF, NAND_SYSNAND);
     
     return ret;
 }
@@ -547,14 +539,17 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
     if (fix_sector0x96 && ((ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0) ||
         (ValidateSecretSector(sector0x96) != 0))) {
         ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying sector 0x96.\nTry to fix before reboot!");
+        return 1;
     }
     for (u32 s = 0; s < 8; s++) {
         NandPartitionInfo info;
         if (!((slots>>s)&0x1)) continue;
         if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
             (ReadNandBytes(firm, info.sector*0x200, firm_size, info.keyslot, NAND_SYSNAND) != 0) ||
-            (sha_cmp(firm_sha, firm, firm_size, SHA256_MODE) != 0))
+            (sha_cmp(firm_sha, firm, firm_size, SHA256_MODE) != 0)) {
             ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying FIRM%lu.\nTry to fix before reboot!", s);
+            return 1;
+        }
     }
     
     return 0;
