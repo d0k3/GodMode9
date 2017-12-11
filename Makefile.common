@@ -34,7 +34,7 @@ ifeq ($(SWITCH_SCREENS),1)
 endif
 
 ifeq ($(SCRIPT_RUNNER),1)
-    CFLAGS += -DAUTORUN_SCRIPT
+    CFLAGS += -DSCRIPT_RUNNER
     README := 
 endif
 
