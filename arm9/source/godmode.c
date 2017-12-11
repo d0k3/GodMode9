@@ -937,7 +937,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
-    bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path;
+    bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool renamable = (FTYPE_RENAMABLE(filetype));
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
@@ -947,7 +947,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool ncsdfixable = (FTYPE_NCSDFIXABLE(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
-    bool keyinitable = (FTYPE_KEYINIT(filetype));
+    bool keyinitable = (FTYPE_KEYINIT(filetype)) && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool keyinstallable = (FTYPE_KEYINSTALL(filetype)) && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype));
     bool installable = (FTYPE_INSTALLABLE(filetype));
@@ -963,7 +964,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         extrcodeable = (FTYPE_HASCODE(filetype_cxi));
     }
     
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || bootable || scriptable || installable || agbexportable || agbimportable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || keyinstallable || bootable || scriptable || installable || agbexportable || agbimportable;
     
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1151,6 +1152,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
     int keyinit = (keyinitable) ? ++n_opt : -1;
+    int keyinstall = (keyinstallable) ? ++n_opt : -1;
     int install = (installable) ? ++n_opt : -1;
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
@@ -1177,6 +1179,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (extrcode > 0) optionstr[extrcode-1] = "Extract " EXEFS_CODE_NAME;
     if (keyinit > 0) optionstr[keyinit-1] = "Init " KEYDB_NAME;
+    if (keyinstall > 0) optionstr[keyinstall-1] = "Install " KEYDB_NAME;
     if (install > 0) optionstr[install-1] = "Install FIRM";
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
@@ -1556,6 +1559,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     else if (user_select == keyinit) { // -> initialise keys from aeskeydb.bin
         if (ShowPrompt(true, "Warning: Keys are not verified.\nContinue on your own risk?"))
             ShowPrompt(false, "%s\nAESkeydb init %s", pathstr, (InitKeyDb(file_path) == 0) ? "success" : "failed");
+        return 0;
+    }
+    else if (user_select == keyinstall) { // -> install keys from aeskeydb.bin
+        ShowPrompt(false, "%s\nAESkeydb install %s", pathstr, (SafeInstallKeyDb(file_path) == 0) ? "success" : "failed");
         return 0;
     }
     else if (user_select == install) { // -> install FIRM

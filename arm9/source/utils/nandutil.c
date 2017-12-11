@@ -9,6 +9,7 @@
 #include "sdmmc.h"
 #include "sha.h"
 #include "sighax.h"
+#include "keydb.h"  // for perfect keydb hash and length
 #include "essentials.h" // for essential backup struct
 #include "unittype.h"
 
@@ -554,6 +555,37 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
             (ReadNandBytes(firm, info.sector*0x200, firm_size, info.keyslot, NAND_SYSNAND) != 0) ||
             (sha_cmp(firm_sha, firm, firm_size, SHA256_MODE) != 0))
             ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying FIRM%lu.\nTry to fix before reboot!", s);
+    }
+    
+    return 0;
+}
+
+u32 SafeInstallKeyDb(const char* path)
+{
+    const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
+    u8 keydb[KEYDB_PERFECT_SIZE];
+    
+    char pathstr[32 + 1]; // truncated path string
+    TruncateString(pathstr, path, 32, 8);
+    
+    // already installed?
+    if ((ReadNandBytes(keydb, SECTOR_KEYDB*0x200, KEYDB_PERFECT_SIZE, 0xFF, NAND_SYSNAND) == 0) &&
+        (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) == 0)) {
+        ShowPrompt(false, "Perfect " KEYDB_NAME " is already installed!");
+        return 1;
+    }
+    
+    // check input path...
+    if ((fvx_qread(path, keydb, 0, KEYDB_PERFECT_SIZE, NULL) != FR_OK) ||
+        (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) != 0)) {
+        ShowPrompt(false, "%s\nNot a perfect " KEYDB_NAME " image.\nCannot install to NAND!", pathstr);
+        return 1;
+    }
+    
+    // point of no return, install key database
+    if (WriteNandBytes(keydb, SECTOR_KEYDB*0x200, KEYDB_PERFECT_SIZE, 0xFF, NAND_SYSNAND) != 0) {
+        ShowPrompt(false, "%s\nFailed writing " KEYDB_NAME " to NAND!", pathstr);
+        return 1;
     }
     
     return 0;

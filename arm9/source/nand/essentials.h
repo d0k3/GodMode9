@@ -3,6 +3,8 @@
 #include "common.h"
 #include "exefs.h"
 
+#define ESSENTIAL_NAME  "essential.exefs"
+
 // start sector of the essential backup in NAND
 // careful with this, essential backup should never reach sector 0x96
 #define ESSENTIAL_SECTOR 0x1

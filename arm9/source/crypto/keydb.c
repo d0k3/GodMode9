@@ -1,20 +1,8 @@
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
-#include "ff.h"
+#include "vff.h"
 #include "support.h"
-
-typedef struct {
-    u8   slot;           // keyslot, 0x00...0x39 
-    char type;           // type 'X' / 'Y' / 'N' for normalKey / 'I' for IV
-    char id[10];         // key ID for special keys, all zero for standard keys
-} __attribute__((packed)) AesKeyDesc;
-
-typedef struct {
-    AesKeyDesc desc;     // slot, type, id
-    u8   keyUnitType;    // 0 for ALL units / 1 for devkit exclusive / 2 for retail exclusive
-    u8   keySha256[32];  // SHA-256 of the key
-} __attribute__((packed)) AesKeyHashInfo;
 
 typedef struct {
     u8   slot;           // keyslot, 0x00...0x39
@@ -110,17 +98,16 @@ u32 CheckKeySlot(u32 keyslot, char type)
     return 1;
 }
 
+// this function creates dependencies to "vff.h" and "support.h"
+// to get rid of these, you may replace this function with anything that works for you
 u32 LoadKeyDb(const char* path_db, AesKeyInfo* keydb, u32 bsize) {
     UINT fsize = 0;
-    FIL fp;
     
     if (path_db) {
-        if (f_open(&fp, path_db, FA_READ | FA_OPEN_EXISTING) == FR_OK) {
-            if ((f_read(&fp, keydb, bsize, &fsize) != FR_OK) || (fsize >= bsize))
-                fsize = 0;
-            f_close(&fp);
-        }
-    } else fsize = LoadSupportFile(KEYDB_NAME, keydb, bsize); // load key database support file
+        if (fvx_qread (path_db, keydb, 0, bsize, &fsize) != FR_OK) fsize = 0;
+    } else if (fvx_qread ("S:/" KEYDB_NAME, keydb, 0, bsize, &fsize) != FR_OK) {
+        fsize = LoadSupportFile(KEYDB_NAME, keydb, bsize); // load key database support file
+    }
     
     u32 nkeys = 0;
     if (fsize && !(fsize % sizeof(AesKeyInfo)))
@@ -235,6 +222,7 @@ u32 InitKeyDb(const char* path)
     return 0;
 }
 
+// creates dependency to "sha.h", not required for base keydb functions
 u32 CheckRecommendedKeyDb(const char* path)
 {
     // SHA-256 of the recommended aeskeydb.bin file

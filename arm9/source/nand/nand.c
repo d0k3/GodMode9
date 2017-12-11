@@ -1,7 +1,6 @@
 #include "nand.h"
 #include "fsdrive.h"
 #include "unittype.h"
-#include "keydb.h"
 #include "aes.h"
 #include "sha.h"
 #include "fatmbr.h"
@@ -13,7 +12,7 @@
 #define SECTOR_SHA256   ((IS_DEVKIT) ? sector0x96dev_sha256 : sector0x96_sha256)
 
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
-static const u32 np_keyslots[9][4] = { // [NP_TYPE][NP_SUBTYPE]
+static const u32 np_keyslots[10][4] = { // [NP_TYPE][NP_SUBTYPE]
     { 0xFF, 0xFF, 0xFF, 0xFF }, // none
     { 0xFF, 0x03, 0x04, 0x05 }, // standard
     { 0xFF, 0x03, 0x04, 0x05 }, // FAT (custom, not in NCSD)
@@ -21,6 +20,7 @@ static const u32 np_keyslots[9][4] = { // [NP_TYPE][NP_SUBTYPE]
     { 0xFF, 0xFF, 0x07, 0xFF }, // AGBSAVE
     { 0xFF, 0xFF, 0xFF, 0xFF }, // NCSD (custom)
     { 0xFF, 0xFF, 0xFF, 0xFF }, // D0K3 (custom)
+    { 0xFF, 0xFF, 0xFF, 0xFF }, // KEYDB (custom)
     { 0xFF, 0xFF, 0xFF, 0x11 }, // SECRET (custom)
     { 0xFF, 0xFF, 0xFF, 0xFF }  // BONUS (custom)
 };
@@ -470,14 +470,17 @@ u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32
     // special, custom partition types, not in NCSD
     if (type >= NP_TYPE_NCSD) {
         if (type == NP_TYPE_NCSD) {
-            info->sector = 0x00; // hardcoded
-            info->count = 0x01;
+            info->sector = SECTOR_NCSD; // hardcoded
+            info->count = COUNT_NCSD;
         } else if (type == NP_TYPE_D0K3) {
             info->sector = SECTOR_D0K3; // hardcoded
-            info->count = SECTOR_SECRET - info->sector;
+            info->count = COUNT_D0K3;
+        } else if (type == NP_TYPE_KEYDB) {
+            info->sector = SECTOR_KEYDB; // hardcoded
+            info->count = COUNT_KEYDB;
         } else if (type == NP_TYPE_SECRET) {
-            info->sector = SECTOR_SECRET;
-            info->count = 0x01;
+            info->sector = SECTOR_SECRET; // hardcoded
+            info->count = COUNT_SECRET;
         } else if (type == NP_TYPE_BONUS) {
             info->sector = GetNandNcsdMinSizeSectors(ncsd);
             info->count = 0x00; // placeholder, actual size needs info from NAND chip

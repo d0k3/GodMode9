@@ -1,10 +1,13 @@
 #include "vnand.h"
 #include "nand.h"
 #include "essentials.h"
+#include "keydb.h"
+#include "sha.h"
 #include "unittype.h"
 
-#define VFLAG_MBR           (1UL<<28)
-#define VFLAG_ESSENTIAL     (1UL<<29)
+#define VFLAG_MBR           (1UL<<27)
+#define VFLAG_ESSENTIAL     (1UL<<28)
+#define VFLAG_KEYDB         (1UL<<29)
 #define VFLAG_NEEDS_OTP     (1UL<<30)
 #define VFLAG_NAND_SIZE     (1UL<<31)
 
@@ -20,7 +23,8 @@ typedef struct {
 static const VirtualNandTemplate vNandTemplates[] = {
     { "nand_hdr.bin"     , NP_TYPE_NCSD  , NP_SUBTYPE_CTR  , 0, 0 },
     { "twlmbr.bin"       , NP_TYPE_STD   , NP_SUBTYPE_TWL  , 0, VFLAG_MBR },
-    { "essential.exefs"  , NP_TYPE_D0K3  , NP_SUBTYPE_NONE , 0, VFLAG_DELETABLE | VFLAG_ESSENTIAL },
+    { ESSENTIAL_NAME     , NP_TYPE_D0K3  , NP_SUBTYPE_NONE , 0, VFLAG_DELETABLE | VFLAG_ESSENTIAL },
+    { KEYDB_NAME         , NP_TYPE_KEYDB , NP_SUBTYPE_NONE , 0, VFLAG_DELETABLE | VFLAG_KEYDB },
     { "sector0x96.bin"   , NP_TYPE_SECRET, NP_SUBTYPE_CTR_N, 0, VFLAG_NEEDS_OTP },
     { "twln.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 0, 0 },
     { "twlp.bin"         , NP_TYPE_FAT   , NP_SUBTYPE_TWL  , 1, 0 },
@@ -86,6 +90,13 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
             ReadNandBytes(data, vfile->offset, sizeof(magic), vfile->keyslot, nand_src);
             if (memcmp(data, magic, sizeof(magic)) != 0) continue;
             vfile->size = sizeof(EssentialBackup);
+        }
+        if (vfile->flags & VFLAG_KEYDB) {
+            const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
+            u8 keydb[KEYDB_PERFECT_SIZE];
+            ReadNandBytes(keydb, vfile->offset, KEYDB_PERFECT_SIZE, vfile->keyslot, nand_src);
+            if (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) != 0) continue;
+            vfile->size = KEYDB_PERFECT_SIZE;
         }
         
         // found if arriving here

@@ -56,6 +56,7 @@
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))
 #define FTYPE_XORPAD(tp)        (tp&(BIN_NCCHNFO))
 #define FTYPE_KEYINIT(tp)       (tp&(BIN_KEYDB))
+#define FTYPE_KEYINSTALL(tp)    (tp&(BIN_KEYDB))
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
 #define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 #define FTYPE_INSTALLABLE(tp)   (tp&(SYS_FIRM))

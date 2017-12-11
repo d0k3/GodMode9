@@ -1,6 +1,8 @@
 #pragma once
 
 #include "common.h"
+#include "essentials.h"
+#include "keydb.h"
 
 #define NAND_SYSNAND    (1UL<<0)
 #define NAND_EMUNAND    (1UL<<1)
@@ -12,9 +14,15 @@
 #define BOOT_NTRBOOT    (1UL<<1)
 #define BOOT_WIFI_SPI   (1UL<<2)
 
-// hardcoded start sectors
-#define SECTOR_D0K3     0x000001
+// hardcoded start sectors and counts
+#define COUNT_NCSD      0x01
+#define COUNT_SECRET    0x01
+#define COUNT_D0K3      ((sizeof(EssentialBackup) + 0x1FF) / 0x200)
+#define COUNT_KEYDB     ((KEYDB_PERFECT_SIZE + 0x1FF) / 0x200)
+#define SECTOR_NCSD     0x000000
 #define SECTOR_SECRET   0x000096
+#define SECTOR_D0K3     (SECTOR_NCSD + COUNT_NCSD)
+#define SECTOR_KEYDB    (SECTOR_SECRET - COUNT_KEYDB)
 
 // 0x110...0x118 in the NAND NCSD header
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
@@ -25,8 +33,9 @@
 #define NP_TYPE_AGB         4
 #define NP_TYPE_NCSD        5 // this is of our own making
 #define NP_TYPE_D0K3        6 // my own partition ^_^
-#define NP_TYPE_SECRET      7 // this is of our own making
-#define NP_TYPE_BONUS       8 // this is of our own making
+#define NP_TYPE_KEYDB       7 // keydb partition, also my own ^_^
+#define NP_TYPE_SECRET      8 // this is of our own making
+#define NP_TYPE_BONUS       9 // this is of our own making
 
 // 0x118...0x120 in the NAND NCSD header
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header

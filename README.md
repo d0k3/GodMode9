@@ -121,6 +121,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Restore / dump NAND partitions or even full NANDs__: Just take a look into the `S:` (or `E:`/ `I:`) drive. This is done the same as any other file operation.
 * __Transfer CTRNAND images between systems__: Transfer the file located at `S:/ctrnand_full.bin` (or `E:`/ `I:`). On the receiving system, press A, select `CTRNAND Options...`, then `Transfer to NAND`.
 * __Embed an essential backup right into a NAND dump__: This is available in the A button menu for NAND dumps. Essential backups contain NAND header, `movable.sed`, `LocalFriendCodeSeed_B`, `SecureInfo_A`, NAND CID and OTP. If your local SysNAND does not contain an embedded backup, you will be asked to do one at startup.
+* __Install an AES key database to your NAND__: For `aeskeydb.bin` files the option is found in `aeskeydb.bin options` -> `Install aeskeydb.bin`. Only the recommended key database can be installed (see above). With an installed key database, it is possible to run the GodMode9 bootloader completely from NAND.
 * __Install FIRM files to your NAND__: Found inside the A button menu for FIRM files, select `FIRM options` -> `Install FIRM`. __Use this with caution__ - installing an incompatible FIRM file will lead to a __brick__.
 * __Actually use that extra NAND space__: You can setup a __bonus drive__ via the HOME menu, which will be available via drive letter `8:`. (Only available on systems that have the extra space.)
 * __Fix certain problems on your NANDs__: You can fix CMACs for a whole drive (works on `A:`, `B:`, `S:` and `E:`) via an entry in the R+A button menu, or even restore borked NAND headers back to a functional state (inside the A button menu of borked NANDs and available for `S:/nand_hdr.bin`). Recommended only for advanced users!
@@ -148,20 +149,19 @@ This tool would not have been possible without the help of numerous people. Than
 * **Archshift**, for providing the base project infrastructure
 * **Normmatt**, for sdmmc.c / sdmmc.h and gamecart code, and for being of great help on countless other occasions
 * **Cha(N)**, **Kane49**, and all other FatFS contributors for [FatFS](http://elm-chan.org/fsw/ff/00index_e.html)
+* **Wolfvak** for ARM11 code, FIRM binary launcher, fexception handlers, PCX code, Makefile and for help on countless other occasions
 * **SciresM** for helping me figure out RomFS and for boot9strap
 * **SciresM**, **Myria**, **Normmatt**, **TuxSH** and **hedgeberg** for figuring out sighax and giving us access to bootrom
 * **ihaveamac** for first developing the simple CIA generation method and for being of great help in porting it
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
-* **Wolfvak** for all ARM11 code, for the FIRM binary launcher, for the exception handlers and for help on countless other occasions
 * **Al3x_10m** for help with countless hours of testing and useful advice
 * **WinterMute** for helping me with his vast knowledge on everything gamecart related
 * **profi200** for always useful advice and helpful hints on various things
 * **JaySea**, **YodaDaCoda**, **liomajor**, **Supster131**, **imanoob**, **Kasher_CS** and countless others from freenode #Cakey and the GBAtemp forums for testing, feedback and helpful hints
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
-* **Lasse Reinhold** for [QuickLZ](http://www.quicklz.com/)
 * **Project Nayuki** for [qrcodegen](https://github.com/nayuki/QR-Code-generator)
 * **Amazingmax fonts** for the Amazdoom font
 * The fine folks on **freenode #Cakey**
