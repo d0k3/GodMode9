@@ -32,6 +32,9 @@
 # Debug files
 *.dSYM/
 
+# OS leftovers
+desktop.ini
+
 # Build directories
 /output
 /release
