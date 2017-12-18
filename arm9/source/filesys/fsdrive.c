@@ -122,6 +122,10 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
     while (fvx_readdir(&pdir, &fno) == FR_OK) {
         if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
             continue; // filter out virtual entries
+        #ifdef HIDE_HIDDEN
+        if (fno.fattrib & AM_HID)
+            continue; // filter out hidden entries
+        #endif
         strncpy(fname, fno.fname, (fnsize - 1) - (fname - fpath));
         if (fno.fname[0] == 0) {
             ret = true;
