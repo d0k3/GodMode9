@@ -28,11 +28,11 @@ endif
 
 # Check for files and add them
 ifneq ("$(wildcard $(README))","")
-    VRAM_FILES += -C"$(shell echo $(abspath $(README)) | xargs dirname)" "$(shell echo $(README) | xargs basename)"
+    VRAM_FILES += -C"$(shell echo \"$(abspath $(README))\" | xargs dirname)" "$(shell echo $(README) | xargs basename)"
 endif
 
 ifneq ("$(wildcard $(SPLASH))","")
-    VRAM_FILES += -C"$(shell echo $(abspath $(SPLASH)) | xargs dirname)" "$(shell echo $(SPLASH) | xargs basename)"
+    VRAM_FILES += -C"$(shell echo \"$(abspath $(SPLASH))\" | xargs dirname)" "$(shell echo $(SPLASH) | xargs basename)"
 endif
 
 ifneq ("$(wildcard $(VRAM_DATA)/*)","")
