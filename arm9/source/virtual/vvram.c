@@ -55,7 +55,7 @@ bool ReadVVramDir(VirtualFile* vfile, VirtualDir* vdir) {
     if (vdir->index < 0) tardata = FirstVTarEntry();
     else tardata = NextVTarEntry(OffsetVTarEntry(vdir->index << 9));
     
-    do {
+    if (tardata) do {
         TarHeader* tar = (TarHeader*) tardata;
         char tar_fname[100 + 1];
         char *name, *dir;
