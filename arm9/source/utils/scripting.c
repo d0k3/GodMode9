@@ -1014,7 +1014,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
         
         // elif handling
         if ((cmdid == CMD_ID_ELIF) && !skip_state) {
-            skip_state = _SKIP_TO_END;
+            skip_state = _SKIP_TILL_END;
             return true;
         }
         
@@ -1024,7 +1024,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
         line_start_next += strlen((cmdid == CMD_ID_IF) ? _CMD_IF : _CMD_ELIF);
         
         // run condition, take over result
-        if (run_line(line_start_next, line_end, flags, err_str, true)))
+        if (run_line(line_start_next, line_end, flags, err_str, true))
             strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN);
     }
     

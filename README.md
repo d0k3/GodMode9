@@ -159,6 +159,8 @@ This tool would not have been possible without the help of numerous people. Than
 * **Al3x_10m** for help with countless hours of testing and useful advice
 * **WinterMute** for helping me with his vast knowledge on everything gamecart related
 * **profi200** for always useful advice and helpful hints on various things
+* **windows-server-2003** for the initial implementation of if-else-goto in .gm9 scripts
+* **Kazuma77** for pushing forward scripting, for testing and for always useful advice
 * **JaySea**, **YodaDaCoda**, **liomajor**, **Supster131**, **imanoob**, **Kasher_CS** and countless others from freenode #Cakey and the GBAtemp forums for testing, feedback and helpful hints
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
