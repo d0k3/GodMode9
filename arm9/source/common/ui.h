@@ -58,6 +58,7 @@ void DrawQrCode(u8* screen, u8* qrcode);
 void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
 void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);
 void DrawStringF(unsigned char *screen, int x, int y, int color, int bgcolor, const char *format, ...);
+void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ...);
 
 u32 GetDrawStringHeight(const char* str);
 u32 GetDrawStringWidth(const char* str);

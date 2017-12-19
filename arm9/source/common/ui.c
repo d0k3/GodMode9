@@ -145,6 +145,22 @@ void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *f
         DrawString(screen, text, x, y, color, bgcolor);
 }
 
+void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ...)
+{
+    char str[STRBUF_SIZE] = { 0 };
+    va_list va;
+    va_start(va, format);
+    vsnprintf(str, STRBUF_SIZE, format, va);
+    va_end(va);
+    
+    u32 w = GetDrawStringWidth(str);
+    u32 h = GetDrawStringHeight(str);
+    int x = (w >= SCREEN_WIDTH(screen)) ? 0 : (SCREEN_WIDTH(screen) - w) >> 1;
+    int y = (h >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - h) >> 1;
+    
+    DrawStringF(screen, x, y, color, bgcolor, str);
+}
+
 u32 GetDrawStringHeight(const char* str) {
     u32 height = FONT_HEIGHT;
     for (char* lf = strchr(str, '\n'); (lf != NULL); lf = strchr(lf + 1, '\n'))
@@ -238,22 +254,14 @@ void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just 
 void ShowString(const char *format, ...)
 {
     if (format && *format) { // only if there is something in there
-        u32 str_width, str_height;
-        u32 x, y;
-        
         char str[STRBUF_SIZE] = { 0 };
         va_list va;
         va_start(va, format);
         vsnprintf(str, STRBUF_SIZE, format, va);
         va_end(va);
         
-        str_width = GetDrawStringWidth(str);
-        str_height = GetDrawStringHeight(str);
-        x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
-        y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
-        
         ClearScreenF(true, false, COLOR_STD_BG);
-        DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
+        DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, str);
     } else ClearScreenF(true, false, COLOR_STD_BG);
 }
 
@@ -286,8 +294,6 @@ void ShowIconString(u8* icon, int w, int h, const char *format, ...)
 
 bool ShowPrompt(bool ask, const char *format, ...)
 {
-    u32 str_width, str_height;
-    u32 x, y;
     bool ret = true;
     
     char str[STRBUF_SIZE] = { 0 };
@@ -296,15 +302,9 @@ bool ShowPrompt(bool ask, const char *format, ...)
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
     
-    str_width = GetDrawStringWidth(str);
-    str_height = GetDrawStringHeight(str) + (2 * 10);
-    if (str_width < 18 * FONT_WIDTH) str_width = 18 * FONT_WIDTH;
-    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
-    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
-    
     ClearScreenF(true, false, COLOR_STD_BG);
-    DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(MAIN_SCREEN, x, y + str_height - (1*10), COLOR_STD_FONT, COLOR_STD_BG, (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
+    DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s\n \n%s", str,
+        (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
     
     while (true) {
         u32 pad_state = InputWait(0);
@@ -483,7 +483,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     char str[STRBUF_SIZE] = { 0 };
     vsnprintf(str, STRBUF_SIZE, format, va);
     
-    // check / fix up the inputstring if required
+    // check / fix up the input string if required
     if (max_size < 2) return false; // catching this, too
     if ((*inputstr == '\0') || (resize && (strnlen(inputstr, max_size - 1) % resize))) {
         memset(inputstr, alphabet[0], resize); // set the string if it is not set or invalid

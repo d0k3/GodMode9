@@ -12,6 +12,7 @@
 #include "sha.h"
 #include "hid.h"
 #include "ui.h"
+#include "pcx.h"
 
 
 #define _MAX_ARGS       4
@@ -255,9 +256,9 @@ static inline u32 get_lno(const char* text, u32 len, const char* line) {
 
 void set_preview(const char* name, const char* content) {
     if (strncmp(name, "PREVIEW_MODE", _VAR_NAME_LEN) == 0) {
-        if (strncasecmp(content, "off", _VAR_CNT_LEN) == 0) preview_mode = 0;
-        else if (strncasecmp(content, "quick", _VAR_CNT_LEN) == 0) preview_mode = 1;
+        if (strncasecmp(content, "quick", _VAR_CNT_LEN) == 0) preview_mode = 1;
         else if (strncasecmp(content, "full", _VAR_CNT_LEN) == 0) preview_mode = 2;
+        else preview_mode = 0xFF; // unknown preview mode
     } else if (strncmp(name, "PREVIEW_COLOR_ACTIVE", _VAR_NAME_LEN) == 0) {
         u8 rgb[4] = { 0 };
         if (strntohex(content, rgb, 3))
@@ -1327,21 +1328,33 @@ bool ExecuteGM9Script(const char* path_script) {
         
         // update script viewer
         if (MAIN_SCREEN != TOP_SCREEN) {
-            bool show_preview = preview_mode;
             if (preview_mode != preview_mode_local) {
-                if (!preview_mode || !preview_mode_local) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-                if (!preview_mode) DrawString(TOP_SCREEN, "(preview disabled)",
-                    (SCREEN_WIDTH_TOP - (18*FONT_WIDTH_EXT)) / 2,
-                    (SCREEN_HEIGHT - FONT_HEIGHT_EXT) / 2,
-                    COLOR_STD_FONT, COLOR_STD_BG);
+                if (!preview_mode || (preview_mode > 2) || !preview_mode_local)
+                    ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+                if (preview_mode > 2) {
+                    char* preview_str = get_var("PREVIEW_MODE", NULL);
+                    u8* pcx = TEMP_BUFFER + TEMP_BUFFER_SIZE / 2;
+                    u32 pcx_size = FileGetData(preview_str, pcx, TEMP_BUFFER_SIZE / 2, 0);
+                    if ((pcx_size > 0) && (pcx_size <  TEMP_BUFFER_SIZE / 2) && 
+                        (PCX_Decompress(TEMP_BUFFER, TEMP_BUFFER_SIZE / 2, pcx, pcx_size))) {
+                        PCXHdr* hdr = (PCXHdr*) (void*) pcx;
+                        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), TEMP_BUFFER);
+                    } else {
+                        if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = "(preview disabled)";
+                        DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, preview_str);
+                    }
+                    preview_mode = 0;
+                }
                 preview_mode_local = preview_mode;
             }
+            
+            bool show_preview = preview_mode;
             if (preview_mode == 1) {
                 show_preview = false;
                 for (char* c = ptr; (c < line_end) && !show_preview; c++) {
-                    // check for comments
+                    // check for comments / labels
                     if (IS_WHITESPACE(*c)) continue;
-                    else if (*c == '#') break;
+                    else if ((*c == '#') || (*c == '@')) break;
                     else show_preview = true;
                 }
             }
