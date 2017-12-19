@@ -21,12 +21,17 @@
 #define _ERR_STR_LEN    32
 
 #define _CMD_IF         "if"
+#define _CMD_ELIF       "elif"
 #define _CMD_ELSE       "else"
 #define _CMD_END        "end"
 #define _CMD_FOR        "for"
 #define _CMD_NEXT       "next"
+
 #define _ARG_TRUE       "TRUE"
 #define _ARG_FALSE      "FALSE"
+
+#define _SKIP_BLOCK     1
+#define _SKIP_TILL_END  2
 
 #define VAR_BUFFER      (SCRIPT_BUFFER + SCRIPT_BUFFER_SIZE - VAR_BUFFER_SIZE)
 
@@ -47,6 +52,7 @@
 typedef enum {
     CMD_ID_NONE = 0,
     CMD_ID_IF,
+    CMD_ID_ELIF,
     CMD_ID_ELSE,
     CMD_ID_END,
     CMD_ID_GOTO,
@@ -97,6 +103,7 @@ typedef struct {
 Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_NONE    , "#"       , 0, 0 }, // dummy entry
     { CMD_ID_IF      , _CMD_IF   , 1, 0 }, // control flow commands at the top of the list
+    { CMD_ID_ELIF    , _CMD_ELIF , 1, 0 },
     { CMD_ID_ELSE    , _CMD_ELSE , 0, 0 },
     { CMD_ID_END     , _CMD_END  , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
@@ -140,8 +147,8 @@ static u32 script_color_code = 0;
 
 // global vars for control flow
 static bool syntax_error = false;   // if true, severe error, script has to stop
-static bool skip_state = false;     // if true, skip the block that comes next
 static char* jump_ptr = NULL;       // next position after a jump
+static u32 skip_state = 0;          // zero, _SKIP_BLOCK, _SKIP_TILL_END
 static u32 ifcnt = 0;               // current # of 'if' nesting
 
 
@@ -512,6 +519,8 @@ char* skip_block(char* ptr, bool ignore_else, bool stop_after_end) {
             return line_start; // end of block found
         } else if (!ignore_else && MATCH_STR(str, str_len, _CMD_ELSE)) { // stop at else
             return line_start; // end of block found
+        } else if (!ignore_else && MATCH_STR(str, str_len, _CMD_ELIF)) { // stop at elif
+            return line_start; // end of block found
         } else if (MATCH_STR(str, str_len, _CMD_IF)) {
             ptr = line_start = skip_block(line_end + 1, true, false);
             if (ptr == NULL) return NULL;
@@ -573,7 +582,7 @@ char* find_label(const char* label, const char* last_found) {
             return line_start; // match found
         } else if (MATCH_STR(str, str_len, _CMD_IF)) {
             next = skip_block(line_start, true, true);
-        } // irrelevant line
+        } // otherwise: irrelevant line
     }
     
     return NULL;
@@ -595,9 +604,12 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     if (!(cmd = get_string(ptr, line_end, &cmd_len, &ptr, err_str))) return false; // string error
     if ((cmd >= line_end) || (*cmd == '#') || (*cmd == '@')) return true; // empty line or comment or label
     
-    // special handling for "if"
+    // special handling for "if" and "elif"
     if (MATCH_STR(cmd, cmd_len, _CMD_IF)) {
         *cmdid = CMD_ID_IF;
+        return true;
+    } else if (MATCH_STR(cmd, cmd_len, _CMD_ELIF)) {
+        *cmdid = CMD_ID_ELIF;
         return true;
     }
     
@@ -642,11 +654,29 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     // perform command
     if (id == CMD_ID_IF) {
         // check the argument
-        skip_state = (strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) != 0); // "if true" or "if false"
+        // "if true" or "if false"
+        skip_state = (strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) == 0) ? 0 : _SKIP_BLOCK;
         ifcnt++;
         
         if (syntax_error && err_str)
             snprintf(err_str, _ERR_STR_LEN, "syntax error after 'if'");
+        ret = !syntax_error;
+    }
+    else if (id == CMD_ID_ELIF) {
+        // check syntax errors
+        if (ifcnt == 0) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'elif' without 'if'");
+            syntax_error = true;
+            return false;
+        }
+        
+        // skip state handling, check the argument if required
+        // "if true" or "if false"
+        skip_state = !skip_state ? _SKIP_TILL_END :
+            ((strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) == 0) ? 0 : _SKIP_BLOCK);
+        
+        if (syntax_error && err_str)
+            snprintf(err_str, _ERR_STR_LEN, "syntax error after 'elif'");
         ret = !syntax_error;
     }
     else if (id == CMD_ID_ELSE) {
@@ -658,7 +688,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
         
         // turn the skip state
-        skip_state = !skip_state;
+        skip_state = skip_state ? 0 : _SKIP_TILL_END;
         
         ret = true;
     }
@@ -671,7 +701,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
         
         // close last "if"
-        skip_state = false;
+        skip_state = 0;
         ifcnt--;
         
         ret = true;
@@ -969,25 +999,32 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     }
     
     // block out of control flow commands
-    if (if_cond && ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELSE) || (cmdid == CMD_ID_END) || (cmdid == CMD_ID_GOTO))) {
+    if (if_cond && ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_ELSE) || (cmdid == CMD_ID_END) ||
+        (cmdid == CMD_ID_GOTO))) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "control flow error");
         syntax_error = true;
         return false;
     }
     
-    // handle "if"
-    if (cmdid == CMD_ID_IF) {
+    // handle "if" / elif
+    if ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELIF)) {
         // set defaults
         argc = 1;
         strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN);
         
-        // skip to behind the "if" command
+        // elif handling
+        if ((cmdid == CMD_ID_ELIF) && !skip_state) {
+            skip_state = _SKIP_TO_END;
+            return true;
+        }
+        
+        // skip to behind the "if"/"elif" command
         char* line_start_next = (char*) line_start;
         for (; IS_WHITESPACE(*line_start_next); line_start_next++);
-        line_start_next += strlen(_CMD_IF);
+        line_start_next += strlen((cmdid == CMD_ID_IF) ? _CMD_IF : _CMD_ELIF);
         
         // run condition, take over result
-        if (run_line(line_start_next, line_end, flags, err_str, true))
+        if (run_line(line_start_next, line_end, flags, err_str, true)))
             strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN);
     }
     
@@ -1256,7 +1293,7 @@ bool ExecuteGM9Script(const char* path_script) {
     
     // reset control flow global vars
     ifcnt = 0;
-    skip_state = false;
+    skip_state = 0;
     syntax_error = false;
     
     // fetch script - if no path is given, assume script already in script buffer
@@ -1326,7 +1363,7 @@ bool ExecuteGM9Script(const char* path_script) {
         // skip state handling
         char* skip_ptr = ptr;
         if (skip_state) {
-            skip_ptr = skip_block(line_end + 1, false, false);
+            skip_ptr = skip_block(line_end + 1, (skip_state == _SKIP_TILL_END), false);
             if (!skip_ptr) snprintf(err_str, _ERR_STR_LEN, "unclosed conditional");
         }
         
