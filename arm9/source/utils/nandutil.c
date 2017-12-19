@@ -369,6 +369,11 @@ u32 SafeRestoreNandDump(const char* path) {
         ShowPrompt(false, "Error: B9S/A9LH not detected.");
         return 1;
     }
+    if (fvx_stat("S:/essential.exefs", NULL) != FR_OK) {
+        if (ShowPrompt(true, "Essential files backup is required.\nCreate one now?"))
+            EmbedEssentialBackup("S:/nand.bin");
+        else return 1;
+    }
     
     if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(B9S/A9LH will be left intact.)"))
         return 1;
