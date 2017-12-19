@@ -17,7 +17,12 @@ export RELDIR := release
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
-VRAM_FLAGS  := --format=v7 --blocking-factor=1 --xform='s/^$(VRAM_DATA)\/\|^resources\///'
+VRAM_FLAGS  := --format ustar -b 1
+
+# Disable exporting macOS resource forks to hidden files in the tar
+ifeq ($(shell uname -s),Darwin)
+    VRAM_FLAGS += --disable-copyfile
+endif
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
@@ -62,7 +67,9 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
+	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) -C$(shell echo $(abspath $(README)) | xargs dirname) $(shell echo $(README) | xargs basename) \
+	                                  -C$(shell echo $(abspath $(SPLASH)) | xargs dirname) $(shell echo $(SPLASH) | xargs basename) \
+	                                  -C$(abspath $(VRAM_DATA)) $(shell ls -d $(VRAM_DATA)/* | xargs -n 1 basename)
 
 elf:
 	@set -e; for elf in $(ELF); do \
