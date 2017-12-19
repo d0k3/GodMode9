@@ -42,11 +42,6 @@ typedef struct {
     u32 scroll;
 } PaneData;
 
-// reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
-static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
-static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
-static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
-
 
 u32 SplashInit(const char* modestr) {
     u64 splash_size;
@@ -79,6 +74,11 @@ u32 SplashInit(const char* modestr) {
 }
 
 #ifndef SCRIPT_RUNNER
+// reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
+static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
+static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
+static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
+
 void GetTimeString(char* timestr, bool forced_update, bool full_year) {
     static DsTime dstime;
     static u64 timer = (u64) -1; // this ensures we don't check the time too often
