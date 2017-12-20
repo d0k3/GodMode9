@@ -69,6 +69,7 @@ typedef enum {
     CMD_ID_INPUT,
     CMD_ID_FILESEL,
     CMD_ID_SET,
+    CMD_ID_SSPLIT,
     CMD_ID_CHK,
     CMD_ID_ALLOW,
     CMD_ID_CP,
@@ -121,6 +122,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_INPUT   , "input"   , 2, 0 },
     { CMD_ID_FILESEL , "filesel" , 3, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
+    { CMD_ID_SSPLIT  , "ssplit"  , 3, _FLG('b') | _FLG('f')},
     { CMD_ID_CHK     , "chk"     , 2, _FLG('u') },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
@@ -462,6 +464,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     if ((len < 2) || (*str != '-')) flag_char = '\0';
     else if (len == 2) flag_char = str[1];
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
+    else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
     else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
@@ -810,6 +813,23 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "set fail");
+    }
+    else if (id == CMD_ID_SSPLIT) {
+        ret = false;
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "split fail");
+        if (strlen(argv[2]) == 1) { // the last arg must be a char
+            char* found;
+            if (flags & _FLG('f')) found = strchr(argv[1], *argv[2]);
+            else found = strrchr(argv[1], *argv[2]);
+            
+            if (found) {
+                if (flags & _FLG('b')) {
+                    *found = '\0';
+                    ret = set_var(argv[0], argv[1]);
+                } else ret = set_var(argv[0], found+1);
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            }
+        }
     }
     else if (id == CMD_ID_CHK) {
         if (flags & _FLG('u')) {
