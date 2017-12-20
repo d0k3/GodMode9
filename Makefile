@@ -19,7 +19,7 @@ $(if $(wildcard $1),-C"$(shell dirname "$(abspath $(1))")" "$(shell basename $(1
 endef
 
 define ADDTARFOLDER
-$(if $(wildcard $1/*),-C"$(abspath $(VRAM_DATA))" $(shell find $(VRAM_DATA) -mindepth 1 -maxdepth 1 -exec basename -a {} + | sed 's,\(.*\),"\1",'))
+$(if $(wildcard $1/*),-C"$(abspath $(1))" $(shell find $(1) -mindepth 1 -maxdepth 1 -exec basename {} + | sed 's,\(.*\),"\1",'))
 endef
 
 # Definitions for initial RAM disk
