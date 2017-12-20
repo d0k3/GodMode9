@@ -21,6 +21,9 @@
 #define _VAR_NAME_LEN   32
 #define _ERR_STR_LEN    32
 
+#define _CHOICE_STR_LEN 32
+#define _CHOICE_MAX_N   12
+
 #define _CMD_IF         "if"
 #define _CMD_ELIF       "elif"
 #define _CMD_ELSE       "else"
@@ -47,8 +50,9 @@
 // some useful macros
 #define IS_WHITESPACE(c)    ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
 #define MATCH_STR(s,l,c)    ((l == strlen(c)) && (strncmp(s, c, l) == 0))
-#define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || (id == CMD_ID_GOTO))
 #define _FLG(c)             (1 << (c - 'a'))
+
+#define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL))
 
 // command ids (also entry into the cmd_list aray below)
 typedef enum {
@@ -58,6 +62,7 @@ typedef enum {
     CMD_ID_ELSE,
     CMD_ID_END,
     CMD_ID_GOTO,
+    CMD_ID_LABELSEL,
     CMD_ID_ECHO,
     CMD_ID_QR,
     CMD_ID_ASK,
@@ -109,6 +114,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ELSE    , _CMD_ELSE , 0, 0 },
     { CMD_ID_END     , _CMD_END  , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
+    { CMD_ID_LABELSEL, "labelsel", 2, 0 },
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
@@ -714,6 +720,36 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
         }
+    }
+    else if (id == CMD_ID_LABELSEL) {
+        const char* options[_CHOICE_MAX_N] = { NULL };
+        char* options_jmp[_CHOICE_MAX_N] = { NULL };
+        char options_str[_CHOICE_MAX_N][_CHOICE_STR_LEN+1];
+        
+        char* ast = strchr(argv[1], '*');
+        char* ptr = NULL;
+        u32 n_opt = 0;
+        while ((ptr = find_label(argv[1], ptr))) {
+            options[n_opt] = options_str[n_opt];
+            options_jmp[n_opt] = ptr;
+            
+            while (*(ptr++) != '@');
+            if (ast) ptr += (ast - argv[1]);
+            
+            char* choice = options_str[n_opt];
+            for (u32 i = 0; i < _CHOICE_STR_LEN; choice[++i] = '\0') {
+                if (IS_WHITESPACE(ptr[i])) break;
+                else if (ptr[i] == '_') choice[i] = ' ';
+                else choice[i] = ptr[i];
+            }
+            if (++n_opt >= _CHOICE_MAX_N) break;
+        }
+        
+        u32 result = ShowSelectPrompt(n_opt, options, argv[0]);
+        if (!result) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+        } else jump_ptr = options_jmp[result-1];
     }
     else if (id == CMD_ID_ECHO) {
         ShowPrompt(false, argv[0]);
