@@ -14,29 +14,25 @@ export DBUILTL  :=	$(shell date +'%Y-%m-%d %H:%M:%S')
 export OUTDIR := output
 export RELDIR := release
 
+define ADDTARFILE
+$(if $(wildcard $1),-C"$(shell dirname "$(abspath $(1))")" "$(shell basename $(1))")
+endef
+
+define ADDTARFOLDER
+$(if $(wildcard $1/*),-C"$(abspath $(VRAM_DATA))" $(shell find $(VRAM_DATA) -mindepth 1 -maxdepth 1 -exec basename -a {} + | sed 's,\(.*\),"\1",'))
+endef
+
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
 VRAM_FLAGS  := -b 1
+VRAM_FILES  := $(call ADDTARFILE,$(README)) $(call ADDTARFILE,$(SPLASH)) $(call ADDTARFOLDER,$(VRAM_DATA))
 
 # Choose format depending on the OS, disable exporting macOS resource forks to hidden files in the tar
 ifeq ($(shell uname -s),Darwin)
     VRAM_FLAGS += --format ustar --disable-copyfile
 else
     VRAM_FLAGS += --format v7
-endif
-
-# Check for files and add them
-ifneq ("$(wildcard $(README))","")
-    VRAM_FILES += -C"$(shell echo \"$(abspath $(README))\" | xargs dirname)" "$(shell echo $(README) | xargs basename)"
-endif
-
-ifneq ("$(wildcard $(SPLASH))","")
-    VRAM_FILES += -C"$(shell echo \"$(abspath $(SPLASH))\" | xargs dirname)" "$(shell echo $(SPLASH) | xargs basename)"
-endif
-
-ifneq ("$(wildcard $(VRAM_DATA)/*)","")
-    VRAM_FILES += -C"$(abspath $(VRAM_DATA))" $(shell find $(VRAM_DATA) -mindepth 1 -maxdepth 1 -exec basename -a {} + | sed 's,\(.*\),"\1",')
 endif
 
 # Definitions for ARM binaries
