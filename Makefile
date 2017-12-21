@@ -14,10 +14,26 @@ export DBUILTL  :=	$(shell date +'%Y-%m-%d %H:%M:%S')
 export OUTDIR := output
 export RELDIR := release
 
+define ADDTARFILE
+$(if $(wildcard $1),-C"$(shell dirname "$(abspath $(1))")" "$(shell basename $(1))")
+endef
+
+define ADDTARFOLDER
+$(if $(wildcard $1/*),-C"$(abspath $(1))" $(shell find $(1) -mindepth 1 -maxdepth 1 -exec basename {} + | sed 's,\(.*\),"\1",'))
+endef
+
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
-VRAM_FLAGS  := --format=v7 --blocking-factor=1 --xform='s/^$(VRAM_DATA)\/\|^resources\///'
+VRAM_FLAGS  := -b 1
+VRAM_FILES  := $(call ADDTARFILE,$(README)) $(call ADDTARFILE,$(SPLASH)) $(call ADDTARFOLDER,$(VRAM_DATA))
+
+# Choose format depending on the OS, disable exporting macOS resource forks to hidden files in the tar
+ifeq ($(shell uname -s),Darwin)
+    VRAM_FLAGS += --format ustar --disable-copyfile
+else
+    VRAM_FLAGS += --format v7
+endif
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
@@ -62,7 +78,7 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
+	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) $(VRAM_FILES)
 
 elf:
 	@set -e; for elf in $(ELF); do \
