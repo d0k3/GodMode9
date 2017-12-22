@@ -17,7 +17,13 @@ export RELDIR := release
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
-VRAM_FLAGS  := --format=v7 --blocking-factor=1 --xform='s/^$(VRAM_DATA)\/\|^resources\///'
+VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 3145728
+
+ifeq ($(OS),Windows_NT)
+    PY3 := py -3
+else
+    PY3 := python3
+endif
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
@@ -62,7 +68,7 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@tar cf $(VRAM_OUT) $(VRAM_FLAGS) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
 
 elf:
 	@set -e; for elf in $(ELF); do \

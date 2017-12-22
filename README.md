@@ -22,7 +22,7 @@ You may now run GodMode9 via holding the X Button (or any other button you chose
 
 
 ## How to build this / developer info
-Build `GodMode9.firm` via `make firm` (requires [firmtool](https://github.com/TuxSH/firmtool) installed). On macOS, you may have to install [gnu-tar](https://www.gnu.org/software/tar/) first - do so in terminal via `brew install gnu-tar --with-default-names`.
+Build `GodMode9.firm` via `make firm`. This requires [firmtool](https://github.com/TuxSH/firmtool), [Python 3.5+](https://www.python.org/downloads/) and [devkitARM](https://sourceforge.net/projects/devkitpro/) installed).
 
 You may run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make FLAVOR=SafeMode9`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font via `make FONT=6X10`, `make FONT=ACORN`, `make FONT=GB` or `make FONT=ORIG`. You may also hardcode the brightness via `make FIXED_BRIGHTNESS=x`, whereas `x` is a value between 0...15.
 
