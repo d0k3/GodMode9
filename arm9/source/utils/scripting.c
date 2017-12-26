@@ -373,11 +373,12 @@ char* get_var(const char* name, char** endptr) {
     
     char vname[_VAR_NAME_LEN];
     strncpy(vname, pname, name_len);
+    vname[name_len] = '\0';
     upd_var(vname); // handle dynamic env vars
     
     u32 n_var = 0;
     for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++) {
-        if (!*(var->name) || (strncmp(var->name, vname, name_len) == 0)) break;
+        if (!*(var->name) || (strncmp(var->name, vname, _VAR_NAME_LEN) == 0)) break;
     }
     
     if (n_var >= max_vars || !*(vars[n_var].name)) n_var = 0;
