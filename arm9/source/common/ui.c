@@ -491,18 +491,20 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     }
     
     str_width = GetDrawStringWidth(str);
-    str_height = GetDrawStringHeight(str) + (8*10);
+    str_height = GetDrawStringHeight(str) + 88;
     if (str_width < (24 * FONT_WIDTH)) str_width = 24 * FONT_WIDTH;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, str);
-    DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 38, COLOR_STD_FONT, COLOR_STD_BG, "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
+    DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 40, COLOR_STD_FONT, COLOR_STD_BG,
+        "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
     
     int cursor_a = -1;
     u32 cursor_s = 0;
     u32 scroll = 0;
+    bool aprv = false;
     bool ret = false;
     
     while (true) {
@@ -510,7 +512,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         if (cursor_s < scroll) scroll = cursor_s;
         else if (cursor_s - scroll >= input_shown) scroll = cursor_s - input_shown + 1;
         while (scroll && (inputstr_size - scroll < input_shown)) scroll--;
-        DrawStringF(MAIN_SCREEN, x, y + str_height - 68, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
+        DrawStringF(MAIN_SCREEN, x, y + str_height - 76, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
             (scroll) ? '<' : '|',
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
             (inputstr_size > input_shown) ? input_shown : inputstr_size,
@@ -529,7 +531,28 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         if (cursor_a < 0) {
             for (cursor_a = alphabet_size - 1; (cursor_a > 0) && (alphabet[cursor_a] != inputstr[cursor_s]); cursor_a--);
         }
-        u32 pad_state = InputWait(0);
+        
+        // alphabet preview
+        if (alphabet_size > (SCREEN_WIDTH(MAIN_SCREEN) / FONT_WIDTH)) {
+            const u32 aprv_y = y + str_height - 60;
+            if (aprv) {
+                const u32 aprv_pad = 1;
+                const u32 aprv_cx = x + ((1 + cursor_s - scroll) * FONT_WIDTH);
+                u32 aprv_x = aprv_cx % (FONT_WIDTH + aprv_pad);
+                u32 aprv_n = ((SCREEN_WIDTH(MAIN_SCREEN) - aprv_x) / (FONT_WIDTH + aprv_pad)) - 1;
+                int aprv_a = cursor_a - ((aprv_cx - aprv_x) / (FONT_WIDTH + aprv_pad));
+                while (aprv_a < 0) aprv_a += alphabet_size;
+                for (u32 i = 0; i < aprv_n; i++) {
+                    DrawCharacter(MAIN_SCREEN, alphabet[aprv_a], aprv_x, aprv_y,
+                        (aprv_a == cursor_a) ? COLOR_WHITE : COLOR_GREY, COLOR_STD_BG);
+                    if (++aprv_a >= (int) alphabet_size) aprv_a -= alphabet_size;
+                    aprv_x += FONT_WIDTH + aprv_pad;
+                }
+            } else DrawRectangle(MAIN_SCREEN, 0, aprv_y, SCREEN_WIDTH(MAIN_SCREEN), FONT_HEIGHT, COLOR_STD_BG);
+        }
+        
+        u32 pad_state = InputWait(3);
+        aprv = (pad_state & (BUTTON_UP|BUTTON_DOWN|BUTTON_R1)) && !(pad_state & (BUTTON_RIGHT|BUTTON_LEFT));
         if (pad_state & BUTTON_A) {
             ret = true;
             break;
