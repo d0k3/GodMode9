@@ -361,7 +361,7 @@ u32 SdFormatMenu(void) {
     if (!user_select) return 1;
     else cluster_size = cluster_size_table[user_select];
     
-    if (!ShowStringPrompt(label + 2, 9, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
+    if (!ShowStringPrompt(label + 2, 11 + 1, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
         return 1;
     
     if (!FormatSDCard(emunand_size_mb, cluster_size, label)) {
