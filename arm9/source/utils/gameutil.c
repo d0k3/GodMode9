@@ -756,6 +756,17 @@ u32 CryptNcchNcsdBossFirmFile(const char* orig, const char* dest, u32 mode, u16 
     if (fsize < offset) return 1;
     if (!size) size = fsize - offset;
     
+    // ensure free space in destination
+    if (!inplace) {
+        if ((fvx_lseek(dfp, offset + size) != FR_OK) ||
+            (fvx_tell(dfp) != offset + size) ||
+            (fvx_lseek(dfp, offset) != FR_OK)) {
+            fvx_close(ofp);
+            fvx_close(dfp);
+            return 1;
+        }
+    }
+    
     u32 ret = 0;
     if (!ShowProgress(offset, fsize, dest)) ret = 1;
     if (mode & (GAME_NCCH|GAME_NCSD|GAME_BOSS|SYS_FIRM|GAME_NDS)) { // for NCCH / NCSD / BOSS / FIRM files
@@ -1045,6 +1056,16 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     if (!size) size = fsize - offset;
     if (fvx_open(&dfile, path_cia, FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
         fvx_close(&ofile);
+        return 1;
+    }
+    
+    // ensure free space for destination file
+    UINT offset_dest = fvx_tell(&dfile);
+    if ((fvx_lseek(&dfile, offset_dest + fsize) != FR_OK) ||
+        (fvx_tell(&dfile) != offset_dest + fsize) ||
+        (fvx_lseek(&dfile, offset_dest) != FR_OK)) {
+        fvx_close(&ofile);
+        fvx_close(&dfile);
         return 1;
     }
     
@@ -1404,8 +1425,10 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
         (GetTmdContentPath(path_cxi, path) != 0) ||
         (!((filetype = IdentifyFileType(path_cxi)) & (GAME_NCCH|GAME_NDS))) ||
         (GetGoodName(dname, path_cxi, false) != 0) ||
-        (CryptNcchNcsdBossFirmFile(path_cxi, dest, filetype, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0))
+        (CryptNcchNcsdBossFirmFile(path_cxi, dest, filetype, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0)) {
+        if (*dname) fvx_unlink(dest);
         return 1;
+    }
     
     return 0;
 }
