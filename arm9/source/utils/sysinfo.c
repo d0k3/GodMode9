@@ -62,6 +62,7 @@ typedef struct _SysInfo {
     char sales_region[15 + 1];
     // From movable.sed
     char friendcodeseed[16 + 1];
+    char movablekeyy[32 + 1];
     char nand_id0[32 + 1];
     // from emmc
     char nand_cid[32 + 1];
@@ -269,6 +270,7 @@ void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
     path[0] = nand_drive;
 
     strncpy(info->friendcodeseed, "<unknown>", countof(info->friendcodeseed));
+    strncpy(info->movablekeyy, "<unknown>", countof(info->movablekeyy));
     strncpy(info->nand_id0, "<unknown>", countof(info->nand_id0));
     
     if (fvx_qread(path, &data, 0, sizeof(data), NULL) != FR_OK)
@@ -276,6 +278,9 @@ void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
     
     // The LocalFriendCodeSeed.
     snprintf(info->friendcodeseed, 16 + 1, "%016llX", getbe64(data.codeseed_data.codeseed));
+    
+    // The Movable KeyY
+    snprintf(info->movablekeyy, 32 + 1, "%s%016llX", info->friendcodeseed, getbe64(data.keyy_high));
     
     // SysNAND ID0
     unsigned int sha256sum[8];
@@ -596,6 +601,7 @@ void MyriaSysinfo(char* sysinfo_txt) {
     MeowSprintf(meow, "Original firmware: %s\r\n", info.original_firmware);
     MeowSprintf(meow, "\r\n");
     MeowSprintf(meow, "Friendcode seed: %s\r\n", info.friendcodeseed);
+    MeowSprintf(meow, "SD keyY: %s\r\n", info.movablekeyy);
     MeowSprintf(meow, "NAND CID: %s\r\n", info.nand_cid);
     MeowSprintf(meow, "SD CID: %s\r\n", info.sd_cid);
     MeowSprintf(meow, "System ID0: %s\r\n", info.nand_id0);
