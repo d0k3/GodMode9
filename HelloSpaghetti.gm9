@@ -1,0 +1,66 @@
+# GodMode9 "Spaghetti code sample"
+# Tutorial script - read / run this to learn how it works
+# last changed: 20171229
+# author: d0k3
+
+
+# choose example to try
+labelsel "Choose example" spaghetti_*
+
+
+# if-else-elif-end sample code
+@spaghetti_ifelse_example
+
+if ask "?set PREVIEW_MODE off?"
+    set PREVIEW_MODE off
+elif ask "?set PREVIEW_MODE quick?"
+    set PREVIEW_MODE quick
+elif ask "?set PREVIEW_MODE full?"
+    set PREVIEW_MODE full
+elif ask "?set PREVIEW_MODE V:/GodMode9_splash.pcx?"
+    set PREVIEW_MODE V:/GodMode9_splash.pcx
+elif ask "?set PREVIEW_MODE 'No preview for you, sorry'?"
+    set PREVIEW_MODE "No preview for you, sorry"
+else
+    echo "**Nothing**"
+end
+
+if ask "Try this again?"
+    goto spaghetti_ifelse_example
+end
+
+goto outside
+
+
+# labelsel sample code
+@spaghetti_labelsel_example
+
+@choice_Preview_off
+set PREVIEW_MODE off
+goto chooser
+
+@choice_Preview_quick
+set PREVIEW_MODE quick
+goto chooser
+
+@choice_Preview_full
+set PREVIEW_MODE full
+goto chooser
+
+@choice_Preview_PCX
+set PREVIEW_MODE V:/GodMode9_splash.pcx
+goto chooser
+
+@choice_Preview_custom
+set PREVIEW_MODE "Your text can be here"
+input -o "Enter anything:" PREVIEW_MODE
+goto chooser
+
+@choice_Leave_script
+goto outside
+
+@chooser
+labelsel -o -s "Choose preview mode" choice_*
+goto chooser
+
+@outside
