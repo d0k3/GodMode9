@@ -5,6 +5,7 @@
 #include "keydb.h"
 #include "sdmmc.h"
 #include "itcm.h"
+#include "spiflash.h"
 #include "i2c.h"
 
 #define VFLAG_CALLBACK      (1UL<<27)
@@ -46,17 +47,20 @@ enum VMemCallbackType {
     VMEM_CALLBACK_OTP_DECRYPTED,
     VMEM_CALLBACK_MCU_REGISTERS,
     VMEM_CALLBACK_FLASH_CID,
+    VMEM_CALLBACK_NVRAM,
     VMEM_NUM_CALLBACKS
 };
 
 ReadVMemFileCallback ReadVMemOTPDecrypted;
 ReadVMemFileCallback ReadVMemMCURegisters;
 ReadVMemFileCallback ReadVMemFlashCID;
+ReadVMemFileCallback ReadVMemNVRAM;
 
 static ReadVMemFileCallback* const vMemCallbacks[] = {
     ReadVMemOTPDecrypted,
     ReadVMemMCURegisters,
-    ReadVMemFlashCID
+    ReadVMemFlashCID,
+    ReadVMemNVRAM
 };
 STATIC_ASSERT(sizeof(vMemCallbacks) / sizeof(vMemCallbacks[0]) == VMEM_NUM_CALLBACKS);
 
@@ -83,7 +87,8 @@ static const VirtualFile vMemFileTemplates[] = {
     { "mcu_3ds_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
     { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
     { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY }
+    { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
+    { "nvram.mem"        , VMEM_CALLBACK_NVRAM        , NVRAM_SIZE, 0x00, VFLAG_CALLBACK | VFLAG_READONLY }
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
@@ -153,6 +158,20 @@ int ReadVMemFlashCID(const VirtualFile* vfile, void* buffer, u64 offset, u64 cou
     u32 cid[4]; // CID is 16 byte in size
     sdmmc_get_cid(is_nand, (u32*) cid);
     memcpy(buffer, ((u8*) cid) + offset, count);
+    return 0;
+}
+
+// Read NVRAM.
+int ReadVMemNVRAM(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
+    static bool wififlash_initialized = false;
+    (void) vfile;
+    
+    if (!wififlash_initialized) {
+        wififlash_initialized = spiflash_get_status();
+        if (!wififlash_initialized) return 1;
+    }
+    
+    spiflash_read((u32) offset, (u32) count, buffer);
     return 0;
 }
 
