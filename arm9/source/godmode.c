@@ -1845,14 +1845,14 @@ u32 GodMode(int entrypoint) {
         bootloader = false;
         while (HID_STATE); // wait until no buttons are pressed
         while (!bootloader && !godmode9) {
-            const char* optionstr[6] = { "Resume bootloader", "Resume GodMode9", "Select payload...", "Select script...",
+            const char* optionstr[6] = { "Resume GodMode9", "Resume bootloader", "Select payload...", "Select script...",
                 "Poweroff system", "Reboot system" };
             int user_select = ShowSelectPrompt(6, optionstr, FLAVOR " bootloader menu.\nSelect action:");
             char loadpath[256];
             if (user_select == 1) {
-                bootloader = true;
-            } else if (user_select == 2) {
                 godmode9 = true;
+            } else if (user_select == 2) {
+                bootloader = true;
             } else if ((user_select == 3) && (FileSelectorSupport(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOADS_DIR, "*.firm", true, false))) {
                 BootFirmHandler(loadpath, false, false);
             } else if ((user_select == 4) && (FileSelectorSupport(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPTS_DIR, "*.gm9", true, false))) {
