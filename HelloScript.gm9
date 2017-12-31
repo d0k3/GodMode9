@@ -85,6 +85,23 @@ set USERINPUT "Hello World"
 input "Enter something please?" USERINPUT
 echo "You entered:\n$[USERINPUT]"
 
+# 'strsplit' COMMAND
+# The 'strsplit' command extracts a substring from a string
+# -b / --before extracts the substring *before* the split char
+# -f / --first matches the first, not last occurence of the split char
+strsplit TESTSPLIT1 "one/two/three" "/"
+strsplit -b TESTSPLIT2 "one/two/three" "/"
+strsplit -f TESTSPLIT3 "one/two/three" "/"
+strsplit -b -f TESTSPLIT4 "one/two/three" "/"
+echo "one/two/three\n$[TESTSPLIT1]\n$[TESTSPLIT2]\n$[TESTSPLIT3]\n$[TESTSPLIT4]"
+
+# strrep COMMAND
+# The 'strrep' command replaces one char with another inside a string
+# notice how we use TESTREP both as input and output
+set TESTREP "Hello_World"
+strrep TESTREP $[TESTREP] "_ "
+echo $[TESTREP]
+
 # 'filesel' COMMAND
 # The 'filesel' command allows the user to choose a file inside a directory
 # The path is stored inside a variable, and the selection can be limited via wildcards

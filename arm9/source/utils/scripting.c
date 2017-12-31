@@ -70,6 +70,7 @@ typedef enum {
     CMD_ID_FILESEL,
     CMD_ID_SET,
     CMD_ID_STRSPLIT,
+    CMD_ID_STRREP,
     CMD_ID_CHK,
     CMD_ID_ALLOW,
     CMD_ID_CP,
@@ -123,6 +124,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FILESEL , "filesel" , 3, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_STRSPLIT, "strsplit", 3, _FLG('b') | _FLG('f')},
+    { CMD_ID_STRREP  , "strrep"  , 3, 0 },
     { CMD_ID_CHK     , "chk"     , 2, _FLG('u') },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
@@ -834,6 +836,21 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
             }
         } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] is not a char");
+    }
+    else if (id == CMD_ID_STRREP) {
+        char str[_ARG_MAX_LEN];
+        strncpy(str, argv[1], _ARG_MAX_LEN);
+        
+        if (strnlen(argv[2], _ARG_MAX_LEN) != 2) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] must be 2 chars");
+            ret = false;
+        } else {
+            for (u32 i = 0; str[i] && (i < _ARG_MAX_LEN); i++) {
+                if (str[i] == argv[2][0]) str[i] = argv[2][1];
+            }
+            ret = set_var(argv[0], str);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+        }
     }
     else if (id == CMD_ID_CHK) {
         if (flags & _FLG('u')) {
