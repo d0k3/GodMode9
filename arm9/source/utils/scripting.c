@@ -24,6 +24,7 @@
 #define _CHOICE_STR_LEN 32
 #define _CHOICE_MAX_N   12
 
+#define _CMD_NOT        "not"
 #define _CMD_IF         "if"
 #define _CMD_ELIF       "elif"
 #define _CMD_ELSE       "else"
@@ -57,6 +58,7 @@
 // command ids (also entry into the cmd_list aray below)
 typedef enum {
     CMD_ID_NONE = 0,
+    CMD_ID_NOT,
     CMD_ID_IF,
     CMD_ID_ELIF,
     CMD_ID_ELSE,
@@ -111,6 +113,7 @@ typedef struct {
 
 Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_NONE    , "#"       , 0, 0 }, // dummy entry
+    { CMD_ID_NOT     , _CMD_NOT  , 0, 0 }, // inverts the output of the following command
     { CMD_ID_IF      , _CMD_IF   , 1, 0 }, // control flow commands at the top of the list
     { CMD_ID_ELIF    , _CMD_ELIF , 1, 0 },
     { CMD_ID_ELSE    , _CMD_ELSE , 0, 0 },
@@ -618,8 +621,11 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     if (!(cmd = get_string(ptr, line_end, &cmd_len, &ptr, err_str))) return false; // string error
     if ((cmd >= line_end) || (*cmd == '#') || (*cmd == '@')) return true; // empty line or comment or label
     
-    // special handling for "if" and "elif"
-    if (MATCH_STR(cmd, cmd_len, _CMD_IF)) {
+    // special handling for "if", "elif" and "not"
+    if (MATCH_STR(cmd, cmd_len, _CMD_NOT)) {
+        *cmdid = CMD_ID_NOT;
+        return true;
+    } else if (MATCH_STR(cmd, cmd_len, _CMD_IF)) {
         *cmdid = CMD_ID_IF;
         return true;
     } else if (MATCH_STR(cmd, cmd_len, _CMD_ELIF)) {
@@ -666,7 +672,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     }
     
     // perform command
-    if (id == CMD_ID_IF) {
+    if (id == CMD_ID_NOT) {
+        // check the argument
+        // "not true" or "not false"
+        ret = (strncmp(argv[0], _ARG_FALSE, _ARG_MAX_LEN) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "'not' an error");
+    }
+    else if (id == CMD_ID_IF) {
         // check the argument
         // "if true" or "if false"
         skip_state = (strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) == 0) ? 0 : _SKIP_BLOCK;
@@ -1053,6 +1065,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown error");
     }
     
+    if (ret && err_str) snprintf(err_str, _ERR_STR_LEN, "command success");
     return ret;
 }
 
@@ -1078,35 +1091,33 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     }
     
     // control flow command handling
-    if (IS_CTRLFLOW_CMD(cmdid)) {
-        // block out of control flow commands
-        if (if_cond) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "control flow error");
-            syntax_error = true;
-            return false;
-        }
+    // block out of control flow commands
+    if (if_cond && IS_CTRLFLOW_CMD(cmdid)) {
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "control flow error");
+        syntax_error = true;
+        return false;
+    }
         
-        // shortcuts for "elif" / "else"
-        if (((cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_ELSE)) && !skip_state) {
-            skip_state = _SKIP_TILL_END;
-            cmdid = 0;
-        }
+    // shortcuts for "elif" / "else"
+    if (((cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_ELSE)) && !skip_state) {
+        skip_state = _SKIP_TILL_END;
+        cmdid = 0;
+    }
+    
+    // handle "if" / "elif" / "not"
+    if ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_NOT)) {
+        // set defaults
+        argc = 1;
+        strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN);
         
-        // handle "if" / "elif"
-        if ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELIF)) {
-            // set defaults
-            argc = 1;
-            strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN);
-            
-            // skip to behind the "if"/"elif" command
-            char* line_start_next = (char*) line_start;
-            for (; IS_WHITESPACE(*line_start_next); line_start_next++);
-            line_start_next += strlen((cmdid == CMD_ID_IF) ? _CMD_IF : _CMD_ELIF);
-            
-            // run condition, take over result
-            if (run_line(line_start_next, line_end, flags, err_str, true))
-                strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN);
-        }
+        // skip to behind the command
+        char* line_start_next = (char*) line_start;
+        for (; IS_WHITESPACE(*line_start_next); line_start_next++);
+        for (; *line_start_next && !IS_WHITESPACE(*line_start_next); line_start_next++);
+        
+        // run condition, take over result
+        if (run_line(line_start_next, line_end, flags, err_str, true))
+            strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN);
     }
     
     // run the command (if available)
