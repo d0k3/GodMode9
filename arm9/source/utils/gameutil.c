@@ -1060,9 +1060,9 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     }
     
     // ensure free space for destination file
-    UINT offset_dest = fvx_tell(&dfile);
-    if ((fvx_lseek(&dfile, offset_dest + fsize) != FR_OK) ||
-        (fvx_tell(&dfile) != offset_dest + fsize) ||
+    UINT offset_dest = fvx_size(&dfile);
+    if ((fvx_lseek(&dfile, offset_dest + size) != FR_OK) ||
+        (fvx_tell(&dfile) != offset_dest + size) ||
         (fvx_lseek(&dfile, offset_dest) != FR_OK)) {
         fvx_close(&ofile);
         fvx_close(&dfile);
