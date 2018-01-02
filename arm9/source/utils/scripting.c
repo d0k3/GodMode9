@@ -124,7 +124,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
     { CMD_ID_INPUT   , "input"   , 2, 0 },
-    { CMD_ID_FILESEL , "filesel" , 3, 0 },
+    { CMD_ID_FILESEL , "filesel" , 3, _FLG('d') },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_STRSPLIT, "strsplit", 3, _FLG('b') | _FLG('f')},
     { CMD_ID_STRREP  , "strrep"  , 3, 0 },
@@ -471,6 +471,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (len == 2) flag_char = str[1];
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
+    else if (strncmp(str, "--include_dirs", len) == 0) flag_char = 'd';
     else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
@@ -816,7 +817,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
         } else {
             *(npattern++) = '\0';
-            ret = FileSelector(choice, argv[0], path, npattern, false, true);
+            ret = FileSelector(choice, argv[0], path, npattern, false, !(flags & _FLG('d')));
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
         }
         

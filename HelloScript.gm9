@@ -105,6 +105,7 @@ echo $[TESTREP]
 # 'filesel' COMMAND
 # The 'filesel' command allows the user to choose a file inside a directory
 # The path is stored inside a variable, and the selection can be limited via wildcards
+# -d / --include_dirs allows to browse folders and select files inside
 filesel "Please select a file" 0:/*.* SELFILE
 echo "You selected $[SELFILE]\nWe'll do nothing with that :)."
 
@@ -113,7 +114,7 @@ echo "You selected $[SELFILE]\nWe'll do nothing with that :)."
 # doing this from the beginning is preferable, so that no actions are taken unless all required write permissions are unlocked
 # (note #1: without 'allow', write permissions are still in place and the user will be asked on demand)
 # (note #2: this simple testing script requires no additional permissions, thus the command is hidden behind a '#')
-# -a / -all allows writes to the specified location and all included files and directories
+# -a / --all allows writes to the specified location and all included files and directories
 # allow -a M:/
 
 # 'rm' COMMAND
