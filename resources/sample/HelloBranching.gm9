@@ -1,0 +1,187 @@
+# script by: Kazuma77
+# last modified: Who cares?  You should not validate files this way.  Anyone can modify plain text.
+# shameless plug: Please check out my InScripted AIO for all your CFW installation and
+# customization needs if you haven't already.
+
+# OK, so what if you want your script to be able to make choices based on
+# returned values?
+# That is what branching commands are for.
+
+# First, we have the 'if' command.
+# The parameter is any other command (except 'labelsel' -- more on that later).
+# Note: Some people like to indent the lines following an 'if' to make their
+# code easier to read by others.  I'm lazy, so I don't do this, myself.
+# Your script will work either way.
+
+if chk $[ONTYPE] "N3DS"
+echo "N3DS/N2DS detected.\nChecking secret sector."
+
+# The secret sector is important on an N3DS, not so much the O3DS.
+# So, let's check it with another 'if' command.
+# This is sometimes referred to as 'nesting' because we now have an 'if' command
+# inside of another 'if' command.
+
+shaget S:/sector0x96.bin SECRETSEC
+if chk $[SECRETSEC] "82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3"
+echo "Secret sector valid."
+
+# But what if the check fails?  That's where the 'else' command comes in
+# It allows us to provide commands to be executed if the results are false.
+
+# The 'else' command has no parameters.  Place it on a line by itself to invert the
+# logic for a preceeding 'if' command (or 'elif' command, more on that later).
+
+else
+echo "Secret sector invalid.\nKeep system on Sighax."
+
+# So, now that we've told the N3DS user the condition of their secret sector,
+# we are done with this branch of the program.  To tell GM9 that it has ended,
+# we use the 'end' command.
+
+# The 'end' command is used to close an 'if' conditional.  It has no parameters.
+
+end
+
+# So now the second 'if' condition is closed and we are back to the first.
+# We still haven't done anything in the event the system is an O3DS.
+# To do that, we could use an 'else' followed by an 'if' to check for the "O3DS"
+# string.
+# However, we have the 'elif' command to combine those two, so let's use it.
+
+# The 'elif' command is almost the equivalent of entering an 'else' followed immediately
+# by an 'if' but without taking up two lines.  However, the 'elif' command does not actually
+# nest another 'if' command, but remains an extension of the existing 'if' command, like the
+# 'else' command does.  In other words, it doesn't need an extra 'end' like an 'else' followed
+# by an 'if' would.
+
+elif chk $[ONTYPE] "O3DS"
+echo "O3DS/02DS detected.\nSkipping checking secret sector."
+
+# What follows should never be displayed.  It's just here as precautionary BS.
+# Besides, pretending this could happen gives us a reason to use the 'elif' command.
+# You would normally only need it if there are 3 or more possible outcomes.
+# With two, 'else' has you covered by itself.
+
+else
+echo "Unable to detect system type."
+end
+
+
+
+# Now let's ratchet things up another notch with the 'labelsel' command.
+# This lets us quickly and easily define a static menu with selections for the
+# user to choose from.
+
+echo "Here's an example 'labelsel' menu."
+
+# Oh right, in order to do this, you have to know how to create a label.
+# This is as easy as creating a comment.  Simply put an '@' at the start of
+# the line.  However, unlike a comment, labels MUST NOT contain any spaces.
+
+@lsmain
+
+# So, back to 'labelsel' now.  The parameters are a text string and a wildcard.
+# Any label matching the chosen wildcard will be displayed, so choose carefully. 
+# labelsel "your text here" menu_*
+
+labelsel -o -s "Select a preview mode." lsmenu_*
+
+# Note: the underscore is optional, but it makes things much easier to keep track of.
+
+# This will present a menu of labels that match the wildcard.  Pick one to go straight to it.
+# But what if someone hits the B button to cancel?  That's why I used the '-o'
+# and '-s' flags.  The script will continue.
+# If you don't want to force people to pick an option, you could simply have a 'reboot' or
+# 'poweroff' command after your 'labelsel' command.
+
+# Since I do want to force people to pick an option, I'm going to use 'goto' to loop
+# back to the label just before the 'labelsel' command so it will get run again until an option
+# is picked.  Which brings us to our next subject.
+
+# The 'goto' command allows us to jump to any label within the script.  For example:
+# goto mylabel
+# would cause it to jump to @mylabel
+# (do not include the '@' symbol)
+
+goto lsmain
+
+# So, here's our example menu.  It shows off the new PREVIEW_MODE settings if you were
+# not already familiar with them (you can use a path to a .pcx file or plain text in quotes).
+
+@lsmenu_Image
+set PREVIEW_MODE V:/GodMode9_splash.pcx
+echo "This is image preview mode."
+goto resume_script
+
+@lsmenu_Text
+set PREVIEW_MODE "GodMode9"
+echo "This is text preview mode."
+
+@resume_script
+
+# That's all well and good.  But what if you want a DYNAMIC menu?  One that can have
+# entries changed, added, reordered, and/or removed at will?  This can be done, using the
+# 'filesel command with some dummy files in a separate folder containing said files.
+
+# The next part of the script will create some temporary dummy files for the next example.
+# In reality, you will probably want to include them in a folder (please try to avoid using
+# 'gm9/zeroes' though -- that's what I use, go get your own ;) ).
+
+findnot $[GM9OUT]/tempmenu??? TEMPMENU
+mkdir $[TEMPMENU]
+inject -n S:/nand.bin@0:1 $[TEMPMENU]/Image
+inject -n S:/nand.bin@0:1 $[TEMPMENU]/Text
+
+# So, now that the dummy files we will be using as options are in place, let's begin.
+
+echo "Now here's the 'filesel' version"
+
+@fsmenu
+if filesel "Select a preview mode." $[TEMPMENU]/* FULLCHOICE
+
+# This is simply having you pick one of the files we just created.
+# Not exactly the original intended use of the 'filesel' command, but hey, it works very
+# well if your goal is to have a dynamic menu that can even change its own layout.
+
+# Now, so that we don't have to 'chk' for the entire path for each option, we are going to
+# use the new 'strsplit' function to shorten the results to just the filename.
+
+# The 'strsplit' command can be used to parse paths retrieved via the 'find' and 'filesel'
+# commands.  For a basic example:
+# strsplit SPLITVAR $[FULLPATHVAR] "/"
+# The optional flags are '-b' for 'before' and '-f' for 'first'
+# By default it splits the string after the last occurrence of the key provided in quotes.
+# The above example would extract the full filename from the path.
+# We could further remove the extension with:
+# strsplit -b SPLITVAR2 $[SPLITVAR] "."
+# However, menu dummy files should not have any (unless you want your menu to be ugly).
+
+strsplit MENUCHOICE $[FULLCHOICE] "/"
+
+# Now that we have our menu selection nice and trimmed, time to process it.
+
+if chk $[MENUCHOICE] "Image"
+set PREVIEW_MODE V:/GodMode9_splash.pcx
+echo "This is image preview mode."
+elif chk $[MENUCHOICE] "Text"
+set PREVIEW_MODE "GodMode9"
+echo "This is text preview mode."
+end
+
+# And in case someone hits the B button and tries to cancel without making a choice:
+# (I started that 'filesel' command with an 'if' for a reason)
+
+else
+goto fsmenu
+end
+
+# Well, there you have it.  How to create conditionals and setup menus.
+
+# Right, I should probably delete those temporary files.
+# It would be unprofessional to just leave a mess on your SD card after all.
+
+rm -o -s $[TEMPMENU]
+
+# There you go.
+
+echo "That's it.\nThanks for trying the script.\nHave a nice day."

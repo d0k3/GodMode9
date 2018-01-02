@@ -60,8 +60,8 @@ release: clean
 	@cp $(OUTDIR)/$(FLAVOR)_dev.firm $(RELDIR)/
 	@cp $(ELF) $(RELDIR)/elf
 	@cp $(CURDIR)/README.md $(RELDIR)
-	@cp $(CURDIR)/*.gm9 $(RELDIR)
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
+	@cp -R $(CURDIR)/resources/sample $(RELDIR)/sample
 
 	@-7za a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip ./$(RELDIR)/*
 
