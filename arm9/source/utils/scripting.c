@@ -78,6 +78,8 @@ typedef enum {
     CMD_ID_CP,
     CMD_ID_MV,
     CMD_ID_INJECT,
+    CMD_ID_FILL,
+    CMD_ID_FDUMMY,
     CMD_ID_RM,
     CMD_ID_MKDIR,
     CMD_ID_MOUNT,
@@ -133,6 +135,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
     { CMD_ID_INJECT  , "inject"  , 2, _FLG('n') },
+    { CMD_ID_FILL    , "fill"    , 2, 0 },
+    { CMD_ID_FDUMMY  , "fdummy"  , 2, 0 },
     { CMD_ID_RM      , "rm"      , 1, 0 },
     { CMD_ID_MKDIR   , "mkdir"   , 1, 0 },
     { CMD_ID_MOUNT   , "imgmount", 1, 0 },
@@ -661,7 +665,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     // process arg0 @string
     u64 at_org = 0;
     u64 sz_org = 0;
-    if ((id == CMD_ID_SHA) || (id == CMD_ID_SHAGET) || (id == CMD_ID_INJECT)) {
+    if ((id == CMD_ID_SHA) || (id == CMD_ID_SHAGET) || (id == CMD_ID_INJECT) || (id == CMD_ID_FILL)) {
         char* atstr_org = strrchr(argv[0], '@');
         if (atstr_org) {
             *(atstr_org++) = '\0';
@@ -909,6 +913,28 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         ret = FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, &flags_ext);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "inject fail");
+    }
+    else if (id == CMD_ID_FILL) {
+        u32 flags_ext = ALLOW_EXPAND;
+        u8 fillbyte = 0;
+        if ((strnlen(argv[1], _ARG_MAX_LEN) != 2) || !strntohex(argv[1], &fillbyte, 1)) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "fillbyte fail");
+        } else {
+            if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
+            ret = FileSetByte(argv[0], at_org, sz_org, fillbyte, &flags_ext);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "fill fail");
+        }
+    }
+    else if (id == CMD_ID_FDUMMY) {
+        u32 fsize;
+        if (sscanf(argv[1], "%lX", &fsize) != 1) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "bad filesize");
+        } else {
+            ret = FileCreateDummy(argv[0], NULL, fsize);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "create dummy fail");
+        }
     }
     else if (id == CMD_ID_RM) {
         char pathstr[_ERR_STR_LEN];

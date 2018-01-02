@@ -270,10 +270,55 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
     return ret;
 }
 
+bool FileSetByte(const char* dest, u64 offset, u64 size, u8 fillbyte, u32* flags) {
+    FIL dfile;
+    bool allow_expand = (flags && (*flags & ALLOW_EXPAND));
+    
+    if (!CheckWritePermissions(dest)) return false;
+    
+    // open destination
+    if (fvx_open(&dfile, dest, FA_WRITE | ((allow_expand) ? FA_OPEN_ALWAYS : FA_OPEN_EXISTING)) != FR_OK)
+        return false;
+    fvx_lseek(&dfile, offset);
+    if (!size && (offset < fvx_size(&dfile)))
+        size = fvx_size(&dfile) - offset;
+    
+    // check file limits
+    if (!allow_expand && (offset + size > fvx_size(&dfile))) {
+        ShowPrompt(false, "Operation would write beyond end of file");
+        fvx_close(&dfile);
+        return false;
+    }
+    
+    bool ret = true;
+    memset(MAIN_BUFFER, fillbyte, size);
+    ShowProgress(0, 0, dest);
+    for (u64 pos = 0; (pos < size) && ret; pos += MAIN_BUFFER_SIZE) {
+        UINT write_bytes = min(MAIN_BUFFER_SIZE, size - pos);
+        UINT bytes_written = write_bytes;
+        if ((fvx_write(&dfile, MAIN_BUFFER, write_bytes, &bytes_written) != FR_OK) ||
+            (write_bytes != bytes_written))
+            ret = false;
+        if (ret && !ShowProgress(pos + bytes_written, size, dest)) {
+            if (flags && (*flags & NO_CANCEL)) {
+                ShowPrompt(false, "Cancel is not allowed here");
+            } else ret = !ShowPrompt(true, "B button detected. Cancel?");
+            ShowProgress(0, 0, dest);
+            ShowProgress(pos + bytes_written, size, dest);
+        }
+    }
+    ShowProgress(1, 1, dest);
+    
+    fvx_close(&dfile);
+    
+    return ret;
+}
+
 bool FileCreateDummy(const char* cpath, const char* filename, u64 size) {
     char npath[256]; // 256 is the maximum length of a full path
     if (!CheckWritePermissions(cpath)) return false;
-    snprintf(npath, 255, "%s/%s", cpath, filename);
+    if (filename) snprintf(npath, 255, "%s/%s", cpath, filename);
+    else snprintf(npath, 255, "%s", cpath);
     
     // create dummy file (fail if already existing)
     // then, expand the file size via cluster preallocation
