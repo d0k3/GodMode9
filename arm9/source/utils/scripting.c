@@ -70,6 +70,7 @@ typedef enum {
     CMD_ID_ASK,
     CMD_ID_INPUT,
     CMD_ID_FILESEL,
+    CMD_ID_DIRSEL,
     CMD_ID_SET,
     CMD_ID_STRSPLIT,
     CMD_ID_STRREP,
@@ -127,6 +128,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ASK     , "ask"     , 1, 0 },
     { CMD_ID_INPUT   , "input"   , 2, 0 },
     { CMD_ID_FILESEL , "filesel" , 3, _FLG('d') },
+    { CMD_ID_DIRSEL  , "dirsel"  , 3, 0 },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_STRSPLIT, "strsplit", 3, _FLG('b') | _FLG('f')},
     { CMD_ID_STRREP  , "strrep"  , 3, 0 },
@@ -815,7 +817,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
         }
     }
-    else if (id == CMD_ID_FILESEL) {
+    else if ((id == CMD_ID_FILESEL) || (id == CMD_ID_DIRSEL)) {
         char choice[_VAR_CNT_LEN] = { 0 };
         char* var = get_var(argv[2], NULL);
         strncpy(choice, var, _VAR_CNT_LEN);
@@ -829,10 +831,14 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         } else if (!npattern) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
-        } else {
+        } else if (id == CMD_ID_FILESEL) {
+            u32 flags_ext = (flags & _FLG('d')) ? 0 : NO_DIRS;
             *(npattern++) = '\0';
-            ret = FileSelector(choice, argv[0], path, npattern, false, !(flags & _FLG('d')));
+            ret = FileSelector(choice, argv[0], path, npattern, flags_ext);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
+        } else {
+            ret = FileSelector(choice, argv[0], path, npattern, NO_FILES | SELECT_DIRS);
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "dirselect abort");
         }
         
         if (ret) {

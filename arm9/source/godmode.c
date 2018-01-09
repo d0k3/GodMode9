@@ -1853,9 +1853,9 @@ u32 GodMode(int entrypoint) {
                 godmode9 = true;
             } else if (user_select == 2) {
                 bootloader = true;
-            } else if ((user_select == 3) && (FileSelectorSupport(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOADS_DIR, "*.firm", true, false))) {
+            } else if ((user_select == 3) && (FileSelectorSupport(loadpath, "Bootloader payloads menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))) {
                 BootFirmHandler(loadpath, false, false);
-            } else if ((user_select == 4) && (FileSelectorSupport(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPTS_DIR, "*.gm9", true, false))) {
+            } else if ((user_select == 4) && (FileSelectorSupport(loadpath, "Bootloader scripts menu.\nSelect script:", SCRIPTS_DIR, "*.gm9"))) {
                 ExecuteGM9Script(loadpath);
             } else if (user_select == 5) {
                 exit_mode = GODMODE_EXIT_POWEROFF;
@@ -2252,12 +2252,12 @@ u32 GodMode(int entrypoint) {
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
-                else if ((user_select == scripts) && (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9", true, false))) {
+                else if ((user_select == scripts) && (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9"))) {
                     ExecuteGM9Script(loadpath);
                     GetDirContents(current_dir, current_path);
                     ClearScreenF(true, true, COLOR_STD_BG);
                     break;
-                } else if ((user_select == payloads) && (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm", true, false))) {
+                } else if ((user_select == payloads) && (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))) {
                     BootFirmHandler(loadpath, false, false);
                 }
             }
@@ -2326,7 +2326,7 @@ u32 ScriptRunner(int entrypoint) {
         ExecuteGM9Script(NULL);
     } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
         char loadpath[256];
-        if (FileSelector(loadpath, FLAVOR " scripts menu.\nSelect script:", "V:/" VRAM0_SCRIPTS, "*.gm9", true, false))
+        if (FileSelector(loadpath, FLAVOR " scripts menu.\nSelect script:", "V:/" VRAM0_SCRIPTS, "*.gm9", HIDE_EXT))
             ExecuteGM9Script(loadpath);
     } else ShowPrompt(false, "Compiled as script autorunner\nbut no script provided.\n \nDerp!");
     

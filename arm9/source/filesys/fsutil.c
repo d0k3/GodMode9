@@ -719,10 +719,15 @@ bool PathAttr(const char* path, u8 attr, u8 mask) {
     return (f_chmod(path, attr, mask) == FR_OK);
 }
 
-bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs) {
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags) {
     DirStruct* contents = (DirStruct*) (void*) TEMP_BUFFER;
     char path_local[256];
     strncpy(path_local, path, 256);
+    
+    bool no_dirs = flags & NO_DIRS;
+    bool no_files = flags & NO_FILES;
+    bool hide_ext = flags & HIDE_EXT;
+    bool select_dirs = flags & SELECT_DIRS;
     
     // main loop
     while (true) {
@@ -737,7 +742,7 @@ bool FileSelector(char* result, const char* text, const char* path, const char* 
             for (; pos < contents->n_entries; pos++) {
                 DirEntry* entry = &(contents->entry[pos]);
                 if (((entry->type == T_DIR) && no_dirs) ||
-                    ((entry->type == T_FILE) && (fvx_match_name(entry->name, pattern) != FR_OK)) ||
+                    ((entry->type == T_FILE) && (no_files || (fvx_match_name(entry->name, pattern) != FR_OK))) ||
                     (entry->type == T_DOTDOT) || (strncmp(entry->name, "._", 2) == 0))
                     continue;
                 if (n_opt == _MAX_FS_OPT) {
@@ -765,8 +770,12 @@ bool FileSelector(char* result, const char* text, const char* path, const char* 
             if (!user_select) return false;
             DirEntry* res_local = res_entry[user_select-1];
             if (res_local && (res_local->type == T_DIR)) { // selected dir
-                if (FileSelector(result, text, res_local->path, pattern, hide_ext, no_dirs))
+                if (select_dirs) {
+                    strncpy(result, res_local->path, 256);
                     return true;
+                } else if (FileSelector(result, text, res_local->path, pattern, flags)) {
+                    return true;
+                }
                 break;
             } else if (res_local && (res_local->type == T_FILE)) { // selected file
                 strncpy(result, res_local->path, 256);

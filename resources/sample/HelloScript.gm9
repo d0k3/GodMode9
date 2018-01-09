@@ -107,7 +107,12 @@ echo $[TESTREP]
 # The path is stored inside a variable, and the selection can be limited via wildcards
 # -d / --include_dirs allows to browse folders and select files inside
 filesel "Please select a file" 0:/*.* SELFILE
-echo "You selected $[SELFILE]\nWe'll do nothing with that :)."
+
+# 'dirsel' COMMAND
+# The 'dirsel' command works identically to the 'filesel' command, but allows selecting a dir
+# Note that a final slash ('/') and no wildcard pattern is expected here.
+dirsel "Now, select a dir" 0:/ SELDIR
+echo "You selected $[SELFILE]\nand $[SELDIR]\nWe'll do nothing with either :)."
 
 # 'allow' COMMAND
 # typically used at the beginning of a script, prompts to allow writes to the location given in the argument

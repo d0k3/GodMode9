@@ -10,4 +10,4 @@ bool CheckSupportFile(const char* fname);
 size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len);
 
 bool CheckSupportDir(const char* fpath);
-bool FileSelectorSupport(char* result, const char* text, const char* dname, const char* pattern, bool hide_ext, bool no_dirs);
+bool FileSelectorSupport(char* result, const char* text, const char* dname, const char* pattern);

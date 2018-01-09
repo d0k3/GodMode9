@@ -13,6 +13,13 @@
 #define SKIP_ALL        (1UL<<7)
 #define OVERWRITE_ALL   (1UL<<8)
 
+// file selector flags
+#define NO_DIRS         (1UL<<0)
+#define NO_FILES        (1UL<<1)
+#define HIDE_EXT        (1UL<<2)
+#define SELECT_DIRS     (1UL<<3)
+
+
 /** Return total size of SD card **/
 uint64_t GetSDCardSize();
 
@@ -77,7 +84,7 @@ bool PathRename(const char* path, const char* newname);
 bool PathAttr(const char* path, u8 attr, u8 mask);
 
 /** Select a file **/
-bool FileSelector(char* result, const char* text, const char* path, const char* pattern, bool hide_ext, bool no_dirs);
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags);
 
 /** Create a screenshot of the current framebuffer **/
 void CreateScreenshot();

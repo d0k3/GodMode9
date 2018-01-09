@@ -117,7 +117,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
     
     if (fvx_opendir(&pdir, fpath) != FR_OK)
         return false;
-    (fname++)[0] = '/';
+    if (*(fname-1) != '/') *(fname++) = '/';
     
     while (fvx_readdir(&pdir, &fno) == FR_OK) {
         if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))

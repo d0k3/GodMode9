@@ -67,9 +67,9 @@ bool CheckSupportDir(const char* dname)
     return GetSupportDir(path, dname);
 }
 
-bool FileSelectorSupport(char* result, const char* text, const char* dname, const char* pattern, bool hide_ext, bool no_dirs)
+bool FileSelectorSupport(char* result, const char* text, const char* dname, const char* pattern)
 {
     char path[256];
     if (!GetSupportDir(path, dname)) return false;
-    return FileSelector(result, text, path, pattern, hide_ext, no_dirs);
+    return FileSelector(result, text, path, pattern, HIDE_EXT);
 }
