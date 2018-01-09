@@ -110,8 +110,8 @@ filesel "Please select a file" 0:/*.* SELFILE
 
 # 'dirsel' COMMAND
 # The 'dirsel' command works identically to the 'filesel' command, but allows selecting a dir
-# Note that a final slash ('/') and no wildcard pattern is expected here.
-dirsel "Now, select a dir" 0:/ SELDIR
+# Note that a final slash ('/') is not expected here and there can be no wildcard pattern.
+dirsel "Now, select a dir" 0: SELDIR
 echo "You selected $[SELFILE]\nand $[SELDIR]\nWe'll do nothing with either :)."
 
 # 'allow' COMMAND

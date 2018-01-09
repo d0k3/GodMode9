@@ -824,20 +824,22 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         
         char path[_VAR_CNT_LEN];
         strncpy(path, argv[1], _VAR_CNT_LEN);
-        char* npattern = strrchr(path, '/');
         if (strncmp(path, "Z:", 2) == 0) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "forbidden drive");
-        } else if (!npattern) {
-            ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
         } else if (id == CMD_ID_FILESEL) {
-            u32 flags_ext = (flags & _FLG('d')) ? 0 : NO_DIRS;
-            *(npattern++) = '\0';
-            ret = FileSelector(choice, argv[0], path, npattern, flags_ext);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
+            char* npattern = strrchr(path, '/');
+            if (!npattern) {
+                ret = false;
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
+            } else {
+                u32 flags_ext = (flags & _FLG('d')) ? 0 : NO_DIRS;
+                *(npattern++) = '\0';
+                ret = FileSelector(choice, argv[0], path, npattern, flags_ext);
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
+            }
         } else {
-            ret = FileSelector(choice, argv[0], path, npattern, NO_FILES | SELECT_DIRS);
+            ret = FileSelector(choice, argv[0], path, NULL, NO_FILES | SELECT_DIRS);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "dirselect abort");
         }
         
