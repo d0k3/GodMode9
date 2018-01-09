@@ -53,7 +53,9 @@
 #define MATCH_STR(s,l,c)    ((l == strlen(c)) && (strncmp(s, c, l) == 0))
 #define _FLG(c)             (1 << (c - 'a'))
 
-#define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL))
+#define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || \
+    (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || \
+    (id == CMD_ID_FOR) || (id == CMD_ID_NEXT))
 
 // command ids (also entry into the cmd_list aray below)
 typedef enum {
@@ -63,6 +65,8 @@ typedef enum {
     CMD_ID_ELIF,
     CMD_ID_ELSE,
     CMD_ID_END,
+    CMD_ID_FOR,
+    CMD_ID_NEXT,
     CMD_ID_GOTO,
     CMD_ID_LABELSEL,
     CMD_ID_ECHO,
@@ -121,6 +125,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ELIF    , _CMD_ELIF , 1, 0 },
     { CMD_ID_ELSE    , _CMD_ELSE , 0, 0 },
     { CMD_ID_END     , _CMD_END  , 0, 0 },
+    { CMD_ID_FOR     , _CMD_FOR  , 2, 0 },
+    { CMD_ID_NEXT    , _CMD_NEXT , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
     { CMD_ID_LABELSEL, "labelsel", 2, 0 },
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
@@ -1513,7 +1519,11 @@ bool ExecuteGM9Script(const char* path_script) {
         char* skip_ptr = ptr;
         if (skip_state) {
             skip_ptr = skip_block(line_end + 1, (skip_state == _SKIP_TILL_END), false);
-            if (!skip_ptr) snprintf(err_str, _ERR_STR_LEN, "unclosed conditional");
+            if (!skip_ptr) {
+                snprintf(err_str, _ERR_STR_LEN, "unclosed conditional");
+                result = false;
+                syntax_error = true;
+            }
         }
         
         
