@@ -3,6 +3,7 @@
 #include "unittype.h"
 #include "aes.h"
 #include "sha.h"
+#include "rsa.h"
 #include "ff.h"
 
 u32 ValidateTicket(Ticket* ticket) {
@@ -12,6 +13,33 @@ u32 ValidateTicket(Ticket* ticket) {
         (strncmp((char*) ticket->issuer, TICKET_ISSUER_DEV, 0x40) != 0)) ||
         (ticket->commonkey_idx >= 6))
         return 1;
+    return 0;
+}
+
+u32 ValidateTicketSignature(Ticket* ticket) {
+    static bool got_modexp = false;
+    static u8 mod[0x100] = { 0 };
+    static u32 exp = 0;
+    
+    // grab cert from cert.db
+    if (!got_modexp) {
+        Certificate cert;
+        FIL db;
+        UINT bytes_read;
+        if (f_open(&db, "1:/dbs/certs.db", FA_READ | FA_OPEN_EXISTING) != FR_OK)
+            return 1;
+        f_lseek(&db, 0x3F10);
+        f_read(&db, &cert, CERT_SIZE, &bytes_read);
+        f_close(&db);
+        memcpy(mod, cert.mod, 0x100);
+        exp = getle32(cert.exp);
+        got_modexp = true;
+    }
+    
+    if (!RSA_setKey2048(3, mod, exp) ||
+        !RSA_verify2048((void*) &(ticket->signature), (void*) &(ticket->issuer), 0x210))
+        return 1;
+        
     return 0;
 }
 
@@ -68,7 +96,7 @@ Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls) {
     if ((getle32(chunk + 0x10) == 0) || (getle32(chunk + 0x14) != sizeof(Ticket))) return NULL;
     if (ValidateTicket(tick) != 0) return NULL; // ticket not validated
     if (title_id && (memcmp(title_id, tick->title_id, 8) != 0)) return NULL; // title id not matching
-    if (legit_pls && (getbe64(tick->ticket_id) == 0)) return NULL; // legit check, not perfect
+    if (legit_pls && (ValidateTicketSignature(tick) != 0)) return NULL; // legit check using RSA sig
     
     return tick;
 }
@@ -195,7 +223,7 @@ u32 BuildTicketCert(u8* tickcert) {
     UINT bytes_read;
     if (f_open(&db, "1:/dbs/certs.db", FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    // grab Ticket cert from 3 offsets
+    // grab ticket cert from 3 offsets
     f_lseek(&db, 0x3F10);
     f_read(&db, tickcert + 0x000, 0x300, &bytes_read);
     f_lseek(&db, 0x0C10);

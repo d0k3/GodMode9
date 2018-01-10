@@ -80,7 +80,7 @@ u32 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
                 return 0;
             }
             for (; data + TICKET_SIZE < ((u8*) TEMP_BUFFER) + read_bytes; data += 0x200) {
-                Ticket* ticket = TicketFromTickDbChunk(data, NULL, false);
+                Ticket* ticket = TicketFromTickDbChunk(data, NULL, true);
                 if (!ticket) continue;
                 AddTickDbInfo(tick_info, ticket, offset_area + i + (data - ((u8*) TEMP_BUFFER)) + 0x18);
             }

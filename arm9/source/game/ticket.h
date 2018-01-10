@@ -3,6 +3,7 @@
 #include "common.h"
 
 #define TICKET_SIZE         sizeof(Ticket)
+#define CERT_SIZE           sizeof(Certificate)
 #define TICKET_CDNCERT_SIZE 0x700
 
 #define TICKET_ISSUER       "Root-CA00000003-XS0000000c"
@@ -27,6 +28,7 @@
                             0x00, 0xEE, 0x37, 0x02, 0x00, 0x00, 0x00, 0x00
 
 // from: https://github.com/profi200/Project_CTR/blob/02159e17ee225de3f7c46ca195ff0f9ba3b3d3e4/ctrtool/tik.h#L15-L39
+// all numbers in big endian
 typedef struct {
     u8 sig_type[4];
     u8 signature[0x100];
@@ -57,6 +59,21 @@ typedef struct {
     u8 content_index[0xAC];
 } __attribute__((packed)) Ticket;
 
+// from: http://3dbrew.org/wiki/Certificates
+// all numbers in big endian
+typedef struct {
+    u8 sig_type[4]; // expected: 0x010004 / RSA_2048 SHA256
+    u8 signature[0x100];
+    u8 padding0[0x3C];
+    u8 issuer[0x40];
+    u8 keytype[4]; // expected: 0x01 / RSA_2048
+    u8 name[0x40];
+    u8 unknown[4];
+    u8 mod[0x100];
+    u8 exp[0x04];
+    u8 padding1[0x34];
+} __attribute__((packed)) Certificate;
+
 typedef struct {
     u32 commonkey_idx;
     u8  reserved[4];
@@ -71,6 +88,7 @@ typedef struct {
 } __attribute__((packed)) TitleKeysInfo;
 
 u32 ValidateTicket(Ticket* ticket);
+u32 ValidateTicketSignature(Ticket* ticket);
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls);
 u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand);

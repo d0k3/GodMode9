@@ -1784,7 +1784,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
                     return 1;
                 }
                 for (; data + TICKET_SIZE < ((u8*) TEMP_BUFFER) + read_bytes; data += 0x200) {
-                    Ticket* ticket = TicketFromTickDbChunk(data, NULL, false);
+                    Ticket* ticket = TicketFromTickDbChunk(data, NULL, true);
                     if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
                     if (TIKDB_SIZE(tik_info) + 32 > MAIN_BUFFER_SIZE) return 1;
                     AddTicketToInfo(tik_info, ticket, dec); // ignore result
@@ -1801,8 +1801,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
         TitleKeyEntry* tik = tik_info_merge->entries;
         for (u32 i = 0; i < n_entries; i++, tik++) {
             if (TIKDB_SIZE(tik_info) + 32 > MAIN_BUFFER_SIZE) return 1;
-            AddTitleKeyToInfo(tik_info, tik, !(filetype & FLAG_ENC), dec, false); // ignore result
-                
+            AddTitleKeyToInfo(tik_info, tik, !(filetype & FLAG_ENC), dec, false); // ignore result 
         }
     }
     
