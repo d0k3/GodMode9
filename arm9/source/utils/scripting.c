@@ -1343,7 +1343,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         u32 ncpy = ((int) llen < off_disp) ? 0 : (llen - off_disp);
         if (ncpy > TV_LLEN_DISP) ncpy = TV_LLEN_DISP;
         bool al = !ww && off_disp && (ptr != ptr_next);
-        bool ar = !ww && ((int) llen > off_disp + TV_LLEN_DISP);
+        bool ar = !ww && (llen > off_disp + TV_LLEN_DISP);
         
         // set text color / find start of comment of scripts
         u32 color_text = (nln == mno) ? script_color_active : (is_script) ? script_color_code : (u32) COLOR_TVTEXT;
@@ -1371,7 +1371,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         }
         
         // colorize comment if is_script
-        if ((cmt_start > 0) && (cmt_start < TV_LLEN_DISP)) {
+        if ((cmt_start > 0) && ((u32) cmt_start < TV_LLEN_DISP)) {
             memset(txtstr, ' ', cmt_start);
             DrawString(TOP_SCREEN, txtstr, x_txt, y, script_color_comment, COLOR_TRANSPARENT);
         }
@@ -1459,7 +1459,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
                 for (; line0_next > line0; line0++)
                     if (*line0 == '\n') lcurr++;
             }
-            if (off_disp + TV_LLEN_DISP > (int) llen_max) off_disp = llen_max - TV_LLEN_DISP;
+            if (off_disp + TV_LLEN_DISP > llen_max) off_disp = llen_max - TV_LLEN_DISP;
             if ((off_disp < 0) || ww) off_disp = 0;
         }
     }

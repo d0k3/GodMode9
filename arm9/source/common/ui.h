@@ -14,16 +14,8 @@
 #define SCREEN_WIDTH(s) ((s == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT)
 #define SCREEN_WIDTH_TOP 400
 #define SCREEN_WIDTH_BOT 320
-#ifdef FONT_6X10
-#define FONT_WIDTH_EXT  6
-#define FONT_HEIGHT_EXT 10
-#elif defined FONT_GB // special font width
-#define FONT_WIDTH_EXT 7
-#define FONT_HEIGHT_EXT 6
-#else
-#define FONT_WIDTH_EXT  8
-#define FONT_HEIGHT_EXT 8
-#endif
+#define FONT_WIDTH_EXT   GetFontWidth()
+#define FONT_HEIGHT_EXT  GetFontHeight()
 
 #define TOP_SCREEN          ((u8*)VRAM_TOP_LA)
 #define BOT_SCREEN          ((u8*)VRAM_BOT_A)
@@ -49,6 +41,9 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 #define ShowUnlockSequence ShowPrompt
 #endif
 
+u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h);
+bool SetFontFromPbm(const void* pbm, const u32 pbm_size);
+
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_main, bool clear_alt, int color);
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
@@ -62,6 +57,8 @@ void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ..
 
 u32 GetDrawStringHeight(const char* str);
 u32 GetDrawStringWidth(const char* str);
+u32 GetFontWidth(void);
+u32 GetFontHeight(void);
 
 void WordWrapString(char* str, int llen);
 void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);

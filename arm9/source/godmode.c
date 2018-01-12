@@ -430,28 +430,29 @@ u32 FileHexViewer(const char* path) {
     
     while (true) {
         if (mode != last_mode) {
-            switch (mode) { // display mode
-                #ifdef FONT_6X10
-                case 1:
-                    vpad = 0;
-                    hlpad = hrpad = 1;
-                    cols = 16;
-                    x_off = 0;
-                    x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
-                    x_hex = x_off + (8*FONT_WIDTH_EXT) + 16;
-                    dual_screen = false;
-                    break;
-                default:
-                    mode = 0; 
-                    vpad = 0;
-                    hlpad = hrpad = 3;
-                    cols = 8;
-                    x_off = 30 + (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
-                    x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
-                    x_hex = (SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2;
-                    dual_screen = true;
-                    break;
-                #else
+            if (FONT_WIDTH_EXT <= 6) {
+                switch (mode) { // display mode
+                    case 1:
+                        vpad = 0;
+                        hlpad = hrpad = 1;
+                        cols = 16;
+                        x_off = 0;
+                        x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
+                        x_hex = x_off + (8*FONT_WIDTH_EXT) + 16;
+                        dual_screen = false;
+                        break;
+                    default:
+                        mode = 0; 
+                        vpad = 0;
+                        hlpad = hrpad = 3;
+                        cols = 8;
+                        x_off = 30 + (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
+                        x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
+                        x_hex = (SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2;
+                        dual_screen = true;
+                        break;
+                }
+            } else switch (mode) {
                 case 1:
                     vpad = hlpad = hrpad = 1;
                     cols = 12;
@@ -487,7 +488,6 @@ u32 FileHexViewer(const char* path) {
                     x_hex = (SCREEN_WIDTH_TOP - ((hlpad + 16 + hrpad) * cols)) / 2;
                     dual_screen = true;
                     break;
-                #endif
             }
             rows = (dual_screen ? 2 : 1) * SCREEN_HEIGHT / (FONT_HEIGHT_EXT + (2*vpad));
             total_shown = rows * cols;
@@ -1787,6 +1787,9 @@ u32 GodMode(int entrypoint) {
     show_splash = !bootloader;
     #endif
     
+    // init font
+    if (!SetFontFromPbm(NULL, 0)) return exit_mode;
+    
 	// show splash screen (if enabled)
     ClearScreenF(true, true, COLOR_STD_BG);
     if (show_splash) SplashInit(disp_mode);
@@ -2302,8 +2305,8 @@ u32 GodMode(int entrypoint) {
 
 #else
 u32 ScriptRunner(int entrypoint) {
-    // show splash and initialize
-    ClearScreenF(true, true, COLOR_STD_BG);
+    // init font and show splash
+    if (!SetFontFromPbm(NULL, 0)) return exit_mode;
     SplashInit("scriptrunner mode");
     u64 timer = timer_start();
     

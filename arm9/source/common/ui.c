@@ -1,4 +1,4 @@
-// Copyright 2013 Normmatt
+// Copyright 2013 Normmatt / 2018 d0k3
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 #include "qrcodegen.h"
-#include "font.h"
+#include "vram0.h"
 #include "ui.h"
 #include "rtc.h"
 #include "timer.h"
@@ -16,6 +16,90 @@
 #include "hid.h"
 
 #define STRBUF_SIZE 512 // maximum size of the string buffer
+#define FONT_MAX_WIDTH 8
+#define FONT_MAX_HEIGHT 10
+#define FONT_N_SYMBOLS 256  
+
+static u32 font_width = 0;
+static u32 font_height = 0;
+static u8 font_bin[FONT_MAX_HEIGHT * FONT_N_SYMBOLS];
+
+
+u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
+    char* hdr = (char*) pbm;
+    u32 pbm_w = 0;
+    u32 pbm_h = 0;
+    
+    // minimum size
+    if (pbm_size < 7) return NULL;
+    
+    // check header magic, then skip over
+    if (strncmp(hdr, "P4\n", 3) != 0) return NULL;
+    
+    // skip any comments
+    u32 p = 3;
+    while (hdr[p] == '#') {
+        while (hdr[p++] != '\n') {
+            if (p >= pbm_size) return NULL;
+        }
+    }
+    
+    // parse width
+    while ((hdr[p] >= '0') && (hdr[p] <= '9')) {
+        if (p >= pbm_size) return NULL;
+        pbm_w *= 10;
+        pbm_w += hdr[p++] - '0';
+    }
+    
+    // whitespace
+    if ((hdr[p++] != ' ') || (p >= pbm_size))
+        return NULL;
+    
+    // parse height
+    while ((hdr[p] >= '0') && (hdr[p] <= '9')) {
+        if (p >= pbm_size) return NULL;
+        pbm_h *= 10;
+        pbm_h += hdr[p++] - '0';
+    }
+    
+    // line break
+    if ((hdr[p++] != '\n') || (p >= pbm_size))
+        return NULL;
+    
+    // check sizes
+    if ((pbm_w > FONT_MAX_WIDTH) || (pbm_h % FONT_N_SYMBOLS) ||
+        ((pbm_h / FONT_N_SYMBOLS) > FONT_MAX_HEIGHT) ||
+        (pbm_h != (pbm_size - p)))
+        return NULL;
+    
+    // all good
+    if (w) *w = pbm_w;
+    if (h) *h = pbm_h / FONT_N_SYMBOLS;
+    return (u8*) pbm + p;
+}
+
+// sets the font from a given PBM
+// if no PBM is given, the PBM is fetched from the default VRAM0 location
+bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
+    u32 w, h;
+    u8* ptr = NULL;
+    
+    if (!pbm) {
+        u64 pbm_size64 = 0;
+        pbm = FindVTarFileInfo(VRAM0_FONT_PBM, &pbm_size64);
+        pbm_size = (u32) pbm_size64;
+    }
+    
+    if (pbm)
+        ptr = GetFontFromPbm(pbm, pbm_size, &w, &h);
+    
+    if (ptr) {
+        font_width = w;
+        font_height = h;
+        memcpy(font_bin, ptr, h * FONT_N_SYMBOLS);
+        return true;
+    } else return false;
+}
 
 void ClearScreen(u8* screen, int color)
 {
@@ -104,13 +188,13 @@ void DrawQrCode(u8* screen, u8* qrcode)
 
 void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcolor)
 {
-    for (int yy = 0; yy < FONT_HEIGHT; yy++) {
+    for (int yy = 0; yy < (int) font_height; yy++) {
         int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
         int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
         u8* screenPos = screen + xDisplacement + yDisplacement;
 
-        u8 charPos = font[character * FONT_HEIGHT + yy];
-        for (int xx = 7; xx >= (8 - FONT_WIDTH); xx--) {
+        u8 charPos = font_bin[character * font_height + yy];
+        for (int xx = 7; xx >= (8 - (int) font_width); xx--) {
             if ((charPos >> xx) & 1) {
                 *(screenPos + 0) = color >> 16;  // B
                 *(screenPos + 1) = color >> 8;   // G
@@ -127,10 +211,10 @@ void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcol
 
 void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor)
 {
-    size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / FONT_WIDTH;
+    size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / font_width;
     size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
     for (size_t i = 0; i < len; i++)
-        DrawCharacter(screen, str[i], x + i * FONT_WIDTH, y, color, bgcolor);
+        DrawCharacter(screen, str[i], x + i * font_width, y, color, bgcolor);
 }
 
 void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *format, ...)
@@ -162,7 +246,7 @@ void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ..
 }
 
 u32 GetDrawStringHeight(const char* str) {
-    u32 height = FONT_HEIGHT;
+    u32 height = font_height;
     for (char* lf = strchr(str, '\n'); (lf != NULL); lf = strchr(lf + 1, '\n'))
         height += 10;
     return height;
@@ -178,14 +262,22 @@ u32 GetDrawStringWidth(const char* str) {
     }
     if ((u32) (str_end - old_lf) > width)
         width = str_end - old_lf;
-    width *= FONT_WIDTH;
+    width *= font_width;
     return width;
+}
+
+u32 GetFontWidth(void) {
+    return font_width;
+}
+
+u32 GetFontHeight(void) {
+    return font_height;
 }
 
 void WordWrapString(char* str, int llen) {
     char* last_brk = str - 1;
     char* last_spc = str - 1;
-    if (!llen) llen = (SCREEN_WIDTH_MAIN / FONT_WIDTH);
+    if (!llen) llen = (SCREEN_WIDTH_MAIN / font_width);
     for (char* str_ptr = str;; str_ptr++) {
         if (!*str_ptr || (*str_ptr == ' ')) { // on space or string_end
             if (str_ptr - last_brk > llen) { // if maximum line lenght is exceeded
@@ -347,7 +439,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (4*10);
-    if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
+    if (str_width < 24 * font_width) str_width = 24 * font_width;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
@@ -442,7 +534,7 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n * 12) + (3 * 10);
-    if (str_width < 24 * FONT_WIDTH) str_width = 24 * FONT_WIDTH;
+    if (str_width < 24 * font_width) str_width = 24 * font_width;
     for (u32 i = 0; i < n; i++) if (str_width < GetDrawStringWidth(options[i]))
         str_width = GetDrawStringWidth(options[i]);
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
@@ -492,7 +584,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + 88;
-    if (str_width < (24 * FONT_WIDTH)) str_width = 24 * FONT_WIDTH;
+    if (str_width < (24 * font_width)) str_width = 24 * font_width;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     
@@ -533,22 +625,22 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         }
         
         // alphabet preview
-        if (alphabet_size > (SCREEN_WIDTH(MAIN_SCREEN) / FONT_WIDTH)) {
+        if (alphabet_size > (SCREEN_WIDTH(MAIN_SCREEN) / font_width)) {
             const u32 aprv_y = y + str_height - 60;
             if (aprv) {
                 const u32 aprv_pad = 1;
-                const u32 aprv_cx = x + ((1 + cursor_s - scroll) * FONT_WIDTH);
-                u32 aprv_x = aprv_cx % (FONT_WIDTH + aprv_pad);
-                u32 aprv_n = ((SCREEN_WIDTH(MAIN_SCREEN) - aprv_x) / (FONT_WIDTH + aprv_pad)) - 1;
-                int aprv_a = cursor_a - ((aprv_cx - aprv_x) / (FONT_WIDTH + aprv_pad));
+                const u32 aprv_cx = x + ((1 + cursor_s - scroll) * font_width);
+                u32 aprv_x = aprv_cx % (font_width + aprv_pad);
+                u32 aprv_n = ((SCREEN_WIDTH(MAIN_SCREEN) - aprv_x) / (font_width + aprv_pad)) - 1;
+                int aprv_a = cursor_a - ((aprv_cx - aprv_x) / (font_width + aprv_pad));
                 while (aprv_a < 0) aprv_a += alphabet_size;
                 for (u32 i = 0; i < aprv_n; i++) {
                     DrawCharacter(MAIN_SCREEN, alphabet[aprv_a], aprv_x, aprv_y,
                         (aprv_a == cursor_a) ? COLOR_WHITE : COLOR_GREY, COLOR_STD_BG);
                     if (++aprv_a >= (int) alphabet_size) aprv_a -= alphabet_size;
-                    aprv_x += FONT_WIDTH + aprv_pad;
+                    aprv_x += font_width + aprv_pad;
                 }
-            } else DrawRectangle(MAIN_SCREEN, 0, aprv_y, SCREEN_WIDTH(MAIN_SCREEN), FONT_HEIGHT, COLOR_STD_BG);
+            } else DrawRectangle(MAIN_SCREEN, 0, aprv_y, SCREEN_WIDTH(MAIN_SCREEN), font_height, COLOR_STD_BG);
         }
         
         u32 pad_state = InputWait(3);
@@ -711,7 +803,7 @@ bool ShowRtcSetterPrompt(void* time, const char *format, ...) {
     
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (4*10);
-    if (str_width < (19 * FONT_WIDTH)) str_width = 19 * FONT_WIDTH;
+    if (str_width < (19 * font_width)) str_width = 19 * font_width;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     

@@ -9,18 +9,6 @@ FLAVOR  ?=  GodMode9
 README  :=  README.md
 SPLASH   =  resources/$(FLAVOR)_splash.pcx
 
-ifeq ($(FONT),ORIG)
-CFLAGS  +=  -DFONT_ORIGINAL
-else ifeq ($(FONT),6X10)
-CFLAGS  +=  -DFONT_6X10
-else ifeq ($(FONT),ACORN)
-CFLAGS  +=  -DFONT_ACORN
-else ifeq ($(FONT),GB)
-CFLAGS  +=  -DFONT_GB
-else
-CFLAGS  +=  -DFONT_6X10
-endif
-
 ifeq ($(FLAVOR),SafeMode9)
     CFLAGS += -DSAFEMODE
 endif
