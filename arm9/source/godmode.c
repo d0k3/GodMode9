@@ -1803,7 +1803,8 @@ u32 GodMode(int entrypoint) {
     InitExtFS();
     
     // check for embedded essential backup
-    if (IS_SIGHAX && !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
+    if (((entrypoint == ENTRY_NANDBOOT) || (entrypoint == ENTRY_B9S)) &&
+        !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
         ShowPrompt(true, "Essential files backup not found.\nCreate one now?")) {
         if (EmbedEssentialBackup("S:/nand.bin") == 0) {
             u32 flags = BUILD_PATH | SKIP_ALL;
