@@ -34,9 +34,12 @@
 
 #define _ARG_TRUE       "TRUE"
 #define _ARG_FALSE      "FALSE"
+#define _VAR_FORPATH    "FORPATH"
 
 #define _SKIP_BLOCK     1
 #define _SKIP_TILL_END  2
+#define _SKIP_TO_NEXT   3
+#define _SKIP_TO_FOR    4
 
 #define VAR_BUFFER      (SCRIPT_BUFFER + SCRIPT_BUFFER_SIZE - VAR_BUFFER_SIZE)
 
@@ -179,6 +182,7 @@ static u32 script_color_code = 0;
 // global vars for control flow
 static bool syntax_error = false;   // if true, severe error, script has to stop
 static char* jump_ptr = NULL;       // next position after a jump
+static char* for_ptr = NULL;        // position of the active 'for' command
 static u32 skip_state = 0;          // zero, _SKIP_BLOCK, _SKIP_TILL_END
 static u32 ifcnt = 0;               // current # of 'if' nesting
 
@@ -585,6 +589,39 @@ char* skip_block(char* ptr, bool ignore_else, bool stop_after_end) {
     return NULL;
 }
 
+char* find_next(char* ptr) {
+    while (ptr && *ptr) {
+        // store line start / line end
+        char* line_start = ptr;
+        char* line_end = strchr(ptr, '\n');
+        if (!line_end) line_end = ptr + strlen(ptr);
+        
+        // grab first string
+        char* str = NULL;
+        u32 str_len = 0;
+        if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL)) || (str >= line_end)) {
+            // string error or empty line
+            ptr = line_end + 1;
+            continue; 
+        }
+        
+        // check string
+        if (MATCH_STR(str, str_len, _CMD_IF)) { // skip 'if' blocks
+            ptr = skip_block(ptr, true, true);
+        } else if (MATCH_STR(str, str_len, _CMD_END) || MATCH_STR(str, str_len, _CMD_FOR)) {
+            ptr = NULL; // this should not happen here
+        } else if (MATCH_STR(str, str_len, _CMD_NEXT)) {
+            return line_start;
+        }
+        
+        // move on to the next line
+        ptr = line_end + 1;
+    }
+    
+    // 'next' not found
+    return NULL;
+}
+
 char* find_label(const char* label, const char* last_found) {
     char* script = (char*) SCRIPT_BUFFER; // equals global, not a good solution
     char* ptr = script;
@@ -626,10 +663,40 @@ char* find_label(const char* label, const char* last_found) {
             return line_start; // match found
         } else if (MATCH_STR(str, str_len, _CMD_IF)) {
             next = skip_block(line_start, true, true);
+        } else if (MATCH_STR(str, str_len, _CMD_FOR)) {
+            next = find_next(line_start);
         } // otherwise: irrelevant line
     }
     
     return NULL;
+}
+
+bool for_handler(char* path, const char* dir, const char* pattern) {
+    static DIR fdir;
+    static DIR* dp = NULL;
+    static char ldir[256];
+    static char lpattern[64];
+    
+    if (!path && !dir && !pattern) {
+        if (dp) fvx_closedir(dp);
+        dp = NULL;
+        return true;
+    }
+    
+    if (dir) {
+        snprintf(lpattern, 64, pattern);
+        snprintf(ldir, 256, dir);
+        if (dp) return false; // <- this should never happen
+        if (fvx_opendir(&fdir, dir) != FR_OK)
+            return false;
+        dp = &fdir;
+    } else if (dp) {
+        FILINFO fno;
+        if ((fvx_preaddir(dp, &fno, lpattern) != FR_OK) || !*(fno.fname)) *path = '\0';
+        else snprintf(path, 256, "%s/%s", ldir, fno.fname);
+    } else return false;
+    
+    return true;
 }
 
 bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32* flags, u32* argc, char** argv, char* err_str) {
@@ -758,6 +825,45 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ifcnt--;
         
         ret = true;
+    }
+    else if (id == CMD_ID_FOR) {
+        // cheating alert(!): actually this does nothing much
+        // just sets up the for_handler and skips to 'next'
+        if (for_ptr) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'for' inside 'for'");
+            syntax_error = true;
+            return false;
+        } else if (!for_handler(NULL, argv[0], argv[1])) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "dir not found");
+            skip_state = _SKIP_TO_NEXT;
+            ret = false;
+        } else {
+            skip_state = _SKIP_TO_NEXT;
+            ret = true;
+        }
+    }
+    else if (id == CMD_ID_NEXT) {
+        // actual work is done here
+        char* var = set_var(_VAR_FORPATH, "");
+        ret = true;
+        if (!for_ptr) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'next' without 'for'");
+            syntax_error = true;
+            return false;
+        } else if (!var) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "forpath error");
+            ret = false;
+        } else {
+            if (!for_handler(var, NULL, NULL)) *var = '\0';
+            if (!*var) {
+                for_handler(NULL, NULL, NULL); // finish for_handler
+                for_ptr = NULL;
+                skip_state = 0;
+            } else {
+                skip_state = _SKIP_TO_FOR;
+            }
+            ret = true;
+        }
     }
     else if (id == CMD_ID_GOTO) {
         jump_ptr = find_label(argv[0], NULL);
@@ -1458,6 +1564,8 @@ bool ExecuteGM9Script(const char* path_script) {
     
     // reset control flow global vars
     ifcnt = 0;
+    jump_ptr = NULL;
+    for_ptr = NULL;
     skip_state = 0;
     syntax_error = false;
     
@@ -1537,15 +1645,32 @@ bool ExecuteGM9Script(const char* path_script) {
         char err_str[_ERR_STR_LEN+1] = { 0 };
         bool result = run_line(ptr, line_end, &flags, err_str, false);
         
+        
         // skip state handling
         char* skip_ptr = ptr;
-        if (skip_state) {
+        if ((skip_state == _SKIP_BLOCK) || (skip_state == _SKIP_TILL_END)) {
             skip_ptr = skip_block(line_end + 1, (skip_state == _SKIP_TILL_END), false);
             if (!skip_ptr) {
                 snprintf(err_str, _ERR_STR_LEN, "unclosed conditional");
                 result = false;
                 syntax_error = true;
             }
+        } else if (skip_state == _SKIP_TO_NEXT) {
+            skip_ptr = find_next(ptr);
+            if (!skip_ptr) {
+                snprintf(err_str, _ERR_STR_LEN, "'for' without 'next'");
+                result = false;
+                syntax_error = true;
+            }
+            for_ptr = (char*) line_end + 1;
+        } else if (skip_state == _SKIP_TO_FOR) {
+            skip_ptr = for_ptr;
+            if (!skip_ptr) {
+                snprintf(err_str, _ERR_STR_LEN, "'next' without 'for'");
+                result = false;
+                syntax_error = true;
+            }
+            skip_state = 0;
         }
         
         
@@ -1582,6 +1707,8 @@ bool ExecuteGM9Script(const char* path_script) {
             lno = get_lno(script, script_size, ptr);
             ifcnt = 0; // jumping into conditional block is unexpected/unsupported
             jump_ptr = NULL;
+            for_ptr = NULL;
+            for_handler(NULL, NULL, NULL);
         } else {
             ptr = line_end + 1;
             lno++;
@@ -1591,6 +1718,10 @@ bool ExecuteGM9Script(const char* path_script) {
     // check for unresolved if here
     if (ifcnt) {
         ShowPrompt(false, "%s\nend of script: unresolved 'if'", path_str);
+        return false;
+    } else if (for_ptr) {
+        ShowPrompt(false, "%s\nend of script: unresolved 'for'", path_str);
+        for_handler(NULL, NULL, NULL);
         return false;
     }
     
