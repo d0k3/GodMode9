@@ -6,6 +6,7 @@
 #include "keydb.h"
 #include "ctrtransfer.h"
 #include "scripting.h"
+#include "ui.h" // only for font file detection
 
 u64 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
@@ -94,7 +95,9 @@ u64 IdentifyFileType(const char* path) {
         }
     }
     
-    if ((fsize > sizeof(AgbHeader)) &&
+    if (GetFontFromPbm(data, fsize, NULL, NULL)) {
+        return FONT_PBM;
+    } else if ((fsize > sizeof(AgbHeader)) &&
         (ValidateAgbHeader((AgbHeader*) data) == 0)) {
         return GAME_GBA;
     } else if ((fsize > sizeof(BossHeader)) &&

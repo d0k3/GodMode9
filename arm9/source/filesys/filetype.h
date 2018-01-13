@@ -27,8 +27,9 @@
 #define BIN_LEGKEY  (1ULL<<22)
 #define TXT_SCRIPT  (1ULL<<23)
 #define TXT_GENERIC (1ULL<<24)
-#define NOIMG_NAND  (1ULL<<25)
-#define HDR_NAND    (1ULL<<26)
+#define FONT_PBM    (1ULL<<25)
+#define NOIMG_NAND  (1ULL<<26)
+#define HDR_NAND    (1ULL<<27)
 #define TYPE_BASE   0xFFFFFFFFULL // 32 bit reserved for base types
 
 // #define FLAG_FIRM   (1ULL<<58) // <--- for CXIs containing FIRMs
@@ -58,6 +59,7 @@
 #define FTYPE_KEYINIT(tp)       (tp&(BIN_KEYDB))
 #define FTYPE_KEYINSTALL(tp)    (tp&(BIN_KEYDB))
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
+#define FTYPE_FONT(tp)          (tp&(FONT_PBM))
 #define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 #define FTYPE_INSTALLABLE(tp)   (tp&(SYS_FIRM))
 #define FTPYE_AGBSAVE(tp)       (tp&(SYS_AGBSAVE))

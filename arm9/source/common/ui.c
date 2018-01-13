@@ -27,11 +27,12 @@ static u8 font_bin[FONT_MAX_HEIGHT * FONT_N_SYMBOLS];
 
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     char* hdr = (char*) pbm;
+    u32 hdr_max_size = min(512, pbm_size);
     u32 pbm_w = 0;
     u32 pbm_h = 0;
     
     // minimum size
-    if (pbm_size < 7) return NULL;
+    if (hdr_max_size < 7) return NULL;
     
     // check header magic, then skip over
     if (strncmp(hdr, "P4\n", 3) != 0) return NULL;
@@ -40,30 +41,30 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     u32 p = 3;
     while (hdr[p] == '#') {
         while (hdr[p++] != '\n') {
-            if (p >= pbm_size) return NULL;
+            if (p >= hdr_max_size) return NULL;
         }
     }
     
     // parse width
     while ((hdr[p] >= '0') && (hdr[p] <= '9')) {
-        if (p >= pbm_size) return NULL;
+        if (p >= hdr_max_size) return NULL;
         pbm_w *= 10;
         pbm_w += hdr[p++] - '0';
     }
     
     // whitespace
-    if ((hdr[p++] != ' ') || (p >= pbm_size))
+    if ((hdr[p++] != ' ') || (p >= hdr_max_size))
         return NULL;
     
     // parse height
     while ((hdr[p] >= '0') && (hdr[p] <= '9')) {
-        if (p >= pbm_size) return NULL;
+        if (p >= hdr_max_size) return NULL;
         pbm_h *= 10;
         pbm_h += hdr[p++] - '0';
     }
     
     // line break
-    if ((hdr[p++] != '\n') || (p >= pbm_size))
+    if ((hdr[p++] != '\n') || (p >= hdr_max_size))
         return NULL;
     
     // check sizes
