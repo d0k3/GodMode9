@@ -693,7 +693,7 @@ bool for_handler(char* path, const char* dir, const char* pattern) {
     } else if (dp) {
         FILINFO fno;
         if ((fvx_preaddir(dp, &fno, lpattern) != FR_OK) || !*(fno.fname)) *path = '\0';
-        else snprintf(path, 256, "%s/%s", ldir, fno.fname);
+        else snprintf(path, 256, "%s/%.254s", ldir, fno.fname);
     } else return false;
     
     return true;
