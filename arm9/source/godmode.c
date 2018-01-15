@@ -147,7 +147,7 @@ void GenerateBatteryBitmap(u8* bitmap, u32 width, u32 height, u32 color_bg) {
 }
 
 void DrawTopBar(const char* curr_path) {
-    const u32 bartxt_start = (FONT_HEIGHT_EXT == 10) ? 1 : 2;
+    const u32 bartxt_start = (FONT_HEIGHT_EXT >= 10) ? 1 : (FONT_HEIGHT_EXT >= 7) ? 2 : 3;
     const u32 bartxt_x = 2;
     const u32 len_path = SCREEN_WIDTH_TOP - 120;
     char tempstr[64];
@@ -286,8 +286,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
 
 void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     const int str_width = (SCREEN_WIDTH_ALT-3) / FONT_WIDTH_EXT;
-    const u32 stp_y = 12;
-    const u32 start_y = (MAIN_SCREEN == TOP_SCREEN) ? 0 : stp_y;
+    const u32 stp_y = min(12, FONT_HEIGHT_EXT + 4);
+    const u32 start_y = (MAIN_SCREEN == TOP_SCREEN) ? 0 : 12;
     const u32 pos_x = 0;
     const u32 lines = (SCREEN_HEIGHT-(start_y+2)+(stp_y-1)) / stp_y;
     u32 pos_y = start_y + 2;
@@ -391,7 +391,7 @@ u32 SdFormatMenu(void) {
 }
 
 u32 FileHexViewer(const char* path) {
-    static const u32 max_data = (SCREEN_HEIGHT / 8) * 16;
+    static const u32 max_data = (SCREEN_HEIGHT / 8) * 16 * 4;
     static u32 mode = 0;
     u8* data = TEMP_BUFFER;
     u8* bottom_cpy = TEMP_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
@@ -430,53 +430,62 @@ u32 FileHexViewer(const char* path) {
     
     while (true) {
         if (mode != last_mode) {
-            if (FONT_WIDTH_EXT <= 6) {
-                switch (mode) { // display mode
-                    case 1:
-                        vpad = 0;
-                        hlpad = hrpad = 1;
-                        cols = 16;
-                        x_off = 0;
-                        x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
-                        x_hex = x_off + (8*FONT_WIDTH_EXT) + 16;
-                        dual_screen = false;
-                        break;
-                    default:
-                        mode = 0; 
-                        vpad = 0;
-                        hlpad = hrpad = 3;
-                        cols = 8;
-                        x_off = 30 + (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
-                        x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
-                        x_hex = (SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2;
-                        dual_screen = true;
-                        break;
+            if (FONT_WIDTH_EXT <= 5) {
+                mode = 0; 
+                vpad = 1;
+                hlpad = hrpad = 2;
+                cols = 16;
+                x_off = (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
+                x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
+                x_hex = ((SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2) -
+                    (((cols - 8) / 2) * FONT_WIDTH_EXT);
+                dual_screen = true;
+            } else if (FONT_WIDTH_EXT <= 6) {
+                if (mode == 1) {
+                    vpad = 0;
+                    hlpad = hrpad = 1;
+                    cols = 16;
+                    x_off = 0;
+                    x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
+                    x_hex = x_off + (8*FONT_WIDTH_EXT) + 16;
+                    dual_screen = false;
+                } else {
+                    mode = 0; 
+                    vpad = 0;
+                    hlpad = hrpad = 3;
+                    cols = 8;
+                    x_off = 30 + (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
+                    x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
+                    x_hex = (SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2;
+                    dual_screen = true;
                 }
-            } else switch (mode) {
+            } else switch (mode) { // display mode
                 case 1:
                     vpad = hlpad = hrpad = 1;
                     cols = 12;
                     x_off = 0;
-                    x_ascii = SCREEN_WIDTH_TOP - (8 * cols);
-                    x_hex = x_off + (8*8) + 12;
+                    x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
+                    x_hex = ((SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols) -
+                        ((cols - 8) * FONT_WIDTH_EXT)) / 2);
                     dual_screen = false;
                     break;
                 case 2:
                     vpad = 1;
                     hlpad = 0;
-                    hrpad = 1;
+                    hrpad = 1 + 8 - FONT_WIDTH_EXT;
                     cols = 16;
                     x_off = -1;
-                    x_ascii = SCREEN_WIDTH_TOP - (8 * cols);
+                    x_ascii = SCREEN_WIDTH_TOP - (FONT_WIDTH_EXT * cols);
                     x_hex = 0;
                     dual_screen = false;
                     break;
                 case 3:
                     vpad = hlpad = hrpad = 1;
                     cols = 16;
-                    x_off = 20;
+                    x_off = ((SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)
+                        - 12 - (8*FONT_WIDTH_EXT)) / 2);
                     x_ascii = -1;
-                    x_hex = x_off + (8*8) + 12;
+                    x_hex = x_off + (8*FONT_WIDTH_EXT) + 12;
                     dual_screen = false;
                     break;
                 default:
@@ -484,8 +493,8 @@ u32 FileHexViewer(const char* path) {
                     vpad = hlpad = hrpad = 2;
                     cols = 8;
                     x_off = (SCREEN_WIDTH_TOP - SCREEN_WIDTH_BOT) / 2;
-                    x_ascii = SCREEN_WIDTH_TOP - x_off - (8 * cols);
-                    x_hex = (SCREEN_WIDTH_TOP - ((hlpad + 16 + hrpad) * cols)) / 2;
+                    x_ascii = SCREEN_WIDTH_TOP - x_off - (FONT_WIDTH_EXT * cols);
+                    x_hex = (SCREEN_WIDTH_TOP - ((hlpad + (2*FONT_WIDTH_EXT) + hrpad) * cols)) / 2;
                     dual_screen = true;
                     break;
             }
