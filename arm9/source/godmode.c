@@ -2316,7 +2316,7 @@ u32 GodMode(int entrypoint) {
 #else
 u32 ScriptRunner(int entrypoint) {
     // init font and show splash
-    if (!SetFontFromPbm(NULL, 0)) return exit_mode;
+    if (!SetFontFromPbm(NULL, 0)) return GODMODE_EXIT_POWEROFF;
     SplashInit("scriptrunner mode");
     u64 timer = timer_start();
     
