@@ -18,11 +18,10 @@
 #define STRBUF_SIZE 512 // maximum size of the string buffer
 #define FONT_MAX_WIDTH 8
 #define FONT_MAX_HEIGHT 10
-#define FONT_N_SYMBOLS 256  
 
 static u32 font_width = 0;
 static u32 font_height = 0;
-static u8 font_bin[FONT_MAX_HEIGHT * FONT_N_SYMBOLS];
+static u8 font_bin[FONT_MAX_HEIGHT * 256];
 
 
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
@@ -68,14 +67,22 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
         return NULL;
     
     // check sizes
-    if ((pbm_w > FONT_MAX_WIDTH) || (pbm_h % FONT_N_SYMBOLS) ||
-        ((pbm_h / FONT_N_SYMBOLS) > FONT_MAX_HEIGHT) ||
-        (pbm_h != (pbm_size - p)))
-        return NULL;
+    if (pbm_w <= 8) { // 1x256 format
+        if ((pbm_w > FONT_MAX_WIDTH) || (pbm_h % 256) ||
+            ((pbm_h / 256) > FONT_MAX_HEIGHT) ||
+            (pbm_h != (pbm_size - p)))
+            return NULL;
+    } else { // 16x16 format
+        if ((pbm_w % 16) || (pbm_h % 16) ||
+            ((pbm_w / 16) > FONT_MAX_WIDTH) ||
+            ((pbm_h / 16) > FONT_MAX_HEIGHT) ||
+            ((pbm_h * pbm_w / 8) != (pbm_size - p)))
+            return NULL;
+    }
     
     // all good
     if (w) *w = pbm_w;
-    if (h) *h = pbm_h / FONT_N_SYMBOLS;
+    if (h) *h = pbm_h;
     return (u8*) pbm + p;
 }
 
@@ -94,12 +101,31 @@ bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
     if (pbm)
         ptr = GetFontFromPbm(pbm, pbm_size, &w, &h);
     
-    if (ptr) {
+    if (!ptr) {
+        return false;
+    } else if (w > 8) {
+        font_width = w / 16;
+        font_height = h / 16;
+        memset(font_bin, 0x00, w * h / 8);
+        
+        for (u32 cy = 0; cy < 16; cy++) {
+            for (u32 row = 0; row < font_height; row++) {
+                for (u32 cx = 0; cx < 16; cx++) {
+                    u32 bp0 = (cx * font_width) >> 3;
+                    u32 bm0 = (cx * font_width) % 8;
+                    u8 byte = ((ptr[bp0] << bm0) | (ptr[bp0+1] >> (8 - bm0))) & (0xFF << (8 - font_width));
+                    font_bin[(((cy << 4) + cx) * font_height) + row] = byte;
+                }
+                ptr += font_width << 1;
+            }
+        }
+    } else {
         font_width = w;
-        font_height = h;
-        memcpy(font_bin, ptr, h * FONT_N_SYMBOLS);
-        return true;
-    } else return false;
+        font_height = h / 256;
+        memcpy(font_bin, ptr, h);
+    }
+    
+    return true;
 }
 
 void ClearScreen(u8* screen, int color)
