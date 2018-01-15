@@ -577,7 +577,7 @@ u32 FileHexViewer(const char* path) {
             else if (pad_state & BUTTON_UP) offset = (offset > step_ud) ? offset - step_ud : 0;
             else if (pad_state & BUTTON_LEFT) offset = (offset > step_lr) ? offset - step_lr : 0;
             else if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_Y)) mode++;
-            else if (pad_state & BUTTON_A) edit_mode = true;
+            else if ((pad_state & BUTTON_A) && total_data) edit_mode = true;
             else if (pad_state & (BUTTON_B|BUTTON_START)) break;
             else if (found_size && (pad_state & BUTTON_R1) && (pad_state & BUTTON_X)) {
                 u8 data[64] = { 0 };
