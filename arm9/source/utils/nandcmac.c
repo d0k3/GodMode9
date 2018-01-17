@@ -4,6 +4,7 @@
 #include "sha.h"
 #include "aes.h"
 #include "vff.h"
+#include "ui.h" // for RecursiveFixFileCmac()
 
 // CMAC types, see:
 // https://3dbrew.org/wiki/Savegames#AES_CMAC_header
@@ -281,9 +282,12 @@ u32 RecursiveFixFileCmacWorker(char* path) {
     DIR pdir;
     
     if (fvx_opendir(&pdir, path) == FR_OK) { // process folder contents
+        char pathstr[32 + 1];
+        TruncateString(pathstr, path, 32, 8);
         char* fname = path + strnlen(path, 255);
         *(fname++) = '/';
         
+        ShowString("%s\nFixing CMACs, please wait...", pathstr);
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
@@ -294,6 +298,7 @@ u32 RecursiveFixFileCmacWorker(char* path) {
                 if (RecursiveFixFileCmacWorker(path) != 0) return 1;
             } else if (CheckCmacPath(path) == 0) { // file, try to fix the CMAC
                 if (FixFileCmac(path) != 0) return 1;
+                ShowString("%s\nFixing CMACs, please wait...", pathstr);
             }
         }
         f_closedir(&pdir);
