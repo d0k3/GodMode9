@@ -391,7 +391,7 @@ u32 SdFormatMenu(void) {
 }
 
 u32 FileHexViewer(const char* path) {
-    static const u32 max_data = (SCREEN_HEIGHT / 8) * 16 * 4;
+    const u32 max_data = (SCREEN_HEIGHT / FONT_HEIGHT_EXT) * 16 * ((FONT_WIDTH_EXT > 4) ? 1 : 2);
     static u32 mode = 0;
     u8* data = TEMP_BUFFER;
     u8* bottom_cpy = TEMP_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
