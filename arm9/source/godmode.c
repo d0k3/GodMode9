@@ -1796,20 +1796,20 @@ u32 GodMode(int entrypoint) {
     
     // get mode string for splash screen
     const char* disp_mode = NULL;
-	if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
+    if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
     else if (!IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT)) disp_mode = "oldloader mode";
     else if (entrypoint == ENTRY_NTRBOOT) disp_mode = "ntrboot mode";
     else if (entrypoint == ENTRY_UNKNOWN) disp_mode = "unknown mode";
-	
-	bool show_splash = true;
-	#ifdef SALTMODE
+    
+    bool show_splash = true;
+    #ifdef SALTMODE
     show_splash = !bootloader;
     #endif
     
     // init font
     if (!SetFontFromPbm(NULL, 0)) return exit_mode;
     
-	// show splash screen (if enabled)
+    // show splash screen (if enabled)
     ClearScreenF(true, true, COLOR_STD_BG);
     if (show_splash) SplashInit(disp_mode);
     u64 timer = timer_start(); // for splash delay
