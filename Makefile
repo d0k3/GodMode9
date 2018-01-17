@@ -70,14 +70,14 @@ vram0:
 	@echo "Creating $(VRAM_OUT)"
 	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
 
-elf:
-	@set -e; for elf in $(ELF); do \
-		echo "Building $$elf"; \
-		$(MAKE) --no-print-directory -C $$(dirname $$elf); \
-	done
+%.elf: .FORCE
+	@echo "Building $@"
+	@$(MAKE) --no-print-directory -C $(@D)
 
-firm: elf vram0
+firm: $(ELF) vram0
 	@test `wc -c <$(VRAM_OUT)` -le 3145728
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	firmtool build $(FIRM) $(FTFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT) -C NDMA XDMA memcpy
 	firmtool build $(FIRMD) $(FTDFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT)  -C NDMA XDMA memcpy
+
+.FORCE:
