@@ -442,6 +442,8 @@ bool init_vars(const char* path_script) {
     set_var("HAX", IS_SIGHAX ? (isntrboot() ? "ntrboot" : "sighax") : IS_A9LH ? "a9lh" : ""); // type of hax running from
     set_var("ONTYPE", IS_O3DS ? "O3DS" : "N3DS"); // type of the console
     set_var("RDTYPE", IS_DEVKIT ? "devkit" : "retail"); // devkit / retail
+    char* ptr = set_var("GM9VER", GM9VER); // GodMode9 version, truncated below
+    while (*(ptr++) != '\0') if (*ptr == '-') *ptr = '\0';
     upd_var(NULL); // set all dynamic environment vars
     
     return true;

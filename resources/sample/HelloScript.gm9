@@ -29,6 +29,7 @@ ask "Continue running this script?"
 ask -o -s "Really continue running this script?\n(I will completely ignore your answer)"
 
 # ENVIRONMENTAL VARS
+# GM9VER is the GodMode9 version number
 # REGION is the region of your device's SysNAND (USA, EUR, JPN, KOR, CHN, TWN or UNK for unknown)
 # SERIAL is the serial number of your device
 # GM9OUT is the standard output path
@@ -41,7 +42,7 @@ ask -o -s "Really continue running this script?\n(I will completely ignore your 
 # TIMESTAMP is the current time in hhmmss format
 # DATESTAMP is the current date in YYMMDD format
 # Use $[VAR] to get the *content* of a variable VAR
-echo "Your region is $[REGION]\nYour serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent hax is $[HAX]\nYour system is a $[RDTYPE] $[ONTYPE]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
+echo "Your GodMode9 version is $[GM9VER]\nYour region is $[REGION]\nYour serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent hax is $[HAX]\nYour system is a $[RDTYPE] $[ONTYPE]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
 qr "You can also have this as a QR code :)" "Your region is $[REGION]\nYour serial number is $[SERIAL]\nYour std output path is $[GM9OUT]\nCurrent dir is $[CURRDIR]\nCurrent hax is $[HAX]\nYour system is a $[RDTYPE] $[ONTYPE]\nCurrent datestamp is: $[DATESTAMP]\nCurrent timestamp is: $[TIMESTAMP]\n \nYour sys / emu ID0 is:\n$[SYSID0]\n$[EMUID0]"
 
 # ERRORMSG and SUCCESSMSG / 'set' COMMAND
