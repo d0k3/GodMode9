@@ -1,11 +1,16 @@
 # GodMode9 "Spaghetti code sample"
 # Tutorial script - read / run this to learn how it works
-# last changed: 20171229
+# last changed: 20180118
 # author: d0k3
 
 
+# quick preview mode as default, otherwise slow
+set PREVIEW_MODE quick
+
+
 # choose example to try
-labelsel "Choose example" spaghetti_*
+labelsel -o -s "Choose example" spaghetti_*
+goto outside
 
 
 # if-else-elif-end sample code
@@ -61,6 +66,47 @@ goto outside
 
 @chooser
 labelsel -o -s "Choose preview mode" choice_*
-goto chooser
+goto outside
+
+
+# for-next sample code
+@spaghetti_fornext_sample
+
+echo "This will display entries\nfrom your SD card root."
+
+if ask "Use recursive 'for'?"
+    for -r 0: *
+        # check type of current entry
+        set TYPE "File"
+        if isdir $[FORPATH]
+            set TYPE "Dir"
+        end
+        
+        # output on screen
+        if not ask "$[TYPE]: $[FORPATH]\nShow next entry?"
+            goto outside
+        end
+    next
+else
+    for 0: * # everything inside the loop pretty much identical to above
+        # check type of current entry
+        set TYPE "File"
+        if isdir $[FORPATH]
+            set TYPE "Dir"
+        end
+        
+        # output on screen
+        if not ask "$[TYPE]: $[FORPATH]\nShow next entry?"
+            goto outside
+        end
+        
+        if not exist $[FORPATH]
+            echo "WTF" # can never happen here, just a demonstration
+        end
+    next
+end
+
+goto outside
+
 
 @outside

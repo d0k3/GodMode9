@@ -41,6 +41,8 @@
 #define _SKIP_TO_NEXT   3
 #define _SKIP_TO_FOR    4
 
+#define _MAX_FOR_DEPTH  16
+
 #define VAR_BUFFER      (SCRIPT_BUFFER + SCRIPT_BUFFER_SIZE - VAR_BUFFER_SIZE)
 
 // macros for textviewer
@@ -130,7 +132,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ELIF    , _CMD_ELIF , 1, 0 },
     { CMD_ID_ELSE    , _CMD_ELSE , 0, 0 },
     { CMD_ID_END     , _CMD_END  , 0, 0 },
-    { CMD_ID_FOR     , _CMD_FOR  , 2, 0 },
+    { CMD_ID_FOR     , _CMD_FOR  , 2, _FLG('r') },
     { CMD_ID_NEXT    , _CMD_NEXT , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
     { CMD_ID_LABELSEL, "labelsel", 2, 0 },
@@ -508,6 +510,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--legit", len) == 0) flag_char = 'l';
     else if (strncmp(str, "--no_cancel", len) == 0) flag_char = 'n';
     else if (strncmp(str, "--optional", len) == 0) flag_char = 'o';
+    else if (strncmp(str, "--recursive", len) == 0) flag_char = 'r';
     else if (strncmp(str, "--silent", len) == 0) flag_char = 's';
     else if (strncmp(str, "--unequal", len) == 0) flag_char = 'u';
     else if (strncmp(str, "--overwrite", len) == 0) flag_char = 'w';
@@ -671,29 +674,43 @@ char* find_label(const char* label, const char* last_found) {
     return NULL;
 }
 
-bool for_handler(char* path, const char* dir, const char* pattern) {
-    static DIR fdir;
+bool for_handler(char* path, const char* dir, const char* pattern, bool recursive) {
+    static DIR fdir[_MAX_FOR_DEPTH];
     static DIR* dp = NULL;
     static char ldir[256];
     static char lpattern[64];
+    static bool rec = false;
     
-    if (!path && !dir && !pattern) {
-        if (dp) fvx_closedir(dp);
+    if (!path && !dir && !pattern) { // close all dirs
+        while (dp >= fdir) fvx_closedir(dp--);
         dp = NULL;
         return true;
     }
     
-    if (dir) {
+    if (dir) { // open a dir
         snprintf(lpattern, 64, pattern);
         snprintf(ldir, 256, dir);
         if (dp) return false; // <- this should never happen
-        if (fvx_opendir(&fdir, dir) != FR_OK)
+        if (fvx_opendir(&fdir[0], dir) != FR_OK)
             return false;
-        dp = &fdir;
-    } else if (dp) {
+        dp = &fdir[0];
+        rec = recursive;
+    } else if (dp) { // traverse dir
         FILINFO fno;
-        if ((fvx_preaddir(dp, &fno, lpattern) != FR_OK) || !*(fno.fname)) *path = '\0';
-        else snprintf(path, 256, "%s/%.254s", ldir, fno.fname);
+        while ((fvx_preaddir(dp, &fno, lpattern) != FR_OK) || !*(fno.fname)) {
+            *path = '\0';
+            if (dp == fdir) return true;
+            fvx_closedir(dp--);
+            char* slash = strrchr(ldir, '/');
+            if (!slash) return false;
+            *slash = '\0';
+        }
+        
+        snprintf(path, 256, "%s/%.254s", ldir, fno.fname);
+        if (rec && (fno.fattrib & AM_DIR) && (dp - fdir < _MAX_FOR_DEPTH - 1)) {
+            if (fvx_opendir(++dp, path) != FR_OK) dp--;
+            else strncpy(ldir, path, 255);
+        }
     } else return false;
     
     return true;
@@ -833,7 +850,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "'for' inside 'for'");
             syntax_error = true;
             return false;
-        } else if (!for_handler(NULL, argv[0], argv[1])) {
+        } else if (!for_handler(NULL, argv[0], argv[1], flags & _FLG('r'))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "dir not found");
             skip_state = _SKIP_TO_NEXT;
             ret = false;
@@ -854,9 +871,9 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "forpath error");
             ret = false;
         } else {
-            if (!for_handler(var, NULL, NULL)) *var = '\0';
+            if (!for_handler(var, NULL, NULL, false)) *var = '\0';
             if (!*var) {
-                for_handler(NULL, NULL, NULL); // finish for_handler
+                for_handler(NULL, NULL, NULL, false); // finish for_handler
                 for_ptr = NULL;
                 skip_state = 0;
             } else {
@@ -1708,7 +1725,7 @@ bool ExecuteGM9Script(const char* path_script) {
             ifcnt = 0; // jumping into conditional block is unexpected/unsupported
             jump_ptr = NULL;
             for_ptr = NULL;
-            for_handler(NULL, NULL, NULL);
+            for_handler(NULL, NULL, NULL, false);
         } else {
             ptr = line_end + 1;
             lno++;
@@ -1721,7 +1738,7 @@ bool ExecuteGM9Script(const char* path_script) {
         return false;
     } else if (for_ptr) {
         ShowPrompt(false, "%s\nend of script: unresolved 'for'", path_str);
-        for_handler(NULL, NULL, NULL);
+        for_handler(NULL, NULL, NULL, false);
         return false;
     }
     
