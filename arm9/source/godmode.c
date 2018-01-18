@@ -1839,7 +1839,7 @@ u32 GodMode(int entrypoint) {
     if (IS_SIGHAX) { // we could actually do this on any entrypoint
         DsTime dstime;
         get_dstime(&dstime);
-        if ((DSTIMEGET(&dstime, bcd_Y) < 17) &&
+        if ((DSTIMEGET(&dstime, bcd_Y) < 18) &&
              ShowPrompt(true, "RTC date&time seems to be\nwrong. Set it now?") &&
              ShowRtcSetterPrompt(&dstime, "Set RTC date&time:")) {
             char timestr[32];
