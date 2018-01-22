@@ -1905,8 +1905,6 @@ u32 GodMode(int entrypoint) {
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
     while (godmode9) { // this is the main loop
-        int curr_drvtype = DriveType(current_path);
-        
         // basic sanity checking
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
             ShowPrompt(false, "Invalid directory object");
@@ -1922,6 +1920,8 @@ u32 GodMode(int entrypoint) {
         }
         if (cursor >= current_dir->n_entries) // cursor beyond allowed range
             cursor = current_dir->n_entries - 1;
+        
+        int curr_drvtype = DriveType(current_path);
         DirEntry* curr_entry = &(current_dir->entry[cursor]);
         if ((mark_next >= 0) && (curr_entry->type != T_DOTDOT)) {
             curr_entry->marked = mark_next;
