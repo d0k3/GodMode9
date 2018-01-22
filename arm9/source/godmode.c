@@ -2261,8 +2261,8 @@ u32 GodMode(int entrypoint) {
             u32 n_opt = 0;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
-            int scripts = (CheckSupportDir(SCRIPTS_DIR)) ? (int) ++n_opt : -1;
-            int payloads = (CheckSupportDir(PAYLOADS_DIR)) ? (int) ++n_opt : -1;
+            int scripts = ++n_opt;
+            int payloads = ++n_opt;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
@@ -2275,13 +2275,19 @@ u32 GodMode(int entrypoint) {
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
-                else if ((user_select == scripts) && (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9"))) {
-                    ExecuteGM9Script(loadpath);
-                    GetDirContents(current_dir, current_path);
-                    ClearScreenF(true, true, COLOR_STD_BG);
-                    break;
-                } else if ((user_select == payloads) && (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))) {
-                    BootFirmHandler(loadpath, false, false);
+                else if (user_select == scripts) {
+                    if (!CheckSupportDir(SCRIPTS_DIR)) {
+                        ShowPrompt(false, "Scripts directory not found.\n(default path: 0:/gm9/" SCRIPTS_DIR ")");
+                    } else if (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9")) {
+                        ExecuteGM9Script(loadpath);
+                        GetDirContents(current_dir, current_path);
+                        ClearScreenF(true, true, COLOR_STD_BG);
+                        break;
+                    }
+                } else if (user_select == payloads) {
+                    if (!CheckSupportDir(PAYLOADS_DIR)) ShowPrompt(false, "Payloads directory not found.\n(default path: 0:/gm9/" PAYLOADS_DIR ")");
+                    else if (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))
+                        BootFirmHandler(loadpath, false, false);
                 }
             }
             
