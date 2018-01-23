@@ -390,6 +390,36 @@ u32 SdFormatMenu(void) {
     return 0;
 }
 
+u32 FileGraphicsViewer(const char* path) {
+    u64 filetype = IdentifyFileType(path);
+    u8* bitmap = TEMP_BUFFER;
+    u32 buffer_size = TEMP_BUFFER_SIZE / 2;
+    u32 w = 0;
+    u32 h = 0;
+    
+    if (filetype & GFX_PCX) {
+        u8* pcx = TEMP_BUFFER + TEMP_BUFFER_SIZE / 2;
+        u32 pcx_size = FileGetData(path, pcx, TEMP_BUFFER_SIZE / 2, 0);
+        if ((pcx_size > 0) && (pcx_size <  TEMP_BUFFER_SIZE / 2) && 
+            (PCX_Decompress(bitmap, buffer_size, pcx, pcx_size))) {
+            PCXHdr* hdr = (PCXHdr*) (void*) pcx;
+            w = PCX_Width(hdr);
+            h = PCX_Height(hdr);
+        }
+    }
+    
+    if (w && h && (w < SCREEN_WIDTH(ALT_SCREEN)) && (h < SCREEN_HEIGHT)) {
+        ClearScreenF(true, true, COLOR_STD_BG);
+        DrawBitmap(ALT_SCREEN, -1, -1, w, h, bitmap);
+        ShowString("Press <A> to continue");
+        InputWait(0);
+        ClearScreenF(true, true, COLOR_STD_BG);
+        return 0;
+    }
+    
+    return 1;
+}
+
 u32 FileHexViewer(const char* path) {
     const u32 max_data = (SCREEN_HEIGHT / FONT_HEIGHT_EXT) * 16 * ((FONT_WIDTH_EXT > 4) ? 1 : 2);
     static u32 mode = 0;
@@ -962,6 +992,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool keyinstallable = (FTYPE_KEYINSTALL(filetype)) && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool fontable = (FTYPE_FONT(filetype));
+    bool viewable = (FTYPE_GFX(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype));
     bool installable = (FTYPE_INSTALLABLE(filetype));
     bool agbexportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
@@ -976,7 +1007,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         extrcodeable = (FTYPE_HASCODE(filetype_cxi));
     }
     
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || keyinstallable || bootable || scriptable || fontable || installable || agbexportable || agbimportable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable || agbimportable;
     
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1026,7 +1057,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & TXT_SCRIPT) ? "Execute GM9 script"    :
-        (filetype & FONT_PBM)   ? "Set as active font"   :
+        (filetype & FONT_PBM)   ? "Set as active font"    :
+        (filetype & GFX_PCX)    ? "View PCX bitmap file"  :
         (filetype & HDR_NAND)   ? "Rebuild NCSD header"   :
         (filetype & NOIMG_NAND) ? "Rebuild NCSD header" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
@@ -1170,6 +1202,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
     int font = (fontable) ? ++n_opt : -1;
+    int view = (viewable) ? ++n_opt : -1;
     int agbexport = (agbexportable) ? ++n_opt : -1;
     int agbimport = (agbimportable) ? ++n_opt : -1;
     if (mount > 0) optionstr[mount-1] = (filetype & GAME_TMD) ? "Mount CXI/NDS to drive" : "Mount image to drive";
@@ -1197,6 +1230,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (install > 0) optionstr[install-1] = "Install FIRM";
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
+    if (view > 0) optionstr[font-1] = "View PCX bitmap file";
     if (font > 0) optionstr[font-1] = "Set as active font";
     if (agbexport > 0) optionstr[agbexport-1] = "Dump GBA VC save";
     if (agbimport > 0) optionstr[agbimport-1] = "Inject GBA VC save";
@@ -1609,6 +1643,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         u32 pbm_size = FileGetData(file_path, TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
         if (pbm_size) SetFontFromPbm(TEMP_BUFFER, pbm_size);
         ClearScreenF(true, true, COLOR_STD_BG);
+        return 0;
+    }
+    else if (user_select == view) { // view gfx
+        if (FileGraphicsViewer(file_path) != 0)
+            ShowPrompt(false, "%s\nError: Cannot view file");
         return 0;
     }
     else if (user_select == agbexport) { // export GBA VC save

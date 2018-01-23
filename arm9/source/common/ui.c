@@ -169,6 +169,10 @@ void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap)
     if (x < 0) x = (SCREEN_WIDTH(screen) - w) >> 1;
     if (y < 0) y = (SCREEN_HEIGHT - h) >> 1;
     
+    // bug out on too big bitmaps / too large dimensions
+    if ((x < 0) || (y < 0) || (w > SCREEN_WIDTH(screen)) || (h > SCREEN_HEIGHT))
+        return;
+    
     u8* bitmapPos = bitmap;
     for (int yy = 0; yy < h; yy++) {
         int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);

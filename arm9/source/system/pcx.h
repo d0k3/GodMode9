@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include "common.h"
 
+#define PCX_MAGIC   0x0A, 0x05, 0x01, 0x08
+
 typedef struct {
     u8  manufacturer;
     u8  version;
