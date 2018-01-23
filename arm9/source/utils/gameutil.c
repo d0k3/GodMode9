@@ -1512,12 +1512,14 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
 }
 
 u32 ShowSmdhTitleInfo(Smdh* smdh) {
+    const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
     u8* icon = (u8*) (TEMP_BUFFER + sizeof(Smdh));
     char* desc_l = (char*) icon + SMDH_SIZE_ICON_BIG;
     char* desc_s = (char*) desc_l + SMDH_SIZE_DESC_LONG;
     char* pub = (char*) desc_s + SMDH_SIZE_DESC_SHORT;
-    if ((GetSmdhIconBig(icon, smdh) != 0) ||
+    if ((memcmp(smdh->magic, smdh_magic, 4) != 0) ||
+        (GetSmdhIconBig(icon, smdh) != 0) ||
         (GetSmdhDescLong(desc_l, smdh) != 0) ||
         (GetSmdhDescShort(desc_s, smdh) != 0) ||
         (GetSmdhPublisher(pub, smdh) != 0))
