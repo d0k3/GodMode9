@@ -800,11 +800,12 @@ void CreateScreenshot() {
     };
     u8* buffer = MAIN_BUFFER + 54;
     u8* buffer_t = buffer + (400 * 240 * 3);
-    char filename[16];
+    char filename[64];
     static u32 n = 0;
     
+    fvx_rmkdir(OUTPUT_PATH);
     for (; n < 1000; n++) {
-        snprintf(filename, 16, "0:/snap%03i.bmp", (int) n);
+        snprintf(filename, 64, OUTPUT_PATH "/snap%03i.bmp", (int) n);
         if (fa_stat(filename, NULL) != FR_OK) break;
     }
     if (n >= 1000) return;
