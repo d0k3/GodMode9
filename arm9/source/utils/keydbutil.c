@@ -3,13 +3,11 @@
 #include "ui.h"
 #include "unittype.h"
 
-#define MAX_KEYDB_SIZE  (TEMP_BUFFER_SIZE)
+#define MAX_KEYDB_SIZE  (STD_BUFFER_SIZE)
 
 u32 CryptAesKeyDb(const char* path, bool inplace, bool encrypt) {
-    AesKeyInfo* keydb = (AesKeyInfo*) MAIN_BUFFER;
+    AesKeyInfo* keydb = NULL;
     const char* path_out = (inplace) ? path : OUTPUT_PATH "/" KEYDB_NAME;
-    u32 n_keys;
-    UINT bt, btw;
     
     // write permissions
     if (!CheckWritePermissions(path_out))
@@ -21,13 +19,22 @@ u32 CryptAesKeyDb(const char* path, bool inplace, bool encrypt) {
             return 1;
     }
     
-    // load key database
-    if ((fvx_qread(path, keydb, 0, MAIN_BUFFER_SIZE, &bt) != FR_OK) ||
-        (bt % sizeof(AesKeyInfo)) || (bt >= MAIN_BUFFER_SIZE))
+    // check key database size
+    u32 fsize = fvx_qsize(path);
+    if (!fsize || (fsize % sizeof(AesKeyInfo)) || (fsize > MAX_KEYDB_SIZE))
         return 1;
     
+    keydb = (AesKeyInfo*) malloc(fsize);
+    if (!keydb) return 1;
+    
+    // load key database
+    if (fvx_qread(path, keydb, 0, fsize, NULL) != FR_OK) {
+        free(keydb);
+        return 1;
+    }
+    
     // en-/decrypt keys
-    n_keys = bt / sizeof(AesKeyInfo);
+    u32 n_keys = fsize / sizeof(AesKeyInfo);
     for (u32 i = 0; i < n_keys; i++) {
         if ((bool) keydb[i].isEncrypted == !encrypt)
             CryptAesKeyInfo(&(keydb[i]));
@@ -35,9 +42,12 @@ u32 CryptAesKeyDb(const char* path, bool inplace, bool encrypt) {
     
     // dump key database
     if (!inplace) f_unlink(path_out);
-    if ((fvx_qwrite(path_out, keydb, 0, bt, &btw) != FR_OK) || (bt != btw))
+    if (fvx_qwrite(path_out, keydb, 0, fsize, NULL) != FR_OK) {
+        free(keydb);
         return 1;
+    }
     
+    free(keydb);
     return 0;
 }
 
@@ -59,16 +69,19 @@ u32 AddKeyToDb(AesKeyInfo* key_info, AesKeyInfo* key_entry) {
 }
 
 u32 BuildKeyDb(const char* path, bool dump) {
-    AesKeyInfo* key_info = (AesKeyInfo*) MAIN_BUFFER;
+    static AesKeyInfo* key_info = NULL;
     const char* path_out = OUTPUT_PATH "/" KEYDB_NAME;
     const char* path_in = path;
-    UINT br;
     
     // write permissions
     if (!CheckWritePermissions(path_out))
         return 1;
     
     if (!path_in && !dump) { // no input path given - initialize
+        if (!key_info) key_info = (AesKeyInfo*) malloc(STD_BUFFER_SIZE);
+        if (!key_info) return 1;
+        memset(key_info, 0xFF, sizeof(AesKeyInfo));
+        
         AddKeyToDb(key_info, NULL);
         if ((fvx_stat(path_out, NULL) == FR_OK) &&
             (ShowPrompt(true, "%s\nOutput file already exists.\nUpdate this?", path_out)))
@@ -76,30 +89,46 @@ u32 BuildKeyDb(const char* path, bool dump) {
         else return 0;
     }
     
+    // key info has to be allocated at this point
+    if (!key_info) return 1;
+    
     u64 filetype = path_in ? IdentifyFileType(path_in) : 0;
     if (filetype & BIN_KEYDB) { // AES key database
-        AesKeyInfo* key_info_merge = (AesKeyInfo*) TEMP_BUFFER;
-        if ((fvx_qread(path_in, key_info_merge, 0, TEMP_BUFFER_SIZE, &br) != FR_OK) ||
-            (br % sizeof(AesKeyInfo)) || (br >= MAIN_BUFFER_SIZE)) return 1;
-        u32 n_keys = br / sizeof(AesKeyInfo);
-        for (u32 i = 0; i < n_keys; i++) {
-            if (key_info_merge[i].isEncrypted) // build an unencrypted db
-                CryptAesKeyInfo(&(key_info_merge[i]));
-            if (AddKeyToDb(key_info, key_info_merge + i) != 0) return 1;
+        u32 fsize = fvx_qsize(path_in);
+        if ((fsize % sizeof(AesKeyInfo)) || (fsize > MAX_KEYDB_SIZE))
+            return 1;
+        
+        u32 n_keys = fsize / sizeof(AesKeyInfo);
+        u32 merged_keys = 0;
+    
+        AesKeyInfo* key_info_merge = (AesKeyInfo*) malloc(fsize);
+        if (fvx_qread(path_in, key_info_merge, 0, fsize, NULL) == FR_OK) {
+            for (u32 i = 0; i < n_keys; i++) {
+                if (key_info_merge[i].isEncrypted) // build an unencrypted db
+                    CryptAesKeyInfo(&(key_info_merge[i]));
+                if (AddKeyToDb(key_info, key_info_merge + i) != 0) break;
+                merged_keys++;
+            }
         }
+        
+        free(key_info_merge);
+        if (merged_keys < n_keys) return 1;
     } else if (filetype & BIN_LEGKEY) { // legacy key file
         AesKeyInfo key;
         unsigned int keyslot = 0xFF;
         char typestr[32] = { 0 };
         char* name_in = strrchr(path_in, '/');
+        
         memset(&key, 0, sizeof(AesKeyInfo));
         key.type = 'N';
         if (!name_in || (strnlen(++name_in, 32) > 24)) return 1; // safety
         if ((sscanf(name_in, "slot0x%02XKey%s", &keyslot, typestr) != 2) &&
             (sscanf(name_in, "slot0x%02Xkey%s", &keyslot, typestr) != 2)) return 1;
+            
         char* ext = strchr(typestr, '.');
         if (!ext) return 1;
         *(ext++) = '\0';
+        
         if ((*typestr == 'X') || (*typestr == 'Y')) {
             key.type = *typestr;
             strncpy(key.id, typestr + 1, 10);
@@ -110,21 +139,28 @@ u32 BuildKeyDb(const char* path, bool dump) {
         key.slot = keyslot;
         key.keyUnitType = (strncasecmp(ext, "ret.bin", 10) == 0) ? KEYS_RETAIL :
             (strncasecmp(ext, "dev.bin", 10) == 0) ? KEYS_DEVKIT : 0;
-        if ((fvx_qread(path_in, key.key, 0, 16, &br) != FR_OK) || (br != 16)) return 1;
+        if (fvx_qread(path_in, key.key, 0, 16, NULL) != FR_OK) return 1;
         if (AddKeyToDb(key_info, &key) != 0) return 1;
     }
     
     if (dump) {
         u32 dump_size = 0;
         for (AesKeyInfo* key = key_info; key->slot <= 0x40; key++) {
-            dump_size += sizeof(AesKeyInfo);
-            if (dump_size >= MAX_KEYDB_SIZE) return 1;
+            u32 dump_size_next = dump_size + sizeof(AesKeyInfo);
+            if (dump_size_next > MAX_KEYDB_SIZE) break;
+            dump_size = dump_size_next;
         }
-        if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) // ensure the output dir exists
-            return 1;
-        f_unlink(path_out);
-        if (!dump_size || (fvx_qwrite(path_out, key_info, 0, dump_size, &br) != FR_OK) || (br != dump_size))
-            return 1;
+        
+        if (dump_size) {
+            if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) // ensure the output dir exists
+                return 1;
+            f_unlink(path_out);
+            if (fvx_qwrite(path_out, key_info, 0, dump_size, NULL) != FR_OK)
+                return 1;
+        }
+        
+        free(key_info);
+        key_info = NULL;
     }
     
     return 0;

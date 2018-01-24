@@ -77,9 +77,14 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     VolToPart[0].pt = 1; // workaround to prevent FatFS rebuilding the MBR
     InitSDCardFS();
     UINT c_size = cluster_size;
-    bool ret = ((f_mkfs("0:", FM_FAT32, c_size, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK) || 
-        (f_mkfs("0:", FM_FAT32, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK)) &&
+    
+    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buffer) bkpt; // will not happen
+    bool ret = ((f_mkfs("0:", FM_FAT32, c_size, buffer, STD_BUFFER_SIZE) == FR_OK) || 
+        (f_mkfs("0:", FM_FAT32, 0, buffer, STD_BUFFER_SIZE) == FR_OK)) &&
         (f_setlabel((label) ? label : "0:GM9SD") == FR_OK);
+    free(buffer);
+    
     DeinitSDCardFS();
     VolToPart[0].pt = 0; // revert workaround to prevent SD mount problems
     
@@ -91,7 +96,12 @@ bool SetupBonusDrive(void) {
         return false;
     ShowString("Formatting drive, please wait...");
     if (GetMountState() & IMG_NAND) InitImgFS(NULL);
-    bool ret = (f_mkfs("8:", FM_ANY, 0, MAIN_BUFFER, MAIN_BUFFER_SIZE) == FR_OK);
+    
+    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buffer) bkpt;
+    bool ret = (f_mkfs("8:", FM_ANY, 0, buffer, STD_BUFFER_SIZE) == FR_OK);
+    free(buffer);
+    
     if (ret) {
         f_setlabel("8:BONUS");
         InitExtFS();
@@ -146,23 +156,32 @@ bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size) {
     
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return false;
+    
     fsize = fvx_size(&file);
     if (offset + size > fsize) return false;
     if (!size) size = fsize - offset;
     fvx_lseek(&file, offset);
+    
+    u32 bufsiz = min(STD_BUFFER_SIZE, fsize);
+    u8* buffer = (u8*) malloc(bufsiz);
+    if (!buffer) return false;
+    
     ShowProgress(0, 0, path);
     sha_init(SHA256_MODE);
-    for (u64 pos = 0; (pos < size) && ret; pos += MAIN_BUFFER_SIZE) {
-        UINT read_bytes = min(MAIN_BUFFER_SIZE, size - pos);
+    for (u64 pos = 0; (pos < size) && ret; pos += bufsiz) {
+        UINT read_bytes = min(bufsiz, size - pos);
         UINT bytes_read = 0;
-        if (fvx_read(&file, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK)
+        if (fvx_read(&file, buffer, read_bytes, &bytes_read) != FR_OK)
             ret = false;
         if (!ShowProgress(pos + bytes_read, size, path))
             ret = false;
-        sha_update(MAIN_BUFFER, bytes_read);
+        sha_update(buffer, bytes_read);
     }
+    
     sha_get(sha256);
     fvx_close(&file);
+    free(buffer);
+    
     ShowProgress(1, 1, path);
     
     return ret;
@@ -176,20 +195,23 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return found;
     
+    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buffer) return false;
+    
     // main routine
     for (u32 pass = 0; pass < 2; pass++) {
         bool show_progress = false;
         u64 pos = (pass == 0) ? offset_file : 0;
         u64 search_end = (pass == 0) ? fsize : offset_file + size_data;
         search_end = (search_end > fsize) ? fsize : search_end;
-        for (; (pos < search_end) && (found == (u64) -1); pos += MAIN_BUFFER_SIZE - (size_data - 1)) {
-            UINT read_bytes = min(MAIN_BUFFER_SIZE, search_end - pos);
+        for (; (pos < search_end) && (found == (u64) -1); pos += STD_BUFFER_SIZE - (size_data - 1)) {
+            UINT read_bytes = min(STD_BUFFER_SIZE, search_end - pos);
             UINT btr;
             fvx_lseek(&file, pos);
-            if ((fvx_read(&file, MAIN_BUFFER, read_bytes, &btr) != FR_OK) || (btr != read_bytes))
+            if ((fvx_read(&file, buffer, read_bytes, &btr) != FR_OK) || (btr != read_bytes))
                 break;
             for (u32 i = 0; i + size_data <= read_bytes; i++) {
-                if (memcmp(MAIN_BUFFER + i, data, size_data) == 0) {
+                if (memcmp(buffer + i, data, size_data) == 0) {
                     found = pos + i;
                     break;
                 }
@@ -202,6 +224,8 @@ u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file) {
                 break;
         }
     }
+    
+    free(buffer);
     fvx_close(&file);
     
     return found;
@@ -244,14 +268,17 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
         return false;
     }
     
+    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buffer) return false;
+    
     bool ret = true;
     ShowProgress(0, 0, orig);
-    for (u64 pos = 0; (pos < size) && ret; pos += MAIN_BUFFER_SIZE) {
-        UINT read_bytes = min(MAIN_BUFFER_SIZE, size - pos);
+    for (u64 pos = 0; (pos < size) && ret; pos += STD_BUFFER_SIZE) {
+        UINT read_bytes = min(STD_BUFFER_SIZE, size - pos);
         UINT bytes_read = read_bytes;
         UINT bytes_written = read_bytes;
-        if ((fvx_read(&ofile, MAIN_BUFFER, read_bytes, &bytes_read) != FR_OK) ||
-            (fvx_write(&dfile, MAIN_BUFFER, read_bytes, &bytes_written) != FR_OK) ||
+        if ((fvx_read(&ofile, buffer, read_bytes, &bytes_read) != FR_OK) ||
+            (fvx_write(&dfile, buffer, read_bytes, &bytes_written) != FR_OK) ||
             (bytes_read != bytes_written))
             ret = false;
         if (ret && !ShowProgress(pos + bytes_read, size, orig)) {
@@ -264,6 +291,7 @@ bool FileInjectFile(const char* dest, const char* orig, u64 off_dest, u64 off_or
     }
     ShowProgress(1, 1, orig);
     
+    free(buffer);
     fvx_close(&dfile);
     fvx_close(&ofile);
     
@@ -290,13 +318,17 @@ bool FileSetByte(const char* dest, u64 offset, u64 size, u8 fillbyte, u32* flags
         return false;
     }
     
+    u32 bufsiz = min(STD_BUFFER_SIZE, size);
+    u8* buffer = (u8*) malloc(bufsiz);
+    if (!buffer) return false;
+    memset(buffer, fillbyte, bufsiz);
+    
     bool ret = true;
-    memset(MAIN_BUFFER, fillbyte, size);
     ShowProgress(0, 0, dest);
-    for (u64 pos = 0; (pos < size) && ret; pos += MAIN_BUFFER_SIZE) {
-        UINT write_bytes = min(MAIN_BUFFER_SIZE, size - pos);
+    for (u64 pos = 0; (pos < size) && ret; pos += bufsiz) {
+        UINT write_bytes = min(bufsiz, size - pos);
         UINT bytes_written = write_bytes;
-        if ((fvx_write(&dfile, MAIN_BUFFER, write_bytes, &bytes_written) != FR_OK) ||
+        if ((fvx_write(&dfile, buffer, write_bytes, &bytes_written) != FR_OK) ||
             (write_bytes != bytes_written))
             ret = false;
         if (ret && !ShowProgress(pos + bytes_written, size, dest)) {
@@ -309,6 +341,7 @@ bool FileSetByte(const char* dest, u64 offset, u64 size, u8 fillbyte, u32* flags
     }
     ShowProgress(1, 1, dest);
     
+    free(buffer);
     fvx_close(&dfile);
     
     return ret;
@@ -396,7 +429,7 @@ bool PathExist(const char* path) {
     return (fvx_stat(path, NULL) == FR_OK);
 }
 
-bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
+bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, u32 bufsiz) {
     bool to_virtual = GetVirtualSource(dest);
     bool silent = (flags && (*flags & SILENT));
     bool ret = false;
@@ -451,12 +484,14 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
                 if (oname == NULL) return false; // not a proper origin path
                 *(dname++) = '/';
                 strncpy(dname, oname++, 256 - (dname - dest));
-                bool res = PathMoveCopyRec(dest, orig, flags, move);
+                bool res = PathMoveCopyRec(dest, orig, flags, move, buffer, bufsiz);
                 *(--dname) = '\0';
                 if (!res) break;
             }
         }
+        
         fvx_closedir(&pdir);
+        *(--fname) = '\0';
     } else if (move) { // moving if destination exists
         if (fvx_stat(dest, &fno) != FR_OK) return false;
         if (fno.fattrib & AM_DIR) {
@@ -495,11 +530,11 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
         fvx_sync(&ofile);
         
         if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
-        for (u64 pos = 0; (pos < fsize) && ret; pos += MAIN_BUFFER_SIZE) {
+        for (u64 pos = 0; (pos < fsize) && ret; pos += bufsiz) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
-            if ((fvx_read(&ofile, MAIN_BUFFER, MAIN_BUFFER_SIZE, &bytes_read) != FR_OK) ||
-                (fvx_write(&dfile, MAIN_BUFFER, bytes_read, &bytes_written) != FR_OK) ||
+            if ((fvx_read(&ofile, buffer, bufsiz, &bytes_read) != FR_OK) ||
+                (fvx_write(&dfile, buffer, bytes_read, &bytes_written) != FR_OK) ||
                 (bytes_read != bytes_written))
                 ret = false;
             if (ret && !ShowProgress(pos + bytes_read, fsize, orig)) {
@@ -510,7 +545,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move) {
                 ShowProgress(pos + bytes_read, fsize, orig);
             }
             if (flags && (*flags & CALC_SHA))
-                sha_update(MAIN_BUFFER, bytes_read);
+                sha_update(buffer, bytes_read);
         }
         ShowProgress(1, 1, orig);
         
@@ -607,10 +642,16 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         // ensure the destination path exists
         if (flags && (*flags & BUILD_PATH)) fvx_rmkpath(ldest);
         
+        // setup buffer
+        u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+        if (!buffer) return false;
+        
         // actual move / copy operation
         bool same_drv = (strncasecmp(lorig, ldest, 2) == 0);
-        bool res = PathMoveCopyRec(ldest, lorig, flags, move && same_drv);
+        bool res = PathMoveCopyRec(ldest, lorig, flags, move && same_drv, buffer, STD_BUFFER_SIZE);
         if (move && res && (!flags || !(*flags&SKIP_CUR))) PathDelete(lorig);
+        
+        free(buffer);
         return res;
     } else { // virtual destination handling
         // can't write an SHA file to a virtual destination
@@ -620,7 +661,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         // handle NAND image unmounts
         if (ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
             FILINFO fno;
-            // virtual NAND files over 4 MB require unomunt, totally arbitrary limit (hacky!)
+            // virtual NAND files over 4 MB require unmount, totally arbitrary limit (hacky!)
             if ((fvx_stat(ldest, &fno) == FR_OK) && (fno.fsize > 4 * 1024 * 1024))
                 force_unmount = true;
         }
@@ -637,10 +678,16 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
             return false;
         }
         
+        // setup buffer
+        u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+        if (!buffer) return false;
+        
         // actual virtual copy operation
         if (force_unmount) DismountDriveType(DriveType(ldest)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));
-        bool res = PathMoveCopyRec(ldest, lorig, flags, false);
+        bool res = PathMoveCopyRec(ldest, lorig, flags, false, buffer, STD_BUFFER_SIZE);
         if (force_unmount) InitExtFS();
+        
+        free(buffer);
         return res;
     }
 }
@@ -719,8 +766,8 @@ bool PathAttr(const char* path, u8 attr, u8 mask) {
     return (f_chmod(path, attr, mask) == FR_OK);
 }
 
-bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags) {
-    DirStruct* contents = (DirStruct*) (void*) TEMP_BUFFER;
+bool FileSelectorWorker(char* result, const char* text, const char* path, const char* pattern, u32 flags, void* buffer) {
+    DirStruct* contents = (DirStruct*) buffer;
     char path_local[256];
     strncpy(path_local, path, 256);
     
@@ -773,7 +820,7 @@ bool FileSelector(char* result, const char* text, const char* path, const char* 
                 if (select_dirs) {
                     strncpy(result, res_local->path, 256);
                     return true;
-                } else if (FileSelector(result, text, res_local->path, pattern, flags)) {
+                } else if (FileSelectorWorker(result, text, res_local->path, pattern, flags, buffer)) {
                     return true;
                 }
                 break;
@@ -791,15 +838,24 @@ bool FileSelector(char* result, const char* text, const char* path, const char* 
     }
 }
 
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags) {
+    void* buffer = (void*) malloc(sizeof(DirStruct));
+    if (!buffer) return false;
+    
+    bool ret = FileSelectorWorker(result, text, path, pattern, flags, buffer);
+    free(buffer);
+    return ret;
+}
+
 void CreateScreenshot() {
+    const u32 snap_size = 54 + (400 * 240 * 3 * 2);
     const u8 bmp_header[54] = {
         0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,
         0x00, 0x00, 0x90, 0x01, 0x00, 0x00, 0xE0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0xCA, 0x08, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
-    u8* buffer = MAIN_BUFFER + 54;
-    u8* buffer_t = buffer + (400 * 240 * 3);
+    
     char filename[64];
     static u32 n = 0;
     
@@ -810,13 +866,21 @@ void CreateScreenshot() {
     }
     if (n >= 1000) return;
     
-    memcpy(MAIN_BUFFER, bmp_header, 54);
-    memset(buffer, 0x1F, 400 * 240 * 3 * 2);
+    u8* buffer = (u8*) malloc(snap_size);
+    if (!buffer) return;
+    
+    u8* buffer_b = buffer + 54;
+    u8* buffer_t = buffer_b + (400 * 240 * 3);
+    
+    memset(buffer, 0x1F, snap_size); // gray background
+    memcpy(buffer, bmp_header, 54);
     for (u32 x = 0; x < 400; x++)
         for (u32 y = 0; y < 240; y++)
             memcpy(buffer_t + (y*400 + x) * 3, TOP_SCREEN + (x*240 + y) * 3, 3);
     for (u32 x = 0; x < 320; x++)
         for (u32 y = 0; y < 240; y++)
-            memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN + (x*240 + y) * 3, 3);
-    FileSetData(filename, MAIN_BUFFER, 54 + (400 * 240 * 3 * 2), 0, true);
+            memcpy(buffer_b + (y*400 + x + 40) * 3, BOT_SCREEN + (x*240 + y) * 3, 3);
+    FileSetData(filename, buffer, snap_size, 0, true);
+    
+    free(buffer);
 }

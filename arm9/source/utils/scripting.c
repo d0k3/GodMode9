@@ -925,16 +925,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ShowPrompt(false, argv[0]);
     }
     else if (id == CMD_ID_QR) {
+        const u32 screen_size = SCREEN_SIZE(ALT_SCREEN);
+        u8* screen_copy = (u8*) malloc(screen_size);
         u8 qrcode[qrcodegen_BUFFER_LEN_MAX];
         u8 temp[qrcodegen_BUFFER_LEN_MAX];
-        ret = qrcodegen_encodeText(argv[1], temp, qrcode, qrcodegen_Ecc_LOW,
+        ret = screen_copy && qrcodegen_encodeText(argv[1], temp, qrcode, qrcodegen_Ecc_LOW,
             qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
         if (ret) {
-            memcpy(TEMP_BUFFER, ALT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_ALT * 3));
+            memcpy(screen_copy, ALT_SCREEN, screen_size);
             DrawQrCode(ALT_SCREEN, qrcode);
             ShowPrompt(false, argv[0]);
-            memcpy(ALT_SCREEN, TEMP_BUFFER, (SCREEN_HEIGHT * SCREEN_WIDTH_ALT * 3));
-        }
+            memcpy(ALT_SCREEN, screen_copy, screen_size);
+        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
+        free(screen_copy);
     }
     else if (id == CMD_ID_ASK) {
         ret = ShowPrompt(true, argv[0]);
@@ -1211,16 +1214,23 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
     }
     else if (id == CMD_ID_BOOT) {
-        size_t firm_size = FileGetData(argv[0], TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
-        ret = firm_size && IsBootableFirm(TEMP_BUFFER, firm_size);
-        if (ret) {
-            char fixpath[256] = { 0 };
-            if ((*argv[0] == '0') || (*argv[0] == '1'))
-                snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
-            else strncpy(fixpath, argv[0], 256);
-            BootFirm((FirmHeader*)(void*)TEMP_BUFFER, fixpath);
-            while(1);
-        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
+        u8* firm = (u8*) malloc(FIRM_MAX_SIZE);
+        if (!firm) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
+        } else {
+            size_t firm_size = FileGetData(argv[0], firm, FIRM_MAX_SIZE, 0);
+            ret = firm_size && IsBootableFirm(firm, firm_size);
+            if (ret) {
+                char fixpath[256] = { 0 };
+                if ((*argv[0] == '0') || (*argv[0] == '1'))
+                    snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
+                else strncpy(fixpath, argv[0], 256);
+                BootFirm((FirmHeader*)(void*)firm, fixpath);
+                while(1);
+            } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
+            free(firm);
+        }
     }
     else if (id == CMD_ID_SWITCHSD) {
         DeinitExtFS();
@@ -1255,7 +1265,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         PowerOff();
     }
     else if (id == CMD_ID_BKPT) {
-        asm("bkpt\n\t");
+        bkpt;
         while(1);
     }
     else { // command not recognized / bad number of arguments
@@ -1566,13 +1576,19 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
 
 bool FileTextViewer(const char* path, bool as_script) {
     // load text file (completely into memory)
-    char* text = (char*) TEMP_BUFFER;
-    u32 flen = FileGetData(path, text, TEMP_BUFFER_SIZE, 0);
+    // text file needs to fit inside the STD_BUFFER_SIZE
+    char* text = (char*) malloc(STD_BUFFER_SIZE);
+    if (!text) return false;
+    
+    u32 flen = FileGetData(path, text, STD_BUFFER_SIZE, 0);
     u32 len = 0; // actual length may be shorter due to zero symbol
     for (len = 0; (len < flen) && text[len]; len++);
     
     // let MemTextViewer take over
-    return MemTextViewer(text, len, 1, as_script);
+    bool result = MemTextViewer(text, len, 1, as_script);
+    
+    free(text);
+    return result;
 }
 
 bool ExecuteGM9Script(const char* path_script) {
@@ -1624,16 +1640,20 @@ bool ExecuteGM9Script(const char* path_script) {
                     ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                 if (preview_mode > 2) {
                     char* preview_str = get_var("PREVIEW_MODE", NULL);
-                    u8* pcx = TEMP_BUFFER + TEMP_BUFFER_SIZE / 2;
-                    u32 pcx_size = FileGetData(preview_str, pcx, TEMP_BUFFER_SIZE / 2, 0);
-                    if ((pcx_size > 0) && (pcx_size <  TEMP_BUFFER_SIZE / 2) && 
-                        (PCX_Decompress(TEMP_BUFFER, TEMP_BUFFER_SIZE / 2, pcx, pcx_size))) {
+                    u32 pcx_size = fvx_qsize(preview_str);
+                    u8* pcx = (u8*) malloc(SCREEN_SIZE_TOP);
+                    u8* bitmap = (u8*) malloc(SCREEN_SIZE_TOP);
+                    if (pcx && bitmap && pcx_size && (pcx_size <  SCREEN_SIZE_TOP) && 
+                        (pcx_size == FileGetData(preview_str, pcx, pcx_size, 0)) &&
+                        (PCX_Decompress(bitmap, SCREEN_SIZE_TOP, pcx, pcx_size))) {
                         PCXHdr* hdr = (PCXHdr*) (void*) pcx;
-                        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), TEMP_BUFFER);
+                        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), bitmap);
                     } else {
                         if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = "(preview disabled)";
                         DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, preview_str);
                     }
+                    if (pcx) free(pcx);
+                    if (bitmap) free(bitmap);
                     preview_mode = 0;
                 }
                 preview_mode_local = preview_mode;

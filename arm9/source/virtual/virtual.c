@@ -192,18 +192,22 @@ int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u
 }
 
 int DeleteVirtualFile(const VirtualFile* vfile) {
-    u8* zeroes = (u8*) TEMP_BUFFER;
-    u32 zeroes_size = TEMP_BUFFER_SIZE;
-    
     if (!(vfile->flags & VFLAG_DELETABLE)) return -1;
-    memset(zeroes, 0x00, TEMP_BUFFER_SIZE);
+    
+    u32 zeroes_size = STD_BUFFER_SIZE;
+    u8* zeroes = (u8*) malloc(zeroes_size);
+    if (!zeroes) return -1;
+    memset(zeroes, 0x00, zeroes_size);
+    
+    int result = 0;
     for (u64 pos = 0; pos < vfile->size; pos += zeroes_size) {
         u64 wipe_bytes = min(zeroes_size, vfile->size - pos);
-        if (WriteVirtualFile(vfile, zeroes, pos, wipe_bytes, NULL) != 0)
-            return -1;
+        result = WriteVirtualFile(vfile, zeroes, pos, wipe_bytes, NULL);
+        if (result != 0) break;
     }
     
-    return 0;
+    free(zeroes);
+    return result;
 }
 
 u64 GetVirtualDriveSize(const char* path) {

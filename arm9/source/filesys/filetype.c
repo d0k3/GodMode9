@@ -133,7 +133,7 @@ u64 IdentifyFileType(const char* path) {
         u64 type = 0;
         if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
             type |= TXT_SCRIPT; // should be a script (which is also generic text)
-        if (fsize < TEMP_BUFFER_SIZE) type |= TXT_GENERIC;
+        if (fsize < STD_BUFFER_SIZE) type |= TXT_GENERIC;
         return type;
     } else if ((strncmp(path + 2, "/Nintendo DSiWare/", 18) == 0) &&
         (sscanf(fname, "%08lx.bin", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0)) {

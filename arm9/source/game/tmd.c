@@ -35,7 +35,7 @@ u32 FixTmdHashes(TitleMetaData* tmd) {
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size) {
     const u8 sig_type[4] =  { TMD_SIG_TYPE };
     // safety check: number of contents
-    if (n_contents > TMD_MAX_CONTENTS) return 1; // !!!
+    if (n_contents > TMD_MAX_CONTENTS) return 1; // potential incompatibility here (!)
     // set TMD all zero for a clean start
     memset(tmd, 0x00, TMD_SIZE_N(n_contents));
     // file TMD values

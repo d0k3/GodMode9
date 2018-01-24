@@ -131,11 +131,13 @@ u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
 
 u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     bool found = false;
+    TitleKeysInfo* tikdb = (TitleKeysInfo*) malloc(STD_BUFFER_SIZE); // more than enough
+    if (!tikdb) return 1;
+    
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
     // when found, add it to the ticket
     for (u32 enc = 0; (enc <= 1) && !found; enc++) {
-        TitleKeysInfo* tikdb = (TitleKeysInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-        u32 len = LoadSupportFile((enc) ? TIKDB_NAME_ENC : TIKDB_NAME_DEC, tikdb, (TEMP_BUFFER_SIZE/2));
+        u32 len = LoadSupportFile((enc) ? TIKDB_NAME_ENC : TIKDB_NAME_DEC, tikdb, STD_BUFFER_SIZE);
         
         if (len == 0) continue; // file not found
         if (tikdb->n_entries > (len - 16) / 32)
@@ -153,6 +155,7 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
         }
     }
     
+    free(tikdb);
     return (found) ? 0 : 1;
 }
 

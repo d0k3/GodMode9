@@ -63,6 +63,10 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
         return 0;
     }
     
+    // setup a large enough buffer
+    u8* buffer = (u8*) malloc(max(STD_BUFFER_SIZE, SEEDSAVE_MAX_ENTRIES*(8+16)*2));
+    if (!buffer) return 1;
+    
     // try to grab the seed from NAND database
     const u32 seed_offset[2] = {SEEDSAVE_AREA_OFFSETS};
     const char* nand_drv[] = {"1:", "4:"}; // SysNAND and EmuNAND
@@ -87,8 +91,8 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
             
         // check seedsave for seed
         u8* seeddb[2];
-        seeddb[0] = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-        seeddb[1] = seeddb[0] + (SEEDSAVE_MAX_ENTRIES*(8+16));
+        seeddb[0] = buffer;
+        seeddb[1] = buffer + (SEEDSAVE_MAX_ENTRIES*(8+16));
         if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
             continue;
         f_read(&file, seeddb[0], 0x200, &btr);
@@ -110,6 +114,7 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
                     if (hash_seed == sha256sum[0]) {
                         memcpy(seed, lseed, 16);
                         f_close(&file);
+                        free(buffer);
                         return 0; // found!
                     }
                 }
@@ -119,8 +124,8 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     }
     
     // not found -> try seeddb.bin
-    SeedInfo* seeddb = (SeedInfo*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-    size_t len = LoadSupportFile(SEEDDB_NAME, seeddb, (TEMP_BUFFER_SIZE/2)); 
+    SeedInfo* seeddb = (SeedInfo*) (void*) buffer;
+    size_t len = LoadSupportFile(SEEDDB_NAME, seeddb, STD_BUFFER_SIZE); 
     if (len && (seeddb->n_entries <= (len - 16) / 32)) { // check filesize / seeddb size
         for (u32 s = 0; s < seeddb->n_entries; s++) {
             if (titleId != seeddb->entries[s].titleId)
@@ -129,12 +134,14 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
             sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
             if (hash_seed == sha256sum[0]) {
                 memcpy(seed, lseed, 16);
+                free(buffer);
                 return 0; // found!
             }
         }
     }
     
     // out of options -> failed!
+    free(buffer);
     return 1;
 }
 

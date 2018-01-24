@@ -602,31 +602,32 @@ bool BuildVGameFirmDir(void) {
         templates[n].flags = VFLAG_NO_CRYPTO;
         n++;
         if (section->method == FIRM_NDMA_CPY) { // ARM9 section, search for Process9
-            u8* buffer = (u8*) (TEMP_BUFFER + (TEMP_BUFFER_SIZE/2));
-            u32 buffer_size = TEMP_BUFFER_SIZE/2;
-            NcchHeader* p9_ncch;
+            NcchHeader p9_ncch;
             char name[8];
             u32 offset_p9 = 0;
-            for (u32 p = 0; (p < section->size) && (!offset_p9); p += buffer_size) {
-                u32 btr = min(buffer_size, (section->size - p));
-                if (ReadGameImageBytes(buffer, section->offset + p, btr) != 0) break;
-                for (u32 s = 0; (s < btr) && (!offset_p9); s += 0x10) {
-                    p9_ncch = (NcchHeader*) (void*) (buffer + s);
-                    if ((ValidateNcchHeader(p9_ncch) == 0) &&
-                        (ReadGameImageBytes((u8*) name, section->offset + p + s + 0x200, 8) == 0))
-                        offset_p9 = section->offset + p + s;
+            
+            u8* buffer = (u8*) malloc(section->size);
+            if (buffer) {
+                if (ReadGameImageBytes(buffer, section->offset, section->size) != 0) break;
+                for (u32 s = 0; (s < section->size - 0x400) && (!offset_p9); s += 0x10) {
+                    if ((ValidateNcchHeader((NcchHeader*) (void*) (buffer + s)) == 0) &&
+                        (ReadGameImageBytes((u8*) name, section->offset + s + 0x200, 8) == 0)) {
+                        offset_p9 = section->offset + s;
+                        memcpy(&p9_ncch, buffer + s, sizeof(NcchHeader));
+                    }
                 }
+                free(buffer);
             }
             
             if (offset_p9) {
-                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch->programId, name, ".app");
+                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch.programId, name, ".app");
                 templates[n].offset = offset_p9;
-                templates[n].size = p9_ncch->size * NCCH_MEDIA_UNIT;
+                templates[n].size = p9_ncch.size * NCCH_MEDIA_UNIT;
                 templates[n].keyslot = (offset_a9bin == (u64) -1) ? 0xFF : 0x15;
                 templates[n].flags = 0;
                 n++;
                 memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
-                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch->programId, name, "");
+                snprintf(templates[n].name, 32, NAME_FIRM_NCCH, p9_ncch.programId, name, "");
                 templates[n].flags |= (VFLAG_NCCH | VFLAG_DIR);
                 n++;
             }

@@ -194,6 +194,11 @@ FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, 
     return res;
 }
 
+FSIZE_t fvx_qsize (const TCHAR* path) {
+    FILINFO fno;
+    return (fvx_stat(path, &fno) == FR_OK) ? fno.fsize : 0;
+}
+
 #if !_LFN_UNICODE // this will not work for unicode
 FRESULT worker_fvx_rmkdir (TCHAR* tpath) {
     DIR tmp_dir;

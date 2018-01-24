@@ -46,6 +46,7 @@ typedef struct {
 u32 SplashInit(const char* modestr) {
     u64 splash_size;
     u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PCX, &splash_size);
+    u8* bitmap = (u8*) malloc(SCREEN_SIZE_TOP);
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
     const u32 pos_xb = 10;
@@ -55,9 +56,9 @@ u32 SplashInit(const char* modestr) {
     
     ClearScreenF(true, true, COLOR_STD_BG);
     
-    if (splash && PCX_Decompress(TEMP_BUFFER, TEMP_BUFFER_SIZE, splash, splash_size)) {
+    if (splash && bitmap && PCX_Decompress(bitmap, SCREEN_SIZE_TOP, splash, splash_size)) {
         PCXHdr* hdr = (PCXHdr*) (void*) splash;
-        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), TEMP_BUFFER);
+        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), bitmap);
     } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PCX " not found)");
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
@@ -70,6 +71,7 @@ u32 SplashInit(const char* modestr) {
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
     DrawStringF(BOT_SCREEN, pos_xb, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "built: " DBUILTL);
     
+    if (bitmap) free(bitmap);
     return 0;
 }
 
@@ -391,40 +393,50 @@ u32 SdFormatMenu(void) {
 }
 
 u32 FileGraphicsViewer(const char* path) {
+    const u32 max_size = SCREEN_SIZE(ALT_SCREEN);
     u64 filetype = IdentifyFileType(path);
-    u8* bitmap = TEMP_BUFFER;
-    u32 buffer_size = TEMP_BUFFER_SIZE / 2;
+    u8* bitmap = (u8*) malloc(max_size);
+    u8* input = (u8*) malloc(max_size);
     u32 w = 0;
     u32 h = 0;
+    u32 ret = 1;
     
-    if (filetype & GFX_PCX) {
-        u8* pcx = TEMP_BUFFER + TEMP_BUFFER_SIZE / 2;
-        u32 pcx_size = FileGetData(path, pcx, TEMP_BUFFER_SIZE / 2, 0);
-        if ((pcx_size > 0) && (pcx_size <  TEMP_BUFFER_SIZE / 2) && 
-            (PCX_Decompress(bitmap, buffer_size, pcx, pcx_size))) {
-            PCXHdr* hdr = (PCXHdr*) (void*) pcx;
-            w = PCX_Width(hdr);
-            h = PCX_Height(hdr);
+    if (!bitmap || !input) {
+        if (bitmap) free(bitmap);
+        if (input) free(input);
+        return 1;
+    }
+    
+    u32 input_size = FileGetData(path, input, max_size, 0);
+    if (input_size && (input_size < max_size)) {
+        if (filetype & GFX_PCX) {
+            if (PCX_Decompress(bitmap, max_size, input, input_size)) {
+                PCXHdr* hdr = (PCXHdr*) (void*) input;
+                w = PCX_Width(hdr);
+                h = PCX_Height(hdr);
+                ret = 0;
+            }
         }
     }
     
-    if (w && h && (w < SCREEN_WIDTH(ALT_SCREEN)) && (h < SCREEN_HEIGHT)) {
+    if ((ret == 0) && w && h && (w < SCREEN_WIDTH(ALT_SCREEN)) && (h < SCREEN_HEIGHT)) {
         ClearScreenF(true, true, COLOR_STD_BG);
         DrawBitmap(ALT_SCREEN, -1, -1, w, h, bitmap);
         ShowString("Press <A> to continue");
         InputWait(0);
         ClearScreenF(true, true, COLOR_STD_BG);
-        return 0;
-    }
+    } else ret = 1;
     
-    return 1;
+    free(bitmap);
+    free(input);
+    return ret;
 }
 
 u32 FileHexViewer(const char* path) {
     const u32 max_data = (SCREEN_HEIGHT / FONT_HEIGHT_EXT) * 16 * ((FONT_WIDTH_EXT > 4) ? 1 : 2);
     static u32 mode = 0;
-    u8* data = TEMP_BUFFER;
-    u8* bottom_cpy = TEMP_BUFFER + 0xC0000; // a copy of the bottom screen framebuffer
+    u8* data = NULL;
+    u8* bottom_cpy = (u8*) malloc(SCREEN_SIZE_BOT); // a copy of the bottom screen framebuffer
     u32 fsize = FileGetSize(path);
     
     bool dual_screen = 0;
@@ -443,10 +455,17 @@ u32 FileHexViewer(const char* path) {
     
     static const u32 edit_bsize = 0x4000; // should be multiple of 0x200 * 2
     bool edit_mode = false;
-    u8* edit_buffer = TEMP_BUFFER;
-    u8* edit_buffer_cpy = TEMP_BUFFER + edit_bsize;
+    u8* buffer = (u8*) malloc(edit_bsize);
+    u8* buffer_cpy = (u8*) malloc(edit_bsize);
     u32 edit_start = 0;
     int cursor = 0;
+    
+    if (!bottom_cpy || !buffer || !buffer_cpy) {
+        if (bottom_cpy) free(bottom_cpy);
+        if (buffer) free(buffer);
+        if (buffer_cpy) free(buffer_cpy);
+        return 1;
+    }
     
     static bool show_instr = true;
     static const char* instr = "Hexeditor Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+\x18\x19\x1A\x1B - Edit value\nB - Exit\n";
@@ -458,6 +477,7 @@ u32 FileHexViewer(const char* path) {
     if (MAIN_SCREEN != TOP_SCREEN) ShowString(instr);
     memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
     
+    data = buffer;
     while (true) {
         if (mode != last_mode) {
             if (FONT_WIDTH_EXT <= 5) {
@@ -547,7 +567,7 @@ u32 FileHexViewer(const char* path) {
                 if ((offset < edit_start) || (offset + max_data > edit_start + edit_bsize))
                     offset = last_offset; // we don't expect this to happen
                 total_data = (fsize - offset >= max_data) ? max_data : fsize - offset;
-                data = edit_buffer + (offset - edit_start);
+                data = buffer + (offset - edit_start);
             }
             last_offset = offset;
         }
@@ -674,20 +694,20 @@ u32 FileHexViewer(const char* path) {
                 cursor = 0;
                 edit_start = ((offset - (offset % 0x200) <= (edit_bsize / 2)) || (fsize < edit_bsize)) ? 0 : 
                     offset - (offset % 0x200) - (edit_bsize / 2);
-                FileGetData(path, edit_buffer, edit_bsize, edit_start);
-                memcpy(edit_buffer_cpy, edit_buffer, edit_bsize);
-                data = edit_buffer + (offset - edit_start);
+                FileGetData(path, buffer, edit_bsize, edit_start);
+                memcpy(buffer_cpy, buffer, edit_bsize);
+                data = buffer + (offset - edit_start);
             } else edit_mode = false;
         } else { // editor mode
             if (pad_state & (BUTTON_B|BUTTON_START)) {
                 edit_mode = false;
                 // check for user edits
                 u32 diffs = 0;
-                for (u32 i = 0; i < edit_bsize; i++) if (edit_buffer[i] != edit_buffer_cpy[i]) diffs++;
+                for (u32 i = 0; i < edit_bsize; i++) if (buffer[i] != buffer_cpy[i]) diffs++;
                 if (diffs && ShowPrompt(true, "You made edits in %i place(s).\nWrite changes to file?", diffs))
-                    if (!FileSetData(path, edit_buffer, min(edit_bsize, (fsize - edit_start)), edit_start, false))
+                    if (!FileSetData(path, buffer, min(edit_bsize, (fsize - edit_start)), edit_start, false))
                         ShowPrompt(false, "Failed writing to file!");
-                data = TEMP_BUFFER;
+                data = buffer;
                 last_offset = (u32) -1; // force reload from file
             } else if (pad_state & BUTTON_A) {
                 if (pad_state & BUTTON_DOWN) data[cursor]--;
@@ -720,9 +740,12 @@ u32 FileHexViewer(const char* path) {
     }
     
     ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-    if (MAIN_SCREEN == TOP_SCREEN) memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+    if (MAIN_SCREEN == TOP_SCREEN) memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_SIZE_BOT));
     else ClearScreen(BOT_SCREEN, COLOR_STD_BG);
     
+    free(bottom_cpy);
+    free(buffer);
+    free(buffer_cpy);
     return 0;
 }
 
@@ -828,7 +851,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     
     size_t firm_size = FileGetSize(bootpath);
     if (!firm_size) return 1;
-    if (firm_size > TEMP_BUFFER_SIZE) {
+    if (firm_size > FIRM_MAX_SIZE) {
         if (verbose) ShowPrompt(false, "%s\nFIRM too big, can't boot", pathstr); // unlikely
         return 1;
     }
@@ -837,10 +860,12 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         pathstr, firm_size / 1024))
         return 1;
     
-    void* firm = (void*) TEMP_BUFFER;
+    void* firm = (void*) malloc(FIRM_MAX_SIZE);
+    if (!firm) return 1;
     if ((FileGetData(bootpath, firm, firm_size, 0) != firm_size) ||
         !IsBootableFirm(firm, firm_size)) {
         if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM.", pathstr);
+        free(firm);
         return 1;
     }
     
@@ -849,8 +874,10 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) firm + arm9s->offset);
     if (verbose && (ValidateFirmA9LHeader(a9l) == 0) &&
         ShowPrompt(true, "%s\nFIRM is encrypted.\n \nDecrypt before boot?", pathstr) &&
-        (DecryptFirmFull(firm, firm_size) != 0))
+        (DecryptFirmFull(firm, firm_size) != 0)) {
+        free(firm);
         return 1;
+    }
         
     // unsupported location handling
     char fixpath[256] = { 0 };
@@ -876,6 +903,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     }
     
     // a return was not intended
+    free(firm);
     return 1;
 }
 
@@ -1640,9 +1668,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == font) { // set font
-        u32 pbm_size = FileGetData(file_path, TEMP_BUFFER, TEMP_BUFFER_SIZE, 0);
-        if (pbm_size) SetFontFromPbm(TEMP_BUFFER, pbm_size);
+        u8* pbm = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+        if (!pbm) return 1;
+        u32 pbm_size = FileGetData(file_path, pbm, 0x10000, 0);
+        if (pbm_size) SetFontFromPbm(pbm, pbm_size);
         ClearScreenF(true, true, COLOR_STD_BG);
+        free(pbm);
         return 0;
     }
     else if (user_select == view) { // view gfx
@@ -1652,15 +1683,18 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == agbexport) { // export GBA VC save
         if (DumpGbaVcSavegame(file_path) == 0)
-            ShowPrompt(false, "Savegame dumped to " OUTPUT_PATH);
+            ShowPrompt(false, "Savegame dumped to " OUTPUT_PATH ".");
         else ShowPrompt(false, "Savegame dump failed!");
         return 0;
     }
     else if (user_select == agbimport) { // import GBA VC save
         if (clipboard->n_entries != 1) {
             ShowPrompt(false, "GBA VC savegame has to\nbe in the clipboard.");
-        } else ShowPrompt(false, "Savegame inject %s",
-            (InjectGbaVcSavegame(file_path, clipboard->entry[0].path) == 0) ? "success" : "failed!");
+        } else {
+            ShowPrompt(false, "Savegame inject %s.",
+                (InjectGbaVcSavegame(file_path, clipboard->entry[0].path) == 0) ? "success" : "failed!");
+            clipboard->n_entries = 0;
+        }
         return 0;
     }
     
@@ -1789,9 +1823,11 @@ u32 HomeMoreMenu(char* current_path) {
         return 0;
     }
     else if (user_select == sysinfo) { // Myria's system info
-        char* sysinfo_txt = (char*) TEMP_BUFFER;
+        char* sysinfo_txt = (char*) malloc(STD_BUFFER_SIZE);
+        if (!sysinfo_txt) return 1;
         MyriaSysinfo(sysinfo_txt);
-        MemTextViewer(sysinfo_txt, strnlen(sysinfo_txt, TEMP_BUFFER_SIZE), 1, false);
+        MemTextViewer(sysinfo_txt, strnlen(sysinfo_txt, STD_BUFFER_SIZE), 1, false);
+        free(sysinfo_txt);
         return 0;
     }
     else if (user_select == readme) { // Display GodMode9 readme
@@ -1821,7 +1857,7 @@ u32 GodMode(int entrypoint) {
     bool bootloader = IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
-    FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
+    /*FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
     memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
         for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x22000000; addr += 0x400000) {
@@ -1831,7 +1867,7 @@ u32 GodMode(int entrypoint) {
             if (memcmp(firm_in_mem, "FIRM", 4) != 0) memmove(firm_in_mem, addr, firm_size);
             if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
         }
-    }
+    }*/
     
     // get mode string for splash screen
     const char* disp_mode = NULL;
@@ -1931,7 +1967,7 @@ u32 GodMode(int entrypoint) {
     // bootloader handler
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
-        if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
+        // if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
@@ -2016,7 +2052,7 @@ u32 GodMode(int entrypoint) {
                     }
                 } else if (user_select == fixcmac) {
                     RecursiveFixFileCmac(curr_entry->path);
-                    ClearScreenF(true, false, COLOR_STD_BG);
+                    ShowPrompt(false, "Fix CMACs for drive finished.");
                 } else if (user_select == dirnfo) {
                     bool is_drive = (!*current_path);
                     FILINFO fno;
@@ -2129,6 +2165,7 @@ u32 GodMode(int entrypoint) {
             GetDirContents(current_dir, current_path);
         } else if (switched && (pad_state & BUTTON_DOWN)) { // force reload file list
             GetDirContents(current_dir, current_path);
+            ClearScreenF(true, true, COLOR_STD_BG);
         } else if ((pad_state & BUTTON_RIGHT) && !(pad_state & BUTTON_L1)) { // cursor down (quick)
             cursor += quick_stp;
         } else if ((pad_state & BUTTON_LEFT) && !(pad_state & BUTTON_L1)) { // cursor up (quick)

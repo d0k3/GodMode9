@@ -30,6 +30,9 @@
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
 #define countof(x) \
     (sizeof(x) / sizeof((x)[0]))
+    
+#define bkpt \
+    asm("bkpt\n\t")
 
 #define STATIC_ASSERT(...) \
     _Static_assert((__VA_ARGS__), #__VA_ARGS__)
@@ -37,45 +40,27 @@
 // standard output path (support file paths are in support.h)
 #define OUTPUT_PATH     "0:/gm9/out"
 
+// used in several places
+#define STD_BUFFER_SIZE     0x100000 // must be a multiple of 0x200
+
 // buffer area defines (in use by godmode.c)
 #define DIR_BUFFER          (0x20000000)
 #define DIR_BUFFER_SIZE     (0x100000)
-// buffer area defines (in use by fsutil.c, fsinit.c and gameutil.c)
-#define MAIN_BUFFER         ((u8*)0x20100000)
-#define MAIN_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
 // buffer area defines (in use by nand.c)
-#define NAND_BUFFER         ((u8*)0x20200000)
+#define NAND_BUFFER         ((u8*)0x20100000)
 #define NAND_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
 // buffer area defines (in use by sddata.c)
-#define SDCRYPT_BUFFER      ((u8*)0x20300000)
+#define SDCRYPT_BUFFER      ((u8*)0x20200000)
 #define SDCRYPT_BUFFER_SIZE (0x100000)
 // buffer area defines (in use by scripting.c)
-#define SCRIPT_BUFFER       ((u8*)0x20400000)
+#define SCRIPT_BUFFER       ((u8*)0x20300000)
 #define SCRIPT_BUFFER_SIZE  (0x100000)
 // buffer area defines (in use by vgame.c)
-#define VGAME_BUFFER        ((u8*)0x20500000)
+#define VGAME_BUFFER        ((u8*)0x20400000)
 #define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
 // buffer area defines (in use by vcart.c)
-#define VCART_BUFFER        ((u8*)0x20700000)
+#define VCART_BUFFER        ((u8*)0x20600000)
 #define VCART_BUFFER_SIZE   (0x20000) // 128kB, this is more than enough
-
-// buffer area defines (temporary, in use by various functions)
-//  -> godmode.c hexviewer
-//  -> godmode.c loading payloads
-//  -> ncch.c seed setup
-//  -> cia.c ticket / titlekey setup
-//  -> gameutil.c various temporary stuff
-//  -> nandcmac.c for processing agbsave
-//  -> nandutil.c for storing essential backup
-//  -> ctrtransfer.c for SecureInfo (temporary)
-//  -> vgame.c for handling FIRMs
-//  -> vtickdb.c for parsing ticket.db
-//  -> qlzcomp.c for temporary compression stuff
-//  -> codelzss.c for decompressing .code
-// meaning: careful when using this!
-#define TEMP_BUFFER         ((u8*)0x20800000)
-#define TEMP_BUFFER_SIZE    (0x400000) // 4MB
-#define TEMP_BUFFER_EXTSIZE (0x1800000) // 24MB(!) (only used by codelzss.c right now)
 
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER       ((u8*)0x22800000) // top of STACK

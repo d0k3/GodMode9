@@ -32,6 +32,9 @@ FRESULT fvx_readdir (DIR* dp, FILINFO* fno);
 FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* br);
 FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, UINT* bw);
 
+// additional quick file info functions
+FSIZE_t fvx_qsize (const TCHAR* path);
+
 // additional recursive functions
 FRESULT fvx_rmkdir (const TCHAR* path);
 FRESULT fvx_rmkpath (const TCHAR* path);

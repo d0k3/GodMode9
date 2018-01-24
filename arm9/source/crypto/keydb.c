@@ -131,8 +131,9 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
     if (!key) key = keystore;
     
     // try to get key from 'aeskeydb.bin' file
-    AesKeyInfo* keydb = (AesKeyInfo*) TEMP_BUFFER;
-    u32 nkeys = LoadKeyDb(NULL, keydb, TEMP_BUFFER_SIZE);
+    AesKeyInfo* keydb = (AesKeyInfo*) malloc(STD_BUFFER_SIZE);
+    u32 nkeys = (keydb) ? LoadKeyDb(NULL, keydb, STD_BUFFER_SIZE) : 0;
+    
     for (u32 i = 0; i < nkeys; i++) {
         AesKeyInfo* info = &(keydb[i]);
         if (!((info->slot == keyslot) && (info->type == type) && 
@@ -145,6 +146,8 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
         memcpy(key, info->key, 16);
         break;
     }
+    
+    free(keydb);
     
     // load legacy slot0x??Key?.bin file instead
     if (!found && (type != 'I')) {
@@ -185,15 +188,16 @@ u32 InitKeyDb(const char* path)
         (1ull<<0x1C)|(1ull<<0x1D)|(1ull<<0x1E)|(1ull<<0x1F)|(1ull<<0x24)|(1ull<<0x25)|(1ull<<0x2F);
     
     // try to load aeskeydb.bin file
-    AesKeyInfo* keydb = (AesKeyInfo*) (void*) TEMP_BUFFER;
-    u32 nkeys = LoadKeyDb(path, keydb, TEMP_BUFFER_SIZE);
-    if (!nkeys) return 1;
+    AesKeyInfo* keydb = (AesKeyInfo*) malloc(STD_BUFFER_SIZE);
+    u32 nkeys = (keydb) ? LoadKeyDb(path, keydb, STD_BUFFER_SIZE) : 0;
     
     // apply all applicable keys
     for (u32 i = 0; i < nkeys; i++) {
         AesKeyInfo* info = &(keydb[i]);
-        if ((info->slot >= 0x40) || ((info->type != 'X') && (info->type != 'Y') && (info->type != 'N') && (info->type != 'I')))
+        if ((info->slot >= 0x40) || ((info->type != 'X') && (info->type != 'Y') && (info->type != 'N') && (info->type != 'I'))) {
+            free(keydb);
             return 1; // looks faulty, better stop right here
+        }
         if (!path && !((1ull<<info->slot)&keyslot_whitelist)) continue; // not in keyslot whitelist
         if ((info->type == 'I') || (*(info->id)) || (info->keyUnitType && (info->keyUnitType != GetUnitKeysType())) ||
             (CheckKeySlot(info->slot, info->type) == 0)) continue; // most likely valid, but not applicable or already set
@@ -219,7 +223,8 @@ u32 InitKeyDb(const char* path)
         use_aeskey(keyslot);
     }
     
-    return 0;
+    free(keydb);
+    return (nkeys) ? 0 : 1;
 }
 
 // creates dependency to "sha.h", not required for base keydb functions
@@ -233,10 +238,13 @@ u32 CheckRecommendedKeyDb(const char* path)
     };
     
     // try to load aeskeydb.bin file
-    AesKeyInfo* keydb = (AesKeyInfo*) (void*) TEMP_BUFFER;
-    u32 nkeys = LoadKeyDb(path, keydb, TEMP_BUFFER_SIZE);
-    if (!nkeys) return 1;
+    AesKeyInfo* keydb = (AesKeyInfo*) malloc(STD_BUFFER_SIZE);
+    if (!keydb) return 1;
+    u32 nkeys = LoadKeyDb(path, keydb, STD_BUFFER_SIZE);
     
     // compare with recommended SHA
-    return sha_cmp(recommended_sha, keydb, nkeys * sizeof(AesKeyInfo), SHA256_MODE);
+    bool res = (nkeys && (sha_cmp(recommended_sha, keydb, nkeys * sizeof(AesKeyInfo), SHA256_MODE) == 0));
+    
+    free(keydb);
+    return res ? 0 : 1;
 }

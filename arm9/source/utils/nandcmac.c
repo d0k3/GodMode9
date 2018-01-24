@@ -160,11 +160,9 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     else if (!cmac_type) return 1;
     
     const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
-    u8* data = (u8*) TEMP_BUFFER;
+    u8 hashdata[0x200]; 
     u32 keyslot = cmac_keyslot[cmac_type];
-    u8* hashdata = NULL; 
     u32 hashsize = 0;
-    UINT br;
     
     // setup slot 0x30 via movable.sed
     if ((keyslot == 0x30) && (SetupSlot0x30(drv) != 0))
@@ -172,23 +170,29 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     
     // build hash data block, get size
     if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) { // agbsaves
-        AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) data;
-        if ((TEMP_BUFFER_SIZE < AGBSAVE_MAX_SIZE) || (fvx_qread(path, agbsave, 0, AGBSAVE_MAX_SIZE, &br) != FR_OK) ||
-            (br < 0x200) || (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br))
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        UINT br;
+        
+        if (!agbsave) return 1;
+        if ((fvx_qread(path, agbsave, 0, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+            (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
+            free(agbsave);
             return 1;
-        return FixAgbSaveCmac(data, cmac, (cmac_type == CMAC_AGBSAVE) ? NULL : path);
+        }
+        
+        u32 ret = FixAgbSaveCmac(agbsave, cmac, (cmac_type == CMAC_AGBSAVE) ? NULL : path);
+        free(agbsave);
+        return ret;
     } else if (cmac_type == CMAC_MOVABLE) { // movable.sed
         // see: https://3dbrew.org/wiki/Nand/private/movable.sed
-        if ((fvx_qread(path, data, 0, 0x140, &br) != FR_OK) || (br != 0x140))
+        if (fvx_qread(path, hashdata, 0, 0x140, NULL) != FR_OK)
             return 1;
         hashsize = 0x130;
-        hashdata = data;
     } else { // "savegame" CMACs
         // see: https://3dbrew.org/wiki/Savegames
         const char* cmac_savetype[] = { CMAC_SAVETYPE };
-        u8* disa = data;
-        hashdata = data + 0x400;
-        if ((fvx_qread(path, disa, 0x100, 0x100, &br) != FR_OK) || (br != 0x100))
+        u8 disa[0x100];
+        if (fvx_qread(path, disa, 0x100, 0x100, NULL) != FR_OK)
             return 1;
         memcpy(hashdata, cmac_savetype[cmac_type], 8);
         if ((cmac_type == CMAC_EXTDATA_SD) || (cmac_type == CMAC_EXTDATA_SYS)) {
@@ -205,7 +209,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             memcpy(hashdata + 0x10, disa, 0x100);
             hashsize = 0x110;
         } else if (cmac_type == CMAC_SAVEDATA_SD) {
-            u8* hashdata0 = data + 0x200;
+            u8* hashdata0 = hashdata + 0x30;
             memcpy(hashdata0 + 0x00, cmac_savetype[CMAC_SAVEGAME], 8);
             memcpy(hashdata0 + 0x08, disa, 0x100);
             memcpy(hashdata + 0x08, &tid_low, 4);
@@ -221,7 +225,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         
     // calculate CMAC
     u8 shasum[32];
-    if (!hashdata || !hashsize) return 1;
+    if (!hashsize) return 1;
     sha_quick(shasum, hashdata, hashsize, SHA256_MODE);
     use_aeskey(keyslot);
     aes_cmac(shasum, cmac, 2);

@@ -69,24 +69,31 @@ u32 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
     // reset internal db
     memset(tick_info, 0, 16);
     
+    // set up buffer
+    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buffer) return 0;
+    
     // parse file, sector by sector
     for (u32 p = 0; p < sizeof(area_offsets) / sizeof(u32); p++) {
         u32 offset_area = area_offsets[p];
-        for (u32 i = 0; i < TICKDB_AREA_SIZE; i += (TEMP_BUFFER_SIZE - 0x200)) {
-            u32 read_bytes = min(TEMP_BUFFER_SIZE, TICKDB_AREA_SIZE - i);
-            u8* data = (u8*) TEMP_BUFFER;
+        for (u32 i = 0; i < TICKDB_AREA_SIZE; i += (STD_BUFFER_SIZE - 0x200)) {
+            u32 read_bytes = min(STD_BUFFER_SIZE, TICKDB_AREA_SIZE - i);
+            u8* data = buffer;
             if (ReadImageBytes(data, offset_area + i, read_bytes) != 0) {
                 tick_info->n_entries = 0;
+                free(buffer);
                 return 0;
             }
-            for (; data + TICKET_SIZE < ((u8*) TEMP_BUFFER) + read_bytes; data += 0x200) {
+            // likely bug here (!!!) (not a new one)
+            for (; data + TICKET_SIZE < buffer + read_bytes; data += 0x200) {
                 Ticket* ticket = TicketFromTickDbChunk(data, NULL, true);
                 if (!ticket) continue;
-                AddTickDbInfo(tick_info, ticket, offset_area + i + (data - ((u8*) TEMP_BUFFER)) + 0x18);
+                AddTickDbInfo(tick_info, ticket, offset_area + i + (data - buffer) + 0x18);
             }
         }
     }
     
+    free(buffer);
     return (tick_info->n_entries) ? SYS_TICKDB : 0;
 }
 

@@ -53,13 +53,14 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     }
     
     // CTRNAND preparations
-    SecureInfo* secnfo_img = (SecureInfo*) TEMP_BUFFER;
-    SecureInfo* secnfo_loc = (SecureInfo*) (TEMP_BUFFER + 0x200);
-    char* path_secnfo_a = (char*) (TEMP_BUFFER + 0x400);
-    char* path_secnfo_b = (char*) (TEMP_BUFFER + 0x420);
-    char* path_secnfo_c = (char*) (TEMP_BUFFER + 0x440);
-    char* path_tickdb = (char*) (TEMP_BUFFER + 0x460);
-    char* path_tickdb_bak = (char*) (TEMP_BUFFER + 0x480);
+    SecureInfo secnfo_img;
+    SecureInfo secnfo_loc;
+    char path_secnfo_a[32];
+    char path_secnfo_b[32];
+    char path_secnfo_c[32];
+    char path_tickdb[32];
+    char path_tickdb_bak[32];
+    
     snprintf(path_secnfo_a, 32, "%s/rw/sys/SecureInfo_A", drv);
     snprintf(path_secnfo_b, 32, "%s/rw/sys/SecureInfo_B", drv);
     snprintf(path_secnfo_c, 32, "%s/rw/sys/SecureInfo_C", drv);
@@ -68,13 +69,13 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     
     // special handling for out of region images (create SecureInfo_C)
     PathDelete(path_secnfo_c); // not required when transfering back to original region
-    if (((FileGetData("7:/rw/sys/SecureInfo_A", (u8*) secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
-         (FileGetData("7:/rw/sys/SecureInfo_B", (u8*) secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) &&
-        ((FileGetData(path_secnfo_a, (u8*) secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
-         (FileGetData(path_secnfo_b, (u8*) secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) && 
-        (secnfo_img->region != secnfo_loc->region)) {
-        secnfo_loc->region = secnfo_img->region;
-        FileSetData(path_secnfo_c, (u8*) secnfo_loc, sizeof(SecureInfo), 0, true);
+    if (((FileGetData("7:/rw/sys/SecureInfo_A", (u8*) &secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
+         (FileGetData("7:/rw/sys/SecureInfo_B", (u8*) &secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) &&
+        ((FileGetData(path_secnfo_a, (u8*) &secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
+         (FileGetData(path_secnfo_b, (u8*) &secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) && 
+        (secnfo_img.region != secnfo_loc.region)) {
+        secnfo_loc.region = secnfo_img.region;
+        FileSetData(path_secnfo_c, (u8*) &secnfo_loc, sizeof(SecureInfo), 0, true);
     }
     // make a backup of ticket.db
     PathDelete(path_tickdb_bak);
