@@ -10,6 +10,12 @@
 #include <types.h>
 #include <stdalign.h>
 
+#ifdef MONITOR_HEAP
+#include "mymalloc.h"
+#define malloc my_malloc
+#define free my_free
+#endif
+
 #define max(a,b) \
     (((a) > (b)) ? (a) : (b))
 #define min(a,b) \

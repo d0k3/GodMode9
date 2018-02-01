@@ -175,6 +175,16 @@ void DrawTopBar(const char* curr_path) {
     }
     #endif
     
+    #ifdef MONITOR_HEAP
+    if (true) { // allocated mem
+        const u32 bartxt_rx = SCREEN_WIDTH_TOP - (9*FONT_WIDTH_EXT) - bartxt_x;
+        char bytestr[32];
+        FormatBytes(bytestr, mem_allocated());
+        DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%9.9s", bytestr);
+        show_time = false;
+    }
+    #endif
+    
     if (show_time) { // clock & battery
         const u32 battery_width = 16;
         const u32 battery_height = 9;
