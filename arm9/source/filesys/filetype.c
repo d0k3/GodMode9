@@ -118,6 +118,7 @@ u64 IdentifyFileType(const char* path) {
     } else if (ext && ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0))) {
         char path_cetk[256];
         char* ext_cetk = path_cetk + (ext - path);
+        strncpy(path_cetk, path, 256);
         strncpy(ext_cetk, "cetk", 5);
         if (FileGetSize(path_cetk) > 0)
             return GAME_NUSCDN; // NUS/CDN type 2
