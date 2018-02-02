@@ -5,7 +5,7 @@
 
 #define NORM_FS  10
 #define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  13
+#define VIRT_FS  12
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
@@ -38,11 +38,10 @@
         "GAME IMAGE", "AESKEYDB IMAGE", "TICKET.DB IMAGE", \
         "MEMORY VIRTUAL", \
         "VRAM VIRTUAL", \
-        "NAND XORPADS", \
         "LAST SEARCH" \
         
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "M:", "V:", "X:", "Z:"
+    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "M:", "V:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);
