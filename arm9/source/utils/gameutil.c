@@ -1878,8 +1878,8 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
                     return 1;
                 }
                 
-                for (; data + TICKET_SIZE < data + read_bytes; data += 0x200) {
-                    Ticket* ticket = TicketFromTickDbChunk(data, NULL, true);
+                for (u8* ptr = data; ptr + 0x400 < data + read_bytes; ptr += 0x200) {
+                    Ticket* ticket = TicketFromTickDbChunk(ptr, NULL, true);
                     if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
                     if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
                     AddTicketToInfo(tik_info, ticket, dec); // ignore result
