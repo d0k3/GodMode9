@@ -1,4 +1,5 @@
 #include "godmode.h"
+#include "memmap.h"
 #include "support.h"
 #include "ui.h"
 #include "hid.h"
@@ -1867,17 +1868,17 @@ u32 GodMode(int entrypoint) {
     bool bootloader = IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
-    /*FirmHeader* firm_in_mem = (FirmHeader*) (void*) (TEMP_BUFFER + TEMP_BUFFER_SIZE); // should be safe here
+    FirmHeader* firm_in_mem = (FirmHeader*) __FIRMTMP_ADDR; // should be safe here
     memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
-        for (u8* addr = (u8*) 0x20000200; addr < (u8*) 0x22000000; addr += 0x400000) {
+        for (u8* addr = (u8*) __FCRAM0_ADDR + 0x200; addr < (u8*) __HEAP_END; addr += 0x400000) { // don't search the stack
             if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
             u32 firm_size = GetFirmSize((FirmHeader*) (void*) addr);
             if (!firm_size || (firm_size > (0x400000 - 0x200))) continue;
             if (memcmp(firm_in_mem, "FIRM", 4) != 0) memmove(firm_in_mem, addr, firm_size);
             if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
         }
-    }*/
+    }
     
     // get mode string for splash screen
     const char* disp_mode = NULL;
@@ -1977,7 +1978,7 @@ u32 GodMode(int entrypoint) {
     // bootloader handler
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
-        // if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
+        if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
