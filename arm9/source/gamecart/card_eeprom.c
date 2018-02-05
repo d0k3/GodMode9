@@ -98,7 +98,7 @@ u32 cardEepromGetSize() {
 	if(type == 2) {
 		u32 buf1,buf2,buf3;
 		cardReadEeprom(0,(u8*)&buf1,4,type);
-		if ( !(buf1 != 0 || buf1 != 0xffffffff) ) {
+		if ( !(buf1 != 0 && buf1 != 0xffffffff) ) {
 			buf3 = ~buf1;
 			cardWriteEeprom(0,(u8*)&buf3,4,type);
 		} else {

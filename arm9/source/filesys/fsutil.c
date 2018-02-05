@@ -48,7 +48,6 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
         ShowPrompt(false, "Error: SD card is too small");
         return false;
     }
-    sd_size = fat_size;
     
     // build the MBR
     memcpy(mbrdata + 0x08, &fat_sector, 4);

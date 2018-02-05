@@ -122,8 +122,8 @@ u32 BuildKeyDb(const char* path, bool dump) {
         memset(&key, 0, sizeof(AesKeyInfo));
         key.type = 'N';
         if (!name_in || (strnlen(++name_in, 32) > 24)) return 1; // safety
-        if ((sscanf(name_in, "slot0x%02XKey%s", &keyslot, typestr) != 2) &&
-            (sscanf(name_in, "slot0x%02Xkey%s", &keyslot, typestr) != 2)) return 1;
+        if ((sscanf(name_in, "slot0x%02XKey%31s", &keyslot, typestr) != 2) &&
+            (sscanf(name_in, "slot0x%02Xkey%31s", &keyslot, typestr) != 2)) return 1;
             
         char* ext = strchr(typestr, '.');
         if (!ext) return 1;

@@ -26,6 +26,7 @@ u64 IdentifyFileType(const char* path) {
     
     
     // block crappy "._" files from getting recognized as filetype
+    if (!fname) return 0;
     if (strncmp(fname, "._", 2) == 0) return 0;
     
     if (ext) ext++;
@@ -110,7 +111,7 @@ u64 IdentifyFileType(const char* path) {
         return GAME_3DSX; // 3DSX (executable) file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
-        fname && (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
+        (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
     } else if ((fsize > sizeof(pcx_magic)) && (memcmp(data, pcx_magic, sizeof(pcx_magic)) == 0) &&
         (strncasecmp(ext, "pcx", 4) == 0)) {

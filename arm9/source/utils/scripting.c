@@ -56,7 +56,7 @@
 // some useful macros
 #define IS_WHITESPACE(c)    ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
 #define MATCH_STR(s,l,c)    ((l == strlen(c)) && (strncmp(s, c, l) == 0))
-#define _FLG(c)             (1 << (c - 'a'))
+#define _FLG(c)             ((c >= 'a') ? (1 << (c - 'a')) : 0)
 
 #define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || \
     (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || \
@@ -384,8 +384,8 @@ void upd_var(const char* name) {
         get_dstime(&dstime);
         char env_date[16+1];
         char env_time[16+1];
-        snprintf(env_date, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
-        snprintf(env_time, _VAR_CNT_LEN, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
+        snprintf(env_date, 16, "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
+        snprintf(env_time, 16, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
         if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)) set_var("DATESTAMP", env_date);
         if (!name || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) set_var("TIMESTAMP", env_time);
     }
@@ -1018,7 +1018,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] must be 2 chars");
             ret = false;
         } else {
-            for (u32 i = 0; str[i] && (i < _ARG_MAX_LEN); i++) {
+            for (u32 i = 0; (i < _ARG_MAX_LEN) && str[i]; i++) {
                 if (str[i] == argv[2][0]) str[i] = argv[2][1];
             }
             ret = set_var(argv[0], str);

@@ -778,7 +778,7 @@ u32 Sha256Calculator(const char* path) {
         bool have_sha = (FileGetData(sha_path, sha256_file, 32, 0) == 32);
         bool match_sha = have_sha && (memcmp(sha256, sha256_file, 32) == 0);
         bool match_prev = (memcmp(sha256, sha256_prev, 32) == 0);
-        bool write_sha = (!have_sha || (have_sha && !match_sha)) && (drvtype & DRV_SDCARD); // writing only on SD
+        bool write_sha = (!have_sha || !match_sha) && (drvtype & DRV_SDCARD); // writing only on SD
         if (ShowPrompt(write_sha, "%s\n%016llX%016llX\n%016llX%016llX%s%s%s%s%s",
             pathstr, getbe64(sha256 + 0), getbe64(sha256 + 8), getbe64(sha256 + 16), getbe64(sha256 + 24),
             (have_sha) ? "\nSHA verification: " : "",
