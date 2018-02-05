@@ -4,11 +4,16 @@
 #define FAT_LIMIT   0x100000000
 #define VFLAG_PRIV_HDR  (1UL<<31)
 
-static CartData* cdata = (CartData*) VCART_BUFFER; // 128kB reserved (~64kB required)
+static CartData* cdata = NULL;
 static bool cart_init = false;
 
 u32 InitVCartDrive(void) {
-    cart_init = ((InitCardRead(cdata) == 0) && (cdata->cart_size <= FAT_LIMIT));
+    if (!cdata) cdata = (CartData*) malloc(sizeof(CartData));
+    cart_init = (cdata && (InitCardRead(cdata) == 0) && (cdata->cart_size <= FAT_LIMIT));
+    if (!cart_init && cdata) {
+        free(cdata);
+        cdata = NULL;
+    }
     return cart_init ? cdata->cart_id : 0;
 }
 
@@ -56,6 +61,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
 
 int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     u32 foffset = vfile->offset + offset;
+    if (!cdata) return -1;
     if (vfile->flags & VFLAG_PRIV_HDR)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);
     else return ReadCartBytes(buffer, foffset, count, cdata);

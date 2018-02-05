@@ -55,9 +55,6 @@
 // buffer area defines (in use by vgame.c)
 #define VGAME_BUFFER        ((u8*)0x20400000)
 #define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
-// buffer area defines (in use by vcart.c)
-#define VCART_BUFFER        ((u8*)0x20600000)
-#define VCART_BUFFER_SIZE   (0x20000) // 128kB, this is more than enough
 
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER       ((u8*)0x22800000) // top of STACK
