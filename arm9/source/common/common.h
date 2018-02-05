@@ -49,15 +49,6 @@
 // used in several places
 #define STD_BUFFER_SIZE     0x100000 // must be a multiple of 0x200
 
-// buffer area defines (in use by godmode.c)
-#define DIR_BUFFER          (0x20000000)
-#define DIR_BUFFER_SIZE     (0x100000)
-// buffer area defines (in use by nand.c)
-#define NAND_BUFFER         ((u8*)0x20100000)
-#define NAND_BUFFER_SIZE    (0x100000) // must be multiple of 0x200
-// buffer area defines (in use by sddata.c)
-#define SDCRYPT_BUFFER      ((u8*)0x20200000)
-#define SDCRYPT_BUFFER_SIZE (0x100000)
 // buffer area defines (in use by scripting.c)
 #define SCRIPT_BUFFER       ((u8*)0x20300000)
 #define SCRIPT_BUFFER_SIZE  (0x100000)

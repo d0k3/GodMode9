@@ -644,7 +644,10 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         
         // setup buffer
         u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
-        if (!buffer) return false;
+        if (!buffer) {
+            ShowPrompt(false, "Out of memory.");
+            return false;
+        }
         
         // actual move / copy operation
         bool same_drv = (strncasecmp(lorig, ldest, 2) == 0);
@@ -680,7 +683,10 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         
         // setup buffer
         u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
-        if (!buffer) return false;
+        if (!buffer) {
+            ShowPrompt(false, "Out of memory.");
+            return false;
+        }
         
         // actual virtual copy operation
         if (force_unmount) DismountDriveType(DriveType(ldest)&(DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE));

@@ -192,19 +192,25 @@ FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
     FilCryptInfo* info = fx_find_cryptinfo(fp);
     FSIZE_t off = f_tell(fp);
     FRESULT res = FR_OK;
+    
     if (info && info->fptr) {
         if (memcmp(info->ctr, DSIWARE_MAGIC, 16) == 0) return FR_DENIED;
+        void* crypt_buff = (void*) malloc(min(btw, STD_BUFFER_SIZE));
+        if (!crypt_buff) return FR_DENIED;
+    
         setup_aeskeyY(0x34, info->keyy);
         use_aeskey(0x34);
         *bw = 0;
-        for (UINT p = 0; (p < btw) && (res == FR_OK); p += SDCRYPT_BUFFER_SIZE) {
-            UINT pcount = min(SDCRYPT_BUFFER_SIZE, (btw - p));
+        for (UINT p = 0; (p < btw) && (res == FR_OK); p += STD_BUFFER_SIZE) {
+            UINT pcount = min(STD_BUFFER_SIZE, (btw - p));
             UINT bwl = 0;
-            memcpy(SDCRYPT_BUFFER, (u8*) buff + p, pcount);
-            ctr_decrypt_byte(SDCRYPT_BUFFER, SDCRYPT_BUFFER, pcount, off + p, AES_CNT_CTRNAND_MODE, info->ctr);
-            res = f_write(fp, (const void*) SDCRYPT_BUFFER, pcount, &bwl);
+            memcpy(crypt_buff, (u8*) buff + p, pcount);
+            ctr_decrypt_byte(crypt_buff, crypt_buff, pcount, off + p, AES_CNT_CTRNAND_MODE, info->ctr);
+            res = f_write(fp, (const void*) crypt_buff, pcount, &bwl);
             *bw += bwl;
         }
+        
+        free(crypt_buff);
     } else res = f_write(fp, buff, btw, bw);
     return res;
 }

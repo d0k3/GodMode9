@@ -352,32 +352,32 @@ int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_s
 
 int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_dst)
 {
-    u8* buffer8 = (u8*) buffer;
     // buffer must not be changed, so this is a little complicated
-    for (u32 s = 0; s < count; s += (NAND_BUFFER_SIZE / 0x200)) {
-        u32 pcount = min((NAND_BUFFER_SIZE/0x200), (count - s));
-        memcpy(NAND_BUFFER, buffer8 + (s*0x200), pcount * 0x200);
-        if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(NAND_BUFFER, true);
-        else if (keyslot < 0x40) CryptNand(NAND_BUFFER, sector + s, pcount, keyslot);
+    void* nand_buffer = (void*) malloc(min(STD_BUFFER_SIZE, count * 0x200));
+    if (!nand_buffer) return -1;
+    int errorcode = 0;
+    
+    for (u32 s = 0; s < count; s += (STD_BUFFER_SIZE / 0x200)) {
+        u32 pcount = min((STD_BUFFER_SIZE/0x200), (count - s));
+        memcpy(nand_buffer, ((u8*) buffer) + (s*0x200), pcount * 0x200);
+        if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(nand_buffer, true);
+        else if (keyslot < 0x40) CryptNand(nand_buffer, sector + s, pcount, keyslot);
         if (nand_dst == NAND_EMUNAND) {
-            int errorcode = 0;
             if ((sector + s == 0) && (emunand_base_sector % 0x200000 == 0)) { // GW EmuNAND header handling
-                errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, NAND_BUFFER);
-                errorcode = (!errorcode && (pcount > 1)) ? sdmmc_sdcard_writesectors(emunand_base_sector + 1, pcount - 1, NAND_BUFFER + 0x200) : errorcode;
-            } else errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + sector + s, pcount, NAND_BUFFER);
-            if (errorcode) return errorcode;
+                errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + getMMCDevice(0)->total_size, 1, nand_buffer);
+                if (!errorcode && (pcount > 1)) errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + 1, pcount - 1, ((u8*) nand_buffer) + 0x200);
+            } else errorcode = sdmmc_sdcard_writesectors(emunand_base_sector + sector + s, pcount, nand_buffer);
         } else if (nand_dst == NAND_IMGNAND) {
-            int errorcode = WriteImageSectors(NAND_BUFFER, sector + s, pcount);
-            if (errorcode) return errorcode;
+            errorcode = WriteImageSectors(nand_buffer, sector + s, pcount);
         } else if (nand_dst == NAND_SYSNAND) {
-            int errorcode = sdmmc_nand_writesectors(sector + s, pcount, NAND_BUFFER);
-            if (errorcode) return errorcode;
+            errorcode = sdmmc_nand_writesectors(sector + s, pcount, nand_buffer);
         } else {
-            return -1;
+            errorcode = -1;
         }
     }
     
-    return 0;
+    free(nand_buffer);
+    return errorcode;
 }
 
 u32 ValidateSecretSector(u8* sector)
