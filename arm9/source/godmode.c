@@ -78,9 +78,9 @@ u32 SplashInit(const char* modestr) {
 
 #ifndef SCRIPT_RUNNER
 // reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
-static DirStruct* current_dir = (DirStruct*) (DIR_BUFFER + 0x00000);
-static DirStruct* clipboard   = (DirStruct*) (DIR_BUFFER + 0x78000);
-static PaneData* panedata     = (PaneData*)  (DIR_BUFFER + 0xF0000);
+static DirStruct* current_dir = NULL;
+static DirStruct* clipboard   = NULL;
+static PaneData* panedata     = NULL;
 
 void GetTimeString(char* timestr, bool forced_update, bool full_year) {
     static DsTime dstime;
@@ -1856,7 +1856,6 @@ u32 GodMode(int entrypoint) {
     u32 exit_mode = GODMODE_EXIT_POWEROFF;
     
     char current_path[256] = { 0x00 };
-    PaneData* pane = panedata;
     u32 cursor = 0;
     u32 scroll = 0;
     
@@ -1899,11 +1898,6 @@ u32 GodMode(int entrypoint) {
     ClearScreenF(true, true, COLOR_STD_BG);
     if (show_splash) SplashInit(disp_mode);
     u64 timer = timer_start(); // for splash delay
-    
-    if ((sizeof(DirStruct) > 0x78000) || (N_PANES * sizeof(PaneData) > 0x10000)) {
-        ShowPrompt(false, "Out of memory!"); // just to be safe
-        return exit_mode;
-    }
     
     InitSDCardFS();
     AutoEmuNandBase(true);
@@ -1985,9 +1979,18 @@ u32 GodMode(int entrypoint) {
     }
     
     
+    current_dir = (DirStruct*) malloc(sizeof(DirStruct));
+    clipboard = (DirStruct*) malloc(sizeof(DirStruct));
+    panedata = (PaneData*) malloc(N_PANES * sizeof(PaneData));
+    if (!current_dir || !clipboard || !panedata) {
+        ShowPrompt(false, "Out of memory."); // just to be safe
+        return exit_mode;
+    }
+    
+    PaneData* pane = panedata;
     GetDirContents(current_dir, "");
     clipboard->n_entries = 0;
-    memset(panedata, 0x00, 0x10000);
+    memset(panedata, 0x00, N_PANES * sizeof(PaneData));
     ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     
     while (godmode9) { // this is the main loop
@@ -2000,7 +2003,7 @@ u32 GodMode(int entrypoint) {
             GetDirContents(current_dir, current_path);
             cursor = 0;
             if (!current_dir->n_entries) { // should not happen, if it does fail gracefully
-                ShowPrompt(false, "Invalid root directory");
+                ShowPrompt(false, "Invalid root directory.");
                 return exit_mode;
             }
         }
@@ -2411,6 +2414,10 @@ u32 GodMode(int entrypoint) {
     
     DeinitExtFS();
     DeinitSDCardFS();
+    
+    free(current_dir);
+    free(clipboard);
+    free(panedata);
     
     return exit_mode;
 }
