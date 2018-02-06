@@ -3,8 +3,9 @@
 #include "common.h"
 #include "virtual.h"
 
-u32 InitVKeyDbDrive(void);
-u32 CheckVKeyDbDrive(void);
+void DeinitVKeyDbDrive(void);
+u64 InitVKeyDbDrive(void);
+u64 CheckVKeyDbDrive(void);
 
 bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir);
 int ReadVKeyDbFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count);

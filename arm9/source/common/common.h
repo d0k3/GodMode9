@@ -49,10 +49,6 @@
 // used in several places
 #define STD_BUFFER_SIZE     0x100000 // must be a multiple of 0x200
 
-// buffer area defines (in use by vgame.c)
-#define VGAME_BUFFER        ((u8*)0x20000000)
-#define VGAME_BUFFER_SIZE   (0x200000) // 2MB, big RomFS
-
 // buffer area defines (in use by image.c, for RAMdrive)
 #define RAMDRV_BUFFER       ((u8*)0x22800000) // top of STACK
 #define RAMDRV_SIZE_O3DS    (0x5800000) // 88MB

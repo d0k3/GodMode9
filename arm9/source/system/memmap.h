@@ -18,11 +18,11 @@
 #define __RAMDRV_ADDR   (__FCRAM0_ADDR + 0x2800000)
 #define __RAMDRV_END    __FCRAM0_END // can be bigger on N3DS
 
-#define __STACK_TOP     __RAMDRV_ADDR
-#define __STACK_SIZE    0x7F0000 
+#define __STACK_ABT_TOP __RAMDRV_ADDR
+#define __STACK_ABT_LEN 0x10000
 
-#define __STACKABT_TOP  (__STACK_TOP - __STACK_SIZE)
-#define __STACKABT_SIZE 0x10000
+#define __STACK_TOP     (__STACK_ABT_TOP - __STACK_ABT_LEN)
+#define __STACK_LEN     0x7F0000 
 
-#define __HEAP_ADDR     (__FCRAM0_ADDR + 0x0200000)
-#define __HEAP_END      (__STACKABT_TOP - __STACKABT_SIZE)
+#define __HEAP_ADDR     (__FCRAM0_ADDR)
+#define __HEAP_END      (__STACK_TOP - __STACK_LEN)

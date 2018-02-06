@@ -4,6 +4,7 @@
 #include "filetype.h"
 #include "virtual.h"
 
+void DeinitVGameDrive(void);
 u64 InitVGameDrive(void);
 u64 CheckVGameDrive(void);
 

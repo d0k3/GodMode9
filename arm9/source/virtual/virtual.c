@@ -25,6 +25,9 @@ u32 GetVirtualSource(const char* path) {
 }
 
 bool InitVirtualImageDrive(void) {
+    DeinitVGameDrive();
+    DeinitVTickDbDrive();
+    DeinitVKeyDbDrive();
     return InitVGameDrive() || InitVTickDbDrive() || InitVKeyDbDrive();
 }
 

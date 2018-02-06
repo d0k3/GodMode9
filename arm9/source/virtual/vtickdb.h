@@ -3,8 +3,9 @@
 #include "common.h"
 #include "virtual.h"
 
-u32 InitVTickDbDrive(void);
-u32 CheckVTickDbDrive(void);
+void DeinitVTickDbDrive(void);
+u64 InitVTickDbDrive(void);
+u64 CheckVTickDbDrive(void);
 
 bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir);
 int ReadVTickDbFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count);

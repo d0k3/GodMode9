@@ -2,22 +2,36 @@
 #include "image.h"
 #include "keydb.h"
 
+#define VKEYDB_BUFFER_SIZE  STD_BUFFER_SIZE // 1MB, enough for 32768 entries
+
 #define NAME_LEGKEY "slot0x%02lXKey%.10s%s.bin" // keyslot / type string / unit extension
 
-static AesKeyInfo* key_info = (AesKeyInfo*) VGAME_BUFFER; // full 1MB reserved (enough for 32768 entries)
+static AesKeyInfo* key_info = NULL;
 static u32 n_keys = 0;
 
-u32 InitVKeyDbDrive(void) { // prerequisite: aeskeydb.bin mounted as image
+void DeinitVKeyDbDrive(void) {
+    if (key_info) free(key_info);
+    key_info = NULL;
+}
+
+u64 InitVKeyDbDrive(void) { // prerequisite: aeskeydb.bin mounted as image
     if (!(GetMountState() & BIN_KEYDB)) return 0;
+    n_keys = 0;
     
     // sanity check
     u64 fsize = GetMountSize();
-    if (!fsize || (fsize % sizeof(AesKeyInfo)) || (fsize > VGAME_BUFFER_SIZE)) {
+    if (!fsize || (fsize % sizeof(AesKeyInfo)) || (fsize > VKEYDB_BUFFER_SIZE)) {
         n_keys = 0;
         return 0;
-    } else n_keys = fsize / sizeof(AesKeyInfo); 
+    }
+    
+    // setup vkeydb buffer
+    DeinitVKeyDbDrive(); // dangerous shit
+    key_info = (AesKeyInfo*) malloc(VKEYDB_BUFFER_SIZE);
+    if (!key_info) return 0;
     
     // load the full database into memory
+    n_keys = fsize / sizeof(AesKeyInfo);
     if (ReadImageBytes((u8*) key_info, 0, fsize) != 0) n_keys = 0;
     
     // decrypt keys if required
@@ -25,11 +39,12 @@ u32 InitVKeyDbDrive(void) { // prerequisite: aeskeydb.bin mounted as image
         if (key_info[i].isEncrypted) CryptAesKeyInfo(&(key_info[i]));
     }
     
+    if (!n_keys) DeinitVKeyDbDrive();
     return (n_keys) ? BIN_KEYDB : 0;
 }
 
-u32 CheckVKeyDbDrive(void) {
-    if ((GetMountState() & BIN_KEYDB) && n_keys) // very basic sanity check
+u64 CheckVKeyDbDrive(void) {
+    if ((GetMountState() & BIN_KEYDB) && key_info) // very basic sanity check
         return BIN_KEYDB;
     return 0;
 }
