@@ -12,6 +12,7 @@
 #include "keydb.h"  // for perfect keydb hash and length
 #include "essentials.h" // for essential backup struct
 #include "unittype.h"
+#include "memmap.h"
 
 
 static const u8 twl_mbr_std[0x42] = {
@@ -84,7 +85,7 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     // fill nand cid / otp hash
     sdmmc_get_cid(1, (u32*) (void*) &(essential->nand_cid));
     if (!IS_UNLOCKED) memset(&(filelist[5]), 0, 3 * sizeof(ExeFsFileHeader));
-    else memcpy(&(essential->otp), (u8*) 0x10012000, 0x100);
+    else memcpy(&(essential->otp), (u8*) __OTP_ADDR, 0x100);
     
     // calculate hashes
     for (u32 i = 0; i < 8 && *(filelist[i].name); i++) 

@@ -16,8 +16,5 @@ SECTIONS
     . = ALIGN(4);
 
     __end__ = ABSOLUTE(.);
-
-    __stack_abt = 0x22800000;
-    __stack_top = __stack_abt - 0x80000;
     __code_size__ = __end__ - __start__;
 }

@@ -8,9 +8,10 @@
 
 #include <arm.h>
 #include <brf.h>
+#include "memmap.h"
 
 .macro XRQ_FATAL id=0
-    ldr sp, =__stack_abt
+    ldr sp, =__STACK_ABT_TOP
     sub sp, sp, #(18*4)  @ Reserve space for registers
     stmia sp, {r0-r12}
     mov r11, #\id

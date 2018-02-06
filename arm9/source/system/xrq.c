@@ -11,6 +11,7 @@
 #include "rtc.h"
 #include "hid.h"
 #include "ui.h"
+#include "memmap.h"
 
 #include <arm.h>
 
@@ -42,7 +43,6 @@ const char *XRQ_Name[] = {
     "Data Abort", "Reserved", "IRQ", "FIQ"
 };
 
-extern char __stack_top;
 
 void XRQ_DumpRegisters(u32 xrq, u32 *regs)
 {
@@ -77,7 +77,7 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
 
     /* Dump STACK */
     sp = regs[13] & ~0xF;
-    st = (u32)&__stack_top;
+    st = __STACK_TOP;
     wstr += sprintf(wstr, "Stack dump:\n");
     wstr += XRQ_DumpData_u8(wstr, sp, min(sp+SP_DUMPLEN, st));
     wstr += sprintf(wstr, "\n");

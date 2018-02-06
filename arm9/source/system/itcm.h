@@ -3,6 +3,7 @@
 // This file contains the structure of ITCM on the ARM9, as initialized by boot9.
 
 #include "common.h"
+#include "memmap.h"
 
 
 // Structure of the decrypted version of the OTP.  Part of this is in ITCM.
@@ -168,4 +169,4 @@ STATIC_ASSERT(sizeof(Arm9Itcm) == 0x8000);
 
 
 // Macro for accessing ITCM.
-#define ARM9_ITCM ((Arm9Itcm*) 0x01FF8000)
+#define ARM9_ITCM ((Arm9Itcm*) __ITCM_ADDR)

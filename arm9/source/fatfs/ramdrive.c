@@ -1,5 +1,6 @@
 #include "ramdrive.h"
 #include "unittype.h"
+#include "memmap.h"
 
 static u8* ramdrv_buffer = NULL;
 static u32 ramdrv_size = 0;
@@ -26,6 +27,6 @@ u64 GetRamDriveSize(void) {
 }
 
 void InitRamDrive(void) {
-    ramdrv_buffer = RAMDRV_BUFFER;
-    ramdrv_size = (IS_O3DS || IS_SIGHAX) ? RAMDRV_SIZE_O3DS : RAMDRV_SIZE_N3DS;
+    ramdrv_buffer = (u8*) __RAMDRV_ADDR;
+    ramdrv_size = ((IS_O3DS || IS_SIGHAX) ? __RAMDRV_END : __RAMDRV_END_N) - __RAMDRV_ADDR;
 }

@@ -6,6 +6,7 @@
 #include "fatmbr.h"
 #include "sdmmc.h"
 #include "image.h"
+#include "memmap.h"
 
 
 #define KEY95_SHA256    ((IS_DEVKIT) ? slot0x11Key95dev_sha256 : slot0x11Key95_sha256)
@@ -87,7 +88,7 @@ bool InitNandCrypto(bool init_full)
     // on a9lh this MUST be run before accessing the SHA register in any other way
     if (IS_UNLOCKED) { // if OTP is unlocked
         // see: https://www.3dbrew.org/wiki/OTP_Registers
-        sha_quick(OtpSha256, (u8*) 0x10012000, 0x90, SHA256_MODE);
+        sha_quick(OtpSha256, (u8*) __OTP_ADDR, 0x90, SHA256_MODE);
         Crypto0x96 = true; // valid 100% in that case, others need checking
     } else if (IS_A9LH) { // for a9lh
         // store the current SHA256 from register
@@ -116,7 +117,7 @@ bool InitNandCrypto(bool init_full)
     if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_TWL, 0, NAND_SYSNAND) != 0) {
         u64 TwlCustId = 0; // TWL customer ID (different for devkits)
         if (!IS_DEVKIT) TwlCustId = 0x80000000ULL | (*(vu64 *)0x01FFB808 ^ 0x8C267B7B358A6AFULL);
-        else if (IS_UNLOCKED) TwlCustId = (*(vu64*)0x10012000);
+        else if (IS_UNLOCKED) TwlCustId = (*(vu64*)__OTP_ADDR);
         if (!TwlCustId && IS_DEVKIT) {
             u64 __attribute__((aligned(32))) otp0x10[2];
             if (GetOtp0x90(otp0x10, 0x10)) TwlCustId = *otp0x10;

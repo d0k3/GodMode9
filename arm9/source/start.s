@@ -5,7 +5,7 @@
 #include <arm.h>
 #include <brf.h>
 #include <entrypoints.h>
-#include <memmap.h>
+#include "memmap.h"
 
 .global _start
 _start:
@@ -103,7 +103,7 @@ _start:
 
     @ Switch to system mode, disable interrupts, setup application stack
     msr cpsr_c, #(SR_SYS_MODE | SR_IRQ | SR_FIQ)
-    ldr sp, =__stack_top
+    ldr sp, =__STACK_TOP
 
     @ Check entrypoints
 
