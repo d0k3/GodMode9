@@ -77,7 +77,6 @@ u32 SplashInit(const char* modestr) {
 }
 
 #ifndef SCRIPT_RUNNER
-// reserve 480kB for DirStruct, 64kB for PaneData, just to be safe
 static DirStruct* current_dir = NULL;
 static DirStruct* clipboard   = NULL;
 static PaneData* panedata     = NULL;
@@ -1976,23 +1975,26 @@ u32 GodMode(int entrypoint) {
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
         }
+        ShowPrompt(false, "No bootable FIRM found.\nNow resuming GodMode9...");
+        godmode9 = true;
     }
     
-    
-    current_dir = (DirStruct*) malloc(sizeof(DirStruct));
-    clipboard = (DirStruct*) malloc(sizeof(DirStruct));
-    panedata = (PaneData*) malloc(N_PANES * sizeof(PaneData));
-    if (!current_dir || !clipboard || !panedata) {
-        ShowPrompt(false, "Out of memory."); // just to be safe
-        return exit_mode;
+    if (godmode9) {
+        current_dir = (DirStruct*) malloc(sizeof(DirStruct));
+        clipboard = (DirStruct*) malloc(sizeof(DirStruct));
+        panedata = (PaneData*) malloc(N_PANES * sizeof(PaneData));
+        if (!current_dir || !clipboard || !panedata) {
+            ShowPrompt(false, "Out of memory."); // just to be safe
+            return exit_mode;
+        }
+        
+        GetDirContents(current_dir, "");
+        clipboard->n_entries = 0;
+        memset(panedata, 0x00, N_PANES * sizeof(PaneData));
+        ClearScreenF(true, true, COLOR_STD_BG); // clear splash
     }
     
     PaneData* pane = panedata;
-    GetDirContents(current_dir, "");
-    clipboard->n_entries = 0;
-    memset(panedata, 0x00, N_PANES * sizeof(PaneData));
-    ClearScreenF(true, true, COLOR_STD_BG); // clear splash
-    
     while (godmode9) { // this is the main loop
         // basic sanity checking
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
@@ -2415,9 +2417,9 @@ u32 GodMode(int entrypoint) {
     DeinitExtFS();
     DeinitSDCardFS();
     
-    free(current_dir);
-    free(clipboard);
-    free(panedata);
+    if (current_dir) free(current_dir);
+    if (clipboard) free(clipboard);
+    if (panedata) free(panedata);
     
     return exit_mode;
 }
