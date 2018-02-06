@@ -2437,16 +2437,9 @@ u32 ScriptRunner(int entrypoint) {
     while (HID_STATE); // wait until no buttons are pressed
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
-    // get script from VRAM0 TAR
-    u64 autorun_gm9_size = 0;
-    void* autorun_gm9 = FindVTarFileInfo(VRAM0_AUTORUN_GM9, &autorun_gm9_size);
-    
-    if (autorun_gm9 && autorun_gm9_size) {
+    if (PathExist("V:/" VRAM0_AUTORUN_GM9)) {
         ClearScreenF(true, true, COLOR_STD_BG); // clear splash
-        // copy script to script buffer and run it
-        memset(SCRIPT_BUFFER, 0, SCRIPT_BUFFER_SIZE);
-        memcpy(SCRIPT_BUFFER, autorun_gm9, autorun_gm9_size);
-        ExecuteGM9Script(NULL);
+        ExecuteGM9Script("V:/" VRAM0_AUTORUN_GM9);
     } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
         char loadpath[256];
         if (FileSelector(loadpath, FLAVOR " scripts menu.\nSelect script:", "V:/" VRAM0_SCRIPTS, "*.gm9", HIDE_EXT))

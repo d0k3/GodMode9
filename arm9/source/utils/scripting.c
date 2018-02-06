@@ -19,6 +19,7 @@
 #define _ARG_MAX_LEN    512
 #define _VAR_CNT_LEN    256
 #define _VAR_NAME_LEN   32
+#define _VAR_MAX_BUFF   256
 #define _ERR_STR_LEN    32
 
 #define _CHOICE_STR_LEN 32
@@ -42,8 +43,6 @@
 #define _SKIP_TO_FOR    4
 
 #define _MAX_FOR_DEPTH  16
-
-#define VAR_BUFFER      (SCRIPT_BUFFER + SCRIPT_BUFFER_SIZE - VAR_BUFFER_SIZE)
 
 // macros for textviewer
 #define TV_VPAD         1 // vertical padding per line (above / below)
@@ -188,6 +187,10 @@ static char* for_ptr = NULL;        // position of the active 'for' command
 static u32 skip_state = 0;          // zero, _SKIP_BLOCK, _SKIP_TILL_END
 static u32 ifcnt = 0;               // current # of 'if' nesting
 
+// script / var buffers
+static void* script_buffer = NULL;
+static void* var_buffer = NULL;
+
 
 static inline bool isntrboot(void) {
     // taken over from Luma 3DS:
@@ -321,17 +324,16 @@ void set_preview(const char* name, const char* content) {
 }
 
 char* set_var(const char* name, const char* content) {
-    Gm9ScriptVar* vars = (Gm9ScriptVar*) VAR_BUFFER;
-    u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
+    Gm9ScriptVar* vars = (Gm9ScriptVar*) var_buffer;
     
     if ((strnlen(name, _VAR_NAME_LEN) > (_VAR_NAME_LEN-1)) || (strnlen(content, _VAR_CNT_LEN) > (_VAR_CNT_LEN-1)) ||
         (strchr(name, '[') || strchr(name, ']')))
         return NULL;
     
     u32 n_var = 0;
-    for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++)
+    for (Gm9ScriptVar* var = vars; n_var < _VAR_MAX_BUFF; n_var++, var++)
         if (!*(var->name) || (strncmp(var->name, name, _VAR_NAME_LEN) == 0)) break;
-    if (n_var >= max_vars) return NULL;
+    if (n_var >= _VAR_MAX_BUFF) return NULL;
     strncpy(vars[n_var].name, name, _VAR_NAME_LEN);
     strncpy(vars[n_var].content, content, _VAR_CNT_LEN);
     if (!n_var) *(vars[n_var].content) = '\0'; // NULL var
@@ -392,8 +394,7 @@ void upd_var(const char* name) {
 }
 
 char* get_var(const char* name, char** endptr) {
-    Gm9ScriptVar* vars = (Gm9ScriptVar*) VAR_BUFFER;
-    u32 max_vars = VAR_BUFFER_SIZE / sizeof(Gm9ScriptVar);
+    Gm9ScriptVar* vars = (Gm9ScriptVar*) var_buffer;
     
     u32 name_len = 0;
     char* pname = NULL;
@@ -414,18 +415,18 @@ char* get_var(const char* name, char** endptr) {
     upd_var(vname); // handle dynamic env vars
     
     u32 n_var = 0;
-    for (Gm9ScriptVar* var = vars; n_var < max_vars; n_var++, var++) {
+    for (Gm9ScriptVar* var = vars; n_var < _VAR_MAX_BUFF; n_var++, var++) {
         if (!*(var->name) || (strncmp(var->name, vname, _VAR_NAME_LEN) == 0)) break;
     }
     
-    if (n_var >= max_vars || !*(vars[n_var].name)) n_var = 0;
+    if (n_var >= _VAR_MAX_BUFF || !*(vars[n_var].name)) n_var = 0;
     
     return vars[n_var].content;
 }
 
 bool init_vars(const char* path_script) {
     // reset var buffer
-    memset(VAR_BUFFER, 0x00, VAR_BUFFER_SIZE);
+    memset(var_buffer, 0x00, sizeof(Gm9ScriptVar) * _VAR_MAX_BUFF);
     
     // current path
     char curr_dir[_VAR_CNT_LEN];
@@ -628,7 +629,7 @@ char* find_next(char* ptr) {
 }
 
 char* find_label(const char* label, const char* last_found) {
-    char* script = (char*) SCRIPT_BUFFER; // equals global, not a good solution
+    char* script = (char*) script_buffer;
     char* ptr = script;
     
     if (last_found) {
@@ -1592,10 +1593,9 @@ bool FileTextViewer(const char* path, bool as_script) {
 }
 
 bool ExecuteGM9Script(const char* path_script) {
-    char* script = (char*) SCRIPT_BUFFER;
-    char* ptr = script;
     char path_str[32+1];
     TruncateString(path_str, path_script, 32, 12);
+    
     
     // reset control flow global vars
     ifcnt = 0;
@@ -1604,10 +1604,28 @@ bool ExecuteGM9Script(const char* path_script) {
     skip_state = 0;
     syntax_error = false;
     
-    // fetch script - if no path is given, assume script already in script buffer
-    u32 script_size = (path_script) ? FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0) : strnlen(script, SCRIPT_BUFFER_SIZE);
-    if (!script_size || (script_size >= SCRIPT_BUFFER_SIZE))
+    
+    // allocate && check memory
+    var_buffer = (void*) malloc(sizeof(Gm9ScriptVar) * _VAR_MAX_BUFF);
+    script_buffer = (void*) malloc(SCRIPT_MAX_SIZE);
+    char* script = (char*) script_buffer;
+    char* ptr = script;
+    
+    if (!var_buffer || !script_buffer) {
+        if (var_buffer) free(var_buffer);
+        if (script_buffer) free(script_buffer);
+        ShowPrompt(false, "Out of memory.");
         return false;
+    }
+    
+    // fetch script from path
+    u32 script_size = FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0);
+    if (!script_size || (script_size >= SCRIPT_MAX_SIZE)) {
+        free(var_buffer);
+        free(script_buffer);
+        return false;
+    }
+    
     char* end = script + script_size;
     *end = '\0';
     
@@ -1626,6 +1644,7 @@ bool ExecuteGM9Script(const char* path_script) {
     
     // script execute loop
     u32 lno = 1;
+    bool result = true;
     while (ptr < end) {
         u32 flags = 0;
         
@@ -1734,7 +1753,11 @@ bool ExecuteGM9Script(const char* path_script) {
                     ShowPrompt(false, "%s\nline %lu: %s\n%s", path_str, lno, err_str, line_str);
                 }
             }
-            if (!(flags & _FLG('o'))) return false; // failed if not optional
+            if (!(flags & _FLG('o'))) { // failed if not optional
+                for_handler(NULL, NULL, NULL, false); // make sure we don't have an open 'for'
+                result = false; // we failed
+                break;
+            }
         }
         
         // reposition pointer
@@ -1754,19 +1777,26 @@ bool ExecuteGM9Script(const char* path_script) {
         }
     }
     
-    // check for unresolved if here
-    if (ifcnt) {
-        ShowPrompt(false, "%s\nend of script: unresolved 'if'", path_str);
-        return false;
-    } else if (for_ptr) {
-        ShowPrompt(false, "%s\nend of script: unresolved 'for'", path_str);
-        for_handler(NULL, NULL, NULL, false);
-        return false;
+    
+    if (result) { // all fine(?) up to this point
+        if (ifcnt) { // check for unresolved 'if'
+            ShowPrompt(false, "%s\nend of script: unresolved 'if'", path_str);
+            result = false;
+        }
+        if (for_ptr) { // check for unresolved 'for'
+            ShowPrompt(false, "%s\nend of script: unresolved 'for'", path_str);
+            for_handler(NULL, NULL, NULL, false);
+            result = false;
+        }
     }
     
-    // success message if applicable
-    char* msg_okay = get_var("SUCCESSMSG", NULL);
-    if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
+    if (result) { // success message if applicable
+        char* msg_okay = get_var("SUCCESSMSG", NULL);
+        if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
+    }
     
-    return true;
+    
+    free(var_buffer);
+    free(script_buffer);
+    return result;
 }

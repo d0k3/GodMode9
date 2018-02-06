@@ -24,5 +24,5 @@
 #define __STACKABT_TOP  (__STACK_TOP - __STACK_SIZE)
 #define __STACKABT_SIZE 0x10000
 
-#define __HEAP_ADDR     (__FCRAM0_ADDR + 0x0700000)
+#define __HEAP_ADDR     (__FCRAM0_ADDR + 0x0200000)
 #define __HEAP_END      (__STACKABT_TOP - __STACKABT_SIZE)
