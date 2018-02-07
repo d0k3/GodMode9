@@ -302,6 +302,7 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
 
 u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     NcchHeader ncch;
+    NcchExtHeader exthdr;
     ExeFsHeader exefs;
     FIL file;
     
@@ -313,7 +314,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
         return 1;
     
     fvx_lseek(&file, offset);
-    if (GetNcchHeaders(&ncch, NULL, NULL, &file) != 0) {
+    if (GetNcchHeaders(&ncch, &exthdr, NULL, &file) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
         fvx_close(&file);
         return 1;
@@ -363,8 +364,8 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
         ver_romfs = CheckNcchHash(ncch.hash_romfs, &file, ncch.size_romfs_hash * NCCH_MEDIA_UNIT, offset, &ncch, NULL);
     }
     
-    // thorough exefs verification
-    if (ncch.size_exefs > 0) {
+    // thorough exefs verification (workaround for Process9)
+    if ((ncch.size_exefs > 0) && (memcmp(exthdr.name, "Process9", 8) != 0)) {
         for (u32 i = 0; !ver_exefs && (i < 10); i++) {
             ExeFsFileHeader* exefile = exefs.files + i;
             u8* hash = exefs.hashes[9 - i];
