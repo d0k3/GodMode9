@@ -485,7 +485,7 @@ u32 FileHexViewer(const char* path) {
     }
     
     if (MAIN_SCREEN != TOP_SCREEN) ShowString(instr);
-    memcpy(bottom_cpy, BOT_SCREEN, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+    memcpy(bottom_cpy, BOT_SCREEN, SCREEN_SIZE_BOT);
     
     data = buffer;
     while (true) {
@@ -563,7 +563,7 @@ u32 FileHexViewer(const char* path) {
             last_mode = mode;
             ClearScreen(TOP_SCREEN, COLOR_STD_BG);
             if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-            else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+            else memcpy(BOT_SCREEN, bottom_cpy, SCREEN_SIZE_BOT);
         }
         // fix offset (if required)
         if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
@@ -658,7 +658,7 @@ u32 FileHexViewer(const char* path) {
                 } else offset = found_offset;
                 if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                 else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-                else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
+                else memcpy(BOT_SCREEN, bottom_cpy, SCREEN_SIZE_BOT);
             } else if (pad_state & BUTTON_X) {
                 const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
                 u32 user_select = ShowSelectPrompt(3, optionstr, "Current offset: %08X\nSelect action:", 
@@ -677,9 +677,6 @@ u32 FileHexViewer(const char* path) {
                             ShowPrompt(false, "Not found!");
                             found_size = 0;
                         } else offset = found_offset;
-                        if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-                        else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-                        else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
                     }
                 } else if (user_select == 3) {
                     u8 data[64] = { 0 };
@@ -692,11 +689,11 @@ u32 FileHexViewer(const char* path) {
                             ShowPrompt(false, "Not found!");
                             found_size = 0;
                         } else offset = found_offset;
-                        if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-                        else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-                        else memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_HEIGHT * SCREEN_WIDTH_BOT * 3));
                     }
                 }
+                if (MAIN_SCREEN == TOP_SCREEN) ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+                else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+                else memcpy(BOT_SCREEN, bottom_cpy, SCREEN_SIZE_BOT);
             }
             if (edit_mode && CheckWritePermissions(path)) { // setup edit mode
                 found_size = 0;
@@ -750,7 +747,7 @@ u32 FileHexViewer(const char* path) {
     }
     
     ClearScreen(TOP_SCREEN, COLOR_STD_BG);
-    if (MAIN_SCREEN == TOP_SCREEN) memcpy(BOT_SCREEN, bottom_cpy, (SCREEN_SIZE_BOT));
+    if (MAIN_SCREEN == TOP_SCREEN) memcpy(BOT_SCREEN, bottom_cpy, SCREEN_SIZE_BOT);
     else ClearScreen(BOT_SCREEN, COLOR_STD_BG);
     
     free(bottom_cpy);
