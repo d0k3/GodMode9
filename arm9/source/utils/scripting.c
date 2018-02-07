@@ -631,6 +631,7 @@ char* find_next(char* ptr) {
 char* find_label(const char* label, const char* last_found) {
     char* script = (char*) script_buffer;
     char* ptr = script;
+    u32 label_len = strnlen(label, _ARG_MAX_LEN);
     
     if (last_found) {
         ptr = strchr(last_found, '\n');
@@ -659,7 +660,7 @@ char* find_label(const char* label, const char* last_found) {
             // compare it manually (also check for '*' at end)
             u32 pdiff = 0;
             for (; (pdiff < str_len) && (label[pdiff] == str[pdiff]); pdiff++);
-            if ((pdiff != str_len) && (label[pdiff] != '*')) continue; // no match
+            if ((pdiff < label_len) && (label[pdiff] != '*')) continue; // no match
             // otherwise: potential regular or wildcard match
             
             // may be a match, see if there are more strings after it
