@@ -1497,26 +1497,51 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
 }
 
 u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr) {
-    const u32 code_max_size = 24 * 1024 * 1024; // arbitrary / this may not suffice (!)
-    
     char dest[256];
     if (!path_out && (fvx_rmkdir(OUTPUT_PATH) != FR_OK)) return 1;
     strncpy(dest, path_out ? path_out : OUTPUT_PATH, 256);
     if (!CheckWritePermissions(dest)) return 1;
     
+    // load all required headers
     NcchHeader ncch;
     NcchExtHeader exthdr;
+    ExeFsHeader exefs;
+    if (LoadNcchHeaders(&ncch, &exthdr, &exefs, path, 0) != 0) return 1;
+    
+    // find ".code" or ".firm" inside the ExeFS header
+    u32 code_size = 0;
+    u32 code_offset = 0;
+    for (u32 i = 0; i < 10; i++) {
+        if (exefs.files[i].size &&
+            ((strncmp(exefs.files[i].name, EXEFS_CODE_NAME, 8) == 0) ||
+             (strncmp(exefs.files[i].name, ".firm", 8) == 0))) {
+            code_size = exefs.files[i].size;
+            code_offset = (ncch.offset_exefs * NCCH_MEDIA_UNIT) + sizeof(ExeFsHeader) + exefs.files[i].offset;
+        }
+    }
+    
+    // if code is compressed: find decompressed size
+    u32 code_max_size = code_size;
+    if (exthdr.flag & 0x1) {
+        u8 footer[8];
+        if (code_size < 8) return 1;
+        if ((fvx_qread(path, footer, code_offset + code_size - 8, 8, NULL) != FR_OK) ||
+            (DecryptNcch(footer, code_offset + code_size - 8, 8, &ncch, &exefs) != 0))
+            return 1;
+        u32 unc_size = GetCodeLzssUncompressedSize(footer, code_size);
+        code_max_size = max(code_size, unc_size);
+    }
+    
+    // allocate memory
     u8* code = (u8*) malloc(code_max_size);
     if (!code) {
         ShowPrompt(false, "Out of memory.");
         return 1;
     }
     
-    // load ncch, exthdr, .code
-    u32 code_size;
-    if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path, 0) != 0) ||
-        ((LoadExeFsFile(code, path, 0, EXEFS_CODE_NAME, code_max_size, &code_size) != 0) &&
-         (LoadExeFsFile(code, path, 0, ".firm", code_max_size, &code_size) != 0))) {
+    // load .code
+    if ((fvx_qread(path, code, code_offset, code_size, NULL) != FR_OK) ||
+        (DecryptNcch(code, code_offset, code_size, &ncch, &exefs) != 0)) {
         free(code);
         return 1;
     }

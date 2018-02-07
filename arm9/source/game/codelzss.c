@@ -12,8 +12,19 @@ typedef struct {
     u32 addsize_dec; // decompressed size - compressed size
 } __attribute__((packed)) CodeLzssFooter;
 
+
+u32 GetCodeLzssUncompressedSize(void* footer, u32 comp_size) {
+    if (comp_size < sizeof(CodeLzssFooter)) return 0;
+    
+    CodeLzssFooter* f = (CodeLzssFooter*) footer;
+    if ((CODE_COMP_SIZE(f) > comp_size) || (CODE_COMP_END(f) < 0)) return 0;
+    
+    return CODE_DEC_SIZE(f) + (comp_size - CODE_COMP_SIZE(f));
+}
+
 // see: https://github.com/zoogie/DSP1/blob/master/source/main.c#L44
-u32 DecompressCodeLzss(u8* data_start, u32* code_size, u32 max_size) {
+u32 DecompressCodeLzss(u8* code, u32* code_size, u32 max_size) {
+    u8* data_start = code;
     u8* comp_start = data_start;
     
     // get footer, fix comp_start offset
