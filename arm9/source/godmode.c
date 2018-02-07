@@ -1974,6 +1974,9 @@ u32 GodMode(int entrypoint) {
         if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
             BootFirmHandler(bootfirm_paths[i], false, (BOOTFIRM_TEMPS >> i) & 0x1);
+        if (bootloader) { // Megumin is the best girl! ~Eix
+            godmode9 = true; // if no payload is detected in bootloader mode it will load gm9 instead of turning of the 3ds
+        }
         }
         ShowPrompt(false, "No bootable FIRM found.\nNow resuming GodMode9...");
         godmode9 = true;
