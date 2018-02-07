@@ -567,7 +567,7 @@ u32 FileHexViewer(const char* path) {
         }
         // fix offset (if required)
         if (offset % cols) offset -= (offset % cols); // fix offset (align to cols)
-        if (offset + total_shown > fsize + cols) // if offset too big
+        if (offset + total_shown - cols > fsize) // if offset too big
             offset = (total_shown > fsize) ? 0 : (fsize + cols - total_shown - (fsize % cols));
         // get data, using max data size (if new offset)
         if (offset != last_offset) {
