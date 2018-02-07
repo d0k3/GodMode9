@@ -105,8 +105,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 
 ### Game file handling
 * __List titles installed on your system__: Press R+A on a /title dir or a subdir below that. This will also work directly for `CTRNAND`, `TWLN` and `A:`/`B:` drives. This will list all titles installed in the selected location. Works best with the below two features.
-* __Build CIAs from 
-/ NCSD (.3DS) / TMD (installed contents)__: Press A on the file you want converted and the option will be shown. Installed contents are found (among others) in `1:/titles/`(SysNAND) and `A:/titles/`(SD installed). Where applicable, you will also be able to generate legit CIAs. Note: this works also from a file search and title listing.
+* __Build CIAs from NCCH / NCSD (.3DS) / TMD (installed contents)__: Press A on the file you want converted and the option will be shown. Installed contents are found (among others) in `1:/titles/`(SysNAND) and `A:/titles/`(SD installed). Where applicable, you will also be able to generate legit CIAs. Note: this works also from a file search and title listing.
 * __Dump CXIs / NDS from TMD (installed contents)__: This works the same as building CIAs, but dumps decrypted CXIs or NDS rom dumps instead. Note: this works also from a file search and title listing.
 * __Decrypt, encrypt and verify NCCH / NCSD / CIA / BOSS / FIRM images__: Options are found inside the A button menu. You will be able to decrypt/encrypt to the standard output directory or (where applicable) in place.
 * __Decrypt content downloaded from CDN / NUS__: Press A on the file you want decrypted. For this to work, you need at least a TMD file (`encTitlekeys.bin` / `decTitlekeys.bin` also required, see _Support files_ below) or a CETK file. Either keep the names provided by CDN / NUS, or rename the downloaded content to `(anything).nus` or `(anything).cdn` and the CETK to `(anything).cetk`.
