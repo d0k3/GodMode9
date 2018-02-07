@@ -73,7 +73,6 @@ GodMode9 provides access to system data via drives, a listing of what each drive
 * __`K: AESKEYDB IMAGE`__: An `aeskeydb.bin` image can be mounted and accessed via this drive. The drive shows all keys inside the aeskeydb.bin. This is read-only.
 * __`T: TICKET.DB IMAGE`__: Ticket database files can be mounted and accessed via this drive. This provides easy and quick access to all tickets inside the `ticket.db`. This is read-only.
 * __`M: MEMORY VIRTUAL`__: This provides access to various memory regions. This is protected by a special write permission, and caution is advised when doing modifications inside this drive. This drive also gives access to `boot9.bin`, `boot11.bin` (boot9strap only) and `otp.mem` (sighaxed systems only).
-* __`X: NAND XORPADS`__: This drive contains XORpads for all NAND partitions. XORpads can be used to decrypt NAND partitions outside of the 3DS console with the help of [additional software](https://github.com/d0k3/3DSFAT16tool/releases). This is read-only.
 * __`V: VRAM VIRTUAL`__: This drive resides in the first VRAM bank and contains files essential to GodMode9. The font (in PBM format), the splash logo (in PCX format) and the readme file are found there, as well as any file that is provided inside the `data` folder at build time. This is read-only.
 * __`Z: LAST SEARCH`__: After a search operation, search results are found inside this drive. The drive can be accessed at a later point to return to the former search results.
 
@@ -136,8 +135,6 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 ### Support file handling
 * __Build `decTitleKeys.bin` / `encTitleKeys.bin` / `seeddb.bin`__: Press the HOME button, select `More...` -> `Build support files`. `decTitleKeys.bin` / `encTitleKeys.bin` can also be created / merged from tickets, `ticket.db` and other `decTitleKeys.bin` / `encTitleKeys.bin` files via the A button menu.
 * __Build, mount, decrypt and encrypt `aeskeydb.bin`__: AES key databases can be built from other `aeskeydb.bin` or legacy `slot??Key?.bin` files. Just select one or more files, press A on one of them and then select `Build aeskeydb.bin`. Options for mounting, decrypting and encrypting are also found in the A button menu.
-* __Generate XORpads from `ncchinfo.bin` files__: Start this via the appropriate entry inside the A button menu.
-* __Generate XORpads for any NAND partition__: Take a look inside the `X:` drive. You can use these XORpads for decryption of encrypted NAND images on PC. Additional tools such as [3dsFAT16Tool](https://github.com/d0k3/3DSFAT16tool/releases) are required on PC.
 
 
 ## License
