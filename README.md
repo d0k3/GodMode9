@@ -106,7 +106,8 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 
 ### Game file handling
 * __List titles installed on your system__: Press R+A on a /title dir or a subdir below that. This will also work directly for `CTRNAND`, `TWLN` and `A:`/`B:` drives. This will list all titles installed in the selected location. Works best with the below two features.
-* __Build CIAs from NCCH / NCSD (.3DS) / TMD (installed contents)__: Press A on the file you want converted and the option will be shown. Installed contents are found (among others) in `1:/titles/`(SysNAND) and `A:/titles/`(SD installed). Where applicable, you will also be able to generate legit CIAs. Note: this works also from a file search and title listing.
+* __Build CIAs from 
+/ NCSD (.3DS) / TMD (installed contents)__: Press A on the file you want converted and the option will be shown. Installed contents are found (among others) in `1:/titles/`(SysNAND) and `A:/titles/`(SD installed). Where applicable, you will also be able to generate legit CIAs. Note: this works also from a file search and title listing.
 * __Dump CXIs / NDS from TMD (installed contents)__: This works the same as building CIAs, but dumps decrypted CXIs or NDS rom dumps instead. Note: this works also from a file search and title listing.
 * __Decrypt, encrypt and verify NCCH / NCSD / CIA / BOSS / FIRM images__: Options are found inside the A button menu. You will be able to decrypt/encrypt to the standard output directory or (where applicable) in place.
 * __Decrypt content downloaded from CDN / NUS__: Press A on the file you want decrypted. For this to work, you need at least a TMD file (`encTitlekeys.bin` / `decTitlekeys.bin` also required, see _Support files_ below) or a CETK file. Either keep the names provided by CDN / NUS, or rename the downloaded content to `(anything).nus` or `(anything).cdn` and the CETK to `(anything).cetk`.
@@ -136,8 +137,6 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 ### Support file handling
 * __Build `decTitleKeys.bin` / `encTitleKeys.bin` / `seeddb.bin`__: Press the HOME button, select `More...` -> `Build support files`. `decTitleKeys.bin` / `encTitleKeys.bin` can also be created / merged from tickets, `ticket.db` and other `decTitleKeys.bin` / `encTitleKeys.bin` files via the A button menu.
 * __Build, mount, decrypt and encrypt `aeskeydb.bin`__: AES key databases can be built from other `aeskeydb.bin` or legacy `slot??Key?.bin` files. Just select one or more files, press A on one of them and then select `Build aeskeydb.bin`. Options for mounting, decrypting and encrypting are also found in the A button menu.
-* __Generate XORpads from `ncchinfo.bin` files__: Start this via the appropriate entry inside the A button menu.
-* __Generate XORpads for any NAND partition__: Take a look inside the `X:` drive. You can use these XORpads for decryption of encrypted NAND images on PC. Additional tools such as [3dsFAT16Tool](https://github.com/d0k3/3DSFAT16tool/releases) are required on PC.
 
 
 ## License
