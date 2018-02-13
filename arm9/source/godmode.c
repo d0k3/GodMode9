@@ -1334,10 +1334,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, false) == 0)) n_success++;
-                else { // on failure: show error, break
-                    TruncateString(pathstr, path, 32, 8);
-                    ShowPrompt(false, "%s\nDecryption failed", pathstr);
-                    break;
+                else { // on failure: show error, continue
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nDecryption failed\n \nContinue?", lpathstr)) continue;
+                    else break;
                 }
                 current_dir->entry[i].marked = false;
             }
@@ -1382,10 +1383,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, true) == 0)) n_success++;
-                else { // on failure: show error, break
-                    TruncateString(pathstr, path, 32, 8);
-                    ShowPrompt(false, "%s\nEncryption failed", pathstr);
-                    break;
+                else { // on failure: show error, continue
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nEncryption failed\n \nContinue?", lpathstr)) continue;
+                    else break;
                 }
                 current_dir->entry[i].marked = false;
             }
@@ -1419,10 +1421,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (((user_select != cxi_dump) && (BuildCiaFromGameFile(path, force_legit) == 0)) ||
                     ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(path) == 0))) n_success++;
-                else { // on failure: show error, break
-                    TruncateString(pathstr, path, 32, 8);
-                    ShowPrompt(false, "%s\nBuild %s failed", pathstr, type);
-                    break;
+                else { // on failure: show error, continue
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nBuild %s failed\n \nContinue?", lpathstr, type)) continue;
+                    else break;
                 }
                 current_dir->entry[i].marked = false;
             }
@@ -1443,7 +1446,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     else if (user_select == verify) { // -> verify game / nand file
         if ((n_marked > 1) && ShowPrompt(true, "Try to verify all %lu selected files?", n_marked)) {
             u32 n_success = 0;
-            u32 n_other = 0; 
+            u32 n_other = 0;
             u32 n_processed = 0;
             for (u32 i = 0; i < current_dir->n_entries; i++) {
                 const char* path = current_dir->entry[i].path;
@@ -1458,10 +1461,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if ((filetype & IMG_NAND) && (ValidateNandDump(path) == 0)) n_success++;
                 else if (VerifyGameFile(path) == 0) n_success++;
-                else { // on failure: show error, break
-                    TruncateString(pathstr, path, 32, 8);
-                    ShowPrompt(false, "%s\nVerification failed", pathstr);
-                    break;
+                else { // on failure: show error, continue
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nVerification failed\n \nContinue?", lpathstr)) {
+                        if (!(filetype & (GAME_CIA|GAME_TMD))) ShowProgress(0, n_marked, path); // restart progress bar
+                        continue;
+                    } else break;
                 }
                 current_dir->entry[i].marked = false;
             }

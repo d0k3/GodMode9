@@ -46,6 +46,9 @@
 
 // stuff in FCRAM
 
+#define __FIRMRAM_ADDR  (__FCRAM0_ADDR + 0x0001000)
+#define __FIRMRAM_END   (__FIRMRAM_ADDR + 0x0400000)
+
 #define __FIRMTMP_ADDR  (__FCRAM0_END - 0x0800000)
 #define __FIRMTMP_END   (__FIRMTMP_ADDR + 0x0400000)
 
