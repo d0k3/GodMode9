@@ -1581,11 +1581,40 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == extrcode) { // -> Extract code
-        char extstr[8] = { 0 };
-        ShowString("%s\nExtracting .code, please wait...", pathstr);
-        if (ExtractCodeFromCxiFile((filetype & GAME_TMD) ? cxi_path : file_path, NULL, extstr) == 0) {
-            ShowPrompt(false, "%s\n%s extracted to " OUTPUT_PATH, pathstr, extstr);
-        } else ShowPrompt(false, "%s\n.code extract failed", pathstr);
+        if ((n_marked > 1) && ShowPrompt(true, "Try to extract all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0;
+            u32 n_processed = 0;
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (!ShowProgress(n_processed++, n_marked, path)) break;
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
+                    n_other++;
+                    continue;
+                }
+                DrawDirContents(current_dir, (*cursor = i), scroll);
+                if (filetype & GAME_TMD) {
+                    char cxi_pathl[256] = { 0 };
+                    if ((GetTmdContentPath(cxi_pathl, path) == 0) && PathExist(cxi_pathl) && 
+                        (ExtractCodeFromCxiFile(cxi_pathl, NULL, NULL) == 0)) {
+                        n_success++;
+                    }
+                } else if (ExtractCodeFromCxiFile(path, NULL, NULL) == 0) n_success++;
+                else continue;
+                current_dir->entry[i].marked = false;
+            }
+            if (n_other) ShowPrompt(false, "%lu/%lu files extracted ok\n%lu/%lu not of same type",
+                n_success, n_marked, n_other, n_marked);
+            else ShowPrompt(false, "%lu/%lu files extracted ok", n_success, n_marked); 
+        } else {
+            char extstr[8] = { 0 };
+            ShowString("%s\nExtracting .code, please wait...", pathstr);
+            if (ExtractCodeFromCxiFile((filetype & GAME_TMD) ? cxi_path : file_path, NULL, extstr) == 0) {
+                ShowPrompt(false, "%s\n%s extracted to " OUTPUT_PATH, pathstr, extstr);
+            } else ShowPrompt(false, "%s\n.code extract failed", pathstr);
+        }
         return 0;
     }
     else if (user_select == ctrtransfer) { // -> transfer CTRNAND image to SysNAND
