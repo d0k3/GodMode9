@@ -5,7 +5,7 @@
 #include <arm.h>
 #include <vram.h>
 
-.equ ARG_MAGIC, 0x0000BEEF
+.equ ARG_MAGIC, 0x0003BEEF
 .equ MPCORE_LD, 0x27FFFB00
 .equ STUB_LOC,  0x27FFFC00
 .equ ARGV_LOC,  0x27FFFE00
@@ -80,7 +80,7 @@ BootFirm_stub:
         @ Registers:
         @ R0 = 0x1 or 0x2
         @ R1 = 0x23FFFE10
-        @ R2 = 0x0000BEEF
+        @ R2 = 0x0003BEEF
         @ R3-R14 are undefined
 
         @ Check screen-init flag
