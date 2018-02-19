@@ -997,7 +997,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     u64 filetype = IdentifyFileType(file_path);
     u32 drvtype = DriveType(file_path);
     
-    bool in_output_path = (strncmp(current_path, OUTPUT_PATH, 256) == 0);
+    bool in_output_path = (strncasecmp(current_path, OUTPUT_PATH, 256) == 0);
     
     // don't handle TMDs inside the game drive, won't work properly anyways
     if ((filetype & GAME_TMD) && (drvtype & DRV_GAME)) filetype &= ~GAME_TMD;
