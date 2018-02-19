@@ -13,4 +13,5 @@
 #include "gba.h"
 #include "tad.h"
 #include "3dsx.h"
+#include "ticketdb.h"
 #include "ncchinfo.h"
