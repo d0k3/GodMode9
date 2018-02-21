@@ -460,6 +460,7 @@ u32 FileHexViewer(const char* path) {
     u32 last_offset = (u32) -1;
     u32 offset = 0;
     
+    u8  found_data[64 + 1] = { 0 };
     u32 found_offset = (u32) -1;
     u32 found_size = 0;
     
@@ -649,9 +650,7 @@ u32 FileHexViewer(const char* path) {
             else if ((pad_state & BUTTON_A) && total_data) edit_mode = true;
             else if (pad_state & (BUTTON_B|BUTTON_START)) break;
             else if (found_size && (pad_state & BUTTON_R1) && (pad_state & BUTTON_X)) {
-                u8 data[64] = { 0 };
-                FileGetData(path, data, found_size, found_offset);
-                found_offset = FileFindData(path, data, found_size, found_offset + 1);
+                found_offset = FileFindData(path, found_data, found_size, found_offset + 1);
                 if (found_offset == (u32) -1) {
                     ShowPrompt(false, "Not found!");
                     found_size = 0;
@@ -668,23 +667,20 @@ u32 FileHexViewer(const char* path) {
                         (unsigned int) offset);
                     if (new_offset != (u64) -1) offset = new_offset;
                 } else if (user_select == 2) {
-                    char string[64 + 1] = { 0 };
-                    if (found_size) FileGetData(path, (u8*) string, (found_size <= 64) ? found_size : 64, found_offset);
-                    if (ShowStringPrompt(string, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
-                        found_size = strnlen(string, 64);
-                        found_offset = FileFindData(path, (u8*) string, found_size, offset);
+                    if (!found_size) *found_data = 0;
+                    if (ShowStringPrompt((char*) found_data, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                        found_size = strnlen((char*) found_data, 64);
+                        found_offset = FileFindData(path, found_data, found_size, offset);
                         if (found_offset == (u32) -1) {
                             ShowPrompt(false, "Not found!");
                             found_size = 0;
                         } else offset = found_offset;
                     }
                 } else if (user_select == 3) {
-                    u8 data[64] = { 0 };
-                    u32 size = 0;
-                    if (found_size) size = FileGetData(path, data, (found_size <= 64) ? found_size : 64, found_offset);
-                    if (ShowDataPrompt(data, &size, "Enter search data below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                    u32 size = found_size;
+                    if (ShowDataPrompt(found_data, &size, "Enter search data below.\n(R+X to repeat search)", (unsigned int) offset)) {
                         found_size = size;
-                        found_offset = FileFindData(path, data, size, offset);
+                        found_offset = FileFindData(path, found_data, size, offset);
                         if (found_offset == (u32) -1) {
                             ShowPrompt(false, "Not found!");
                             found_size = 0;
