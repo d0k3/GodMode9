@@ -1890,19 +1890,19 @@ u32 GodMode(int entrypoint) {
     u32 last_write_perm = GetWritePermissions();
     u32 last_clipboard_size = 0;
     
-    
     bool bootloader = IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
+    
+    // FIRM from FCRAM handling
     FirmHeader* firm_in_mem = (FirmHeader*) __FIRMTMP_ADDR; // should be safe here
-    memcpy(firm_in_mem, "NOPE", 4); // to prevent bootloops
     if (bootloader) { // check for FIRM in FCRAM, but prevent bootloops
-        for (u8* addr = (u8*) __FCRAM0_ADDR + 0x200; addr < (u8*) __HEAP_END; addr += 0x400000) { // don't search the stack
-            if (memcmp(addr - 0x200, "A9NC", 4) != 0) continue;
-            u32 firm_size = GetFirmSize((FirmHeader*) (void*) addr);
-            if (!firm_size || (firm_size > (0x400000 - 0x200))) continue;
-            if (memcmp(firm_in_mem, "FIRM", 4) != 0) memmove(firm_in_mem, addr, firm_size);
-            if (memcmp(addr, "FIRM", 4) == 0) memcpy(addr, "NOPE", 4); // prevent bootloops
+        void* addr = (void*) __FIRMRAM_ADDR;
+        u32 firm_size = GetFirmSize((FirmHeader*) addr);
+        memcpy(firm_in_mem, "NOPE", 4); // overwrite header to prevent bootloops
+        if (firm_size && (firm_size <= (__FIRMRAM_END - __FIRMRAM_ADDR))) {
+            memcpy(firm_in_mem, addr, firm_size);
+            memcpy(addr, "NOPE", 4); // to prevent bootloops
         }
     }
     
