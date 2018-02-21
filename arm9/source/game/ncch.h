@@ -20,8 +20,9 @@
 #define SEEDDB_NAME         "seeddb.bin"
 #define SEEDDB_SIZE(sdb)    (16 + ((sdb)->n_entries * sizeof(SeedInfoEntry)))
 
-#define SEEDSAVE_AREA_OFFSETS 0x7000, 0x5C000
 #define SEEDSAVE_MAX_ENTRIES  2000
+#define SEEDSAVE_AREA_OFFSET  0x4000
+#define SEEDSAVE_AREA_SIZE    (SEEDSAVE_MAX_ENTRIES * (8+16))
 
 // wrapper defines
 #define DecryptNcch(data, offset, size, ncch, exefs) CryptNcch(data, offset, size, ncch, exefs, NCCH_NOCRYPTO)

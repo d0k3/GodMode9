@@ -1,4 +1,5 @@
 #include "gameutil.h"
+#include "disadiff.h"
 #include "game.h"
 #include "hid.h"
 #include "ui.h"
@@ -1881,39 +1882,23 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
             return 1;
         }
     } else if (filetype & SYS_TICKDB) {
-        const u32 area_offsets[] = { TICKDB_AREA_OFFSETS };
-        FIL file;
+        u8* data = (u8*) malloc(TICKDB_AREA_SIZE);
+        if (!data) return 1;
         
-        if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) return 1;
-        u8* data = (u8*) malloc(STD_BUFFER_SIZE);
-        if (!data) {
-            fvx_close(&file);
+        // read and decode ticket.db DIFF partition
+        if (ReadDisaDiffIvfcLvl4(path_in, NULL, TICKDB_AREA_OFFSET, TICKDB_AREA_SIZE, data) != TICKDB_AREA_SIZE) {
+            free(data);
             return 1;
         }
         
-        // parse file, sector by sector
-        for (u32 p = 0; p < sizeof(area_offsets) / sizeof(u32); p++) {
-            fvx_lseek(&file, area_offsets[p]);
-            fvx_sync(&file);
-            for (u32 i = 0; i < TICKDB_AREA_SIZE; i += (STD_BUFFER_SIZE - 0x200)) {
-                u32 read_bytes = min(STD_BUFFER_SIZE, TICKDB_AREA_SIZE - i);
-                
-                if (fvx_read(&file, data, read_bytes, NULL) != FR_OK) {
-                    fvx_close(&file);
-                    free(data);
-                    return 1;
-                }
-                
-                for (u8* ptr = data; ptr + 0x400 < data + read_bytes; ptr += 0x200) {
-                    Ticket* ticket = TicketFromTickDbChunk(ptr, NULL, true);
-                    if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
-                    if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
-                    AddTicketToInfo(tik_info, ticket, dec); // ignore result
-                }
-            }
+        // parse the decoded data for valid tickets
+        for (u32 i = 0; i < TICKDB_AREA_SIZE + 0x400; i += 0x200) {
+            Ticket* ticket = TicketFromTickDbChunk(data + i, NULL, true);
+            if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
+            if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
+            AddTicketToInfo(tik_info, ticket, dec); // ignore result
         }
         
-        fvx_close(&file);
         free(data);
     } else if (filetype & BIN_TIKDB) {
         TitleKeysInfo* tik_info_merge = (TitleKeysInfo*) malloc(STD_BUFFER_SIZE);
@@ -2017,32 +2002,22 @@ u32 BuildSeedInfo(const char* path, bool dump) {
         
         free(seed_info_merge);
     } else if (inputtype == 2) { // seed system save input
-        static const u32 seed_offset[2] = {SEEDSAVE_AREA_OFFSETS};
-        u8* seedsave = (u8*) malloc(SEEDSAVE_MAX_ENTRIES*(8+16));
+        u8* seedsave = (u8*) malloc(SEEDSAVE_AREA_SIZE);
         if (!seedsave) return 1;
         
-        if (fvx_qread(path_in, seedsave, 0, 0x200, NULL) != FR_OK) {
+        if (ReadDisaDiffIvfcLvl4(path_in, NULL, SEEDSAVE_AREA_OFFSET, SEEDSAVE_AREA_SIZE, seedsave) != SEEDSAVE_AREA_SIZE) {
             free(seedsave);
             return 1;
         }
         
-        u32 p_active = (getle32(seedsave + 0x168)) ? 1 : 0;
-        for (u32 p = 0; p < 2; p++) {
-            SeedInfoEntry seed = { 0 };
-            
-            if (fvx_qread(path_in, seedsave, seed_offset[(p + p_active) % 2], SEEDSAVE_MAX_ENTRIES*(8+16), NULL) != FR_OK) {
-                free(seedsave);
-                return 1;
-            }
-            
-            for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
-                seed.titleId = getle64(seedsave + (s*8));
-                memcpy(seed.seed, seedsave + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
-                if (((seed.titleId >> 32) != 0x00040000) ||
-                    (!getle64(seed.seed) && !getle64(seed.seed + 8))) continue;
-                if (SEEDDB_SIZE(seed_info) + 32 > STD_BUFFER_SIZE) break; // no error message
-                AddSeedToDb(seed_info, &seed); // ignore result 
-            }
+        SeedInfoEntry seed = { 0 };
+        for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
+            seed.titleId = getle64(seedsave + (s*8));
+            memcpy(seed.seed, seedsave + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
+            if (((seed.titleId >> 32) != 0x00040000) ||
+                (!getle64(seed.seed) && !getle64(seed.seed + 8))) continue;
+            if (SEEDDB_SIZE(seed_info) + 32 > STD_BUFFER_SIZE) break; // no error message
+            AddSeedToDb(seed_info, &seed); // ignore result 
         }
         
         free(seedsave);

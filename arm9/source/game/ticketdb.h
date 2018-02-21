@@ -7,9 +7,10 @@
 #define TIKDB_NAME_DEC      "decTitleKeys.bin"
 #define TIKDB_SIZE(tdb)     (16 + ((tdb)->n_entries * sizeof(TitleKeyEntry)))
 
-#define TICKDB_PATH(emu)    ((emu) ? "4:/dbs/ticket.db" : "1:/dbs/ticket.db") // EmuNAND / SysNAND         
-#define TICKDB_AREA_OFFSETS 0x0137F000, 0x001C0C00 // second partition is more likely to be in use 
-#define TICKDB_AREA_SIZE    0x00180000 // the actual area size is around 0x0010C600
+#define TICKDB_PATH(emu)    ((emu) ? "4:/dbs/ticket.db" : "1:/dbs/ticket.db") // EmuNAND / SysNAND
+#define TICKDB_AREA_OFFSET  0xA1C00 // offset inside the decoded DIFF partition
+#define TICKDB_AREA_RAW     0x0137F000, 0x001C0C00 // raw offsets inside the file
+#define TICKDB_AREA_SIZE    0x00500000 // 5MB, arbitrary (around 1MB is realistic)
 
 #define TICKDB_MAGIC        0x44, 0x49, 0x46, 0x46, 0x00, 0x00, 0x03, 0x00, \
                             0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \

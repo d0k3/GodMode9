@@ -1,5 +1,6 @@
 #include "ncch.h"
 #include "support.h"
+#include "disadiff.h"
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
@@ -64,11 +65,10 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
     }
     
     // setup a large enough buffer
-    u8* buffer = (u8*) malloc(max(STD_BUFFER_SIZE, SEEDSAVE_MAX_ENTRIES*(8+16)*2));
+    u8* buffer = (u8*) malloc(max(STD_BUFFER_SIZE, SEEDSAVE_AREA_SIZE));
     if (!buffer) return 1;
     
     // try to grab the seed from NAND database
-    const u32 seed_offset[2] = {SEEDSAVE_AREA_OFFSETS};
     const char* nand_drv[] = {"1:", "4:"}; // SysNAND and EmuNAND
     for (u32 i = 0; i < countof(nand_drv); i++) {
         UINT btr = 0;
@@ -90,37 +90,21 @@ u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
             nand_drv[i], sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
             
         // check seedsave for seed
-        u8* seeddb[2];
-        seeddb[0] = buffer;
-        seeddb[1] = buffer + (SEEDSAVE_MAX_ENTRIES*(8+16));
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        u8* seeddb = buffer;
+        if (ReadDisaDiffIvfcLvl4(path, NULL, SEEDSAVE_AREA_OFFSET, SEEDSAVE_AREA_SIZE, seeddb) != SEEDSAVE_AREA_SIZE)
             continue;
-        f_read(&file, seeddb[0], 0x200, &btr);
-        u32 p_active = (getle32(seeddb[0] + 0x168)) ? 1 : 0;
-        
-        // read both partitions
-        for (u32 p = 0; p < 2; p++) {
-            f_lseek(&file, seed_offset[(p + p_active) % 2]);
-            f_read(&file, seeddb[p], SEEDSAVE_MAX_ENTRIES*(8+16), &btr);
-        }
         
         // search for the seed
-        for (u32 p = 0; p < 2; p++) {
-            for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
-                if (titleId != getle64(seeddb[p] + (s*8))) continue;
-                for (u32 p0 = 0; p0 < 2; p0++) {
-                    memcpy(lseed, seeddb[(p+p0)%2] + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
-                    sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
-                    if (hash_seed == sha256sum[0]) {
-                        memcpy(seed, lseed, 16);
-                        f_close(&file);
-                        free(buffer);
-                        return 0; // found!
-                    }
-                }
+        for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
+            if (titleId != getle64(seeddb + (s*8))) continue;
+            memcpy(lseed, seeddb + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
+            sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
+            if (hash_seed == sha256sum[0]) {
+                memcpy(seed, lseed, 16);
+                free(buffer);
+                return 0; // found!
             }
         }
-        f_close(&file);
     }
     
     // not found -> try seeddb.bin

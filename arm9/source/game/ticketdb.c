@@ -1,4 +1,5 @@
 #include "ticketdb.h"
+#include "disadiff.h"
 #include "support.h"
 #include "aes.h"
 #include "ff.h"
@@ -64,29 +65,25 @@ Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls) {
 
 u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
     const char* path_db = TICKDB_PATH(emunand); // EmuNAND / SysNAND
-    const u32 area_offsets[] = { TICKDB_AREA_OFFSETS };
-    u8 data[0x400];
-    FIL file;
-    UINT btr;
+    u8* data = (u8*) malloc(TICKDB_AREA_SIZE);
+    if (!data) return 1;
     
-    // parse file, sector by sector
-    if (f_open(&file, path_db, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    // read and decode ticket.db DIFF partition
+    if (ReadDisaDiffIvfcLvl4(path_db, NULL, TICKDB_AREA_OFFSET, TICKDB_AREA_SIZE, data) != TICKDB_AREA_SIZE) {
+        free(data);
         return 1;
-    bool found = false;
-    for (u32 p = 0; p < 2; p++) {
-        u32 area_offset = area_offsets[p];
-        for (u32 i = 0; !found && (i < TICKDB_AREA_SIZE); i += 0x200) {
-            f_lseek(&file, area_offset + i);
-            if ((f_read(&file, data, 0x400, &btr) != FR_OK) || (btr != 0x400)) break;
-            Ticket* tick = TicketFromTickDbChunk(data, title_id, force_legit);
-            if (!tick) continue;
-            memcpy(ticket, tick, sizeof(Ticket));
-            found = true;
-            break;
-        }
     }
-    f_close(&file);
     
+    // parse the decoded data for a ticket
+    bool found = false;
+    for (u32 i = 0; !found && (i < TICKDB_AREA_SIZE + 0x400); i += 0x200) {
+        Ticket* tick = TicketFromTickDbChunk(data + i, title_id, force_legit);
+        if (!tick) continue;
+        memcpy(ticket, tick, sizeof(Ticket));
+        found = true;
+    }
+    
+    free(data);
     return (found) ? 0 : 1;
 }
 
