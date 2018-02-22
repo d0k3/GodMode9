@@ -121,7 +121,7 @@ void DeinitVTickDbDrive(void) {
 }
 
 u64 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
-   if (!(GetMountState() & SYS_TICKDB)) return 0;
+    if (!(GetMountState() & SYS_TICKDB)) return 0;
     
     // set up drive buffer / internal db
     DeinitVTickDbDrive();

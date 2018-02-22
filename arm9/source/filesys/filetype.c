@@ -3,6 +3,7 @@
 #include "fatmbr.h"
 #include "nand.h"
 #include "game.h"
+#include "disadiff.h"
 #include "keydb.h"
 #include "ctrtransfer.h"
 #include "scripting.h"
@@ -11,6 +12,8 @@
 
 u64 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
+    const u8 diff_magic[] = { DIFF_MAGIC };
+    // const u8 disa_magic[] = { DISA_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
     const u8 smdh_magic[] = { SMDH_MAGIC };
     const u8 threedsx_magic[] = { THREEDSX_EXT_MAGIC };
@@ -88,8 +91,10 @@ u64 IdentifyFileType(const char* path) {
             return SYS_FIRM; // FIRM file
         } else if ((ValidateAgbSaveHeader((AgbSaveHeader*) data) == 0) && (fsize >= AGBSAVE_MAX_SIZE)) {
             return SYS_AGBSAVE; // AGBSAVE file
-        } else if (memcmp(header + 0x100, tickdb_magic, sizeof(tickdb_magic)) == 0) {
-            return SYS_TICKDB; // ticket.db
+        } else if (memcmp(header + 0x100, diff_magic, sizeof(diff_magic)) == 0) { // DIFF file
+            if (memcmp(header + 0x100, tickdb_magic, sizeof(tickdb_magic)) == 0) // ticket.db file
+                return SYS_DIFF | SYS_TICKDB; // ticket.db
+            return SYS_DIFF;
         } else if (memcmp(header, smdh_magic, sizeof(smdh_magic)) == 0) {
             return GAME_SMDH; // SMDH file
         } else if (ValidateTwlHeader((TwlHeader*) data) == 0) {

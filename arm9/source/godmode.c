@@ -9,6 +9,7 @@
 #include "virtual.h"
 #include "vcart.h"
 #include "game.h"
+#include "disadiff.h"
 #include "unittype.h"
 #include "entrypoints.h"
 #include "bootfirm.h"
@@ -1015,6 +1016,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HASCODE(filetype));
     bool extrcodeable = (FTYPE_HASCODE(filetype));
+    bool extrdiffable = (FTYPE_ISDISADIFF(filetype));
     bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool ncsdfixable = (FTYPE_NCSDFIXABLE(filetype));
@@ -1038,7 +1040,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         extrcodeable = (FTYPE_HASCODE(filetype_cxi));
     }
     
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable || agbimportable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || extrdiffable || keyinitable || keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable || agbimportable;
     
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1082,7 +1084,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_3DSX)  ? "Show 3DSX title info"  :
         (filetype & SYS_FIRM  ) ? "FIRM image options..." :
         (filetype & SYS_AGBSAVE)? (agbimportable) ? "AGBSAVE options..." : "Dump GBA VC save" :
-        (filetype & SYS_TICKDB) ? (tik_buildable) ? "Ticket.db options..." : "Mount as ticket.db" :
+        (filetype & SYS_TICKDB) ? "Ticket.db options..."  :
+        (filetype & SYS_DIFF)   ? "Extract DIFF data"     :
         (filetype & BIN_TIKDB)  ? "Titlekey options..."   :
         (filetype & BIN_KEYDB)  ? "AESkeydb options..."   :
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
@@ -1224,6 +1227,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int ctrtransfer = (transferable) ? ++n_opt : -1;
     int hsinject = (hsinjectable) ? ++n_opt : -1;
     int extrcode = (extrcodeable) ? ++n_opt : -1;
+    int extrdiff = (extrdiffable) ? ++n_opt : -1;
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -1256,6 +1260,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
     if (extrcode > 0) optionstr[extrcode-1] = "Extract " EXEFS_CODE_NAME;
+    if (extrdiff > 0) optionstr[extrdiff-1] = "Extract DIFF data";
     if (keyinit > 0) optionstr[keyinit-1] = "Init " KEYDB_NAME;
     if (keyinstall > 0) optionstr[keyinstall-1] = "Install " KEYDB_NAME;
     if (install > 0) optionstr[install-1] = "Install FIRM";
@@ -1576,7 +1581,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         }
         return 0;
     }
-    else if (user_select == extrcode) { // -> Extract code
+    else if ((user_select == extrcode) || (user_select == extrdiff)) { // -> Extract .code or DIFF partition
         if ((n_marked > 1) && ShowPrompt(true, "Try to extract all %lu selected files?", n_marked)) {
             u32 n_success = 0;
             u32 n_other = 0;
@@ -1591,19 +1596,29 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (filetype & GAME_TMD) {
+                if (filetype & SYS_DIFF) {
+                    if (ExtractDataFromDisaDiff(path) == 0) n_success++;
+                    else continue;
+                } else if (filetype & GAME_TMD) {
                     char cxi_pathl[256] = { 0 };
                     if ((GetTmdContentPath(cxi_pathl, path) == 0) && PathExist(cxi_pathl) && 
                         (ExtractCodeFromCxiFile(cxi_pathl, NULL, NULL) == 0)) {
                         n_success++;
-                    }
-                } else if (ExtractCodeFromCxiFile(path, NULL, NULL) == 0) n_success++;
-                else continue;
+                    } else continue;
+                } else {
+                    if (ExtractCodeFromCxiFile(path, NULL, NULL) == 0) n_success++;
+                    else continue;
+                }
                 current_dir->entry[i].marked = false;
             }
             if (n_other) ShowPrompt(false, "%lu/%lu files extracted ok\n%lu/%lu not of same type",
                 n_success, n_marked, n_other, n_marked);
             else ShowPrompt(false, "%lu/%lu files extracted ok", n_success, n_marked); 
+        } else if (filetype & SYS_DIFF) {
+            ShowString("%s\nExtracting data, please wait...", pathstr);
+            if (ExtractDataFromDisaDiff(file_path) == 0) {
+                ShowPrompt(false, "%s\ndata extracted to " OUTPUT_PATH, pathstr);
+            } else ShowPrompt(false, "%s\ndata extract failed", pathstr);
         } else {
             char extstr[8] = { 0 };
             ShowString("%s\nExtracting .code, please wait...", pathstr);
