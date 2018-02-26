@@ -1702,7 +1702,7 @@ bool ExecuteGM9Script(const char* path_script) {
         
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
-        bool result = run_line(ptr, line_end, &flags, err_str, false);
+        result = run_line(ptr, line_end, &flags, err_str, false);
         
         
         // skip state handling
@@ -1756,9 +1756,8 @@ bool ExecuteGM9Script(const char* path_script) {
             }
             if (!(flags & _FLG('o'))) { // failed if not optional
                 for_handler(NULL, NULL, NULL, false); // make sure we don't have an open 'for'
-                result = false; // we failed
                 break;
-            }
+            } else result = true; // set back the result otherwise
         }
         
         // reposition pointer
