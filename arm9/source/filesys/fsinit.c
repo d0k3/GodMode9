@@ -17,18 +17,21 @@ bool InitSDCardFS() {
 }
 
 bool InitExtFS() {
+    static bool ramdrv_ready = false;
+    
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);
         if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
-        if (!fs_mounted[i] && (i == NORM_FS - 1) && !(GetMountState() & IMG_NAND)) {
+        if ((!fs_mounted[i] || !ramdrv_ready) && (i == NORM_FS - 1) && !(GetMountState() & IMG_NAND)) {
             u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
             if (!buffer) bkpt; // whatever, this won't go wrong anyways
             f_mkfs(fsname, FM_ANY, 0, buffer, STD_BUFFER_SIZE); // format ramdrive if required
             free(buffer);
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
+            ramdrv_ready = true;
         }
     }
     SetupNandSdDrive("A:", "0:", "1:/private/movable.sed", 0);
