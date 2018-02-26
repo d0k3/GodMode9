@@ -273,7 +273,7 @@ void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
     strncpy(info->movablekeyy, "<unknown>", countof(info->movablekeyy));
     strncpy(info->nand_id0, "<unknown>", countof(info->nand_id0));
     
-    if (fvx_qread(path, &data, 0, sizeof(data), NULL) != FR_OK)
+    if (fvx_qread(path, &data, 0, 0x120 /* sizeof(data) */, NULL) != FR_OK) // whatever, we don't need the last 0x20 byte here
         return;
     
     // The LocalFriendCodeSeed.
