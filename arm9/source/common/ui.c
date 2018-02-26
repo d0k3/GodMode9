@@ -515,7 +515,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
         u32 pad_state = InputWait(0);
         if (!(pad_state & BUTTON_ANY))
             continue;
-        else if (pad_state & sequence[lvl])
+        else if ((pad_state & BUTTON_ANY) == sequence[lvl])
             lvl++;
         else if (pad_state & BUTTON_B)
             break;
