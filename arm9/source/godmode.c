@@ -1946,6 +1946,16 @@ u32 GodMode(int entrypoint) {
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
     
+    // custom font handling
+    if (CheckSupportFile("font.pbm")) {
+        u8* pbm = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+        if (pbm) {
+            u32 pbm_size = LoadSupportFile("font.pbm", pbm, 0x10000);
+            if (pbm_size) SetFontFromPbm(pbm, pbm_size);
+            free(pbm);
+        }
+    }
+    
     // check for embedded essential backup
     if (((entrypoint == ENTRY_NANDBOOT) || (entrypoint == ENTRY_B9S)) &&
         !PathExist("S:/essential.exefs") && CheckGenuineNandNcsd() &&
@@ -2310,7 +2320,7 @@ u32 GodMode(int entrypoint) {
                 ShowPrompt(false, "Not allowed in XORpad drive");
             } else if ((curr_drvtype & DRV_CART) && (pad_state & BUTTON_Y)) {
                 ShowPrompt(false, "Not allowed in gamecart drive");
-            }else if (pad_state & BUTTON_Y) { // paste files
+            } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
                 u32 flags = 0;
