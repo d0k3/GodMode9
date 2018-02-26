@@ -8,15 +8,17 @@
 #include "spiflash.h"
 #include "i2c.h"
 
-#define VFLAG_CALLBACK      (1UL<<27)
-#define VFLAG_BOOT9         (1UL<<28)
-#define VFLAG_BOOT11        (1UL<<29)
-#define VFLAG_OTP           (1UL<<30)
+#define VFLAG_CALLBACK      (1UL<<26)
+#define VFLAG_BOOT9         (1UL<<27)
+#define VFLAG_BOOT11        (1UL<<28)
+#define VFLAG_OTP           (1UL<<29)
+#define VFLAG_OTP_KEY       (1UL<<30)
 #define VFLAG_N3DS_EXT      (1UL<<31)
 
 // checks for boot9 / boot11
 #define HAS_BOOT9   (sha_cmp(boot9_sha256, (u8*) __BOOT9_ADDR, __BOOT9_LEN, SHA256_MODE) == 0)
 #define HAS_BOOT11  (sha_cmp(boot11_sha256, (u8*) __BOOT11_ADDR, __BOOT11_LEN, SHA256_MODE) == 0)
+#define HAS_OTP_KEY (HAS_BOOT9 || ((LoadKeyFromFile(NULL, 0x11, 'N', "OTP") == 0) && (LoadKeyFromFile(NULL , 0x11, 'I', "OTP") == 0)))
 
 // see: https://www.youtube.com/watch?v=wogNzUypLuI
 u8 boot9_sha256[0x20] = {
@@ -75,7 +77,7 @@ static const VirtualFile vMemFileTemplates[] = {
 
     // Custom callback implementations.
     // Keyslot field has arbitrary meaning, and may not actually be a keyslot.
-    { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, __OTP_LEN , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP },
+    { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, __OTP_LEN , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP | VFLAG_OTP_KEY },
     { "mcu_3ds_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
     { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
     { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
@@ -93,9 +95,10 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
         
         // process special flags
         if (((vfile->flags & VFLAG_N3DS_EXT) && (IS_O3DS || IS_SIGHAX)) || // this is not on O3DS consoles and locked by sighax
-            ((vfile->flags & VFLAG_OTP) && !(IS_UNLOCKED)) || // OTP still locked
-            ((vfile->flags & VFLAG_BOOT9) && !(HAS_BOOT9)) || // boot9 not found
-            ((vfile->flags & VFLAG_BOOT11) && !(HAS_BOOT11))) // boot11 not found
+            ((vfile->flags & VFLAG_OTP) && !(IS_UNLOCKED))   || // OTP still locked
+            ((vfile->flags & VFLAG_BOOT9) && !(HAS_BOOT9))   || // boot9 not found
+            ((vfile->flags & VFLAG_BOOT11) && !(HAS_BOOT11)) || // boot11 not found
+            ((vfile->flags & VFLAG_OTP_KEY) && !(HAS_OTP_KEY))) // OTP key not found
             continue; 
         
         // found if arriving here
