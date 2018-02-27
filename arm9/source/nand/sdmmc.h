@@ -74,6 +74,8 @@
 #define TMIO_MASK_READOP  (TMIO_STAT1_RXRDY | TMIO_STAT1_DATAEND)
 #define TMIO_MASK_WRITEOP (TMIO_STAT1_TXRQ | TMIO_STAT1_DATAEND)
 
+#define SD_WRITE_PROTECTED (!((*(volatile u16*) (SDMMC_BASE + 0x1C)) & (0x1 << 7)))
+
 typedef struct mmcdevice {
     u8 *rData;
     const u8 *tData;
