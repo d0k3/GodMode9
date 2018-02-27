@@ -49,6 +49,12 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
         return false;
     }
     
+    // Write lock check
+    if (SD_WRITE_LOCKED) {
+        ShowPrompt(true, "SD card is write locked !\nCan't continue.");
+        return false;
+    }
+    
     // build the MBR
     memcpy(mbrdata + 0x08, &fat_sector, 4);
     memcpy(mbrdata + 0x0C, &fat_size, 4);

@@ -26,6 +26,12 @@ bool CheckWritePermissions(const char* path) {
     if ((drvtype & DRV_IMAGE) && !CheckWritePermissions(GetMountPath()))
         return false; // endless loop when mounted file inside image, but not possible
     
+    // SD card write lock check
+    if ((drvtype & (DRV_IMAGE | DRV_SDCARD | DRV_EMUNAND | DRV_ALIAS)) && SD_WRITE_LOCKED) {
+        ShowPrompt(false, "SD card is write locked.\nCan't continue.");
+        return false;
+    }
+    
     // check drive type, get permission type
     if (drvtype & DRV_SYSNAND) {
         u32 perms[] = { PERM_SYS_LVL0, PERM_SYS_LVL1, PERM_SYS_LVL2, PERM_SYS_LVL3 };
