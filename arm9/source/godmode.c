@@ -2200,14 +2200,12 @@ u32 GodMode(int entrypoint) {
                 }
             }
         } else if (switched && (pad_state & BUTTON_B)) { // unmount SD card
-            DeinitExtFS();
             if (!CheckSDMountState()) {
                 while (!InitSDCardFS() &&
                     ShowPrompt(true, "Initialising SD card failed! Retry?"));
             } else {
                 DeinitSDCardFS();
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) &
-                    (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
+                if (clipboard->n_entries && !PathExist(clipboard->entry[0].path))
                     clipboard->n_entries = 0; // remove SD clipboard entries
             }
             ClearScreenF(true, true, COLOR_STD_BG);

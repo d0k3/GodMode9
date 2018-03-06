@@ -77,7 +77,7 @@ void DeinitExtFS() {
 }
 
 void DeinitSDCardFS() {
-    DismountDriveType(DRV_SDCARD|DRV_EMUNAND);
+    DismountDriveType(DRV_SDCARD|DRV_EMUNAND|DRV_ALIAS);
 }
 
 void DismountDriveType(u32 type) { // careful with this - no safety checks
