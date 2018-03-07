@@ -1,7 +1,8 @@
 #include "hid.h"
 #include "i2c.h"
 #include "timer.h"
-#include "power.h"
+#include "power.h" // for brightness slider
+#include "screenshot.h" // for screenshots
 
 u32 InputWait(u32 timeout_sec) {
     static u64 delay = 0;
@@ -42,8 +43,11 @@ u32 InputWait(u32 timeout_sec) {
         // make sure the key is pressed
         u32 t_pressed = 0;
         for(; (t_pressed < 0x13000) && (pad_state == HID_STATE); t_pressed++);
-        if (t_pressed >= 0x13000)
+        if (t_pressed >= 0x13000) {
+            if ((pad_state & BUTTON_ANY) == (BUTTON_R1 | BUTTON_L1))
+                CreateScreenshot(); // screenshot handling
             return pad_state;
+        }
     }
 }
 

@@ -434,7 +434,7 @@ u32 FileGraphicsViewer(const char* path) {
         ClearScreenF(true, true, COLOR_STD_BG);
         DrawBitmap(ALT_SCREEN, -1, -1, w, h, bitmap);
         ShowString("Press <A> to continue");
-        InputWait(0);
+        while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
         ClearScreenF(true, true, COLOR_STD_BG);
     } else ret = 1;
     
@@ -639,8 +639,7 @@ u32 FileHexViewer(const char* path) {
         
         // handle user input
         u32 pad_state = InputWait(0);
-        if ((pad_state & BUTTON_R1) && (pad_state & BUTTON_L1)) CreateScreenshot();
-        else if (!edit_mode) { // standard viewer mode
+        if (!edit_mode) { // standard viewer mode
             u32 step_ud = (pad_state & BUTTON_R1) ? (0x1000  - (0x1000  % cols)) : cols;
             u32 step_lr = (pad_state & BUTTON_R1) ? (0x10000 - (0x10000 % cols)) : total_shown;
             if (pad_state & BUTTON_DOWN) offset += step_ud;
@@ -2244,8 +2243,7 @@ u32 GodMode(int entrypoint) {
             for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
             mark_next = 0;
         } else if (switched && (pad_state & BUTTON_L1)) { // switched L -> screenshot
-            CreateScreenshot();
-            ClearScreenF(true, true, COLOR_STD_BG);
+            // this is handled in hid.h
         } else if (*current_path && (pad_state & BUTTON_L1) && (curr_entry->type != T_DOTDOT)) {
             // unswitched L - mark/unmark single entry
             if (mark_next < -1) mark_next = -1;

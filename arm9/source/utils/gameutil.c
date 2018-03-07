@@ -1684,7 +1684,7 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     WordWrapString(desc_s, lwrap);
     WordWrapString(pub, lwrap);
     ShowIconString(icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s\n%s\n%s", desc_l, desc_s, pub);
-    InputWait(0);
+    while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
     ClearScreenF(true, false, COLOR_STD_BG);
     return 0;
 }
@@ -1698,7 +1698,7 @@ u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon) {
         return 1;
     WordWrapString(desc, lwrap);
     ShowIconString(icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
-    InputWait(0);
+    while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
     ClearScreenF(true, false, COLOR_STD_BG);
     return 0;
 }
@@ -1708,7 +1708,7 @@ u32 ShowGbaFileTitleInfo(const char* path) {
     if ((fvx_qread(path, &agb, 0, sizeof(AgbHeader), NULL) != FR_OK) ||
         (ValidateAgbHeader(&agb) != 0)) return 1;
     ShowString("%.12s (AGB-%.4s)\n%s", agb.game_title, agb.game_code, AGB_DESTSTR(agb.game_code));
-    InputWait(0);
+    while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
     ClearScreenF(true, false, COLOR_STD_BG);
     return 0;
     
