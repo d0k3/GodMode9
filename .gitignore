@@ -35,6 +35,9 @@
 # OS leftovers
 desktop.ini
 
+# Sublime files
+*.sublime-*
+
 # Build directories
 /output
 /release
