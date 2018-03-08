@@ -27,8 +27,6 @@
 #define PERM_YELLOW     (GetWritePermissions()&((PERM_SYS_LVL1&~PERM_SYS_LVL0)|(PERM_EMU_LVL1&~PERM_EMU_LVL0)|(PERM_SDDATA&~PERM_SDCARD)))
 #define PERM_GREEN      (GetWritePermissions()&(PERM_SDCARD|PERM_IMAGE|PERM_RAMDRIVE|PERM_EMU_LVL0|PERM_SYS_LVL0))
 
-#define SD_WRITE_LOCKED (!((*(volatile u16*)0x1000601C) & (0x1<<7)))
-
 /** Check if writing to this path is allowed **/
 bool CheckWritePermissions(const char* path);
 

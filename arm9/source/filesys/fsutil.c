@@ -49,9 +49,9 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
         return false;
     }
     
-    // Write lock check
-    if (SD_WRITE_LOCKED) {
-        ShowPrompt(true, "SD card is write locked !\nCan't continue.");
+    // Write protection check
+    if (SD_WRITE_PROTECTED) {
+        ShowPrompt(false, "SD card is write protected!\nCan't continue.");
         return false;
     }
     
