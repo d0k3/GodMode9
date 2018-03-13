@@ -4,8 +4,8 @@
 
 #define REG_SHACNT      ((volatile uint32_t*)0x1000A000)
 #define REG_SHABLKCNT   ((volatile uint32_t*)0x1000A004)
-#define REG_SHAHASH     ((volatile uint32_t*)0x1000A040)
-#define REG_SHAINFIFO   ((volatile uint32_t*)0x1000A080)
+#define REG_SHAHASH     ((         uint32_t*)0x1000A040)
+#define REG_SHAINFIFO   (                    0x1000A080)
 
 #define SHA_CNT_STATE           0x00000003
 #define SHA_CNT_OUTPUT_ENDIAN   0x00000008

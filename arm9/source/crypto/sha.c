@@ -1,5 +1,10 @@
 #include "sha.h"
 
+typedef struct
+{
+	u32 data[16];
+} _sha_block;
+
 void sha_init(u32 mode)
 {
     while(*REG_SHACNT & 1);
@@ -12,16 +17,12 @@ void sha_update(const void* src, u32 size)
     
     while(size >= 0x40) {
         while(*REG_SHACNT & 1);
-        for(u32 i = 0; i < 4; i++) {
-            *REG_SHAINFIFO = *src32++;
-            *REG_SHAINFIFO = *src32++;
-            *REG_SHAINFIFO = *src32++;
-            *REG_SHAINFIFO = *src32++;
-        }
+        *((_sha_block*)REG_SHAINFIFO) = *((const _sha_block*)src32);
+        src32 += 16;
         size -= 0x40;
     }
     while(*REG_SHACNT & 1);
-    memcpy((void*)REG_SHAINFIFO, src32, size);
+    if(size) memcpy((void*)REG_SHAINFIFO, src32, size);
 }
 
 void sha_get(void* res) {
