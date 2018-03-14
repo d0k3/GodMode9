@@ -2,7 +2,7 @@
 /  FatFs - Configuration file
 /---------------------------------------------------------------------------*/
 
-#define FFCONF_DEF 87030	/* Revision ID */
+#define FFCONF_DEF 89352	/* Revision ID */
 
 /*---------------------------------------------------------------------------/
 / Function Configurations
@@ -18,7 +18,7 @@
 #define FF_FS_MINIMIZE	0
 /* This option defines minimization level to remove some basic API functions.
 /
-/   0: All basic functions are enabled.
+/   0: Basic functions are fully enabled.
 /   1: f_stat(), f_getfree(), f_unlink(), f_mkdir(), f_truncate() and f_rename()
 /      are removed.
 /   2: f_opendir(), f_readdir() and f_closedir() are removed in addition to 1.
@@ -106,32 +106,46 @@
 /   2: Enable LFN with dynamic working buffer on the STACK.
 /   3: Enable LFN with dynamic working buffer on the HEAP.
 /
-/  To enable the LFN, Unicode handling functions (option/unicode.c) must be added
-/  to the project. The working buffer occupies (FF_MAX_LFN + 1) * 2 bytes and
-/  additional 608 bytes at exFAT enabled. FF_MAX_LFN can be in range from 12 to 255.
-/  It should be set 255 to support full featured LFN operations.
+/  To enable the LFN, ffunicode.c needs to be added to the project. The LFN function
+/  requiers certain internal working buffer occupies (FF_MAX_LFN + 1) * 2 bytes and
+/  additional (FF_MAX_LFN + 44) / 15 * 32 bytes when exFAT is enabled.
+/  The FF_MAX_LFN defines size of the working buffer in UTF-16 code unit and it can
+/  be in range of 12 to 255. It is recommended to be set 255 to fully support LFN
+/  specification.
 /  When use stack for the working buffer, take care on stack overflow. When use heap
 /  memory for the working buffer, memory management functions, ff_memalloc() and
-/  ff_memfree(), must be added to the project. */
+/  ff_memfree() in ffsystem.c, need to be added to the project. */
 
 
 #define FF_LFN_UNICODE	0
-/* This option switches character encoding on the API, 0:ANSI/OEM or 1:UTF-16,
-/  when LFN is enabled. Also behavior of string I/O functions will be affected by
-/  this option. When LFN is not enabled, this option has no effect.
-*/
+/* This option switches the character encoding on the API when LFN is enabled.
+/
+/   0: ANSI/OEM in current CP (TCHAR = char)
+/   1: Unicode in UTF-16 (TCHAR = WCHAR)
+/   2: Unicode in UTF-8 (TCHAR = char)
+/
+/  Also behavior of string I/O functions will be affected by this option.
+/  When LFN is not enabled, this option has no effect. */
+
+
+#define FF_LFN_BUF		255
+#define FF_SFN_BUF		12
+/* This set of options defines size of file name members in the FILINFO structure
+/  which is used to read out directory items. These values should be suffcient for
+/  the file names to read. The maximum possible length of the read file name depends
+/  on character encoding. When LFN is not enabled, these options have no effect. */
 
 
 #define FF_STRF_ENCODE	0
-/* When FF_LFN_UNICODE = 1 with LFN enabled, string I/O functions, f_gets(),
+/* When FF_LFN_UNICODE >= 1 with LFN enabled, string I/O functions, f_gets(),
 /  f_putc(), f_puts and f_printf() convert the character encoding in it.
 /  This option selects assumption of character encoding ON THE FILE to be
 /  read/written via those functions.
 /
-/   0: ANSI/OEM
-/   1: UTF-16LE
-/   2: UTF-16BE
-/   3: UTF-8
+/   0: ANSI/OEM in current CP
+/   1: Unicode in UTF-16LE
+/   2: Unicode in UTF-16BE
+/   3: Unicode in UTF-8
 */
 
 
@@ -217,9 +231,9 @@
 
 
 #define FF_FS_NORTC		0
-#define FF_NORTC_MON	5
+#define FF_NORTC_MON	1
 #define FF_NORTC_MDAY	1
-#define FF_NORTC_YEAR	2017
+#define FF_NORTC_YEAR	2018
 /* The option FF_FS_NORTC switches timestamp functiton. If the system does not have
 /  any RTC function or valid timestamp is not needed, set FF_FS_NORTC = 1 to disable
 /  the timestamp function. All objects modified by FatFs will have a fixed timestamp

@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------*/
-/* Sample code of OS dependent controls for FatFs                         */
+/* Sample Code of OS Dependent Functions for FatFs                        */
 /* (C)ChaN, 2017                                                          */
 /*------------------------------------------------------------------------*/
 
@@ -27,7 +27,7 @@ void* ff_memalloc (	/* Returns pointer to the allocated memory block (null on no
 /*------------------------------------------------------------------------*/
 
 void ff_memfree (
-	void* mblock	/* Pointer to the memory block to free */
+	void* mblock	/* Pointer to the memory block to free (nothing to do for null) */
 )
 {
 	free(mblock);	/* Free the memory block with POSIX API */

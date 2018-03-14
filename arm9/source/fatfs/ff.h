@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------/
-/  FatFs - Generic FAT Filesystem module  R0.13                               /
+/  FatFs - Generic FAT Filesystem module  R0.13a                              /
 /-----------------------------------------------------------------------------/
 /
 / Copyright (C) 2017, ChaN, all right reserved.
@@ -20,7 +20,7 @@
 
 
 #ifndef FF_DEFINED
-#define FF_DEFINED	87030	/* Revision ID */
+#define FF_DEFINED	89352	/* Revision ID */
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,20 +49,25 @@ extern PARTITION VolToPart[];	/* Volume - Partition resolution table */
 
 /* Type of path name strings on FatFs API */
 
-#if FF_LFN_UNICODE && FF_USE_LFN	/* Unicode (UTF-16) string */
 #ifndef _INC_TCHAR
+#define _INC_TCHAR
+
+#if FF_USE_LFN && FF_LFN_UNICODE == 1 	/* Unicode in UTF-16 encoding */
 typedef WCHAR TCHAR;
 #define _T(x) L ## x
 #define _TEXT(x) L ## x
-#define _INC_TCHAR
-#endif
-#else						/* ANSI/OEM string */
-#ifndef _INC_TCHAR
+#elif FF_USE_LFN && FF_LFN_UNICODE == 2	/* Unicode in UTF-8 encoding */
+typedef char TCHAR;
+#define _T(x) u8 ## x
+#define _TEXT(x) u8 ## x
+#elif FF_USE_LFN && (FF_LFN_UNICODE < 0 || FF_LFN_UNICODE > 2)
+#error Wrong FF_LFN_UNICODE setting
+#else									/* ANSI/OEM code in SBCS/DBCS */
 typedef char TCHAR;
 #define _T(x) x
 #define _TEXT(x) x
-#define _INC_TCHAR
 #endif
+
 #endif
 
 
@@ -70,9 +75,6 @@ typedef char TCHAR;
 /* Type of file size variables */
 
 #if FF_FS_EXFAT
-#if !FF_USE_LFN
-#error LFN must be enabled when enable exFAT
-#endif
 typedef QWORD FSIZE_t;
 #else
 typedef DWORD FSIZE_t;
@@ -200,10 +202,10 @@ typedef struct {
 	WORD	ftime;			/* Modified time */
 	BYTE	fattrib;		/* File attribute */
 #if FF_USE_LFN
-	TCHAR	altname[13];			/* Altenative file name */
-	TCHAR	fname[FF_MAX_LFN + 1];	/* Primary file name */
+	TCHAR	altname[FF_SFN_BUF + 1];/* Altenative file name */
+	TCHAR	fname[FF_LFN_BUF + 1];	/* Primary file name */
 #else
-	TCHAR	fname[13];		/* File name */
+	TCHAR	fname[12 + 1];	/* File name */
 #endif
 } FILINFO;
 
@@ -299,10 +301,10 @@ DWORD get_fattime (void);
 #endif
 
 /* LFN support functions */
-#if FF_USE_LFN						/* Code conversion (defined in unicode.c) */
+#if FF_USE_LFN >= 1						/* Code conversion (defined in unicode.c) */
 WCHAR ff_oem2uni (WCHAR oem, WORD cp);	/* OEM code to Unicode conversion */
-WCHAR ff_uni2oem (WCHAR uni, WORD cp);	/* Unicode to OEM code conversion */
-WCHAR ff_wtoupper (WCHAR uni);			/* Unicode upper-case conversion */
+WCHAR ff_uni2oem (DWORD uni, WORD cp);	/* Unicode to OEM code conversion */
+DWORD ff_wtoupper (DWORD uni);			/* Unicode upper-case conversion */
 #endif
 #if FF_USE_LFN == 3						/* Dynamic memory allocation */
 void* ff_memalloc (UINT msize);			/* Allocate memory block */
