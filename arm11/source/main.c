@@ -59,11 +59,25 @@ void PXI_IRQHandler(void)
     return;
 }
 
+vu16 *CFG11_MPCORE_CLKCNT = (vu16*)(0x10141300);
+vu16 *CFG11_SOCINFO = (vu16*)(0x10140FFC);
+
 void main(void)
 {
     u32 entry;
-    PXI_Reset();
 
+    if ((*CFG11_SOCINFO & 2) && (!(*CFG11_MPCORE_CLKCNT & 1))) {
+        GIC_Reset();
+        GIC_SetIRQ(88, NULL);
+        CPU_EnableIRQ();
+        *CFG11_MPCORE_CLKCNT = 0x8001;
+        do {
+            asm("wfi\n\t");
+        } while(!(*CFG11_MPCORE_CLKCNT & 0x8000));
+        CPU_DisableIRQ();
+    }
+
+    PXI_Reset();
     GIC_Reset();
     GIC_SetIRQ(IRQ_PXI_SYNC, PXI_IRQHandler);
     PXI_EnableIRQ();

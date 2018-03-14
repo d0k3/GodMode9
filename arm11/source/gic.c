@@ -2,54 +2,50 @@
 #include <cpu.h>
 #include <gic.h>
 
+#include <string.h>
+
 #define IRQVECTOR_BASE ((vu32*)0x1FFFFFA0)
 
-irq_handler handler_table[MAX_IRQ];
 extern void (*main_irq_handler)(void);
-
-irq_handler GIC_AckIRQ(void)
-{
-    u32 xrq = *GIC_IRQACK;
-    irq_handler ret = NULL;
-    if (xrq < MAX_IRQ && handler_table[xrq]) {
-        ret = handler_table[xrq];
-    }
-    *GIC_IRQEND = xrq;
-    return ret;
-}
-
-void GIC_SetIRQ(u32 irq_id, irq_handler hndl)
-{
-    handler_table[irq_id] = hndl;
-    DIC_CLRENABLE[irq_id/32] |= BIT(irq_id & 0x1F);
-    DIC_SETENABLE[irq_id/32] |= BIT(irq_id & 0x1F);
-    DIC_PROCTGT[irq_id] = 1;
-    return;
-}
+irq_handler GIC_Handlers[128];
 
 void GIC_Reset(void)
 {
-    *GIC_CONTROL = 1;
-    *DIC_CONTROL = 1;
+    u32 irq_s;
 
-    *GIC_PRIOMASK = ~0;
-    for (int i = 0; i < MAX_IRQ; i++) {
-        handler_table[i] = NULL;
-        *GIC_IRQEND = i;
-    }
+    REG_GIC_CONTROL = 0;
+    memset(GIC_Handlers, 0, sizeof(GIC_Handlers));
 
-    for (int i = 0; i < (0x08); i++) {
-        DIC_CLRENABLE[i] = ~0;
-        DIC_PRIORITY[i] = 0;
+    REG_DIC_CONTROL = 0;
+    for (int i = 0; i < 4; i++) {
+        REG_DIC_CLRENABLE[i]  = ~0;
+        REG_DIC_CLRPENDING[i] = ~0;
     }
+    for (int i = 0; i < 32; i++)   REG_DIC_PRIORITY[i] = 0;
+    for (int i = 32; i < 128; i++) REG_DIC_TARGETPROC[i] = 0;
+    for (int i = 0; i < 8; i++)    REG_DIC_CFGREG[i] = ~0;
+    REG_DIC_CONTROL = 1;
 
-    while(*GIC_PENDING != SPURIOUS_IRQ) {
-        for (int i=0; i < (0x08); i++) {
-            DIC_CLRPENDING[i] = ~0;
-        }
-    }
+    REG_DIC_CLRENABLE[0] = ~0;
+    for (int i = 0; i < 32; i++) REG_DIC_PRIORITY[i] = 0;
+    for (int i = 0; i < 2; i++) REG_DIC_CFGREG[i] = ~0;
+    REG_GIC_POI = 3;
+    REG_GIC_PRIOMASK = 0xF << 4;
+    REG_GIC_CONTROL = 1;
+
+    do {
+        irq_s = REG_GIC_PENDING;
+        REG_GIC_IRQEND = irq_s;
+    } while(irq_s != 1023);
 
     IRQVECTOR_BASE[1] = (u32)&main_irq_handler;
     IRQVECTOR_BASE[0] = 0xE51FF004;
-    return;
+}
+
+void GIC_SetIRQ(u32 irq, irq_handler handler)
+{
+    GIC_Handlers[irq] = handler;
+    REG_DIC_CLRPENDING[irq >> 5] |= BIT(irq & 0x1F);
+    REG_DIC_SETENABLE[irq >> 5]  |= BIT(irq & 0x1F);
+    REG_DIC_TARGETPROC[irq] = 1;
 }

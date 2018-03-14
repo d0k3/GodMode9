@@ -28,5 +28,5 @@ u64 GetRamDriveSize(void) {
 
 void InitRamDrive(void) {
     ramdrv_buffer = (u8*) __RAMDRV_ADDR;
-    ramdrv_size = ((IS_O3DS || IS_SIGHAX) ? __RAMDRV_END : __RAMDRV_END_N) - __RAMDRV_ADDR;
+    ramdrv_size = (IS_O3DS ? __RAMDRV_END : __RAMDRV_END_N) - __RAMDRV_ADDR;
 }
