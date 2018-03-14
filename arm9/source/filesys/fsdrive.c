@@ -142,12 +142,12 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
                 entry->size = fno.fsize;
             }
             entry->marked = 0;
-            if (contents->n_entries >= MAX_DIR_ENTRIES) {
-                ret = true; // Too many entries, still okay
-                break;
+            if (!recursive || (entry->type != T_DIR)) {
+                if (++(contents->n_entries) >= MAX_DIR_ENTRIES) {
+                    ret = true; // Too many entries, still okay if we stop here
+                    break;
+                }
             }
-            if (!recursive || (entry->type != T_DIR)) 
-                contents->n_entries++;
         }
         if (recursive && (fno.fattrib & AM_DIR)) {
             if (!GetDirContentsWorker(contents, fpath, fnsize, pattern, recursive))
