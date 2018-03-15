@@ -242,12 +242,14 @@ void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcol
     }
 }
 
-void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor)
+void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8)
 {
     size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / font_width;
     size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
-    for (size_t i = 0; i < len; i++)
-        DrawCharacter(screen, str[i], x + i * font_width, y, color, bgcolor);
+    for (size_t i = 0; i < len; i++) {
+        char c = (char) (fix_utf8 && str[i] >= 0x80) ? '?' : str[i]; 
+        DrawCharacter(screen, c, x + i * font_width, y, color, bgcolor);
+    }
 }
 
 void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *format, ...)
@@ -259,7 +261,7 @@ void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *f
     va_end(va);
 
     for (char* text = strtok(str, "\n"); text != NULL; text = strtok(NULL, "\n"), y += line_height)
-        DrawString(screen, text, x, y, color, bgcolor);
+        DrawString(screen, text, x, y, color, bgcolor, true);
 }
 
 void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ...)
@@ -921,14 +923,14 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     TruncateString(progstr, opstr, (bar_width / FONT_WIDTH_EXT) - 7, 8);
     snprintf(tempstr, 64, "%s (%lu%%)", progstr, prog_percent);
     ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
-    DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG, true);
     if (sec_elapsed >= 1) {
         snprintf(tempstr, 16, "ETA %02llum%02llus", sec_remain / 60, sec_remain % 60);
         ResizeString(progstr, tempstr, 16, 8, true);
         DrawString(MAIN_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
-            bar_pos_y - line_height - 1, COLOR_STD_FONT, COLOR_STD_BG);
+            bar_pos_y - line_height - 1, COLOR_STD_FONT, COLOR_STD_BG, true);
     }
-    DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG, false);
     
     last_prog_width = prog_width;
     

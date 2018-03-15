@@ -1,6 +1,7 @@
 #include "vgame.h"
 #include "image.h"
 #include "game.h"
+#include "utf.h"
 #include "aes.h"
 
 #define VGAME_BUFFER_SIZE   0x200000 // at least 2MB, multiple of 0x200
@@ -1139,8 +1140,7 @@ bool GetVGameLv3Filename(char* name, const VirtualFile* vfile, u32 n_chars) {
         name_len = filemeta->name_len / 2;
     }
     memset(name, 0, n_chars);
-    for (u32 i = 0; (i < (n_chars-1)) && (i < name_len); i++)
-        name[i] = wname[i]; // poor mans UTF-16 -> UTF-8 (doesn't work proper for special chars)
+    utf16_to_utf8((u8*) name, wname, n_chars-1, name_len);
     
     return true;
 }

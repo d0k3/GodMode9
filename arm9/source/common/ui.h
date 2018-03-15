@@ -54,7 +54,7 @@ void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap);
 void DrawQrCode(u8* screen, u8* qrcode);
 
 void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
-void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);
+void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8);
 void DrawStringF(unsigned char *screen, int x, int y, int color, int bgcolor, const char *format, ...);
 void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ...);
 

@@ -1,4 +1,5 @@
 #include "romfs.h"
+#include "utf.h"
 
 // validate header by checking offsets and sizes
 u32 ValidateLv3Header(RomFsLv3Header* lv3, u32 max_size) {
@@ -40,11 +41,11 @@ u32 HashLv3Path(u16* wname, u32 name_len, u32 offset_parent) {
 RomFsLv3DirMeta* GetLv3DirMeta(const char* name, u32 offset_parent, RomFsLv3Index* index) {
     RomFsLv3DirMeta* meta;
     
-    // wide name
+    // wide (UTF-16) name
     u16 wname[256];
-    u32 name_len = strnlen(name, 256);
-    for (name_len = 0; name[name_len]; name_len++)
-        wname[name_len] = name[name_len]; // poor mans UTF-8 -> UTF-16
+    int name_len = utf8_to_utf16(wname, (u8*) name, 255, 255);
+    if (name_len <= 0) return NULL;
+    wname[name_len] = 0;
     
     // hashing, first offset
     u32 hash = HashLv3Path(wname, name_len, offset_parent);
@@ -54,7 +55,7 @@ RomFsLv3DirMeta* GetLv3DirMeta(const char* name, u32 offset_parent, RomFsLv3Inde
     for (; offset < index->size_dirmeta; offset = meta->offset_samehash) {
         meta = (RomFsLv3DirMeta*) (index->dirmeta + offset);
         if ((offset_parent == meta->offset_parent) &&
-            (name_len == meta->name_len / 2) &&
+            ((u32) name_len == meta->name_len / 2) &&
             (memcmp(wname, meta->wname, name_len * 2) == 0))
             break;
     }
@@ -65,11 +66,11 @@ RomFsLv3DirMeta* GetLv3DirMeta(const char* name, u32 offset_parent, RomFsLv3Inde
 RomFsLv3FileMeta* GetLv3FileMeta(const char* name, u32 offset_parent, RomFsLv3Index* index) {
     RomFsLv3FileMeta* meta;
     
-    // wide name
+    // wide (UTF-16) name
     u16 wname[256];
-    u32 name_len = strnlen(name, 256);
-    for (name_len = 0; name[name_len]; name_len++)
-        wname[name_len] = name[name_len]; // poor mans UTF-8 -> UTF-16
+    int name_len = utf8_to_utf16(wname, (u8*) name, 255, 255);
+    if (name_len <= 0) return NULL;
+    wname[name_len] = 0;
     
     // hashing, first offset
     u32 hash = HashLv3Path(wname, name_len, offset_parent);
@@ -79,7 +80,7 @@ RomFsLv3FileMeta* GetLv3FileMeta(const char* name, u32 offset_parent, RomFsLv3In
     for (; offset < index->size_filemeta; offset = meta->offset_samehash) {
         meta = (RomFsLv3FileMeta*) (index->filemeta + offset);
         if ((offset_parent == meta->offset_parent) &&
-            (name_len == meta->name_len / 2) &&
+            ((u32) name_len == meta->name_len / 2) &&
             (memcmp(wname, meta->wname, name_len * 2) == 0))
             break;
     }

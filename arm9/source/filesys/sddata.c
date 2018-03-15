@@ -155,7 +155,7 @@ FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode) {
             u8 hashstr[256];
             u8 sha256sum[32];
             u32 plen = 0;
-            // poor man's UTF-8 -> UTF-16 / uppercase -> lowercase
+            // poor man's ASCII -> UTF-16 / uppercase -> lowercase
             for (plen = 0; plen < 128; plen++) {
                 u8 symbol = path[2 + plen];
                 if ((symbol >= 'A') && (symbol <= 'Z')) symbol += ('a' - 'A');
