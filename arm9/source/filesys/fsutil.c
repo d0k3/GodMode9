@@ -487,10 +487,9 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
                 char* oname = strrchr(orig, '/');
                 char* dname = dest + strnlen(dest, 255);
                 if (oname == NULL) return false; // not a proper origin path
-                *(dname++) = '/';
-                strncpy(dname, oname++, 256 - (dname - dest));
+                strncpy(dname, oname, 256 - (dname - dest)); // copy name plus preceding '/'
                 bool res = PathMoveCopyRec(dest, orig, flags, move, buffer, bufsiz);
-                *(--dname) = '\0';
+                *dname = '\0';
                 if (!res) break;
             }
         }
