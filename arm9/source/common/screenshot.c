@@ -1,5 +1,6 @@
 #include "common.h"
 #include "ui.h"
+#include "rtc.h"
 #include "vff.h"
 
 
@@ -13,14 +14,13 @@ void CreateScreenshot() {
     };
     
     char filename[64];
-    static u32 n = 0;
+    DsTime dstime;
     
     fvx_rmkdir(OUTPUT_PATH);
-    for (; n < 1000; n++) {
-        snprintf(filename, 64, OUTPUT_PATH "/snap%03i.bmp", (int) n);
-        if (fvx_stat(filename, NULL) != FR_OK) break;
-    }
-    if (n >= 1000) return;
+    get_dstime(&dstime);
+    snprintf(filename, 64, OUTPUT_PATH "/snap_%02X%02X%02X%02X%02X%02X.bmp",
+        dstime.bcd_Y, dstime.bcd_M, dstime.bcd_D,
+        dstime.bcd_h, dstime.bcd_m, dstime.bcd_s);
     
     u8* buffer = (u8*) malloc(snap_size);
     if (!buffer) return;
