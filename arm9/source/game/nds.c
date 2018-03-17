@@ -1,5 +1,6 @@
 #include "nds.h"
 #include "vff.h"
+#include "utf.h"
 
 #define CRC16_TABVAL  0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400
 
@@ -67,7 +68,7 @@ u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon) {
 u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon) {
     const u16* title = twl_icon->title_eng; // english title
     memset(desc, 0, TWLICON_SIZE_DESC + 1);
-    for (u32 i = 0; i < TWLICON_SIZE_DESC; i++) desc[i] = (title[i] >= 0x80) ? ' ' : title[i];
+    utf16_to_utf8((u8*) desc, title, TWLICON_SIZE_DESC, TWLICON_SIZE_DESC);
     return 0;
 }
 

@@ -1,6 +1,7 @@
 #include "smdh.h"
+#include "utf.h"
 
-#define SMDH_STRING(str, src, len) for (u32 i = 0; i < len; i++) str[i] = (src[i] >= 0x80) ? ' ' : src[i]
+#define SMDH_STRING(str, src, len) utf16_to_utf8((u8*) str, src, len, len)
 // shamelessly stolen from bch2obj.py / 3ds_hb_menu :)
 #define SMDH_LUT      0,  1,  8,  9,  2,  3, 10, 11, 16, 17, 24, 25, 18, 19, 26, 27, \
                       4,  5, 12, 13,  6,  7, 14, 15, 20, 21, 28, 29, 22, 23, 30, 31, \
