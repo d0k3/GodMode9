@@ -1671,9 +1671,9 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
     u8 icon[SMDH_SIZE_ICON_BIG];
-    char desc_l[SMDH_SIZE_DESC_LONG];
-    char desc_s[SMDH_SIZE_DESC_SHORT];
-    char pub[SMDH_SIZE_PUBLISHER];
+    char desc_l[SMDH_SIZE_DESC_LONG+1];
+    char desc_s[SMDH_SIZE_DESC_SHORT+1];
+    char pub[SMDH_SIZE_PUBLISHER+1];
     if ((memcmp(smdh->magic, smdh_magic, 4) != 0) ||
         (GetSmdhIconBig(icon, smdh) != 0) ||
         (GetSmdhDescLong(desc_l, smdh) != 0) ||
@@ -1692,7 +1692,7 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
 u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon) {
     const u32 lwrap = 24;
     u8 icon[TWLICON_SIZE_ICON];
-    char desc[TWLICON_SIZE_DESC];
+    char desc[TWLICON_SIZE_DESC+1];
     if ((GetTwlIcon(icon, twl_icon) != 0) ||
         (GetTwlTitle(desc, twl_icon) != 0))
         return 1;
