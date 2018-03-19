@@ -19,6 +19,7 @@
 #include "power.h"
 #include "vram0.h"
 #include "i2c.h"
+#include "lottery.h"
 
 
 #define N_PANES 2
@@ -47,7 +48,7 @@ typedef struct {
 
 u32 SplashInit(const char* modestr) {
     u64 splash_size;
-    u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PCX, &splash_size);
+    u8* splash = FindVTarFileInfo(LOTTERY_SPLASH, &splash_size);
     u8* bitmap = (u8*) malloc(SCREEN_SIZE_TOP);
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
@@ -61,7 +62,7 @@ u32 SplashInit(const char* modestr) {
     if (splash && bitmap && PCX_Decompress(bitmap, SCREEN_SIZE_TOP, splash, splash_size)) {
         PCXHdr* hdr = (PCXHdr*) (void*) splash;
         DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), bitmap);
-    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PCX " not found)");
+    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(%s not found)", LOTTERY_SPLASH);
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
     
@@ -1932,7 +1933,8 @@ u32 GodMode(int entrypoint) {
     show_splash = !bootloader;
     #endif
     
-    // init font
+    // init font / lottery
+    InitLottery();
     if (!SetFontFromPbm(NULL, 0)) return exit_mode;
     
     // show splash screen (if enabled)

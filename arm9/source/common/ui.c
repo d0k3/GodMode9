@@ -14,6 +14,7 @@
 #include "timer.h"
 #include "power.h"
 #include "hid.h"
+#include "lottery.h"
 
 #define STRBUF_SIZE 512 // maximum size of the string buffer
 #define FONT_MAX_WIDTH 8
@@ -95,7 +96,7 @@ bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
     
     if (!pbm) {
         u64 pbm_size64 = 0;
-        pbm = FindVTarFileInfo(VRAM0_FONT_PBM, &pbm_size64);
+        pbm = FindVTarFileInfo(LOTTERY_FONT, &pbm_size64);
         pbm_size = (u32) pbm_size64;
     }
     
@@ -276,6 +277,7 @@ void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ..
     u32 h = GetDrawStringHeight(str);
     int x = (w >= SCREEN_WIDTH(screen)) ? 0 : (SCREEN_WIDTH(screen) - w) >> 1;
     int y = (h >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - h) >> 1;
+    if (LOTTERY_PROMPTHACK) x = y = 8;
     
     DrawStringF(screen, x, y, color, bgcolor, str);
 }

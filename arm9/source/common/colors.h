@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lottery.h"
 
 #define RGB(r,g,b) ((b)<<16|(g)<<8|(r))
 
@@ -31,8 +32,8 @@
 #define COLOR_SUPERFUCHSIA  RGB(0xFF, 0x00, 0xEF)
 
 // standard colors - used everywhere
-#define COLOR_STD_BG        COLOR_BLACK
-#define COLOR_STD_FONT      COLOR_WHITE
+#define COLOR_STD_BG        LOTTERY_COLOR_BG
+#define COLOR_STD_FONT      LOTTERY_COLOR_FONT
 
 // colors for GodMode9 file browser
 #define COLOR_SIDE_BAR      COLOR_DARKGREY
