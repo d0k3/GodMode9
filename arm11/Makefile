@@ -1,9 +1,11 @@
+PROCESSOR := ARM11
+
 TARGET := $(shell basename $(CURDIR))
 
 SOURCE := source
 BUILD  := build
 
-SUBARCH := -DARM11 -mcpu=mpcore -mtune=mpcore -mfloat-abi=soft -marm
+SUBARCH := -D$(PROCESSOR) -mcpu=mpcore -mtune=mpcore -mfloat-abi=soft -marm
 INCDIRS := source
 INCLUDE := $(foreach dir,$(INCDIRS),-I"$(shell pwd)/$(dir)")
 
@@ -26,12 +28,15 @@ clean:
 
 $(TARGET).elf: $(OBJECTS)
 	@mkdir -p "$(@D)"
-	$(CC) $(LDFLAGS) $^ -o $@
+	@echo "[$(PROCESSOR)] $<"
+	@$(CC) $(LDFLAGS) $^ -o $@
 
 $(BUILD)/%.o: $(SOURCE)/%.c
 	@mkdir -p "$(@D)"
-	$(CC) -c $(CFLAGS) -o $@ $<
+	@echo "[$(PROCESSOR)] $<"
+	@$(CC) -c $(CFLAGS) -o $@ $<
 
 $(BUILD)/%.o: $(SOURCE)/%.s
 	@mkdir -p "$(@D)"
-	$(CC) -c $(ASFLAGS) -o $@ $<
+	@echo "[$(PROCESSOR)] $<"
+	@$(CC) -c $(ASFLAGS) -o $@ $<
