@@ -2085,17 +2085,19 @@ u32 BuildSeedInfo(const char* path, bool dump) {
     
     if (dump) {
         u32 dump_size = SEEDDB_SIZE(seed_info);
+        u32 ret = 0;
         
         if (dump_size > 16) {
             if (fvx_rmkdir(OUTPUT_PATH) != FR_OK) // ensure the output dir exists
-                return 1;
+                ret = 1;
             f_unlink(path_out);
             if (fvx_qwrite(path_out, seed_info, 0, dump_size, NULL) != FR_OK)
-                return 1;
-        }
+                ret = 1;
+        } else ret = 1;
         
         free(seed_info);
         seed_info = NULL;
+        return ret;
     }
     
     return 0;
