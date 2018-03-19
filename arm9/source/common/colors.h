@@ -1,7 +1,7 @@
 #pragma once
 
 
-#define RGB(r,g,b) ((r)<<24|(b)<<16|(g)<<8|(r))
+#define RGB(r,g,b) ((b)<<16|(g)<<8|(r))
 
 // a base set of colors below
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
