@@ -28,7 +28,6 @@ clean:
 
 $(TARGET).elf: $(OBJECTS)
 	@mkdir -p "$(@D)"
-	@echo "[$(PROCESSOR)] $<"
 	@$(CC) $(LDFLAGS) $^ -o $@
 
 $(BUILD)/%.o: $(SOURCE)/%.c
