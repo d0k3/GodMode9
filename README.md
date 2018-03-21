@@ -24,7 +24,7 @@ You may now run GodMode9 via holding the X Button (or any other button you chose
 ## How to build this / developer info
 Build `GodMode9.firm` via `make firm`. This requires [firmtool](https://github.com/TuxSH/firmtool), [Python 3.5+](https://www.python.org/downloads/) and [devkitARM](https://sourceforge.net/projects/devkitpro/) installed).
 
-You may run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make FLAVOR=SafeMode9`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font by replacing `font.pbm` inside the `data` directory. You may also hardcode the brightness via `make FIXED_BRIGHTNESS=x`, whereas `x` is a value between 0...15.
+You may run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make FLAVOR=SafeMode9`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font by replacing `font_default.pbm` inside the `data` directory. You may also hardcode the brightness via `make FIXED_BRIGHTNESS=x`, whereas `x` is a value between 0...15.
 
 Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the `data` folder when compiling). All files put into the `data` folder will turn up in the `V:` drive, but keep in mind there's a hard 3MB limit for all files inside, including overhead. A standalone script runner is compiled by providing `autorun.gm9` (again, in the `data` folder) and building with `make SCRIPT_RUNNER=1`.
 
@@ -32,7 +32,7 @@ To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make
 
 
 ## Bootloader mode
-Same as [boot9strap](https://github.com/SciresM/boot9strap), GodMode9 can be installed to the system FIRM partition ('FIRM0'). When executed from a FIRM partition, GodMode9 will default to bootloader mode and try to boot, in order, `FIRM from FCRAM` (see [A9NC](https://github.com/d0k3/A9NC/releases)), `0:/bootonce.firm` (will be deleted on a successful boot), `0:/boot.firm`, `1:/boot.firm`. In bootloader mode, hold R+LEFT on boot to enter the boot menu. *Installing GodMode9 to a FIRM partition is only recommended for developers and will overwrite [boot9strap](https://github.com/SciresM/boot9strap)*.
+Same as [boot9strap](https://github.com/SciresM/boot9strap) or [fastboot3ds](https://github.com/derrekr/fastboot3DS), GodMode9 can be installed to the system FIRM partition ('FIRM0'). When executed from a FIRM partition, GodMode9 will default to bootloader mode and try to boot, in order, `FIRM from FCRAM` (see [A9NC](https://github.com/d0k3/A9NC/releases)), `0:/bootonce.firm` (will be deleted on a successful boot), `0:/boot.firm`, `1:/boot.firm`. In bootloader mode, hold R+LEFT on boot to enter the boot menu. *Installing GodMode9 to a FIRM partition is only recommended for developers and will overwrite [boot9strap](https://github.com/SciresM/boot9strap) or any other bootloader you have installed in there*.
 
 
 ## Write permissions system
@@ -45,8 +45,8 @@ GodMode9 provides a write permissions system, which will protect you from accide
 
 
 ## Support files
-For certain functionality, GodMode9 may need 'support files'. Support files should be placed into `0:/gm9/support`. Support files contain additional information that is required in decryption operations. A list of support files, and what they do, is found below. Please don't ask for support files - find them yourself.
-* __`aeskeydb.bin`__: This should contain 0x25keyX, 0x18keyX and 0x1BkeyX to enable decryption of 7x / Secure3 / Secure4 encrypted NCCH files, 0x11key95 / 0x11key96 for FIRM decrypt support and 0x11keyOTP / 0x11keyIVOTP for 'secret' sector 0x96 crypto support. Entrypoints other than [boot9strap](https://github.com/SciresM/boot9strap) may require a aeskeydb.bin file. A known perfect `aeskeydb.bin` can be found somewhere on the net, is exactly 1024 byte big and has an MD5 of A5B28945A7C051D7A0CD18AF0E580D1B. Have fun hunting!
+For certain functionality, GodMode9 may need 'support files'. Support files should be placed into either `0:/gm9/support` or `1:/gm9/support`. Support files contain additional information that is required in decryption operations. A list of support files, and what they do, is found below. Please don't ask for support files - find them yourself.
+* __`aeskeydb.bin`__: This should contain 0x25keyX, 0x18keyX and 0x1BkeyX to enable decryption of 7x / Secure3 / Secure4 encrypted NCCH files, 0x11key95 / 0x11key96 for FIRM decrypt support and 0x11keyOTP / 0x11keyIVOTP for 'secret' sector 0x96 crypto support. Entrypoints other than [boot9strap](https://github.com/SciresM/boot9strap) or [fastboot3ds](https://github.com/derrekr/fastboot3DS) may require a aeskeydb.bin file. A known perfect `aeskeydb.bin` can be found somewhere on the net, is exactly 1024 byte big and has an MD5 of A5B28945A7C051D7A0CD18AF0E580D1B. Have fun hunting!
 * __`seeddb.bin`__: This file is required to decrypt and mount seed encrypted NCCHs and CIAs if the seed in question is not installed to your NAND. Note that your seeddb.bin must also contain the seed for the specific game you need to decrypt.
 * __`encTitleKeys.bin`__ / __`decTitleKeys.bin`__: These files are optional and provide titlekeys, which are required to create updatable CIAs from NCCH / NCSD files. CIAs created without these files will still work, but won't be updatable from eShop.
 
@@ -127,14 +127,14 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 
 ### System file handling
 * __Check and fix CMACs (for any file that has them)__: The option will turn up in the A button menu if it is available for a given file (f.e. system savegames, `ticket.db`, etc...). This can also be done for multiple files at once if they are marked.
-* __Mount ticket.db files and dump tickets__: Mount the file via the A button menu. Tickets are sorted into `eshop` (stuff from eshop, probably legit), `system` (system tickets, probably legit) and `unknown` (everything else, never legit) categories.
+* __Mount ticket.db files and dump tickets__: Mount the file via the A button menu. Tickets are sorted into `eshop` (stuff from eshop), `system` (system tickets), `unknown` (typically empty) and `hidden` (hidden tickets, found via a deeper scan) categories. All tickets displayed are legit, fake tickets are ignored
 * __Inject any NCCH CXI file into Health & Safety__: The option is found inside the A button menu for any NCCH CXI file. NCCH CXIs are found, f.e. inside of CIAs. Keep in mind there is a (system internal) size restriction on H&S injectable apps.
 * __Inject and dump GBA VC saves__: Find the options to do this inside the A button menu for `agbsave.bin` in the `S:` drive. Keep in mind that you need to start the specific GBA game on your console before dumping / injecting the save.
 * __Dump a copy of boot9, boot11 & your OTP__: This works on sighax, via boot9strap only. These files are found inside the `M:` drive and can be copied from there to any other place.
 
 ### Support file handling
-* __Build `decTitleKeys.bin` / `encTitleKeys.bin` / `seeddb.bin`__: Press the HOME button, select `More...` -> `Build support files`. `decTitleKeys.bin` / `encTitleKeys.bin` can also be created / merged from tickets, `ticket.db` and other `decTitleKeys.bin` / `encTitleKeys.bin` files via the A button menu.
-* __Build, mount, decrypt and encrypt `aeskeydb.bin`__: AES key databases can be built from other `aeskeydb.bin` or legacy `slot??Key?.bin` files. Just select one or more files, press A on one of them and then select `Build aeskeydb.bin`. Options for mounting, decrypting and encrypting are also found in the A button menu.
+* __Build `decTitleKeys.bin` / `encTitleKeys.bin` / `seeddb.bin`__: Press the HOME button, select `More...` -> `Build support files`. `decTitleKeys.bin` / `encTitleKeys.bin` can also be created / merged from tickets, `ticket.db` and merged from other `decTitleKeys.bin` / `encTitleKeys.bin` files via the A button menu.
+* __Build, mount, decrypt and encrypt `aeskeydb.bin`__: AES key databases can be merged from other `aeskeydb.bin` or build from legacy `slot??Key?.bin` files. Just select one or more files, press A on one of them and then select `Build aeskeydb.bin`. Options for mounting, decrypting and encrypting are also found in the A button menu.
 
 
 ## License
@@ -161,6 +161,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **JaySea**, **YodaDaCoda**, **liomajor**, **Supster131**, **imanoob**, **Kasher_CS** and countless others from freenode #Cakey and the GBAtemp forums for testing, feedback and helpful hints
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
+* **SirNapkin1334** for testing, bug reports and for hosting the official [GodMode9 Discord channel](https://discord.gg/EGu6Qxw)
 * **Project Nayuki** for [qrcodegen](https://github.com/nayuki/QR-Code-generator)
 * **Amazingmax fonts** for the Amazdoom font
 * The fine folks on **freenode #Cakey**
