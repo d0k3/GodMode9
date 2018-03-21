@@ -77,6 +77,8 @@ vram0:
 firm: $(ELF) vram0
 	@test `wc -c <$(VRAM_OUT)` -le 3145728
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
+	@echo "[VERSION] $(VERSION)"
+	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
 	@firmtool build $(FIRM) $(FTFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT) -C NDMA XDMA memcpy
 	@echo "[FIRM] $(FIRMD)"
