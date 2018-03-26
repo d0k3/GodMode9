@@ -674,10 +674,11 @@ bool BuildVGameTadDir(void) {
     u32 n = 0;
     
     // read header, setup table
+    u8 hdr_data[TAD_HEADER_LEN];
+    TadHeader* hdr = (TadHeader*) hdr_data;
     TadContentTable tbl;
-    TadHeader hdr;
-    ReadGameImageBytes(&hdr, TAD_HEADER_OFFSET, TAD_HEADER_LEN);
-    if (BuildTadContentTable(&tbl, &hdr) != 0) {
+    ReadGameImageBytes(hdr_data, TAD_HEADER_OFFSET, TAD_HEADER_LEN);
+    if (BuildTadContentTable(&tbl, hdr_data) != 0) {
         n_templates_tad = 0;
         return false;
     }
@@ -711,17 +712,17 @@ bool BuildVGameTadDir(void) {
     
     // contents
     for (u32 i = 0; i < TAD_NUM_CONTENT; content_offset = tbl.content_end[i++]) {
-        if (!hdr.content_size[i]) continue; // nothing in section
+        if (!hdr->content_size[i]) continue; // nothing in section
         // use proper names, fix TMD handling
-        snprintf(templates[n].name, 32, NAME_TAD_CONTENT, hdr.title_id, name_type[i]);
+        snprintf(templates[n].name, 32, NAME_TAD_CONTENT, hdr->title_id, name_type[i]);
         templates[n].offset = content_offset;
-        templates[n].size = hdr.content_size[i];
+        templates[n].size = hdr->content_size[i];
         templates[n].keyslot = 0xFF;
         templates[n].flags = 0;
         n++;
         if (i == 1) { // SRL content
             memcpy(templates + n, templates + n - 1, sizeof(VirtualFile));
-            snprintf(templates[n].name, 32, NAME_TAD_CONTENT, hdr.title_id, "srl");
+            snprintf(templates[n].name, 32, NAME_TAD_CONTENT, hdr->title_id, "srl");
             templates[n].flags |= (VFLAG_NDS | VFLAG_DIR);
             n++;
         }
