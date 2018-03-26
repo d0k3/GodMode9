@@ -1303,7 +1303,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     
     // load NCCH header / extheader, get save size && title id
     if (LoadNcchHeaders(&ncch, &exthdr, NULL, path_ncch, 0) == 0) {
-        save_size = getle32(exthdr.sys_info);
+        save_size = (u32) exthdr.savedata_size;
         has_exthdr = true;
     } else if (LoadNcchHeaders(&ncch, NULL, NULL, path_ncch, 0) != 0) {
         return 1;
@@ -1375,7 +1375,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     // load first content NCCH / extheader
     if (LoadNcchHeaders(&ncch, &exthdr, NULL, path_ncsd, NCSD_CNT0_OFFSET) != 0)
         return 1;
-    save_size = getle32(exthdr.sys_info);
+    save_size = (u32) exthdr.savedata_size;
     
     // build the CIA stub
     CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
@@ -1844,6 +1844,7 @@ u32 CheckHealthAndSafetyInject(const char* hsdrv) {
 
 u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     NcchHeader ncch;
+    NcchExtHeader exthdr;
         
     // write permissions
     if (!CheckWritePermissions(destdrv))
@@ -1867,12 +1868,12 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     }
     
     // check input file / crypto
-    if ((LoadNcchHeaders(&ncch, NULL, NULL, path, 0) != 0) ||
+    if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path, 0) != 0) ||
         !(NCCH_IS_CXI(&ncch)) || (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0))
         return 1;
     
     // check crypto, get sig
-    if ((LoadNcchHeaders(&ncch, NULL, NULL, path_cxi, 0) != 0) ||
+    if ((LoadNcchHeaders(&ncch, &exthdr, NULL, path_cxi, 0) != 0) ||
         (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0) || !(NCCH_IS_CXI(&ncch)))
         return 1;
     u8 sig[0x100];
@@ -1890,14 +1891,17 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     if (CryptNcchNcsdBossFirmFile(path, path_cxi, GAME_NCCH, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0)
         ret = 1;
     
-    // fix up the injected H&S NCCH header (copy H&S signature, title ID) 
-    if ((ret == 0) && (LoadNcchHeaders(&ncch, NULL, NULL, path_cxi, 0) == 0)) {
-        UINT bw;
+    // fix up the injected H&S NCCH header / extheader (copy H&S signature, title ID to multiple locations) 
+    if ((ret == 0) && (LoadNcchHeaders(&ncch, &exthdr, NULL, path_cxi, 0) == 0)) {
         ncch.programId = tid_hs;
         ncch.partitionId = tid_hs;
+        exthdr.jump_id = tid_hs;
+        exthdr.aci_title_id = tid_hs;
+        exthdr.aci_limit_title_id = tid_hs;
         memcpy(ncch.signature, sig, 0x100);
-        if ((fvx_qwrite(path_cxi, &ncch, 0, sizeof(NcchHeader), &bw) != FR_OK) ||
-            (bw != sizeof(NcchHeader)))
+        sha_quick(ncch.hash_exthdr, &exthdr, 0x400, SHA256_MODE);
+        if ((fvx_qwrite(path_cxi, &ncch, 0, sizeof(NcchHeader), NULL) != FR_OK) ||
+            (fvx_qwrite(path_cxi, &exthdr, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), NULL) != FR_OK))
             ret = 1;
     } else ret = 1;
     
