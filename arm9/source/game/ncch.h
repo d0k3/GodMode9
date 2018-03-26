@@ -33,17 +33,27 @@
 // see: https://www.3dbrew.org/wiki/NCCH/Extended_Header
 // very limited, contains only required stuff
 typedef struct {
+    // SCI (system control info)
     char name[8];
-    u8  reserved[0x5];
+    u8  reserved0[0x5];
     u8  flag; // bit 1 for SD, bit 0 for compressed .code
     u16 remaster_version;
     u8  sci_data[0x30];
     u8  dependencies[0x180];
-    u8  sys_info[0x40];
-    u8  aci_data[0x200];
+    u64 savedata_size;
+    u64 jump_id;
+    u8  reserved1[0x30];
+    // ACI (access control info)
+    u64 aci_title_id;
+    u32 aci_core_version;
+    u8  aci_data[0x200 - 0xC];
+    // signature and key
     u8  signature[0x100];
     u8  public_key[0x100];
-    u8  aci_limit_data[0x200];
+    // limitACI (access control info)
+    u64 aci_limit_title_id;
+    u32 aci_limit_core_version;
+    u8  aci_limit_data[0x200 - 0xC];
 } __attribute__((packed)) NcchExtHeader;
 
 // see: https://www.3dbrew.org/wiki/NCCH#NCCH_Header
