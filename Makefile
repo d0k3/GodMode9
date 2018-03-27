@@ -55,9 +55,13 @@ release: clean
 
 	@cp $(FIRM) $(RELDIR)
 	@cp $(OUTDIR)/$(FLAVOR)_ntr.firm $(RELDIR)/ntrboot/
+	@cp $(OUTDIR)/$(FLAVOR)_ntr.firm.sha $(RELDIR)/ntrboot/
 	@cp $(OUTDIR)/$(FLAVOR)_ntr_dev.firm $(RELDIR)/ntrboot/
+	@cp $(OUTDIR)/$(FLAVOR)_ntr_dev.firm.sha $(RELDIR)/ntrboot/
 	@cp $(OUTDIR)/$(FLAVOR).firm $(RELDIR)/
+	@cp $(OUTDIR)/$(FLAVOR).firm.sha $(RELDIR)/
 	@cp $(OUTDIR)/$(FLAVOR)_dev.firm $(RELDIR)/
+	@cp $(OUTDIR)/$(FLAVOR)_dev.firm.sha $(RELDIR)/
 	@cp $(ELF) $(RELDIR)/elf
 	@cp $(CURDIR)/README.md $(RELDIR)
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
