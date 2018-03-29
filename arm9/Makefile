@@ -6,7 +6,7 @@ SOURCE := source
 BUILD  := build
 
 SUBARCH := -D$(PROCESSOR) -mcpu=arm946e-s -mtune=arm946e-s -mfloat-abi=soft -mthumb
-INCDIRS := source source/common source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/quicklz source/qrcodegen source/system source/utils
+INCDIRS := source source/common source/filesys source/crypto source/fatfs source/nand source/virtual source/game source/gamecart source/lodepng source/quicklz source/qrcodegen source/system source/utils
 INCLUDE := $(foreach dir,$(INCDIRS),-I"$(shell pwd)/$(dir)")
 
 ASFLAGS += $(SUBARCH) $(INCLUDE)
