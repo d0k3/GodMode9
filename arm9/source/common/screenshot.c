@@ -2,42 +2,54 @@
 #include "ui.h"
 #include "rtc.h"
 #include "vff.h"
+#include "png.h"
 
 
 void CreateScreenshot() {
-    const u32 snap_size = 54 + (SCREEN_SIZE_TOP * 2);
-    const u8 bmp_header[54] = {
-        0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,
-        0x00, 0x00, 0x90, 0x01, 0x00, 0x00, 0xE0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xCA, 0x08, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-    
+    const u32 snap_size = SCREEN_SIZE_TOP * 2, snap_width = SCREEN_WIDTH_TOP, snap_height = SCREEN_HEIGHT * 2;
+    u8 *png_data = NULL;
+    size_t png_size;
+
     char filename[64];
     DsTime dstime;
     
     fvx_rmkdir(OUTPUT_PATH);
     get_dstime(&dstime);
-    snprintf(filename, 64, OUTPUT_PATH "/snap_%02X%02X%02X%02X%02X%02X.bmp",
+    snprintf(filename, 64, OUTPUT_PATH "/snap_%02X%02X%02X%02X%02X%02X.png",
         dstime.bcd_Y, dstime.bcd_M, dstime.bcd_D,
         dstime.bcd_h, dstime.bcd_m, dstime.bcd_s);
-    
+
     u8* buffer = (u8*) malloc(snap_size);
     if (!buffer) return;
-    
-    u8* buffer_b = buffer + 54;
-    u8* buffer_t = buffer_b + (400 * 240 * 3);
-    
+
+    u8* buffer_t = buffer;
+    u8* buffer_b = buffer + SCREEN_SIZE_TOP;
+
     memset(buffer, 0x1F, snap_size); // gray background
-    memcpy(buffer, bmp_header, 54);
-    for (u32 x = 0; x < 400; x++)
-        for (u32 y = 0; y < 240; y++)
-            memcpy(buffer_t + (y*400 + x) * 3, TOP_SCREEN + (x*240 + y) * 3, 3);
-    for (u32 x = 0; x < 320; x++)
-        for (u32 y = 0; y < 240; y++)
-            memcpy(buffer_b + (y*400 + x + 40) * 3, BOT_SCREEN + (x*240 + y) * 3, 3);
-    fvx_qwrite(filename, buffer, 0, snap_size, NULL);
-    
+
+    for (u32 x = 0; x < 400; x++) {
+        for (u32 y = 0; y < 240; y++) {
+            buffer_t[(y * SCREEN_WIDTH_TOP + x) * 3 + 0] = *(TOP_SCREEN + (((x * 240) + (239 - y)) * 3) + 2);
+            buffer_t[(y * SCREEN_WIDTH_TOP + x) * 3 + 1] = *(TOP_SCREEN + (((x * 240) + (239 - y)) * 3) + 1);
+            buffer_t[(y * SCREEN_WIDTH_TOP + x) * 3 + 2] = *(TOP_SCREEN + (((x * 240) + (239 - y)) * 3) + 0);
+        }
+    }
+
+    for (u32 x = 0; x < 320; x++) {
+        for (u32 y = 0; y < 240; y++) {
+            buffer_b[(y * SCREEN_WIDTH_TOP + x + 40) * 3 + 0] = *(BOT_SCREEN + (((x * 240) + (239 - y)) * 3) + 2);
+            buffer_b[(y * SCREEN_WIDTH_TOP + x + 40) * 3 + 1] = *(BOT_SCREEN + (((x * 240) + (239 - y)) * 3) + 1);
+            buffer_b[(y * SCREEN_WIDTH_TOP + x + 40) * 3 + 2] = *(BOT_SCREEN + (((x * 240) + (239 - y)) * 3) + 0);
+        }
+    }
+
+    png_data = PNG_Compress(buffer, snap_width, snap_height, &png_size);
+
+    if (png_data && png_size)
+        fvx_qwrite(filename, png_data, 0, png_size, NULL);
+    else
+        ShowPrompt(false, "Failed to write screenshot!");
+
     // "snap effect"
     memcpy(buffer_b, BOT_SCREEN, SCREEN_SIZE_BOT);
     memcpy(buffer_t, TOP_SCREEN, SCREEN_SIZE_TOP);
@@ -45,6 +57,7 @@ void CreateScreenshot() {
     memset(TOP_SCREEN, 0, SCREEN_SIZE_TOP);
     memcpy(BOT_SCREEN, buffer_b, SCREEN_SIZE_BOT);
     memcpy(TOP_SCREEN, buffer_t, SCREEN_SIZE_TOP);
-    
+
     free(buffer);
+    if (png_data) free(png_data);
 }
