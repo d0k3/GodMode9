@@ -12,7 +12,7 @@ void CreateScreenshot() {
 
     char filename[64];
     DsTime dstime;
-    
+
     fvx_rmkdir(OUTPUT_PATH);
     get_dstime(&dstime);
     snprintf(filename, 64, OUTPUT_PATH "/snap_%02X%02X%02X%02X%02X%02X.png",
@@ -45,18 +45,18 @@ void CreateScreenshot() {
 
     png_data = PNG_Compress(buffer, snap_width, snap_height, &png_size);
 
-    if (png_data && png_size)
+    if (png_data && png_size) {
         fvx_qwrite(filename, png_data, 0, png_size, NULL);
-    else
-        ShowPrompt(false, "Failed to write screenshot!");
 
-    // "snap effect"
-    memcpy(buffer_b, BOT_SCREEN, SCREEN_SIZE_BOT);
-    memcpy(buffer_t, TOP_SCREEN, SCREEN_SIZE_TOP);
-    memset(BOT_SCREEN, 0, SCREEN_SIZE_BOT);
-    memset(TOP_SCREEN, 0, SCREEN_SIZE_TOP);
-    memcpy(BOT_SCREEN, buffer_b, SCREEN_SIZE_BOT);
-    memcpy(TOP_SCREEN, buffer_t, SCREEN_SIZE_TOP);
+        // "snap effect"
+        memcpy(buffer_b, BOT_SCREEN, SCREEN_SIZE_BOT);
+        memcpy(buffer_t, TOP_SCREEN, SCREEN_SIZE_TOP);
+        memset(BOT_SCREEN, 0, SCREEN_SIZE_BOT);
+        memset(TOP_SCREEN, 0, SCREEN_SIZE_TOP);
+        memcpy(BOT_SCREEN, buffer_b, SCREEN_SIZE_BOT);
+        memcpy(TOP_SCREEN, buffer_t, SCREEN_SIZE_TOP);
+    }
+    // what to do on error...?
 
     free(buffer);
     if (png_data) free(png_data);

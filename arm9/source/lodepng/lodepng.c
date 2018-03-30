@@ -23,6 +23,10 @@ freely, subject to the following restrictions:
     distribution.
 */
 
+/**
+ Modified version by Wolfvak for github.com/d0k3/GodMode9 (changed encoder default settings)
+*/
+
 /*
 The manual and changelog are in the header file "lodepng.h"
 Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for C.
@@ -2268,7 +2272,7 @@ static unsigned zlib_compress(unsigned char** out, size_t* outsize, const unsign
 #ifdef LODEPNG_COMPILE_ENCODER
 
 /*this is a good tradeoff between speed and compression ratio*/
-#define DEFAULT_WINDOWSIZE 2048
+#define DEFAULT_WINDOWSIZE 64
 
 void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
 {
@@ -2276,16 +2280,16 @@ void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
   settings->btype = 2;
   settings->use_lz77 = 1;
   settings->windowsize = DEFAULT_WINDOWSIZE;
-  settings->minmatch = 3;
-  settings->nicematch = 128;
-  settings->lazymatching = 1;
+  settings->minmatch = 6;
+  settings->nicematch = 32;
+  settings->lazymatching = 0;
 
   settings->custom_zlib = 0;
   settings->custom_deflate = 0;
   settings->custom_context = 0;
 }
 
-const LodePNGCompressSettings lodepng_default_compress_settings = {2, 1, DEFAULT_WINDOWSIZE, 3, 128, 1, 0, 0, 0};
+const LodePNGCompressSettings lodepng_default_compress_settings = {2, 1, DEFAULT_WINDOWSIZE, 6, 32, 0, 0, 0, 0};
 
 
 #endif /*LODEPNG_COMPILE_ENCODER*/
