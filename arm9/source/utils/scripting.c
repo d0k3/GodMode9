@@ -12,7 +12,7 @@
 #include "sha.h"
 #include "hid.h"
 #include "ui.h"
-#include "pcx.h"
+#include "png.h"
 
 
 #define _MAX_ARGS       4
@@ -1645,11 +1645,11 @@ bool ExecuteGM9Script(const char* path_script) {
     bool result = true;
     while (ptr < end) {
         u32 flags = 0;
-        
+
         // find line end
         char* line_end = strchr(ptr, '\n');
         if (!line_end) line_end = ptr + strlen(ptr);
-        
+
         // update script viewer
         if (MAIN_SCREEN != TOP_SCREEN) {
             if (preview_mode != preview_mode_local) {
@@ -1657,25 +1657,30 @@ bool ExecuteGM9Script(const char* path_script) {
                     ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                 if (preview_mode > 2) {
                     char* preview_str = get_var("PREVIEW_MODE", NULL);
-                    u32 pcx_size = fvx_qsize(preview_str);
-                    u8* pcx = (u8*) malloc(SCREEN_SIZE_TOP);
-                    u8* bitmap = (u8*) malloc(SCREEN_SIZE_TOP);
-                    if (pcx && bitmap && pcx_size && (pcx_size <  SCREEN_SIZE_TOP) && 
-                        (pcx_size == FileGetData(preview_str, pcx, pcx_size, 0)) &&
-                        (PCX_Decompress(bitmap, SCREEN_SIZE_TOP, pcx, pcx_size))) {
-                        PCXHdr* hdr = (PCXHdr*) (void*) pcx;
-                        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), bitmap);
+                    u32 bitmap_width, bitmap_height;
+                    u8* bitmap = NULL;
+
+                    u8* png = (u8*) malloc(SCREEN_SIZE_TOP);
+                    if (png) {
+                        u32 png_size = FileGetData(preview_str, png, SCREEN_SIZE_TOP, 0);
+                        if (png_size && png_size < SCREEN_SIZE_TOP)
+                            bitmap = PNG_Decompress(png, png_size, &bitmap_width, &bitmap_height);
+                        free(png);
+                    }
+
+                    if (bitmap) {
+                        DrawBitmap(TOP_SCREEN, -1, -1, bitmap_width, bitmap_height, bitmap);
+                        free(bitmap);
                     } else {
                         if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = "(preview disabled)";
                         DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, preview_str);
                     }
-                    if (pcx) free(pcx);
-                    if (bitmap) free(bitmap);
+
                     preview_mode = 0;
                 }
                 preview_mode_local = preview_mode;
             }
-            
+
             bool show_preview = preview_mode;
             if (preview_mode == 1) {
                 show_preview = false;

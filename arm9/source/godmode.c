@@ -13,7 +13,7 @@
 #include "unittype.h"
 #include "entrypoints.h"
 #include "bootfirm.h"
-#include "pcx.h"
+#include "png.h"
 #include "timer.h"
 #include "rtc.h"
 #include "power.h"
@@ -47,24 +47,26 @@ typedef struct {
 
 u32 SplashInit(const char* modestr) {
     u64 splash_size;
-    u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PCX, &splash_size);
-    u8* bitmap = (u8*) malloc(SCREEN_SIZE_TOP);
+    u32 splash_width, splash_height;
+    u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PNG, &splash_size);
+    u8* bitmap = NULL;
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
     const u32 pos_xb = 10;
     const u32 pos_yb = 10;
     const u32 pos_xu = SCREEN_WIDTH_BOT - 10 - GetDrawStringWidth(loadstr);
     const u32 pos_yu = SCREEN_HEIGHT - 10 - GetDrawStringHeight(loadstr);
-    
+
     ClearScreenF(true, true, COLOR_STD_BG);
-    
-    if (splash && bitmap && PCX_Decompress(bitmap, SCREEN_SIZE_TOP, splash, splash_size)) {
-        PCXHdr* hdr = (PCXHdr*) (void*) splash;
-        DrawBitmap(TOP_SCREEN, -1, -1, PCX_Width(hdr), PCX_Height(hdr), bitmap);
-    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PCX " not found)");
+
+    if (splash) {
+        bitmap = PNG_Decompress(splash, splash_size, &splash_width, &splash_height);
+        DrawBitmap(TOP_SCREEN, -1, -1, splash_width, splash_height, bitmap);
+    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PNG " not found)");
+
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
-    
+
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
         "------------------------------", "https://github.com/d0k3/GodMode9",
@@ -72,7 +74,7 @@ u32 SplashInit(const char* modestr) {
         "Hourlies:", "https://d0k3.secretalgorithm.com/");
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
     DrawStringF(BOT_SCREEN, pos_xb, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "built: " DBUILTL);
-    
+
     if (bitmap) free(bitmap);
     return 0;
 }
@@ -406,30 +408,23 @@ u32 SdFormatMenu(void) {
 u32 FileGraphicsViewer(const char* path) {
     const u32 max_size = SCREEN_SIZE(ALT_SCREEN);
     u64 filetype = IdentifyFileType(path);
-    u8* bitmap = (u8*) malloc(max_size);
-    u8* input = (u8*) malloc(max_size);
+    u8* bitmap = NULL;
+    u8* input = (u8*)malloc(max_size);
     u32 w = 0;
     u32 h = 0;
     u32 ret = 1;
-    
-    if (!bitmap || !input) {
-        if (bitmap) free(bitmap);
-        if (input) free(input);
-        return 1;
-    }
-    
+
+    if (!input)
+        return ret;
+
     u32 input_size = FileGetData(path, input, max_size, 0);
     if (input_size && (input_size < max_size)) {
-        if (filetype & GFX_PCX) {
-            if (PCX_Decompress(bitmap, max_size, input, input_size)) {
-                PCXHdr* hdr = (PCXHdr*) (void*) input;
-                w = PCX_Width(hdr);
-                h = PCX_Height(hdr);
-                ret = 0;
-            }
+        if (filetype & GFX_PNG) {
+            bitmap = PNG_Decompress(input, input_size, &w, &h);
+            if (bitmap != NULL) ret = 0;
         }
     }
-    
+
     if ((ret == 0) && w && h && (w < SCREEN_WIDTH(ALT_SCREEN)) && (h < SCREEN_HEIGHT)) {
         ClearScreenF(true, true, COLOR_STD_BG);
         DrawBitmap(ALT_SCREEN, -1, -1, w, h, bitmap);
@@ -437,9 +432,9 @@ u32 FileGraphicsViewer(const char* path) {
         while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
         ClearScreenF(true, true, COLOR_STD_BG);
     } else ret = 1;
-    
-    free(bitmap);
-    free(input);
+
+    if (bitmap) free(bitmap);
+    if (input) free(input);
     return ret;
 }
 
@@ -1091,7 +1086,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & TXT_SCRIPT) ? "Execute GM9 script"    :
         (filetype & FONT_PBM)   ? "Set as active font"    :
-        (filetype & GFX_PCX)    ? "View PCX bitmap file"  :
+        (filetype & GFX_PNG)    ? "View PNG file"         :
         (filetype & HDR_NAND)   ? "Rebuild NCSD header"   :
         (filetype & NOIMG_NAND) ? "Rebuild NCSD header" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
@@ -1265,7 +1260,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (install > 0) optionstr[install-1] = "Install FIRM";
     if (boot > 0) optionstr[boot-1] = "Boot FIRM";
     if (script > 0) optionstr[script-1] = "Execute GM9 script";
-    if (view > 0) optionstr[font-1] = "View PCX bitmap file";
+    if (view > 0) optionstr[view-1] = "View PNG file";
     if (font > 0) optionstr[font-1] = "Set as active font";
     if (agbexport > 0) optionstr[agbexport-1] = "Dump GBA VC save";
     if (agbimport > 0) optionstr[agbimport-1] = "Inject GBA VC save";
@@ -1730,7 +1725,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == view) { // view gfx
         if (FileGraphicsViewer(file_path) != 0)
-            ShowPrompt(false, "%s\nError: Cannot view file");
+            ShowPrompt(false, "%s\nError: Cannot view file\n(Hint: maybe it's too big)", pathstr);
         return 0;
     }
     else if (user_select == agbexport) { // export GBA VC save

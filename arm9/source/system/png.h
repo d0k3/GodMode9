@@ -4,4 +4,6 @@
 #include "common.h"
 #include "lodepng/lodepng.h"
 
-u8 *PNG_Decompress(const u8 *png, size_t png_len, size_t *w, size_t *h);
+#define PNG_MAGIC   0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+
+u8 *PNG_Decompress(const u8 *png, size_t png_len, u32 *w, u32 *h);

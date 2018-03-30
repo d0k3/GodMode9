@@ -73,7 +73,7 @@ GodMode9 provides access to system data via drives, a listing of what each drive
 * __`K: AESKEYDB IMAGE`__: An `aeskeydb.bin` image can be mounted and accessed via this drive. The drive shows all keys inside the aeskeydb.bin. This is read-only.
 * __`T: TICKET.DB IMAGE`__: Ticket database files can be mounted and accessed via this drive. This provides easy and quick access to all tickets inside the `ticket.db`. This is read-only.
 * __`M: MEMORY VIRTUAL`__: This provides access to various memory regions. This is protected by a special write permission, and caution is advised when doing modifications inside this drive. This drive also gives access to `boot9.bin`, `boot11.bin` (boot9strap only) and `otp.mem` (sighaxed systems only).
-* __`V: VRAM VIRTUAL`__: This drive resides in the first VRAM bank and contains files essential to GodMode9. The font (in PBM format), the splash logo (in PCX format) and the readme file are found there, as well as any file that is provided inside the `data` folder at build time. This is read-only.
+* __`V: VRAM VIRTUAL`__: This drive resides in the first VRAM bank and contains files essential to GodMode9. The font (in PBM format), the splash logo (in PNG format) and the readme file are found there, as well as any file that is provided inside the `data` folder at build time. This is read-only.
 * __`Z: LAST SEARCH`__: After a search operation, search results are found inside this drive. The drive can be accessed at a later point to return to the former search results.
 
 

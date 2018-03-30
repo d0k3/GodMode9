@@ -22,8 +22,8 @@ elif ask "?set PREVIEW_MODE quick?"
     set PREVIEW_MODE quick
 elif ask "?set PREVIEW_MODE full?"
     set PREVIEW_MODE full
-elif ask "?set PREVIEW_MODE V:/GodMode9_splash.pcx?"
-    set PREVIEW_MODE V:/GodMode9_splash.pcx
+elif ask "?set PREVIEW_MODE V:/GodMode9_splash.png?"
+    set PREVIEW_MODE V:/GodMode9_splash.png
 elif ask "?set PREVIEW_MODE 'No preview for you, sorry'?"
     set PREVIEW_MODE "No preview for you, sorry"
 else
@@ -52,8 +52,8 @@ goto chooser
 set PREVIEW_MODE full
 goto chooser
 
-@choice_Preview_PCX
-set PREVIEW_MODE V:/GodMode9_splash.pcx
+@choice_Preview_png
+set PREVIEW_MODE V:/GodMode9_splash.png
 goto chooser
 
 @choice_Preview_custom

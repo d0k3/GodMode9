@@ -106,10 +106,10 @@ labelsel -o -s "Select a preview mode." lsmenu_*
 goto lsmain
 
 # So, here's our example menu.  It shows off the new PREVIEW_MODE settings if you were
-# not already familiar with them (you can use a path to a .pcx file or plain text in quotes).
+# not already familiar with them (you can use a path to a .png file or plain text in quotes).
 
 @lsmenu_Image
-set PREVIEW_MODE V:/GodMode9_splash.pcx
+set PREVIEW_MODE V:/GodMode9_splash.png
 echo "This is image preview mode."
 goto resume_script
 
@@ -161,7 +161,7 @@ strsplit MENUCHOICE $[FULLCHOICE] "/"
 # Now that we have our menu selection nice and trimmed, time to process it.
 
 if chk $[MENUCHOICE] "Image"
-set PREVIEW_MODE V:/GodMode9_splash.pcx
+set PREVIEW_MODE V:/GodMode9_splash.png
 echo "This is image preview mode."
 elif chk $[MENUCHOICE] "Text"
 set PREVIEW_MODE "GodMode9"

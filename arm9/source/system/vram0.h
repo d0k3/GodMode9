@@ -9,7 +9,7 @@
 #define VRAM0_FONT_PBM         "font_default.pbm"
 #define VRAM0_SCRIPTS          "scripts"
 #define VRAM0_README_MD        "README.md"
-#define VRAM0_SPLASH_PCX       FLAVOR "_splash.pcx"
+#define VRAM0_SPLASH_PNG       FLAVOR "_splash.png"
 
 
 #define VRAM0_OFFSET    0x18000000
