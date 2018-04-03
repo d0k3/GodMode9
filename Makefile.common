@@ -17,6 +17,10 @@ ifeq ($(SALTMODE),1)
     CFLAGS += -DSALTMODE
 endif
 
+ifeq ($(APRIL_FOOLS),2018)
+    CFLAGS += -DAPRIL_FOOLS_2018
+endif
+
 ifeq ($(SWITCH_SCREENS),1)
     CFLAGS += -DSWITCH_SCREENS
 endif
