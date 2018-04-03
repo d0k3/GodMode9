@@ -344,13 +344,13 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     } else DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, start_y, bar_width, flist_height, COLOR_STD_BG);
 }
 
-u32 SdFormatMenu(void) {
+u32 SdFormatMenu(const char* slabel) {
     const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
     const char* option_emunand_size[6] = { "No EmuNAND", "RedNAND size (min)", "EmuNAND size (full)", "User input..." };
     const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
     u64 sysnand_size_mb = (((u64)GetNandSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
     u64 sysnand_min_size_mb = (((u64)GetNandMinSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
-    char label[16] = "0:GM9SD";
+    char label[16];
     u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
     u64 emunand_size_mb = (u64) -1;
@@ -376,6 +376,7 @@ u32 SdFormatMenu(void) {
     if (!user_select) return 1;
     else cluster_size = cluster_size_table[user_select];
     
+    snprintf(label, 16, "0:%s", (slabel && *slabel) ? slabel : "GM9SD");
     if (!ShowStringPrompt(label + 2, 11 + 1, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
         return 1;
     
@@ -1776,11 +1777,13 @@ u32 HomeMoreMenu(char* current_path) {
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
         bool sd_state = CheckSDMountState();
+        char slabel[16] = { '\0' };
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
             clipboard->n_entries = 0; // remove SD clipboard entries
+        GetFATVolumeLabel("0:", slabel); // get SD volume label
         DeinitExtFS();
         DeinitSDCardFS();
-        if ((SdFormatMenu() == 0) || sd_state) {;
+        if ((SdFormatMenu(slabel) == 0) || sd_state) {;
             while (!InitSDCardFS() &&
                 ShowPrompt(true, "Initializing SD card failed! Retry?"));
         }
