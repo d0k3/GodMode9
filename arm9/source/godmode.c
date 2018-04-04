@@ -282,7 +282,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG,
         "%*s", len_info / FONT_WIDTH_EXT, tempstr);
     
-    // bottom: inctruction block
+    // bottom: instruction block
     char instr[512];
     snprintf(instr, 512, "%s\n%s%s%s%s%s%s%s%s",
         FLAVOR " " VERSION, // generic start part
@@ -997,9 +997,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     // special stuff, only available for known filetypes (see int special below)
     bool mountable = (FTYPE_MOUNTABLE(filetype) && !(drvtype & DRV_IMAGE) &&
         !((drvtype & (DRV_SYSNAND|DRV_EMUNAND)) && (drvtype & DRV_VIRTUAL) && (filetype & IMG_FAT)));
-    bool verificable = (FYTPE_VERIFICABLE(filetype));
-    bool decryptable = (FYTPE_DECRYPTABLE(filetype));
-    bool encryptable = (FYTPE_ENCRYPTABLE(filetype));
+    bool verificable = (FTYPE_VERIFICABLE(filetype));
+    bool decryptable = (FTYPE_DECRYPTABLE(filetype));
+    bool encryptable = (FTYPE_ENCRYPTABLE(filetype));
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
@@ -1023,8 +1023,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool viewable = (FTYPE_GFX(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype));
     bool installable = (FTYPE_INSTALLABLE(filetype));
-    bool agbexportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
-    bool agbimportable = (FTPYE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool agbexportable = (FTYPE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool agbimportable = (FTYPE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     
     char cxi_path[256] = { 0 }; // special options for TMD
     if ((filetype & GAME_TMD) && !(filetype & FLAG_NUSCDN) &&
