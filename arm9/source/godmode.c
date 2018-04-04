@@ -426,7 +426,7 @@ u32 FileGraphicsViewer(const char* path) {
         }
     }
 
-    if ((ret == 0) && w && h && (w < SCREEN_WIDTH(ALT_SCREEN)) && (h < SCREEN_HEIGHT)) {
+    if ((ret == 0) && w && h && (w <= SCREEN_WIDTH(ALT_SCREEN)) && (h <= SCREEN_HEIGHT)) {
         ClearScreenF(true, true, COLOR_STD_BG);
         DrawBitmap(ALT_SCREEN, -1, -1, w, h, bitmap);
         ShowString("Press <A> to continue");
