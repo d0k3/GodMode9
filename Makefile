@@ -72,7 +72,7 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(README) $(SPLASH) $(VRAM_DATA)/*)
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(README) $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA)/*)
 
 %.elf: .FORCE
 	@echo "Building $@"
@@ -81,6 +81,7 @@ vram0:
 firm: $(ELF) vram0
 	@test `wc -c <$(VRAM_OUT)` -le 3145728
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
+	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"

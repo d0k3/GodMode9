@@ -13,6 +13,20 @@ ifeq ($(FLAVOR),SafeMode9)
     CFLAGS += -DSAFEMODE
 endif
 
+ifeq ($(FLAVOR),GodMode64)
+    OVERRIDE_FONT := resources/fonts/font_c64_8x8.pbm
+    CFLAGS += -DDEFAULT_FONT=\"font_c64_8x8.pbm\"
+    CFLAGS += -DCOLOR_STD_FONT=0xD5717B
+    CFLAGS += -DCOLOR_STD_BG=0xA43041
+endif
+
+ifeq ($(FLAVOR),BrickedMode9)
+    OVERRIDE_FONT := resources/fonts/font_nbraille_4x6.pbm
+    CFLAGS += -DDEFAULT_FONT=\"font_nbraille_4x6.pbm\"
+    CFLAGS += -DCOLOR_STD_FONT=0x00FFFF
+    CFLAGS += -DCOLOR_STD_BG=0xFF0000
+endif
+
 ifeq ($(SALTMODE),1)
     CFLAGS += -DSALTMODE
 endif

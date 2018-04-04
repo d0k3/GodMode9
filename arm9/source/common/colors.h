@@ -1,7 +1,7 @@
 #pragma once
 
 
-#define RGB(r,g,b) ((r)<<24|(b)<<16|(g)<<8|(r))
+#define RGB(r,g,b) ((int) ((b)<<16|(g)<<8|(r)))
 
 // a base set of colors below
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
@@ -31,8 +31,12 @@
 #define COLOR_SUPERFUCHSIA  RGB(0xFF, 0x00, 0xEF)
 
 // standard colors - used everywhere
+#ifndef COLOR_STD_BG
 #define COLOR_STD_BG        COLOR_BLACK
+#endif
+#ifndef COLOR_STD_FONT
 #define COLOR_STD_FONT      COLOR_WHITE
+#endif
 
 // colors for GodMode9 file browser
 #define COLOR_SIDE_BAR      COLOR_DARKGREY
