@@ -221,6 +221,24 @@ fdummy $[DUMMY] 400
 fill $[DUMMY]@100:100 FF
 fill $[DUMMY]@300 80
 
+# 'fset' COMMAND
+# This command sets a portition of a file with the specified data in hex
+# The syntax is: fset destination@x hexdata
+#                x: destination offset (in hex)
+# If x is not given, data is inserted at the beginning of the file
+# -e / --flip_endian flips the order of the bytes
+fset $[DUMMY]@100 48454c4c4f # 'HELLO'
+
+# 'fget' COMMAND
+# This command reads data from a file and stores it in a var
+# The syntax is: fset origin@x:y var
+#                x: origin offset (in hex)
+#                y: origin size, starting at x (in hex)
+# Both x and y have to be set(!)
+# -e / --flip_endian flips the order of the bytes
+fget -e $[DUMMY]@100:5 OLLEH
+echo "This is 'HELLO', in hex and reverse:\n$[OLLEH]"
+
 # 'fixcmac' COMMAND
 # Use this to fix the CMACs for a file or a whole folder (recursively)
 # This will count as success if a file does not contain a CMAC

@@ -95,6 +95,8 @@ typedef enum {
     CMD_ID_UMOUNT,
     CMD_ID_FIND,
     CMD_ID_FINDNOT,
+    CMD_ID_FGET,
+    CMD_ID_FSET,
     CMD_ID_SHA,
     CMD_ID_SHAGET,
     CMD_ID_FIXCMAC,
@@ -157,6 +159,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_UMOUNT  , "imgumount",0, 0 },
     { CMD_ID_FIND    , "find"    , 2, _FLG('f') },
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
+    { CMD_ID_FGET    , "fget"    , 2, _FLG('e') },
+    { CMD_ID_FSET    , "fset"    , 2, _FLG('e') },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
     { CMD_ID_SHAGET  , "shaget"  , 2, 0 },
     { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 },
@@ -202,23 +206,30 @@ static inline bool isntrboot(void) {
     return (bootMediaStatus[3] == 2) && !bootMediaStatus[1] && !bootPartitionsStatus[0] && !bootPartitionsStatus[1];
 }
 
-static inline bool strntohex(const char* str, u8* hex, u32 len) {
+static inline u32 strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
         len = strlen(str); 
-        if (len%1) return false;
+        if (len%1) return 0;
         else len >>= 1;
     } else if (len*2 != strnlen(str, (len*2)+1)) {
-        return false;
+        return 0;
     }
     for (u32 i = 0; i < len; i++) {
         char bytestr[2+1] = { 0 };
         u32 bytehex;
         memcpy(bytestr, str + (i*2), 2);
         if (sscanf(bytestr, "%02lx", &bytehex) != 1)
-            return false;
+            return 0;
         hex[i] = (u8) bytehex;
     }
-    return true;
+    return len;
+}
+
+static inline u32 hexntostr(const u8* hex, char* str, u32 len) {
+    if (!len) return 0;
+    for (u32 i = 0; i < len; i++)
+        snprintf(str + (i<<1), 2 + 1, "%02lx", (u32) hex[i]);
+    return len;
 }
 
 static inline u32 line_len(const char* text, u32 len, u32 ww, const char* line) {
@@ -507,6 +518,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
     else if (strncmp(str, "--include_dirs", len) == 0) flag_char = 'd';
+    else if (strncmp(str, "--flip_endian", len) == 0) flag_char = 'e';
     else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
@@ -775,7 +787,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     // process arg0 @string
     u64 at_org = 0;
     u64 sz_org = 0;
-    if ((id == CMD_ID_SHA) || (id == CMD_ID_SHAGET) || (id == CMD_ID_INJECT) || (id == CMD_ID_FILL)) {
+    if ((id == CMD_ID_FGET) || (id == CMD_ID_FSET) || (id == CMD_ID_SHA) || (id == CMD_ID_SHAGET) || (id == CMD_ID_INJECT) || (id == CMD_ID_FILL)) {
         char* atstr_org = strrchr(argv[0], '@');
         if (atstr_org) {
             *(atstr_org++) = '\0';
@@ -1129,6 +1141,57 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (ret) {
             ret = set_var(argv[1], path);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+        }
+    }
+    else if (id == CMD_ID_FGET) {
+        u8 data[(_VAR_CNT_LEN-1)/2];
+        if (sz_org == 0) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "no size given");
+        } else if (sz_org > (_VAR_CNT_LEN-1)/2) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "size too big");
+        } else if (FileGetData(argv[0], data, sz_org, at_org) != sz_org) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "read fail");
+        } else {
+            char* var = set_var(argv[1], "");
+            if (!var) {
+                ret = false;
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            } else {
+                if (flags & _FLG('e')) { // flip data
+                    for (u32 i = 0; i < (sz_org >> 1); i++) {
+                        u8 tmp = data[i];
+                        data[i] = data[sz_org - 1 - i];
+                        data[sz_org - 1 - i] = tmp;
+                    }
+                }
+                ret = hexntostr(data, var, sz_org);
+                if (!ret && err_str) snprintf(err_str, _ERR_STR_LEN, "conversion fail");
+            }
+        }
+    }
+    else if (id == CMD_ID_FSET) {
+        u8 data[(_ARG_MAX_LEN-1)/2];
+        u32 len = strntohex(argv[1], data, 0);
+        if (!sz_org) sz_org = len;
+        if ((sz_org <= len) && (flags & _FLG('e'))) { // flip data
+            for (u32 i = 0; i < (sz_org >> 1); i++) {
+                u8 tmp = data[i];
+                data[i] = data[sz_org - 1 - i];
+                data[sz_org - 1 - i] = tmp;
+            }
+        }
+        if (!len) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid data");
+        } else if (sz_org > len) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "size too big");
+        } else if (!FileSetData(argv[0], data, sz_org, at_org, false)) {
+            ret = false;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "write fail");
         }
     }
     else if (id == CMD_ID_SHA) {
