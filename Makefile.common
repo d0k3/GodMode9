@@ -27,6 +27,11 @@ ifeq ($(FLAVOR),BrickedMode9)
     CFLAGS += -DCOLOR_STD_BG=0xFF0000
 endif
 
+ifeq ($(FLAVOR),ZuishMode9)
+    OVERRIDE_FONT := resources/fonts/font_zuish_8x8.pbm
+    CFLAGS += -DDEFAULT_FONT=\"font_zuish_8x8.pbm\"
+endif
+
 ifeq ($(SALTMODE),1)
     CFLAGS += -DSALTMODE
 endif
