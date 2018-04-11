@@ -13,6 +13,7 @@
 #include "hid.h"
 #include "ui.h"
 #include "png.h"
+#include "beat/beat.h"
 
 
 #define _MAX_ARGS       4
@@ -105,6 +106,8 @@ typedef enum {
     CMD_ID_ENCRYPT,
     CMD_ID_BUILDCIA,
     CMD_ID_EXTRCODE,
+    CMD_ID_APPLYBPS,
+    CMD_ID_APPLYBPM,
     CMD_ID_ISDIR,
     CMD_ID_EXIST,
     CMD_ID_BOOT,
@@ -169,6 +172,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_EXTRCODE, "extrcode", 2, 0 },
+    { CMD_ID_APPLYBPS, "applybps", 3, 0 },
+    { CMD_ID_APPLYBPM, "applybpm", 3, 0 },
     { CMD_ID_ISDIR,    "isdir"   , 1, 0 },
     { CMD_ID_EXIST,    "exist"   , 1, 0 },
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
@@ -1259,6 +1264,14 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = (ExtractCodeFromCxiFile(argv[0], argv[1], NULL) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "extract .code failed");
         }
+    }
+    else if (id == CMD_ID_APPLYBPS) {
+        ret = (ApplyBPSPatch(argv[0], argv[1], argv[2]) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply BPS failed");
+    }
+    else if (id == CMD_ID_APPLYBPM) {
+        ret = (ApplyBPMPatch(argv[0], argv[1], argv[2]) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply BPM failed");
     }
     else if (id == CMD_ID_ISDIR) {
         DIR fdir;

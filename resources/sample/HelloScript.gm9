@@ -266,6 +266,16 @@ verify S:/firm1.bin
 # -l / --legit force CIA to be legit (only works for legit system installed titles)
 # buildcia 0:/x.ncch
 
+# 'applybps' COMMAND
+# This will apply the given BPS-formatted delta patch (argument 1) to the specified file (argument 2)
+# to produce the patched file (argument 3).
+# applybps 0:/example/patch.bps 0:/data/original.bin 0:/game/modded.bin
+
+# 'applybpm' COMMAND
+# This will apply the given BPM-formatted delta patch (argument 1) to the specified directory (argument 2)
+# to produce a directory containing patched files (argument 3).
+# applybpm 0:/example/patch.bpm 0:/data/originalfolder 0:/game/moddedfolder
+
 # 'boot' COMMAND
 # Use this command to chainload a compatible FIRM
 # boot 0:/boot.firm
