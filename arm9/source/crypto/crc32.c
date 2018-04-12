@@ -3,6 +3,7 @@
 // Ported by Hyarion for use with VirtualFatFS
 
 #include "crc32.h"
+#include "common.h"
 
 uint32_t crc32_adjust(uint32_t crc32, uint8_t input) {
     static const uint32_t crc32_table[256] = {

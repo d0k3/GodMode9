@@ -3,7 +3,6 @@
 // Ported by Hyarion for use with VirtualFatFS
 
 #pragma once
-#include "common.h"
 #include "vff.h"
 
 uint32_t crc32_adjust(uint32_t crc32, uint8_t input);
