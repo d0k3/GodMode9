@@ -54,7 +54,15 @@ uint32_t crc32_adjust(uint32_t crc32, uint8_t input) {
     return ((crc32 >> 8) & 0x00ffffff) ^ crc32_table[(crc32 ^ input) & 0xff];
 }
 
-uint32_t crc32_calculate(FIL inputFile, unsigned int length) {
+uint32_t crc32_calculate(const uint8_t* data, unsigned int length) {
+  uint32_t crc32 = ~0;
+  for(unsigned i = 0; i < length; i++) {
+    crc32 = crc32_adjust(crc32, data[i]);
+  }
+  return ~crc32;
+}
+
+uint32_t crc32_calculate_from_file(FIL inputFile, unsigned int length) {
     uint32_t crc32 = ~0;
     uint8_t data;
     unsigned int br;

@@ -43,7 +43,13 @@ FIL patchFile;
 FIL sourceFile;
 FIL targetFile;
 
+uint8_t* sourceData;
+uint8_t* targetData;
+bool sourceInMemory;
+bool targetInMemory;
+
 unsigned int modifyOffset;
+unsigned int outputOffset;
 uint32_t modifyChecksum;
 uint32_t targetChecksum;
 
@@ -53,7 +59,7 @@ uint32_t bpmChecksum;
 uint8_t buffer;
 unsigned int br;
 
-char progressText[54];
+char progressText[256];
 bool progressCancel;
 
 uint8_t BPSread() {
@@ -77,15 +83,17 @@ uint64_t BPSdecode() {
 }
 
 void BPSwrite(uint8_t data) {
-    fvx_write(&targetFile, &data, 1, &br);
+    if(targetInMemory) targetData[outputOffset] = data;
+    else fvx_write(&targetFile, &data, 1, &br);
     targetChecksum = crc32_adjust(targetChecksum, data);
+    outputOffset++;
 }
 
 int ApplyBeatPatch() {
     unsigned int sourceRelativeOffset = 0, targetRelativeOffset = 0;
-    modifyOffset = 0;
-    modifyChecksum = ~0;
-    targetChecksum = ~0;
+    sourceInMemory = false, targetInMemory = false;
+    modifyOffset = 0, outputOffset = 0;
+    modifyChecksum = ~0, targetChecksum = ~0;
     if(patchSize < 19) return BEAT_PATCH_TOO_SMALL;
     
     if(BPSread() != 'B') return BEAT_PATCH_INVALID_HEADER;
@@ -98,12 +106,21 @@ int ApplyBeatPatch() {
     size_t modifyMarkupSize = BPSdecode();
     for(unsigned int n = 0; n < modifyMarkupSize; n++) BPSread(); // metadata, not useful to us
 
+    size_t sourceSize = fvx_size(&sourceFile);
+    fvx_lseek(&sourceFile, 0);
     fvx_lseek(&targetFile, modifyTargetSize);
     fvx_lseek(&targetFile, 0);
-    size_t sourceSize = fvx_size(&sourceFile);
     size_t targetSize = fvx_size(&targetFile);
     if(modifySourceSize > sourceSize) return BEAT_SOURCE_TOO_SMALL;
     if(modifyTargetSize > targetSize) return BEAT_TARGET_TOO_SMALL;
+    
+    sourceData = (uint8_t*)malloc(sourceSize);
+    targetData = (uint8_t*)malloc(targetSize);
+    if (sourceData != NULL) {
+        sourceInMemory = true;
+        fvx_read(&sourceFile, sourceData, sourceSize, &br);
+    }
+    if (targetData != NULL) targetInMemory = true;
 
     while((modifyOffset < patchSize - 12) && !progressCancel) {
         if (!ShowProgress(fvx_tell(&patchFile), fvx_size(&patchFile), progressText)) progressCancel = true;
@@ -113,10 +130,14 @@ int ApplyBeatPatch() {
 
         switch(mode) {
             case BEAT_SOURCEREAD:
-                fvx_lseek(&sourceFile, fvx_tell(&targetFile));
-                while(length--) {
-                    fvx_read(&sourceFile, &buffer, 1, &br);
-                    BPSwrite(buffer);
+                if (sourceInMemory) {
+                    while(length--) BPSwrite(sourceData[outputOffset]);
+                } else {
+                    fvx_lseek(&sourceFile, fvx_tell(&targetFile));
+                    while(length--) {
+                        fvx_read(&sourceFile, &buffer, 1, &br);
+                        BPSwrite(buffer);
+                    }
                 }
                 break;
             case BEAT_TARGETREAD:
@@ -132,23 +153,31 @@ int ApplyBeatPatch() {
 
                 if(mode == BEAT_SOURCECOPY) {
                     sourceRelativeOffset += offset;
-                    fvx_lseek(&sourceFile, sourceRelativeOffset);
-                    while(length--) {
-                        fvx_read(&sourceFile, &buffer, 1, &br);
-                        BPSwrite(buffer);
-                        sourceRelativeOffset++;
+                    if(sourceInMemory) {
+                        while(length--) BPSwrite(sourceData[sourceRelativeOffset++]);
+                    } else {
+                        fvx_lseek(&sourceFile, sourceRelativeOffset);
+                        while(length--) {
+                            fvx_read(&sourceFile, &buffer, 1, &br);
+                            BPSwrite(buffer);
+                            sourceRelativeOffset++;
+                        }
+                        fvx_lseek(&sourceFile, fvx_tell(&targetFile));
                     }
-                    fvx_lseek(&sourceFile, fvx_tell(&targetFile));
                 } else {
-                    unsigned int targetOffset = fvx_tell(&targetFile);
                     targetRelativeOffset += offset;
-                    while(length--) {
-                        fvx_lseek(&targetFile, targetRelativeOffset);
-                        fvx_read(&targetFile, &buffer, 1, &br);
-                        fvx_lseek(&targetFile, targetOffset);
-                        BPSwrite(buffer);
-                        targetRelativeOffset++;
-                        targetOffset++;
+                    if(targetInMemory) {
+                        while(length--) BPSwrite(targetData[targetRelativeOffset++]);
+                    } else {
+                        unsigned int targetOffset = fvx_tell(&targetFile);
+                        while(length--) {
+                            fvx_lseek(&targetFile, targetRelativeOffset);
+                            fvx_read(&targetFile, &buffer, 1, &br);
+                            fvx_lseek(&targetFile, targetOffset);
+                            BPSwrite(buffer);
+                            targetRelativeOffset++;
+                            targetOffset++;
+                        }
                     }
                 }
                 break;
@@ -161,11 +190,20 @@ int ApplyBeatPatch() {
     uint32_t checksum = ~modifyChecksum;
     for(unsigned int n = 0; n < 32; n += 8) modifyModifyChecksum |= BPSread() << n;
 
-    uint32_t sourceChecksum = crc32_calculate(sourceFile, modifySourceSize);
+    uint32_t sourceChecksum;
+    if(sourceInMemory) sourceChecksum = crc32_calculate(sourceData, modifySourceSize);
+    else sourceChecksum = crc32_calculate_from_file(sourceFile, modifySourceSize);
     targetChecksum = ~targetChecksum;
 
+    if (sourceInMemory) free(sourceData);
     fvx_close(&sourceFile);
+    
+    if (targetInMemory) {
+        fvx_write(&targetFile, targetData, targetSize, &br);
+        free(targetData);
+    }
     fvx_close(&targetFile);
+    
     if (!bpmIsActive) fvx_close(&patchFile);
 
     if(sourceChecksum != modifySourceChecksum) return BEAT_SOURCE_CHECKSUM_INVALID;
@@ -185,7 +223,7 @@ int ApplyBPSPatch(const char* modifyName, const char* sourceName, const char* ta
         return BEAT_INVALID_FILE_PATH;
     
     patchSize = fvx_size(&patchFile);
-    snprintf(progressText, 54, "%s", targetName);
+    snprintf(progressText, 256, "%s", targetName);
     if (!ShowProgress(0, patchSize, progressText)) progressCancel = true;
     return ApplyBeatPatch();
 }
@@ -248,7 +286,7 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
         unsigned int targetLength = (encoding >> 2) + 1;
         char targetName[256];
         BPMreadString(targetName, targetLength);
-        snprintf(progressText, 54, "%s", targetName);
+        snprintf(progressText, 256, "%s", targetName);
         if (!ShowProgress(fvx_tell(&patchFile), fvx_size(&patchFile), progressText)) progressCancel = true;
 
         if(action == BEAT_CREATEPATH) {
@@ -269,8 +307,8 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
             }
             BPMreadChecksum();
             fvx_close(&newFile);
-        } else if(action == BEAT_MODIFYFILE) {
-            uint64_t encoding = BPMreadNumber();
+        } else {
+            encoding = BPMreadNumber();
             char originPath[256], sourceName[256], oldPath[256], newPath[256];
             if (encoding & 1) snprintf(originPath, 256, "%s", targetPath);
             else snprintf(originPath, 256, "%s", sourcePath);
@@ -278,35 +316,29 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
             else BPMreadString(sourceName, encoding >> 1);
             snprintf(oldPath, 256, "%s/%s", originPath, sourceName);
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            patchSize = BPMreadNumber();
-            if ((fvx_open(&sourceFile, oldPath, FA_READ) != FR_OK) ||
-                (fvx_open(&targetFile, newPath, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
-                return BEAT_INVALID_FILE_PATH;
-            int result = ApplyBeatPatch();
-            if (result != BEAT_SUCCESS) return result;
-        } else if(action == BEAT_MIRRORFILE) {
-            uint64_t encoding = BPMreadNumber();
-            char originPath[256], sourceName[256], oldPath[256], newPath[256];
-            if (encoding & 1) snprintf(originPath, 256, "%s", targetPath);
-            else snprintf(originPath, 256, "%s", sourcePath);
-            if ((encoding >> 1) == 0) snprintf(sourceName, 256, "%s", targetName);
-            else BPMreadString(sourceName, encoding >> 1);
-            snprintf(oldPath, 256, "%s/%s", originPath, sourceName);
-            snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            FIL oldFile, newFile;
-            if ((fvx_open(&oldFile, oldPath, FA_READ) != FR_OK) ||
-                (fvx_open(&newFile, newPath, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK))
-                return BEAT_INVALID_FILE_PATH;
-            uint64_t fileSize = fvx_size(&oldFile);
-            fvx_lseek(&newFile, fileSize);
-            fvx_lseek(&newFile, 0);
-            while(fileSize--) {
-                fvx_read(&patchFile, &buffer, 1, &br);
-                fvx_write(&newFile, &buffer, 1, &br);
+            if(action == BEAT_MODIFYFILE) {
+                patchSize = BPMreadNumber();
+                if ((fvx_open(&sourceFile, oldPath, FA_READ) != FR_OK) ||
+                    (fvx_open(&targetFile, newPath, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
+                    return BEAT_INVALID_FILE_PATH;
+                int result = ApplyBeatPatch();
+                if (result != BEAT_SUCCESS) return result;
+            } else if(action == BEAT_MIRRORFILE) {
+                FIL oldFile, newFile;
+                if ((fvx_open(&oldFile, oldPath, FA_READ) != FR_OK) ||
+                    (fvx_open(&newFile, newPath, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK))
+                    return BEAT_INVALID_FILE_PATH;
+                uint64_t fileSize = fvx_size(&oldFile);
+                fvx_lseek(&newFile, fileSize);
+                fvx_lseek(&newFile, 0);
+                while(fileSize--) {
+                    fvx_read(&oldFile, &buffer, 1, &br);
+                    fvx_write(&newFile, &buffer, 1, &br);
+                }
+                BPMreadChecksum();
+                fvx_close(&oldFile);
+                fvx_close(&newFile);
             }
-            BPMreadChecksum();
-            fvx_close(&oldFile);
-            fvx_close(&newFile);
         }
     }
 
