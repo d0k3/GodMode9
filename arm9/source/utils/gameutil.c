@@ -1891,13 +1891,15 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv) {
     if (CryptNcchNcsdBossFirmFile(path, path_cxi, GAME_NCCH, CRYPTO_DECRYPT, 0, 0, NULL, NULL) != 0)
         ret = 1;
     
-    // fix up the injected H&S NCCH header / extheader (copy H&S signature, title ID to multiple locations) 
+    // fix up the injected H&S NCCH header / extheader (copy H&S signature, title ID to multiple locations)
+    // also set savedata size to zero (thanks @TurdPooCharger)
     if ((ret == 0) && (LoadNcchHeaders(&ncch, &exthdr, NULL, path_cxi, 0) == 0)) {
         ncch.programId = tid_hs;
         ncch.partitionId = tid_hs;
         exthdr.jump_id = tid_hs;
         exthdr.aci_title_id = tid_hs;
         exthdr.aci_limit_title_id = tid_hs;
+        exthdr.savedata_size = 0;
         memcpy(ncch.signature, sig, 0x100);
         sha_quick(ncch.hash_exthdr, &exthdr, 0x400, SHA256_MODE);
         if ((fvx_qwrite(path_cxi, &ncch, 0, sizeof(NcchHeader), NULL) != FR_OK) ||
