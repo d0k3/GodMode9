@@ -1266,11 +1266,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
     }
     else if (id == CMD_ID_APPLYBPS) {
-        ret = (ApplyBPSPatch(argv[0], argv[1], argv[2]) == 1);
+        ret = (ApplyBPSPatch(argv[0], argv[1], argv[2]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply BPS failed");
     }
     else if (id == CMD_ID_APPLYBPM) {
-        ret = (ApplyBPMPatch(argv[0], argv[1], argv[2]) == 1);
+        ret = (ApplyBPMPatch(argv[0], argv[1], argv[2]) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply BPM failed");
     }
     else if (id == CMD_ID_ISDIR) {
