@@ -266,6 +266,11 @@ verify S:/firm1.bin
 # -l / --legit force CIA to be legit (only works for legit system installed titles)
 # buildcia 0:/x.ncch
 
+# 'applyips' COMMAND
+# This will apply the given IPS-formatted delta patch (argument 1) to the specified file (argument 2)
+# to produce the patched file (argument 3). 2 and 3 may be the same to perform an in-place patch.
+# applyips 0:/example/patch.ips 0:/data/original.bin 0:/game/modded.bin
+
 # 'applybps' COMMAND
 # This will apply the given BPS-formatted delta patch (argument 1) to the specified file (argument 2)
 # to produce the patched file (argument 3).
