@@ -11,23 +11,17 @@ SPLASH   =  resources/$(FLAVOR)_splash.png
 
 ifeq ($(FLAVOR),SafeMode9)
     CFLAGS += -DSAFEMODE
-endif
-
-ifeq ($(FLAVOR),GodMode64)
+else ifeq ($(FLAVOR),GodMode64)
     OVERRIDE_FONT := resources/fonts/font_c64_8x8.pbm
     CFLAGS += -DDEFAULT_FONT=\"font_c64_8x8.pbm\"
     CFLAGS += -DCOLOR_STD_FONT=0xD5717B
     CFLAGS += -DCOLOR_STD_BG=0xA43041
-endif
-
-ifeq ($(FLAVOR),BrickedMode9)
+else ifeq ($(FLAVOR),BrickedMode9)
     OVERRIDE_FONT := resources/fonts/font_nbraille_4x6.pbm
     CFLAGS += -DDEFAULT_FONT=\"font_nbraille_4x6.pbm\"
     CFLAGS += -DCOLOR_STD_FONT=0x00FFFF
     CFLAGS += -DCOLOR_STD_BG=0xFF0000
-endif
-
-ifeq ($(FLAVOR),ZuishMode9)
+else ifeq ($(FLAVOR),ZuishMode9)
     OVERRIDE_FONT := resources/fonts/font_zuish_8x8.pbm
     CFLAGS += -DDEFAULT_FONT=\"font_zuish_8x8.pbm\"
 endif
@@ -57,12 +51,20 @@ ifeq ($(HIDE_HIDDEN),1)
     CFLAGS += -DHIDE_HIDDEN
 endif
 
+ifeq ($(SHOW_FREE),1)
+    CFLAGS += -DSHOW_FREE
+endif
+
 ifdef FIXED_BRIGHTNESS
     CFLAGS += -DFIXED_BRIGHTNESS=$(FIXED_BRIGHTNESS)
 endif
 
 ifdef SD_TIMEOUT
     CFLAGS += -DSD_TIMEOUT=$(SD_TIMEOUT)
+endif
+
+ifeq ($(MONITOR_HEAP),1)
+    CFLAGS += -DMONITOR_HEAP
 endif
 
 ifdef NTRBOOT

@@ -176,9 +176,7 @@ void DrawTopBar(const char* curr_path) {
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
         show_time = false;
     }
-    #endif
-    
-    #ifdef MONITOR_HEAP
+    #elif defined MONITOR_HEAP
     if (true) { // allocated mem
         const u32 bartxt_rx = SCREEN_WIDTH_TOP - (9*FONT_WIDTH_EXT) - bartxt_x;
         char bytestr[32];
@@ -1819,7 +1817,7 @@ u32 HomeMoreMenu(char* current_path) {
             ShowString("Building " TIKDB_NAME_ENC "...");
             tik_enc_sys = (BuildTitleKeyInfo("1:/dbs/ticket.db", false, false) == 0);
             tik_enc_emu = (BuildTitleKeyInfo("4:/dbs/ticket.db", false, false) == 0);
-            if (BuildTitleKeyInfo(NULL, false, true) != 0)
+            if (!tik_enc_sys || BuildTitleKeyInfo(NULL, false, true) != 0)
                 tik_enc_sys = tik_enc_emu = false;
         }
         bool tik_dec_sys = false;
