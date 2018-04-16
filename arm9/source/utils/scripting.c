@@ -770,9 +770,10 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
-        if ((str >= line_end) || (*str == '#')) // end of line or comment
+        bool in_quotes = ((ptr - str) != (int) len); // hacky
+        if ((str >= line_end) || ((*str == '#') && !in_quotes)) // end of line or comment
             return (*cmdid = get_cmd_id(cmd, cmd_len, *flags, *argc, err_str));
-        if (*str == '-') { // flag
+        if ((*str == '-') && !in_quotes) { // flag
             u32 flag_add = get_flag(str, len, err_str);
             if (!flag_add) return false; // not a proper flag
             *flags |= flag_add;
