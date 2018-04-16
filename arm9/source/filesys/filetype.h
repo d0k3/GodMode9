@@ -55,7 +55,7 @@
 #define FTYPE_RENAMABLE(tp)     (tp&(GAME_NCCH|GAME_NCSD|GAME_CIA|GAME_NDS|GAME_GBA))
 #define FTYPE_TRANSFERABLE(tp)  ((u64) (tp&(IMG_FAT|FLAG_CTR)) == (u64) (IMG_FAT|FLAG_CTR))
 #define FTYPE_NCSDFIXABLE(tp)   (tp&(HDR_NAND|NOIMG_NAND))
-#define FTYPE_HASCODE(tp)       ((u64) (tp&(GAME_NCCH|FLAG_CXI)) == (u64) (GAME_NCCH|FLAG_CXI))
+#define FTYPE_HASCODE(tp)       (((u64) (tp&(GAME_NCCH|FLAG_CXI)) == (u64) (GAME_NCCH|FLAG_CXI))|(tp&GAME_NCSD))
 #define FTYPE_ISDISADIFF(tp)    (tp&(SYS_DIFF|SYS_DISA))
 #define FTYPE_RESTORABLE(tp)    (tp&(IMG_NAND))
 #define FTYPE_EBACKUP(tp)       (tp&(IMG_NAND))
