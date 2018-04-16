@@ -225,7 +225,9 @@ fill $[DUMMY]@300 80
 # This command sets a portition of a file with the specified data in hex
 # The syntax is: fset destination@x hexdata
 #                x: destination offset (in hex)
+#                y: bytes to write (in hex) (must be lower than hexdata size)
 # If x is not given, data is inserted at the beginning of the file
+# If y is not given, all of hexdata is written to the file
 # -e / --flip_endian flips the order of the bytes
 fset $[DUMMY]@100 48454c4c4f # 'HELLO'
 
