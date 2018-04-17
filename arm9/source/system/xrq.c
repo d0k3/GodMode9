@@ -54,7 +54,8 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
 
     /* Dump registers */
     wstr += sprintf(wstr, "Exception: %s (%lu)\n", XRQ_Name[xrq&7], xrq);
-    wstr += sprintf(wstr, "20%02lX-%02lX-%02lX %02lX:%02lX:%02lX\n\n",
+    wstr += sprintf(wstr, FLAVOR " " VERSION "\n");
+    wstr += sprintf(wstr, "20%02lX-%02lX-%02lX %02lX:%02lX:%02lX\n \n",
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D,
         (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
     for (int i = 0; i < 8; i++) {
