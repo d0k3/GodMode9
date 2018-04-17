@@ -476,7 +476,7 @@ bool expand_arg(char* argex, const char* arg, u32 len) {
         u32 out_len = out - argex;
         if (out_len >= (_ARG_MAX_LEN-1)) return false; // maximum arglen reached
         
-        if (*in == '\\') { // escape line breaks (no other escape is handled)
+        if (*in == '\\') { // escape line breaks
             if (*(++in) == 'n') *(out++) = '\n';
             else {
                 *(out++) = '\\';
@@ -938,14 +938,14 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (++n_opt >= _CHOICE_MAX_N) break;
         }
         
-        u32 result = ShowSelectPrompt(n_opt, options, argv[0]);
+        u32 result = ShowSelectPrompt(n_opt, options, "%s", argv[0]);
         if (!result) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
         } else jump_ptr = options_jmp[result-1];
     }
     else if (id == CMD_ID_ECHO) {
-        ShowPrompt(false, argv[0]);
+        ShowPrompt(false, "%s", argv[0]);
     }
     else if (id == CMD_ID_QR) {
         const u32 screen_size = SCREEN_SIZE(ALT_SCREEN);
@@ -957,20 +957,20 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (ret) {
             memcpy(screen_copy, ALT_SCREEN, screen_size);
             DrawQrCode(ALT_SCREEN, qrcode);
-            ShowPrompt(false, argv[0]);
+            ShowPrompt(false, "%s", argv[0]);
             memcpy(ALT_SCREEN, screen_copy, screen_size);
         } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
         free(screen_copy);
     }
     else if (id == CMD_ID_ASK) {
-        ret = ShowPrompt(true, argv[0]);
+        ret = ShowPrompt(true, "%s", argv[0]);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
     }
     else if (id == CMD_ID_INPUT) {
         char input[_VAR_CNT_LEN] = { 0 };
         char* var = get_var(argv[1], NULL);
         strncpy(input, var, _VAR_CNT_LEN);
-        ret = ShowStringPrompt(input, _VAR_CNT_LEN, argv[0]);
+        ret = ShowStringPrompt(input, _VAR_CNT_LEN, "%s", argv[0]);
         if (ret) set_var(argv[1], "");
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
         if (ret) {
