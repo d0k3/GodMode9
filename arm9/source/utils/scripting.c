@@ -4,7 +4,7 @@
 #include "nand.h"
 #include "bootfirm.h"
 #include "qrcodegen.h"
-#include "firm.h"
+#include "game.h"
 #include "power.h"
 #include "unittype.h"
 #include "region.h"
@@ -63,7 +63,7 @@
     (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || \
     (id == CMD_ID_FOR) || (id == CMD_ID_NEXT))
 
-// command ids (also entry into the cmd_list aray below)
+// command ids (also entry into the cmd_list array below)
 typedef enum {
     CMD_ID_NONE = 0,
     CMD_ID_NOT,
@@ -107,6 +107,7 @@ typedef enum {
     CMD_ID_ENCRYPT,
     CMD_ID_BUILDCIA,
     CMD_ID_EXTRCODE,
+    CMD_ID_SDUMP,
     CMD_ID_APPLYIPS,
     CMD_ID_APPLYBPS,
     CMD_ID_APPLYBPM,
@@ -174,6 +175,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_EXTRCODE, "extrcode", 2, 0 },
+    { CMD_ID_SDUMP   , "sdump",    1, 0 },
     { CMD_ID_APPLYIPS, "applyips", 3, 0 },
     { CMD_ID_APPLYBPS, "applybps", 3, 0 },
     { CMD_ID_APPLYBPM, "applybpm", 3, 0 },
@@ -1267,6 +1269,31 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ShowString("Extracting .code, please wait...");
             ret = (ExtractCodeFromCxiFile(argv[0], argv[1], NULL) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "extract .code failed");
+        }
+    }
+    else if (id == CMD_ID_SDUMP) {
+        ret = false;
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "build failed");
+        if ((strncasecmp(argv[0], TIKDB_NAME_ENC, _ARG_MAX_LEN) == 0) ||
+            (strncasecmp(argv[0], TIKDB_NAME_DEC, _ARG_MAX_LEN) == 0)) {
+            bool tik_dec = (strncasecmp(argv[0], TIKDB_NAME_DEC, _ARG_MAX_LEN) == 0);
+            if (BuildTitleKeyInfo(NULL, tik_dec, false) == 0) {
+                ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
+                if (((BuildTitleKeyInfo("1:/dbs/ticket.db", tik_dec, false) == 0) ||
+                     (BuildTitleKeyInfo("4:/dbs/ticket.db", tik_dec, false) == 0)) &&
+                    (BuildTitleKeyInfo(NULL, tik_dec, true) == 0))
+                    ret = true;
+            }
+        } else if (strncasecmp(argv[0], SEEDDB_NAME, _ARG_MAX_LEN) == 0) {
+            if (BuildSeedInfo(NULL, false) == 0) {
+                ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
+                if (((BuildSeedInfo("1:", false) == 0) ||
+                     (BuildSeedInfo("4:", false) == 0)) &&
+                    (BuildSeedInfo(NULL, true) == 0))
+                    ret = true;
+            }
+        } else {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown file");
         }
     }
     else if (id == CMD_ID_APPLYIPS) {
