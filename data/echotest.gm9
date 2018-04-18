@@ -1,0 +1,19 @@
+# line 1: bad # of args
+echo -o "#"
+
+# This works.
+echo "check #"
+
+# The % symbol disappears.
+echo "%"
+echo "check %"
+
+# error message fail
+echo "-"
+
+# This works.
+echo "check -"
+
+# Probably not bug. Syntax abuse but adding it here anyway.
+bkpt
+echo """

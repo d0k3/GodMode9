@@ -4,8 +4,7 @@
 #include "lodepng.h"
 #include "png.h"
 
-#include "ui.h"
-
+#ifndef MONITOR_HEAP
 static inline void _rgb_swap(u8 *img, size_t sz)
 {
 	// maybe process in batches of 3 pixels / 12 bytes at a time?
@@ -49,3 +48,22 @@ u8 *PNG_Compress(u8 *fb, u32 w, u32 h, size_t *png_sz)
 
 	return img;
 }
+#else
+u8 *PNG_Decompress(const u8 *png, size_t png_len, u32 *w, u32 *h)
+{
+	(void) png;
+	(void) w;
+	(void) h;
+	(void) png_len;
+	return NULL;
+}
+
+u8 *PNG_Compress(u8 *fb, u32 w, u32 h, size_t *png_sz)
+{
+	(void) fb;
+	(void) png_sz;
+	(void) w;
+	(void) h;
+	return NULL;
+}
+#endif

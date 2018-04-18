@@ -1,0 +1,4 @@
+sdump -w encTitleKeys.bin
+sdump -w decTitleKeys.bin
+sdump -w seeddb.bin
+sdump -o -w shalalala.bin

@@ -61,7 +61,7 @@ u32 SplashInit(const char* modestr) {
 
     if (splash) {
         bitmap = PNG_Decompress(splash, splash_size, &splash_width, &splash_height);
-        DrawBitmap(TOP_SCREEN, -1, -1, splash_width, splash_height, bitmap);
+        if (bitmap) DrawBitmap(TOP_SCREEN, -1, -1, splash_width, splash_height, bitmap);
     } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PNG " not found)");
 
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
