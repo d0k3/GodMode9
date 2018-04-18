@@ -175,7 +175,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_EXTRCODE, "extrcode", 2, 0 },
-    { CMD_ID_SDUMP   , "sdump",    1, 0 },
+    { CMD_ID_SDUMP   , "sdump",    1, _FLG('w') },
     { CMD_ID_APPLYIPS, "applyips", 3, 0 },
     { CMD_ID_APPLYBPS, "applybps", 3, 0 },
     { CMD_ID_APPLYBPM, "applybpm", 3, 0 },
@@ -1277,6 +1277,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if ((strncasecmp(argv[0], TIKDB_NAME_ENC, _ARG_MAX_LEN) == 0) ||
             (strncasecmp(argv[0], TIKDB_NAME_DEC, _ARG_MAX_LEN) == 0)) {
             bool tik_dec = (strncasecmp(argv[0], TIKDB_NAME_DEC, _ARG_MAX_LEN) == 0);
+            if (flags & _FLG('w')) fvx_unlink(tik_dec ? OUTPUT_PATH "/" TIKDB_NAME_DEC : OUTPUT_PATH "/" TIKDB_NAME_ENC);
             if (BuildTitleKeyInfo(NULL, tik_dec, false) == 0) {
                 ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
                 if (((BuildTitleKeyInfo("1:/dbs/ticket.db", tik_dec, false) == 0) ||
@@ -1285,6 +1286,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                     ret = true;
             }
         } else if (strncasecmp(argv[0], SEEDDB_NAME, _ARG_MAX_LEN) == 0) {
+            if (flags & _FLG('w')) fvx_unlink(OUTPUT_PATH "/" SEEDDB_NAME);
             if (BuildSeedInfo(NULL, false) == 0) {
                 ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
                 if (((BuildSeedInfo("1:", false) == 0) ||

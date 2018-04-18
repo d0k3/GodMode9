@@ -268,6 +268,14 @@ verify S:/firm1.bin
 # -l / --legit force CIA to be legit (only works for legit system installed titles)
 # buildcia 0:/x.ncch
 
+# 'sdump' COMMAND
+# This command dumps a supported file to the standard output directory (0:/gm9/out)
+# Supported files: encTitleKeys.bin, decTitleKeys.bin, seeddb.bin
+# -w / --overwrite overwrite existing files without asking
+# sdump encTitleKeys.bin
+# sdump decTitleKeys.bin
+# sdump seeddb.bin
+
 # 'applyips' COMMAND
 # This will apply the given IPS-formatted delta patch (argument 1) to the specified file (argument 2)
 # to produce the patched file (argument 3). 2 and 3 may be the same to perform an in-place patch.
