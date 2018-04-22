@@ -324,7 +324,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
             snprintf(tempstr, str_width + 1, "%s%10.10s", namestr,
                 (curr_entry->type == T_DIR) ? "(dir)" : (curr_entry->type == T_DOTDOT) ? "(..)" : bytestr);
         } else snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
-        DrawStringF(ALT_SCREEN, pos_x, pos_y, color_font, COLOR_STD_BG, tempstr);
+        DrawStringF(ALT_SCREEN, pos_x, pos_y, color_font, COLOR_STD_BG, "%s", tempstr);
         pos_y += stp_y;
     }
     
