@@ -937,51 +937,23 @@ bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
     // start from parent dir object
     if (vdir->index == -1) vdir->index = 0; 
     
-    // first child dir object, skip if not available
-    if (vdir->index == 0) {
-        RomFsLv3DirMeta* parent = LV3_GET_DIR(vdir->offset, &lv3idx);
-        if (!parent) return false;
-        if (parent->offset_child != (u32) -1) {
-            vdir->offset = (u64) parent->offset_child;
-            vdir->index = 1;
-            vfile->flags |= VFLAG_DIR;
-            vfile->offset = vdir->offset;
-            return true;
-        } else vdir->index = 2;
-    }
-    
-    // parse sibling dirs
-    if (vdir->index == 1) {
-        RomFsLv3DirMeta* current = LV3_GET_DIR(vdir->offset, &lv3idx);
-        if (!current) return false;
-        if (current->offset_sibling != (u32) -1) {
-            vdir->offset = (u64) current->offset_sibling;
-            vfile->flags |= VFLAG_DIR;
-            vfile->offset = vdir->offset;
-            return true;
-        } else if (current->offset_parent != (u32) -1) {
-            vdir->offset = (u64) current->offset_parent;
-            vdir->index = 2;
-        } else return false;
-    }
-    
     // first child file object, skip if not available
-    if (vdir->index == 2) {
+    if (vdir->index == 0) {
         RomFsLv3DirMeta* parent = LV3_GET_DIR(vdir->offset, &lv3idx);
         if (!parent) return false;
         if (parent->offset_file != (u32) -1) {
             vdir->offset = (u64) parent->offset_file;
-            vdir->index = 3;
+            vdir->index = 1;
             RomFsLv3FileMeta* lv3file = LV3_GET_FILE(vdir->offset, &lv3idx);
             if (!lv3file) return false;
             vfile->offset = vdir->offset;
             vfile->size = lv3file->size_data;
             return true;
-        } else vdir->index = 4;
+        } else vdir->index = 2;
     }
     
     // parse sibling files
-    if (vdir->index == 3) {
+    if (vdir->index == 1) {
         RomFsLv3FileMeta* current = LV3_GET_FILE(vdir->offset, &lv3idx);
         if (!current) return false;
         if (current->offset_sibling != (u32) -1) {
@@ -992,7 +964,35 @@ bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->size = lv3file->size_data;
             return true;
         } else if (current->offset_parent != (u32) -1) {
-            vdir->offset = current->offset_parent;
+            vdir->offset = (u64) current->offset_parent;
+            vdir->index = 2;
+        } else return false;
+    }
+    
+    // first child dir object, skip if not available
+    if (vdir->index == 2) {
+        RomFsLv3DirMeta* parent = LV3_GET_DIR(vdir->offset, &lv3idx);
+        if (!parent) return false;
+        if (parent->offset_child != (u32) -1) {
+            vdir->offset = (u64) parent->offset_child;
+            vdir->index = 3;
+            vfile->flags |= VFLAG_DIR;
+            vfile->offset = vdir->offset;
+            return true;
+        } else vdir->index = 4;
+    }
+    
+    // parse sibling dirs
+    if (vdir->index == 3) {
+        RomFsLv3DirMeta* current = LV3_GET_DIR(vdir->offset, &lv3idx);
+        if (!current) return false;
+        if (current->offset_sibling != (u32) -1) {
+            vdir->offset = (u64) current->offset_sibling;
+            vfile->flags |= VFLAG_DIR;
+            vfile->offset = vdir->offset;
+            return true;
+        } else if (current->offset_parent != (u32) -1) {
+            vdir->offset = (u64) current->offset_parent;
             vdir->index = 4;
         } else return false;
     }
