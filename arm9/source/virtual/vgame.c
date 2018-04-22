@@ -964,7 +964,7 @@ bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->size = lv3file->size_data;
             return true;
         } else if (current->offset_parent != (u32) -1) {
-            vdir->offset = (u64) current->offset_parent;
+            vdir->offset = current->offset_parent;
             vdir->index = 2;
         } else return false;
     }
