@@ -108,6 +108,7 @@ typedef enum {
     CMD_ID_ENCRYPT,
     CMD_ID_BUILDCIA,
     CMD_ID_EXTRCODE,
+    CMD_ID_CMPRCODE,
     CMD_ID_SDUMP,
     CMD_ID_APPLYIPS,
     CMD_ID_APPLYBPS,
@@ -157,7 +158,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_STRREP  , "strrep"  , 3, 0 },
     { CMD_ID_CHK     , "chk"     , 2, _FLG('u') },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
-    { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n')},
+    { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') | _FLG('a') | _FLG('p')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
     { CMD_ID_INJECT  , "inject"  , 2, _FLG('n') },
     { CMD_ID_FILL    , "fill"    , 2, 0 },
@@ -178,6 +179,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
     { CMD_ID_EXTRCODE, "extrcode", 2, 0 },
+    { CMD_ID_CMPRCODE, "cmprcode", 2, 0 },
     { CMD_ID_SDUMP   , "sdump",    1, _FLG('w') },
     { CMD_ID_APPLYIPS, "applyips", 3, 0 },
     { CMD_ID_APPLYBPS, "applybps", 3, 0 },
@@ -541,6 +543,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     if ((len < 2) || (*str != '-')) flag_char = '\0';
     else if (len == 2) flag_char = str[1];
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
+    else if (strncmp(str, "--append", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
     else if (strncmp(str, "--include_dirs", len) == 0) flag_char = 'd';
     else if (strncmp(str, "--flip_endian", len) == 0) flag_char = 'e';
@@ -551,6 +554,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--legit", len) == 0) flag_char = 'l';
     else if (strncmp(str, "--no_cancel", len) == 0) flag_char = 'n';
     else if (strncmp(str, "--optional", len) == 0) flag_char = 'o';
+    else if (strncmp(str, "--no_progress_bar", len) == 0) flag_char = 'p';
     else if (strncmp(str, "--recursive", len) == 0) flag_char = 'r';
     else if (strncmp(str, "--silent", len) == 0) flag_char = 's';
     else if (strncmp(str, "--unequal", len) == 0) flag_char = 'u';
@@ -1105,8 +1109,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (flags & _FLG('h')) flags_ext |= CALC_SHA;
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         if (flags & _FLG('s')) flags_ext |= SILENT;
+        if (flags & _FLG('p')) flags_ext |= NO_PROGRESS;
         if (flags & _FLG('w')) flags_ext |= OVERWRITE_ALL;
         else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
+        else if (flags & _FLG('a')) flags_ext |= APPEND_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, false);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "copy fail");
     }
@@ -1298,14 +1304,17 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     }
     else if (id == CMD_ID_EXTRCODE) {
         u64 filetype = IdentifyFileType(argv[0]);
-        if ((filetype&(GAME_NCCH|FLAG_CXI)) != (GAME_NCCH|FLAG_CXI)) {
+        if (!FTYPE_HASCODE(filetype)) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a CXI file");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "does not contain .code");
         } else {
-            ShowString("Extracting .code, please wait...");
             ret = (ExtractCodeFromCxiFile(argv[0], argv[1], NULL) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "extract .code failed");
         }
+    }
+    else if (id == CMD_ID_CMPRCODE) {
+        ret = (CompressCode(argv[0], argv[1]) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "compress .code failed");
     }
     else if (id == CMD_ID_SDUMP) {
         ret = false;
