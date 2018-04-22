@@ -12,6 +12,7 @@
 #define ASK_ALL         (1UL<<6)
 #define SKIP_ALL        (1UL<<7)
 #define OVERWRITE_ALL   (1UL<<8)
+#define APPEND_ALL      (1UL<<9)
 
 // file selector flags
 #define NO_DIRS         (1UL<<0)
