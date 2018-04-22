@@ -10,6 +10,8 @@
 #include "ui.h"
 #include "vff.h"
 
+#define BPM_FILEMODE_BUFFER 0x200000
+
 typedef enum {
     BEAT_SUCCESS = 0,
     BEAT_PATCH_TOO_SMALL,
@@ -53,6 +55,10 @@ unsigned int outputOffset;
 uint32_t modifyChecksum;
 uint32_t targetChecksum;
 
+bool bpmFileMode;
+size_t bpmFileChunks;
+size_t bpmLastChunk;
+size_t bpmCurrChunk;
 bool bpmIsActive;
 uint32_t bpmChecksum;
 
@@ -122,6 +128,7 @@ void BPSwrite(uint8_t data) {
 }
 
 int ApplyBeatPatch() {
+    uint8_t counter = 0;
     unsigned int sourceRelativeOffset = 0, targetRelativeOffset = 0;
     sourceInMemory = false, targetInMemory = false;
     modifyOffset = 0, outputOffset = 0;
@@ -138,11 +145,23 @@ int ApplyBeatPatch() {
     size_t modifyMarkupSize = BPSdecode();
     for(unsigned int n = 0; n < modifyMarkupSize; n++) BPSread(); // metadata, not useful to us
 
-    size_t sourceSize = fvx_size(&sourceFile);
-    fvx_lseek(&sourceFile, 0);
-    fvx_lseek(&targetFile, modifyTargetSize);
-    fvx_lseek(&targetFile, 0);
-    size_t targetSize = fvx_size(&targetFile);
+    size_t sourceSize;
+    size_t targetSize;
+    if(!bpmFileMode) {
+        sourceSize = fvx_size(&sourceFile);
+        fvx_lseek(&sourceFile, 0);
+        fvx_lseek(&targetFile, modifyTargetSize);
+        fvx_lseek(&targetFile, 0);
+        targetSize = fvx_size(&targetFile);
+    } else {
+        if (bpmCurrChunk == bpmFileChunks - 1) sourceSize = bpmLastChunk;
+        else sourceSize = BPM_FILEMODE_BUFFER;
+        fvx_lseek(&sourceFile, bpmCurrChunk * BPM_FILEMODE_BUFFER);
+        fvx_lseek(&targetFile, (bpmCurrChunk * BPM_FILEMODE_BUFFER) + modifyTargetSize);
+        fvx_lseek(&targetFile, bpmCurrChunk * BPM_FILEMODE_BUFFER);
+        targetSize = fvx_size(&targetFile) - (bpmCurrChunk * BPM_FILEMODE_BUFFER);
+    }
+    
     if (!bpmIsActive) outputTotal = targetSize;
     if(modifySourceSize > sourceSize) return err(BEAT_SOURCE_TOO_SMALL);
     if(modifyTargetSize > targetSize) return err(BEAT_TARGET_TOO_SMALL);
@@ -152,11 +171,13 @@ int ApplyBeatPatch() {
     if (sourceData != NULL) {
         sourceInMemory = true;
         fvx_read(&sourceFile, sourceData, sourceSize, &br);
-    }
+    } else if (bpmFileMode) sourceRelativeOffset = (bpmCurrChunk * BPM_FILEMODE_BUFFER);
     if (targetData != NULL) targetInMemory = true;
+    else if (bpmFileMode) targetRelativeOffset = (bpmCurrChunk * BPM_FILEMODE_BUFFER);
 
-    while((modifyOffset < patchSize - 12)) {
-        if (!ShowProgress(outputCurrent, outputTotal, progressText) &&
+    while(modifyOffset < patchSize - 12) {
+        if ((counter++ == 0) &&
+            !ShowProgress(outputCurrent, outputTotal, progressText) &&
             ShowPrompt(true, "%s\nB button detected. Cancel?", progressText))
             return err(BEAT_CANCELED);
             
@@ -229,18 +250,21 @@ int ApplyBeatPatch() {
 
     uint32_t sourceChecksum;
     if(sourceInMemory) sourceChecksum = crc32_calculate(sourceData, modifySourceSize);
-    else sourceChecksum = crc32_calculate_from_file(sourceFile, modifySourceSize);
+    else {
+        if (!bpmFileMode) fvx_lseek(&sourceFile, 0);
+        else fvx_lseek(&sourceFile, bpmCurrChunk * BPM_FILEMODE_BUFFER);
+        sourceChecksum = crc32_calculate_from_file(sourceFile, modifySourceSize);
+    }
     targetChecksum = ~targetChecksum;
 
     if (sourceInMemory) free(sourceData);
-    fvx_close(&sourceFile);
-    
     if (targetInMemory) {
         fvx_write(&targetFile, targetData, targetSize, &br);
         free(targetData);
     }
-    fvx_close(&targetFile);
     
+    if (!bpmFileMode) fvx_close(&sourceFile);
+    if (!bpmFileMode) fvx_close(&targetFile);
     if (!bpmIsActive) fvx_close(&patchFile);
 
     if(sourceChecksum != modifySourceChecksum) return err(BEAT_SOURCE_CHECKSUM_INVALID);
@@ -251,7 +275,10 @@ int ApplyBeatPatch() {
 }
 
 int ApplyBPSPatch(const char* modifyName, const char* sourceName, const char* targetName) {
+    bpmFileMode = false;
     bpmIsActive = false;
+    outputCurrent = 0;
+    outputTotal = 0;
     
     if ((!CheckWritePermissions(targetName)) ||
         (fvx_open(&patchFile, modifyName, FA_READ) != FR_OK) ||
@@ -298,6 +325,7 @@ uint32_t BPMreadChecksum() {
 }
 
 bool CalculateBPMLength(const char* patchName, const char* sourcePath, const char* targetPath) {
+    uint8_t counter = 0;
     bpmIsActive = false;
     snprintf(progressText, 256, "%s", patchName);
     fvx_lseek(&patchFile, BPMreadNumber() + fvx_tell(&patchFile));
@@ -306,13 +334,15 @@ bool CalculateBPMLength(const char* patchName, const char* sourcePath, const cha
         unsigned int action = encoding & 3;
         char targetName[256];
         BPMreadString(targetName, (encoding >> 2) + 1);
-        if (!ShowProgress(fvx_tell(&patchFile), fvx_size(&patchFile), progressText) &&
+        if ((counter++ % 16 == 0) &&
+            !ShowProgress(fvx_tell(&patchFile), fvx_size(&patchFile), progressText) &&
             ShowPrompt(true, "%s\nB button detected. Cancel?", progressText))
             return false;
         if(action == BEAT_CREATEFILE) {
             uint64_t fileSize = BPMreadNumber();
             fvx_lseek(&patchFile, fileSize + 4 + fvx_tell(&patchFile));
             outputTotal += fileSize;
+            bpmCurrChunk++;
         } else if(action == BEAT_MODIFYFILE) {
             fvx_lseek(&patchFile, (BPMreadNumber() >> 1) + fvx_tell(&patchFile));
             uint64_t patchSize = BPMreadNumber() + fvx_tell(&patchFile);
@@ -320,6 +350,7 @@ bool CalculateBPMLength(const char* patchName, const char* sourcePath, const cha
             BPMreadNumber();
             outputTotal += BPMreadNumber();
             fvx_lseek(&patchFile, patchSize);
+            bpmCurrChunk++;
         } else if(action == BEAT_MIRRORFILE) {
             encoding = BPMreadNumber();
             char originPath[256], sourceName[256], oldPath[256];
@@ -328,25 +359,46 @@ bool CalculateBPMLength(const char* patchName, const char* sourcePath, const cha
             if ((encoding >> 1) == 0) snprintf(sourceName, 256, "%s", targetName);
             else BPMreadString(sourceName, encoding >> 1);
             snprintf(oldPath, 256, "%s/%s", originPath, sourceName);
-            FIL oldFile;
-            fvx_open(&oldFile, oldPath, FA_READ);
-            outputTotal += fvx_size(&oldFile);
-            fvx_close(&oldFile);
-            fvx_lseek(&patchFile, 4 + fvx_tell(&patchFile));
+            if (!bpmFileMode) {
+                FIL oldFile;
+                fvx_open(&oldFile, oldPath, FA_READ);
+                outputTotal += fvx_size(&oldFile);
+                fvx_close(&oldFile);
+                fvx_lseek(&patchFile, 4 + fvx_tell(&patchFile));
+            } else if (bpmCurrChunk == bpmFileChunks - 1) outputTotal += bpmLastChunk;
+            else outputTotal += BPM_FILEMODE_BUFFER;
+            bpmCurrChunk++;
         }
     }
 
     fvx_lseek(&patchFile, 4);
+    bpmCurrChunk = 0;
     bpmIsActive = true;
     return true;
 }
 
 int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* targetPath) {
+    bpmFileMode = false;
     bpmIsActive = true;
     bpmChecksum = ~0;
+    outputCurrent = 0;
+    outputTotal = 0;
+    
+    DIR fdir;
+    if (fvx_stat(sourcePath, NULL) != FR_OK) return err(BEAT_INVALID_FILE_PATH);
+    else if (fvx_opendir(&fdir, sourcePath) == FR_OK) fvx_closedir(&fdir);
+    else {
+        bpmFileMode = true;
+        if (fvx_open(&sourceFile, sourcePath, FA_READ) != FR_OK) return err(BEAT_INVALID_FILE_PATH);
+        bpmFileChunks = fvx_size(&sourceFile) / BPM_FILEMODE_BUFFER;
+        bpmLastChunk = fvx_size(&sourceFile) % BPM_FILEMODE_BUFFER;
+        bpmCurrChunk = 0;
+        if (bpmLastChunk != 0) bpmFileChunks += 1;
+    }
     
     if ((!CheckWritePermissions(targetPath)) ||
-        ((fvx_stat(targetPath, NULL) != FR_OK) && (fvx_mkdir(targetPath) != FR_OK)) ||
+        (!bpmFileMode && (fvx_stat(targetPath, NULL) != FR_OK) && (fvx_mkdir(targetPath) != FR_OK)) ||
+        (bpmFileMode && (fvx_open(&targetFile, targetPath, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK)) ||
         (fvx_open(&patchFile, patchName, FA_READ) != FR_OK))
         return err(BEAT_INVALID_FILE_PATH);
         
@@ -369,11 +421,11 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
             ShowPrompt(true, "%s\nB button detected. Cancel?", progressText))
             return err(BEAT_CANCELED);
 
-        if(action == BEAT_CREATEPATH) {
+        if(action == BEAT_CREATEPATH && !bpmFileMode) {
             char newPath[256];
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
             if ((fvx_stat(newPath, NULL) != FR_OK) && (fvx_mkdir(newPath) != FR_OK)) return err(BEAT_INVALID_FILE_PATH);
-        } else if(action == BEAT_CREATEFILE) {
+        } else if(action == BEAT_CREATEFILE && !bpmFileMode) {
             char newPath[256];
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
             FIL newFile;
@@ -388,6 +440,17 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
             }
             BPMreadChecksum();
             fvx_close(&newFile);
+        } else if(action == BEAT_CREATEFILE && bpmFileMode) {
+            uint64_t fileSize = BPMreadNumber();
+            outputCurrent += fileSize;
+            fvx_lseek(&targetFile, (bpmCurrChunk * BPM_FILEMODE_BUFFER) + fileSize);
+            fvx_lseek(&targetFile, bpmCurrChunk * BPM_FILEMODE_BUFFER);
+            while(fileSize--) {
+                buffer = BPMread();
+                fvx_write(&targetFile, &buffer, 1, &br);
+            }
+            BPMreadChecksum();
+            bpmCurrChunk++;
         } else {
             encoding = BPMreadNumber();
             char originPath[256], sourceName[256], oldPath[256], newPath[256];
@@ -399,12 +462,13 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
             if(action == BEAT_MODIFYFILE) {
                 patchSize = BPMreadNumber();
-                if ((fvx_open(&sourceFile, oldPath, FA_READ) != FR_OK) ||
-                    (fvx_open(&targetFile, newPath, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
+                if (!bpmFileMode && ((fvx_open(&sourceFile, oldPath, FA_READ) != FR_OK) ||
+                    (fvx_open(&targetFile, newPath, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK)))
                     return err(BEAT_INVALID_FILE_PATH);
                 int result = ApplyBeatPatch();
                 if (result != BEAT_SUCCESS) return result;
-            } else if(action == BEAT_MIRRORFILE) {
+                bpmCurrChunk++;
+            } else if(action == BEAT_MIRRORFILE && !bpmFileMode) {
                 FIL oldFile, newFile;
                 if ((fvx_open(&oldFile, oldPath, FA_READ) != FR_OK) ||
                     (fvx_open(&newFile, newPath, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK))
@@ -420,6 +484,19 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
                 BPMreadChecksum();
                 fvx_close(&oldFile);
                 fvx_close(&newFile);
+            } else if(action == BEAT_MIRRORFILE && bpmFileMode) {
+                uint64_t fileSize;
+                if (bpmCurrChunk == bpmFileChunks - 1) fileSize = bpmLastChunk;
+                else fileSize = BPM_FILEMODE_BUFFER;
+                outputCurrent += fileSize;
+                fvx_lseek(&targetFile, (bpmCurrChunk * BPM_FILEMODE_BUFFER) + fileSize);
+                fvx_lseek(&targetFile, bpmCurrChunk * BPM_FILEMODE_BUFFER);
+                while(fileSize--) {
+                    fvx_read(&sourceFile, &buffer, 1, &br);
+                    fvx_write(&targetFile, &buffer, 1, &br);
+                }
+                BPMreadChecksum();
+                bpmCurrChunk++;
             }
         }
     }
@@ -431,5 +508,9 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
     if(BPMread() != (uint8_t)(cksum >> 24)) return err(BEAT_BPM_CHECKSUM_INVALID);
 
     fvx_close(&patchFile);
+    if (bpmFileMode) {
+        fvx_close(&sourceFile);
+        fvx_close(&targetFile);
+    }
     return BEAT_SUCCESS;
 }

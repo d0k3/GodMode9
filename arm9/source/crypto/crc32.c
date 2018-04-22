@@ -66,7 +66,6 @@ uint32_t crc32_calculate_from_file(FIL inputFile, unsigned int length) {
     uint32_t crc32 = ~0;
     uint8_t data;
     unsigned int br;
-    fvx_lseek(&inputFile, 0);
     for(unsigned i = 0; i < length; i++) {
         fvx_read(&inputFile, &data, 1, &br);
         crc32 = crc32_adjust(crc32, data);

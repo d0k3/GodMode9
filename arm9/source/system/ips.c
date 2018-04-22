@@ -68,6 +68,7 @@ unsigned int read24() {
 }
 
 int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName) {
+    uint8_t counter = 0;
     int error = IPS_INVALID;
     unsigned int outlen_min, outlen_max, outlen_min_mem;
     snprintf(errName, 256, "%s", patchName);
@@ -94,7 +95,8 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     bool w_scrambled = false;
     while (offset != 0x454F46) // 454F46=EOF
     {
-        if (!ShowProgress(fvx_tell(&patchFile), patchSize, patchName) &&
+        if ((counter++ == 0) &&
+            !ShowProgress(fvx_tell(&patchFile), patchSize, patchName) &&
             ShowPrompt(true, "%s\nB button detected. Cancel?", patchName))
             return ret(IPS_CANCELED);
         unsigned int size = read16();
@@ -168,9 +170,11 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     
     fvx_lseek(&patchFile, 5);
     offset = read24();
+    counter = 0;
     while (offset != 0x454F46)
     {
-        if (!ShowProgress(offset, outSize, outName) &&
+        if ((counter++ == 0) &&
+            !ShowProgress(offset, outSize, outName) &&
             ShowPrompt(true, "%s\nB button detected. Cancel?", patchName))
             return ret(IPS_CANCELED);
         
