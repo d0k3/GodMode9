@@ -76,6 +76,7 @@ typedef enum {
     CMD_ID_GOTO,
     CMD_ID_LABELSEL,
     CMD_ID_KEYSEL,
+    CMD_ID_KEYCHK,
     CMD_ID_ECHO,
     CMD_ID_QR,
     CMD_ID_ASK,
@@ -145,6 +146,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
     { CMD_ID_LABELSEL, "labelsel", 2, 0 },
     { CMD_ID_KEYSEL  , "keysel"  , 2, 0 },
+    { CMD_ID_KEYCHK  , "keychk"  , 1, 0 },
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
@@ -958,6 +960,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
         } else jump_ptr = options_jmp[result-1];
+    }
+    else if (id == CMD_ID_KEYCHK) {
+        ret = CheckButton(StringToButton(argv[0]));
+        if (!ret && err_str) snprintf(err_str, _ERR_STR_LEN, "key not pressed");
     }
     else if (id == CMD_ID_ECHO) {
         ShowPrompt(false, "%s", argv[0]);
