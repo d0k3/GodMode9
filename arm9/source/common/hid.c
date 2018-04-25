@@ -56,3 +56,24 @@ bool CheckButton(u32 button) {
     for(; (t_pressed < 0x13000) && ((HID_STATE & button) == button); t_pressed++);
     return (t_pressed >= 0x13000);
 }
+
+void ButtonToString(u32 button, char* str) {
+    const char* strings[] = { BUTTON_STRINGS };
+
+    *str = '\0';
+    if (button) {
+        u32 b = 0;
+        for (b = 0; !((button>>b)&0x1); b++);
+        if (b < countof(strings)) strcpy(str, strings[b]);
+    }
+}
+
+u32 StringToButton(char* str) {
+    const char* strings[] = { BUTTON_STRINGS };
+
+    u32 b = 0;
+    for (b = 0; b < countof(strings); b++)
+        if (strcmp(str, strings[b]) == 0) break;
+
+    return (b == countof(strings)) ? 0 : 1<<b;
+}

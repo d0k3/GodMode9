@@ -73,6 +73,7 @@ void ShowString(const char *format, ...);
 void ShowIconString(u8* icon, int w, int h, const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
+u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *format, ...);
 bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...);
 u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...);
 u64 ShowNumberPrompt(u64 start_val, const char *format, ...);

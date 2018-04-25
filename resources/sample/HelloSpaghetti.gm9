@@ -69,6 +69,38 @@ labelsel -o -s "Choose preview mode" choice_*
 goto outside
 
 
+# keysel sample code
+@spaghetti_keysel_example
+
+@kchoice_X_Preview_off
+set PREVIEW_MODE off
+goto kchooser
+
+@kchoice_Y_Preview_quick
+set PREVIEW_MODE quick
+goto kchooser
+
+@kchoice_R_Preview_full
+set PREVIEW_MODE full
+goto kchooser
+
+@kchoice_L_Preview_png
+set PREVIEW_MODE V:/GodMode9_splash.png
+goto kchooser
+
+@kchoice_SELECT_Preview_custom
+set PREVIEW_MODE "Your text can be here"
+input -o "Enter anything:" PREVIEW_MODE
+goto kchooser
+
+@kchoice_START_Leave_script
+goto outside
+
+@kchooser
+keysel -o -s "Choose preview mode via key" kchoice_*
+goto outside
+
+
 # for-next sample code
 @spaghetti_fornext_sample
 

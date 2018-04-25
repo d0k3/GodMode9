@@ -599,6 +599,41 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     return (sel >= n) ? 0 : sel + 1;
 }
 
+u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *format, ...) {
+    char str[STRBUF_SIZE] = { 0 };
+    char* ptr = str;
+    va_list va;
+    va_start(va, format);
+    ptr += vsnprintf(ptr, STRBUF_SIZE, format, va);
+    va_end(va);
+    
+    ptr += snprintf(ptr, STRBUF_SIZE - (ptr-str), "\n ");
+    for (u32 i = 0; i < n; i++) {
+        char buttonstr[16];
+        ButtonToString(keys[i], buttonstr);
+        ptr += snprintf(ptr, STRBUF_SIZE - (ptr-str), "\n<%s> %s", buttonstr, options[i]);
+    }
+    ptr += snprintf(ptr, STRBUF_SIZE - (ptr-str), "\n \n<%s> %s", "B", "cancel");
+
+    ClearScreenF(true, false, COLOR_STD_BG);
+    DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+
+    u32 sel = 0;
+    while (!sel) {
+        u32 pad_state = InputWait(0);
+        if (pad_state & BUTTON_B) break;
+        for (u32 i = 0; i < n; i++) {
+            if (keys[i] & pad_state) {
+                sel = i+1;
+                break;
+            }
+        }
+    }
+
+    ClearScreenF(true, false, COLOR_STD_BG);
+    return sel;
+}
+
 bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alphabet, const char *format, va_list va) {
     const u32 alphabet_size = strnlen(alphabet, 256);
     const u32 input_shown = 22;

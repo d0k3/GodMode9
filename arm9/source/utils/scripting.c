@@ -60,7 +60,7 @@
 #define _FLG(c)             ((c >= 'a') ? (1 << (c - 'a')) : 0)
 
 #define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || \
-    (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || \
+    (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || (id == CMD_ID_KEYSEL) || \
     (id == CMD_ID_FOR) || (id == CMD_ID_NEXT))
 
 // command ids (also entry into the cmd_list array below)
@@ -75,6 +75,7 @@ typedef enum {
     CMD_ID_NEXT,
     CMD_ID_GOTO,
     CMD_ID_LABELSEL,
+    CMD_ID_KEYSEL,
     CMD_ID_ECHO,
     CMD_ID_QR,
     CMD_ID_ASK,
@@ -143,6 +144,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_NEXT    , _CMD_NEXT , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
     { CMD_ID_LABELSEL, "labelsel", 2, 0 },
+    { CMD_ID_KEYSEL  , "keysel"  , 2, 0 },
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
@@ -179,8 +181,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_APPLYIPS, "applyips", 3, 0 },
     { CMD_ID_APPLYBPS, "applybps", 3, 0 },
     { CMD_ID_APPLYBPM, "applybpm", 3, 0 },
-    { CMD_ID_ISDIR,    "isdir"   , 1, 0 },
-    { CMD_ID_EXIST,    "exist"   , 1, 0 },
+    { CMD_ID_ISDIR   , "isdir"   , 1, 0 },
+    { CMD_ID_EXIST   , "exist"   , 1, 0 },
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
     { CMD_ID_SWITCHSD, "switchsd", 1, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
@@ -916,16 +918,16 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
         }
     }
-    else if (id == CMD_ID_LABELSEL) {
+    else if ((id == CMD_ID_LABELSEL) || (id == CMD_ID_KEYSEL)) {
         const char* options[_CHOICE_MAX_N] = { NULL };
         char* options_jmp[_CHOICE_MAX_N] = { NULL };
         char options_str[_CHOICE_MAX_N][_CHOICE_STR_LEN+1];
+        u32 options_keys[_CHOICE_MAX_N] = { 0 };
         
         char* ast = strchr(argv[1], '*');
         char* ptr = NULL;
         u32 n_opt = 0;
         while ((ptr = find_label(argv[1], ptr))) {
-            options[n_opt] = options_str[n_opt];
             options_jmp[n_opt] = ptr;
             
             while (*(ptr++) != '@');
@@ -937,10 +939,21 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 else if (ptr[i] == '_') choice[i] = ' ';
                 else choice[i] = ptr[i];
             }
+            if (id == CMD_ID_KEYSEL) {
+                char* keystr = choice;
+                for (; *choice != ' ' && *choice != '\0'; choice++);
+                if (*choice != '\0') *(choice++) = '\0';
+                options_keys[n_opt] = StringToButton(keystr);
+                if (!options_keys[n_opt]) continue; 
+            }
+
+            options[n_opt] = choice;
             if (++n_opt >= _CHOICE_MAX_N) break;
         }
         
-        u32 result = ShowSelectPrompt(n_opt, options, "%s", argv[0]);
+        u32 result = (id == CMD_ID_LABELSEL) ? ShowSelectPrompt(n_opt, options, "%s", argv[0]) :
+            ShowHotkeyPrompt(n_opt, options, options_keys, "%s", argv[0]);
+
         if (!result) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
