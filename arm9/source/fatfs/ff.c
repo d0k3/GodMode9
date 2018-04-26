@@ -3187,6 +3187,8 @@ static BYTE check_fs (	/* 0:FAT, 1:exFAT, 2:Valid BS but not FAT, 3:Not a BS, 4:
 	if (fs->win[BS_JmpBoot] == 0xE9 || fs->win[BS_JmpBoot] == 0xEB || fs->win[BS_JmpBoot] == 0xE8) {	/* Valid JumpBoot code? */
 		if (!mem_cmp(fs->win + BS_FilSysType, "FAT", 3)) return 0;		/* Is it an FAT VBR? */
 		if (!mem_cmp(fs->win + BS_FilSysType32, "FAT32", 5)) return 0;	/* Is it an FAT32 VBR? */
+		/* !CUSTOM CODE! - special detection for public.sav archives in the TWLN partition */
+		if ((ld_dword(fs->win + BS_FilSysType) == 0x00) && (ld_dword(fs->win + BS_VolID) == 0x12345678)) return 0;
 	}
 	return 2;	/* Valid BS but not FAT */
 }
