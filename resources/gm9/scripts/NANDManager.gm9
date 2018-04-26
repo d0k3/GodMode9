@@ -1,0 +1,158 @@
+@NAND_Manager
+@nm_menu
+keysel -o -s "Select an option." nmopt_*
+goto nm_menu
+#goto options_main
+@nmopt_A_Backup_EmuNAND
+# EmuNAND backup GM9 script
+# This will create a backup named [SERIAL]_nandmin_???.bin
+# author: d0k3
+set ERRORMSG "EmuNAND backup failed"
+set SUCCESSMSG "EmuNAND backup success"
+if ask "Create a EmuNAND backup in $[GM9OUT]?"
+findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_emunand_???.bin OUTPATH
+cp -h E:/nand_minsize.bin $[OUTPATH]
+echo "Backup created succesfully:\n$[OUTPATH]"
+end
+goto nm_menu
+@nmopt_X_Backup_SysNAND
+# SysNAND backup GM9 script
+# This will create a backup named [SERIAL]_nandmin_???.bin
+# author: d0k3
+set ERRORMSG "SysNAND backup failed"
+set SUCCESSMSG "SysNAND backup success"
+if ask "Create a SysNAND backup in $[GM9OUT]?"
+findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_sysnand_???.bin OUTPATH
+cp -h S:/nand_minsize.bin $[OUTPATH]
+echo "Backup created succesfully:\n$[OUTPATH]"
+end
+goto nm_menu
+@nmopt_Y_Restore_EmuNAND
+# EmuNAND restore GM9 script
+# This will restore a backup from 0:/gm9/out, expecting the name scheme from the backup scripts
+# author: Kazuma77
+set SUCCESSMSG "Successfully Restored EmuNAND."
+set ERRORMSG "EmuNAND not changed."
+if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
+if ask "Restore\n$[NANDBAK]\nto EmuNAND?"
+allow E:/nand.bin
+imgmount $[NANDBAK]
+if find I:/nand_minsize.bin NULL
+# Uncomment the "verify" command below to enable verification.
+# I left it out since EmuNAND isn't vital.
+# Besides, EmuNANDs don't even use their firm partitions.
+#verify I:/nand_minsize.bin
+set ERRORMSG "An error occurred during the transfer\nPlease try again."
+inject -n I:/nand_minsize.bin E:/nand.bin@0
+imgumount
+else
+echo "Not a valid NAND backup."
+end
+end
+end
+goto nm_menu
+@nmopt_L_Restore_SysNAND_(Full)
+# SysNAND full restore GM9 script
+# This will restore a backup from 0:/gm9/out, expecting the name scheme from the backup scripts
+# author: Kazuma77
+set SUCCESSMSG "Successfully Restored SysNAND."
+# Gateway used to protect EmuNAND firm partitions.
+# Old EmuNAND images updated while running Gateway could brick a device.
+# If you understand the risk, feel free to comment the next two lines.
+set ERRORMSG "This script requires ntrboot to run."
+chk $[HAX] "ntrboot"
+set ERRORMSG "SysNAND not changed."
+if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
+if ask "WARNING:\nSystem exploit will not be protected.\nNEVER use an EmuNAND image with this\nscript - it may brick your device.\n \nFully restore\n$[NANDBAK]\nto SysNAND?"
+allow S:/nand.bin
+imgmount $[NANDBAK]
+if verify I:/nand_minsize.bin
+set ERRORMSG "An error occurred during the transfer\nPlease try again."
+inject -n I:/nand_minsize.bin S:/nand.bin@0
+imgumount
+else
+echo "Not a valid NAND backup."
+end
+end
+end
+goto nm_menu
+@nmopt_R_Restore_SysNAND_(Safe)
+# SysNAND safe restore GM9 script
+# This will restore a backup from 0:/gm9/out, expecting the name scheme from the backup scripts
+# author: Kazuma77
+set SUCCESSMSG "Successfully Restored SysNAND."
+set ERRORMSG "No qualifying exploit was found.\nAborting to avoid bricking the unit."
+chk -u $[HAX] ""
+# A "safe" restore has a high risk of bricking a Retail NAND.
+# There is no way to know if a system is exploited if it is running NTRBootHax.
+# If you understand the risk, feel free to comment the next two lines.
+set ERRORMSG "Safe restore is not available on\nntrboot. Aborting to avoid a brick."
+chk -u $[HAX] "ntrboot"
+set ERRORMSG "SysNAND not changed."
+if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
+if ask "Safe restore\n$[NANDBAK]\nto SysNAND?"
+allow S:/ctrnand_full.bin
+allow S:/twln.bin
+allow S:/twlp.bin
+set ERRORMSG "Not a valid NAND backup."
+imgmount $[NANDBAK]
+if find I:/ctrnand_full.bin NULL
+if find I:/twln.bin NULL
+if find I:/twlp.bin NULL
+# Uncomment the "verify" command below to enable verification.
+# I left it out since the firm partitions are not being touched.
+# If you do not want the script to even try to recover content from a bricked image, enable it.
+#verify I:/nand_minsize.bin
+set ERRORMSG "An error occurred during the transfer.\nPlease try again."
+cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
+cp -w -n I:/twln.bin S:/twln.bin
+cp -w -n I:/twlp.bin S:/twlp.bin
+imgumount
+else
+echo "Not a valid NAND backup."
+end
+else
+echo "Not a valid NAND backup."
+end
+else
+echo "Not a valid NAND backup."
+end
+end
+end
+goto nm_menu
+@nmopt_LEFT_Transfer_Emu_to_Sys
+if find E:/nand.bin NULL
+set ERRORMSG "No qualifying exploit found.\nAborting to avoid bricking the device."
+if chk -u $[HAX] ""
+set SUCCESSMSG "EmuNAND successfully transferred to SysNAND."
+set ERRORMSG "Failed to transfer EmuNAND to SysNAND."
+if ask "Please make sure you have a backup of your SysNAND.\nAre you certain you want to continue?"
+allow S:/nand.bin
+cp -w -n E:/ctrnand_full.bin S:/ctrnand_full.bin
+cp -w -n E:/twln.bin S:/twln.bin
+cp -w -n E:/twlp.bin S:/twlp.bin
+end
+else
+echo "No qualifying exploit found.\nAborting to avoid bricking the device."
+end
+else
+echo "EmuNAND not found."
+end
+goto nm_menu
+@nmopt_RIGHT_Transfer_Sys_to_Emu
+if find E:/nand.bin NULL
+set SUCCESSMSG "SysNAND successfully transferred to EmuNAND."
+set ERRORMSG "Failed to transfer SysNAND to EmuNAND."
+if ask "Please make sure you have a backup of your EmuNAND.\nAre you certain you want to continue?"
+allow E:/nand_minsize.bin
+inject -n S:/nand_minsize.bin E:/nand.bin@0
+end
+else
+echo "EmuNAND not found."
+end
+goto nm_menu
+@nmopt_START_Reboot
+reboot
+@nmopt_SELECT_Power_Off
+poweroff
+@nmopt_UP_Exit_Script
