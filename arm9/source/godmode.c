@@ -1987,7 +1987,7 @@ u32 GodMode(int entrypoint) {
     #else // standard behaviour
     bootmenu = bootmenu || (bootloader && CheckButton(BOOTMENU_KEY)); // second check for boot menu keys
     #endif
-    while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys is held
+    while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
     if (show_splash) while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
     // bootmenu handler
@@ -2481,7 +2481,7 @@ u32 ScriptRunner(int entrypoint) {
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
     
-    while (HID_STATE); // wait until no buttons are pressed
+    while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
     
     if (PathExist("V:/" VRAM0_AUTORUN_GM9)) {
