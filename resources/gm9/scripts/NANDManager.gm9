@@ -155,3 +155,4 @@ goto nm_menu
 reboot
 @nmopt_START_Power_Off
 poweroff
+@nmopt_UP_Exit_Script
