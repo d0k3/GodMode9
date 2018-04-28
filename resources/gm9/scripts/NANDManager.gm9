@@ -120,7 +120,7 @@ end
 end
 end
 goto nm_menu
-@nmopt_LEFT_Transfer_EmuNAND_to_SysNAND
+@nmopt_LEFT_Transfer_Emu_to_Sys
 if find E:/nand.bin NULL
 set ERRORMSG "No qualifying exploit found.\nAborting to avoid bricking the device."
 if chk -u $[HAX] ""
@@ -139,7 +139,7 @@ else
 echo "EmuNAND not found."
 end
 goto nm_menu
-@nmopt_RIGHT_Transfer_SysNAND_to_EmuNAND
+@nmopt_RIGHT_Transfer_Sys_to_Emu
 if find E:/nand.bin NULL
 set SUCCESSMSG "SysNAND successfully transferred to EmuNAND."
 set ERRORMSG "Failed to transfer SysNAND to EmuNAND."
@@ -151,8 +151,8 @@ else
 echo "EmuNAND not found."
 end
 goto nm_menu
-@nmopt_SELECT_Reboot
+@nmopt_START_Reboot
 reboot
-@nmopt_START_Power_Off
+@nmopt_SELECT_Power_Off
 poweroff
 @nmopt_UP_Exit_Script
