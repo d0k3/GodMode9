@@ -808,7 +808,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
                 }
                 
                 char temp_str[256];
-                snprintf(temp_str, 256, entry->name);
+                snprintf(temp_str, 256, "%s", entry->name);
                 if (hide_ext && (entry->type == T_FILE)) {
                     char* dot = strrchr(temp_str, '.');
                     if (dot) *dot = '\0';
@@ -823,7 +823,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
             
             const char* optionstr[_MAX_FS_OPT+1] = { NULL };
             for (u32 i = 0; i <= _MAX_FS_OPT; i++) optionstr[i] = opt_names[i];
-            u32 user_select = ShowSelectPrompt(n_opt, optionstr, text);
+            u32 user_select = ShowSelectPrompt(n_opt, optionstr, "%s", text);
             if (!user_select) return false;
             DirEntry* res_local = res_entry[user_select-1];
             if (res_local && (res_local->type == T_DIR)) { // selected dir

@@ -718,8 +718,8 @@ bool for_handler(char* path, const char* dir, const char* pattern, bool recursiv
     }
     
     if (dir) { // open a dir
-        snprintf(lpattern, 64, pattern);
-        snprintf(ldir, 256, dir);
+        snprintf(lpattern, 64, "%s", pattern);
+        snprintf(ldir, 256, "%s", dir);
         if (dp) return false; // <- this should never happen
         if (fvx_opendir(&fdir[0], dir) != FR_OK)
             return false;
@@ -1805,7 +1805,7 @@ bool ExecuteGM9Script(const char* path_script) {
                         free(bitmap);
                     } else {
                         if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = "(preview disabled)";
-                        DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, preview_str);
+                        DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", preview_str);
                     }
 
                     preview_mode = 0;
@@ -1874,7 +1874,7 @@ bool ExecuteGM9Script(const char* path_script) {
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
                     char* msg_fail = get_var("ERRORMSG", NULL);
-                    if (msg_fail && *msg_fail) ShowPrompt(false, msg_fail);
+                    if (msg_fail && *msg_fail) ShowPrompt(false, "%s", msg_fail);
                     else snprintf(err_str, _ERR_STR_LEN, "error message fail");
                 }
                 if (*err_str) {
@@ -1926,7 +1926,7 @@ bool ExecuteGM9Script(const char* path_script) {
     
     if (result) { // success message if applicable
         char* msg_okay = get_var("SUCCESSMSG", NULL);
-        if (msg_okay && *msg_okay) ShowPrompt(false, msg_okay);
+        if (msg_okay && *msg_okay) ShowPrompt(false, "%s", msg_okay);
     }
     
     

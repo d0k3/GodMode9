@@ -89,7 +89,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if (!DriveType(drvnum[i])) continue; // drive not available
         memset(entry->path, 0x00, 64);
-        snprintf(entry->path + 0,  4, drvnum[i]);
+        snprintf(entry->path + 0,  4, "%s", drvnum[i]);
         if ((*(drvnum[i]) >= '7') && (*(drvnum[i]) <= '9') && !(GetMountState() & IMG_NAND)) // Drive 7...9 handling
             snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i],
                 (*(drvnum[i]) == '7') ? "FAT IMAGE" :
