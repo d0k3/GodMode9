@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#define MAX_DIR_ENTRIES 1024
+#define MAX_DIR_ENTRIES 2048
 
 typedef enum {
     T_ROOT,
