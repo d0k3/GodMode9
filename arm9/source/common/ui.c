@@ -346,9 +346,9 @@ void TruncateString(char* dest, const char* orig, int nsize, int tpos) {
     if (nsize < 0) {
         return;
     } else if (nsize <= 3) {
-        snprintf(dest, nsize, orig);
+        snprintf(dest, nsize, "%s", orig);
     } else if (nsize >= osize) {
-        snprintf(dest, nsize + 1, orig);
+        snprintf(dest, nsize + 1, "%s", orig);
     } else {
         if (tpos + 3 > nsize) tpos = nsize - 3;
         snprintf(dest, nsize + 1, "%-.*s...%-.*s", tpos, orig, nsize - (3 + tpos), orig + osize - (nsize - (3 + tpos)));

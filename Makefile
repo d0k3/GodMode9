@@ -30,7 +30,7 @@ export INCLUDE := -I"$(shell pwd)/common"
 
 export ASFLAGS := -g -x assembler-with-cpp $(INCLUDE)
 export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\"" -DFLAVOR="\"$(FLAVOR)\"" \
-                  -g -O2 -Wall -Wextra -Wpedantic -Wcast-align -Wno-main \
+                  -g -O2 -Wall -Wextra -Wpedantic -Wcast-align -Wformat=2 -Wno-main \
                   -fomit-frame-pointer -ffast-math -std=gnu11 \
                   -Wno-unused-function $(INCLUDE) -ffunction-sections -fdata-sections
 export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=512

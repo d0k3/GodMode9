@@ -161,7 +161,7 @@ void DrawTopBar(const char* curr_path) {
     DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
     if (*curr_path) TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
     else snprintf(tempstr, 16, "[root]");
-    DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, tempstr);
+    DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%s", tempstr);
     bool show_time = true;
     
     #ifdef SHOW_FREE
@@ -261,10 +261,10 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         strncpy(dirstr, curr_entry->path, 256);
         *(strrchr(dirstr, '/')+1) = '\0';
         ResizeString(tempstr, dirstr, len_info / FONT_WIDTH_EXT, 8, false);
-        DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, tempstr);
+        DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, "%s", tempstr);
     } else {
         ResizeString(tempstr, "", len_info / FONT_WIDTH_EXT, 8, false);
-        DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, tempstr);
+        DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, "%s", tempstr);
     }
     
     // right top - clipboard
@@ -273,7 +273,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     for (u32 c = 0; c < n_cb_show; c++) {
         u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
         ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", len_info / FONT_WIDTH_EXT, 8, true);
-        DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, tempstr);
+        DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, "%s", tempstr);
     }
     *tempstr = '\0';
     if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - n_cb_show);
@@ -1567,7 +1567,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             optionstr[n_opt] = "EmuNAND H&S inject";
             destdrv[n_opt++] = "4:";
         }
-        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : n_opt;
+        user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, "%s", pathstr) : n_opt;
         if (user_select) {
             ShowPrompt(false, "%s\nH&S inject %s", pathstr,
                 (InjectHealthAndSafety(file_path, destdrv[user_select-1]) == 0) ? "success" : "failed");
@@ -1633,7 +1633,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             destdrv[n_opt++] = "4:";
         }
         if (n_opt) {
-            user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, pathstr) : 1;
+            user_select = (n_opt > 1) ? (int) ShowSelectPrompt(n_opt, optionstr, "%s", pathstr) : 1;
             if (user_select) {
                 ShowPrompt(false, "%s\nCTRNAND transfer %s", pathstr,
                     (TransferCtrNandImage(file_path, destdrv[user_select-1]) == 0) ? "success" : "failed");
@@ -2157,7 +2157,7 @@ u32 GodMode(int entrypoint) {
                     const char* optionstr[2] = { "Open this folder", "Open containing folder" };
                     char pathstr[32 + 1];
                     TruncateString(pathstr, curr_entry->path, 32, 8);
-                    user_select = ShowSelectPrompt(2, optionstr, pathstr);
+                    user_select = ShowSelectPrompt(2, optionstr, "%s", pathstr);
                 }
                 if (user_select) {
                     strncpy(current_path, curr_entry->path, 256);
@@ -2323,7 +2323,7 @@ u32 GodMode(int entrypoint) {
                     snprintf(promptstr, 64, "Paste \"%s\" here?", namestr);
                 } else snprintf(promptstr, 64, "Paste %lu paths here?", clipboard->n_entries);
                 user_select = ((DriveType(clipboard->entry[0].path) & curr_drvtype & DRV_STDFAT)) ?
-                    ShowSelectPrompt(2, optionstr, promptstr) : (ShowPrompt(true, promptstr) ? 1 : 0);
+                    ShowSelectPrompt(2, optionstr, "%s", promptstr) : (ShowPrompt(true, "%s", promptstr) ? 1 : 0);
                 if (user_select) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
                         char namestr[36+1];
@@ -2354,7 +2354,7 @@ u32 GodMode(int entrypoint) {
                 char newname[256];
                 char namestr[20+1];
                 TruncateString(namestr, curr_entry->name, 20, 12);
-                snprintf(newname, 255, curr_entry->name);
+                snprintf(newname, 255, "%s", curr_entry->name);
                 if (ShowStringPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
                     if (!PathRename(curr_entry->path, newname))
                         ShowPrompt(false, "Failed renaming path:\n%s", namestr);
