@@ -614,7 +614,7 @@ bool BuildVGameFirmDir(void) {
             u8* buffer = (u8*) malloc(section->size);
             if (buffer) {
                 if (ReadGameImageBytes(buffer, section->offset, section->size) != 0) break;
-                for (u32 s = 0; (s < section->size - 0x400) && (!offset_p9); s += 0x10) {
+                for (u32 s = 0; (s + 0x400 < section->size) && (!offset_p9); s += 0x10) {
                     if ((ValidateNcchHeader((NcchHeader*) (void*) (buffer + s)) == 0) &&
                         (ReadGameImageBytes((u8*) name, section->offset + s + 0x200, 8) == 0)) {
                         offset_p9 = section->offset + s;

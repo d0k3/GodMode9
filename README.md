@@ -21,7 +21,7 @@ These short instructions apply to all users who have [boot9strap](https://github
 You may now run GodMode9 via holding the X Button (or any other button you chose) at startup. See below for a list of stuff you can do with it.
 
 
-## Buttons in GodMode9 usage
+## Buttons in GodMode9
 GodMode9 is designed to be intuitive, buttons leading to the results you'd expect. However, some stuff may not be obvious at first glance. So, here's a quick, incomplete rundown of what each button / button combo does.
 * __<A> button__: The <A> button is the 'confirm' / 'choose' button. It confirms prompts and selects entries in menus. In the main file view, it pulls up a submenu for files and opens directories (use <R+A> on directories for a submenu, also including the invaluable title search). In the hexviewer, <A> switches into edit mode.
 * __<B> button__: The <B> button is the 'cancel' / 'return' button. Use it to leave menus without action, hold it on file operations to cancel said file operations.

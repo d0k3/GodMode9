@@ -38,7 +38,7 @@ u32 GetFirmSize(FirmHeader* header) {
         FirmSectionHeader* section = header->sections + i;
         if (!section->size) continue;
         if (section->offset < firm_size) return 0;
-        if ((section->offset % 512) || (section->address % 16) || (section->size % 512)) return 0;
+        if ((section->offset % 512) || (section->size % 512)) return 0;
         if ((header->entry_arm11 >= section->address) &&
             (header->entry_arm11 < section->address + section->size))
             section_arm11 = i;
@@ -79,8 +79,10 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
     if ((firm_size < sizeof(FirmHeader)) || (ValidateFirmHeader(header, firm_size) != 0))
         return 1;
     
-    // check for boot9strap magic
+    // overrides for b9s / superhax fb3ds firms
     bool b9s_fix = installable && (memcmp(&(header->reserved0[0x2D]), "B9S", 3) == 0);
+    bool fb3ds_fix = installable && (header->sections[1].size == 0x200) &&
+        (header->sections[1].address == 0x07FFFE8C);
     
     // hash verify all available sections and check load address
     for (u32 i = 0; i < 4; i++) {
@@ -92,7 +94,7 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
         if (!section->size) continue;
         if (sha_cmp(section->hash, ((u8*) firm) + section->offset, section->size, SHA256_MODE) != 0)
             return 1;
-        bool is_whitelisted = (b9s_fix && (i == 3)); // don't check last section in b9s
+        bool is_whitelisted = (b9s_fix && (i == 3)) || (fb3ds_fix && (i == 1)); // b9s / fb3ds overrides
         for (u32 a = 0; (a < whitelist_size) && !is_whitelisted; a++) {
             if ((section->address >= whitelist[2*a]) && (section->address + section->size <= whitelist[(2*a)+1]))
                 is_whitelisted = true;
