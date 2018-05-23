@@ -23,17 +23,17 @@ You may now run GodMode9 via holding the X Button (or any other button you chose
 
 ## Buttons in GodMode9
 GodMode9 is designed to be intuitive, buttons leading to the results you'd expect. However, some stuff may not be obvious at first glance. So, here's a quick, incomplete rundown of what each button / button combo does.
-* __[A] button__: The [A] button is the 'confirm' / 'choose' button. It confirms prompts and selects entries in menus. In the main file view, it pulls up a submenu for files and opens directories (use [R+A] on directories for a submenu, also including the invaluable title search). In the hexviewer, [A] switches into edit mode.
-* __[B] button__: The [B] button is the 'cancel' / 'return' button. Use it to leave menus without action, hold it on file operations to cancel said file operations.
-* __[X] button__: In the main file view, the [X] button deletes (marked) files. With [R+X] files are renamed.
-* __[Y] button__: In the main file view, the [Y] button copies and pastes files. With [R+Y] you can create folders and dummy files.
-* __[L] button__: The [L] button is the 'mark' button. Use it with [LEFT] / [RIGHT] to mark / unmark all files in a folder, hold it and use [UP] / [DOWN] to select multiple files.
-* __[R] button__: The [R] button is the 'switch' button. It switches buttons to their secondary function. Notable exceptions are [R+L] for a screenshot (works almost anywhere), [R+LEFT] / [R+RIGHT] to switch panes and [R+DOWN] to reload the file listing.
-* __[START] button__: Use the [START] button to reboot from GodMode9. Use [R+START] to poweroff your 3DS.
-* __[SELECT] button__: The [SELECT] button clears or restores the clipboard (depending on if it's empty or not).
-* __[HOME] button__: The [HOME] button enters the HOME menu, including the scripts / payloads submenus, options for formatting the SD, setting the RTC, and more.
-* __[R+UP] combo__: This little known keycombo, when held at startup, pauses the GodMode9 boot so that you can stare at the splash screen for a little longer.
-* __[R+LEFT combo]__: If you have installed GodMode9 as your bootloader, this keycombo enters the bootmenu. Hold on startup!
+* __\<A> button__: The \<A> button is the 'confirm' / 'choose' button. It confirms prompts and selects entries in menus. In the main file view, it pulls up a submenu for files and opens directories (use \<R+A> on directories for a submenu, also including the invaluable title search). In the hexviewer, \<A> switches into edit mode.
+* __\<B> button__: The \<B> button is the 'cancel' / 'return' button. Use it to leave menus without action, hold it on file operations to cancel said file operations.
+* __\<X> button__: In the main file view, the \<X> button deletes (marked) files. With \<R+X> files are renamed.
+* __\<Y> button__: In the main file view, the \<Y> button copies and pastes files. With \<R+Y> you can create folders and dummy files.
+* __\<L> button__: The \<L> button is the 'mark' button. Use it with \<LEFT> / \<RIGHT> to mark / unmark all files in a folder, hold it and use \<UP> / \<DOWN> to select multiple files.
+* __\<R> button__: The \<R> button is the 'switch' button. It switches buttons to their secondary function. Notable exceptions are \<R+L> for a screenshot (works almost anywhere), \<R+LEFT> / \<R+RIGHT> to switch panes and \<R+DOWN> to reload the file listing.
+* __\<START> button__: Use the \<START> button to reboot from GodMode9. Use \<R+START> to poweroff your 3DS.
+* __\<SELECT> button__: The \<SELECT> button clears or restores the clipboard (depending on if it's empty or not).
+* __\<HOME> button__: The \<HOME> button enters the HOME menu, including the scripts / payloads submenus, options for formatting the SD, setting the RTC, and more.
+* __\<R+UP> combo__: This little known keycombo, when held at startup, pauses the GodMode9 boot so that you can stare at the splash screen for a little longer.
+* __\<R+LEFT combo>__: If you have installed GodMode9 as your bootloader, this keycombo enters the bootmenu. Hold on startup! If you built GodMode9 as SALTMODE and have it as a bootloader, the keycombo is simply the \<START> button.
 
 
 ## How to build this / developer info
