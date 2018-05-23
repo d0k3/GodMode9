@@ -33,7 +33,7 @@ GodMode9 is designed to be intuitive, buttons leading to the results you'd expec
 * __\<SELECT> button__: The \<SELECT> button clears or restores the clipboard (depending on if it's empty or not).
 * __\<HOME> button__: The \<HOME> button enters the HOME menu, including the scripts / payloads submenus, options for formatting the SD, setting the RTC, and more.
 * __\<R+UP> combo__: This little known keycombo, when held at startup, pauses the GodMode9 boot so that you can stare at the splash screen for a little longer.
-* __\<R+LEFT combo>__: If you have installed GodMode9 as your bootloader, this keycombo enters the bootmenu. Hold on startup!
+* __\<R+LEFT combo>__: If you have installed GodMode9 as your bootloader, this keycombo enters the bootmenu. Hold on startup! If you built GodMode9 as SALTMODE and have it as a bootloader, the keycombo is simply the \<START> button.
 
 
 ## How to build this / developer info
