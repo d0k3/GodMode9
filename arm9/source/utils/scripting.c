@@ -360,7 +360,9 @@ char* set_var(const char* name, const char* content) {
         if (!*(var->name) || (strncmp(var->name, name, _VAR_NAME_LEN) == 0)) break;
     if (n_var >= _VAR_MAX_BUFF) return NULL;
     strncpy(vars[n_var].name, name, _VAR_NAME_LEN);
+    vars[n_var].name[_VAR_NAME_LEN - 1] = '\0';
     strncpy(vars[n_var].content, content, _VAR_CNT_LEN);
+    vars[n_var].content[_VAR_CNT_LEN - 1] = '\0';
     if (!n_var) *(vars[n_var].content) = '\0'; // NULL var
     
     // update preview stuff
@@ -375,14 +377,14 @@ void upd_var(const char* name) {
         (strncmp(name, "REGION", _VAR_NAME_LEN) == 0)) {
         u8 secinfo_data[1 + 1 + 16] = { 0 };
         char* env_serial = (char*) secinfo_data + 2;
-        char env_region[3 + 1];
+        char env_region[3 + 1] = { 0 };
         
         snprintf(env_region, 0x4, "UNK");
         if ((FileGetData("1:/rw/sys/SecureInfo_A", secinfo_data, 0x11, 0x100) != 0x11) &&
             (FileGetData("1:/rw/sys/SecureInfo_B", secinfo_data, 0x11, 0x100) != 0x11))
             snprintf(env_serial, 0xF, "UNKNOWN");
         else if (*secinfo_data < SMDH_NUM_REGIONS)
-            strncpy(env_region, g_regionNamesShort[*secinfo_data], countof(env_region));
+            strncpy(env_region, g_regionNamesShort[*secinfo_data], countof(env_region) - 1);
         
         set_var("SERIAL", env_serial);
         set_var("REGION", env_region);
@@ -457,9 +459,10 @@ bool init_vars(const char* path_script) {
     char curr_dir[_VAR_CNT_LEN];
     if (path_script) {
         strncpy(curr_dir, path_script, _VAR_CNT_LEN);
+        curr_dir[_VAR_CNT_LEN-1] = '\0';
         char* slash = strrchr(curr_dir, '/');
         if (slash) *slash = '\0';
-    } else strncpy(curr_dir, "(null)",  _VAR_CNT_LEN);
+    } else strncpy(curr_dir, "(null)",  _VAR_CNT_LEN - 1);
     
     // set env vars
     set_var("NULL", ""); // this one is special and should not be changed later 
@@ -991,6 +994,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char input[_VAR_CNT_LEN] = { 0 };
         char* var = get_var(argv[1], NULL);
         strncpy(input, var, _VAR_CNT_LEN);
+        input[_VAR_CNT_LEN - 1] = '\0';
         ret = ShowStringPrompt(input, _VAR_CNT_LEN, "%s", argv[0]);
         if (ret) set_var(argv[1], "");
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
@@ -1000,12 +1004,14 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
     }
     else if ((id == CMD_ID_FILESEL) || (id == CMD_ID_DIRSEL)) {
-        char choice[_VAR_CNT_LEN] = { 0 };
+        char choice[_VAR_CNT_LEN];
         char* var = get_var(argv[2], NULL);
         strncpy(choice, var, _VAR_CNT_LEN);
+        choice[_VAR_CNT_LEN - 1] = '\0';
         
         char path[_VAR_CNT_LEN];
         strncpy(path, argv[1], _VAR_CNT_LEN);
+        path[_VAR_CNT_LEN - 1] = '\0';
         if (strncmp(path, "Z:", 2) == 0) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "forbidden drive");
@@ -1037,6 +1043,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_STRSPLIT) {
         char str[_ARG_MAX_LEN];
         strncpy(str, argv[1], _ARG_MAX_LEN);
+        str[_ARG_MAX_LEN - 1] = '\0';
         
         ret = false;
         if (strlen(argv[2]) == 1) { // argv[2] must be one char
@@ -1057,6 +1064,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_STRREP) {
         char str[_ARG_MAX_LEN];
         strncpy(str, argv[1], _ARG_MAX_LEN);
+        str[_ARG_MAX_LEN - 1] = '\0';
         
         if (strnlen(argv[2], _ARG_MAX_LEN) != 2) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] must be 2 chars");
@@ -1360,6 +1368,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 if ((*argv[0] == '0') || (*argv[0] == '1'))
                     snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
                 else strncpy(fixpath, argv[0], 256);
+                fixpath[255] = '\0';
                 BootFirm((FirmHeader*)(void*)firm, fixpath);
                 while(1);
             } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
@@ -1450,7 +1459,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     if ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_NOT)) {
         // set defaults
         argc = 1;
-        strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN);
+        strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN - 1);
         
         // skip to behind the command
         char* line_start_next = (char*) line_start;
@@ -1459,7 +1468,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
         
         // run condition, take over result
         if (run_line(line_start_next, line_end, flags, err_str, true))
-            strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN);
+            strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN - 1);
     }
     
     // run the command (if available)

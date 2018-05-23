@@ -100,6 +100,7 @@ bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry) {
 bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     char lpath[256];
     strncpy(lpath, path, 256);
+    lpath[255] = '\0';
     
     // get virtual source / root dir object
     u32 virtual_src = 0;

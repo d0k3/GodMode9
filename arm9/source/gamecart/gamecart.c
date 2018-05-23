@@ -24,7 +24,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 unused_offset;
-} __attribute__((packed)) CartDataCtr;
+} __attribute__((packed, aligned(16))) CartDataCtr;
 
 typedef struct {
     TwlHeader ntr_header;
@@ -38,7 +38,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 arm9i_rom_offset;
-} __attribute__((packed)) CartDataNtrTwl;
+} __attribute__((packed, aligned(16))) CartDataNtrTwl;
 
 u32 GetCartName(char* name, CartData* cdata) {
     if (cdata->cart_type & CART_CTR) {

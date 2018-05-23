@@ -36,7 +36,7 @@ bool GoodRenamer(DirEntry* entry, bool ask) {
     }
     
     char npath[256]; // get new path
-    strncpy(npath, entry->path, 256 - 1);
+    strncpy(npath, entry->path, 256);
     char* nname = strrchr(npath, '/');
     if (!nname) return false;
     nname++;

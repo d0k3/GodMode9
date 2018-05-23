@@ -55,6 +55,7 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     char path_store[256] = { 0 };
     char* path_bak = NULL;
     strncpy(path_store, GetMountPath(), 256);
+    path_store[255] = '\0';
     if (*path_store) path_bak = path_store;
     if (!InitImgFS(path)) {
         InitImgFS(path_bak);
@@ -535,6 +536,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     if (!IS_O3DS && (ValidateSecretSector(sector0x96) != 0)) {
         char path_sector[256];
         strncpy(path_sector, path, 256);
+        path_sector[255] = '\0';
         char* slash = strrchr(path_sector, '/');
         if (slash) strncpy(slash+1, "secret_sector.bin", 256 - (slash+1-path_sector));
         else *path_sector = '\0';

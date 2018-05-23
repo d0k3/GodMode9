@@ -200,6 +200,7 @@ u32 LoadCdnTicketFile(Ticket* ticket, const char* path_cnt) {
     // path points to CDN content file
     char path_cetk[256];
     strncpy(path_cetk, path_cnt, 256);
+    path_cetk[255] = '\0';
     char* name_cetk = strrchr(path_cetk, '/');
     if (!name_cetk) return 1; // will not happen
     char* ext_cetk = strrchr(++name_cetk, '.');
@@ -221,6 +222,7 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     // content path string
     char* name_content;
     strncpy(path_content, path_tmd, 256);
+    path_content[255] = '\0';
     name_content = strrchr(path_content, '/');
     if (!name_content) return 1; // will not happen
     name_content++;
@@ -465,6 +467,7 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     char path_content[256];
     char* name_content;
     strncpy(path_content, path, 256);
+    path_content[255] = '\0';
     name_content = strrchr(path_content, '/');
     if (!name_content) return 1; // will not happen
     name_content++;
@@ -959,6 +962,7 @@ u32 CryptCdnFileBuffered(const char* orig, const char* dest, u16 crypto, void* b
     if (!strrchr(fname, '.')) {
         char* name_tmd;
         strncpy(path_tmd, orig, 256);
+        path_tmd[255] = '\0';
         name_tmd = strrchr(path_tmd, '/');
         if (!name_tmd) return 1; // will not happen
         name_tmd++;
@@ -1218,6 +1222,7 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     char path_content[256];
     char* name_content;
     strncpy(path_content, path_tmd, 256);
+    path_content[255] = '\0';
     name_content = strrchr(path_content, '/');
     if (!name_content) return 1; // will not happen
     name_content++;
@@ -1502,6 +1507,7 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr)
     char dest[256];
     if (!path_out && (fvx_rmkdir(OUTPUT_PATH) != FR_OK)) return 1;
     strncpy(dest, path_out ? path_out : OUTPUT_PATH, 256);
+    dest[255] = '\0';
     if (!CheckWritePermissions(dest)) return 1;
     
     // NCSD handling

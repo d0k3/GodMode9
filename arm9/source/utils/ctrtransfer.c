@@ -46,6 +46,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     char path_store[256] = { 0 };
     char* path_bak = NULL;
     strncpy(path_store, GetMountPath(), 256);
+    path_store[255] = '\0';
     if (*path_store) path_bak = path_store;
     if (!InitImgFS(path_img)) {
         InitImgFS(path_bak);

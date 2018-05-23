@@ -136,6 +136,7 @@ u32 BuildKeyDb(const char* path, bool dump) {
             key.type = 'I';
             strncpy(key.id, typestr + 2, 10);
         } else strncpy(key.id, typestr, 10);
+        key.id[9] = '\0';
         key.slot = keyslot;
         key.keyUnitType = (strncasecmp(ext, "ret.bin", 10) == 0) ? KEYS_RETAIL :
             (strncasecmp(ext, "dev.bin", 10) == 0) ? KEYS_DEVKIT : 0;

@@ -424,7 +424,8 @@ bool DirInfoWorker(char* fpath, bool virtual, u64* tsize, u32* tdirs, u32* tfile
 bool DirInfo(const char* path, u64* tsize, u32* tdirs, u32* tfiles) {
     bool virtual = (DriveType(path) & DRV_VIRTUAL);
     char fpath[256];
-    strncpy(fpath, path, 255);
+    strncpy(fpath, path, 256);
+    fpath[255] = '\0';
     *tsize = *tdirs = *tfiles = 0;
     bool res = DirInfoWorker(fpath, virtual, tsize, tdirs, tfiles);
     return res;
@@ -780,6 +781,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
     DirStruct* contents = (DirStruct*) buffer;
     char path_local[256];
     strncpy(path_local, path, 256);
+    path_local[255] = '\0';
     
     bool no_dirs = flags & NO_DIRS;
     bool no_files = flags & NO_FILES;

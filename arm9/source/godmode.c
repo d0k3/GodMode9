@@ -891,6 +891,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     if ((*bootpath == '0') || (*bootpath == '1'))
         snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
     else strncpy(fixpath, bootpath, 256);
+    fixpath[255] = '\0';
     
     // boot the FIRM (if we got a proper fixpath)
     if (*fixpath) {
@@ -2161,6 +2162,7 @@ u32 GodMode(int entrypoint) {
                 }
                 if (user_select) {
                     strncpy(current_path, curr_entry->path, 256);
+                    current_path[255] = '\0';
                     if (user_select == 2) {
                         char* last_slash = strrchr(current_path, '/');
                         if (last_slash) *last_slash = '\0'; 

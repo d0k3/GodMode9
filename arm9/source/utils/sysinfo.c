@@ -80,8 +80,8 @@ void GetSysInfo_Hardware(SysInfo* info, char nand_drive) {
     (void) nand_drive;
 
     info->int_model = 0xFF;
-    strncpy(info->model, "<unknown>", countof(info->model));
-    strncpy(info->product_code, "???", countof(info->product_code));
+    strncpy(info->model, "<unknown>", countof("<unknown>"));
+    strncpy(info->product_code, "???", countof("???"));
 
     // Get MCU system information.
     uint8_t mcu_sysinfo[0x13];
@@ -90,7 +90,9 @@ void GetSysInfo_Hardware(SysInfo* info, char nand_drive) {
         info->int_model = mcu_sysinfo[0x09];
         if (info->int_model < NUM_MODELS) {
             strncpy(info->model, s_modelNames[info->int_model].name, countof(info->model));
+            info->model[countof(info->model) - 1] = '\0';
             strncpy(info->product_code, s_modelNames[info->int_model].product_code, countof(info->product_code));
+            info->product_code[countof(info->product_code) - 1] = '\0';
         }
     }
 }
@@ -100,7 +102,7 @@ void GetSysInfo_Hardware(SysInfo* info, char nand_drive) {
 void GetSysInfo_OTP(SysInfo* info, char nand_drive) {
     (void) nand_drive;
 
-    strncpy(info->soc_date, "<unknown>", countof(info->soc_date));
+    strncpy(info->soc_date, "<unknown>", countof("<unknown>"));
 
     const Otp* otp = &ARM9_ITCM->otp;
 
@@ -136,10 +138,10 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
 
     path[0] = nand_drive;
 
-    strncpy(info->sub_model, "<unknown>", countof(info->sub_model));
-    strncpy(info->serial, "<unknown>", countof(info->serial));
-    strncpy(info->system_region, "<unknown>", countof(info->system_region));
-    strncpy(info->sales_region, "<unknown>", countof(info->sales_region));
+    strncpy(info->sub_model, "<unknown>", countof("<unknown>"));
+    strncpy(info->serial, "<unknown>", countof("<unknown>"));
+    strncpy(info->system_region, "<unknown>", countof("<unknown>"));
+    strncpy(info->sales_region, "<unknown>", countof("<unknown>"));
 
     // Try SecureInfo_A then SecureInfo_B.
     bool got_data = false;
@@ -162,6 +164,7 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
     // Decode region.
     if (data.region < SMDH_NUM_REGIONS) {
         strncpy(info->system_region, g_regionNamesLong[data.region], countof(info->system_region));
+        info->system_region[countof(info->system_region) - 1] = '\0';
     }
 
     // Retrieve serial number.  Set up calculation of check digit.
@@ -231,6 +234,7 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
         for (unsigned x = 0; x < countof(s_salesRegions); ++x) {
             if (s_salesRegions[x].serial_char == second_letter) {
                 strncpy(info->sales_region, s_salesRegions[x].name, countof(info->sales_region));
+                info->sales_region[countof(info->sales_region) - 1] = '\0';
                 break;
             }
         }
@@ -240,21 +244,21 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
     if (first_digit && second_digit) {
         if (IS_DEVKIT) {
             if ((first_digit == '9') && (second_digit == '0') && (info->int_model == MODEL_OLD_3DS)) {
-                strncpy(info->sub_model, "Partner-CTR", countof(info->sub_model));
+                strncpy(info->sub_model, "Partner-CTR", countof("Partner-CTR"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_OLD_3DS)) {
-                strncpy(info->sub_model, "IS-CTR-BOX", countof(info->sub_model));
+                strncpy(info->sub_model, "IS-CTR-BOX", countof("IS-CTR-BOX"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_OLD_3DS_XL)) {
-                strncpy(info->sub_model, "IS-SPR-BOX", countof(info->sub_model));
+                strncpy(info->sub_model, "IS-SPR-BOX", countof("IS-SPR-BOX"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_NEW_3DS)) {
-                strncpy(info->sub_model, "IS-SNAKE-BOX", countof(info->sub_model));
+                strncpy(info->sub_model, "IS-SNAKE-BOX", countof("IS-SNAKE-BOX"));
             } else {
                 strncpy(info->sub_model, "panda", countof(info->sub_model));
             }
         } else {
             if ((first_digit == '0') && (second_digit == '1') && !IS_O3DS) {
-                strncpy(info->sub_model, "press", countof(info->sub_model));
+                strncpy(info->sub_model, "press", countof("press"));
             } else {
-                strncpy(info->sub_model, "retail", countof(info->sub_model));
+                strncpy(info->sub_model, "retail", countof("retail"));
             }
         }
     }
@@ -269,9 +273,9 @@ void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
 
     path[0] = nand_drive;
 
-    strncpy(info->friendcodeseed, "<unknown>", countof(info->friendcodeseed));
-    strncpy(info->movablekeyy, "<unknown>", countof(info->movablekeyy));
-    strncpy(info->nand_id0, "<unknown>", countof(info->nand_id0));
+    strncpy(info->friendcodeseed, "<unknown>", countof("<unknown>"));
+    strncpy(info->movablekeyy, "<unknown>", countof("<unknown>"));
+    strncpy(info->nand_id0, "<unknown>", countof("<unknown>"));
     
     if (fvx_qread(path, &data, 0, 0x120 /* sizeof(data) */, NULL) != FR_OK) // whatever, we don't need the last 0x20 byte here
         return;
@@ -296,9 +300,9 @@ void GetSysInfo_SDMMC(SysInfo* info, char nand_drive) {
     u8 nand_cid[16] = { 0 };
     u8 sd_cid[16] = { 0 };
     
-    strncpy(info->nand_cid, "<unknown>", countof(info->nand_cid));
-    strncpy(info->sd_cid, "<unknown>", countof(info->sd_cid));
-    strncpy(info->nand_id1, "<unknown>", countof(info->nand_id1));
+    strncpy(info->nand_cid, "<unknown>", countof("<unknown>"));
+    strncpy(info->sd_cid, "<unknown>", countof("<unknown>"));
+    strncpy(info->nand_id1, "<unknown>", countof("<unknown>"));
     
     sdmmc_get_cid(1, (u32*) (void*) nand_cid);
     snprintf(info->nand_cid, 32 + 1, "%016llX%016llX", getbe64(nand_cid), getbe64(nand_cid+8));
@@ -553,8 +557,8 @@ void GetSysInfo_TWLN(SysInfo* info, char nand_drive) {
     inspect_path[0] = twln_drive;
     product_path[0] = twln_drive;
 
-    strncpy(info->assembly_date, "<unknown>", countof(info->assembly_date));
-    strncpy(info->original_firmware, "<unknown>", countof(info->original_firmware));
+    strncpy(info->assembly_date, "<unknown>", countof("<unknown>"));
+    strncpy(info->original_firmware, "<unknown>", countof("<unknown>"));
 
     FIL file;
     if (fvx_open(&file, inspect_path, FA_READ | FA_OPEN_EXISTING) == FR_OK) {

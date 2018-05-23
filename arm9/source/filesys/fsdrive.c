@@ -66,7 +66,9 @@ int DriveType(const char* path) {
 void SetFSSearch(const char* pattern, const char* path, bool mode) {
     if (pattern && path) {
         strncpy(search_pattern, pattern, 256);
+        search_pattern[255] = '\0';
         strncpy(search_path, path, 256);
+        search_path[255] = '\0';
         search_title_mode = mode;
     } else *search_pattern = *search_path = '\0';
 }
@@ -143,6 +145,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
         } else if (!pattern || (fvx_match_name(fname, pattern) == FR_OK)) {
             DirEntry* entry = &(contents->entry[contents->n_entries]);
             strncpy(entry->path, fpath, 256);
+            entry->path[255] = '\0';
             entry->name = entry->path + (fname - fpath);
             if (fno.fattrib & AM_DIR) {
                 entry->type = T_DIR;
@@ -185,6 +188,7 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
         // search the path
         char fpath[256]; // 256 is the maximum length of a full path
         strncpy(fpath, path, 256);
+        fpath[255] = '\0';
         if (!GetDirContentsWorker(contents, fpath, 256, pattern, recursive))
             contents->n_entries = 0;
     }
