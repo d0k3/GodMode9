@@ -1158,6 +1158,15 @@ bool GetVGameNitroFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     for (u32 i = 0; i < name_len; i++)
         if (name[i] == '%') name[i] = '_';
     
+    // Shift-JIS workaround
+    for (u32 i = 0; i < name_len; i++) {
+        if (name[i] >= 0x80) { // this is a Shift-JIS filename
+            // the sequence below is UTF-8 for "Japanese"
+            snprintf(name, 32, "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e%08lX.sjis", (u32) (vfile->offset >> 32));
+            break;
+        }
+    }
+    
     return true;
 }
 
