@@ -2,4 +2,4 @@
 
 #include "common.h"
 
-void waitcycles(u32 us);
+void wait(u32 cycles);

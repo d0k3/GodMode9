@@ -69,9 +69,10 @@ _start:
     mcr p15, 0, r0, c9, c1, 0  @ set the DTCM Region Register
 
     @ Fix SDMC mounting
-    mov r0, #0x10000000
-    mov r1, #0x340
-    str r1, [r0, #0x20]
+    @ (this is done in sdmmc.c instead)
+    @ mov r0, #0x10000000
+    @ mov r1, #0x340
+    @ strh r1, [r0, #0x20]
     
     @ Setup heap
     ldr r0, =fake_heap_start
