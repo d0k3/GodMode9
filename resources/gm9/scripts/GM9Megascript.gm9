@@ -1,0 +1,1924 @@
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits:\nd0k3\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nemillois\nAnalogMan151\nTurdPooCharger\netc."
+set GM9IN "0:/gm9/in"
+if	not find $[GM9IN] NULL
+	mkdir $[GM9IN]
+end
+
+#####################Main Menu####################
+
+@Start
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits:\nd0k3\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nemillois\nAnalogMan151\nTurdPooCharger\netc."
+
+labelsel -o -s "Choose an Option." MainMenu_*
+goto Start
+
+##################Backup Options##################
+
+@MainMenu_Backup_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nBackup Options"
+
+labelsel -o -s "Choose an Option." Backup_Options_*
+goto Start
+
+##################SysNAND Backup##################
+
+@Backup_Options_SysNAND_Backup
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nBackup Options\n>SysNAND Backup"
+
+if	not ask "Create a SysNAND backup in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto MainMenu_Backup_Options
+end
+
+findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_sysnand_??.bin OUTPATH
+
+if	cp -h S:/nand_minsize.bin $[OUTPATH]
+	echo "Backup created successfully:\n$[OUTPATH]"
+else
+	echo "Backup failed."
+end
+goto MainMenu_Backup_Options
+
+##################EmuNAND Backup##################
+
+@Backup_Options_EmuNAND_Backup
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nBackup Options\n>EmuNAND Backup"
+
+if	not ask "Create a EmuNAND backup in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto MainMenu_Backup_Options
+end
+
+findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_emunand_??.bin OUTPATH
+
+if	cp -h E:/nand_minsize.bin $[OUTPATH]
+	echo "Backup created successfully:\n$[OUTPATH]"
+else
+	echo "Backup failed."
+end
+goto MainMenu_Backup_Options
+
+##################Restore Options#################
+
+@MainMenu_Restore_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nRestore Options"
+
+labelsel -o -s "Choose an Option." Restore_Options_*
+goto Start
+
+##############SysNAND Restore (full)##############
+
+@Restore_Options_SysNAND_Restore_(full)
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nRestore Options\n>SysNAND Restore (full)"
+
+if	not ask "!!WARNING!!\nSystem exploit will not be protected!\nProceed only if you know what you're doing!\n \nContinue?"
+	goto MainMenu_Restore_Options
+end
+
+if	not filesel "Select NAND Backup." $[GM9OUT]/*nand_??.bin NANDBAK
+	echo "Operation cancelled."
+	goto MainMenu_Restore_Options
+end
+
+if	not ask "Full Restore?\n$[NANDBAK]"
+	echo "Operation cancelled."
+	goto MainMenu_Restore_Options
+end
+
+if	not allow -a S:
+	echo "Permissions denied. Aborting"
+	goto MainMenu_Restore_Options
+end
+
+imgmount $[NANDBAK]
+
+if	not verify I:/nand_minsize.bin
+	echo "Not a valid NAND backup. Aborting."
+	goto MainMenu_Restore_Options
+end
+
+if	inject -n I:/nand_minsize.bin S:/nand.bin@0
+	imgumount
+	echo "$[NANDBAK]\nsuccessfully restored to SysNAND."
+else
+	echo "An error occurred during the transfer\nPlease try again."
+end
+goto MainMenu_Restore_Options
+
+##############SysNAND Restore (safe)##############
+
+@Restore_Options_SysNAND_Restore_(safe)
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nRestore Options\n>SysNAND Restore (safe)"
+
+if	chk $[HAX] ""
+	echo "No qualifying exploit was found.\nAborting to avoid bricking the unit."
+	goto MainMenu_Restore_Options
+elif chk $[HAX] "ntrboot"
+	echo "Safe restore is not available on\nntrboot. Aborting to avoid a brick."
+	goto MainMenu_Restore_Options
+end
+
+if	not filesel "Select NAND Backup." $[GM9OUT]/*nand_??.bin NANDBAK
+	echo "Operation cancelled."
+	goto MainMenu_Restore_Options
+end
+
+if	not allow -a S:
+	echo "Permissions denied. Aborting"
+	goto MainMenu_Restore_Options
+end
+
+imgmount $[NANDBAK]
+find I:/ctrnand_full.bin NULL
+find I:/twln.bin NULL
+find I:/twlp.bin NULL
+
+cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
+cp -w -n I:/twln.bin S:/twln.bin
+cp -w -n I:/twlp.bin S:/twlp.bin
+imgumount
+echo "$[NANDBAK]\nsuccessfully restored to SysNAND."
+goto MainMenu_Restore_Options
+
+##################EmuNAND Restore#################
+
+@Restore_Options_EmuNAND_Restore
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nRestore Options\n>EmuNAND Restore"
+
+if	findnot E:/ NULL
+	echo "No EmuNAND detected. Aborting."
+	goto MainMenu_Restore_Options
+end
+
+if	not filesel "Select NAND Backup." $[GM9OUT]/*nand_??.bin NANDBAK
+	goto MainMenu_Restore_Options
+end
+
+if	not ask "Restore\n$[NANDBAK]\nto EmuNAND?"
+	echo "Operation cancelled."
+	goto MainMenu_Restore_Options
+end
+
+if	not allow -a E:
+	echo "Permissions denied. Aborting."
+	goto MainMenu_Restore_Options
+end
+
+inject -n I:/nand_minsize.bin E:/nand.bin@0
+imgumount
+echo "$[NANDBAK] successfully restored to EmuNAND."
+goto MainMenu_Restore_Options
+
+#################CTRNAND Transfer#################
+
+@MainMenu_CTRNAND_Transfer
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCTRNAND Transfer"
+
+if	not filesel "Select a CTRNAND transfer file.\nCTRNAND transfer file should be located in\n$[GM9IN] folder." $[GM9IN]/*ctrtransfer*.bin CTRNAND
+	goto Start
+end
+if	not ask "CTRTransfer\n$[CTRNAND]\nto sysNAND?"
+	goto Start
+end
+strsplit ACTYPE $[CTRNAND] "_"
+strsplit -b -f ACTYPE $[ACTYPE] "."
+if	chk $[ACTYPE] $[ONTYPE]
+else
+	if	ask "!!WARNING!!\nIt seems like the CTRTransfer file is\nintended for $[ACTYPE]!\n \nContinue anyway?"
+	else
+		goto Start
+	end
+end
+
+if	not allow -a 1:
+	echo "Permissions denied. Aborting."
+	goto Start
+end
+
+if	find 1:/rw/sys/SecureInfo_A SECNFO
+elif find 1:/rw/sys/SecureInfo_B SECNFO
+else
+	cp -n 1:/rw/sys/SecureInfo_C 1:/rw/sys/SecureInfo_A
+end
+cp -n -w -o -s $[SECNFO] 1:/rw/sys/SecureInfo_C
+
+imgmount $[CTRNAND]
+
+inject 7:/rw/sys/SecureInfo_A@100:1 1:/rw/sys/SecureInfo_C@100
+
+rm -o -s 1:/dbs/ticket.bak
+mv 1:/dbs/ticket.db 1:/ticket.bak
+rm 1:/dbs
+rm 1:/title
+mkdir 1:/dbs
+mkdir 1:/title
+cp -n -w 7:/dbs 1:/dbs
+cp -n -w 7:/title 1:/title
+
+fixcmac 1:/dbs
+fixcmac 1:/title
+
+mv -n -w 1:/ticket.bak 1:/dbs/ticket.bak
+imgumount
+echo "CTRNAND transfer successful."
+goto Start
+
+####################Hax Options###################
+
+@MainMenu_Hax_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nHax Options"
+
+labelsel -o -s "Choose an Option." Hax_Options_*
+goto Start
+
+############Boot9Strap Install Options############
+
+@Hax_Options_Install_Boot9Strap
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nHax Options\n>Boot9strap Install Options"
+
+labelsel -o -s "Choose an Option." Install_Boot9Strap_*
+goto MainMenu_Hax_Options
+
+#############Normal Boot9Strap Install############
+
+@Install_Boot9Strap_Normal_Install
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nHax Options\n>Boot9strap Install Options\n>>Normal Boot9strap Install"
+
+if	not ask "Install Boot9Strap Normally?\nYou should have the boot9strap files in\n0:/boot9strap/ before proceeding."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	not find 0:/boot9strap/boot9stra*.firm B9S
+	echo "Boot9Strap file not found! Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	not sha $[B9S] $[B9S].sha
+	echo "Hash check failed on Boot9Strap file. Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	chk $[ONTYPE] "N3DS"
+	if	not sha S:/sector0x96.bin 82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3
+		if	not find 0:/boot9strap/secret_sector.bin SECRET
+			echo "Sector 0x96 is not genuine.\nYou must have the secret_sector.bin file in the\nboot9strap folder first then try again.\n \nAborting."
+			goto Hax_Options_Install_Boot9Strap
+		end
+		
+		if	not allow -a S:
+			echo "Permissions denied. Aborting."
+			goto Hax_Options_Install_Boot9Strap
+		end
+		
+		cp -n -w S:/sector0x96.bin $[SECRET].bak
+		cp -n -w $[SECRET] S:/sector0x96.bin
+		echo "sector 0x96 successfully fixed.\nProceeding with B9S Install."
+	end
+end
+
+if	allow -a S:
+	allow -a 0:
+	
+	cp -w -o -s -n S:/firm0.bin $[GM9OUT]/$[SERIAL]_firm0.bin
+	cp -w -o -s -n S:/firm1.bin $[GM9OUT]/$[SERIAL]_firm1.bin
+	cp -w -n $[B9S] S:/firm0.bin
+	cp -w -n $[B9S] S:/firm1.bin
+	echo "Boot9Strap successfully installed."
+else
+	echo "Permissions denied. Aborting."
+end
+goto Hax_Options_Install_Boot9Strap
+
+############PC-Less Boot9Strap Install############
+
+@Install_Boot9Strap_PC-Less_Install
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nHax Options\n>Boot9strap Install Options\n>>PC-Less Boot9strap Install"
+
+if	not ask "Proceed with PC-Less B9S Installation?\nYou should have the in-files in you SDMC.\nSee GM9Megascript Repo for more details."
+	goto Hax_Options_Install_Boot9Strap
+end
+	
+if	not find $[GM9IN]/boot9strap/boot9stra*.firm B9S
+	echo "Boot9Strap file not found! Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	not find $[GM9IN]/Luma3DS LUMA
+	echo "Luma3DS not found! Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	not find $[GM9IN]/sdcompiled SDCOMP
+	echo "SD compiled files not found! Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	not sha $[B9S] $[B9S].sha
+	echo "Hash check failed on Boot9Strap file. Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	not ask "All checks passed. Proceed?\n(No turning back after this point.)"
+	echo "User aborted."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+if	chk $[ONTYPE] "N3DS"
+	if	not sha S:/sector0x96.bin 82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3
+		if	not find $[GM9IN]/boot9strap/secret_sector.bin SECRET
+			echo "Sector 0x96 is not genuine.\nYou must have the secret_sector.bin file in the\nboot9strap folder first then try again.\n \nAborting."
+			goto Hax_Options_Install_Boot9Strap
+		end
+		
+		if	not allow -a S:
+			echo "Permissions denied. Aborting."
+			goto Hax_Options_Install_Boot9Strap
+		end
+		
+		cp -n -w S:/sector0x96.bin $[SECRET].bak
+		cp -n -w $[SECRET] S:/sector0x96.bin
+		echo "sector 0x96 successfully fixed.\nProceeding with B9S Install."
+	end
+end
+
+if	allow -a S:
+	allow -a 0:
+	allow -a 1:
+	allow -a 9:
+else
+	echo "Permissions denied. Aborting."
+	goto Hax_Options_Install_Boot9Strap
+end
+
+cp -w -o -s -n S:/firm0.bin 9:/sdcompiled/gm9/out/$[SERIAL]_firm0.bin
+cp -w -o -s -n S:/firm1.bin 9:/sdcompiled/gm9/out/$[SERIAL]_firm1.bin
+
+cp -w -n $[B9S] S:/firm0.bin
+cp -w -n $[B9S] S:/firm1.bin
+
+rm -o -s 1:/boot.*
+rm -o -s 1:/rw/luma
+cp -w -n $[LUMA] 1:/
+mv -w -n 1:/luma 1:rw/luma
+
+cp -w -n $[SDCOMP] 9:/sdcompiled
+cp -w -n $[LUMA] 9:/sdcompiled
+cp -w -n -o -s $[GM9IN]/FBI 9:/sdcompiled/1cia/hb
+
+@SwapSD
+if	switchsd "Swap SD card now."
+	if	find $[GM9IN] NULL
+		if	not ask "Seems like SD cards are not swapped, continue anyway?"
+			goto SwapSD
+		end
+	end
+	
+	echo "Moving compiled files from RAM to target SD."
+	mv -w -n 9:/sdcompiled 0:/
+	echo "Boot9strap successfully installed."
+	
+	if	ask "Do you want to inject FBI to H&S?"
+		goto FBI_Inject_FBI_to_H&S
+	end
+else
+	echo "SD read error!\nPlease try again."
+	goto SwapSD
+end
+goto Hax_Options_Install_Boot9Strap
+
+###################Hax Uninstall##################
+
+@Hax_Options_Un-install_Hax
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nHax Options\n>Hax Un-install"
+
+if	not ask "!!WARNING!!\nThis will completely remove CFW and\nrevert your system to stock.\n \nProceed anyway?"
+	goto MainMenu_Hax_Options
+end
+	
+if	not chk -u $[HAX] "ntrboot"
+	if	not ask "!!WARNING!!\nntrboot not detected!\nYou should at least have ntrboot or a hardmod\nwith you before proceeding in case of brick.\n \nProceed anyway?"
+		goto MainMenu_Restore_Options
+	end
+end
+
+if	chk -u $[ONTYPE] "N3DS"
+	goto Unhax_Old
+end
+
+if	not sha S:/sector0x96.bin 82F2730D2C2DA3F30165F987FDCCAC5CBAB24B4E5F65C981CD7BE6F438E6D9D3
+	if	not find 0:/boot9strap/secret_sector.bin SECRET
+		if	not find $[GM9IN]/boot9strap/secret_sector.bin SECRET
+			echo "Sector 0x96 is not genuine.\nYou must have the secret_sector.bin file in the\nboot9strap folder first then try again.\n \nAborting."
+			goto Hax_Options_Install_Boot9Strap
+		end
+	end
+		
+	if	not allow -a S:
+		echo "Permissions denied. Aborting."
+		goto MainMenu_Hax_Options
+	end
+	
+	cp -n -w S:/sector0x96.bin $[SECRET].bak
+	cp -n -w $[SECRET] S:/sector0x96.bin
+end
+
+if	not find 1:/title/00040138/20000002/content/????????.app NATIVE_NCCH
+	echo "NATIVE_FIRM not found.\nIs this a N3DS?"
+	goto MainMenu_Hax_Options
+end
+
+imgmount $[NATIVE_NCCH]
+verify G:/exefs/.firm
+set NATIVE_FIRM $[GM9OUT]/NATIVE_FIRM.firm
+cp -w G:/exefs/.firm $[NATIVE_FIRM]
+imgumount
+
+if	allow -a S:
+	allow -a 1:
+	rm -o -s 1:/boot.firm
+	rm -o -s 1:/rw/luma
+	cp -n $[NATIVE_FIRM] S:/firm0.bin
+	cp -n $[NATIVE_FIRM] S:/firm1.bin
+	echo "CFW un-installed successfully"
+else
+	echo "Permissions denied. Aborting."
+end
+goto MainMenu_Hax_Options
+
+@Unhax_Old
+
+if	not find 1:/title/00040138/00000002/content/????????.app NATIVE_NCCH
+	echo "NATIVE_FIRM not found.\nIs this an O3DS?"
+	goto MainMenu_Hax_Options
+end
+
+imgmount $[NATIVE_NCCH]
+verify G:/exefs/.firm
+set NATIVE_FIRM $[GM9OUT]/NATIVE_FIRM.firm
+cp -w G:/exefs/.firm $[NATIVE_FIRM]
+imgumount
+
+if	allow S:/nand.bin
+	allow 1:
+	rm -o -s 1:/boot.firm
+	rm -o -s 1:/rw/luma
+	cp -n $[NATIVE_FIRM] S:/firm0.bin
+	cp -n $[NATIVE_FIRM] S:/firm1.bin
+	echo "CFW uninstalled successfully"
+else
+	echo "Permissions denied. Aborting."
+end
+goto MainMenu_Hax_Options
+
+################FBI to H&S Options################
+
+@MainMenu_FBI_to_H&S_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nFBI to H&S Options"
+
+labelsel -o -s "Choose an Option." FBI_*
+goto Start
+
+#################Inject FBI to H&S################
+
+@FBI_Inject_FBI_to_H&S
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nFBI to H&S Options\n>Inject FBI to H&S"
+
+if	not ask "Inject FBI to H&S?"
+	goto MainMenu_FBI_to_H&S_Options
+end
+if	not find $[GM9IN]/FBI/FBI.cia FBISRC
+	if	not find 0:/1cia/hb/FBI.cia FBISRC
+		if	not filesel -d "FBI.cia not found. Select manually." 0:/*.cia FBISRC
+			goto MainMenu_FBI_to_H&S_Options
+		end
+		if	not ask "Is this correct?\n \n$[FBISRC]"
+			goto MainMenu_FBI_to_H&S_Options
+		end
+	end
+end
+
+if	chk $[REGION] "USA"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20021300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00021300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "EUR"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20022300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00022300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "JPN"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20020300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00020300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "KOR"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20027300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00027300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "CHN"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20026300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00026300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "TWN"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20028300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00028300/content/*.app H&SPATH
+	end
+else
+	echo "Unknown region. Aborting."
+	rm -o -s $[GM9TEMP]
+	goto MainMenu_FBI_to_H&S_Options
+end
+
+if	not allow -a 1:/
+	echo "Permissions denied. Aborting"
+	rm -o -s $[GM9TEMP]
+	goto MainMenu_FBI_to_H&S_Options
+end
+
+strsplit -b H&SBAK $[H&SPATH] "."
+set H&SBAK "$[H&SBAK].bak"
+if	find $[H&SBAK] NULL
+	mv -w -k -n $[H&SBAK] $[H&SPATH]
+end
+
+set GM9TEMP "0:/gm9/temp"
+if	not find $[GM9TEMP] NULL
+	mkdir $[GM9TEMP]
+end
+
+imgmount "$[FBISRC]"
+find G:/*.app FBIAPP
+strsplit FBINC $[FBIAPP] "/"
+strsplit -b FBINC $[FBINC] "."
+cp -n -w $[FBIAPP] $[GM9TEMP]/00000002.app
+cp -n -w G:/$[FBINC]/ncch.bin $[GM9TEMP]/FBIncch.bin
+imgumount
+
+imgmount $[H&SPATH]
+cp -n -w G:/ncch.bin $[GM9TEMP]/H&Sncch.bin
+imgumount
+
+set FBI "$[GM9TEMP]/FBIncch.bin"
+set H&S "$[GM9TEMP]/H&Sncch.bin"
+
+inject -n $[FBI]@104:2 $[H&S]@104
+inject -n $[FBI]@111:1 $[H&S]@111
+inject -n $[FBI]@130:D0 $[H&S]@130
+
+inject -n $[H&S]@000:200 $[GM9TEMP]/00000002.app@000
+inject -n $[H&S]@108:008 $[GM9TEMP]/00000002.app@3C8
+inject -n $[H&S]@108:008 $[GM9TEMP]/00000002.app@400
+inject -n $[H&S]@108:008 $[GM9TEMP]/00000002.app@800
+
+@hashext
+if	not shaget $[GM9TEMP]/00000002.app@200:400 $[GM9TEMP]/00000002.app.sha
+	goto hashext
+end
+
+inject -n $[GM9TEMP]/00000002.app.sha@000:020 $[GM9TEMP]/00000002.app@160
+
+@ench&s
+if	not encrypt $[GM9TEMP]/00000002.app
+	goto ench&s
+end
+
+mv $[H&SPATH] $[H&SBAK]
+mv -w $[GM9TEMP]/00000002.app $[H&SPATH]
+
+rm -o -s $[GM9TEMP]
+echo "FBI successfully injected to H&S."
+goto MainMenu_FBI_to_H&S_Options
+
+################Restore H&S################
+
+@FBI_Restore_H&S
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nFBI to H&S Options\n>Restore H&S"
+
+if	not ask "Restore H&S?"
+	goto MainMenu_FBI_to_H&S_Options
+end
+
+if	chk $[REGION] "USA"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20021300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00021300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "EUR"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20022300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00022300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "JPN"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20020300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00020300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "KOR"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20027300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00027300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "CHN"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20026300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00026300/content/*.app H&SPATH
+	end
+elif chk $[REGION] "TWN"
+	if	chk $[ONTYPE] "n3ds"
+		find -f 1:/title/00040010/20028300/content/*.app H&SPATH
+	else
+		find -f 1:/title/00040010/00028300/content/*.app H&SPATH
+	end
+else
+	echo "Unknown region. Aborting."
+	rm -o -s $[GM9TEMP]
+	goto MainMenu_FBI_to_H&S_Options
+end
+
+strsplit -b H&SBAK $[H&SPATH] "."
+if	not find $[H&SBAK].bak NULL
+	echo "No H&S backup found. Aborting."
+	goto MainMenu_FBI_to_H&S_Options
+end
+if	not allow -a 1:/
+	echo "Permissions denied. Aborting"
+end
+rm $[H&SPATH]
+mv -n -w $[H&SBAK].bak $[H&SPATH]
+echo "H&S restored."
+goto MainMenu_FBI_to_H&S_Options
+
+###################Dump Options###################
+
+@MainMenu_Dump_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options"
+
+labelsel -o -s "Choose an Option." Dump_Options_*
+goto Start
+
+###################System Save Dump Options###################
+
+@Dump_Options_System_Save_Dump_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System Save Dump Options"
+
+labelsel -o -s "Choose an Option." SysSave_Options_*
+goto MainMenu_Dump_Options
+
+#################Dump nnidsave.bin################
+
+@SysSave_Options_Dump_nnidsave.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System Save Dump Options\n>>Dump nnidsave.bin"
+
+if	ask "Dump nnidsave.bin in $[GM9OUT]?"
+	findnot $[GM9OUT]/nnidsave_??.bin OUTPATH
+	cp -n 1:/data/$[SYSID0]/sysdata/00010038/00000000 $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_Save_Dump_Options
+
+################Dump friendsave.bin###############
+
+@SysSave_Options_Dump_friendsave.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System Save Dump Options\n>>Dump friendsave.bin"
+
+if	ask "Dump friendsave.bin in $[GM9OUT]?"
+	findnot $[GM9OUT]/friendsave_??.bin OUTPATH
+	cp -n 1:/data/$[SYSID0]/sysdata/00010032/00000000 $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_Save_Dump_Options
+
+#################Dump seedsave.bin################
+
+@SysSave_Options_Dump_seedsave.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System Save Dump Options\n>>Dump seedsave.bin"
+
+if	ask "Dump seedsave.bin in $[GM9OUT]?"
+	findnot $[GM9OUT]/seedsave_??.bin OUTPATH
+	cp -n 1:/data/$[SYSID0]/sysdata/0001000f/00000000 $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_Save_Dump_Options
+
+#################Dump nagsave.bin#################
+
+@SysSave_Options_Dump_nagsave.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System Save Dump Options\n>>Dump nagsave.bin"
+
+if	ask "Dump nagsave.bin in $[GM9OUT]?"
+	findnot $[GM9OUT]/nagsave_??.bin OUTPATH
+	cp -n 1:/data/$[SYSID0]/sysdata/0001002c/00000000 $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_Save_Dump_Options
+
+################Dump configsave.bin###############
+
+@SysSave_Options_Dump_configsave.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System Save Dump Options\n>>Dump configsave.bin"
+
+if	ask "Dump configsave.bin in $[GM9OUT]?"
+	findnot $[GM9OUT]/configsave_??.bin OUTPATH
+	cp -n 1:/data/$[SYSID0]/sysdata/00010017/00000000 $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_Save_Dump_Options
+
+#############System File Dump Options#############
+
+@Dump_Options_System_File_Dump_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options"
+
+labelsel -o -s "Choose an Option." SysFile_Options_*
+goto MainMenu_Dump_Options
+
+############Dump LocalFriendCodeSeed_B############
+
+@SysFile_Options_Dump_LocalFriendCodeSeedB
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump LocalFriendCodeSeed_B"
+
+if	ask "Dump LocalFriendCodeSeed_B in $[GM9OUT]?"
+	findnot $[GM9OUT]/$[SERIAL]_LocalFriendCodeSeed_B_?? OUTPATH
+	cp -n 1:/rw/sys/LocalFriendCodeSeed_B $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_File_Dump_Options
+
+#################Dump SecureInfo_A################
+
+@SysFile_Options_Dump_SecureInfoA
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump SecureInfo_A"
+
+if	find 1:/rw/sys/SecureInfo_A NULL
+	if	ask "Dump SecureInfo_A in $[GM9OUT]?"
+		findnot $[GM9OUT]/$[SERIAL]_SecureInfo_A_?? OUTPATH
+		cp -n 1:/rw/sys/SecureInfo_A $[OUTPATH]
+		echo "Dump created successfully:\n$[OUTPATH]"
+	end
+end
+if	find 1:/rw/sys/SecureInfo_B NULL
+	if	ask "SecureInfo_B found.\nDump SecureInfo_B in $[GM9OUT]?"
+		findnot $[GM9OUT]/$[SERIAL]_SecureInfo_B_?? OUTPATH
+		cp -n 1:/rw/sys/SecureInfo_B $[OUTPATH]
+		echo "Dump created successfully:\n$[OUTPATH]"
+	end
+end
+if	find 1:/rw/sys/SecureInfo_C NULL
+	if	ask "SecureInfo_C found.\nDump SecureInfo_C in $[GM9OUT]?"
+		findnot $[GM9OUT]/$[SERIAL]_SecureInfo_C_?? OUTPATH
+		cp -n 1:/rw/sys/SecureInfo_C $[OUTPATH]
+		echo "Dump created successfully:\n$[OUTPATH]"
+	end
+end
+goto Dump_Options_System_File_Dump_Options
+
+#################Dump movable.sed#################
+
+@SysFile_Options_Dump_movable.sed
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump movable.sed"
+
+if	ask "Dump movable.sed in $[GM9OUT]?"
+	findnot $[GM9OUT]/$[SERIAL]_movable_??.sed OUTPATH
+	cp -n 1:/private/movable.sed $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_File_Dump_Options
+
+##################Dump ticket.db##################
+
+@SysFile_Options_Dump_ticket.db
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump ticket.db"
+
+if	ask "Dump ticket.db in $[GM9OUT]?"
+	findnot $[GM9OUT]/$[SERIAL]_ticket_??.db OUTPATH
+	cp -n 1:/dbs/ticket.db $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_File_Dump_Options
+
+###################Dump title.db##################
+
+@SysFile_Options_Dump_title.db
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump title.db"
+
+if	ask "Dump title.db in $[GM9OUT]?"
+	findnot $[GM9OUT]/$[SERIAL]_title_??.db OUTPATH
+	cp -n 1:/dbs/title.db $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_File_Dump_Options
+
+##################Dump import.db##################
+
+@SysFile_Options_Dump_import.db
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump import.db"
+
+if	ask "Dump import.db in $[GM9OUT]?"
+	findnot $[GM9OUT]/$[SERIAL]_import_??.db OUTPATH
+	cp -n 1:/dbs/import.db $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_File_Dump_Options
+
+###################Dump certs.db##################
+
+@SysFile_Options_Dump_certs.db
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>System File Dump Options\n>>Dump certs.db"
+
+if	ask "Dump certs.db in $[GM9OUT]?"
+	findnot $[GM9OUT]/$[SERIAL]_certs_??.db OUTPATH
+	cp -n 1:/dbs/certs.db $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto Dump_Options_System_File_Dump_Options
+
+##################Dump GBAVC.sav##################
+
+@Dump_Options_Dump_GBAVC.sav
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump GBAVC.sav"
+
+if	ask "Dump gbavc.sav in $[GM9OUT]?\nFor GodMode9 v.1.4.1 and below only."
+	findnot $[GM9OUT]/gbavc_??.sav OUTPATH
+	cp -n S:/gbavc.sav $[OUTPATH]
+	echo "Dump created successfully:\n$[OUTPATH]"
+end
+goto MainMenu_Dump_Options
+
+###########Dump Boot9.bin and Boot11.bin##########
+
+@Dump_Options_Dump_Boot9.bin_&_Boot11.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump boot9.bin & boot11.bin"
+
+if	not find M:/boot*.bin NULL
+	echo "Boot9.bin and/or Boot11.bin not present.\nAborting!"
+	goto MainMenu_Dump_Options
+end
+
+if	not ask "Create boot9 & boot11 dumps in $[GM9OUT]?"
+	goto MainMenu_Dump_Options
+end
+
+findnot $[GM9OUT]/$[SERIAL]_boot9_??.bin OUTPATH9
+findnot $[GM9OUT]/$[SERIAL]_boot11_??.bin OUTPATH11
+
+cp -w -n M:/boot9.bin $[OUTPATH9]
+cp -w -n M:/boot11.bin $[OUTPATH11]
+echo "Boot9 & Boot11 successfully dumped:\n$[OUTPATH9]\n$[OUTPATH11]"
+goto MainMenu_Dump_Options
+
+###################Dump OTP.bin###################
+
+@Dump_Options_Dump_OTP.bin
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump OTP.bin"
+
+if	not ask "Dump otp.bin in $[GM9OUT]? \n(This will overwrite any existing otp.bin!)"
+	goto MainMenu_Dump_Options
+end
+
+findnot $[GM9OUT]/$[SERIAL]_otp_??.bin OUTPATH
+cp -w -n M:/otp.mem $[OUTPATH]
+echo "Dump created successfully:\n$[OUTPATH]"
+goto MainMenu_Dump_Options
+
+#################Dump CITRA Files#################
+
+@Dump_Options_Dump_CITRA_Files
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump CITRA Files"
+
+if	not ask "Create dump of Citra files in $[GM9OUT]/Citra?\n(This will overwrite any existing Citra files!)\n(May fail if you use a custom font!)\n(This will dump System Archives)\n(This will dump Shared Fonts)\n(This will dump config)"
+	goto MainMenu_Dump_Options
+end
+	
+set CITRA $[GM9OUT]/Citra/user/nand
+
+mkdir $[CITRA]/data/00000000000000000000000000000000/sysdata/00010017/00000000
+mkdir $[CITRA]/00000000000000000000000000000000/title/000400db/00010302/content
+mkdir $[CITRA]/00000000000000000000000000000000/title/0004009b/00010202/content
+mkdir $[CITRA]/00000000000000000000000000000000/title/0004009b/00010402/content
+mkdir $[CITRA]/00000000000000000000000000000000/title/0004009b/00014002/content
+mkdir $[CITRA]/00000000000000000000000000000000/title/0004009b/00014102/content
+mkdir $[CITRA]/00000000000000000000000000000000/title/0004009b/00014202/content
+mkdir $[CITRA]/00000000000000000000000000000000/title/0004009b/00014302/content
+
+set OUTCONFIG $[CITRA]/data/00000000000000000000000000000000/sysdata/00010017/00000000/config
+
+inject 1:/data/$[SYSID0]/sysdata/00010017/00000000@6000:8000 $[OUTCONFIG]@0
+
+set OUT1 $[CITRA]/00000000000000000000000000000000/title/0004009b/00010202/content/00000000.app.romfs
+set OUT2 $[CITRA]/00000000000000000000000000000000/title/0004009b/00010402/content/00000000.app.romfs
+set OUT3 $[CITRA]/00000000000000000000000000000000/title/0004009b/00014002/content/00000000.app.romfs
+set OUT4 $[CITRA]/00000000000000000000000000000000/title/000400db/00010302/content/00000000.app.romfs
+set OUT5 $[CITRA]/00000000000000000000000000000000/title/0004009b/00014102/content/00000000.app.romfs
+set OUT6 $[CITRA]/00000000000000000000000000000000/title/0004009b/00014202/content/00000000.app.romfs
+set OUT7 $[CITRA]/00000000000000000000000000000000/title/0004009b/00014302/content/00000000.app.romfs
+
+imgmount 1:/title/0004009b/00010202/content/00000000.app
+inject G:/romfs.bin@1000:108898 $[OUT1]@0
+imgumount
+imgmount 1:/title/0004009b/00010402/content/00000009.app
+inject G:/romfs.bin@1000:357A0 $[OUT2]@0
+imgumount
+imgmount 1:/title/0004009b/00014002/content/00000000.app
+inject G:/romfs.bin@1000:160FDB $[OUT3]@0
+imgumount
+imgmount 1:/title/000400db/00010302/content/0000000c.app
+inject G:/romfs.bin@1000:1D0E4 $[OUT4]@0
+imgumount
+imgmount 1:/title/0004009b/00014102/content/00000001.app
+inject G:/romfs.bin@1000:17205A $[OUT5]@0
+imgumount
+imgmount 1:/title/0004009b/00014202/content/00000001.app
+inject G:/romfs.bin@1000:80E48 $[OUT6]@0
+imgumount
+imgmount 1:/title/0004009b/00014302/content/00000001.app
+inject G:/romfs.bin@1000:1BEAE2 $[OUT7]@0
+imgumount
+
+echo "Dump created succesfully:\n$[GM9OUT]/Citra"
+goto MainMenu_Dump_Options
+
+##################Inject Options##################
+
+@MainMenu_Inject_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options"
+
+labelsel -o -s "Choose an Option." Inject_Options_*
+goto Start
+
+################Inject Friend Save################
+
+@Inject_Options_Inject_FriendSave
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject Friend Save"
+
+if	not filesel "Select the friendsave you want to inject." $[GM9OUT]/friendsave_* FRIEND
+	goto MainMenu_Inject_Options
+end
+
+if	ask "Inject $[FRIEND]?"
+	set OUTPATH 1:/data/$[SYSID0]/sysdata/00010032/00000000
+	cp -w -n $[FRIEND] $[OUTPATH]
+	echo "Friend-save injected successfully:\n$[OUTPATH]"
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+###########Inject LocalFriendCodeSeed_B###########
+
+@Inject_Options_Inject_LocalFriendCodeSeedB
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject LocalFriendCodeSeed_B"
+
+if	not ask "Inject LocalFriendCodeSeed_B from $[GM9OUT]?\n(This will overwrite your 3DS's current\nLocalFriendCodeSeed_B!)"
+	goto MainMenu_Inject_Options
+end
+
+if	filesel "Select the LocalFriendCodeSeed you want to inject." $[GM9OUT]/*LocalFriendCodeSeed_B_* COPYPATH 
+	set OUTPATH 1:/rw/sys/LocalFriendCodeSeed_B
+	cp -w -n $[COPYPATH] $[OUTPATH]
+	echo "LocalFriendCodeSeed_B injected successfully:\n$[OUTPATH]"
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+################Inject SecureInfo_A###############
+
+@Inject_Options_Inject_SecureInfoA
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject SecureInfo_A"
+
+if	not ask "Inject SecureInfo_A from $[GM9OUT]?\n(This will overwrite your 3DS's current\nSecureInfo_A!)"
+	goto MainMenu_Inject_Options
+end
+
+if	filesel "Select the LocalFriendCodeSeed you want to inject." $[GM9OUT]/*SecureInfo_A_* COPYPATH 
+	set OUTPATH 1:/rw/sys/SecureInfo_A
+	cp -w -n $[COPYPATH] $[OUTPATH]
+	echo "SecureInfo_A injected successfully:\n$[OUTPATH]"
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+################Inject movable.sed################
+
+@Inject_Options_Inject_movable.sed
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject movable.sed"
+
+if	not ask "Inject movable.sed from $[GM9OUT]?\n(This will overwrite your 3DS's current\nmovable.sed!)"
+	goto MainMenu_Inject_Options
+end
+
+if	filesel "Select the movable.sed you want to inject." $[GM9OUT]/*movable_*.sed COPYPATH 
+	set OUTPATH 1:/private/movable.sed
+	cp -w -n $[COPYPATH] $[OUTPATH]
+	echo "movable.sed injected successfully:\n$[OUTPATH]"
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+#################Inject ticket.db#################
+
+@Inject_Options_Inject_ticket.db
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject ticket.db"
+
+if	not ask "Inject ticket.db from $[GM9OUT]?\n(This will overwrite your 3DS's current\nticket.db!)"
+	goto MainMenu_Inject_Options
+end
+
+if	filesel "Select the ticket.db you want to inject." $[GM9OUT]/*ticket_*.db COPYPATH 
+	set OUTPATH 1:/dbs/ticket.db
+	cp -w -n $[COPYPATH] $[OUTPATH]
+	echo "ticket.db injected successfully:\n$[OUTPATH]"
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+##################Inject title.db#################
+
+@Inject_Options_Inject_title.db
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject title.db"
+
+if	not ask "Inject title.db from $[GM9OUT]?\n(This will overwrite your 3DS's current\ntitle.db!)"
+	goto MainMenu_Inject_Options
+end
+
+if	filesel "Select the title.db you want to inject." $[GM9OUT]/*title_*.db COPYPATH 
+	set OUTPATH 1:/dbs/title.db
+	cp -w -n $[COPYPATH] $[OUTPATH]
+	echo "title.db injected successfully:\n$[OUTPATH]"
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+#################Inject GBAVC.sav#################
+
+@Inject_Options_Inject_GBAVC.sav
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nInject Options\n>Inject GBA.sav"
+
+if	not ask "Inject gbavc.sav from $[GM9OUT]?\n(This will overwrite your 3DS's current\ngbavc.sav file!)\nFor GodMode9 v.1.4.1 and below only."
+	goto MainMenu_Inject_Options
+end
+
+if	filesel "Select the gbavc.sav you want to inject." $[GM9OUT]/gbavc_??.sav COPYPATH
+	cp -w -n $[COPYPATH] S:/gbavc.sav
+	echo "gbavc.sav injected successfully."
+else
+	echo "Operation cancelled."
+end
+goto MainMenu_Inject_Options
+
+###########Scripts from Plailect's Guide##########
+
+@MainMenu_Scripts_from_Plailect's_Guide
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from Plailect's Guide"
+
+labelsel -o -s "Choose an Option." Plailect_*
+goto Start
+
+#############Setup Luma3DS to CTRNAND#############
+
+@Plailect_Setup_Luma3DS_to_CTRNAND
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from Plailect's Guide\n>Setup Luma3DS to CTRNAND"
+
+if	not ask "This will copy Luma3DS to your CTRNAND,\nallowing for the system to work without\nan SD card.\n \nContinue?"
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	allow -a 1:
+	cp -w -o -s 0:/boot.firm 1:/boot.firm
+	cp -w -o -s 0:/luma 1:/rw/luma
+	echo "Luma3DS copied successfully."
+else
+	echo "Permissions denied. Aborting."
+end
+goto MainMenu_Scripts_from_Plailect's_Guide
+
+##################Cleanup SD Card#################
+
+@Plailect_Cleanup_SD_Card
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from Plailect's Guide\n>Cleanup SD Card"
+
+if	not ask "This will clean the final setup files from your SD.\n\nContinue?"
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	not allow -a 0:/
+ 	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+
+rm -o -s 0:/arm9.bin
+rm -o -s 0:/arm11.bin
+ 
+rm -o -s 0:/ntr.bin
+ 
+rm -o -s 0:/soundhax-usa-o3ds.m4a
+rm -o -s 0:/soundhax-usa-n3ds.m4a
+rm -o -s 0:/soundhax-eur-o3ds.m4a
+rm -o -s 0:/soundhax-eur-n3ds.m4a
+rm -o -s 0:/soundhax-jpn-o3ds.m4a
+rm -o -s 0:/soundhax-jpn-n3ds.m4a
+rm -o -s 0:/soundhax-kor-o3ds.m4a
+rm -o -s 0:/soundhax-kor-n3ds.m4a
+rm -o -s 0:/otherapp.bin
+rm -o -s 0:/3ds/safehax.3dsx
+rm -o -s 0:/3ds/udsploit.3dsx
+rm -o -s 0:/safehaxpayload.bin
+
+rm -o -s 0:/Launcher.dat
+rm -o -s 0:/SafeB9SInstaller.dat
+ 
+rm -o -s 0:/public.sav
+rm -o -s 0:/boot.nds
+rm -o -s 0:/savedata
+rm -o -s 0:/sudoku_v0.app
+rm -o -s 0:/4swords.app
+ 
+rm -o -s 0:/luma/payloads/ntrboot_flasher.firm
+rm -o -s 0:/ntrboot
+rm -o -s 0:/ntrboot.firm
+ 
+rm -o -s 0:/boot9strap
+rm -o -s 0:/cias
+rm -o -s 0:/gm9/scripts/setup_ctrnand_luma3ds.gm9
+rm -o -s 0:/gm9/scripts/cleanup_sd_card.gm9
+
+rm -o -s 0:/arm9loaderhax.bin
+rm -o -s 0:/files9/aeskeydb.bin
+ 
+echo "SD card now squeaky clean from setup files."
+goto MainMenu_Scripts_from_Plailect's_Guide
+
+##############CTRTransfer Ticket Copy#############
+
+@Plailect_CTRTransfer_Ticket_Copy
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from Plailect's Guide\n>CTRTransfer Ticket Copy"
+
+if	not ask "This will copy CTRTransfer tickets,\nallowing for your games to work correctly.\n\nContinue?"
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	not allow -a 1:/
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	not imgmount 1:/dbs/ticket.bak
+	echo "Could not find ticket backup.\nSomething has gone wrong with your CTRTransfer."
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	not find T:/*o* NULL
+	echo "No user tickets found.\nSkip the 'Reinstalling Tickets' section."
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+
+rm -o -s $[GM9OUT]/ctrtransfer_tickets
+mkdir $[GM9OUT]/ctrtransfer_tickets
+cp -o -s T:/eshop $[GM9OUT]/ctrtransfer_tickets/eshop
+cp -o -s T:/unknown $[GM9OUT]/ctrtransfer_tickets/unknown
+
+echo "CTRTransfer Ticket Copy Successful.\nPlease proceed to the next step."
+goto MainMenu_Scripts_from_Plailect's_Guide
+
+####################Remove NNID###################
+
+@Plailect_Remove_NNID
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from Plailect's Guide\n>Remove NNID"
+
+if	not ask "This will remove the NNID from your device.\n\nContinue?"
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	not allow -a 1:/
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+
+mv -w -n 1:/data/$[SYSID0]/sysdata/00010038/00000000 1:/data/$[SYSID0]/sysdata/00010038/10000000
+
+echo "NNID successfully removed."
+goto MainMenu_Scripts_from_Plailect's_Guide
+
+##################Remove extdata##################
+
+@Plailect_Remove_extdata
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from Plailect's Guide\n>Remove extdata"
+
+if	not ask "This will remove the HOME Menu extdata from your SD.\n\nContinue?"
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+if	not allow -a A:/
+	goto MainMenu_Scripts_from_Plailect's_Guide
+end
+
+rm -o -s A:/extdata/00000000/00000098
+rm -o -s A:/extdata/00000000/00000082
+rm -o -s A:/extdata/00000000/0000008f
+rm -o -s A:/extdata/00000000/000000A1
+rm -o -s A:/extdata/00000000/000000A9
+rm -o -s A:/extdata/00000000/000000B1
+
+echo "HOME Menu successfully removed."
+goto MainMenu_Scripts_from_Plailect's_Guide
+
+###################Miscellaneous##################
+
+@MainMenu_Miscellaneous
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits:\nd0k3\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nemillois\nAnalogMan151\nTurdPooCharger\netc."
+
+labelsel -o -s "Choose an Option." Miscellaneous_*
+goto Start
+
+#################Cartridge Options################
+
+@Miscellaneous_Cartridge_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCartridge Options"
+
+labelsel -o -s "Choose an Option." Cartridge_Options_*
+goto MainMenu_Miscellaneous
+
+################Dump Private Header###############
+
+@Cartridge_Options_Dump_Private_Header
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCartridge Options\n>Dump Private Header"
+
+if	not ask "Dump private header in $[GM9OUT]?"
+	goto Miscellaneous_Cartridge_Options
+end
+
+if	find C:/*priv.bin CARTPATH
+	findnot $[GM9OUT]/Private-Header_??.bin OUTPATH
+	cp -n $[CARTPATH] $[OUTPATH]
+	echo "Private header successfully dumped:\n$[OUTPATH]"
+else
+	echo "CTR Cart not detected. Aborting."
+end
+goto Miscellaneous_Cartridge_Options
+
+#################Dump Cart to .3ds################
+
+@Cartridge_Options_Dump_Cart_to_.3ds
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCartridge Options\n>Dump Cart to .3ds"
+
+if	not ask "Dump CTR cartridge to .3ds in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Cartridge_Options
+end
+
+if	not find C:/*.3ds CARTPATH
+	echo "CTR Cart not detected. Aborting."
+	goto Miscellaneous_Cartridge_Options
+end
+
+findnot $[GM9OUT]/$[DATESTAMP]_CTR_CARTDUMP_??.3ds OUTPATH
+
+if	cp $[CARTPATH] $[OUTPATH]
+	echo "CTR cartridge successfully dumped:\n$[OUTPATH]"
+	if	ask "Decrypt the dumped .3ds?"
+		decrypt $[OUTPATH]
+		echo "Dumped .3ds decrypted."
+	end
+else
+	echo "Operation failed."
+end
+goto Miscellaneous_Cartridge_Options
+
+#################Dump Cart to .cia################
+
+@Cartridge_Options_Dump_Cart_to_.cia
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCartridge Options\n>Dump Cart to .cia"
+
+if	not ask "Dump CTR cartridge as a .cia in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Cartridge_Options
+end
+
+if	not find C:/*.3ds CARTPATH
+	echo "CTR Cart not detected. Aborting."
+	goto Miscellaneous_Cartridge_Options
+end
+
+if	buildcia $[CARTPATH]
+	echo "CTR cartridge successfully dumped:\n$[GM9OUT]"
+else
+	echo "Operation failed."
+end
+goto Miscellaneous_Cartridge_Options
+
+#################Dump Cart to .nds################
+
+@Cartridge_Options_Dump_Cart_to_.nds
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCartridge Options\n>Dump Cart to .nds"
+
+if	not ask "Dump NTR cartridge as a .nds in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Cartridge_Options
+end
+
+if	not find C:/*.nds CARTPATH
+	echo "NTR Cart not detected. Aborting."
+	goto Miscellaneous_Cartridge_Options
+end
+
+findnot $[GM9OUT]/$[DATESTAMP]_NTR_CARTDUMP_??.nds OUTPATH
+
+if	cp $[CARTPATH] $[OUTPATH]
+	echo "NTR cartridge successfully dumped:\n$[OUTPATH]"
+else
+	echo "Operation failed."
+end
+goto Miscellaneous_Cartridge_Options
+
+###################Title Options##################
+
+@Miscellaneous_Title_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nTitle Options"
+
+labelsel -o -s "Choose an Option." Title_Options_*
+goto Start
+
+################Dump CTRNAND Titles###############
+
+@Title_Options_Dump_CTRNAND_Titles
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nTitle Options\n>Dump CTRNAND Titles"
+
+if	not ask "Dump CTRNAND title to .cia in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Title_Options
+end
+
+if	not filesel -d "Select the .tmd file of the title you want to dump." 1:/title/*.tmd TITLEPATH
+	echo "Cancelled."
+	goto Miscellaneous_Title_Options
+end
+
+if	buildcia $[TITLEPATH]
+	echo "Title dump successful in $[GM9OUT]"
+else
+	echo "Operation failed."
+end
+goto Miscellaneous_Title_Options
+
+#################Dump User Titles#################
+
+@Title_Options_Dump_User_Installed_Titles
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nTitle Options\n>Dump User Installed Titles"
+
+if	not ask "Dump user installed title to .cia in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Title_Options
+end
+
+if	not filesel -d "Select the .tmd file of the title you want to dump." A:/title/*.tmd TITLEPATH
+	echo "Cancelled."
+	goto Miscellaneous_Title_Options
+end
+
+if	buildcia $[TITLEPATH]
+	echo "Title dump successful in $[GM9OUT]"
+else
+	echo "Operation failed."
+end
+goto Miscellaneous_Title_Options
+
+################Dump TWLNAND Titles###############
+
+@Title_Options_Dump_TWLNAND_Titles
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nTitle Options\n>Dump TWLNAND Titles"
+
+if	not ask "Dump TWLNAND title to .cia in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Title_Options
+end
+
+if	not filesel -d "Select the .tmd file of the title you want to dump." 2:/title/*.tmd TITLEPATH
+	echo "Cancelled."
+	goto Miscellaneous_Title_Options
+end
+
+if	buildcia $[TITLEPATH]
+	echo "Title dump successful in $[GM9OUT]"
+	
+else
+	echo "Operation failed."
+	
+end
+goto Miscellaneous_Title_Options
+
+##############Dump Home Menu to .cia##############
+
+@Title_Options_Dump_HomeMenu_to_.cia
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nTitle Options\n>Dump HomeMenu to .cia"
+
+if	not ask "Dump HomeMenu to .cia?\n \nPlease make sure you have\nenough storage space."
+	goto Miscellaneous_Title_Options
+end
+
+set CIA2 "$[GM9OUT]/homemenu.cia"
+
+echo "$[REGION] region detected."
+
+if	chk $[REGION] "JPN"
+	find 1:/title/00040030/00008202/content/*.tmd TMD
+elif chk $[REGION] "USA"
+	find 1:/title/00040030/00008F02/content/*.tmd TMD
+elif chk $[REGION] "EUR"
+	find 1:/title/00040030/00009802/content/*.tmd TMD
+elif chk $[REGION] "CHN"
+	find 1:/title/00040030/0000A102/content/*.tmd TMD
+elif chk $[REGION] "KOR"
+	find 1:/title/00040030/0000A902/content/*.tmd TMD
+elif chk $[REGION] "TWN"
+	find 1:/title/00040030/0000B102/content/*.tmd TMD
+else
+	echo "Unknown Region.\nPlease contact the script author.\Aborting."
+	goto Miscellaneous_Title_Options
+end
+
+if buildcia $[TMD]
+	if chk $[REGION] "JPN"
+		find $[GM9OUT]/0004003000008202* CIA1
+	elif chk $[REGION] "USA"
+		find $[GM9OUT]/0004003000008F02* CIA1
+	elif chk $[REGION] "EUR"
+		find $[GM9OUT]/0004003000009802* CIA1
+	elif chk $[REGION] "CHN"
+		find $[GM9OUT]/000400300000A102* CIA1
+	elif chk $[REGION] "KOR"
+		find $[GM9OUT]/000400300000A902* CIA1
+	elif chk $[REGION] "TWN"
+		find $[GM9OUT]/000400300000B102* CIA1
+	end
+else
+	echo "Operation failed."
+	goto Miscellaneous_Title_Options
+end
+
+mv -w -n $[CIA1] $[CIA2]
+echo "HomeMenu Dumped in:\n$[OUTPATH]"
+
+if	ask "Decrypt $[CIA2]?"
+	decrypt $[CIA2]
+	echo "$[CIA2] decrypted"
+else
+    echo "Decrypt declined."
+end
+goto Miscellaneous_Title_Options
+
+##############.3ds to .cia Converter##############
+
+@Miscellaneous_.3ds_to_.cia_Converter
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \n.3ds to .cia Converter"
+
+if	not filesel "Select the .3ds file to convert." $[GM9IN]/*.3ds 3DSCIA
+	echo "Cancelled."
+	goto MainMenu_Miscellaneous
+end
+
+if	not ask "Convert\n \n$[3DSCIA]\n \nto .cia?\n \nPlease make sure you have\nenough storage space."
+	echo "User Aborted."
+	goto MainMenu_Miscellaneous
+end
+
+if	buildcia $[3DSCIA]
+	echo "$[3DSCIA]\nconverted to .cia successfully in $[GM9OUT]"
+else
+	echo "Operation failed."
+end
+goto MainMenu_Miscellaneous
+
+##################Incognito Mode##################
+
+@Miscellaneous_Incognito_Mode
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nIncognito Mode"
+
+labelsel -o -s "Choose an Option." Incognito_Mode_*
+goto MainMenu_Miscellaneous
+
+#################Incognito Mode On################
+
+@Incognito_Mode_Incognito_Mode_ON
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nIncognito Mode\n>Incognito Mode ON"
+
+if	not ask "Initiate Incognito Mode?"
+	goto Miscellaneous_Incognito_Mode
+end
+
+if	find 1:/data/$[SYSID0]/sysdata/00010022/00000001 NULL
+	if	not ask "!!WARNING!!\nSeems like you've already gone Incognito.\nOriginal activity log might get replaced.\nContinue anyway?"
+		goto Miscellaneous_Incognito_Mode
+	end
+end
+
+if	ask "Do a backup of activity log first in\n$[GM9OUT]?"
+	findnot $[GM9OUT]/$[DATESTAMP]_$[SERIAL]_00000000_?? OUTPATH
+	if	cp 1:/data/$[SYSID0]/sysdata/00010022/00000000 $[OUTPATH]
+		echo "Activity log backup created successfully in\n$[OUTPATH]"
+	else
+		if	not ask "Backup failed. Continue anyway?"
+			goto Miscellaneous_Incognito_Mode
+		end
+	end
+end
+
+if	not allow -a 1:
+	echo "Permissions denied. Aborting."
+	goto Miscellaneous_Incognito_Mode
+end
+
+mv -w -k -n 1:/data/$[SYSID0]/sysdata/00010022/00000000 1:/data/$[SYSID0]/sysdata/00010022/00000001
+echo "You have now gone incognito."
+goto Miscellaneous_Incognito_Mode
+
+################Incognito Mode Off################
+
+@Incognito_Mode_Incognito_Mode_OFF
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nIncognito Mode\n>Incognito Mode OFF"
+
+if	not find 1:/data/$[SYSID0]/sysdata/00010022/00000001 NULL
+	echo "You are not in Incognito Mode. Aborting."
+	goto Miscellaneous_Incognito_Mode
+end
+
+if	not ask "Exit Incognito Mode?"
+	goto Miscellaneous_Incognito_Mode
+end
+
+if	not allow -a 1:
+	echo "Permissions denied. Aborting."
+	goto Miscellaneous_Incognito_Mode
+end
+
+mv -w -k -n 1:/data/$[SYSID0]/sysdata/00010022/00000001 1:/data/$[SYSID0]/sysdata/00010022/00000000
+echo "You have now left incognito mode."
+goto Miscellaneous_Incognito_Mode
+
+##############Nintendo3DS Folder Swap#############
+
+@Miscellaneous_Nintendo3DS_Folder_Swap
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nNintendo3DS Folder Swap"
+
+if	not ask "Swap your current Nintendo 3DS folder with another?"
+	goto MainMenu_Miscellaneous
+end
+if	not dirsel "Swap with which folder?\nYour current folder will be renamed as\nthe folder you swapped with." $[GM9IN] DESIREDPATH
+	echo "Operation Cancelled."
+	goto MainMenu_Miscellaneous
+end
+if	not ask "Use $[DESIREDPATH]?"
+	goto Miscellaneous_Nintendo3DS_Folder_Swap
+end
+set ORIGINALPATH "0:/Nintendo 3DS"
+mv -n -w $[ORIGINALPATH] "0:/Nintendo 3DSTEMP"
+mv -n -w $[DESIREDPATH] $[ORIGINALPATH]
+if	not ask "Rename the previous Nintendo3DS folder?"
+else
+	strsplit USERINPUT $[DESIREDPATH] "/"
+	if	not input "Rename the folder." USERINPUT
+	else
+		set DESIREDPATH "$[GM9IN]/$[USERINPUT]"
+	end
+end
+mv -n -w "0:/Nintendo 3DSTEMP" $[DESIREDPATH]
+echo "Folders successfully swapped."
+goto MainMenu_Miscellaneous
+
+################Lazarus3DS Options################
+
+@Miscellaneous_Lazarus3DS_Options
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nLazarus3DS Options"
+
+labelsel -o -s "Choose an Option.\n \nThese scripts are as is. Nothing has been modified.\nFor full details on how to use these, visit the\nlazarus script repo." Lazarus3DS_*
+goto MainMenu_Miscellaneous
+
+###############Lazarus3DS Donor Prep##############
+
+@Lazarus3DS_Donor_Prep
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nLazarus3DS Options\n>Donor Prep"
+
+if	not ask "This script prepares a 3DS for\nuse with the Lazarus3DS scripts.\n \nContinue?"
+	goto Miscellaneous_Lazarus3DS
+end
+
+echo "Checking if Proper Files Exists."
+if	not find 0:/donor/ticket_combo.db TICKETDB
+	echo "Combo ticket.db not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+find 0:/donor/serial.bin NULL
+	echo "Blank serial.bin not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+find 0:/donor/movable.sed NULL
+	echo "0-key movable.sed not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+echo "Creating donor files.\nDo not interrupt!"
+if	not cp -w S:/ctrnand_full.bin 0:/donor/ctrnand_full.bin
+	echo "Interrupted. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not cp -w -h S:/nand_hdr.bin 0:/donor/nand_hdr.bin
+	echo "Interrupted. Aborting."
+	rm -o -s 0:/donor/ctrnand_full.bin
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not cp -w -h S:/twlmbr.bin 0:/donor/twlmbr.bin
+	echo "Interrupted. Aborting."
+	rm -o -s 0:/donor/ctrnand_full.bin
+	rm -o -s 0:/donor/nand_hdr.bin
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not cp -w S:/twln.bin 0:/donor/twln.bin
+	echo "Interrupted. Aborting."
+	rm -o -s 0:/donor/ctrnand_full.bin
+	rm -o -s 0:/donor/nand_hdr.bin
+	rm -o -s 0:/donor/twlmbr.bin
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not cp -w S:/twlp.bin 0:/donor/twlp.bin
+	echo "Interrupted. Aborting."
+	rm -o -s 0:/donor/ctrnand_full.bin
+	rm -o -s 0:/donor/nand_hdr.bin
+	rm -o -s 0:/donor/twlmbr.bin
+	rm -o -s 0:/donor/twln.bin
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not cp -w -h S:/sector0x96.bin 0:/donor/sector0x96.bin
+	echo "Interrupted. Aborting."
+	rm -o -s 0:/donor/ctrnand_full.bin
+	rm -o -s 0:/donor/nand_hdr.bin
+	rm -o -s 0:/donor/twlmbr.bin
+	rm -o -s 0:/donor/twln.bin
+	rm -o -s 0:/donor/twlp.bin
+	goto Miscellaneous_Lazarus3DS
+end
+
+echo "Setting up Donated CTRNAND."
+imgmount 0:/donor/ctrnand_full.bin
+
+rm -o -s 7:/data/$[SYSID0]
+rm -o -s 7:/rw/luma
+rm -o -s 7:/boot.firm
+rm -o -s 7:/boot.firm.bak
+rm -o -s 7:/rw/sys/LocalFriendCodeSeed_A
+rm -o -s 7:/rw/sys/LocalFriendCodeSeed_B
+rm -o -s 7:/rw/sys/SecureInfo_C
+
+find 7:/rw/sys/SecureInfo_? SECUREINFO
+inject 0:/donor/serial.bin@ $[SECUREINFO]@102
+
+cp -w -n 0:/donor/movable.sed 7:/private/movable.sed
+
+rm -o -s 7:/ro/sys/HWCAL0.dat
+rm -o -s 7:/ro/sys/HWCAL1.dat
+
+cp -w -n $[TICKETDB] 7:/dbs/ticket.db
+imgumount
+
+echo "Setting up Donated TWLN."
+imgmount 0:/donor/twln.bin
+
+rm -o -s 7:/title/00030004
+rm -o -s 7:/shared2/0000
+imgumount
+
+echo "Setting up Donated TWLP."
+imgmount 0:/donor/twlp.bin
+
+rm -o -s 7:/photo/DCIM
+imgumount
+
+echo "Calculating Missing Hashes."
+shaget 0:/donor/ctrnand_full.bin 0:/donor/ctrnand_full.bin.sha
+shaget 0:/donor/twln.bin 0:/donor/twln.bin.sha
+shaget 0:/donor/twlp.bin 0:/donor/twlp.bin.sha
+
+echo "Wrapping Things up."
+rm -o -s 0:/gm9/scripts/Lazarus-Prep.gm9
+rm -o -s $[TICKETDB]
+rm -o -s 0:/donor/serial.bin
+rm -o -s 0:/donor/movable.sed
+echo "All done! Files located in 0:/donor/"
+goto Miscellaneous_Lazarus3DS
+
+####################Lazarus3DS####################
+
+@Lazarus3DS_Lazarus3DS
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nLazarus3DS Options\n>Lazarus3DS"
+
+if	not ask "This script revives bricked consoles and\nattempts to recover what data it can.\n \nOnly use this script on consoles\nthat will not boot.\n \nContinue?"
+	echo "Aborted by user."
+	goto Miscellaneous_Lazarus3DS
+end
+
+echo "Checking if Proper Files Exists."
+if	not find 0:/pit/ctrnand_?3ds_??_*.bin CTRNAND
+	echo "CTRNAND file not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/hdr_?3ds_all_*.bin HDR
+	echo "NAND_HDR not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/twlmbr.bin TWLMBR
+	echo "TWLMBR not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/twln_*.bin TWLN
+	echo "TWLN not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/twlp.bin TWLP
+	echo "TWLP not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/sighax_hdr_*.bin SIGHAX
+	echo "SIGHAX_HDR not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/boot9stra*.firm B9S
+	echo "Boot9strap file not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not find 0:/pit/sector0x9*.bin SECRET
+	echo "sector0x96.bin not found!"
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not allow -a S:
+	echo "Permission Denied. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[CTRNAND] $[CTRNAND].sha
+	echo "Hash Check Failed on CTRNAND. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[HDR] $[HDR].sha
+	echo "Hash Check Failed on NAND_HDR. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[TWLMBR] $[TWLMBR].sha
+	echo "Hash Check Failed on TWLMBR. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[TWLN] $[TWLN].sha
+	echo "Hash Check Failed on TWLN. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[TWLP] $[TWLP].sha
+	echo "Hash Check Failed on TWLP. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[SIGHAX] $[SIGHAX].sha
+	echo "Hash Check Failed on SIGHAX. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[B9S] $[B9S].sha
+	echo "Hash Check Failed on Boot9strap file. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+if	not sha $[SECRET] $[SECRET].sha
+	echo "Hash Check Failed on sector0x96.bin. Aborting."
+	goto Miscellaneous_Lazarus3DS
+end
+
+echo "Attempting to salvage what can be\nfrom bricked device."
+cp -w -o -s -n 1:/private/movable.sed 0:/pit/movable.sed
+cp -w -o -s -n 1:/dbs/ticket.db 0:/pit/ticket.db
+
+cp -w -o -s -n 1:/rw/sys/SecureInfo_A 0:/pit/SecureInfo_A
+cp -w -o -s -n 1:/rw/sys/SecureInfo_B 0:/pit/SecureInfo_B
+cp -w -o -s -n 1:/rw/sys/SecureInfo_C 0:/pit/SecureInfo_C
+
+cp -w -o -s -n 1:/data/$[SYSID0]/sysdata/00010017/00000000 0:/pit/configsave.bin
+cp -w -o -s -n 1:/data/$[SYSID0]/sysdata/00010032/00000000 0:/pit/friendsave.bin
+cp -w -o -s -n 1:/data/$[SYSID0]/sysdata/0001000f/00000000 0:/pit/seedsave.bin
+cp -w -o -s -n 1:/data/$[SYSID0]/sysdata/00010022/00000000 0:/pit/activitylog.bin
+
+find -o -s 1:/data/$[SYSID0]/sysdata/000202?8 MIIPLAZA
+set MIIPLAZA $[MIIPLAZA]/00000000
+cp -w -o -s -n $[MIIPLAZA] 0:/pit/miiplaza.bin
+find -o -s 1:/data/$[SYSID0]/sysdata/000202?d FACERAIDERS
+set FACERAIDERS $[FACERAIDERS]/00000000
+cp -w -o -s -n $[FACERAIDERS] 0:/pit/faceraiders.bin
+find -o -s 1:/data/$[SYSID0]/sysdata/000202?e ARGAMES
+set ARGAMES $[ARGAMES]/00000000
+cp -w -o -s -n $[ARGAMES] 0:/pit/argames.bin
+
+cp -w -o -s -n 1:/data/$[SYSID0]/extdata/00048000/f0000001 0:/pit/01
+cp -w -o -s -n 1:/data/$[SYSID0]/extdata/00048000/f0000002 0:/pit/02
+cp -w -o -s -n 1:/data/$[SYSID0]/extdata/00048000/f000000b 0:/pit/0b
+
+cp -w -o -s -n 1:/ro/sys/HWCAL0.dat 0:/pit/HWCAL0.dat
+cp -w -o -s -n 1:/ro/sys/HWCAL1.dat 0:/pit/HWCAL1.dat
+
+cp -w -o -s -n 2:/title/00030004 0:/pit/00030004
+
+cp -w -o -s -n 2:/shared2/0000 0:/pit/sounds.bin
+
+cp -w -o -s -n 3:/photo/DCIM 0:/pit/DCIM
+
+echo "Fixing System Files. Do not Interrupt!"
+cp -w -n $[HDR] S:/nand.bin
+
+cp -w -n $[SIGHAX] S:/nand_hdr.bin
+
+cp -w -n $[TWLMBR] S:/twlmbr.bin
+
+cp -w -n $[TWLN] S:/twln.bin
+
+cp -w -n $[TWLP] S:/twlp.bin
+
+cp -w -n $[CTRNAND] S:/ctrnand_full.bin
+
+cp -w -o -s -n 0:/pit/movable.sed 1:/private/movable.sed
+cp -w -o -s -n 0:/pit/ticket.db 1:/dbs/ticket.db
+cp -w -o -s -n 0:/pit/SecureInfo_A 1:/rw/sys/SecureInfo_A
+cp -w -o -s -n 0:/pit/SecureInfo_B 1:/rw/sys/SecureInfo_B
+cp -w -o -s -n 0:/pit/SecureInfo_C 1:/rw/sys/SecureInfo_C
+cp -w -o -s -n 0:/pit/seedsave.bin 1:/data/$[SYSID0]/sysdata/0001000f/00000000
+cp -w -o -s -n 0:/pit/configsave.bin 1:/data/$[SYSID0]/sysdata/00010017/00000000
+cp -w -o -s -n 0:/pit/friendsave.bin 1:/data/$[SYSID0]/sysdata/00010032/00000000
+cp -w -o -s -n 0:/pit/activitylog.bin 1:/data/$[SYSID0]/sysdata/00010022/00000000
+
+cp -w -o -s -n 0:/pit/miiplaza.bin 1:/data/$[SYSID0]/sysdata/00020208/00000000
+cp -w -o -s -n 0:/pit/miiplaza.bin 1:/data/$[SYSID0]/sysdata/00020218/00000000
+cp -w -o -s -n 0:/pit/miiplaza.bin 1:/data/$[SYSID0]/sysdata/00020228/00000000
+cp -w -o -s -n 0:/pit/faceraiders.bin 1:/data/$[SYSID0]/sysdata/0002020d/00000000
+cp -w -o -s -n 0:/pit/faceraiders.bin 1:/data/$[SYSID0]/sysdata/0002021d/00000000
+cp -w -o -s -n 0:/pit/faceraiders.bin 1:/data/$[SYSID0]/sysdata/0002022d/00000000
+cp -w -o -s -n 0:/pit/argames.bin 1:/data/$[SYSID0]/sysdata/0002020e/00000000
+cp -w -o -s -n 0:/pit/argames.bin 1:/data/$[SYSID0]/sysdata/0002021e/00000000
+cp -w -o -s -n 0:/pit/argames.bin 1:/data/$[SYSID0]/sysdata/0002022e/00000000
+
+cp -w -o -s -n 0:/pit/01 1:/data/$[SYSID0]/extdata/00048000/f0000001
+cp -w -o -s -n 0:/pit/02 1:/data/$[SYSID0]/extdata/00048000/f0000002
+cp -w -o -s -n 0:/pit/0b 1:/data/$[SYSID0]/extdata/00048000/f000000b
+
+cp -w -o -s -n 0:/pit/HWCAL0.dat 1:/ro/sys/HWCAL0.dat
+cp -w -o -s -n 0:/pit/HWCAL1.dat 1:/ro/sys/HWCAL1.dat
+
+cp -w -o -s -n 0:/pit/00030004 2:/title/00030004
+
+cp -w -o -s -n 0:/pit/sounds.bin 2:/shared2/0000
+
+cp -w -o -s -n 0:/pit/DCIM 3:/photo/DCIM
+
+fixcmac 1:/dbs
+fixcmac 1:/data
+fixcmac 1:/private
+
+set ERRORMSG "Unable to inject boot9strap!\n \nRun SafeB9SInstaller after."
+cp -w -o -n $[B9S] S:/firm0.bin
+cp -w -o -n $[B9S] S:/firm1.bin
+
+cp -w $[SECRET] S:/sector0x96.bin
+
+echo "Wrapping Things Up."
+cp -w -o -s 0:/boot.firm 0:/luma/payloads/GodMode9.firm
+mv -w -o -s 0:/boot.firm 1:/rw/luma/payloads/GodMode9.firm
+cp -w -o -s 0:/luma.firm 0:/boot.firm
+mv -w -o -s 0:/luma.firm 1:/boot.firm
+
+if	ask "Revive complete. Remove Lazarus3DS files?"
+	rm -o -s 0:/pit
+end
+goto Miscellaneous_Lazarus3DS
+
+#####################Credits######################
+
+@Miscellaneous_Credits
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits"
+
+echo "d0k3\nmvmiranda\n8bitwonder\nemillois\nTurdPooCharger\nPlailect\nAnalogMan\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nSome1CP\nfiggyc\nihaveamac"
+goto MainMenu_Miscellaneous
+
+#######################Wakas######################
+
+@MainMenu_Exit
