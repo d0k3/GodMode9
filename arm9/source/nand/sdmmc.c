@@ -48,7 +48,7 @@ static int get_error(struct mmcdevice *ctx)
 
 static void set_target(struct mmcdevice *ctx)
 {
-	sdmmc_mask16(REG_SDPORTSEL,0x3,(uint16_t)ctx->devicenumber);
+	sdmmc_mask16(REG_SDPORTSEL,0x3,(u16)ctx->devicenumber);
 	setckl(ctx->clk);
 	if(ctx->SDOPT == 0)
 	{
@@ -60,10 +60,10 @@ static void set_target(struct mmcdevice *ctx)
 	}
 }
 
-static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t args)
+static void sdmmc_send_command(struct mmcdevice *ctx, u32 cmd, u32 args)
 {
 	const bool getSDRESP = (cmd << 15) >> 31;
-	uint16_t flags = (cmd << 15) >> 31;
+	u16 flags = (cmd << 15) >> 31;
 	const bool readdata = cmd & 0x20000;
 	const bool writedata = cmd & 0x40000;
 
@@ -83,8 +83,8 @@ static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t arg
 	sdmmc_write16(REG_SDCMDARG1,args >> 16);
 	sdmmc_write16(REG_SDCMD,cmd &0xFFFF);
 
-	uint32_t size = ctx->size;
-	const uint16_t blkSize = sdmmc_read16(REG_SDBLKLEN32);
+	u32 size = ctx->size;
+	const u16 blkSize = sdmmc_read16(REG_SDBLKLEN32);
 	u32 *rDataPtr32 = (u32*)(void*)ctx->rData;
 	u8  *rDataPtr8  = ctx->rData;
 	const u32 *tDataPtr32 = (u32*)(void*)ctx->tData;
@@ -93,12 +93,12 @@ static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t arg
 	bool rUseBuf = ( NULL != rDataPtr32 );
 	bool tUseBuf = ( NULL != tDataPtr32 );
 
-	uint16_t status0 = 0;
+	u16 status0 = 0;
 	while(1)
 	{
-		volatile uint16_t status1 = sdmmc_read16(REG_SDSTATUS1);
+		volatile u16 status1 = sdmmc_read16(REG_SDSTATUS1);
 #ifdef DATA32_SUPPORT
-		volatile uint16_t ctl32 = sdmmc_read16(REG_DATACTL32);
+		volatile u16 ctl32 = sdmmc_read16(REG_DATACTL32);
 		if((ctl32 & 0x100))
 #else
 		if((status1 & TMIO_STAT1_RXRDY))
@@ -114,14 +114,14 @@ static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t arg
 						#ifdef DATA32_SUPPORT
 						if(!((u32)rDataPtr32 & 3))
 						{
-							for(uint32_t i = 0; i < blkSize; i += 4)
+							for(u32 i = 0; i < blkSize; i += 4)
 							{
 								*rDataPtr32++ = sdmmc_read32(REG_SDFIFO32);
 							}
 						}
 						else
 						{
-							for(uint32_t i = 0; i < blkSize; i += 4)
+							for(u32 i = 0; i < blkSize; i += 4)
 							{
 								u32 data = sdmmc_read32(REG_SDFIFO32);
 								*rDataPtr8++ = data;
@@ -133,14 +133,14 @@ static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t arg
 						#else
 						if(!((u32)rDataPtr16 & 1))
 						{
-							for(uint32_t i = 0; i < blkSize; i += 4)
+							for(u32 i = 0; i < blkSize; i += 4)
 							{
 								*rDataPtr16++ = sdmmc_read16(REG_SDFIFO);
 							}
 						}
 						else
 						{
-							for(uint32_t i = 0; i < blkSize; i += 4)
+							for(u32 i = 0; i < blkSize; i += 4)
 							{
 								u16 data = sdmmc_read16(REG_SDFIFO);
 								*rDataPtr8++ = data;
@@ -171,36 +171,36 @@ static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t arg
 						#ifdef DATA32_SUPPORT
 						if(!((u32)tDataPtr32 & 3))
 						{
-							for(uint32_t i = 0; i < blkSize; i += 4)
+							for(u32 i = 0; i < blkSize; i += 4)
 							{
 								sdmmc_write32(REG_SDFIFO32, *tDataPtr32++);
 							}
 						}
 						else
 						{
-							for(uint32_t i = 0; i < blkSize; i += 4)
+							for(u32 i = 0; i < blkSize; i += 4)
 							{
-								uint32_t data = *tDataPtr8++;
-								data |= (uint32_t)*tDataPtr8++ << 8;
-								data |= (uint32_t)*tDataPtr8++ << 16;
-								data |= (uint32_t)*tDataPtr8++ << 24;
+								u32 data = *tDataPtr8++;
+								data |= (u32)*tDataPtr8++ << 8;
+								data |= (u32)*tDataPtr8++ << 16;
+								data |= (u32)*tDataPtr8++ << 24;
 								sdmmc_write32(REG_SDFIFO32, data);
 							}
 						}
 						#else
 						if(!((u32)tDataPtr16 & 1))
 						{
-							for(uint32_t i = 0; i < blkSize; i += 2)
+							for(u32 i = 0; i < blkSize; i += 2)
 							{
 								sdmmc_write16(REG_SDFIFO, *tDataPtr16++);
 							}
 						}
 						else
 						{
-							for(uint32_t i = 0; i < blkSize; i += 2)
+							for(u32 i = 0; i < blkSize; i += 2)
 							{
-								uint16_t data = *tDataPtr8++;
-								data |= (uint16_t)(*tDataPtr8++ << 8);
+								u16 data = *tDataPtr8++;
+								data |= (u16)(*tDataPtr8++ << 8);
 								sdmmc_write16(REG_SDFIFO, data);
 							}
 						}
@@ -241,14 +241,14 @@ static void sdmmc_send_command(struct mmcdevice *ctx, uint32_t cmd, uint32_t arg
 
 	if(getSDRESP != 0)
 	{
-		ctx->ret[0] = (uint32_t)(sdmmc_read16(REG_SDRESP0) | (sdmmc_read16(REG_SDRESP1) << 16));
-		ctx->ret[1] = (uint32_t)(sdmmc_read16(REG_SDRESP2) | (sdmmc_read16(REG_SDRESP3) << 16));
-		ctx->ret[2] = (uint32_t)(sdmmc_read16(REG_SDRESP4) | (sdmmc_read16(REG_SDRESP5) << 16));
-		ctx->ret[3] = (uint32_t)(sdmmc_read16(REG_SDRESP6) | (sdmmc_read16(REG_SDRESP7) << 16));
+		ctx->ret[0] = (u32)(sdmmc_read16(REG_SDRESP0) | (sdmmc_read16(REG_SDRESP1) << 16));
+		ctx->ret[1] = (u32)(sdmmc_read16(REG_SDRESP2) | (sdmmc_read16(REG_SDRESP3) << 16));
+		ctx->ret[2] = (u32)(sdmmc_read16(REG_SDRESP4) | (sdmmc_read16(REG_SDRESP5) << 16));
+		ctx->ret[3] = (u32)(sdmmc_read16(REG_SDRESP6) | (sdmmc_read16(REG_SDRESP7) << 16));
 	}
 }
 
-int sdmmc_sdcard_writesectors(uint32_t sector_no, uint32_t numsectors, const uint8_t *in)
+int sdmmc_sdcard_writesectors(u32 sector_no, u32 numsectors, const u8 *in)
 {
 	if(handleSD.isSDHC == 0) sector_no <<= 9;
 	set_target(&handleSD);
@@ -264,7 +264,7 @@ int sdmmc_sdcard_writesectors(uint32_t sector_no, uint32_t numsectors, const uin
 	return get_error(&handleSD);
 }
 
-int sdmmc_sdcard_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *out)
+int sdmmc_sdcard_readsectors(u32 sector_no, u32 numsectors, u8 *out)
 {
 	if(handleSD.isSDHC == 0) sector_no <<= 9;
 	set_target(&handleSD);
@@ -282,7 +282,7 @@ int sdmmc_sdcard_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *o
 
 
 
-int sdmmc_nand_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *out)
+int sdmmc_nand_readsectors(u32 sector_no, u32 numsectors, u8 *out)
 {
 	if(handleNAND.isSDHC == 0) sector_no <<= 9;
 	set_target(&handleNAND);
@@ -298,7 +298,7 @@ int sdmmc_nand_readsectors(uint32_t sector_no, uint32_t numsectors, uint8_t *out
 	return get_error(&handleNAND);
 }
 
-int sdmmc_nand_writesectors(uint32_t sector_no, uint32_t numsectors, const uint8_t *in) //experimental
+int sdmmc_nand_writesectors(u32 sector_no, u32 numsectors, const u8 *in) //experimental
 {
 	if(handleNAND.isSDHC == 0) sector_no <<= 9;
 	set_target(&handleNAND);
@@ -314,17 +314,17 @@ int sdmmc_nand_writesectors(uint32_t sector_no, uint32_t numsectors, const uint8
 	return get_error(&handleNAND);
 }
 
-static uint32_t sdmmc_calc_size(uint8_t* csd, int type)
+static u32 sdmmc_calc_size(u8* csd, int type)
 {
-  uint32_t result = 0;
+  u32 result = 0;
   if(type == -1) type = csd[14] >> 6;
   switch(type)
   {
     case 0:
       {
-        uint32_t block_len=csd[9]&0xf;
+        u32 block_len=csd[9]&0xf;
         block_len=1u<<block_len;
-        uint32_t mult=( uint32_t)((csd[4]>>7)|((csd[5]&3)<<1));
+        u32 mult=( u32)((csd[4]>>7)|((csd[5]&3)<<1));
         mult=1u<<(mult+2);
         result=csd[8]&3;
         result=(result<<8)|csd[7];
@@ -362,41 +362,41 @@ void sdmmc_init()
 	handleSD.clk = 0x20; // 523.655968 KHz
 	handleSD.devicenumber = 0;
 
-	*(volatile uint16_t*)0x10006100 &= 0xF7FFu; //SDDATACTL32
-	*(volatile uint16_t*)0x10006100 &= 0xEFFFu; //SDDATACTL32
+	*(vu16*)0x10006100 &= 0xF7FFu; //SDDATACTL32
+	*(vu16*)0x10006100 &= 0xEFFFu; //SDDATACTL32
 #ifdef DATA32_SUPPORT
-	*(volatile uint16_t*)0x10006100 |= 0x402u; //SDDATACTL32
+	*(vu16*)0x10006100 |= 0x402u; //SDDATACTL32
 #else
-	*(volatile uint16_t*)0x10006100 |= 0x402u; //SDDATACTL32
+	*(vu16*)0x10006100 |= 0x402u; //SDDATACTL32
 #endif
-	*(volatile uint16_t*)0x100060D8 = (*(volatile uint16_t*)0x100060D8 & 0xFFDD) | 2;
+	*(vu16*)0x100060D8 = (*(vu16*)0x100060D8 & 0xFFDD) | 2;
 #ifdef DATA32_SUPPORT
-	*(volatile uint16_t*)0x10006100 &= 0xFFFFu; //SDDATACTL32
-	*(volatile uint16_t*)0x100060D8 &= 0xFFDFu; //SDDATACTL
-	*(volatile uint16_t*)0x10006104 = 512; //SDBLKLEN32
+	*(vu16*)0x10006100 &= 0xFFFFu; //SDDATACTL32
+	*(vu16*)0x100060D8 &= 0xFFDFu; //SDDATACTL
+	*(vu16*)0x10006104 = 512; //SDBLKLEN32
 #else
-	*(volatile uint16_t*)0x10006100 &= 0xFFFDu; //SDDATACTL32
-	*(volatile uint16_t*)0x100060D8 &= 0xFFDDu; //SDDATACTL
-	*(volatile uint16_t*)0x10006104 = 0; //SDBLKLEN32
+	*(vu16*)0x10006100 &= 0xFFFDu; //SDDATACTL32
+	*(vu16*)0x100060D8 &= 0xFFDDu; //SDDATACTL
+	*(vu16*)0x10006104 = 0; //SDBLKLEN32
 #endif
-	*(volatile uint16_t*)0x10006108 = 1; //SDBLKCOUNT32
-	*(volatile uint16_t*)0x100060E0 &= 0xFFFEu; //SDRESET
-	*(volatile uint16_t*)0x100060E0 |= 1u; //SDRESET
-	*(volatile uint16_t*)0x10006020 |= TMIO_MASK_ALL; //SDIR_MASK0
-	*(volatile uint16_t*)0x10006022 |= TMIO_MASK_ALL>>16; //SDIR_MASK1
-	*(volatile uint16_t*)0x100060FC |= 0xDBu; //SDCTL_RESERVED7
-	*(volatile uint16_t*)0x100060FE |= 0xDBu; //SDCTL_RESERVED8
-	*(volatile uint16_t*)0x10006002 &= 0xFFFCu; //SDPORTSEL
+	*(vu16*)0x10006108 = 1; //SDBLKCOUNT32
+	*(vu16*)0x100060E0 &= 0xFFFEu; //SDRESET
+	*(vu16*)0x100060E0 |= 1u; //SDRESET
+	*(vu16*)0x10006020 |= TMIO_MASK_ALL; //SDIR_MASK0
+	*(vu16*)0x10006022 |= TMIO_MASK_ALL>>16; //SDIR_MASK1
+	*(vu16*)0x100060FC |= 0xDBu; //SDCTL_RESERVED7
+	*(vu16*)0x100060FE |= 0xDBu; //SDCTL_RESERVED8
+	*(vu16*)0x10006002 &= 0xFFFCu; //SDPORTSEL
 #ifdef DATA32_SUPPORT
-	*(volatile uint16_t*)0x10006024 = 0x20;
-	*(volatile uint16_t*)0x10006028 = 0x40E9;
+	*(vu16*)0x10006024 = 0x20;
+	*(vu16*)0x10006028 = 0x40E9;
 #else
-	*(volatile uint16_t*)0x10006024 = 0x40; //Nintendo sets this to 0x20
-	*(volatile uint16_t*)0x10006028 = 0x40E9; //Nintendo sets this to 0x40EE
+	*(vu16*)0x10006024 = 0x40; //Nintendo sets this to 0x20
+	*(vu16*)0x10006028 = 0x40E9; //Nintendo sets this to 0x40EE
 #endif
-	*(volatile uint16_t*)0x10006002 &= 0xFFFCu; ////SDPORTSEL
-	*(volatile uint16_t*)0x10006026 = 512; //SDBLKLEN
-	*(volatile uint16_t*)0x10006008 = 0; //SDSTOP
+	*(vu16*)0x10006002 &= 0xFFFCu; ////SDPORTSEL
+	*(vu16*)0x10006026 = 512; //SDBLKLEN
+	*(vu16*)0x10006008 = 0; //SDSTOP
 }
 
 int Nand_Init()
@@ -432,28 +432,27 @@ int Nand_Init()
 	sdmmc_send_command(&handleNAND,0x10609,handleNAND.initarg << 0x10);
 	if((handleNAND.error & 0x4))return -1;
 
-	handleNAND.total_size = sdmmc_calc_size((uint8_t*)&handleNAND.ret[0],0);
-	handleNAND.clk = 0; // 33.513982 MHz
-	setckl(0);
+	handleNAND.total_size = sdmmc_calc_size((u8*)&handleNAND.ret[0],0);
+	setckl(0x201); // 16.756991 MHz
 
 	sdmmc_send_command(&handleNAND,0x10407,handleNAND.initarg << 0x10);
 	if((handleNAND.error & 0x4))return -1;
 
 	handleNAND.SDOPT = 1;
-
-	sdmmc_send_command(&handleNAND,0x10506,0x3B70100);
+	sdmmc_send_command(&handleNAND,0x10506,0x3B70100); // Set 4 bit bus width.
 	if((handleNAND.error & 0x4))return -1;
+	sdmmc_mask16(REG_SDOPT, 0x8000, 0); // Switch to 4 bit mode.
 
-	sdmmc_send_command(&handleNAND,0x10506,0x3B90100);
+	sdmmc_send_command(&handleNAND,0x10506,0x3B90100); // Switch to high speed timing.
 	if((handleNAND.error & 0x4))return -1;
+	handleNAND.clk = 0x200; // 33.513982 MHz
+	setckl(0x200);
 
 	sdmmc_send_command(&handleNAND,0x1040D,handleNAND.initarg << 0x10);
 	if((handleNAND.error & 0x4))return -1;
 
 	sdmmc_send_command(&handleNAND,0x10410,0x200);
 	if((handleNAND.error & 0x4))return -1;
-
-	handleNAND.clk |= 0x200;
 
 	return 0;
 }
@@ -474,9 +473,9 @@ int SD_Init()
 
 	sdmmc_send_command(&handleSD,0,0);
 	sdmmc_send_command(&handleSD,0x10408,0x1AA);
-	uint32_t temp = (handleSD.error & 0x1) << 0x1E;
+	u32 temp = (handleSD.error & 0x1) << 0x1E;
 
-	uint32_t temp2 = 0;
+	u32 temp2 = 0;
 
 	do
 	{
@@ -506,8 +505,8 @@ int SD_Init()
 
 	// Command Class 10 support
 	const bool cmd6Supported = ((u8*)handleSD.ret)[10] & 0x40;
-	handleSD.total_size = sdmmc_calc_size((uint8_t*)&handleSD.ret[0],-1);
-	setckl(1);
+	handleSD.total_size = sdmmc_calc_size((u8*)&handleSD.ret[0],-1);
+	setckl(0x201); // 16.756991 MHz
 
 	sdmmc_send_command(&handleSD,0x10507,handleSD.initarg << 0x10);
 	if((handleSD.error & 0x4)) return -4;
@@ -541,7 +540,7 @@ int SD_Init()
 		if(handleSD.error & 0x4) return -9;
 
 		handleSD.clk = 0x200; // 33.513982 MHz
-		setckl(0);
+		setckl(0x200);
 	}
 	else handleSD.clk = 0x201; // 16.756991 MHz
 
@@ -554,7 +553,7 @@ int SD_Init()
 	return 0;
 }
 
-int sdmmc_get_cid(bool isNand, uint32_t *info)
+int sdmmc_get_cid(bool isNand, u32 *info)
 {
 	struct mmcdevice *device;
 	if(isNand)
