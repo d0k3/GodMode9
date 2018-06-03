@@ -914,7 +914,7 @@ u32 FileAttrMenu(const char* file_path) {
         return 1;
     }
 
-    char namestr[32];
+    char namestr[32 + 1];
     char sizestr[32];
     TruncateString(namestr, fno.fname, 32, 8);
     FormatNumber(sizestr, fno.fsize);
