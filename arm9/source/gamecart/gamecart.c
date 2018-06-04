@@ -152,7 +152,7 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
         // overwrite the card2 savegame with 0xFF
         u32 card2_offset = getle32(cdata->header + 0x200);
         if ((card2_offset != 0xFFFFFFFF) &&
-            (card2_offset >= cdata->data_size) &&
+            ((card2_offset * 0x200) >= cdata->data_size) &&
             (sector + count > card2_offset)) {
             if (sector > card2_offset)
                 memset(buffer8, 0xFF, (count * 0x200));
