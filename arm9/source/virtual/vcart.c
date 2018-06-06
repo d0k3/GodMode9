@@ -35,7 +35,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->size = cdata->cart_size;
             if (vfile->size == FAT_LIMIT) vfile->size--;
             return true;
-        } else if ((vdir->index == 1)  && (cdata->data_size < FAT_LIMIT)) { // trimmed rom
+        } else if ((vdir->index == 1)  && (cdata->data_size < FAT_LIMIT) && cdata->data_size) { // trimmed rom
             snprintf(vfile->name, 32, "%s.trim.%s", name, ext);
             vfile->size = cdata->data_size;
             return true;
