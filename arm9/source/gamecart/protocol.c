@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include "protocol.h"
+#include "timer.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -42,38 +43,42 @@ u32 BSWAP32(u32 val) {
            ((val & 0xFF) << 24);
 }
 
-// TODO: Verify
-static void ResetCartSlot(void)
+// updated function by profi200
+static void ResetCardSlot(void)
 {
-    REG_CARDCONF2 = 0x0C;
-    REG_CARDCONF &= ~3;
+    REG_CARDCYCLES0 = 0x1988;
+    REG_CARDCYCLES1 = 0x264C;
+    // boot9 waits here. Unnecessary?
 
-    if (REG_CARDCONF2 == 0xC) {
-        while (REG_CARDCONF2 != 0);
-    }
+    REG_CARDSTATUS = 3u<<2;     // Request power off
+    while(REG_CARDSTATUS != 0); // Aotomatically changes to 0 (off)
+    wait_msec(1*2);
 
-    if (REG_CARDCONF2 != 0)
-        return;
+    REG_CARDSTATUS = 1u<<2;     // Prepare power on
+    wait_msec(10*2);
 
-    REG_CARDCONF2 = 0x4;
-    while(REG_CARDCONF2 != 0x4);
+    REG_CARDSTATUS = 2u<<2;     // Power on
+    wait_msec(27*2);
 
-    REG_CARDCONF2 = 0x8;
-    while(REG_CARDCONF2 != 0x8);
+    // Switch to NTRCARD controller.
+    REG_CARDCTL = 0;          // Select NTRCARD controller, eject IRQ off?
+    REG_NTRCARDMCNT = NTRCARD_CR1_ENABLE | NTRCARD_CR1_IRQ;
+    REG_NTRCARDROMCNT = 0x20000000;
+    wait_msec(120*2);
 }
 
 static void SwitchToNTRCARD(void)
 {
     REG_NTRCARDROMCNT = 0x20000000;
-    REG_CARDCONF &= ~3;
-    REG_CARDCONF &= ~0x100;
+    REG_CARDCTL &= ~3;
+    REG_CARDCTL &= ~0x100;
     REG_NTRCARDMCNT = NTRCARD_CR1_ENABLE;
 }
 
 static void SwitchToCTRCARD(void)
 {
     REG_CTRCARDCNT = 0x10000000;
-    REG_CARDCONF = (REG_CARDCONF & ~3) | 2;
+    REG_CARDCTL = (REG_CARDCTL & ~3) | 2;
 }
 
 int Cart_IsInserted(void)
@@ -86,38 +91,12 @@ u32 Cart_GetID(void)
     return CartID;
 }
 
-void Cart_Reset(void)
-{
-    ResetCartSlot(); //Seems to reset the cart slot?
-
-    REG_CTRCARDSECCNT &= 0xFFFFFFFB;
-    ioDelay2(0x40000);
-
-    SwitchToNTRCARD();
-    ioDelay2(0x40000);
-}
-
 void Cart_Init(void)
 {
-    ResetCartSlot(); //Seems to reset the cart slot?
-
-    REG_CTRCARDSECCNT &= 0xFFFFFFFB;
-    ioDelay(0x40000);
-
-    SwitchToNTRCARD();
-    ioDelay(0x40000);
-
-    REG_NTRCARDROMCNT = 0;
-    REG_NTRCARDMCNT &= 0xFF;
-    ioDelay(0x40000);
-
-    REG_NTRCARDMCNT |= (NTRCARD_CR1_ENABLE | NTRCARD_CR1_IRQ);
-    REG_NTRCARDROMCNT = NTRCARD_nRESET | NTRCARD_SEC_SEED;
-    while (REG_NTRCARDROMCNT & NTRCARD_BUSY);
+    ResetCardSlot(); //Seems to reset the cart slot?
 
     // Reset
     NTR_CmdReset();
-    ioDelay(0x40000);
     CartID = NTR_CmdGetCartId();
 
     // 3ds
@@ -127,7 +106,6 @@ void Cart_Init(void)
 
         NTR_CmdEnter16ByteMode();
         SwitchToCTRCARD();
-        ioDelay(0xF000);
 
         REG_CTRCARDBLKCNT = 0;
     }

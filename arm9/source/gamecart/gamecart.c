@@ -7,7 +7,7 @@
 #include "ncch.h"
 #include "ncsd.h"
 
-#define CART_INSERTED (!(REG_CARDCONF2 & 0x1))
+#define CART_INSERTED (!(REG_CARDSTATUS & 0x1))
 
 typedef struct {
     NcsdHeader ncsd;
@@ -72,8 +72,8 @@ u32 InitCardRead(CartData* cdata) {
         Cart_Secure_Init((u32*) (void*) ncch_header, sec_keys);
         
         // NCSD header and CINFO
-        Cart_Dummy();
-        Cart_Dummy();
+        // Cart_Dummy();
+        // Cart_Dummy();
         CTR_CmdReadData(0, 0x200, 8, cdata->header);
         
         // safety checks, cart size
@@ -144,8 +144,8 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
         const u32 max_read = 0x800;
         u8* buff = buffer8;
         for (u32 i = 0; i < count; i += max_read) {
-            Cart_Dummy();
-            Cart_Dummy();
+            // Cart_Dummy();
+            // Cart_Dummy();
             CTR_CmdReadData(sector + i, 0x200, min(max_read, count - i), buff);
             buff += max_read * 0x200;
         }

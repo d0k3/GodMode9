@@ -5,8 +5,11 @@
 #pragma once
 #include "common.h"
 
-#define REG_CARDCONF  (*(vu16*)0x1000000C)
-#define REG_CARDCONF2 (*(vu8*)0x10000010)
+#define REG_CARDCTL     (*(vu16*)0x1000000C)
+#define REG_CARDSTATUS  (*(vu8* )0x10000010)
+#define REG_CARDCYCLES0 (*(vu16*)0x10000012)
+#define REG_CARDCYCLES1 (*(vu16*)0x10000014)
+
 
 #define LATENCY 0x822Cu
 
@@ -17,4 +20,3 @@ int Cart_IsInserted(void);
 u32 Cart_GetID(void);
 void Cart_Secure_Init(u32* buf, u32* out);
 void Cart_Dummy(void);
-void Cart_Reset(void);
