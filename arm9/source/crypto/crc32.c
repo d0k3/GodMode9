@@ -5,8 +5,8 @@
 #include "crc32.h"
 #include "common.h"
 
-uint32_t crc32_adjust(uint32_t crc32, uint8_t input) {
-    static const uint32_t crc32_table[256] = {
+u32 crc32_adjust(u32 crc32, u8 input) {
+    static const u32 crc32_table[256] = {
         0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
         0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
         0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91, 0x1db71064, 0x6ab020f2,
@@ -54,22 +54,33 @@ uint32_t crc32_adjust(uint32_t crc32, uint8_t input) {
     return ((crc32 >> 8) & 0x00ffffff) ^ crc32_table[(crc32 ^ input) & 0xff];
 }
 
-uint32_t crc32_calculate(const uint8_t* data, unsigned int length) {
-  uint32_t crc32 = ~0;
-  for(unsigned i = 0; i < length; i++) {
-    crc32 = crc32_adjust(crc32, data[i]);
-  }
-  return ~crc32;
+u32 crc32_calculate(u32 crc32, const u8* data, u32 length) {
+    for(unsigned i = 0; i < length; i++) {
+        crc32 = crc32_adjust(crc32, data[i]);
+    }
+    return crc32;
 }
 
-uint32_t crc32_calculate_from_file(FIL inputFile, unsigned int length) {
-    uint32_t crc32 = ~0;
-    uint8_t data;
-    unsigned int br;
-    fvx_lseek(&inputFile, 0);
-    for(unsigned i = 0; i < length; i++) {
-        fvx_read(&inputFile, &data, 1, &br);
-        crc32 = crc32_adjust(crc32, data);
+u32 crc32_calculate_from_file(const char* fileName, u32 offset, u32 length) {
+    FIL inputFile;
+    u32 crc32 = ~0;
+    u32 bufsiz = min(STD_BUFFER_SIZE, length);
+    u8* buffer = (u8*) malloc(bufsiz);
+    if (!buffer) return false;
+    if (fvx_open(&inputFile, fileName, FA_READ) != FR_OK) return crc32;
+    fvx_lseek(&inputFile, offset);
+    
+    bool ret = true;
+    for (u64 pos = 0; (pos < length) && ret; pos += bufsiz) {
+        UINT read_bytes = min(bufsiz, length - pos);
+        UINT bytes_read = read_bytes;
+        if ((fvx_read(&inputFile, buffer, read_bytes, &bytes_read) != FR_OK) ||
+            (read_bytes != bytes_read))
+            ret = false;
+        if (ret) crc32 = crc32_calculate(crc32, buffer, read_bytes);
     }
+    
+    fvx_close(&inputFile);
+    free(buffer);
     return ~crc32;
 }
