@@ -18,6 +18,7 @@
 #define STRBUF_SIZE 512 // maximum size of the string buffer
 #define FONT_MAX_WIDTH 8
 #define FONT_MAX_HEIGHT 10
+#define PROGRESS_REFRESH_RATE 30 // the progress bar is only allowed to draw to screen every X milliseconds 
 
 static u32 font_width = 0;
 static u32 font_height = 0;
@@ -934,11 +935,13 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     char tempstr[64];
     char progstr[64];
     
+    static u64 last_msec_elapsed = 0;
     static u64 last_sec_remain = 0;
     if (!current) {
         timer = timer_start();
         last_sec_remain = 0;
-    }
+    } else if (timer_msec(timer) < last_msec_elapsed + PROGRESS_REFRESH_RATE) return !CheckButton(BUTTON_B);
+    last_msec_elapsed = timer_msec(timer);
     u64 sec_elapsed = (total > 0) ? timer_sec( timer ) : 0;
     u64 sec_total = (current > 0) ? (sec_elapsed * total) / current : 0;
     u64 sec_remain = (!last_sec_remain) ? (sec_total - sec_elapsed) : ((last_sec_remain + (sec_total - sec_elapsed) + 1) / 2);
