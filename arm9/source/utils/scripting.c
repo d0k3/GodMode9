@@ -117,6 +117,7 @@ typedef enum {
     CMD_ID_EXIST,
     CMD_ID_BOOT,
     CMD_ID_SWITCHSD,
+    CMD_ID_NEXTEMU,
     CMD_ID_REBOOT,
     CMD_ID_POWEROFF,
     CMD_ID_BKPT
@@ -187,6 +188,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_EXIST   , "exist"   , 1, 0 },
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
     { CMD_ID_SWITCHSD, "switchsd", 1, 0 },
+    { CMD_ID_NEXTEMU , "nextemu" , 0, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 },
     { CMD_ID_BKPT    , "bkpt"    , 0, 0 }
@@ -417,6 +419,14 @@ void upd_var(const char* name) {
         snprintf(env_time, 16, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
         if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)) set_var("DATESTAMP", env_date);
         if (!name || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) set_var("TIMESTAMP", env_time);
+    }
+
+    // emunand base sector
+    if (!name || (strncmp(name, "EMUBASE", _VAR_NAME_LEN) == 0)) {
+        u32 emu_base = GetEmuNandBase();
+        char emu_base_str[8+1];
+        snprintf(emu_base_str, 8+1, "%08lX", emu_base);
+        set_var("EMUBASE", emu_base_str);
     }
 }
 
@@ -1395,6 +1405,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
         InitSDCardFS();
         AutoEmuNandBase(true);
+        InitExtFS();
+    }
+    else if (id == CMD_ID_NEXTEMU) {
+        DismountDriveType(DRV_EMUNAND);
+        AutoEmuNandBase(false);
         InitExtFS();
     }
     else if (id == CMD_ID_REBOOT) {
