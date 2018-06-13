@@ -27,7 +27,6 @@ u32 GetCodeLzssUncompressedSize(void* footer, u32 comp_size) {
 u32 DecompressCodeLzss(u8* code, u32* code_size, u32 max_size) {
     u8* data_start = code;
     u8* comp_start = data_start;
-    u8 counter = 0;
     
     // get footer, fix comp_start offset
     if ((*code_size < sizeof(CodeLzssFooter)) || (*code_size > max_size)) return 1;
@@ -46,10 +45,12 @@ u32 DecompressCodeLzss(u8* code, u32* code_size, u32 max_size) {
     
     // main decompression loop
     while ((ptr_in > comp_start) && (ptr_out > comp_start)) {
-        if ((counter++ == 0) &&
-            !ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code...") &&
-            ShowPrompt(true, "Decompressing .code...\nB button detected. Cancel?"))
-            return 1;
+        if (!ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code..."))
+        {
+            if (ShowPrompt(true, "Decompressing .code...\nB button detected. Cancel?")) return 1;
+            ShowProgress(0, data_end - data_start, "Decompressing .code...");
+            ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code...");
+        }
         // sanity check
         if (ptr_out < ptr_in) return 1;
         
@@ -236,7 +237,6 @@ s64 Align(s64 a_nData, s64 a_nAlignment)
 bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_pCompressed, u32* a_uCompressedSize) {
     const int s_nCompressWorkSize = (4098 + 4098 + 256 + 256) * sizeof(s16);
     bool bResult = true;
-    u8 counter = 0;
     if (a_uUncompressedSize > sizeof(CodeLzssFooter) && *a_uCompressedSize >= a_uUncompressedSize)
     {
         u8* pWork = malloc(s_nCompressWorkSize * sizeof(u8));
@@ -250,10 +250,15 @@ bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_
             u8* pDest = a_pCompressed + a_uUncompressedSize;
             while (pSrc - a_pUncompressed > 0 && pDest - a_pCompressed > 0)
             {
-                if ((counter++ == 0) && !ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code...") && ShowPrompt(true, "Compressing .code...\nB button detected. Cancel?"))
+                if (!ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code..."))
                 {
-                    bResult = false;
-                    break;
+                    if (ShowPrompt(true, "Compressing .code...\nB button detected. Cancel?"))
+                    {
+                        bResult = false;
+                        break;
+                    }
+                    ShowProgress(0, a_uUncompressedSize, "Compressing .code...");
+                    ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code...");
                 }
                 u8* pFlag = --pDest;
                 *pFlag = 0;
