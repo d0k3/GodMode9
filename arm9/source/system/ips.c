@@ -9,27 +9,25 @@
 #include "vff.h"
 
 typedef enum {
-	IPS_OK,
-	IPS_NOTTHIS,
-	IPS_THISOUT,
-	IPS_SCRAMBLED,
-	IPS_INVALID,
-	IPS_16MB,
+    IPS_OK,
+    IPS_NOTTHIS,
+    IPS_THISOUT,
+    IPS_SCRAMBLED,
+    IPS_INVALID,
+    IPS_16MB,
     IPS_INVALID_FILE_PATH,
-    IPS_CANCELED
+    IPS_CANCELED,
+    IPS_MEMORY
 } IPSERROR;
 
 FIL patchFile, inFile, outFile;
 size_t patchSize;
+u8 *patch;
+u32 patchOffset;
+
 char errName[256];
 
-uint8_t buf[3];
-unsigned int br;
-
-int ret(int errcode) {
-    fvx_close(&patchFile);
-    fvx_close(&inFile);
-    fvx_close(&outFile);
+int displayError(int errcode) {
     switch(errcode) {
         case IPS_NOTTHIS:
             ShowPrompt(false, "%s\nThe patch is most likely not intended for this file.", errName); break;
@@ -45,46 +43,93 @@ int ret(int errcode) {
             ShowPrompt(false, "%s\nThe requested file path was invalid.", errName); break;
         case IPS_CANCELED:
             ShowPrompt(false, "%s\nPatching canceled.", errName); break;
+        case IPS_MEMORY:
+            ShowPrompt(false, "%s\nNot enough memory.", errName); break;
     }
+    fvx_close(&patchFile);
+    fvx_close(&inFile);
+    fvx_close(&outFile);
     return errcode;
 }
 
-uint8_t read8() {
-    if (fvx_tell(&patchFile) >= patchSize) return 0;
-    fvx_read(&patchFile, &buf, 1, &br);
-    return buf[0];
+typedef enum {
+    COPY_IN,
+    COPY_PATCH,
+    COPY_RLE
+} COPYMODE;
+
+bool IPScopy(u8 mode, u32 size, u8 rle) {
+    bool ret = true;
+    if (mode == COPY_PATCH) {
+        UINT bytes_written = size;
+        if ((fvx_write(&outFile, &patch[patchOffset], size, &bytes_written) != FR_OK) ||
+            (size != bytes_written))
+            ret = false;
+        patchOffset += size;
+    } else {
+        u32 bufsiz = min(STD_BUFFER_SIZE, size);
+        u8* buffer = malloc(bufsiz);
+        if (!buffer) return false;
+        if (mode == COPY_RLE) memset(buffer, rle, bufsiz);
+
+        for (u64 pos = 0; (pos < size) && ret; pos += bufsiz) {
+            UINT read_bytes = min(bufsiz, size - pos);
+            UINT bytes_written = read_bytes;
+            if (((mode == COPY_IN) && (fvx_read(&inFile, buffer, read_bytes, &bytes_written) != FR_OK)) ||
+                ((mode == COPY_PATCH) && (fvx_read(&patchFile, buffer, read_bytes, &bytes_written) != FR_OK)) ||
+                (read_bytes != bytes_written))
+                ret = false;
+            if ((ret && (fvx_write(&outFile, buffer, read_bytes, &bytes_written) != FR_OK)) ||
+                (read_bytes != bytes_written))
+                ret = false;
+        }
+
+        free(buffer);
+    }
+    return ret;
 }
 
-unsigned int read16() {
-    if (fvx_tell(&patchFile)+1 >= patchSize) return 0;
-    fvx_read(&patchFile, &buf, 2, &br);
-    return (buf[0] << 8) | buf[1];
+u8 read8() {
+    if (patchOffset >= patchSize) return 0;
+    return patch[patchOffset++];
 }
 
-unsigned int read24() {
-    if (fvx_tell(&patchFile)+2 >= patchSize) return 0;
-    fvx_read(&patchFile, &buf, 3, &br);
-    return (buf[0] << 16) | (buf[1] << 8) | buf[2];
+UINT read16() {
+    if (patchOffset+1 >= patchSize) return 0;
+    UINT buf = patch[patchOffset++] << 8;
+    buf |= patch[patchOffset++];
+    return buf;
+}
+
+UINT read24() {
+    if (patchOffset+2 >= patchSize) return 0;
+    UINT buf = patch[patchOffset++] << 16;
+    buf |= patch[patchOffset++] << 8;
+    buf |= patch[patchOffset++];
+    return buf;
 }
 
 int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName) {
     int error = IPS_INVALID;
-    unsigned int outlen_min, outlen_max, outlen_min_mem;
+    UINT outlen_min, outlen_max, outlen_min_mem;
     snprintf(errName, 256, "%s", patchName);
     
-    if (fvx_open(&patchFile, patchName, FA_READ) != FR_OK) return ret(IPS_INVALID_FILE_PATH);
+    if (fvx_open(&patchFile, patchName, FA_READ) != FR_OK) return displayError(IPS_INVALID_FILE_PATH);
     patchSize = fvx_size(&patchFile);
     ShowProgress(0, patchSize, patchName);
     
+    patch = malloc(patchSize);
+    if (!patch || fvx_read(&patchFile, patch, patchSize, NULL) != FR_OK) return displayError(IPS_MEMORY);
+    
     // Check validity of patch
-    if (patchSize < 8) return ret(IPS_INVALID);
+    if (patchSize < 8) return displayError(IPS_INVALID);
     if (read8() != 'P' ||
         read8() != 'A' ||
         read8() != 'T' ||
         read8() != 'C' ||
         read8() != 'H')
     {
-        return ret(IPS_INVALID);
+        return displayError(IPS_INVALID);
     }
     
     unsigned int offset = read24();
@@ -94,31 +139,34 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     bool w_scrambled = false;
     while (offset != 0x454F46) // 454F46=EOF
     {
-        if (!ShowProgress(fvx_tell(&patchFile), patchSize, patchName) &&
-            ShowPrompt(true, "%s\nB button detected. Cancel?", patchName))
-            return ret(IPS_CANCELED);
+        if (!ShowProgress(patchOffset, patchSize, patchName)) {
+            if (ShowPrompt(true, "%s\nB button detected. Cancel?", patchName)) return displayError(IPS_CANCELED);
+            ShowProgress(0, patchSize, patchName);
+            ShowProgress(patchOffset, patchSize, patchName);
+        }
+        
         unsigned int size = read16();
         if (size == 0)
         {
             size = read16();
-            if (!size) return ret(IPS_INVALID);
+            if (!size) return displayError(IPS_INVALID);
             thisout = offset + size;
             read8();
         }
         else
         {
             thisout = offset + size;
-            fvx_lseek(&patchFile, fvx_tell(&patchFile) + size);
+            patchOffset += size;
         }
         if (offset < lastoffset) w_scrambled = true;
         lastoffset = offset;
         if (thisout > outlen) outlen = thisout;
-        if (fvx_tell(&patchFile) >= patchSize) return ret(IPS_INVALID);
+        if (patchOffset >= patchSize) return displayError(IPS_INVALID);
         offset = read24();
     }
     outlen_min_mem = outlen;
     outlen_max = 0xFFFFFFFF;
-    if (fvx_tell(&patchFile)+3 == patchSize)
+    if (patchOffset+3 == patchSize)
     {
         unsigned int truncate = read24();
         outlen_max = truncate;
@@ -128,23 +176,23 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
             w_scrambled = true;
         }
     }
-    if (fvx_tell(&patchFile) != patchSize) return ret(IPS_INVALID);
+    if (patchOffset != patchSize) return displayError(IPS_INVALID);
     outlen_min = outlen;
     error = IPS_OK;
     if (w_scrambled) error = IPS_SCRAMBLED;
     
     // start applying patch
     bool inPlace = false;
-    if (!CheckWritePermissions(outName)) return ret(IPS_INVALID_FILE_PATH);
+    if (!CheckWritePermissions(outName)) return displayError(IPS_INVALID_FILE_PATH);
     if (strncasecmp(inName, outName, 256) == 0)
     {
-        if (fvx_open(&outFile, outName, FA_WRITE | FA_READ) != FR_OK) return ret(IPS_INVALID_FILE_PATH);
+        if (fvx_open(&outFile, outName, FA_WRITE | FA_READ) != FR_OK) return displayError(IPS_INVALID_FILE_PATH);
         inFile = outFile;
         inPlace = true;
     }
     else if ((fvx_open(&inFile, inName, FA_READ) != FR_OK) ||
             (fvx_open(&outFile, outName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
-            return ret(IPS_INVALID_FILE_PATH);
+            return displayError(IPS_INVALID_FILE_PATH);
     
     size_t inSize = fvx_size(&inFile);
     outlen = max(outlen_min, min(inSize, outlen_max));
@@ -153,47 +201,29 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     size_t outSize = outlen;
     ShowProgress(0, outSize, outName);
     
-    if (!inPlace) {
-        fvx_lseek(&inFile, 0);
-        uint8_t buffer;
-        for(size_t n = 0; n < min(inSize, outlen); n++) {
-            fvx_read(&inFile, &buffer, 1, &br);
-            fvx_write(&outFile, &buffer, 1, &br);
-        }
-    }
-    if (outSize > inSize) {
-        fvx_lseek(&outFile, inSize);
-        for(size_t n = inSize; n < outSize; n++) fvx_write(&outFile, 0, 1, &br);
-    }
+    fvx_lseek(&inFile, 0);
+    if (!inPlace && !IPScopy(COPY_IN, min(inSize, outlen), 0)) return displayError(IPS_MEMORY);
+    fvx_lseek(&outFile, inSize);
+    if (outSize > inSize && !IPScopy(COPY_RLE, outSize - inSize, 0)) return displayError(IPS_MEMORY);
     
     fvx_lseek(&patchFile, 5);
     offset = read24();
     while (offset != 0x454F46)
     {
-        if (!ShowProgress(offset, outSize, outName) &&
-            ShowPrompt(true, "%s\nB button detected. Cancel?", patchName))
-            return ret(IPS_CANCELED);
+        if (!ShowProgress(offset, outSize, outName)) {
+            if (ShowPrompt(true, "%s\nB button detected. Cancel?", outName)) return displayError(IPS_CANCELED);
+            ShowProgress(0, outSize, outName);
+            ShowProgress(offset, outSize, outName);
+        }
         
         fvx_lseek(&outFile, offset);
         unsigned int size = read16();
-        if (size == 0)
-        {
-            size = read16();
-            uint8_t b = read8();
-            for(size_t n = 0; n < size; n++) fvx_write(&outFile, &b, 1, &br);
-        }
-        else
-        {
-            uint8_t buffer;
-            for(size_t n = 0; n < size; n++) {
-                fvx_read(&patchFile, &buffer, 1, &br);
-                fvx_write(&outFile, &buffer, 1, &br);
-            }
-        }
+        if (size == 0 && !IPScopy(COPY_RLE, read16(), read8())) return displayError(IPS_MEMORY); 
+        else if (size != 0 && !IPScopy(COPY_PATCH, size, 0)) return displayError(IPS_MEMORY);
         offset = read24();
     }
     
     fvx_lseek(&outFile, outSize);
     f_truncate(&outFile);
-    return ret(error);
+    return displayError(error);
 }

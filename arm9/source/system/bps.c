@@ -9,6 +9,9 @@
 #include "fsperm.h"
 #include "ui.h"
 #include "vff.h"
+#include "timer.h"
+
+#define chunkSize STD_BUFFER_SIZE
 
 typedef enum {
     BEAT_SUCCESS = 0,
@@ -21,7 +24,8 @@ typedef enum {
     BEAT_PATCH_CHECKSUM_INVALID,
     BEAT_BPM_CHECKSUM_INVALID,
     BEAT_INVALID_FILE_PATH,
-    BEAT_CANCELED
+    BEAT_CANCELED,
+    BEAT_MEMORY
 } BPSRESULT;
 
 typedef enum {
@@ -38,37 +42,135 @@ typedef enum {
     BEAT_MIRRORFILE
 } BPMACTION;
 
-size_t patchSize;
-FIL patchFile;
-FIL sourceFile;
-FIL targetFile;
+typedef enum {
+    BEAT_PATCH = 1,
+    BEAT_SOURCE,
+    BEAT_TARGET
+} BEATFILEID;
 
-uint8_t* sourceData;
-uint8_t* targetData;
-bool sourceInMemory;
-bool targetInMemory;
+typedef struct {
+    u8* data;
+    u32 size;
+    u64 time;
+} DataChunk;
 
-unsigned int modifyOffset;
-unsigned int outputOffset;
-uint32_t modifyChecksum;
-uint32_t targetChecksum;
+typedef struct {
+    FIL file;
+    u8 id;
+    u32 size;
+    u32 checksum;
+    u32 checksumNeeded;
+    u32 currOffset;
+    u32 relOffset;
+    DataChunk dataChunks[];
+} BeatFile;
+
+BeatFile *patch;
+BeatFile *source;
+BeatFile *target;
 
 bool bpmIsActive;
-uint32_t bpmChecksum;
+u32 bpsSize;
+u32 bpsChecksum;
 
-uint8_t buffer;
-unsigned int br;
+u64 timer;
+u64 timerLastCheck;
 
 char progressText[256];
-unsigned int outputCurrent;
-unsigned int outputTotal;
 
-int err(int errcode) {
-    if(sourceInMemory) free(sourceData);
-    if(targetInMemory) free(targetData);
-    fvx_close(&sourceFile);
-    fvx_close(&targetFile);
-    fvx_close(&patchFile);
+BeatFile* initFile(const char *path, u8 id, u64 targetSize) {
+    u32 numChunks;
+    if (id != BEAT_TARGET) {
+        FIL f;
+        if (fvx_open(&f, path, FA_READ) != FR_OK) return NULL;
+        numChunks = fvx_size(&f) / chunkSize;
+        fvx_close(&f);
+    } else numChunks = targetSize / chunkSize;
+    BeatFile *bf = malloc(offsetof(BeatFile, dataChunks) + ((numChunks + 1) * sizeof(DataChunk)));
+    if (id == BEAT_TARGET) {
+        if (fvx_open(&bf->file, path, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK) return NULL;
+        fvx_lseek(&bf->file, targetSize); fvx_lseek(&bf->file, 0);
+    } else if (fvx_open(&bf->file, path, FA_READ) != FR_OK) return NULL;
+    bf->id = id; bf->size = fvx_size(&bf->file);
+    bf->checksum = ~0; bf->checksumNeeded = 0;
+    bf->currOffset = 0; bf->relOffset = 0;
+    for (UINT n = 0; n <= numChunks; n++) {
+        bf->dataChunks[n].data = NULL;
+        bf->dataChunks[n].size = ((n == numChunks) ? (bf->size % chunkSize) : chunkSize);
+        bf->dataChunks[n].time = timer;
+    }
+    return bf;
+}
+
+bool checksumChunk(BeatFile *bf, u32 chunkNum) {
+    u32 trimLen = 0;
+    if (bf->id == BEAT_PATCH) {
+        u32 chunkEnd = (chunkNum * chunkSize) + bf->dataChunks[chunkNum].size;
+        u32 patchEnd = bf->size - 4;
+        if (chunkEnd > patchEnd) trimLen = chunkEnd - patchEnd;
+    } else if (bf->id == BEAT_TARGET) {
+        fvx_lseek(&bf->file, chunkNum * chunkSize);
+        if (fvx_write(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, NULL) != FR_OK) return false;
+    }
+    bf->checksum = crc32_calculate(bf->checksum, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size - trimLen);
+    bf->checksumNeeded++;
+    return true;
+}
+
+bool freeChunk(BeatFile *bf, u32 chunkNum) {
+    if (chunkNum == bf->checksumNeeded && !checksumChunk(bf, chunkNum)) return false;
+    free(bf->dataChunks[chunkNum].data);
+    bf->dataChunks[chunkNum].data = NULL;
+    return true;
+}
+
+bool freeOldestChunk() {
+    BeatFile *fid; u32 chunkNum; u64 chunkTime = UINT64_MAX;
+    for (UINT n = 0; n <= source->size / chunkSize; n++) {
+        if (source->dataChunks[n].data && source->dataChunks[n].time < chunkTime) {
+            fid = source; chunkNum = n; chunkTime = source->dataChunks[n].time;
+        }
+    }
+    for (UINT n = 0; n <= target->size / chunkSize; n++) {
+        if (target->dataChunks[n].data && target->dataChunks[n].time < chunkTime && n != (target->currOffset / chunkSize)) {
+            fid = target; chunkNum = n; chunkTime = target->dataChunks[n].time;
+        }
+    }
+    if (chunkTime != UINT64_MAX) return freeChunk(fid, chunkNum);
+    else return false;
+}
+
+bool readChunk(BeatFile *bf, u32 chunkNum) {
+    if (bf->id == BEAT_PATCH) { // the patch is read linearly, so previous chunks can be freed immediately
+        for (UINT n = 0; n < chunkNum; n++) {
+            if (bf->dataChunks[n].data) freeChunk(bf, n);
+        }
+    }
+    if (bf->dataChunks[chunkNum].size == 0) return true;
+    bf->dataChunks[chunkNum].data = malloc(bf->dataChunks[chunkNum].size);
+    while (!bf->dataChunks[chunkNum].data) { // free chunks in order from least recently accessed to most recently accessed until we are no longer out of memory
+        if (!freeOldestChunk()) return false;
+        bf->dataChunks[chunkNum].data = malloc(bf->dataChunks[chunkNum].size);
+    }
+    fvx_lseek(&bf->file, chunkNum * chunkSize);
+    if (fvx_read(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, NULL) != FR_OK) return false;
+    if (bf->id == BEAT_SOURCE && chunkNum == bf->checksumNeeded && !checksumChunk(bf, chunkNum)) return false; // checksum source as soon as possible
+    if (bf->id == BEAT_TARGET && chunkNum == bf->checksumNeeded + 1 && !checksumChunk(bf, chunkNum - 1)) return false; // write and checksum target as soon as possible
+    bf->dataChunks[chunkNum].time = timer_ticks(timer);
+    return true;
+}
+
+u32 closeFile(BeatFile *bf) {
+    for (UINT n = 0; n <= bf->size / chunkSize; n++) {
+        if (bf->dataChunks[n].data) freeChunk(bf, n);
+    }
+    fvx_close(&bf->file);
+    u32 checksum = ~bf->checksum;
+    free(bf);
+    return checksum;
+}
+
+int fatalError(int errcode) {
     switch(errcode) {
         case BEAT_PATCH_TOO_SMALL:
             ShowPrompt(false, "%s\nThe patch is too small to be a valid BPS file.", progressText); break;
@@ -90,22 +192,52 @@ int err(int errcode) {
             ShowPrompt(false, "%s\nThe requested file path was invalid.", progressText); break;
         case BEAT_CANCELED:
             ShowPrompt(false, "%s\nPatching canceled.", progressText); break;
+        case BEAT_MEMORY:
+            ShowPrompt(false, "%s\nNot enough memory.", progressText); break;
     }
+    if (patch) { closeFile(patch); patch = NULL; }
+    if (source) { closeFile(source); source = NULL; }
+    if (target) { closeFile(target); target = NULL; }
     return errcode;
 }
 
-uint8_t BPSread() {
-    fvx_read(&patchFile, &buffer, 1, &br);
-    modifyChecksum = crc32_adjust(modifyChecksum, buffer);
-    if (bpmIsActive) bpmChecksum = crc32_adjust(bpmChecksum, buffer);
-    modifyOffset++;
-    return buffer;
+bool beatCopy(const char* inName, const char* outName, u32 offset, u32 length) {
+    FIL inFile, outFile;
+    if (fvx_open(&inFile, inName, FA_READ) != FR_OK ||
+        fvx_open(&outFile, outName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK)
+        return false;
+    fvx_lseek(&inFile, offset);
+    if (length == 0) length = fvx_size(&inFile);
+    u32 bufsiz = min(STD_BUFFER_SIZE, length);
+    u8* buffer = malloc(bufsiz);
+    if (!buffer) return false;
+    
+    bool ret = true;
+    for (u64 pos = 0; (pos < length) && ret; pos += bufsiz) {
+        UINT read_bytes = min(bufsiz, length - pos);
+        UINT bytes_read = read_bytes;
+        if ((fvx_read(&inFile, buffer, read_bytes, &bytes_read) != FR_OK) || (read_bytes != bytes_read)) ret = false;
+        if (ret && fvx_write(&outFile, buffer, read_bytes, &bytes_read) != FR_OK) ret = false;
+    }
+    
+    fvx_close(&inFile);
+    fvx_close(&outFile);
+    free(buffer);
+    return ret;
 }
 
-uint64_t BPSdecode() {
-    uint64_t data = 0, shift = 1;
+u8 beatRead() {
+    if (!patch->dataChunks[patch->currOffset / chunkSize].data) readChunk(patch, patch->currOffset / chunkSize);
+    u8 buf = patch->dataChunks[patch->currOffset / chunkSize].data[patch->currOffset % chunkSize];
+    bpsChecksum = crc32_adjust(bpsChecksum, buf);
+    patch->currOffset++; patch->relOffset++;
+    return buf;
+}
+
+u64 beatReadNumber() {
+    u64 data = 0, shift = 1;
     while(true) {
-        uint8_t x = BPSread();
+        u8 x = beatRead();
         data += (x & 0x7f) * shift;
         if(x & 0x80) break;
         shift <<= 7;
@@ -114,322 +246,248 @@ uint64_t BPSdecode() {
     return data;
 }
 
-void BPSwrite(uint8_t data) {
-    if(targetInMemory) targetData[outputOffset] = data;
-    else fvx_write(&targetFile, &data, 1, &br);
-    targetChecksum = crc32_adjust(targetChecksum, data);
-    outputOffset++;
+u32 beatReadChecksum() {
+    u32 checksum = 0;
+    checksum |= beatRead() <<  0;
+    checksum |= beatRead() <<  8;
+    checksum |= beatRead() << 16;
+    checksum |= beatRead() << 24;
+    return checksum;
 }
 
-int ApplyBeatPatch() {
-    unsigned int sourceRelativeOffset = 0, targetRelativeOffset = 0;
-    sourceInMemory = false, targetInMemory = false;
-    modifyOffset = 0, outputOffset = 0;
-    modifyChecksum = ~0, targetChecksum = ~0;
-    if(patchSize < 19) return err(BEAT_PATCH_TOO_SMALL);
-    
-    if(BPSread() != 'B') return err(BEAT_PATCH_INVALID_HEADER);
-    if(BPSread() != 'P') return err(BEAT_PATCH_INVALID_HEADER);
-    if(BPSread() != 'S') return err(BEAT_PATCH_INVALID_HEADER);
-    if(BPSread() != '1') return err(BEAT_PATCH_INVALID_HEADER);
-    
-    size_t modifySourceSize = BPSdecode();
-    size_t modifyTargetSize = BPSdecode();
-    size_t modifyMarkupSize = BPSdecode();
-    for(unsigned int n = 0; n < modifyMarkupSize; n++) BPSread(); // metadata, not useful to us
+bool beatReadString(u32 length, char text[]) {
+    char strBuf[256];
+    for(u32 i = 0; i < length; i++) { strBuf[min(i, 256)] = beatRead(); }
+    strBuf[length] = '\0';
+    snprintf(text, 256, "%s", strBuf);
+    return true;
+}
 
-    size_t sourceSize = fvx_size(&sourceFile);
-    fvx_lseek(&sourceFile, 0);
-    fvx_lseek(&targetFile, modifyTargetSize);
-    fvx_lseek(&targetFile, 0);
-    size_t targetSize = fvx_size(&targetFile);
-    if (!bpmIsActive) outputTotal = targetSize;
-    if(modifySourceSize > sourceSize) return err(BEAT_SOURCE_TOO_SMALL);
-    if(modifyTargetSize > targetSize) return err(BEAT_TARGET_TOO_SMALL);
-    
-    sourceData = (uint8_t*)malloc(sourceSize);
-    targetData = (uint8_t*)malloc(targetSize);
-    if (sourceData != NULL) {
-        sourceInMemory = true;
-        fvx_read(&sourceFile, sourceData, sourceSize, &br);
-    }
-    if (targetData != NULL) targetInMemory = true;
+void findNewOffset(BeatFile *bf) {
+    int offset = beatReadNumber();
+    bool negative = offset & 1;
+    offset >>= 1;
+    if (negative) offset = -offset;
+    bf->relOffset += offset;
+}
 
-    while((modifyOffset < patchSize - 12)) {
-        if (!ShowProgress(outputCurrent, outputTotal, progressText) &&
-            ShowPrompt(true, "%s\nB button detected. Cancel?", progressText))
-            return err(BEAT_CANCELED);
+int ApplyBeatPatch(const char* targetName) {
+    bpsChecksum = ~0;
+    patch->relOffset = 0;
+    if(bpsSize < 19) return fatalError(BEAT_PATCH_TOO_SMALL);
+    
+    char header[4];
+    beatReadString(4, header);
+    if (strcmp(header, "BPS1") != 0) return fatalError(BEAT_PATCH_INVALID_HEADER);
+    
+    u64 patchSourceSize = beatReadNumber(patch);
+    u64 patchTargetSize = beatReadNumber(patch);
+    u64 patchMetaSize = beatReadNumber(patch);
+    char metadata[256];
+    beatReadString(patchMetaSize, metadata);
+
+    target = initFile(targetName, BEAT_TARGET, patchTargetSize);
+    if (!target) return fatalError(BEAT_INVALID_FILE_PATH);
+    if (patchSourceSize > source->size) return fatalError(BEAT_SOURCE_TOO_SMALL);
+    if (patchTargetSize > target->size) return fatalError(BEAT_TARGET_TOO_SMALL);
+    
+    bool chunkedPatch = chunkSize < patch->size;
+    bool chunkedSource = chunkSize < source->size;
+    bool chunkedTarget = chunkSize < target->size;
+    bool chunkedCopy = chunkedPatch || chunkedSource || chunkedTarget;
+    if ((!chunkedSource && !readChunk(source, 0)) ||
+        (!chunkedTarget && !readChunk(target, 0)))
+        return fatalError(BEAT_MEMORY);
+    
+    while(patch->relOffset < bpsSize - 12) {
+        if (!ShowProgress(patch->currOffset, patch->size, progressText)) {
+            if (ShowPrompt(true, "%s\nB button detected. Cancel?", progressText)) return fatalError(BEAT_CANCELED);
+            ShowProgress(0, patch->size, progressText);
+            ShowProgress(patch->currOffset, patch->size, progressText);
+        }
             
-        unsigned int length = BPSdecode();
-        unsigned int mode = length & 3;
+        UINT length = beatReadNumber(patch);
+        UINT mode = length & 3;
         length = (length >> 2) + 1;
-        outputCurrent += length;
-
-        switch(mode) {
-            case BEAT_SOURCEREAD:
-                if (sourceInMemory) {
-                    while(length--) BPSwrite(sourceData[outputOffset]);
-                } else {
-                    fvx_lseek(&sourceFile, fvx_tell(&targetFile));
-                    while(length--) {
-                        fvx_read(&sourceFile, &buffer, 1, &br);
-                        BPSwrite(buffer);
-                    }
-                }
-                break;
-            case BEAT_TARGETREAD:
-                while(length--) BPSwrite(BPSread());
-                break;
-            case BEAT_SOURCECOPY:
-            case BEAT_TARGETCOPY:
-                ; // intentional null statement
-                int offset = BPSdecode();
-                bool negative = offset & 1;
-                offset >>= 1;
-                if(negative) offset = -offset;
-
-                if(mode == BEAT_SOURCECOPY) {
-                    sourceRelativeOffset += offset;
-                    if(sourceInMemory) {
-                        while(length--) BPSwrite(sourceData[sourceRelativeOffset++]);
-                    } else {
-                        fvx_lseek(&sourceFile, sourceRelativeOffset);
-                        while(length--) {
-                            fvx_read(&sourceFile, &buffer, 1, &br);
-                            BPSwrite(buffer);
-                            sourceRelativeOffset++;
+        
+        if (mode == BEAT_SOURCECOPY) { findNewOffset(source); }
+        else if (mode == BEAT_TARGETCOPY) { findNewOffset(target); }
+        
+        if (!chunkedCopy) { // if all three files are smaller than 1 MB, no memory management is required
+            switch (mode) {
+                case BEAT_SOURCEREAD:
+                    memcpy(&target->dataChunks[0].data[target->currOffset], &source->dataChunks[0].data[target->currOffset], length);
+                    target->currOffset += length; source->currOffset += length;
+                    break;
+                case BEAT_TARGETREAD:
+                    memcpy(&target->dataChunks[0].data[target->currOffset], &patch->dataChunks[0].data[patch->currOffset], length);
+                    if (bpmIsActive) bpsChecksum = crc32_calculate(bpsChecksum, &patch->dataChunks[0].data[patch->currOffset], length);
+                    target->currOffset += length; patch->currOffset += length; patch->relOffset += length;
+                    break;
+                case BEAT_SOURCECOPY:
+                    memcpy(&target->dataChunks[0].data[target->currOffset], &source->dataChunks[0].data[source->relOffset], length);
+                    target->currOffset += length; source->relOffset += length;
+                    break;
+                case BEAT_TARGETCOPY: // memcpy is not used due to overlapping memory regions: we may need to read data that we have just written
+                    while (length--) { target->dataChunks[0].data[target->currOffset++] = target->dataChunks[0].data[target->relOffset++]; }
+                    break;
+            }
+        } else { // otherwise, we have to check before each read that the 1 MB chunk of data that we want is currently read into memory
+            u32 outChunk, outPos, inChunk, inPos;
+            UINT maxlen; // this variable stops reads at the end of chunks
+            while (length) { // and this one restarts them
+                if (chunkedTarget) { // we can still optimize portions if the related file is smaller than 1 MB
+                    outChunk = target->currOffset / chunkSize; outPos = target->currOffset % chunkSize;
+                    if (!target->dataChunks[outChunk].data && !readChunk(target, outChunk)) return fatalError(BEAT_MEMORY);
+                    target->dataChunks[outChunk].time = timer_ticks(timer);
+                    maxlen = min(target->dataChunks[outChunk].size - outPos, length);
+                } else { outChunk = 0; outPos = target->currOffset; maxlen = length; }
+                switch (mode) {
+                    case BEAT_SOURCEREAD:
+                        if (chunkedSource) {
+                            if (!source->dataChunks[outChunk].data && !readChunk(source, outChunk)) return fatalError(BEAT_MEMORY);
+                            source->dataChunks[outChunk].time = timer_ticks(timer);
+                            maxlen = min(source->dataChunks[outChunk].size - outPos, maxlen);
                         }
-                        fvx_lseek(&sourceFile, fvx_tell(&targetFile));
-                    }
-                } else {
-                    targetRelativeOffset += offset;
-                    if(targetInMemory) {
-                        while(length--) BPSwrite(targetData[targetRelativeOffset++]);
-                    } else {
-                        unsigned int targetOffset = fvx_tell(&targetFile);
-                        while(length--) {
-                            fvx_lseek(&targetFile, targetRelativeOffset);
-                            fvx_read(&targetFile, &buffer, 1, &br);
-                            fvx_lseek(&targetFile, targetOffset);
-                            BPSwrite(buffer);
-                            targetRelativeOffset++;
-                            targetOffset++;
-                        }
-                    }
+                        length -= maxlen; target->currOffset += maxlen; source->currOffset += maxlen;
+                        memcpy(&target->dataChunks[outChunk].data[outPos], &source->dataChunks[outChunk].data[outPos], maxlen);
+                        break;
+                    case BEAT_TARGETREAD:
+                        if (chunkedPatch) {
+                            inChunk = patch->currOffset / chunkSize; inPos = patch->currOffset % chunkSize;
+                            if (!patch->dataChunks[inChunk].data && !readChunk(patch, inChunk)) return fatalError(BEAT_MEMORY);
+                            maxlen = min(patch->dataChunks[inChunk].size - inPos, maxlen);
+                        } else { inChunk = 0; inPos = patch->currOffset; }
+                        length -= maxlen; target->currOffset += maxlen; patch->currOffset += maxlen; patch->relOffset += maxlen;
+                        memcpy(&target->dataChunks[outChunk].data[outPos], &patch->dataChunks[inChunk].data[inPos], maxlen);
+                        if (bpmIsActive) bpsChecksum = crc32_calculate(bpsChecksum, &patch->dataChunks[inChunk].data[inPos], maxlen);
+                        break;
+                    case BEAT_SOURCECOPY:
+                        if (chunkedSource) {
+                            inChunk = source->relOffset / chunkSize; inPos = source->relOffset % chunkSize;
+                            if (!source->dataChunks[inChunk].data && !readChunk(source, inChunk)) return fatalError(BEAT_MEMORY);
+                            source->dataChunks[inChunk].time = timer_ticks(timer);
+                            maxlen = min(source->dataChunks[inChunk].size - inPos, maxlen);
+                        } else { inChunk = 0; inPos = source->relOffset; }
+                        length -= maxlen; target->currOffset += maxlen; source->relOffset += maxlen;
+                        memcpy(&target->dataChunks[outChunk].data[outPos], &source->dataChunks[inChunk].data[inPos], maxlen);
+                        break;
+                    case BEAT_TARGETCOPY:
+                        if (chunkedTarget) {
+                            inChunk = target->relOffset / chunkSize; inPos = target->relOffset % chunkSize;
+                            if (!target->dataChunks[inChunk].data && !readChunk(target, inChunk)) return fatalError(BEAT_MEMORY);
+                            target->dataChunks[inChunk].time = timer_ticks(timer);
+                            maxlen = min(target->dataChunks[inChunk].size - inPos, maxlen);
+                        } else { inChunk = 0; inPos = target->relOffset; }
+                        length -= maxlen; target->currOffset += maxlen; target->relOffset += maxlen;
+                        if (inChunk == outChunk) { while (maxlen--) { target->dataChunks[outChunk].data[outPos++] = target->dataChunks[inChunk].data[inPos++]; } }
+                        else memcpy(&target->dataChunks[outChunk].data[outPos], &target->dataChunks[inChunk].data[inPos], maxlen);
+                        break;
                 }
-                break;
+            }
         }
     }
-
-    uint32_t modifySourceChecksum = 0, modifyTargetChecksum = 0, modifyModifyChecksum = 0;
-    for(unsigned int n = 0; n < 32; n += 8) modifySourceChecksum |= BPSread() << n;
-    for(unsigned int n = 0; n < 32; n += 8) modifyTargetChecksum |= BPSread() << n;
-    uint32_t checksum = ~modifyChecksum;
-    for(unsigned int n = 0; n < 32; n += 8) modifyModifyChecksum |= BPSread() << n;
-
-    uint32_t sourceChecksum;
-    if(sourceInMemory) sourceChecksum = crc32_calculate(sourceData, modifySourceSize);
-    else sourceChecksum = crc32_calculate_from_file(sourceFile, modifySourceSize);
-    targetChecksum = ~targetChecksum;
-
-    if (sourceInMemory) free(sourceData);
-    fvx_close(&sourceFile);
     
-    if (targetInMemory) {
-        fvx_write(&targetFile, targetData, targetSize, &br);
-        free(targetData);
+    u32 patchSourceChecksum = beatReadChecksum();
+    u32 patchTargetChecksum = beatReadChecksum();
+    u32 finalPatchChecksum = ~bpsChecksum;
+    u32 patchPatchChecksum = beatReadChecksum();
+    
+    while (source->checksumNeeded <= source->size / chunkSize) { // not all source chunks are guaranteed to have been checksummed
+        if (!source->dataChunks[source->checksumNeeded].data) readChunk(source, source->checksumNeeded);
+        checksumChunk(source, source->checksumNeeded);
     }
-    fvx_close(&targetFile);
     
-    if (!bpmIsActive) fvx_close(&patchFile);
-
-    if(sourceChecksum != modifySourceChecksum) return err(BEAT_SOURCE_CHECKSUM_INVALID);
-    if(targetChecksum != modifyTargetChecksum) return err(BEAT_TARGET_CHECKSUM_INVALID);
-    if(checksum != modifyModifyChecksum) return err(BEAT_PATCH_CHECKSUM_INVALID);
+    if (!bpmIsActive) { finalPatchChecksum = closeFile(patch); patch = NULL; }
+    u32 finalSourceChecksum = closeFile(source); source = NULL;
+    u32 finalTargetChecksum = closeFile(target); target = NULL;
+    if(finalPatchChecksum != patchPatchChecksum) return fatalError(BEAT_PATCH_CHECKSUM_INVALID);
+    if(finalSourceChecksum != patchSourceChecksum) return fatalError(BEAT_SOURCE_CHECKSUM_INVALID);
+    if(finalTargetChecksum != patchTargetChecksum) return fatalError(BEAT_TARGET_CHECKSUM_INVALID);
     
     return BEAT_SUCCESS;
 }
 
-int ApplyBPSPatch(const char* modifyName, const char* sourceName, const char* targetName) {
-    bpmIsActive = false;
+int ApplyBPSPatch(const char* patchName, const char* sourceName, const char* targetName) {
+    bpmIsActive = false; timer = timer_start(); timerLastCheck = 0;
+    patch = initFile(patchName, BEAT_PATCH, 0); source = initFile(sourceName, BEAT_SOURCE, 0); target = NULL;
     
-    if ((!CheckWritePermissions(targetName)) ||
-        (fvx_open(&patchFile, modifyName, FA_READ) != FR_OK) ||
-        (fvx_open(&sourceFile, sourceName, FA_READ) != FR_OK) ||
-        (fvx_open(&targetFile, targetName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
-        return err(BEAT_INVALID_FILE_PATH);
+    if (!CheckWritePermissions(targetName) || !patch || !source) return fatalError(BEAT_INVALID_FILE_PATH);
     
-    patchSize = fvx_size(&patchFile);
+    bpsSize = patch->size;
     snprintf(progressText, 256, "%s", targetName);
-    return ApplyBeatPatch();
-}
-
-uint8_t BPMread() {
-    fvx_read(&patchFile, &buffer, 1, &br);
-    if (bpmIsActive) bpmChecksum = crc32_adjust(bpmChecksum, buffer);
-    return buffer;
-}
-
-uint64_t BPMreadNumber() {
-    uint64_t data = 0, shift = 1;
-    while(true) {
-        uint8_t x = BPMread();
-        data += (x & 0x7f) * shift;
-        if(x & 0x80) break;
-        shift <<= 7;
-        data += shift;
-    }
-    return data;
-}
-
-char* BPMreadString(char text[], unsigned int length) {
-    for(unsigned int n = 0; n < length; n++) text[n] = BPMread();
-    text[length] = '\0';
-    return text;
-}
-
-uint32_t BPMreadChecksum() {
-    uint32_t checksum = 0;
-    checksum |= BPMread() <<  0;
-    checksum |= BPMread() <<  8;
-    checksum |= BPMread() << 16;
-    checksum |= BPMread() << 24;
-    return checksum;
-}
-
-bool CalculateBPMLength(const char* patchName, const char* sourcePath, const char* targetPath) {
-    bpmIsActive = false;
-    snprintf(progressText, 256, "%s", patchName);
-    fvx_lseek(&patchFile, BPMreadNumber() + fvx_tell(&patchFile));
-    while(fvx_tell(&patchFile) < fvx_size(&patchFile) - 4) {
-        uint64_t encoding = BPMreadNumber();
-        unsigned int action = encoding & 3;
-        char targetName[256];
-        BPMreadString(targetName, (encoding >> 2) + 1);
-        if (!ShowProgress(fvx_tell(&patchFile), fvx_size(&patchFile), progressText) &&
-            ShowPrompt(true, "%s\nB button detected. Cancel?", progressText))
-            return false;
-        if(action == BEAT_CREATEFILE) {
-            uint64_t fileSize = BPMreadNumber();
-            fvx_lseek(&patchFile, fileSize + 4 + fvx_tell(&patchFile));
-            outputTotal += fileSize;
-        } else if(action == BEAT_MODIFYFILE) {
-            fvx_lseek(&patchFile, (BPMreadNumber() >> 1) + fvx_tell(&patchFile));
-            uint64_t patchSize = BPMreadNumber() + fvx_tell(&patchFile);
-            fvx_lseek(&patchFile, 4 + fvx_tell(&patchFile));
-            BPMreadNumber();
-            outputTotal += BPMreadNumber();
-            fvx_lseek(&patchFile, patchSize);
-        } else if(action == BEAT_MIRRORFILE) {
-            encoding = BPMreadNumber();
-            char originPath[256], sourceName[256], oldPath[256];
-            if (encoding & 1) snprintf(originPath, 256, "%s", targetPath);
-            else snprintf(originPath, 256, "%s", sourcePath);
-            if ((encoding >> 1) == 0) snprintf(sourceName, 256, "%s", targetName);
-            else BPMreadString(sourceName, encoding >> 1);
-            snprintf(oldPath, 256, "%s/%s", originPath, sourceName);
-            FIL oldFile;
-            fvx_open(&oldFile, oldPath, FA_READ);
-            outputTotal += fvx_size(&oldFile);
-            fvx_close(&oldFile);
-            fvx_lseek(&patchFile, 4 + fvx_tell(&patchFile));
-        }
-    }
-
-    fvx_lseek(&patchFile, 4);
-    bpmIsActive = true;
-    return true;
+    return ApplyBeatPatch(targetName);
 }
 
 int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* targetPath) {
-    bpmIsActive = true;
-    bpmChecksum = ~0;
+    bpmIsActive = true; timer = timer_start(); timerLastCheck = 0;
+    patch = initFile(patchName, BEAT_PATCH, 0); source = NULL; target = NULL;
     
-    if ((!CheckWritePermissions(targetPath)) ||
-        ((fvx_stat(targetPath, NULL) != FR_OK) && (fvx_mkdir(targetPath) != FR_OK)) ||
-        (fvx_open(&patchFile, patchName, FA_READ) != FR_OK))
-        return err(BEAT_INVALID_FILE_PATH);
-        
-    if(BPMread() != 'B') return err(BEAT_PATCH_INVALID_HEADER);
-    if(BPMread() != 'P') return err(BEAT_PATCH_INVALID_HEADER);
-    if(BPMread() != 'M') return err(BEAT_PATCH_INVALID_HEADER);
-    if(BPMread() != '1') return err(BEAT_PATCH_INVALID_HEADER);
-    if (!CalculateBPMLength(patchName, sourcePath, targetPath)) return err(BEAT_CANCELED);
-    uint64_t metadataLength = BPMreadNumber();
-    while(metadataLength--) BPMread();
+    if ((!CheckWritePermissions(targetPath)) || !patch ||
+        ((fvx_stat(targetPath, NULL) != FR_OK) && (fvx_mkdir(targetPath) != FR_OK)))
+        return fatalError(BEAT_INVALID_FILE_PATH);
+    
+    char header[4];
+    beatReadString(4, header);
+    if (strcmp(header, "BPM1") != 0) return fatalError(BEAT_PATCH_INVALID_HEADER);
+    u64 metadataLength = beatReadNumber();
+    char metadata[256];
+    beatReadString(metadataLength, metadata);
 
-    while(fvx_tell(&patchFile) < fvx_size(&patchFile) - 4) {
-        uint64_t encoding = BPMreadNumber();
+    while(patch->currOffset < patch->size - 4) {
+        u64 encoding = beatReadNumber(patch);
         unsigned int action = encoding & 3;
         unsigned int targetLength = (encoding >> 2) + 1;
         char targetName[256];
-        BPMreadString(targetName, targetLength);
+        beatReadString(targetLength, targetName);
         snprintf(progressText, 256, "%s", targetName);
-        if (!ShowProgress(outputCurrent, outputTotal, progressText) &&
-            ShowPrompt(true, "%s\nB button detected. Cancel?", progressText))
-            return err(BEAT_CANCELED);
+        
+        if (!ShowProgress(patch->currOffset, patch->size, progressText)) {
+            if (ShowPrompt(true, "%s\nB button detected. Cancel?", progressText)) return fatalError(BEAT_CANCELED);
+            ShowProgress(0, patch->size, progressText);
+            ShowProgress(patch->currOffset, patch->size, progressText);
+        }
 
         if(action == BEAT_CREATEPATH) {
             char newPath[256];
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            if ((fvx_stat(newPath, NULL) != FR_OK) && (fvx_mkdir(newPath) != FR_OK)) return err(BEAT_INVALID_FILE_PATH);
+            if ((fvx_stat(newPath, NULL) != FR_OK) && (fvx_mkdir(newPath) != FR_OK)) return fatalError(BEAT_INVALID_FILE_PATH);
         } else if(action == BEAT_CREATEFILE) {
             char newPath[256];
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            FIL newFile;
-            if (fvx_open(&newFile, newPath, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return err(BEAT_INVALID_FILE_PATH);
-            uint64_t fileSize = BPMreadNumber();
-            outputCurrent += fileSize;
-            fvx_lseek(&newFile, fileSize);
-            fvx_lseek(&newFile, 0);
-            while(fileSize--) {
-                buffer = BPMread();
-                fvx_write(&newFile, &buffer, 1, &br);
+            u64 fileSize = beatReadNumber();
+            if (!beatCopy(patchName, newPath, patch->currOffset, fileSize)) return fatalError(BEAT_INVALID_FILE_PATH);
+            patch->currOffset += fileSize;
+            while (patch->checksumNeeded <= patch->currOffset / chunkSize) {
+                if (!patch->dataChunks[patch->checksumNeeded].data) readChunk(patch, patch->checksumNeeded);
+                checksumChunk(patch, patch->checksumNeeded);
             }
-            BPMreadChecksum();
-            fvx_close(&newFile);
+            beatReadChecksum();
         } else {
-            encoding = BPMreadNumber();
+            encoding = beatReadNumber();
             char originPath[256], sourceName[256], oldPath[256], newPath[256];
             if (encoding & 1) snprintf(originPath, 256, "%s", targetPath);
             else snprintf(originPath, 256, "%s", sourcePath);
             if ((encoding >> 1) == 0) snprintf(sourceName, 256, "%s", targetName);
-            else BPMreadString(sourceName, encoding >> 1);
+            else beatReadString((encoding >> 1), sourceName);
             snprintf(oldPath, 256, "%s/%s", originPath, sourceName);
             snprintf(newPath, 256, "%s/%s", targetPath, targetName);
             if(action == BEAT_MODIFYFILE) {
-                patchSize = BPMreadNumber();
-                if ((fvx_open(&sourceFile, oldPath, FA_READ) != FR_OK) ||
-                    (fvx_open(&targetFile, newPath, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
-                    return err(BEAT_INVALID_FILE_PATH);
-                int result = ApplyBeatPatch();
+                source = initFile(oldPath, BEAT_SOURCE, 0);
+                if (!source) return fatalError(BEAT_INVALID_FILE_PATH);
+                bpsSize = beatReadNumber();
+                int result = ApplyBeatPatch(newPath);
                 if (result != BEAT_SUCCESS) return result;
             } else if(action == BEAT_MIRRORFILE) {
-                FIL oldFile, newFile;
-                if ((fvx_open(&oldFile, oldPath, FA_READ) != FR_OK) ||
-                    (fvx_open(&newFile, newPath, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK))
-                    return err(BEAT_INVALID_FILE_PATH);
-                uint64_t fileSize = fvx_size(&oldFile);
-                outputCurrent += fileSize;
-                fvx_lseek(&newFile, fileSize);
-                fvx_lseek(&newFile, 0);
-                while(fileSize--) {
-                    fvx_read(&oldFile, &buffer, 1, &br);
-                    fvx_write(&newFile, &buffer, 1, &br);
-                }
-                BPMreadChecksum();
-                fvx_close(&oldFile);
-                fvx_close(&newFile);
+                if (!beatCopy(oldPath, newPath, 0, 0)) return fatalError(BEAT_INVALID_FILE_PATH);
+                beatReadChecksum();
             }
         }
     }
 
-    uint32_t cksum = ~bpmChecksum;
-    if(BPMread() != (uint8_t)(cksum >>  0)) return err(BEAT_BPM_CHECKSUM_INVALID);
-    if(BPMread() != (uint8_t)(cksum >>  8)) return err(BEAT_BPM_CHECKSUM_INVALID);
-    if(BPMread() != (uint8_t)(cksum >> 16)) return err(BEAT_BPM_CHECKSUM_INVALID);
-    if(BPMread() != (uint8_t)(cksum >> 24)) return err(BEAT_BPM_CHECKSUM_INVALID);
+    u32 cksum = beatReadChecksum();
+    u32 patchChecksum = closeFile(patch); patch = NULL;
+    if (patchChecksum != cksum) return fatalError(BEAT_BPM_CHECKSUM_INVALID);
 
-    fvx_close(&patchFile);
     return BEAT_SUCCESS;
 }

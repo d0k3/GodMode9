@@ -5,6 +5,6 @@
 #pragma once
 #include "vff.h"
 
-uint32_t crc32_adjust(uint32_t crc32, uint8_t input);
-uint32_t crc32_calculate(const uint8_t* data, unsigned int length);
-uint32_t crc32_calculate_from_file(FIL inputFile, unsigned int length);
+u32 crc32_adjust(u32 crc32, u8 input);
+u32 crc32_calculate(u32 crc32, const u8* data, u32 length);
+u32 crc32_calculate_from_file(const char* fileName, u32 offset, u32 length);
