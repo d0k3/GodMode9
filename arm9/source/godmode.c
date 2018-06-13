@@ -1548,7 +1548,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             }
             ShowPrompt(false, "%lu/%lu renamed ok", n_success, n_marked);
         } else if (!GoodRenamer(&(current_dir->entry[*cursor]), true)) {
-            ShowPrompt(false, "%s\nCould not rename\n(Maybe try decrypt?)", pathstr);
+            ShowPrompt(false, "%s\nCould not rename to good name", pathstr);
         }
         return 0;
     }
