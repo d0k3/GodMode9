@@ -155,11 +155,12 @@ void DrawTopBar(const char* curr_path) {
     const u32 bartxt_start = (FONT_HEIGHT_EXT >= 10) ? 1 : (FONT_HEIGHT_EXT >= 7) ? 2 : 3;
     const u32 bartxt_x = 2;
     const u32 len_path = SCREEN_WIDTH_TOP - 120;
+    const u32 str_len_path = min(63, len_path / FONT_WIDTH_EXT);
     char tempstr[64];
     
     // top bar - current path
     DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
-    if (*curr_path) TruncateString(tempstr, curr_path, len_path / FONT_WIDTH_EXT, 8);
+    if (*curr_path) TruncateString(tempstr, curr_path, str_len_path, 8);
     else snprintf(tempstr, 16, "[root]");
     DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%s", tempstr);
     bool show_time = true;
@@ -208,6 +209,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     const u32 info_start = (MAIN_SCREEN == TOP_SCREEN) ? 18 : 2; // leave space for the topbar when required
     const u32 instr_x = (SCREEN_WIDTH_MAIN - (34*FONT_WIDTH_EXT)) / 2;
     const u32 len_info = (SCREEN_WIDTH_MAIN - ((SCREEN_WIDTH_MAIN >= 400) ? 80 : 20)) / 2;
+    const u32 str_len_info = min(63, len_info / FONT_WIDTH_EXT);
     char tempstr[64];
     
     static u32 state_prev = 0xFFFFFFFF;
@@ -229,12 +231,12 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     else snprintf(tempstr, 63, "CURRENT");
     DrawStringF(MAIN_SCREEN, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[%s]", tempstr);
     // file / entry name
-    ResizeString(tempstr, curr_entry->name, len_info / FONT_WIDTH_EXT, 8, false);
+    ResizeString(tempstr, curr_entry->name, str_len_info, 8, false);
     u32 color_current = COLOR_ENTRY(curr_entry);
     DrawStringF(MAIN_SCREEN, 4, info_start + 12, color_current, COLOR_STD_BG, "%s", tempstr);
     // size (in Byte) or type desc
     if (curr_entry->type == T_DIR) {
-        ResizeString(tempstr, "(dir)", len_info / FONT_WIDTH_EXT, 8, false);
+        ResizeString(tempstr, "(dir)", str_len_info, 8, false);
     } else if (curr_entry->type == T_DOTDOT) {
         snprintf(tempstr, 21, "%20s", "");
     } else if (curr_entry->type == T_ROOT) {
@@ -246,13 +248,13 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
             (drvtype & DRV_XORPAD) ? "XORpad" : (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" :
             (drvtype & DRV_CART) ? "Gamecart" : (drvtype & DRV_VRAM) ? "VRAM" : (drvtype & DRV_SEARCH) ? "Search" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
-        ResizeString(tempstr, drvstr, len_info / FONT_WIDTH_EXT, 8, false);
+        ResizeString(tempstr, drvstr, str_len_info, 8, false);
     } else {
         char numstr[32];
         char bytestr[32];
         FormatNumber(numstr, curr_entry->size);
         snprintf(bytestr, 31, "%s Byte", numstr);
-        ResizeString(tempstr, bytestr, len_info / FONT_WIDTH_EXT, 8, false);
+        ResizeString(tempstr, bytestr, str_len_info, 8, false);
     }
     DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
     // path of file (if in search results)
@@ -260,10 +262,10 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         char dirstr[256];
         strncpy(dirstr, curr_entry->path, 256);
         *(strrchr(dirstr, '/')+1) = '\0';
-        ResizeString(tempstr, dirstr, len_info / FONT_WIDTH_EXT, 8, false);
+        ResizeString(tempstr, dirstr, str_len_info, 8, false);
         DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, "%s", tempstr);
     } else {
-        ResizeString(tempstr, "", len_info / FONT_WIDTH_EXT, 8, false);
+        ResizeString(tempstr, "", str_len_info, 8, false);
         DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10 + 10, color_current, COLOR_STD_BG, "%s", tempstr);
     }
     
@@ -272,7 +274,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         len_info / FONT_WIDTH_EXT, (clipboard->n_entries) ? "[CLIPBOARD]" : "");
     for (u32 c = 0; c < n_cb_show; c++) {
         u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
-        ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", len_info / FONT_WIDTH_EXT, 8, true);
+        ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", str_len_info, 8, true);
         DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, "%s", tempstr);
     }
     *tempstr = '\0';
