@@ -345,10 +345,13 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 
 u32 SdFormatMenu(const char* slabel) {
     const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
-    const char* option_emunand_size[6] = { "No EmuNAND", "RedNAND size (min)", "EmuNAND size (full)", "User input..." };
+    const char* option_emunand_size[7] = { "No EmuNAND", "RedNAND size (min)", "GW EmuNAND size (full)",
+        "MultiNAND size (2x)", "MultiNAND size (3x)", "MultiNAND size (4x)", "User input..." };
     const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
+    u32 sysnand_min_size_sectors = GetNandMinSizeSectors(NAND_SYSNAND);
+    u64 sysnand_min_size_mb = ((sysnand_min_size_sectors * 0x200) + 0xFFFFF) / 0x100000;
+    u64 sysnand_multi_size_mb = (align(sysnand_min_size_sectors + 1, 0x2000) * 0x200) / 0x100000;
     u64 sysnand_size_mb = (((u64)GetNandSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
-    u64 sysnand_min_size_mb = (((u64)GetNandMinSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
     char label[16];
     u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
@@ -362,10 +365,13 @@ u32 SdFormatMenu(const char* slabel) {
         return 1;
     }
     
-    user_select = ShowSelectPrompt(4, option_emunand_size, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
+    user_select = ShowSelectPrompt(7, option_emunand_size, "Format SD card (%lluMB)?\nChoose EmuNAND size:", sdcard_size_mb);
     if (user_select && (user_select < 4)) {
         emunand_size_mb = (user_select == 2) ? sysnand_min_size_mb : (user_select == 3) ? sysnand_size_mb : 0;
-    } else if (user_select == 4) do {
+    } else if ((user_select >= 4) && (user_select <= 6)) {
+        u32 n = (user_select - 2);
+        emunand_size_mb = n * sysnand_multi_size_mb;
+    } else if (user_select == 7) do {
         emunand_size_mb = ShowNumberPrompt(sysnand_min_size_mb, "SD card size is %lluMB.\nEnter EmuNAND size (MB) below:", sdcard_size_mb);
         if (emunand_size_mb == (u64) -1) break;
     } while (emunand_size_mb > sdcard_size_mb);
@@ -385,20 +391,35 @@ u32 SdFormatMenu(const char* slabel) {
     }
     
     if (emunand_size_mb >= sysnand_min_size_mb) {
-        const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
-        if (emunand_size_mb >= sysnand_size_mb)
+        u32 emunand_offset = 0;
+        u32 n_emunands = 1;
+        if (emunand_size_mb >= 2 * sysnand_size_mb) {
+            const char* option_emunand_type[4] = { "RedNAND type (multi)", "RedNAND type (single)", "GW EmuNAND type", "Don't set up" };
+            user_select = ShowSelectPrompt(4, option_emunand_type, "Choose EmuNAND type to set up:");
+            if (user_select > 3) return 0;
+            emunand_offset = (user_select == 2) ? 0 : 1;
+            if (user_select == 1) n_emunands = 4;
+        } else if (emunand_size_mb >= sysnand_size_mb) {
+            const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(3, option_emunand_type, "Choose EmuNAND type to set up:");
-        else user_select = ShowPrompt(true, "Clone SysNAND to RedNAND now?") ? 1 : 0;
-        if (!user_select || (user_select > 2)) return 0;
+            if (user_select > 2) return 0;
+            emunand_offset = (user_select == 1) ? 0 : 1; // 0 -> GW EmuNAND
+        } else user_select = ShowPrompt(true, "Clone SysNAND to RedNAND?") ? 1 : 0;
+        if (!user_select) return 0;
         
         u8 ncsd[0x200];
         u32 flags = OVERRIDE_PERM;
         InitSDCardFS(); // this has to be initialized for EmuNAND to work
-        SetEmuNandBase((user_select == 2) ? 0 : 1); // 0 -> GW EmuNAND
-        if ((ReadNandSectors(ncsd, 0, 1, 0xFF, NAND_SYSNAND) != 0) ||
-            (WriteNandSectors(ncsd, 0, 1, 0xFF, NAND_EMUNAND) != 0) ||
-            (!PathCopy("E:", "S:/nand_minsize.bin", &flags)))
-            ShowPrompt(false, "Cloning SysNAND to EmuNAND: failed!");
+        for (u32 i = 0; i < n_emunands; i++) {
+            if ((i * sysnand_multi_size_mb) + sysnand_min_size_mb > emunand_size_mb) break;
+            SetEmuNandBase((i * sysnand_multi_size_mb * 0x100000 / 0x200) + emunand_offset); 
+            if ((ReadNandSectors(ncsd, 0, 1, 0xFF, NAND_SYSNAND) != 0) ||
+                (WriteNandSectors(ncsd, 0, 1, 0xFF, NAND_EMUNAND) != 0) ||
+                (!PathCopy("E:", "S:/nand_minsize.bin", &flags))) {
+                ShowPrompt(false, "Cloning SysNAND to EmuNAND: failed!");
+                break;
+            }
+        }
         DeinitSDCardFS();
     }
     
