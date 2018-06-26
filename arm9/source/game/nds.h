@@ -20,6 +20,9 @@
 #define TWL_UNITCODE_TWLNTR 0x02
 #define TWL_UNITCODE_TWL    0x03
 
+// see https://github.com/devkitPro/ndstool/blob/313b0be6440d3087b6d433c3ea057605d2c95197/source/header.cpp#L585-L595
+#define NDS_ARM9_FOOTER_MAGIC 0xDEC00621
+
 // see: http://problemkaputt.de/gbatek.htm#dscartridgeicontitle
 typedef struct {
     u16 version;

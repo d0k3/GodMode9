@@ -497,11 +497,14 @@ bool BuildVGameNdsDir(void) {
         n++;
     }
     
-    // ARM9 section
+    // ARM9 section (+ ARM9 section footer)
     if (twl->arm9_size) {
+        u32 f = 0;
+        ReadGameImageBytes(&f, offset_nds + twl->arm9_rom_offset + twl->arm9_size, sizeof(u32));
         strncpy(templates[n].name, NAME_NDS_ARM9, 32);
         templates[n].offset = offset_nds + twl->arm9_rom_offset;
         templates[n].size = twl->arm9_size;
+        if (f == NDS_ARM9_FOOTER_MAGIC) templates[n].size += 0xC;
         templates[n].keyslot = 0xFF;
         templates[n].flags = 0;
         n++;
