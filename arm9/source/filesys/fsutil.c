@@ -769,7 +769,9 @@ bool PathRename(const char* path, const char* newname) {
     strncpy(npath, path, oldname - path);
     strncpy(npath + (oldname - path), newname, 255 - (oldname - path));
     
-    return (f_rename(path, npath) == FR_OK);
+    if (fvx_rename(path, npath) != FR_OK) return false;
+    if ((fvx_stat(path, NULL) == FR_OK) || (fvx_stat(npath, NULL) != FR_OK)) return false; // safety check
+    return true;
 }
 
 bool PathAttr(const char* path, u8 attr, u8 mask) {
