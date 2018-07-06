@@ -1227,24 +1227,22 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     if (!name_content) return 1; // will not happen
     name_content++;
     
+    u8 present[TMD_MAX_CONTENTS];
+    memset(present, 1, sizeof(present));
+
     // DLC? Check for missing contents first!
-    if (dlc) for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS);) {
+    if (dlc) for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         FILINFO fno;
         TmdContentChunk* chunk = &(content_list[i]);
         snprintf(name_content, 256 - (name_content - path_content),
             (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-        if ((fvx_stat(path_content, &fno) != FR_OK) || (fno.fsize != (u32) getbe64(chunk->size)))
-            memmove(chunk, chunk + 1, ((--content_count) - i) * sizeof(TmdContentChunk));
-        else i++;
-    }
-    if (!content_count) return 1;
-    if (content_count < (u16) getbe16(tmd->content_count)) {
-        if (!ShowPrompt(true, "ID %016llX\nIncomplete DLC (%u missing)\nContinue?",
-            getbe64(title_id), getbe16(tmd->content_count) - content_count)) return 1;
-        tmd->content_count[0] = (content_count >> 8) & 0xFF;
-        tmd->content_count[1] = content_count & 0xFF;
-        memcpy(tmd->contentinfo[0].cmd_count, tmd->content_count, 2);
-        if (FixCiaHeaderForTmd(&(cia->header), tmd) != 0) return 1;
+        if ((fvx_stat(path_content, &fno) != FR_OK) || (fno.fsize != (u32) getbe64(chunk->size))) {
+            present[i] = 0;
+
+            u16 index = getbe16(chunk->index);
+            cia->header.size_content -= getbe64(chunk->size);
+            cia->header.content_index[index/8] &= ~(1 << (7-(index%8)));
+        }
     }
     
     // insert contents
@@ -1253,11 +1251,17 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     if (WriteCiaStub(cia, path_cia) != 0) return 1;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
-        snprintf(name_content, 256 - (name_content - path_content),
-            (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-        if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false, cdn) != 0) {
-            ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
-            return 1;
+        if (present[i]) {
+            snprintf(name_content, 256 - (name_content - path_content),
+                (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+            if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false, cdn) != 0) {
+                ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
+                return 1;
+            }
+        } else {
+            // still remove encryption flag if CIA is being decrypted
+            bool cia_encrypt = (force_legit && (getbe16(chunk->type) & 0x01));
+            if (!cia_encrypt) chunk->type[1] &= ~0x01; // remove crypto flag
         }
     }
     
