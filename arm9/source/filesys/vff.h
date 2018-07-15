@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "sddata.h"
 #include "ff.h"
 
 #define AM_VRT 0x40 // Virtual (FILINFO FAT attribute)

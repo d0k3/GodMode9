@@ -1029,6 +1029,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool renamable = (FTYPE_RENAMABLE(filetype));
+    bool trimable = (FTYPE_TRIMABLE(filetype)) && !(drvtype & DRV_VIRTUAL) && !(drvtype & DRV_ALIAS) &&
+        !(drvtype & DRV_CTRNAND) && !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_IMAGE);
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HASCODE(filetype));
     bool extrcodeable = (FTYPE_HASCODE(filetype));
@@ -1056,7 +1058,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         extrcodeable = (FTYPE_HASCODE(filetype_cxi));
     }
     
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || extrdiffable || keyinitable || keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable || agbimportable;
+    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || extrdiffable || keyinitable || keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable || agbimportable;
     
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1244,6 +1246,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int hsinject = (hsinjectable) ? ++n_opt : -1;
     int extrcode = (extrcodeable) ? ++n_opt : -1;
     int extrdiff = (extrdiffable) ? ++n_opt : -1;
+    int trim = (trimable) ? ++n_opt : -1;
     int rename = (renamable) ? ++n_opt : -1;
     int xorpad = (xorpadable) ? ++n_opt : -1;
     int xorpad_inplace = (xorpadable) ? ++n_opt : -1;
@@ -1272,6 +1275,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (verify > 0) optionstr[verify-1] = "Verify file";
     if (ctrtransfer > 0) optionstr[ctrtransfer-1] = "Transfer image to CTRNAND";
     if (hsinject > 0) optionstr[hsinject-1] = "Inject to H&S";
+    if (trim > 0) optionstr[trim-1] = "Trim file";
     if (rename > 0) optionstr[rename-1] = "Rename file";
     if (xorpad > 0) optionstr[xorpad-1] = "Build XORpads (SD output)";
     if (xorpad_inplace > 0) optionstr[xorpad_inplace-1] = "Build XORpads (inplace)";
@@ -1554,6 +1558,30 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             } else ShowPrompt(false, "%s\nBuild database failed.", path_out);
         } else ShowPrompt(false, "%s\nBuild database %s.", path_out, 
             (BuildKeyDb(file_path, true) == 0) ? "success" : "failed");
+        return 0;
+    }
+    else if (user_select == trim) { // -> Game file trimmer
+        u64 trimsize = GetGameFileTrimmedSize(file_path);
+        u64 currentsize = FileGetSize(file_path);
+        char tsizestr[32];
+        char csizestr[32];
+        char dsizestr[32];
+        FormatBytes(tsizestr, trimsize);
+        FormatBytes(csizestr, currentsize);
+        FormatBytes(dsizestr, currentsize - trimsize);
+
+        if (!trimsize || trimsize > currentsize) {
+            ShowPrompt(false, "%s\nFile can't be trimmed.", pathstr);
+        } else if (trimsize == currentsize) {
+            ShowPrompt(false, "%s\nFile is already trimmed.", pathstr);
+        } else if (ShowPrompt(true, "%s\nCurrent size: %s\nTrimmed size: %s\nDifference: %s\n \nTrim this file?",
+            pathstr, csizestr, tsizestr, dsizestr)) {
+            if (TrimGameFile(file_path) != 0) ShowPrompt(false, "%s\nTrimming failed.", pathstr);
+            else {
+                ShowPrompt(false, "%s\nTrimmed by %s.", pathstr, dsizestr);
+                GetDirContents(current_dir, current_path);
+            }
+        }
         return 0;
     }
     else if (user_select == rename) { // -> Game file renamer

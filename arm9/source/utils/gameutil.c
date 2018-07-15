@@ -1,6 +1,7 @@
 #include "gameutil.h"
 #include "disadiff.h"
 #include "game.h"
+#include "nand.h" // so that we can trim NAND images
 #include "hid.h"
 #include "ui.h"
 #include "fs.h"
@@ -1652,6 +1653,56 @@ u32 ExtractDataFromDisaDiff(const char* path) {
     free(lvl2_cache);
     fvx_close(&file);
     return ret;
+}
+
+u64 GetGameFileTrimmedSize(const char* path) {
+    u64 filetype = IdentifyFileType(path);
+    u64 trimsize = 0;
+
+    if (filetype & GAME_NDS) {
+        TwlHeader hdr;
+        if (fvx_qread(path, &hdr, 0, sizeof(TwlHeader), NULL) != FR_OK)
+            return 0;
+        if (hdr.unit_code != 0x00) // DSi or NDS+DSi
+            trimsize = hdr.ntr_twl_rom_size;
+        else trimsize = hdr.ntr_rom_size; // regular NDS
+    } else {
+        u8 hdr[0x200];
+        if (fvx_qread(path, &hdr, 0, 0x200, NULL) != FR_OK)
+            return 0;
+        if (filetype & IMG_NAND)
+            trimsize = GetNandNcsdMinSizeSectors((NandNcsdHeader*) (void*) hdr) * 0x200;
+        else if (filetype & SYS_FIRM)
+            trimsize = GetFirmSize((FirmHeader*) (void*) hdr);
+        else if (filetype & GAME_NCSD)
+            trimsize = GetNcsdTrimmedSize((NcsdHeader*) (void*) hdr);
+        else if (filetype & GAME_NCCH)
+            trimsize = ((NcchHeader*) (void*) hdr)->size * NCCH_MEDIA_UNIT;
+    }
+
+    // safety check for file size
+    if (trimsize > fvx_qsize(path))
+        trimsize = 0;
+
+    return trimsize;
+}
+
+u32 TrimGameFile(const char* path) {
+    u64 trimsize = GetGameFileTrimmedSize(path);
+    if (!trimsize) return 1;
+
+    // actual truncate routine - FAT only
+    FIL fp;
+    if (fx_open(&fp, path, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    if ((f_lseek(&fp, (u32) trimsize) != FR_OK) || (f_truncate(&fp) != FR_OK)) {
+        fx_close(&fp);
+        return 1;
+    }
+    fx_close(&fp);
+
+    // all done
+    return 0;
 }
 
 u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
