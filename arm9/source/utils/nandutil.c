@@ -550,7 +550,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     }
     
     // all checked, ready to go
-    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will install the\nprovided FIRM to the SysNAND.\n \nInstalling an unsupported FIRM\nwill BRICK your console!")) return 1;
+    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will install the\nprovided FIRM to the SysNAND\nand inject sighax.\n \nInstalling an unsupported FIRM\nwill BRICK your console!")) return 1;
     // if (!SetWritePermissions(PERM_SYS_LVL3, true)) return 1; // one unlock sequence is enough
     
     // point of no return
