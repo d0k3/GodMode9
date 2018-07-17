@@ -367,14 +367,15 @@ bool FileCreateDummy(const char* cpath, const char* filename, u64 size) {
     f_sync(&dfile);
     fx_close(&dfile);
     
-    return true;
+    return (fa_stat(npath, NULL) == FR_OK);
 }
 
 bool DirCreate(const char* cpath, const char* dirname) {
     char npath[256]; // 256 is the maximum length of a full path
     if (!CheckWritePermissions(cpath)) return false;
     snprintf(npath, 255, "%s/%s", cpath, dirname);
-    return (fa_mkdir(npath) == FR_OK);
+    if (fa_mkdir(npath) != FR_OK) return false;
+    return (fa_stat(npath, NULL) == FR_OK);
 }
 
 bool DirInfoWorker(char* fpath, bool virtual, u64* tsize, u32* tdirs, u32* tfiles) {
