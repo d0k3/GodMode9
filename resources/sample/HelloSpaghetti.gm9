@@ -97,7 +97,7 @@ goto kchooser
 goto outside
 
 @kchooser
-keysel -o -s "Choose preview mode via key" kchoice_*
+labelsel -k -o -s "Choose preview mode via key" kchoice_*
 goto outside
 
 

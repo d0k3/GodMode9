@@ -60,7 +60,7 @@
 #define _FLG(c)             ((c >= 'a') ? (1 << (c - 'a')) : 0)
 
 #define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || \
-    (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || (id == CMD_ID_KEYSEL) || \
+    (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || \
     (id == CMD_ID_FOR) || (id == CMD_ID_NEXT))
 
 // command ids (also entry into the cmd_list array below)
@@ -75,7 +75,6 @@ typedef enum {
     CMD_ID_NEXT,
     CMD_ID_GOTO,
     CMD_ID_LABELSEL,
-    CMD_ID_KEYSEL,
     CMD_ID_KEYCHK,
     CMD_ID_ECHO,
     CMD_ID_QR,
@@ -145,8 +144,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FOR     , _CMD_FOR  , 2, _FLG('r') },
     { CMD_ID_NEXT    , _CMD_NEXT , 0, 0 },
     { CMD_ID_GOTO    , "goto"    , 1, 0 },
-    { CMD_ID_LABELSEL, "labelsel", 2, 0 },
-    { CMD_ID_KEYSEL  , "keysel"  , 2, 0 },
+    { CMD_ID_LABELSEL, "labelsel", 2, _FLG('k') },
     { CMD_ID_KEYCHK  , "keychk"  , 1, 0 },
     { CMD_ID_ECHO    , "echo"    , 1, 0 },
     { CMD_ID_QR      , "qr"      , 2, 0 },
@@ -548,6 +546,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--flip_endian", len) == 0) flag_char = 'e';
     else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
+    else if (strncmp(str, "--keysel", len) == 0) flag_char = 'k';
     else if (strncmp(str, "--skip", len) == 0) flag_char = 'k';
     else if (strncmp(str, "--legit", len) == 0) flag_char = 'l';
     else if (strncmp(str, "--no_cancel", len) == 0) flag_char = 'n';
@@ -933,7 +932,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
         }
     }
-    else if ((id == CMD_ID_LABELSEL) || (id == CMD_ID_KEYSEL)) {
+    else if (id == CMD_ID_LABELSEL) {
         const char* options[_CHOICE_MAX_N] = { NULL };
         char* options_jmp[_CHOICE_MAX_N] = { NULL };
         char options_str[_CHOICE_MAX_N][_CHOICE_STR_LEN+1];
@@ -954,7 +953,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 else if (ptr[i] == '_') choice[i] = ' ';
                 else choice[i] = ptr[i];
             }
-            if (id == CMD_ID_KEYSEL) {
+            if (flags & _FLG('k')) {
                 char* keystr = choice;
                 for (; *choice != ' ' && *choice != '\0'; choice++);
                 if (*choice != '\0') *(choice++) = '\0';
@@ -966,8 +965,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (++n_opt >= _CHOICE_MAX_N) break;
         }
         
-        u32 result = (id == CMD_ID_LABELSEL) ? ShowSelectPrompt(n_opt, options, "%s", argv[0]) :
-            ShowHotkeyPrompt(n_opt, options, options_keys, "%s", argv[0]);
+        u32 result = (flags & _FLG('k')) ? ShowHotkeyPrompt(n_opt, options, options_keys, "%s", argv[0]) :
+            ShowSelectPrompt(n_opt, options, "%s", argv[0]);
 
         if (!result) {
             ret = false;
