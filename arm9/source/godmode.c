@@ -391,19 +391,19 @@ u32 SdFormatMenu(const char* slabel) {
     }
     
     if (emunand_size_mb >= sysnand_min_size_mb) {
-        u32 emunand_offset = 0;
+        u32 emunand_offset = 1;
         u32 n_emunands = 1;
         if (emunand_size_mb >= 2 * sysnand_size_mb) {
             const char* option_emunand_type[4] = { "RedNAND type (multi)", "RedNAND type (single)", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(4, option_emunand_type, "Choose EmuNAND type to set up:");
             if (user_select > 3) return 0;
-            emunand_offset = (user_select == 2) ? 0 : 1;
+            emunand_offset = (user_select == 3) ? 0 : 1;
             if (user_select == 1) n_emunands = 4;
         } else if (emunand_size_mb >= sysnand_size_mb) {
             const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(3, option_emunand_type, "Choose EmuNAND type to set up:");
             if (user_select > 2) return 0;
-            emunand_offset = (user_select == 1) ? 0 : 1; // 0 -> GW EmuNAND
+            emunand_offset = (user_select == 2) ? 0 : 1; // 0 -> GW EmuNAND
         } else user_select = ShowPrompt(true, "Clone SysNAND to RedNAND?") ? 1 : 0;
         if (!user_select) return 0;
         
