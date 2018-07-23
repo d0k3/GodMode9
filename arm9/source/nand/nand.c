@@ -569,9 +569,14 @@ u32 AutoEmuNandBase(bool reset)
         }
     }
     
-    emunand_base_sector = 0x000000; // GW type EmuNAND
-    if (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) != 0)
-        emunand_base_sector = 0x000001; // RedNAND type EmuNAND
+    emunand_base_sector = 0x000001; // RedNAND type EmuNAND, default
+    if (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) != 0) {
+        emunand_base_sector = 0x000000; // GW type EmuNAND
+        if (!GetNandSizeSectors(NAND_EMUNAND) || // make sure this is no false positive
+            (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) != 0))
+            // still nothing found? revert to default (RedNAND offset)
+            emunand_base_sector = 0x000001;
+    }
     
     return emunand_base_sector;
 }
