@@ -6,7 +6,6 @@ rwildcard = $(foreach d, $(wildcard $1*), \
             $(call rwildcard, $d/, $2))
 
 FLAVOR  ?=  GodMode9
-README  :=  README.md
 SPLASH   =  resources/$(FLAVOR)_splash.png
 
 ifeq ($(FLAVOR),SafeMode9)
@@ -36,7 +35,6 @@ endif
 
 ifeq ($(SCRIPT_RUNNER),1)
     CFLAGS += -DSCRIPT_RUNNER
-    README := 
 endif
 
 ifeq ($(AUTO_UNLOCK),1)

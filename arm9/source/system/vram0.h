@@ -13,7 +13,7 @@
 #define VRAM0_AUTORUN_GM9      "autorun.gm9"
 #define VRAM0_FONT_PBM         DEFAULT_FONT
 #define VRAM0_SCRIPTS          "scripts"
-#define VRAM0_README_MD        "README.md"
+#define VRAM0_README_MD        "README_internal.md"
 #define VRAM0_SPLASH_PNG       FLAVOR "_splash.png"
 
 

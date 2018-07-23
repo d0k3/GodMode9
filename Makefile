@@ -72,7 +72,7 @@ release: clean
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(README) $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA)/*)
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA)/*)
 
 %.elf: .FORCE
 	@echo "Building $@"
