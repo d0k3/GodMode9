@@ -234,7 +234,7 @@ u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
 
 u32 RebuildNandNcsdHeader(NandNcsdHeader* ncsd) {
     // signature (retail or dev)
-    u8* signature = (IS_DEVKIT) ? sig_nand_ncsd_dev : sig_nand_ncsd_retail;
+    const u8* signature = (IS_DEVKIT) ? sig_nand_ncsd_dev : sig_nand_ncsd_retail;
     
     // encrypted TWL MBR
     u8 twl_mbr_data[0x200] = { 0 };
