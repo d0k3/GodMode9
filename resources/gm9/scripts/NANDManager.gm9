@@ -1,6 +1,6 @@
 @NAND_Manager
 @nm_menu
-keysel -o -s "Select an option." nmopt_*
+labelsel -k -o -s "Select an option." nmopt_*
 goto nm_menu
 #goto options_main
 
