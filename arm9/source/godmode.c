@@ -1561,25 +1561,62 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == trim) { // -> Game file trimmer
-        u64 trimsize = GetGameFileTrimmedSize(file_path);
-        u64 currentsize = FileGetSize(file_path);
-        char tsizestr[32];
-        char csizestr[32];
-        char dsizestr[32];
-        FormatBytes(tsizestr, trimsize);
-        FormatBytes(csizestr, currentsize);
-        FormatBytes(dsizestr, currentsize - trimsize);
+        if ((n_marked > 1) && ShowPrompt(true, "Try to trim all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0;
+            u32 n_processed = 0;
+            u64 savings = 0;
+            char savingsstr[32];
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                u64 prevsize = 0;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (!ShowProgress(n_processed++, n_marked, path)) break;
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
+                    n_other++;
+                    continue;
+                }
+                prevsize = FileGetSize(path);
+                if (TrimGameFile(path) == 0) {
+                    n_success++;
+                    savings += prevsize - FileGetSize(path);
+                } else { // on failure: show error, continue (should not happen)
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nTrimming failed\n \nContinue?", lpathstr)) {
+                        ShowProgress(0, n_marked, path); // restart progress bar
+                        continue;
+                    } else break;
+                }
+                current_dir->entry[i].marked = false;
+            }
+            FormatBytes(savingsstr, savings);
+            if (n_other) ShowPrompt(false, "%lu/%lu files trimmed ok\n%lu/%lu not of same type\n%s saved",
+                n_success, n_marked, n_other, n_marked, savingsstr);
+            else ShowPrompt(false, "%lu/%lu files trimmed ok\n%s saved", n_success, n_marked, savingsstr);
+            if (n_success) GetDirContents(current_dir, current_path);
+        } else {
+            u64 trimsize = GetGameFileTrimmedSize(file_path);
+            u64 currentsize = FileGetSize(file_path);
+            char tsizestr[32];
+            char csizestr[32];
+            char dsizestr[32];
+            FormatBytes(tsizestr, trimsize);
+            FormatBytes(csizestr, currentsize);
+            FormatBytes(dsizestr, currentsize - trimsize);
 
-        if (!trimsize || trimsize > currentsize) {
-            ShowPrompt(false, "%s\nFile can't be trimmed.", pathstr);
-        } else if (trimsize == currentsize) {
-            ShowPrompt(false, "%s\nFile is already trimmed.", pathstr);
-        } else if (ShowPrompt(true, "%s\nCurrent size: %s\nTrimmed size: %s\nDifference: %s\n \nTrim this file?",
-            pathstr, csizestr, tsizestr, dsizestr)) {
-            if (TrimGameFile(file_path) != 0) ShowPrompt(false, "%s\nTrimming failed.", pathstr);
-            else {
-                ShowPrompt(false, "%s\nTrimmed by %s.", pathstr, dsizestr);
-                GetDirContents(current_dir, current_path);
+            if (!trimsize || trimsize > currentsize) {
+                ShowPrompt(false, "%s\nFile can't be trimmed.", pathstr);
+            } else if (trimsize == currentsize) {
+                ShowPrompt(false, "%s\nFile is already trimmed.", pathstr);
+            } else if (ShowPrompt(true, "%s\nCurrent size: %s\nTrimmed size: %s\nDifference: %s\n \nTrim this file?",
+                pathstr, csizestr, tsizestr, dsizestr)) {
+                if (TrimGameFile(file_path) != 0) ShowPrompt(false, "%s\nTrimming failed.", pathstr);
+                else {
+                    ShowPrompt(false, "%s\nTrimmed by %s.", pathstr, dsizestr);
+                    GetDirContents(current_dir, current_path);
+                }
             }
         }
         return 0;
