@@ -67,6 +67,7 @@
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
 #define FTYPE_FONT(tp)          (tp&(FONT_PBM))
 #define FTYPE_GFX(tp)           (tp&(GFX_PNG))
+#define FTYPE_SETABLE(tp)       (tp&(FONT_PBM))
 #define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 #define FTYPE_INSTALLABLE(tp)   (tp&(SYS_FIRM))
 #define FTYPE_AGBSAVE(tp)       (tp&(SYS_AGBSAVE))

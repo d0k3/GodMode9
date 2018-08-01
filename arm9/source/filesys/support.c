@@ -48,6 +48,51 @@ size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len)
     return 0;
 }
 
+bool SaveSupportFile(const char* fname, void* buffer, size_t len)
+{
+    const char* base_paths[] = { SUPPORT_FILE_PATHS };
+    int idx = -1;
+
+    // check for existing support file path
+    for (u32 i = 0; (idx < 0) && (i < countof(base_paths)); i++) {
+        if (fvx_stat(base_paths[i], NULL) == FR_OK)
+            idx = i;
+    }
+
+    // create path if required
+    for (u32 i = 0; (idx < 0) && (i < countof(base_paths)); i++) {
+        if (fvx_rmkdir(base_paths[i]) == FR_OK)
+            idx = i;
+    }
+
+    // write support file
+    if (idx >= 0) {
+        char path[256];
+        snprintf(path, 256, "%s/%s", base_paths[idx], fname);
+        fvx_unlink(path);
+        if (fvx_qwrite(path, buffer, 0, len, NULL) == FR_OK)
+            return true;
+    }
+    
+    return false;
+}
+
+bool SetAsSupportFile(const char* fname, const char* source)
+{
+    u32 len = fvx_qsize(source);
+    if (!len) return false;
+
+    void* buffer = malloc(len);
+    if (!buffer) return false;
+
+    bool res = false;
+    if (fvx_qread(source, buffer, 0, len, NULL) == FR_OK)
+        res = SaveSupportFile(fname, buffer, len);
+    free(buffer);
+
+    return res;
+}
+
 bool GetSupportDir(char* path, const char* dname)
 {
     const char* base_paths[] = { SUPPORT_DIR_PATHS };
