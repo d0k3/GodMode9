@@ -4,7 +4,7 @@
 #include "utf.h"
 #include "aes.h"
 
-#define VGAME_BUFFER_SIZE   0x200000 // at least 2MB, multiple of 0x200
+#define VGAME_BUFFER_SIZE   0x200000 + 0x20000 // at least 2MB, multiple of 0x200
 
 #define VFLAG_NO_CRYPTO     (1UL<<18)
 #define VFLAG_TAD           (1UL<<19)
@@ -774,22 +774,22 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
     vgame_buffer = (void*) malloc(VGAME_BUFFER_SIZE);
     if (!vgame_buffer) return 0;
     
-    templates_cia   = (VirtualFile*) ((u8*) vgame_buffer); // first 56kb reserved (enough for 1024 entries)
-    templates_firm  = (VirtualFile*) (((u8*) vgame_buffer) + 0xE000); // 2kb reserved (enough for 36 entries)
-    templates_ncsd  = (VirtualFile*) (((u8*) vgame_buffer) + 0xE800); // 2kb reserved (enough for 36 entries)
-    templates_ncch  = (VirtualFile*) (((u8*) vgame_buffer) + 0xF000); // 1kb reserved (enough for 18 entries)
-    templates_nds   = (VirtualFile*) (((u8*) vgame_buffer) + 0xF400); // 1kb reserved (enough for 18 entries)
-    templates_exefs = (VirtualFile*) (((u8*) vgame_buffer) + 0xF800); // 1kb reserved (enough for 18 entries)
-    templates_tad   = (VirtualFile*) (((u8*) vgame_buffer) + 0xFC00); // 1kb reserved (enough for 18 entries)
-    cia   = (CiaStub*)       (void*) (((u8*) vgame_buffer) + 0x10000); // 61kB reserved - should be enough by far
-    twl   = (TwlHeader*)     (void*) (((u8*) vgame_buffer) + 0x1F400); // 512 byte reserved (not the full thing)
-    a9l   = (FirmA9LHeader*) (void*) (((u8*) vgame_buffer) + 0x1F600); // 512 byte reserved
-    firm  = (FirmHeader*)    (void*) (((u8*) vgame_buffer) + 0x1F800); // 512 byte reserved
-    ncsd  = (NcsdHeader*)    (void*) (((u8*) vgame_buffer) + 0x1FA00); // 512 byte reserved
-    ncch  = (NcchHeader*)    (void*) (((u8*) vgame_buffer) + 0x1FC00); // 512 byte reserved
-    exefs = (ExeFsHeader*)   (void*) (((u8*) vgame_buffer) + 0x1FE00); // 512 byte reserved
-    romfslv3 = (((u8*) vgame_buffer) + 0x20000); // 1920kB reserved
-    nitrofs  = (((u8*) vgame_buffer) + 0x20000); // 1920kB reserved (FNT+FAT combined)
+    templates_cia   = (VirtualFile*) ((u8*) vgame_buffer); // first 184kb reserved (enough for 3364 entries)
+    templates_firm  = (VirtualFile*) (((u8*) vgame_buffer) + 0x2E000); // 2kb reserved (enough for 36 entries)
+    templates_ncsd  = (VirtualFile*) (((u8*) vgame_buffer) + 0x2E800); // 2kb reserved (enough for 36 entries)
+    templates_ncch  = (VirtualFile*) (((u8*) vgame_buffer) + 0x2F000); // 1kb reserved (enough for 18 entries)
+    templates_nds   = (VirtualFile*) (((u8*) vgame_buffer) + 0x2F400); // 1kb reserved (enough for 18 entries)
+    templates_exefs = (VirtualFile*) (((u8*) vgame_buffer) + 0x2F800); // 1kb reserved (enough for 18 entries)
+    templates_tad   = (VirtualFile*) (((u8*) vgame_buffer) + 0x2FC00); // 1kb reserved (enough for 18 entries)
+    cia   = (CiaStub*)       (void*) (((u8*) vgame_buffer) + 0x30000); // 61kB reserved - should be enough by far
+    twl   = (TwlHeader*)     (void*) (((u8*) vgame_buffer) + 0x3F400); // 512 byte reserved (not the full thing)
+    a9l   = (FirmA9LHeader*) (void*) (((u8*) vgame_buffer) + 0x3F600); // 512 byte reserved
+    firm  = (FirmHeader*)    (void*) (((u8*) vgame_buffer) + 0x3F800); // 512 byte reserved
+    ncsd  = (NcsdHeader*)    (void*) (((u8*) vgame_buffer) + 0x3FA00); // 512 byte reserved
+    ncch  = (NcchHeader*)    (void*) (((u8*) vgame_buffer) + 0x3FC00); // 512 byte reserved
+    exefs = (ExeFsHeader*)   (void*) (((u8*) vgame_buffer) + 0x3FE00); // 512 byte reserved
+    romfslv3 = (((u8*) vgame_buffer) + 0x40000); // 1920kB reserved
+    nitrofs  = (((u8*) vgame_buffer) + 0x40000); // 1920kB reserved (FNT+FAT combined)
     
     vgame_type = type;
     return type;
