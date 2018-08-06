@@ -525,7 +525,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         
         ret = true; // destination file exists by now, so we need to handle deletion
         fsize = fvx_size(&ofile); // check space via cluster preallocation
-        if ((fvx_lseek(&dfile, fsize) != FR_OK) || (fvx_sync(&dfile) != FR_OK)) {
+        if ((fvx_lseek(&dfile, fsize) != FR_OK) || (fvx_sync(&dfile) != FR_OK) || (fvx_tell(&dfile) != fsize)) {
             if (!silent) ShowPrompt(false, "%s\nError: Not enough space available", deststr);
             ret = false;
         }
