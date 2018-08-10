@@ -442,8 +442,11 @@ u32 VerifyCiaFile(const char* path) {
     // verify contents
     u32 content_count = getbe16(cia->tmd.content_count);
     u64 next_offset = info.offset_content;
+    u8* cnt_index = cia->header.content_index;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
+        u16 index = getbe16(chunk->index);
+        if (!(cnt_index[index/8] & (1 << (7-(index%8))))) continue; // don't check missing contents
         if (VerifyTmdContent(path, next_offset, chunk, titlekey) != 0) {
             ShowPrompt(false, "%s\nID %08lX (%08llX@%08llX)\nVerification failed",
                 pathstr, getbe32(chunk->id), getbe64(chunk->size), next_offset, i);
@@ -890,9 +893,12 @@ u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
     // decrypt CIA contents
     u32 content_count = getbe16(cia->tmd.content_count);
     u64 next_offset = info.offset_content;
+    u8* cnt_index = cia->header.content_index;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(cia->content_list[i]);
         u64 size = getbe64(chunk->size);
+        u16 index = getbe16(chunk->index);
+        if (!(cnt_index[index/8] & (1 << (7-(index%8))))) continue; // don't crypt missing contents
         if (CryptNcchNcsdBossFirmFile(orig, dest, GAME_CIA, crypto, next_offset, size, chunk, titlekey) != 0) {
             free(cia);
             return 1;
