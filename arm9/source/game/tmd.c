@@ -1,6 +1,8 @@
 #include "tmd.h"
 #include "unittype.h"
+#include "cert.h"
 #include "sha.h"
+#include "rsa.h"
 #include "ff.h"
 
 u32 ValidateTmd(TitleMetaData* tmd) {
@@ -9,6 +11,25 @@ u32 ValidateTmd(TitleMetaData* tmd) {
         ((strncmp((char*) tmd->issuer, TMD_ISSUER, 0x40) != 0) &&
         (strncmp((char*) tmd->issuer, TMD_ISSUER_DEV, 0x40) != 0)))
         return 1;
+    return 0;
+}
+
+u32 ValidateTmdSignature(TitleMetaData* tmd) {
+    static bool got_modexp = false;
+    static u8 mod[0x100] = { 0 };
+    static u32 exp = 0;
+    
+    if (!got_modexp) {
+        // grab mod/exp from cert from cert.db
+        if (LoadCertFromCertDb(0x3C10, NULL, mod, &exp) == 0)
+            got_modexp = true;
+        else return 1;
+    }
+    
+    if (!RSA_setKey2048(3, mod, exp) ||
+        !RSA_verify2048((void*) &(tmd->signature), (void*) &(tmd->issuer), 0xC4))
+        return 1;
+        
     return 0;
 }
 

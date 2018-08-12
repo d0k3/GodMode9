@@ -1028,6 +1028,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
     bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
+    bool ciacheckable = (FTYPE_CIACHECK(filetype)); 
     bool renamable = (FTYPE_RENAMABLE(filetype));
     bool trimable = (FTYPE_TRIMABLE(filetype)) && !(drvtype & DRV_VIRTUAL) && !(drvtype & DRV_ALIAS) &&
         !(drvtype & DRV_CTRNAND) && !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_IMAGE);
@@ -1230,6 +1231,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     // stuff for special menu starts here
     n_opt = 0;
     int show_info = (titleinfo) ? ++n_opt : -1;
+    int ciacheck = (ciacheckable) ? ++n_opt : -1;
     int mount = (mountable) ? ++n_opt : -1;
     int restore = (restorable) ? ++n_opt : -1;
     int ebackup = (ebackupable) ? ++n_opt : -1;
@@ -1266,6 +1268,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
     if (ncsdfix > 0) optionstr[ncsdfix-1] = "Rebuild NCSD header";
     if (show_info > 0) optionstr[show_info-1] = "Show title info";
+    if (ciacheck > 0) optionstr[ciacheck-1] = "CIA checker tool";
     if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
     if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
@@ -1645,6 +1648,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     else if (user_select == show_info) { // -> Show title info
         if (ShowGameFileTitleInfo(file_path) != 0)
             ShowPrompt(false, "Title info: not found");
+        return 0;
+    }
+    else if (user_select == ciacheck) { // -> CIA checker tool
+        ShowCiaCheckerInfo(file_path);
         return 0;
     }
     else if (user_select == hsinject) { // -> Inject to Health & Safety

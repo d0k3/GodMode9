@@ -1,5 +1,6 @@
 #include "ticket.h"
 #include "unittype.h"
+#include "cert.h"
 #include "sha.h"
 #include "rsa.h"
 #include "ff.h"
@@ -19,19 +20,11 @@ u32 ValidateTicketSignature(Ticket* ticket) {
     static u8 mod[0x100] = { 0 };
     static u32 exp = 0;
     
-    // grab cert from cert.db
     if (!got_modexp) {
-        Certificate cert;
-        FIL db;
-        UINT bytes_read;
-        if (f_open(&db, "1:/dbs/certs.db", FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            return 1;
-        f_lseek(&db, 0x3F10);
-        f_read(&db, &cert, CERT_SIZE, &bytes_read);
-        f_close(&db);
-        memcpy(mod, cert.mod, 0x100);
-        exp = getle32(cert.exp);
-        got_modexp = true;
+        // grab mod/exp from cert from cert.db
+        if (LoadCertFromCertDb(0x3F10, NULL, mod, &exp) == 0)
+            got_modexp = true;
+        else return 1;
     }
     
     if (!RSA_setKey2048(3, mod, exp) ||

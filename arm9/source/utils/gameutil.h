@@ -12,6 +12,7 @@ u32 ExtractDataFromDisaDiff(const char* path);
 u64 GetGameFileTrimmedSize(const char* path);
 u32 TrimGameFile(const char* path);
 u32 ShowGameFileTitleInfo(const char* path);
+u32 ShowCiaCheckerInfo(const char* path);
 u32 GetTmdContentPath(char* path_content, const char* path_tmd);
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path);
 u32 CheckHealthAndSafetyInject(const char* hsdrv);
