@@ -2364,6 +2364,7 @@ u32 GodMode(int entrypoint) {
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_Y)) {
                 SetWritePermissions(PERM_BASE, false);
+                last_write_perm = GetWritePermissions();
                 ClearScreenF(false, true, COLOR_STD_BG);
             }
         } else if (!switched) { // standard unswitched command set
