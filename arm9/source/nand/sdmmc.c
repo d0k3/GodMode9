@@ -482,7 +482,7 @@ int SD_Init()
 		do
 		{
 			sdmmc_send_command(&handleSD,0x10437,handleSD.initarg << 0x10);
-			sdmmc_send_command(&handleSD,0x10769,0x00FF8000 | temp);
+			sdmmc_send_command(&handleSD,0x10769,0x10100000 | temp); // Allow 150mA, 3.2-3.3V (from Process9)
 			temp2 = 1;
 		} while ( !(handleSD.error & 1) );
 	}
