@@ -162,6 +162,7 @@ if	not allow -a E:
 	goto MainMenu_Restore_Options
 end
 
+imgmount $[NANDBAK]
 inject -n I:/nand_minsize.bin E:/nand.bin@0
 imgumount
 echo "$[NANDBAK] successfully restored to EmuNAND."
@@ -1340,7 +1341,7 @@ goto Miscellaneous_Cartridge_Options
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nTitle Options"
 
 labelsel -o -s "Choose an Option." Title_Options_*
-goto Start
+goto MainMenu_Miscellaneous
 
 ################Dump CTRNAND Titles###############
 
