@@ -1613,7 +1613,7 @@ u32 CompressCode(const char* path, const char* path_out) {
     char dest[256];
     if (fvx_open(&code_file, path, FA_READ) != FR_OK) return 1;
     if (!path_out && (fvx_rmkdir(OUTPUT_PATH) != FR_OK)) return 1;
-    strncpy(dest, path_out ? path_out : OUTPUT_PATH, 256);
+    strncpy(dest, path_out ? path_out : OUTPUT_PATH, 255);
     if (!CheckWritePermissions(dest)) return 1;
     
     // allocate memory
@@ -1622,8 +1622,8 @@ u32 CompressCode(const char* path, const char* path_out) {
     u32 code_cmp_size = code_dec_size;
     u8* code_cmp = (u8*) malloc(code_cmp_size);
     if (!code_dec || !code_cmp) {
-        if (code_dec != null) free(code_dec);
-        if (code_cmp != null) free(code_cmp);
+        if (code_dec != NULL) free(code_dec);
+        if (code_cmp != NULL) free(code_cmp);
         ShowPrompt(false, "Out of memory.");
         return 1;
     }
