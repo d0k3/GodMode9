@@ -1621,7 +1621,9 @@ u32 CompressCode(const char* path, const char* path_out) {
     u8* code_dec = (u8*) malloc(code_dec_size);
     u32 code_cmp_size = code_dec_size;
     u8* code_cmp = (u8*) malloc(code_cmp_size);
-    if (!code_dec) {
+    if (!code_dec || !code_cmp) {
+        if (code_dec != null) free(code_dec);
+        if (code_cmp != null) free(code_cmp);
         ShowPrompt(false, "Out of memory.");
         return 1;
     }

@@ -463,6 +463,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
     // the copy process takes place here
     if (!ShowProgress(current, total, orig) && !(flags && (*flags & NO_CANCEL))) {
         if (ShowPrompt(true, "%s\nB button detected. Cancel?", deststr)) return false;
+        ShowProgress(0, total, orig);
         ShowProgress(current, total, orig);
     }
     if (move && fvx_stat(dest, NULL) != FR_OK) { // moving if dest not existing
@@ -521,7 +522,8 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         if (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
             if (!FileUnlock(orig) || (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
                 return false;
-            ShowProgress(current, total, orig); // reinit progress bar
+            ShowProgress(0, total, orig); // reinit progress bar
+            ShowProgress(current, total, orig);
         }
         
         if ((!append || (fvx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)) &&
@@ -532,9 +534,9 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         }
         
         ret = true; // destination file exists by now, so we need to handle deletion
-        osize = fvx_size(&ofile); // check space via cluster preallocation
+        osize = fvx_size(&ofile);
         dsize = fvx_size(&dfile); // always 0 if not appending to file
-        if ((fvx_lseek(&dfile, (osize + dsize)) != FR_OK) || (fvx_sync(&dfile) != FR_OK) || (fvx_tell(&dfile) != (osize + dsize))) {
+        if ((fvx_lseek(&dfile, (osize + dsize)) != FR_OK) || (fvx_sync(&dfile) != FR_OK) || (fvx_tell(&dfile) != (osize + dsize))) { // check space via cluster preallocation
             if (!silent) ShowPrompt(false, "%s\nError: Not enough space available", deststr);
             ret = false;
         }
@@ -558,7 +560,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
                 if (flags && (*flags & NO_CANCEL)) {
                     ShowPrompt(false, "%s\nCancel is not allowed here", deststr);
                 } else ret = !ShowPrompt(true, "%s\nB button detected. Cancel?", deststr);
-                ShowProgress(0, 0, orig);
+                ShowProgress(0, total, orig);
                 ShowProgress(current, total, orig);
             }
             if (calcsha)

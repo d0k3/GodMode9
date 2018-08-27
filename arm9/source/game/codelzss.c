@@ -45,12 +45,12 @@ u32 DecompressCodeLzss(u8* code, u32* code_size, u32 max_size) {
     
     // main decompression loop
     while ((ptr_in > comp_start) && (ptr_out > comp_start)) {
-        if (!ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code..."))
-        {
+        if (!ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code...")) {
             if (ShowPrompt(true, "Decompressing .code...\nB button detected. Cancel?")) return 1;
             ShowProgress(0, data_end - data_start, "Decompressing .code...");
             ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code...");
         }
+        
         // sanity check
         if (ptr_out < ptr_in) return 1;
         
@@ -107,74 +107,72 @@ typedef struct {
     s16* ReversedOffsetTable;
     s16* ByteTable;
     s16* EndTable;
-} SCompressInfo;
+} sCompressInfo;
 
-void initTable(SCompressInfo* a_pInfo, void* a_pWork) {
+void initTable(sCompressInfo* a_pInfo, void* a_pWork) {
     a_pInfo->WindowPos = 0;
     a_pInfo->WindowLen = 0;
     a_pInfo->OffsetTable = (s16*)(a_pWork);
     a_pInfo->ReversedOffsetTable = (s16*)(a_pWork) + 4098;
     a_pInfo->ByteTable = (s16*)(a_pWork) + 4098 + 4098;
     a_pInfo->EndTable = (s16*)(a_pWork) + 4098 + 4098 + 256;
-    for (int i = 0; i < 256; i++)
-    {
+    
+    for (int i = 0; i < 256; i++) {
         a_pInfo->ByteTable[i] = -1;
         a_pInfo->EndTable[i] = -1;
     }
 }
 
-int search(SCompressInfo* a_pInfo, const u8* a_pSrc, int* a_nOffset, int a_nMaxSize) {
-    if (a_nMaxSize < 3)
-    {
+int search(sCompressInfo* a_pInfo, const u8* a_pSrc, int* a_nOffset, int a_nMaxSize) {
+    if (a_nMaxSize < 3) {
         return 0;
     }
+    
     const u8* pSearch = NULL;
     int nSize = 2;
     const u16 uWindowPos = a_pInfo->WindowPos;
     const u16 uWindowLen = a_pInfo->WindowLen;
     s16* pReversedOffsetTable = a_pInfo->ReversedOffsetTable;
-    for (s16 nOffset = a_pInfo->EndTable[*(a_pSrc - 1)]; nOffset != -1; nOffset = pReversedOffsetTable[nOffset])
-    {
-        if (nOffset < uWindowPos)
-        {
+    
+    for (s16 nOffset = a_pInfo->EndTable[*(a_pSrc - 1)]; nOffset != -1; nOffset = pReversedOffsetTable[nOffset]) {
+        if (nOffset < uWindowPos) {
             pSearch = a_pSrc + uWindowPos - nOffset;
-        }
-        else
-        {
+        } else {
             pSearch = a_pSrc + uWindowLen + uWindowPos - nOffset;
         }
-        if (pSearch - a_pSrc < 3)
-        {
+        
+        if (pSearch - a_pSrc < 3) {
             continue;
         }
-        if (*(pSearch - 2) != *(a_pSrc - 2) || *(pSearch - 3) != *(a_pSrc - 3))
-        {
+        
+        if (*(pSearch - 2) != *(a_pSrc - 2) || *(pSearch - 3) != *(a_pSrc - 3)) {
             continue;
         }
+        
         int nMaxSize = (int)((s64)min(a_nMaxSize, pSearch - a_pSrc));
         int nCurrentSize = 3;
-        while (nCurrentSize < nMaxSize && *(pSearch - nCurrentSize - 1) == *(a_pSrc - nCurrentSize - 1))
-        {
+        
+        while (nCurrentSize < nMaxSize && *(pSearch - nCurrentSize - 1) == *(a_pSrc - nCurrentSize - 1)) {
             nCurrentSize++;
         }
-        if (nCurrentSize > nSize)
-        {
+        
+        if (nCurrentSize > nSize) {
             nSize = nCurrentSize;
             *a_nOffset = (int)(pSearch - a_pSrc);
-            if (nSize == a_nMaxSize)
-            {
+            if (nSize == a_nMaxSize) {
                 break;
             }
         }
     }
-    if (nSize < 3)
-    {
+    
+    if (nSize < 3) {
         return 0;
     }
+    
     return nSize;
 }
 
-void slideByte(SCompressInfo* a_pInfo, const u8* a_pSrc) {
+void slideByte(sCompressInfo* a_pInfo, const u8* a_pSrc) {
     u8 uInData = *(a_pSrc - 1);
     u16 uInsertOffset = 0;
     const u16 uWindowPos = a_pInfo->WindowPos;
@@ -183,106 +181,97 @@ void slideByte(SCompressInfo* a_pInfo, const u8* a_pSrc) {
     s16* pReversedOffsetTable = a_pInfo->ReversedOffsetTable;
     s16* pByteTable = a_pInfo->ByteTable;
     s16* pEndTable = a_pInfo->EndTable;
-    if (uWindowLen == 4098)
-    {
+    
+    if (uWindowLen == 4098) {
         u8 uOutData = *(a_pSrc + 4097);
-        if ((pByteTable[uOutData] = pOffsetTable[pByteTable[uOutData]]) == -1)
-        {
+        
+        if ((pByteTable[uOutData] = pOffsetTable[pByteTable[uOutData]]) == -1) {
             pEndTable[uOutData] = -1;
-        }
-        else
-        {
+        } else {
             pReversedOffsetTable[pByteTable[uOutData]] = -1;
         }
+        
         uInsertOffset = uWindowPos;
-    }
-    else
-    {
+    } else {
         uInsertOffset = uWindowLen;
     }
+    
     s16 nOffset = pEndTable[uInData];
-    if (nOffset == -1)
-    {
+    
+    if (nOffset == -1) {
         pByteTable[uInData] = uInsertOffset;
-    }
-    else
-    {
+    } else {
         pOffsetTable[nOffset] = uInsertOffset;
     }
+    
     pEndTable[uInData] = uInsertOffset;
     pOffsetTable[uInsertOffset] = -1;
     pReversedOffsetTable[uInsertOffset] = nOffset;
-    if (uWindowLen == 4098)
-    {
+    
+    if (uWindowLen == 4098) {
         a_pInfo->WindowPos = (uWindowPos + 1) % 4098;
-    }
-    else
-    {
+    } else {
         a_pInfo->WindowLen++;
     }
 }
 
-inline void slide(SCompressInfo* a_pInfo, const u8* a_pSrc, int a_nSize) {
-    for (int i = 0; i < a_nSize; i++)
-    {
+inline void slide(sCompressInfo* a_pInfo, const u8* a_pSrc, int a_nSize) {
+    for (int i = 0; i < a_nSize; i++) {
         slideByte(a_pInfo, a_pSrc--);
     }
 }
 
-s64 Align(s64 a_nData, s64 a_nAlignment)
-{
+s64 alignBytes(s64 a_nData, s64 a_nAlignment) {
     return (a_nData + a_nAlignment - 1) / a_nAlignment * a_nAlignment;
 }
 
 bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_pCompressed, u32* a_uCompressedSize) {
     const int s_nCompressWorkSize = (4098 + 4098 + 256 + 256) * sizeof(s16);
     bool bResult = true;
-    if (a_uUncompressedSize > sizeof(CodeLzssFooter) && *a_uCompressedSize >= a_uUncompressedSize)
-    {
+    
+    if (a_uUncompressedSize > sizeof(CodeLzssFooter) && *a_uCompressedSize >= a_uUncompressedSize) {
         u8* pWork = malloc(s_nCompressWorkSize * sizeof(u8));
         if (!pWork) return false;
-        do
-        {
-            SCompressInfo info;
+        
+        do {
+            sCompressInfo info;
             initTable(&info, pWork);
+            
             const int nMaxSize = 0xF + 3;
             const u8* pSrc = a_pUncompressed + a_uUncompressedSize;
             u8* pDest = a_pCompressed + a_uUncompressedSize;
-            while (pSrc - a_pUncompressed > 0 && pDest - a_pCompressed > 0)
-            {
-                if (!ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code..."))
-                {
-                    if (ShowPrompt(true, "Compressing .code...\nB button detected. Cancel?"))
-                    {
+            
+            while (pSrc - a_pUncompressed > 0 && pDest - a_pCompressed > 0) {
+                if (!ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code...")) {
+                    if (ShowPrompt(true, "Compressing .code...\nB button detected. Cancel?")) {
                         bResult = false;
                         break;
                     }
                     ShowProgress(0, a_uUncompressedSize, "Compressing .code...");
                     ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code...");
                 }
+                
                 u8* pFlag = --pDest;
                 *pFlag = 0;
-                for (int i = 0; i < 8; i++)
-                {
+                
+                for (int i = 0; i < 8; i++) {
                     int nOffset = 0;
                     int nSize = search(&info, pSrc, &nOffset, (int)((s64)min((s64)min(nMaxSize, pSrc - a_pUncompressed), a_pUncompressed + a_uUncompressedSize - pSrc)));
-                    if (nSize < 3)
-                    {
-                        if (pDest - a_pCompressed < 1)
-                        {
+                    
+                    if (nSize < 3) {
+                        if (pDest - a_pCompressed < 1) {
                             bResult = false;
                             break;
                         }
+                        
                         slide(&info, pSrc, 1);
                         *--pDest = *--pSrc;
-                    }
-                    else
-                    {
-                        if (pDest - a_pCompressed < 2)
-                        {
+                    } else {
+                        if (pDest - a_pCompressed < 2) {
                             bResult = false;
                             break;
                         }
+                        
                         *pFlag |= 0x80 >> i;
                         slide(&info, pSrc, nSize);
                         pSrc -= nSize;
@@ -290,81 +279,77 @@ bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_
                         *--pDest = (nSize << 4 & 0xF0) | ((nOffset - 3) >> 8 & 0x0F);
                         *--pDest = (nOffset - 3) & 0xFF;
                     }
-                    if (pSrc - a_pUncompressed <= 0)
-                    {
+                    
+                    if (pSrc - a_pUncompressed <= 0) {
                         break;
                     }
                 }
-                if (!bResult)
-                {
+                
+                if (!bResult) {
                     break;
                 }
             }
-            if (!bResult)
-            {
+            
+            if (!bResult) {
                 break;
             }
+            
             *a_uCompressedSize = (u32)(a_pCompressed + a_uUncompressedSize - pDest);
         } while (false);
+        
         free(pWork);
-    }
-    else
-    {
+    } else {
         bResult = false;
     }
-    if (bResult)
-    {
+    
+    if (bResult) {
         u32 uOrigSize = a_uUncompressedSize;
         u8* pCompressBuffer = a_pCompressed + a_uUncompressedSize - *a_uCompressedSize;
         u32 uCompressBufferSize = *a_uCompressedSize;
         u32 uOrigSafe = 0;
         u32 uCompressSafe = 0;
         bool bOver = false;
-        while (uOrigSize > 0)
-        {
+        
+        while (uOrigSize > 0) {
             u8 uFlag = pCompressBuffer[--uCompressBufferSize];
-            for (int i = 0; i < 8; i++)
-            {
-                if ((uFlag << i & 0x80) == 0)
-                {
+            
+            for (int i = 0; i < 8; i++) {
+                if ((uFlag << i & 0x80) == 0) {
                     uCompressBufferSize--;
                     uOrigSize--;
-                }
-                else
-                {
+                } else {
                     int nSize = (pCompressBuffer[--uCompressBufferSize] >> 4 & 0x0F) + 3;
                     uCompressBufferSize--;
                     uOrigSize -= nSize;
-                    if (uOrigSize < uCompressBufferSize)
-                    {
+                    
+                    if (uOrigSize < uCompressBufferSize) {
                         uOrigSafe = uOrigSize;
                         uCompressSafe = uCompressBufferSize;
                         bOver = true;
                         break;
                     }
                 }
-                if (uOrigSize <= 0)
-                {
+                
+                if (uOrigSize <= 0) {
                     break;
                 }
             }
-            if (bOver)
-            {
+            
+            if (bOver) {
                 break;
             }
         }
+        
         u32 uCompressedSize = *a_uCompressedSize - uCompressSafe;
         u32 uPadOffset = uOrigSafe + uCompressedSize;
-        u32 uCompFooterOffset = (u32)(Align(uPadOffset, 4));
+        u32 uCompFooterOffset = (u32)(alignBytes(uPadOffset, 4));
         *a_uCompressedSize = uCompFooterOffset + sizeof(CodeLzssFooter);
         u32 uTop = *a_uCompressedSize - uOrigSafe;
         u32 uBottom = *a_uCompressedSize - uPadOffset;
-        if (*a_uCompressedSize >= a_uUncompressedSize || uTop > 0xFFFFFF)
-        {
+        
+        if (*a_uCompressedSize >= a_uUncompressedSize || uTop > 0xFFFFFF) {
             bResult = false;
-        }
-        else
-        {
+        } else {
             memcpy(a_pCompressed, a_pUncompressed, uOrigSafe);
             memmove(a_pCompressed + uOrigSafe, pCompressBuffer + uCompressSafe, uCompressedSize);
             memset(a_pCompressed + uPadOffset, 0xFF, uCompFooterOffset - uPadOffset);
@@ -373,5 +358,6 @@ bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_
             pCompFooter->addsize_dec = a_uUncompressedSize - *a_uCompressedSize;
         }
     }
+    
     return bResult;
 }
