@@ -278,10 +278,17 @@ u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* e
         // exefs file handling
         if (exefs) for (u32 i = 0; i < 10; i++) {
             ExeFsFileHeader* file = exefs->files + i;
-            if (CryptNcchSection(data, offset, size,
-                (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset,
-                align(file->size, NCCH_MEDIA_UNIT), 0x200 + file->offset,
+            if (!file->size) continue;
+
+            u32 offset_file = (ncch->offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + file->offset;
+            u32 size_file = file->size;
+            u32 offset_pad = offset_file + size_file;
+            u32 size_pad = align(size_file, NCCH_MEDIA_UNIT) - size_file;
+
+            if (CryptNcchSection(data, offset, size, offset_file, size_file, 0x200 + file->offset,
                 ncch, 2, crypt_to, EXEFS_KEYID(file->name)) != 0) return 1;
+            if (CryptNcchSection(data, offset, size, offset_pad, size_pad, 0x200 + file->offset + file->size,
+                ncch, 2, crypt_to, 0) != 0) return 1;
         }
     }
     
