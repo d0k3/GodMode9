@@ -44,7 +44,10 @@
 #define __BOOT11_ADDR   0x08090000
 #define __BOOT11_LEN    0x00010000
 
+
 // stuff in FCRAM
+// FCRAM0 0x0000...0x1000 is unused
+// see: https://www.3dbrew.org/wiki/FIRM#FIRM_Launch_Parameters
 
 #define __FIRMRAM_ADDR  (__FCRAM0_ADDR + 0x0001000)
 #define __FIRMRAM_END   (__FIRMRAM_ADDR + 0x0400000)
@@ -62,5 +65,5 @@
 #define __STACK_TOP     (__STACK_ABT_TOP - __STACK_ABT_LEN)
 #define __STACK_LEN     0x7F0000 
 
-#define __HEAP_ADDR     (__FCRAM0_ADDR)
+#define __HEAP_ADDR     (__FCRAM0_ADDR + 0x0001000)
 #define __HEAP_END      (__STACK_TOP - __STACK_LEN)
