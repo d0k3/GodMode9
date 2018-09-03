@@ -4,8 +4,6 @@
 #include "utf.h"
 #include "aes.h"
 
-#define VGAME_BUFFER_SIZE   0x200000 + 0x20000 // at least 2MB, multiple of 0x200
-
 #define VFLAG_NO_CRYPTO     (1UL<<18)
 #define VFLAG_TAD           (1UL<<19)
 #define VFLAG_CIA_CONTENT   (1UL<<20)
@@ -78,6 +76,7 @@ static u64 vgame_type = 0;
 static u32 base_vdir = 0;
 
 static void* vgame_buffer = NULL;
+static u8* vgame_fs_buffer = NULL;
 
 static VirtualFile* templates_cia   = NULL;
 static VirtualFile* templates_tad   = NULL;
@@ -116,8 +115,6 @@ static FirmHeader* firm   = NULL;
 static NcsdHeader* ncsd   = NULL;
 static NcchHeader* ncch   = NULL;
 static ExeFsHeader* exefs = NULL;
-static u8* romfslv3       = NULL;
-static u8* nitrofs        = NULL;
 static RomFsLv3Index lv3idx;
 static u8 cia_titlekey[16];
 
@@ -737,7 +734,9 @@ bool BuildVGameTadDir(void) {
 
 void DeinitVGameDrive(void) {
     if (vgame_buffer) free(vgame_buffer);
+    if (vgame_fs_buffer) free(vgame_fs_buffer);
     vgame_buffer = NULL;
+    vgame_fs_buffer = NULL;
 }
 
 u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
@@ -771,7 +770,7 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
     if (!base_vdir) return 0;
     
     // set up vgame buffer
-    vgame_buffer = (void*) malloc(VGAME_BUFFER_SIZE);
+    vgame_buffer = (void*) malloc(0x40000);
     if (!vgame_buffer) return 0;
     
     templates_cia   = (VirtualFile*) ((u8*) vgame_buffer); // first 184kb reserved (enough for 3364 entries)
@@ -788,8 +787,7 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
     ncsd  = (NcsdHeader*)    (void*) (((u8*) vgame_buffer) + 0x3FA00); // 512 byte reserved
     ncch  = (NcchHeader*)    (void*) (((u8*) vgame_buffer) + 0x3FC00); // 512 byte reserved
     exefs = (ExeFsHeader*)   (void*) (((u8*) vgame_buffer) + 0x3FE00); // 512 byte reserved
-    romfslv3 = (((u8*) vgame_buffer) + 0x40000); // 1920kB reserved
-    nitrofs  = (((u8*) vgame_buffer) + 0x40000); // 1920kB reserved (FNT+FAT combined)
+    // filesystem stuff (RomFS / NitroFS) will be allocated on demand
     
     vgame_type = type;
     return type;
@@ -884,20 +882,23 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             (memcmp(magic, header, sizeof(magic)) != 0))
             return false;
         // validate lv3 header
-        RomFsLv3Header* lv3 = (RomFsLv3Header*) romfslv3;
+        RomFsLv3Header lv3;
         for (u32 i = 1; i < 8; i++) {
             offset_lv3 = vdir->offset + (i*OFFSET_LV3);
-            if (ReadNcchImageBytes(romfslv3, offset_lv3, sizeof(RomFsLv3Header)) != 0)
+            if (ReadNcchImageBytes(&lv3, offset_lv3, sizeof(RomFsLv3Header)) != 0)
                 return false;
-            if (ValidateLv3Header(lv3, VGAME_BUFFER_SIZE - 0x20000) == 0)
+            if (ValidateLv3Header(&lv3, 0) == 0)
                 break;
             offset_lv3 = (u64) -1;
         }
-        if ((offset_lv3 == (u64) -1) || (ReadNcchImageBytes(romfslv3, offset_lv3, lv3->offset_filedata) != 0))
+        if (vgame_fs_buffer) free(vgame_fs_buffer);
+        vgame_fs_buffer = malloc(lv3.offset_filedata);
+        if (!vgame_fs_buffer || (offset_lv3 == (u64) -1) ||
+            (ReadNcchImageBytes(vgame_fs_buffer, offset_lv3, lv3.offset_filedata) != 0))
             return false;
-        offset_lv3fd = offset_lv3 + lv3->offset_filedata;
+        offset_lv3fd = offset_lv3 + lv3.offset_filedata;
         offset_romfs = vdir->offset;
-        BuildLv3Index(&lv3idx, romfslv3);
+        BuildLv3Index(&lv3idx, vgame_fs_buffer);
     } else if ((vdir->flags & VFLAG_NDS) && (offset_nds != vdir->offset)) {
         if ((ReadGameImageBytes(twl, vdir->offset, 0x200) != 0) ||
             (ValidateTwlHeader(twl) != 0))
@@ -912,8 +913,9 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             return false;
         // load NitroFNT & NitroFAT to memory
         u32 size_nitro = (twl->fat_offset + twl->fat_size) - twl->fnt_offset;
-        if ((size_nitro > VGAME_BUFFER_SIZE - 0x20000) ||
-            (ReadGameImageBytes(nitrofs, vdir->offset + twl->fnt_offset, size_nitro) != 0))
+        if (vgame_fs_buffer) free(vgame_fs_buffer);
+        vgame_fs_buffer = malloc(size_nitro);
+        if (!vgame_fs_buffer || (ReadGameImageBytes(vgame_fs_buffer, vdir->offset + twl->fnt_offset, size_nitro) != 0))
             return false;
         offset_nitro = offset_nds;
     }
@@ -1004,8 +1006,8 @@ bool ReadVGameDirLv3(VirtualFile* vfile, VirtualDir* vdir) {
 }
 
 bool ReadVGameDirNitro(VirtualFile* vfile, VirtualDir* vdir) {
-    u8* fnt = nitrofs;
-    u8* fat = nitrofs + twl->fat_offset - twl->fnt_offset;
+    u8* fnt = vgame_fs_buffer;
+    u8* fat = vgame_fs_buffer + twl->fat_offset - twl->fnt_offset;
         
     vfile->name[0] = '\0';
     vfile->flags = VFLAG_NITRO | VFLAG_READONLY;
@@ -1153,7 +1155,7 @@ bool GetVGameNitroFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
     if (!(vfile->flags & VFLAG_NITRO))
         return false;
     
-    u8* fnt_entry = nitrofs + (vfile->offset >> 32);
+    u8* fnt_entry = vgame_fs_buffer + (vfile->offset >> 32);
     u32 name_len = (*fnt_entry) & ~0x80;
     if (name_len >= n_chars) return false;
     memset(name, 0, n_chars);
