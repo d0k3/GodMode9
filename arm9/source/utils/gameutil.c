@@ -318,8 +318,15 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
         return 1;
     
     fvx_lseek(&file, offset);
-    if (GetNcchHeaders(&ncch, &exthdr, NULL, &file) != 0) {
+    if (GetNcchHeaders(&ncch, NULL, NULL, &file) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
+        fvx_close(&file);
+        return 1;
+    }
+
+    fvx_lseek(&file, offset);
+    if (ncch.size_exthdr && (GetNcchHeaders(&ncch, &exthdr, NULL, &file) != 0)) {
+        if (!offset) ShowPrompt(false, "%s\nError: Missing ExtHeader", pathstr);
         fvx_close(&file);
         return 1;
     }
