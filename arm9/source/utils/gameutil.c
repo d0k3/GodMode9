@@ -445,6 +445,13 @@ u32 VerifyCiaFile(const char* path) {
         free(cia);
         return 1;
     }
+
+    // verify TMD
+    if (VerifyTmd(&(cia->tmd)) != 0) {
+        ShowPrompt(false, "%s\nError: TMD probably corrupted", pathstr);
+        free(cia);
+        return 1;
+    }
     
     // verify contents
     u32 content_count = getbe16(cia->tmd.content_count);
@@ -486,7 +493,7 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     // load TMD file
     TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
-    if (LoadTmdFile(tmd, path) != 0) {
+    if ((LoadTmdFile(tmd, path) != 0) || (VerifyTmd(tmd) != 0)) {
         ShowPrompt(false, "%s\nError: TMD probably corrupted", pathstr);
         free(tmd);
         return 1;

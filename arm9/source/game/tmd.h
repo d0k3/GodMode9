@@ -59,6 +59,7 @@ typedef struct {
 
 u32 ValidateTmd(TitleMetaData* tmd);
 u32 ValidateTmdSignature(TitleMetaData* tmd);
+u32 VerifyTmd(TitleMetaData* tmd);
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);
 u32 FixTmdHashes(TitleMetaData* tmd);
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size);

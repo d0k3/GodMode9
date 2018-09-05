@@ -33,6 +33,29 @@ u32 ValidateTmdSignature(TitleMetaData* tmd) {
     return 0;
 }
 
+u32 VerifyTmd(TitleMetaData* tmd) {
+    TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
+    u32 content_count = getbe16(tmd->content_count);
+
+    // TMD validation
+    if (ValidateTmd(tmd) != 0) return 1;
+
+    // check content info hash
+    if (sha_cmp(tmd->contentinfo_hash, (u8*)tmd->contentinfo, 64 * sizeof(TmdContentInfo), SHA256_MODE) != 0)
+        return 1;
+
+    // check hashes in content info
+    for (u32 i = 0, kc = 0; i < 64 && kc < content_count; i++) {
+        TmdContentInfo* info = tmd->contentinfo + i;
+        u32 k = getbe16(info->cmd_count);
+        if (sha_cmp(info->hash, content_list + kc, k * sizeof(TmdContentChunk), SHA256_MODE) != 0)
+            return 1;
+        kc += k;
+    }
+
+    return 0;
+}
+
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk) {
     memset(ctr, 0, 16);
     memcpy(ctr, chunk->index, 2);
