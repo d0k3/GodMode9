@@ -153,8 +153,8 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_QR      , "qr"      , 2, 0 },
     { CMD_ID_ASK     , "ask"     , 1, 0 },
     { CMD_ID_INPUT   , "input"   , 2, 0 },
-    { CMD_ID_FILESEL , "filesel" , 3, _FLG('d') },
-    { CMD_ID_DIRSEL  , "dirsel"  , 3, 0 },
+    { CMD_ID_FILESEL , "filesel" , 3, _FLG('d') | _FLG('x') },
+    { CMD_ID_DIRSEL  , "dirsel"  , 3, _FLG('x') },
     { CMD_ID_SET     , "set"     , 2, 0 },
     { CMD_ID_STRSPLIT, "strsplit", 3, _FLG('b') | _FLG('f')},
     { CMD_ID_STRREP  , "strrep"  , 3, 0 },
@@ -562,6 +562,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--silent", len) == 0) flag_char = 's';
     else if (strncmp(str, "--unequal", len) == 0) flag_char = 'u';
     else if (strncmp(str, "--overwrite", len) == 0) flag_char = 'w';
+    else if (strncmp(str, "--explorer", len) == 0) flag_char = 'x';
     
     if ((flag_char < 'a') && (flag_char > 'z')) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "illegal flag");
@@ -1039,11 +1040,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             } else {
                 u32 flags_ext = (flags & _FLG('d')) ? 0 : NO_DIRS;
                 *(npattern++) = '\0';
-                ret = FileSelector(choice, argv[0], path, npattern, flags_ext);
+                ret = FileSelector(choice, argv[0], path, npattern, flags_ext, (flags & _FLG('x')));
                 if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
             }
         } else {
-            ret = FileSelector(choice, argv[0], path, NULL, NO_FILES | SELECT_DIRS);
+            ret = FileSelector(choice, argv[0], path, NULL, NO_FILES | SELECT_DIRS, (flags & _FLG('x')));
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "dirselect abort");
         }
         

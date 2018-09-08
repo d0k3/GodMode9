@@ -7,6 +7,7 @@
 #include <vram.h>
 #include "common.h"
 #include "colors.h"
+#include "fsdir.h" // only required for ShowFileScrollPrompt
 
 
 #define BYTES_PER_PIXEL 3
@@ -73,6 +74,7 @@ void ShowString(const char *format, ...);
 void ShowIconString(u8* icon, int w, int h, const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
+u32 ShowFileScrollPrompt(u32 n, const DirEntry** entries, bool hide_ext, const char *format, ...);
 u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *format, ...);
 bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...);
 u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...);

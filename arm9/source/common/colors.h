@@ -44,6 +44,7 @@
 #define COLOR_FILE          COLOR_TINTEDGREEN
 #define COLOR_DIR           COLOR_TINTEDBLUE
 #define COLOR_ROOT          COLOR_GREY
+#define COLOR_ENTRY(e)  (((e)->marked) ? COLOR_MARKED : ((e)->type == T_DIR) ? COLOR_DIR : ((e)->type == T_FILE) ? COLOR_FILE : ((e)->type == T_ROOT) ?  COLOR_ROOT : COLOR_GREY)
 
 // hex viewer colors
 #define COLOR_HVOFFS        RGB(0x40, 0x60, 0x50)

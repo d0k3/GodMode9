@@ -598,6 +598,96 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
     return (sel >= n) ? 0 : sel + 1;
 }
 
+u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const char *format, ...) {
+    u32 str_height, fname_len;
+    u32 x, y, yopt;
+    const u32 item_width = SCREEN_WIDTH(MAIN_SCREEN) - 40;
+    int sel = 0, scroll = 0;
+    u32 n_show = min(n, 10);
+    
+    char str[STRBUF_SIZE] = { 0 };
+    va_list va;
+    va_start(va, format);
+    vsnprintf(str, STRBUF_SIZE, format, va);
+    va_end(va);
+    
+    if (n == 0) return 0; // check for low number of options
+    // else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
+    
+    str_height = GetDrawStringHeight(str) + (n_show * (line_height + 2)) + (4 * line_height);
+    x = (SCREEN_WIDTH_MAIN - item_width) / 2;
+    y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
+    yopt = y + GetDrawStringHeight(str) + 8;
+    fname_len = min(64, item_width / FONT_WIDTH_EXT - 14);
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+    DrawStringF(MAIN_SCREEN, x, yopt + (n_show*(line_height+2)) + line_height, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
+    while (true) {
+        for (u32 i = scroll; i < scroll+n_show; i++) {
+            char bytestr[16];
+            FormatBytes(bytestr, options[i]->size);
+            
+            char content_str[64 + 1];
+            char temp_str[256];
+            strncpy(temp_str, options[i]->name, 255);
+            
+            char* dot = strrchr(temp_str, '.');
+            if (hide_ext && dot) *dot = '\0';
+            
+            ResizeString(content_str, temp_str, fname_len, 8, false);
+            
+            DrawStringF(MAIN_SCREEN, x, yopt + ((line_height+2)*(i-scroll)),
+                (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%2.2s %s",
+                (sel == (int)i) ? "->" : "", content_str);
+                
+            DrawStringF(MAIN_SCREEN, x + item_width - font_width * 11, yopt + ((line_height+2)*(i-scroll)),
+                (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%10.10s",
+                (options[i]->type == T_DIR) ? "(dir)" : (options[i]->type == T_DOTDOT) ? "(..)" : bytestr);
+        }
+        // show [n more]
+        if (n - n_show - scroll) {
+            char more_str[64 + 1];
+            snprintf(more_str, 64, "   [%d more]", (int)(n - (n_show-1) - scroll));
+            DrawStringF(MAIN_SCREEN, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG, "%-*s", item_width / font_width, more_str);
+        }
+        // show scroll bar
+        u32 bar_x = x + item_width + 2;
+        const u32 flist_height = (n_show * (line_height + 2));
+        const u32 bar_width = 2;
+        if (n > n_show) { // draw position bar at the right
+            const u32 bar_height_min = 32;
+            u32 bar_height = (n_show * flist_height) / n;
+            if (bar_height < bar_height_min) bar_height = bar_height_min;
+            const u32 bar_y = ((u64) scroll * (flist_height - bar_height)) / (n - n_show) + yopt;
+            
+            DrawRectangle(MAIN_SCREEN, bar_x, yopt, bar_width, (bar_y - yopt), COLOR_STD_BG);
+            DrawRectangle(MAIN_SCREEN, bar_x, bar_y + bar_height, bar_width, SCREEN_HEIGHT - (bar_y + bar_height), COLOR_STD_BG);
+            DrawRectangle(MAIN_SCREEN, bar_x, bar_y, bar_width, bar_height, COLOR_SIDE_BAR);
+        } else DrawRectangle(MAIN_SCREEN, bar_x, yopt, bar_width, flist_height, COLOR_STD_BG);
+        
+        u32 pad_state = InputWait(0);
+        if (pad_state & BUTTON_DOWN) sel++;
+        else if (pad_state & BUTTON_UP) sel--;
+        else if (pad_state & BUTTON_RIGHT) sel += n_show;
+        else if (pad_state & BUTTON_LEFT) sel -= n_show;
+        else if (pad_state & BUTTON_A) break;
+        else if (pad_state & BUTTON_B) {
+            sel = n;
+            break;
+        }
+        if (sel < 0) sel = 0;
+        else if (sel >= (int)n) sel = n-1;
+        if (sel < scroll) scroll = sel;
+        else if (sel == (int) n-1 && sel >= (int)(scroll + n_show - 1)) scroll = sel - n_show + 1;
+        else if (sel >= (int)(scroll + (n_show-1) - 1)) scroll = sel - (n_show-1) + 1;
+    }
+    
+    ClearScreenF(true, false, COLOR_STD_BG);
+    
+    return (sel >= (int)n) ? 0 : sel + 1;
+}
+
 u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *format, ...) {
     char str[STRBUF_SIZE] = { 0 };
     char* ptr = str;

@@ -107,11 +107,13 @@ echo $[TESTREP]
 # The 'filesel' command allows the user to choose a file inside a directory
 # The path is stored inside a variable, and the selection can be limited via wildcards
 # -d / --include_dirs allows to browse folders and select files inside
+# -x / --explorer uses new style file selector like main file explorer
 filesel "Please select a file" 0:/*.* SELFILE
 
 # 'dirsel' COMMAND
 # The 'dirsel' command works identically to the 'filesel' command, but allows selecting a dir
 # Note that a final slash ('/') is not expected here and there can be no wildcard pattern.
+# -x / --explorer uses new style file selector like main file explorer
 dirsel "Now, select a dir" 0: SELDIR
 echo "You selected $[SELFILE]\nand $[SELDIR]\nWe'll do nothing with either :)."
 
