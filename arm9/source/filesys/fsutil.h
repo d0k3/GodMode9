@@ -84,4 +84,4 @@ bool PathRename(const char* path, const char* newname);
 bool PathAttr(const char* path, u8 attr, u8 mask);
 
 /** Select a file **/
-bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags);
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags, bool new_style);

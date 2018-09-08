@@ -780,7 +780,7 @@ bool PathAttr(const char* path, u8 attr, u8 mask) {
     return (f_chmod(path, attr, mask) == FR_OK);
 }
 
-bool FileSelectorWorker(char* result, const char* text, const char* path, const char* pattern, u32 flags, void* buffer) {
+bool FileSelectorWorker(char* result, const char* text, const char* path, const char* pattern, u32 flags, void* buffer, bool new_style) {
     DirStruct* contents = (DirStruct*) buffer;
     char path_local[256];
     strncpy(path_local, path, 256);
@@ -799,7 +799,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
         
         while (pos < contents->n_entries) {
             char opt_names[_MAX_FS_OPT+1][32+1];
-            DirEntry* res_entry[_MAX_FS_OPT+1] = { NULL };
+            DirEntry* res_entry[MAX_DIR_ENTRIES+1] = { NULL };
             u32 n_opt = 0;
             for (; pos < contents->n_entries; pos++) {
                 DirEntry* entry = &(contents->entry[pos]);
@@ -807,35 +807,38 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
                     ((entry->type == T_FILE) && (no_files || (fvx_match_name(entry->name, pattern) != FR_OK))) ||
                     (entry->type == T_DOTDOT) || (strncmp(entry->name, "._", 2) == 0))
                     continue;
-                if (n_opt == _MAX_FS_OPT) {
+                if (!new_style && n_opt == _MAX_FS_OPT) {
                     snprintf(opt_names[n_opt++], 32, "[more...]");
                     break;
                 }
                 
-                char temp_str[256];
-                snprintf(temp_str, 256, "%s", entry->name);
-                if (hide_ext && (entry->type == T_FILE)) {
-                    char* dot = strrchr(temp_str, '.');
-                    if (dot) *dot = '\0';
+                if (!new_style) {
+                    char temp_str[256];
+                    snprintf(temp_str, 256, "%s", entry->name);
+                    if (hide_ext && (entry->type == T_FILE)) {
+                        char* dot = strrchr(temp_str, '.');
+                        if (dot) *dot = '\0';
+                    }
+                    TruncateString(opt_names[n_opt], temp_str, 32, 8);
                 }
-                TruncateString(opt_names[n_opt], temp_str, 32, 8);
                 res_entry[n_opt++] = entry;
                 n_found++;
             }
-            if ((pos >= contents->n_entries) && (n_opt < n_found))
+            if ((pos >= contents->n_entries) && (n_opt < n_found) && !new_style)
                 snprintf(opt_names[n_opt++], 32, "[more...]");
             if (!n_opt) break;
             
             const char* optionstr[_MAX_FS_OPT+1] = { NULL };
             for (u32 i = 0; i <= _MAX_FS_OPT; i++) optionstr[i] = opt_names[i];
-            u32 user_select = ShowSelectPrompt(n_opt, optionstr, "%s", text);
+            u32 user_select = new_style ? ShowFileScrollPrompt(n_opt, (const DirEntry**)res_entry, hide_ext, "%s", text)
+                                        : ShowSelectPrompt(n_opt, optionstr, "%s", text);
             if (!user_select) return false;
             DirEntry* res_local = res_entry[user_select-1];
             if (res_local && (res_local->type == T_DIR)) { // selected dir
                 if (select_dirs) {
                     strncpy(result, res_local->path, 256);
                     return true;
-                } else if (FileSelectorWorker(result, text, res_local->path, pattern, flags, buffer)) {
+                } else if (FileSelectorWorker(result, text, res_local->path, pattern, flags, buffer, new_style)) {
                     return true;
                 }
                 break;
@@ -853,11 +856,11 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
     }
 }
 
-bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags) {
+bool FileSelector(char* result, const char* text, const char* path, const char* pattern, u32 flags, bool new_style) {
     void* buffer = (void*) malloc(sizeof(DirStruct));
     if (!buffer) return false;
     
-    bool ret = FileSelectorWorker(result, text, path, pattern, flags, buffer);
+    bool ret = FileSelectorWorker(result, text, path, pattern, flags, buffer, new_style);
     free(buffer);
     return ret;
 }
