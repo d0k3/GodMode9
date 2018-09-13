@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<<11)
-#define OVERWRITE_CUR   (1UL<<12)
+#define SKIP_CUR        (1UL<<10)
+#define OVERWRITE_CUR   (1UL<<11)
 
 #define _MAX_FS_OPT     8 // max file selector options
 
@@ -441,7 +441,6 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
     bool silent = (flags && (*flags & SILENT));
     bool append = (flags && (*flags & APPEND_ALL));
     bool calcsha = (flags && (*flags & CALC_SHA) && !append);
-    bool progress = !(flags && (*flags & NO_PROGRESS));
     bool ret = false;
     
     // check destination write permission (special paths only)
@@ -457,20 +456,21 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
     char deststr[36 + 1];
     TruncateString(deststr, dest, 36, 8);
     
-    u64 current = (progress) ? 0 : 1;
-    u64 total = (progress) ? 0 : 1;
-    
     // the copy process takes place here
-    if (!ShowProgress(current, total, orig) && !(flags && (*flags & NO_CANCEL))) {
+    if (!ShowProgress(1, 1, orig) && !(flags && (*flags & NO_CANCEL))) {
         if (ShowPrompt(true, "%s\nB button detected. Cancel?", deststr)) return false;
-        ShowProgress(0, total, orig);
-        ShowProgress(current, total, orig);
+        ShowProgress(0, 1, orig);
     }
     if (move && fvx_stat(dest, NULL) != FR_OK) { // moving if dest not existing
         ret = (fvx_rename(orig, dest) == FR_OK);
     } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
+        
+        if (append) {
+            if (!silent) ShowPrompt(false, "%s\nError: Cannot append a folder", deststr);
+            return false;
+        }
         
         // create the destination folder if it does not already exist
         if (fvx_opendir(&pdir, dest) != FR_OK) {
@@ -514,6 +514,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         if (fvx_unlink(dest) != FR_OK) return false;
         ret = (fvx_rename(orig, dest) == FR_OK);
     } else { // copying files
+        bool progressBar = true;
         FIL ofile;
         FIL dfile;
         u64 osize;
@@ -522,8 +523,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         if (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
             if (!FileUnlock(orig) || (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
                 return false;
-            ShowProgress(0, total, orig); // reinit progress bar
-            ShowProgress(current, total, orig);
+            ShowProgress(0, 1, orig); // reinit progress bar
         }
         
         if ((!append || (fvx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)) &&
@@ -547,6 +547,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         fvx_sync(&ofile);
         
         if (calcsha) sha_init(SHA256_MODE);
+        if (osize <= bufsiz) progressBar = false;
         for (u64 pos = 0; (pos < osize) && ret; pos += bufsiz) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
@@ -554,8 +555,8 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
                 (fvx_write(&dfile, buffer, bytes_read, &bytes_written) != FR_OK) ||
                 (bytes_read != bytes_written))
                 ret = false;
-            current = (progress) ? (pos + bytes_read) : 1;
-            total = (progress) ? osize : 1;
+            u64 current = (progressBar) ? (pos + bytes_read) : 1;
+            u64 total = (progressBar) ? osize : 1;
             if (ret && !ShowProgress(current, total, orig)) {
                 if (flags && (*flags & NO_CANCEL)) {
                     ShowPrompt(false, "%s\nCancel is not allowed here", deststr);

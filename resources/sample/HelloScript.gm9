@@ -141,10 +141,9 @@ imgmount S:/ctrnand_full.bin
 # 'cp' COMMAND
 # Use 'cp' to copy a file or directory (recursively)
 # -h / --hash also adds a .sha file containing the files SHA256
-# -w / --overwrite forces overwrite on existing files (disables -k and -a)
-# -k / --skip forces skip on existing files (disables -a)
-# -a / --append will append copied files to the end of existing files (disables -h)
-# -p / --no_progress_bar will not show percent completion (useful for quick successive copies)
+# -w / --overwrite forces overwrite on existing files (disables -k and -p)
+# -k / --skip forces skip on existing files (disables -p)
+# -p / --append will append copied files to the end of existing files (disables -h)
 # -n / --no_cancel prevents user cancels (useful on critical operations)
 cp -h -w -n 7:/dbs/ticket.db  $[TESTPATH]
 
