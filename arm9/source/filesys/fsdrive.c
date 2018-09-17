@@ -179,8 +179,8 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
             contents->n_entries = 0; // not required, but so what?
     } else {
         // create virtual '..' entry
-        contents->entry->name = contents->entry->path + 8;
-        strncpy(contents->entry->path, "*?*?*", 8);
+        contents->entry->name = contents->entry->path + 4;
+        strncpy(contents->entry->path, "*?*", 4);
         strncpy(contents->entry->name, "..", 4);
         contents->entry->type = T_DOTDOT;
         contents->entry->size = 0;

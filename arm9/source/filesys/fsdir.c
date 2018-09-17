@@ -17,13 +17,15 @@ int compDirEntry(const void* e1, const void* e2) {
 
 void SortDirStruct(DirStruct* contents) {
     qsort(contents->entry, contents->n_entries, sizeof(DirEntry), compDirEntry);
+    // fix entry->names after qsort
     for (int i = 0; i < (int)contents->n_entries; i++) {
         DirEntry* entry = &(contents->entry[i]);
-        if (entry->type == T_DOTDOT) {
-            entry->name = entry->path + 8;
-        } else {
+        if ((entry->type == T_DIR) || (entry->type == T_FILE)) {
             char* slash = strrchr(entry->path, '/');
             entry->name = slash ? slash + 1 : entry->path;
+        } else {
+            // somewhat hacky, applies to T_DOTDOT and T_ROOT (see fsdrive.c)
+            entry->name = entry->path + 4;
         }
     }
 }
