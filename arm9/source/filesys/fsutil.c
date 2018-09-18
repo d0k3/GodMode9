@@ -11,8 +11,8 @@
 #include "ff.h"
 #include "ui.h"
 
-#define SKIP_CUR        (1UL<< 9)
-#define OVERWRITE_CUR   (1UL<<10)
+#define SKIP_CUR        (1UL<<10)
+#define OVERWRITE_CUR   (1UL<<11)
 
 #define _MAX_FS_OPT     8 // max file selector options
 
@@ -439,6 +439,8 @@ bool PathExist(const char* path) {
 bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, u32 bufsiz) {
     bool to_virtual = GetVirtualSource(dest);
     bool silent = (flags && (*flags & SILENT));
+    bool append = (flags && (*flags & APPEND_ALL));
+    bool calcsha = (flags && (*flags & CALC_SHA) && !append);
     bool ret = false;
     
     // check destination write permission (special paths only)
@@ -455,15 +457,20 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
     TruncateString(deststr, dest, 36, 8);
     
     // the copy process takes place here
-    if (!ShowProgress(0, 0, orig) && !(flags && (*flags & NO_CANCEL))) {
+    if (!ShowProgress(1, 1, orig) && !(flags && (*flags & NO_CANCEL))) {
         if (ShowPrompt(true, "%s\nB button detected. Cancel?", deststr)) return false;
-        ShowProgress(0, 0, orig);
+        ShowProgress(0, 1, orig);
     }
     if (move && fvx_stat(dest, NULL) != FR_OK) { // moving if dest not existing
         ret = (fvx_rename(orig, dest) == FR_OK);
     } else if (fno.fattrib & AM_DIR) { // processing folders (same for move & copy)
         DIR pdir;
         char* fname = orig + strnlen(orig, 256);
+        
+        if (append) {
+            if (!silent) ShowPrompt(false, "%s\nError: Cannot append a folder", deststr);
+            return false;
+        }
         
         // create the destination folder if it does not already exist
         if (fvx_opendir(&pdir, dest) != FR_OK) {
@@ -507,58 +514,65 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         if (fvx_unlink(dest) != FR_OK) return false;
         ret = (fvx_rename(orig, dest) == FR_OK);
     } else { // copying files
+        bool progressBar = true;
         FIL ofile;
         FIL dfile;
-        u64 fsize;
+        u64 osize;
+        u64 dsize;
         
         if (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
             if (!FileUnlock(orig) || (fvx_open(&ofile, orig, FA_READ | FA_OPEN_EXISTING) != FR_OK))
                 return false;
-            ShowProgress(0, 0, orig); // reinit progress bar
+            ShowProgress(0, 1, orig); // reinit progress bar
         }
         
-        if (fvx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        if ((!append || (fvx_open(&dfile, dest, FA_WRITE | FA_OPEN_EXISTING) != FR_OK)) &&
+            (fvx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)) {
             if (!silent) ShowPrompt(false, "%s\nError: Cannot open destination file", deststr);
             fvx_close(&ofile);
             return false;
         }
         
         ret = true; // destination file exists by now, so we need to handle deletion
-        fsize = fvx_size(&ofile); // check space via cluster preallocation
-        if ((fvx_lseek(&dfile, fsize) != FR_OK) || (fvx_sync(&dfile) != FR_OK) || (fvx_tell(&dfile) != fsize)) {
+        osize = fvx_size(&ofile);
+        dsize = fvx_size(&dfile); // always 0 if not appending to file
+        if ((fvx_lseek(&dfile, (osize + dsize)) != FR_OK) || (fvx_sync(&dfile) != FR_OK) || (fvx_tell(&dfile) != (osize + dsize))) { // check space via cluster preallocation
             if (!silent) ShowPrompt(false, "%s\nError: Not enough space available", deststr);
             ret = false;
         }
         
-        fvx_lseek(&dfile, 0);
+        fvx_lseek(&dfile, dsize);
         fvx_sync(&dfile);
         fvx_lseek(&ofile, 0);
         fvx_sync(&ofile);
         
-        if (flags && (*flags & CALC_SHA)) sha_init(SHA256_MODE);
-        for (u64 pos = 0; (pos < fsize) && ret; pos += bufsiz) {
+        if (calcsha) sha_init(SHA256_MODE);
+        if (osize <= bufsiz) progressBar = false;
+        for (u64 pos = 0; (pos < osize) && ret; pos += bufsiz) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;            
             if ((fvx_read(&ofile, buffer, bufsiz, &bytes_read) != FR_OK) ||
                 (fvx_write(&dfile, buffer, bytes_read, &bytes_written) != FR_OK) ||
                 (bytes_read != bytes_written))
                 ret = false;
-            if (ret && !ShowProgress(pos + bytes_read, fsize, orig)) {
+            u64 current = (progressBar) ? (pos + bytes_read) : 1;
+            u64 total = (progressBar) ? osize : 1;
+            if (ret && !ShowProgress(current, total, orig)) {
                 if (flags && (*flags & NO_CANCEL)) {
                     ShowPrompt(false, "%s\nCancel is not allowed here", deststr);
                 } else ret = !ShowPrompt(true, "%s\nB button detected. Cancel?", deststr);
-                ShowProgress(0, 0, orig);
-                ShowProgress(pos + bytes_read, fsize, orig);
+                ShowProgress(0, total, orig);
+                ShowProgress(current, total, orig);
             }
-            if (flags && (*flags & CALC_SHA))
+            if (calcsha)
                 sha_update(buffer, bytes_read);
         }
         ShowProgress(1, 1, orig);
         
         fvx_close(&ofile);
         fvx_close(&dfile);
-        if (!ret) fvx_unlink(dest);
-        else if (!to_virtual && flags && (*flags & CALC_SHA)) {
+        if (!ret && ((dsize == 0) || (fvx_lseek(&dfile, dsize) != FR_OK) || (f_truncate(&dfile) != FR_OK))) fvx_unlink(dest);
+        else if (!to_virtual && calcsha) {
             u8 sha256[0x20];
             char* ext_sha = dest + strnlen(dest, 256);
             strncpy(ext_sha, ".sha", 256 - (ext_sha - dest));
@@ -616,7 +630,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         }
         
         // check if destination exists
-        if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL)) && (fa_stat(ldest, NULL) == FR_OK)) {
+        if (flags && !(*flags & (OVERWRITE_CUR|OVERWRITE_ALL|APPEND_ALL)) && (fa_stat(ldest, NULL) == FR_OK)) {
             if (*flags & SKIP_ALL) {
                 *flags |= SKIP_CUR;
                 return true;

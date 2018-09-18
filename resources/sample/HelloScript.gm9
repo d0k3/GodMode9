@@ -141,8 +141,9 @@ imgmount S:/ctrnand_full.bin
 # 'cp' COMMAND
 # Use 'cp' to copy a file or directory (recursively)
 # -h / --hash also adds a .sha file containing the files SHA256
-# -w / --overwite forces overwrite on existing files
-# -k / --skip forces skip on existing files
+# -w / --overwrite forces overwrite on existing files (disables -k and -p)
+# -k / --skip forces skip on existing files (disables -p)
+# -p / --append will append copied files to the end of existing files (disables -h)
 # -n / --no_cancel prevents user cancels (useful on critical operations)
 cp -h -w -n 7:/dbs/ticket.db  $[TESTPATH]
 
@@ -155,8 +156,8 @@ imgumount
 findnot $[TESTPATH]_???.rn RENPATH
 
 # 'mv' COMMAND
-# The 'mv command renames or moves a file or directory
-# -w / --overwite forces overwrite on existing files
+# The 'mv' command renames or moves a file or directory
+# -w / --overwrite forces overwrite on existing files (disables -k)
 # -k / --skip forces skip on existing files
 # -n / --no_cancel prevents user cancels (useful on critical operations)
 mv -w -k $[TESTPATH] $[RENPATH]
@@ -267,6 +268,17 @@ verify S:/firm1.bin
 # CIA files will always be built to the standard output directory (0:/gm9/out)
 # -l / --legit force CIA to be legit (only works for legit system installed titles)
 # buildcia 0:/x.ncch
+
+# 'extrcode' COMMAND
+# You can extract the binary code from any file that contains it (NCSD, NCCH, CXI).
+# Specify the containing file and the file to write to.
+# If the code is compressed, it will be decompressed.
+# C:/titleid.3ds 0:/gm9/out/titleid.dec.code
+
+# 'cmprcode' COMMAND
+# Attempt to open a file as uncompressed binary code and compress it into the 3DS's reverse LZSS format.
+# Specify the source file and the file to write to.
+# 0:/gm9/out/titleid.dec.code 0:/gm9/out/titleid.code
 
 # 'sdump' COMMAND
 # This command dumps a supported file to the standard output directory (0:/gm9/out)

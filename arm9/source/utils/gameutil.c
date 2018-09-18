@@ -1615,6 +1615,55 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr)
     return 0;
 }
 
+u32 CompressCode(const char* path, const char* path_out) {
+    FIL code_file;
+    char dest[256];
+    if (fvx_open(&code_file, path, FA_READ) != FR_OK) return 1;
+    if (!path_out && (fvx_rmkdir(OUTPUT_PATH) != FR_OK)) return 1;
+    strncpy(dest, path_out ? path_out : OUTPUT_PATH, 255);
+    if (!CheckWritePermissions(dest)) return 1;
+    
+    // allocate memory
+    u32 code_dec_size = fvx_size(&code_file);
+    u8* code_dec = (u8*) malloc(code_dec_size);
+    u32 code_cmp_size = code_dec_size;
+    u8* code_cmp = (u8*) malloc(code_cmp_size);
+    if (!code_dec || !code_cmp) {
+        if (code_dec != NULL) free(code_dec);
+        if (code_cmp != NULL) free(code_cmp);
+        ShowPrompt(false, "Out of memory.");
+        return 1;
+    }
+    
+    // load code.bin
+    if (fvx_read(&code_file, code_dec, code_dec_size, NULL) != FR_OK) {
+        fvx_close(&code_file);
+        free(code_dec);
+        return 1;
+    }
+    
+    // compress code
+    fvx_close(&code_file);
+    bool res = CompressCodeLzss(code_dec, code_dec_size, code_cmp, &code_cmp_size);
+    if (!res) {
+        free(code_dec);
+        free(code_cmp);
+        return 1;
+    }
+    
+    // write output file
+    fvx_unlink(dest);
+    free(code_dec);
+    if (fvx_qwrite(dest, code_cmp, 0, code_cmp_size, NULL) != FR_OK) {
+        fvx_unlink(dest);
+        free(code_cmp);
+        return 1;
+    }
+    
+    free(code_cmp);
+    return 0;
+}
+
 u32 ExtractDataFromDisaDiff(const char* path) {
     char dest[256];
     u32 ret = 0;
