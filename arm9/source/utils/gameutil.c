@@ -376,6 +376,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     }
     
     // thorough exefs verification (workaround for Process9)
+    if (!ShowProgress(0, 0, path)) return 1;
     if ((ncch.size_exefs > 0) && (memcmp(exthdr.name, "Process9", 8) != 0)) {
         for (u32 i = 0; !ver_exefs && (i < 10); i++) {
             ExeFsFileHeader* exefile = exefs.files + i;
@@ -384,6 +385,93 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
             fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset);
             ver_exefs = CheckNcchHash(hash, &file, exefile->size, offset, &ncch, &exefs);
         }
+    }
+
+    // thorough romfs verification
+    if (!ver_romfs && (ncch.size_romfs > 0)) {
+        UINT btr;
+        
+        // load ivfc header
+        RomFsIvfcHeader ivfc;
+        fvx_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
+        if ((fvx_read(&file, &ivfc, sizeof(RomFsIvfcHeader), &btr) != FR_OK) ||
+            (DecryptNcch((u8*) &ivfc, ncch.offset_romfs * NCCH_MEDIA_UNIT, sizeof(RomFsIvfcHeader), &ncch, NULL) != 0) )
+            ver_romfs = 1;
+        
+        // load data
+        u64 lvl1_size = 0;
+        u64 lvl2_size = 0;
+        u8* masterhash = NULL;
+        u8* lvl1_data = NULL;
+        u8* lvl2_data = NULL;
+        if (!ver_romfs && (ValidateRomFsHeader(&ivfc, ncch.size_romfs * NCCH_MEDIA_UNIT) == 0)) {
+            // load masterhash(es)
+            masterhash = malloc(ivfc.size_masterhash);
+            if (masterhash) {
+                u64 offset_add = (ncch.offset_romfs * NCCH_MEDIA_UNIT) + sizeof(RomFsIvfcHeader);
+                fvx_lseek(&file, offset + offset_add);
+                if ((fvx_read(&file, masterhash, ivfc.size_masterhash, &btr) != FR_OK) ||
+                    (DecryptNcch(masterhash, offset_add, ivfc.size_masterhash, &ncch, NULL) != 0))
+                    ver_romfs = 1;
+            }
+
+            // load lvl1
+            lvl1_size = align(ivfc.size_lvl1, 1 << ivfc.log_lvl1);
+            lvl1_data = malloc(lvl1_size);
+            if (lvl1_data) {
+                u64 offset_add = (ncch.offset_romfs * NCCH_MEDIA_UNIT) + GetRomFsLvOffset(&ivfc, 1);
+                fvx_lseek(&file, offset + offset_add);
+                if ((fvx_read(&file, lvl1_data, lvl1_size, &btr) != FR_OK) ||
+                    (DecryptNcch(lvl1_data, offset_add, lvl1_size, &ncch, NULL) != 0))
+                    ver_romfs = 1;
+            }
+
+            // load lvl2
+            lvl2_size = align(ivfc.size_lvl2, 1 << ivfc.log_lvl2);
+            lvl2_data = malloc(lvl2_size);
+            if (lvl2_data) {
+                u64 offset_add = (ncch.offset_romfs * NCCH_MEDIA_UNIT) + GetRomFsLvOffset(&ivfc, 2);
+                fvx_lseek(&file, offset + offset_add);
+                if ((fvx_read(&file, lvl2_data, lvl2_size, &btr) != FR_OK) ||
+                    (DecryptNcch(lvl2_data, offset_add, lvl2_size, &ncch, NULL) != 0))
+                    ver_romfs = 1;
+            }
+
+            // check mallocs
+            if (!masterhash || !lvl1_data || !lvl2_data)
+                ver_romfs = 1; // should never happen
+        }
+        
+        // actual verification
+        if (!ver_romfs) {
+            // verify lvl1
+            u32 n_blocks = lvl1_size >> ivfc.log_lvl1;
+            u32 block_log = ivfc.log_lvl1;
+            for (u32 i = 0; !ver_romfs && (i < n_blocks); i++) 
+                ver_romfs = (u32) sha_cmp(masterhash + (i*0x20), lvl1_data + (i<<block_log), 1<<block_log, SHA256_MODE);
+            
+            // verify lvl2
+            n_blocks = lvl2_size >> ivfc.log_lvl2;
+            block_log = ivfc.log_lvl2;
+            for (u32 i = 0; !ver_romfs && (i < n_blocks); i++) {
+                ver_romfs = sha_cmp(lvl1_data + (i*0x20), lvl2_data + (i<<block_log), 1<<block_log, SHA256_MODE);
+            }
+            
+            // lvl3 verification (this will take long)
+            u64 offset_add = (ncch.offset_romfs * NCCH_MEDIA_UNIT) + GetRomFsLvOffset(&ivfc, 3);
+            n_blocks = align(ivfc.size_lvl3, 1 << ivfc.log_lvl3) >> ivfc.log_lvl3;
+            block_log = ivfc.log_lvl3;
+            fvx_lseek(&file, offset + offset_add);
+            for (u32 i = 0; !ver_romfs && (i < n_blocks); i++) {
+                ver_romfs = CheckNcchHash(lvl2_data + (i*0x20), &file, 1 << block_log, offset, &ncch, NULL);
+                offset_add += 1 << block_log;
+                if (!(i % 16) && !ShowProgress(i+1, n_blocks, path)) ver_romfs = 1;
+            }
+        }
+
+        if (masterhash) free(masterhash);
+        if (lvl1_data) free(lvl1_data);
+        if (lvl2_data) free(lvl2_data);
     }
     
     if (!offset && (ver_exthdr|ver_exefs|ver_romfs)) { // verification summary

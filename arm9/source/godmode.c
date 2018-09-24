@@ -1479,7 +1479,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked) 
                     continue;
-                if (!(filetype & (GAME_CIA|GAME_TMD)) &&
+                if (!(filetype & (GAME_CIA|GAME_TMD|GAME_NCSD|GAME_NCCH)) &&
                     !ShowProgress(n_processed++, n_marked, path)) break;
                 if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
                     n_other++;
@@ -1492,7 +1492,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     char lpathstr[32+1];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nVerification failed\n \nContinue?", lpathstr)) {
-                        if (!(filetype & (GAME_CIA|GAME_TMD))) ShowProgress(0, n_marked, path); // restart progress bar
+                        if (!(filetype & (GAME_CIA|GAME_TMD|GAME_NCSD|GAME_NCCH)))
+                            ShowProgress(0, n_marked, path); // restart progress bar
                         continue;
                     } else break;
                 }

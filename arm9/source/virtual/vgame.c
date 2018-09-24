@@ -875,22 +875,20 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         if (!BuildVGameExeFsDir()) return false;
     } else if ((vdir->flags & VFLAG_ROMFS) && (offset_romfs != vdir->offset)) {
         offset_nitro = (u64) -1; // mutually exclusive
-        // validate romFS magic
-        u8 magic[] = { ROMFS_MAGIC };
-        u8 header[sizeof(magic)];
-        if ((ReadNcchImageBytes(header, vdir->offset, sizeof(magic)) != 0) ||
-            (memcmp(magic, header, sizeof(magic)) != 0))
+        // validate ivfc header
+        RomFsIvfcHeader ivfc;
+        if ((ReadNcchImageBytes(&ivfc, vdir->offset, sizeof(RomFsIvfcHeader)) != 0) ||
+            (ValidateRomFsHeader(&ivfc, 0) != 0))
             return false;
         // validate lv3 header
         RomFsLv3Header lv3;
-        for (u32 i = 1; i < 8; i++) {
-            offset_lv3 = vdir->offset + (i*OFFSET_LV3);
-            if (ReadNcchImageBytes(&lv3, offset_lv3, sizeof(RomFsLv3Header)) != 0)
-                return false;
-            if (ValidateLv3Header(&lv3, 0) == 0)
-                break;
+        offset_lv3 = vdir->offset + GetRomFsLvOffset(&ivfc, 3);
+        if ((ReadNcchImageBytes(&lv3, offset_lv3, sizeof(RomFsLv3Header)) != 0) ||
+            (ValidateLv3Header(&lv3, 0) != 0)) {
             offset_lv3 = (u64) -1;
+            return false;
         }
+        // set up filesystem buffer
         if (vgame_fs_buffer) free(vgame_fs_buffer);
         vgame_fs_buffer = malloc(lv3.offset_filedata);
         if (!vgame_fs_buffer || (offset_lv3 == (u64) -1) ||
