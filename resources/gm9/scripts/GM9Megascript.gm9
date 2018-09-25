@@ -1102,7 +1102,13 @@ if	not ask "This will copy Luma3DS to your CTRNAND,\nallowing for the system to 
 end
 if	allow -a 1:
 	cp -w -o -s 0:/boot.firm 1:/boot.firm
-	cp -w -o -s 0:/luma 1:/rw/luma
+	if	not find 1:/rw/luma NULL
+		mkdir 1:/rw/luma
+	end
+	cp -w -o -s 0:/luma/config.bin 1:/rw/luma/config.bin
+	cp -w -o -s 0:/luma/customversion_sys.txt 1:/rw/luma/customversion_sys.txt
+	cp -w -o -s 0:/luma/splash.bin 1:/rw/luma/splash.bin
+	cp -w -o -s 0:/luma/splashbottom.bin 1:/rw/luma/splashbottom.bin
 	echo "Luma3DS copied successfully."
 else
 	echo "Permissions denied. Aborting."
