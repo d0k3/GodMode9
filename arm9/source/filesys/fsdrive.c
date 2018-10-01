@@ -90,15 +90,17 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     for (u32 i = 0; (i < NORM_FS+VIRT_FS) && (n_entries < MAX_DIR_ENTRIES); i++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if (!DriveType(drvnum[i])) continue; // drive not available
+        entry->p_name = 4;
+        entry->name = entry->path + entry->p_name;
         memset(entry->path, 0x00, 64);
-        snprintf(entry->path + 0,  4, "%s", drvnum[i]);
+        snprintf(entry->path,  4, "%s", drvnum[i]);
         if ((*(drvnum[i]) >= '7') && (*(drvnum[i]) <= '9') && !(GetMountState() & IMG_NAND)) // Drive 7...9 handling
-            snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i],
+            snprintf(entry->name, 32, "[%s] %s", drvnum[i],
                 (*(drvnum[i]) == '7') ? "FAT IMAGE" :
                 (*(drvnum[i]) == '8') ? "BONUS DRIVE" :
                 (*(drvnum[i]) == '9') ? "RAMDRIVE" : "UNK");
         else if (*(drvnum[i]) == 'G') // Game drive special handling
-            snprintf(entry->path + 4, 32, "[%s] %s %s", drvnum[i],
+            snprintf(entry->name, 32, "[%s] %s %s", drvnum[i],
                 (GetMountState() & GAME_CIA  ) ? "CIA"   :
                 (GetMountState() & GAME_NCSD ) ? "NCSD"  :
                 (GetMountState() & GAME_NCCH ) ? "NCCH"  :
@@ -108,9 +110,8 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
                 (GetMountState() & SYS_FIRM  ) ? "FIRM"  :
                 (GetMountState() & GAME_TAD  ) ? "DSIWARE" : "UNK", drvname[i]);
         else if (*(drvnum[i]) == '0') // SD card handling
-            snprintf(entry->path + 4, 32, "[%s] %s (%s)", drvnum[i], drvname[i], sdlabel);
-        else snprintf(entry->path + 4, 32, "[%s] %s", drvnum[i], drvname[i]);
-        entry->name = entry->path + 4;
+            snprintf(entry->name, 32, "[%s] %s (%s)", drvnum[i], drvname[i], sdlabel);
+        else snprintf(entry->name, 32, "[%s] %s", drvnum[i], drvname[i]);
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;
         entry->marked = 0;
@@ -146,7 +147,8 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
             DirEntry* entry = &(contents->entry[contents->n_entries]);
             strncpy(entry->path, fpath, 256);
             entry->path[255] = '\0';
-            entry->name = entry->path + (fname - fpath);
+            entry->p_name = fname - fpath;
+            entry->name = entry->path + entry->p_name;
             if (fno.fattrib & AM_DIR) {
                 entry->type = T_DIR;
                 entry->size = 0;
@@ -179,7 +181,8 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
             contents->n_entries = 0; // not required, but so what?
     } else {
         // create virtual '..' entry
-        contents->entry->name = contents->entry->path + 4;
+        contents->entry->p_name = 4;
+        contents->entry->name = contents->entry->path + entry->p_name;
         strncpy(contents->entry->path, "*?*", 4);
         strncpy(contents->entry->name, "..", 4);
         contents->entry->type = T_DOTDOT;

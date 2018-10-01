@@ -17,6 +17,7 @@ typedef struct {
     u64 size;
     EntryType type;
     u8 marked;
+    u8 p_name;
 } DirEntry;
 
 typedef struct {

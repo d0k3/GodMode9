@@ -14,8 +14,9 @@ void SetDirGoodNames(DirStruct* contents) {
         if ((GetGoodName(goodname, entry->path, false) != 0) ||
             (plen + 1 + strnlen(goodname, 256) + 1 > 256))
             continue;
-        strncpy(entry->path + plen + 1, goodname, 256 - 1 - plen - 1);
-        entry->name = entry->path + plen + 1;
+        entry->p_name = plen + 1;
+        entry->name = entry->path + entry->p_name; 
+        strncpy(entry->name, goodname, 256 - 1 - entry->p_name);
     }
 }
 
