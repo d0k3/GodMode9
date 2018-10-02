@@ -181,12 +181,13 @@ void SearchDirContents(DirStruct* contents, const char* path, const char* patter
             contents->n_entries = 0; // not required, but so what?
     } else {
         // create virtual '..' entry
-        contents->entry->p_name = 4;
-        contents->entry->name = contents->entry->path + entry->p_name;
-        strncpy(contents->entry->path, "*?*", 4);
-        strncpy(contents->entry->name, "..", 4);
-        contents->entry->type = T_DOTDOT;
-        contents->entry->size = 0;
+        DirEntry* entry = (DirEntry*) &(contents->entry);
+        entry->p_name = 4;
+        entry->name = entry->path + entry->p_name;
+        strncpy(entry->path, "*?*", 4);
+        strncpy(entry->name, "..", 4);
+        entry->type = T_DOTDOT;
+        entry->size = 0;
         contents->n_entries = 1;
         // search the path
         char fpath[256]; // 256 is the maximum length of a full path
