@@ -599,8 +599,9 @@ u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...) {
 }
 
 u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const char *format, ...) {
-    u32 str_width, str_height, fname_len;
-    u32 x, xopt, y, yopt;
+    u32 str_height, fname_len;
+    u32 x, y, yopt;
+    const u32 item_width = SCREEN_WIDTH(MAIN_SCREEN) - 40;
     int sel = 0, scroll = 0;
     u32 n_show = min(n, 10);
     
@@ -613,16 +614,11 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
     if (n == 0) return 0; // check for low number of options
     // else if (n == 1) return ShowPrompt(true, "%s\n%s?", str, options[0]) ? 1 : 0;
     
-    str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (n_show * (line_height + 2)) + (4 * line_height);
-    if (str_width < 24 * font_width) str_width = 24 * font_width;
-    x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
-    for (u32 i = 0; i < n; i++) if (str_width < GetDrawStringWidth(options[i]->name) + 11 * font_width)
-        str_width = GetDrawStringWidth(options[i]->name) + 11 * font_width;
-    xopt = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
+    x = (SCREEN_WIDTH_MAIN - item_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;
-    fname_len = str_width / font_width - 11;
+    fname_len = min(64, item_width / font_width - 11);
     
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
@@ -632,21 +628,31 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
             char bytestr[16];
             FormatBytes(bytestr, options[i]->size);
             
-            int content_len = fname_len;
-            char* dot = strrchr(options[i]->name, '.');
-            if (hide_ext && dot) content_len = dot - options[i]->name;
+            char content_str[64 + 1];
+            char temp_str[256];
+            strncpy(temp_str, options[i]->name, 255);
             
-            DrawStringF(MAIN_SCREEN, xopt, yopt + ((line_height+2)*(i-scroll)),
-                (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%2.2s %-*.*s %10.10s",
-                (sel == (int)i) ? "->" : "", fname_len, content_len, options[i]->name,
+            char* dot = strrchr(temp_str, '.');
+            if (hide_ext && dot) *dot = '\0';
+            
+            ResizeString(content_str, temp_str, fname_len, 8, false);
+            
+            DrawStringF(MAIN_SCREEN, x, yopt + ((line_height+2)*(i-scroll)),
+                (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%2.2s %s",
+                (sel == (int)i) ? "->" : "", content_str);
+                
+            DrawStringF(MAIN_SCREEN, x + item_width - font_width * 11, yopt + ((line_height+2)*(i-scroll)),
+                (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%10.10s",
                 (options[i]->type == T_DIR) ? "(dir)" : (options[i]->type == T_DOTDOT) ? "(..)" : bytestr);
         }
         // show [n more]
-        char more_str[32];
-        snprintf(more_str, 32, (n - n_show - scroll) ? "   [%d more]" : "", (int)(n - n_show - scroll));
-        DrawStringF(MAIN_SCREEN, xopt, yopt + (line_height+2)*n_show, COLOR_LIGHTGREY, COLOR_STD_BG, "%-31s", more_str);
+        if (n - n_show - scroll) {
+            char more_str[64 + 1];
+            snprintf(more_str, 64, "   [%d more]", (int)(n - (n_show-1) - scroll));
+            DrawStringF(MAIN_SCREEN, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG, "%-*s", item_width / font_width, more_str);
+        }
         // show scroll bar
-        u32 bar_x = xopt + str_width + 3 * font_width + 2;
+        u32 bar_x = x + item_width + 2;
         const u32 flist_height = (n_show * (line_height + 2));
         const u32 bar_width = 2;
         if (n > n_show) { // draw position bar at the right
@@ -673,7 +679,8 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
         if (sel < 0) sel = 0;
         else if (sel >= (int)n) sel = n-1;
         if (sel < scroll) scroll = sel;
-        else if (sel >= (int)(scroll+n_show)) scroll = sel-n_show+1;
+        else if (sel == (int) n-1 && sel >= (int)(scroll + n_show - 1)) scroll = sel - n_show + 1;
+        else if (sel >= (int)(scroll + (n_show-1) - 1)) scroll = sel - (n_show-1) + 1;
     }
     
     ClearScreenF(true, false, COLOR_STD_BG);
