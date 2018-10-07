@@ -20,8 +20,9 @@
 #include "vram0.h"
 #include "i2c.h"
 
-
+#ifndef N_PANES
 #define N_PANES 3
+#endif
 
 #define COLOR_TOP_BAR   (PERM_RED ? COLOR_RED : PERM_ORANGE ? COLOR_ORANGE : PERM_BLUE ? COLOR_BRIGHTBLUE : \
                          PERM_YELLOW ? COLOR_BRIGHTYELLOW : PERM_GREEN ? COLOR_GREEN : COLOR_WHITE)

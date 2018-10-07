@@ -61,6 +61,10 @@ ifdef SD_TIMEOUT
     CFLAGS += -DSD_TIMEOUT=$(SD_TIMEOUT)
 endif
 
+ifdef N_PANES
+    CFLAGS += -DN_PANES=$(N_PANES)
+endif
+
 ifeq ($(MONITOR_HEAP),1)
     CFLAGS += -DMONITOR_HEAP
 endif
