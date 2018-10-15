@@ -434,11 +434,15 @@ bool BuildVGameCiaDir(void) {
         TmdContentChunk* content_list = cia->content_list;
         u32 content_count = getbe16(cia->tmd.content_count);
         u64 next_offset = info.offset_content;
+        u8* cnt_index = cia->header.content_index;
         for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
             const u16 index = getbe16(content_list[i].index);
             const u32 id = getbe32(content_list[i].id);
             const u64 size = getbe64(content_list[i].size);
             const u32 keyslot = (getbe16(content_list[i].type) & 0x1) ? index : (u32) -1;
+
+            if (!(cnt_index[index/8] & (1 << (7-(index%8)))))
+                continue; // skip missing contents
             
             u32 cnt_type = 0;
             if (size >= 0x200) {
