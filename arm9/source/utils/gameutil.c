@@ -1367,10 +1367,6 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
                 ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
                 return 1;
             }
-        } else {
-            // still remove encryption flag if CIA is being decrypted
-            bool cia_encrypt = (force_legit && (getbe16(chunk->type) & 0x01));
-            if (!cia_encrypt) chunk->type[1] &= ~0x01; // remove crypto flag
         }
     }
     
