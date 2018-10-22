@@ -76,7 +76,7 @@ u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
     
     // parse the decoded data for a ticket
     bool found = false;
-    for (u32 i = 0; !found && (i < TICKDB_AREA_SIZE + 0x400); i += 0x200) {
+    for (u32 i = 0; !found && (i <= TICKDB_AREA_SIZE - 0x400); i += 0x200) {
         Ticket* tick = TicketFromTickDbChunk(data + i, title_id, force_legit);
         if (!tick) continue;
         memcpy(ticket, tick, sizeof(Ticket));

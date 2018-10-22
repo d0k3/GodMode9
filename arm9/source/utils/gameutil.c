@@ -2240,7 +2240,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
         }
         
         // parse the decoded data for valid tickets
-        for (u32 i = 0; i < TICKDB_AREA_SIZE + 0x400; i += 0x200) {
+        for (u32 i = 0; i <= TICKDB_AREA_SIZE - 0x400; i += 0x200) {
             Ticket* ticket = TicketFromTickDbChunk(data + i, NULL, true);
             if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
             if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message

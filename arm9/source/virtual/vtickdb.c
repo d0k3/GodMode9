@@ -85,7 +85,7 @@ void ScanTickDb(bool raw_mode, bool replace) {
         ShowString("Loading DIFF data...");
         if (ReadDisaDiffIvfcLvl4(NULL, &diff_info, TICKDB_AREA_OFFSET, TICKDB_AREA_SIZE, data) == TICKDB_AREA_SIZE) {
             // parse the decoded data for valid tickets
-            for (u32 i = 0; i < TICKDB_AREA_SIZE + 0x400; i += 0x200) {
+            for (u32 i = 0; i <= TICKDB_AREA_SIZE - 0x400; i += 0x200) {
                 if (!(i % 0x10000) && !ShowProgress(i, TICKDB_AREA_SIZE, "Scanning for tickets")) break;
                 Ticket* ticket = TicketFromTickDbChunk(data + i, NULL, true);
                 if (!ticket) continue;
@@ -99,7 +99,7 @@ void ScanTickDb(bool raw_mode, bool replace) {
             ShowString("Loading raw data (%lu)...", p);
             if (ReadImageBytes(data, offset_area, TICKDB_AREA_SIZE) != 0)
                 continue;
-            for (u32 i = 0; i < TICKDB_AREA_SIZE + 0x400; i += 0x200) {
+            for (u32 i = 0; i <= TICKDB_AREA_SIZE - 0x400; i += 0x200) {
                 if (!(i % 0x10000) && !ShowProgress(i, TICKDB_AREA_SIZE, "Scanning for tickets")) break;
                 Ticket* ticket = TicketFromTickDbChunk(data + i, NULL, true);
                 if (!ticket) continue;
