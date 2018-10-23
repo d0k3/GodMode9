@@ -1305,10 +1305,28 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     Ticket* ticket = &(cia->ticket);
     bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
     if (force_legit) {
+        Ticket ticket_fake; // backup of the fake ticket
+        memcpy(&ticket_fake, ticket, sizeof(Ticket));
         if ((cdn && (LoadCdnTicketFile(ticket, path_tmd) != 0)) ||
             (!cdn && (FindTicket(ticket, title_id, true, src_emunand) != 0))) {
             ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
             return 1;
+        }
+        if (getbe32(ticket->console_id)) {
+            static u32 default_action = 0;
+            const char* optionstr[2] =
+                {"Use personalized ticket (legit)", "Use generic ticket (not legit)"};
+            if (!default_action) {
+                default_action = ShowSelectPrompt(2, optionstr,
+                    "ID %016llX\nLegit ticket is personalized.\nChoose default action:", getbe64(title_id));
+                ShowProgress(0, 0, path_tmd);
+            }
+            if (!default_action) return 1;
+            else if (default_action == 2) {
+                memcpy(ticket_fake.titlekey, ticket->titlekey, 0x10);
+                ticket_fake.commonkey_idx = ticket->commonkey_idx; 
+                memcpy(ticket, &ticket_fake, sizeof(Ticket));
+            }
         }
     } else if (cdn) {
         if ((LoadCdnTicketFile(ticket, path_tmd) != 0) &&
@@ -1317,13 +1335,12 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
             return 1;
         }
     } else {
+        Ticket ticket_tmp;
         if ((FindTitleKey(ticket, title_id) != 0) && 
-            (FindTicket(ticket, title_id, false, src_emunand) == 0) &&
-            (getbe32(ticket->console_id) || getbe32(ticket->eshop_id))) {
-            // if ticket found: wipe private data
-            memset(ticket->console_id, 0, 4); // zero out console id
-            memset(ticket->eshop_id, 0, 4); // zero out eshop id
-            memset(ticket->ticket_id, 0, 8); // zero out ticket id
+            (FindTicket(&ticket_tmp, title_id, false, src_emunand) == 0)) {
+            // we just copy the titlekey from a valid ticket (if we can)
+            memcpy(ticket->titlekey, ticket_tmp.titlekey, 0x10);
+            ticket->commonkey_idx = ticket_tmp.commonkey_idx;
         }
     }
     
