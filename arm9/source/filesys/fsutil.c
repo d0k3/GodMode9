@@ -534,7 +534,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         
         ret = true; // destination file exists by now, so we need to handle deletion
         osize = fvx_size(&ofile);
-        dsize = fvx_size(&dfile); // always 0 if not appending to file
+        dsize = append ? fvx_size(&dfile) : 0; // always 0 if not appending to file
         if ((fvx_lseek(&dfile, (osize + dsize)) != FR_OK) || (fvx_sync(&dfile) != FR_OK) || (fvx_tell(&dfile) != (osize + dsize))) { // check space via cluster preallocation
             if (!silent) ShowPrompt(false, "%s\nError: Not enough space available", deststr);
             ret = false;
@@ -678,7 +678,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         return res;
     } else { // virtual destination handling
         // can't write an SHA file to a virtual destination
-        if (flags) *flags |= ~CALC_SHA;
+        if (flags) *flags &= ~CALC_SHA;
         bool force_unmount = false;
         
         // handle NAND image unmounts
