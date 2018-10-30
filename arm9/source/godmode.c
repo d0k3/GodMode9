@@ -46,6 +46,69 @@ typedef struct {
 } PaneData;
 
 
+u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
+    char pathstr[32+1];
+    TruncateString(pathstr, bootpath, 32, 8);
+    
+    size_t firm_size = FileGetSize(bootpath);
+    if (!firm_size) return 1;
+    if (firm_size > FIRM_MAX_SIZE) {
+        if (verbose) ShowPrompt(false, "%s\nFIRM too big, can't boot", pathstr); // unlikely
+        return 1;
+    }
+    
+    if (verbose && !ShowPrompt(true, "%s (%dkB)\nWarning: Do not boot FIRMs\nfrom untrusted sources.\n \nBoot FIRM?",
+        pathstr, firm_size / 1024))
+        return 1;
+    
+    void* firm = (void*) malloc(FIRM_MAX_SIZE);
+    if (!firm) return 1;
+    if ((FileGetData(bootpath, firm, firm_size, 0) != firm_size) ||
+        !IsBootableFirm(firm, firm_size)) {
+        if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM.", pathstr);
+        free(firm);
+        return 1;
+    }
+    
+    // encrypted firm handling
+    FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
+    FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) firm + arm9s->offset);
+    if (verbose && (ValidateFirmA9LHeader(a9l) == 0) &&
+        ShowPrompt(true, "%s\nFIRM is encrypted.\n \nDecrypt before boot?", pathstr) &&
+        (DecryptFirmFull(firm, firm_size) != 0)) {
+        free(firm);
+        return 1;
+    }
+        
+    // unsupported location handling
+    char fixpath[256] = { 0 };
+    if (verbose && (*bootpath != '0') && (*bootpath != '1')) {
+        const char* optionstr[2] = { "Make a copy at " OUTPUT_PATH "/temp.firm", "Try to boot anyways" };
+        u32 user_select = ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from an\nunsupported location.", pathstr);
+        if (user_select == 1) {
+            FileSetData(OUTPUT_PATH "/temp.firm", firm, firm_size, 0, true);
+            bootpath = OUTPUT_PATH "/temp.firm";
+        } else if (!user_select) bootpath = "";
+    }
+    
+    // fix the boot path ("sdmc"/"nand" for Luma et al, hacky af)
+    if ((*bootpath == '0') || (*bootpath == '1'))
+        snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
+    else strncpy(fixpath, bootpath, 256);
+    fixpath[255] = '\0';
+    
+    // boot the FIRM (if we got a proper fixpath)
+    if (*fixpath) {
+        if (delete) PathDelete(bootpath);
+        BootFirm((FirmHeader*) firm, fixpath);
+        while(1);
+    }
+    
+    // a return was not intended
+    free(firm);
+    return 1;
+}
+
 u32 SplashInit(const char* modestr) {
     u64 splash_size;
     u32 splash_width, splash_height;
@@ -863,69 +926,6 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
     }
     
     return 0;
-}
-
-u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
-    char pathstr[32+1];
-    TruncateString(pathstr, bootpath, 32, 8);
-    
-    size_t firm_size = FileGetSize(bootpath);
-    if (!firm_size) return 1;
-    if (firm_size > FIRM_MAX_SIZE) {
-        if (verbose) ShowPrompt(false, "%s\nFIRM too big, can't boot", pathstr); // unlikely
-        return 1;
-    }
-    
-    if (verbose && !ShowPrompt(true, "%s (%dkB)\nWarning: Do not boot FIRMs\nfrom untrusted sources.\n \nBoot FIRM?",
-        pathstr, firm_size / 1024))
-        return 1;
-    
-    void* firm = (void*) malloc(FIRM_MAX_SIZE);
-    if (!firm) return 1;
-    if ((FileGetData(bootpath, firm, firm_size, 0) != firm_size) ||
-        !IsBootableFirm(firm, firm_size)) {
-        if (verbose) ShowPrompt(false, "%s\nNot a bootable FIRM.", pathstr);
-        free(firm);
-        return 1;
-    }
-    
-    // encrypted firm handling
-    FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
-    FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) firm + arm9s->offset);
-    if (verbose && (ValidateFirmA9LHeader(a9l) == 0) &&
-        ShowPrompt(true, "%s\nFIRM is encrypted.\n \nDecrypt before boot?", pathstr) &&
-        (DecryptFirmFull(firm, firm_size) != 0)) {
-        free(firm);
-        return 1;
-    }
-        
-    // unsupported location handling
-    char fixpath[256] = { 0 };
-    if (verbose && (*bootpath != '0') && (*bootpath != '1')) {
-        const char* optionstr[2] = { "Make a copy at " OUTPUT_PATH "/temp.firm", "Try to boot anyways" };
-        u32 user_select = ShowSelectPrompt(2, optionstr, "%s\nWarning: Trying to boot from an\nunsupported location.", pathstr);
-        if (user_select == 1) {
-            FileSetData(OUTPUT_PATH "/temp.firm", firm, firm_size, 0, true);
-            bootpath = OUTPUT_PATH "/temp.firm";
-        } else if (!user_select) bootpath = "";
-    }
-    
-    // fix the boot path ("sdmc"/"nand" for Luma et al, hacky af)
-    if ((*bootpath == '0') || (*bootpath == '1'))
-        snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
-    else strncpy(fixpath, bootpath, 256);
-    fixpath[255] = '\0';
-    
-    // boot the FIRM (if we got a proper fixpath)
-    if (*fixpath) {
-        if (delete) PathDelete(bootpath);
-        BootFirm((FirmHeader*) firm, fixpath);
-        while(1);
-    }
-    
-    // a return was not intended
-    free(firm);
-    return 1;
 }
 
 u32 FileAttrMenu(const char* file_path) {
@@ -2592,6 +2592,10 @@ u32 ScriptRunner(int entrypoint) {
     
     while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
+
+    // you didn't really install a scriptrunner to NAND, did you?
+    if (IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT))
+        BootFirmHandler("0:/iderped.firm", false, false);
     
     if (PathExist("V:/" VRAM0_AUTORUN_GM9)) {
         ClearScreenF(true, true, COLOR_STD_BG); // clear splash
