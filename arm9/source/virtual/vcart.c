@@ -70,3 +70,13 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
 u64 GetVCartDriveSize(void) {
     return cart_init ? cdata->cart_size : 0;
 }
+
+void GetVCartTypeString(char* typestr) {
+    // typestr needs to be at least 11 + 1 chars big
+    if (!cart_init || !cdata) sprintf(typestr, "EMPTY");
+    else sprintf(typestr, "%s%08lX",
+        (cdata->cart_type & CART_CTR) ? "CTR" :
+        (cdata->cart_type & CART_TWL) ? "TWL" :
+        (cdata->cart_type & CART_NTR) ? "NTR" : "???",
+        cdata->cart_id);
+}

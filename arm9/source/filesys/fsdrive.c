@@ -2,6 +2,7 @@
 #include "fsgame.h"
 #include "fsinit.h"
 #include "virtual.h"
+#include "vcart.h"
 #include "sddata.h"
 #include "image.h"
 #include "ui.h"
@@ -85,6 +86,9 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     char sdlabel[16];
     if (!GetFATVolumeLabel("0:", sdlabel))
         snprintf(sdlabel, 16, "NOLABEL");
+
+    char carttype[16];
+    GetVCartTypeString(carttype);
     
     // virtual root objects hacked in
     for (u32 i = 0; (i < NORM_FS+VIRT_FS) && (n_entries < MAX_DIR_ENTRIES); i++) {
@@ -109,6 +113,8 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
                 (GetMountState() & GAME_NDS  ) ? "NDS"   :
                 (GetMountState() & SYS_FIRM  ) ? "FIRM"  :
                 (GetMountState() & GAME_TAD  ) ? "DSIWARE" : "UNK", drvname[i]);
+        else if (*(drvnum[i]) == 'C') // Game cart handling
+            snprintf(entry->name, 32, "[%s] %s (%s)", drvnum[i], drvname[i], carttype);
         else if (*(drvnum[i]) == '0') // SD card handling
             snprintf(entry->name, 32, "[%s] %s (%s)", drvnum[i], drvname[i], sdlabel);
         else snprintf(entry->name, 32, "[%s] %s", drvnum[i], drvname[i]);
