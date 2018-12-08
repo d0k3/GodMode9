@@ -671,8 +671,7 @@ u32 VerifyBossFile(const char* path) {
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
     
-    // read file header
-    
+    // read file header 
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     fvx_lseek(&file, 0);
@@ -723,8 +722,14 @@ u32 VerifyBossFile(const char* path) {
     free(buffer);
     
     if (memcmp(hash, boss.hash_payload, 0x20) != 0) {
-        ShowPrompt(false, "%s\nBOSS payload hash mismatch", pathstr);
-        return 1;
+        if (ShowPrompt(true, "%s\nBOSS payload hash mismatch.\n \nTry to fix it?", pathstr)) {
+            // fix hash, reencrypt BOSS header if required, write to file
+            memcpy(boss.hash_payload, hash, 0x20);
+            if (encrypted) CryptBoss((void*) &boss, 0, sizeof(BossHeader), &boss);
+            if (!CheckWritePermissions(path) ||
+                (fvx_qwrite(path, &boss, 0, sizeof(BossHeader), NULL) != FR_OK))
+                return 1;
+        } else return 1;
     }
     
     return 0;
