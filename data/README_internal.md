@@ -28,7 +28,7 @@ GodMode9 is designed to be intuitive, buttons leading to the results you'd expec
 * <R> button: The <R> button is the 'switch' button. It switches buttons to their secondary function. Notable exceptions are <R+L> for a screenshot (works almost anywhere), <R+LEFT> / <R+RIGHT> to switch panes and <R+DOWN> to reload the file listing.
 * <START> button: Use the <START> button to reboot from GodMode9. Use <R+START> to poweroff your 3DS.
 * <SELECT> button: The <SELECT> button clears or restores the clipboard (depending on if it's empty or not).
-* <HOME> button: The <HOME> button enters the HOME menu, including the scripts / payloads submenus, options for formatting the SD, setting the RTC, and more.
+* <HOME> button: The <HOME> button enters the HOME menu, including the scripts / payloads submenus, options for formatting the SD, setting the RTC, and more. The <POWER> button is an alternative way of entering the HOME menu.
 * <R+UP> combo: This little known keycombo, when held at startup, pauses the GodMode9 boot so that you can stare at the splash screen for a little longer.
 * <R+LEFT> combo: If you have installed GodMode9 as your bootloader, this keycombo enters the bootmenu. Hold on startup! If you built GodMode9 as SALTMODE and have it as a bootloader, the keycombo is simply the <START> button.
 
