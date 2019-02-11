@@ -175,7 +175,8 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
     // basic sanity checks for path_vcsave
     FILINFO fno;
     char* ext = strrchr(path_vcsave, '.');
-    if (!ext || ((strncasecmp(ext+1, "sav", 4) != 0) && (strncasecmp(ext+1, "srm", 4) != 0))) return 1; // bad extension
+    if (!ext || ((strncasecmp(ext+1, "sav", 4) != 0) && (strncasecmp(ext+1, "srm", 4) != 0) &&
+        (strncasecmp(ext+1, "SaveRAM", 8) != 0))) return 1; // bad extension
     if ((fvx_stat(path_vcsave, &fno) != FR_OK) || !GBASAVE_VALID(fno.fsize))
         return 1; // bad size
     
