@@ -618,7 +618,7 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
     x = (SCREEN_WIDTH_MAIN - item_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
     yopt = y + GetDrawStringHeight(str) + 8;
-    fname_len = min(64, item_width / font_width - 14);
+    fname_len = min(64, item_width / FONT_WIDTH_EXT - 14);
     
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
