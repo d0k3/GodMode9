@@ -76,7 +76,7 @@ bool RSA_setKey2048(u8 keyslot, const u8 *const mod, u32 exp)
 	REG_RSA_EXP[(0x100>>2) - 1] = exp;
 
 	if(slot->REG_RSA_SLOTSIZE != RSA_SLOTSIZE_2048) return false;
-	memcpy((void*)REG_RSA_MOD, mod, 0x100);
+	seqmemcpy((void*)REG_RSA_MOD, mod, 0x100);
 
 	return true;
 }
@@ -88,11 +88,11 @@ bool RSA_decrypt2048(void *const decSig, const void *const encSig)
 	if(!(rsaSlots[keyslot].REG_RSA_SLOTCNT & RSA_KEY_STAT_SET)) return false;
 
 	REG_RSA_CNT |= RSA_INPUT_NORMAL | RSA_INPUT_BIG;
-	memcpy((void*)REG_RSA_TXT, encSig, 0x100);
+	seqmemcpy((void*)REG_RSA_TXT, encSig, 0x100);
 
 	REG_RSA_CNT |= RSA_ENABLE;
 	rsaWaitBusy();
-	memcpy(decSig, (void*)REG_RSA_TXT, 0x100);
+	seqmemcpy(decSig, (void*)REG_RSA_TXT, 0x100);
 
 	return true;
 }
