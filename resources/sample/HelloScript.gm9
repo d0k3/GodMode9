@@ -242,6 +242,12 @@ fset $[DUMMY]@100 48454c4c4f # 'HELLO'
 fget -e $[DUMMY]@100:5 OLLEH
 echo "This is 'HELLO', in hex and reverse:\n$[OLLEH]"
 
+# 'dumptxt' COMMAND
+# This command dumps the given text to a file
+# -p / --append appends text instead of writing a new file
+# dumptxt 0:/hello.txt HELLO
+# dumptxt -p 0:/hello.txt WORLD
+
 # 'fixcmac' COMMAND
 # Use this to fix the CMACs for a file or a whole folder (recursively)
 # This will count as success if a file does not contain a CMAC

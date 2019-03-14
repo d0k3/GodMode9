@@ -102,6 +102,7 @@ typedef enum {
     CMD_ID_FSET,
     CMD_ID_SHA,
     CMD_ID_SHAGET,
+    CMD_ID_DUMPTXT,
     CMD_ID_FIXCMAC,
     CMD_ID_VERIFY,
     CMD_ID_DECRYPT,
@@ -174,6 +175,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FSET    , "fset"    , 2, _FLG('e') },
     { CMD_ID_SHA     , "sha"     , 2, 0 },
     { CMD_ID_SHAGET  , "shaget"  , 2, 0 },
+    { CMD_ID_DUMPTXT , "dumptxt" , 2, _FLG('p') },
     { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 },
     { CMD_ID_VERIFY  , "verify"  , 1, 0 },
     { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
@@ -1273,6 +1275,15 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
         } else if (!(ret = FileSetData(argv[1], sha256_fil, 0x20, 0, true))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha write fail");
+        }
+    }
+    else if (id == CMD_ID_DUMPTXT) {
+        size_t offset = 0;
+        u32 len = strnlen(argv[1], _ARG_MAX_LEN);
+        if (flags & _FLG('p')) offset = FileGetSize(argv[0]);
+        if (!(ret = FileSetData(argv[0], argv[1], len, offset, offset == 0)) ||
+            !(ret = FileSetData(argv[0], "\n", 1, offset + len, false))) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "file write fail");
         }
     }
     else if (id == CMD_ID_FIXCMAC) {
