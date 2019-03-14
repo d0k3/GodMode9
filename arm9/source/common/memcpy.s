@@ -30,8 +30,7 @@ memcpy:
 	and     r5, r1, #3
 	cmp     r4, r5
 	bne     .L6
-	neg     r4, r4
-	add     r4, r4, #4
+	rsb     r4, r4, #4
 .L0:
 	ldrb    r3, [r1], #1
 	strb    r3, [r0], #1
