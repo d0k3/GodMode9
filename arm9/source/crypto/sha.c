@@ -1,4 +1,14 @@
+/*
+ * To ensure correct functionality, the builtin memcpy should perform a sequential copy.
+ * If not, it should be replaced with a different reimplementation that does for sure act sequential.
+ * Or alternatively, it's own memcpy with it's own name, say perhaps seqmemcpy, and memcpy calls replaced, as well the line "*((_sha_block*)REG_SHAINFIFO) = *((const _sha_block*)src32);" inside sha_update, to call explicitly seqmemcpy like, "seqmemcpy(REG_SHAINFIFO, src32, 0x40);".
+ */
 #include "sha.h"
+
+typedef struct
+{
+	u32 data[16];
+} _sha_block;
 
 void sha_init(u32 mode)
 {
@@ -12,12 +22,12 @@ void sha_update(const void* src, u32 size)
     
     while(size >= 0x40) {
         while(*REG_SHACNT & 1);
-        seqmemcpy((void*)REG_SHAINFIFO, src32, 0x40);
+        *((_sha_block*)REG_SHAINFIFO) = *((const _sha_block*)src32);
         src32 += 16;
         size -= 0x40;
     }
     while(*REG_SHACNT & 1);
-    if(size) seqmemcpy((void*)REG_SHAINFIFO, src32, size);
+    if(size) memcpy((void*)REG_SHAINFIFO, src32, size);
 }
 
 void sha_get(void* res) {
@@ -26,7 +36,7 @@ void sha_get(void* res) {
     *REG_SHACNT = (*REG_SHACNT & ~SHA_NORMAL_ROUND) | SHA_FINAL_ROUND;
     while(*REG_SHACNT & SHA_FINAL_ROUND);
     while(*REG_SHACNT & 1);
-    if (hash_size) seqmemcpy(res, (void*)REG_SHAHASH, hash_size);
+    if (hash_size) memcpy(res, (void*)REG_SHAHASH, hash_size);
 }
 
 void sha_quick(void* res, const void* src, u32 size, u32 mode) {

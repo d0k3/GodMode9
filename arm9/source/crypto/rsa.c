@@ -16,6 +16,12 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ * To ensure correct functionality, the builtin memcpy should perform a sequential copy.
+ * If not, it should be replaced with a different reimplementation that does for sure act sequential.
+ * Or alternatively, it's own memcpy with it's own name, say perhaps seqmemcpy, and memcpy calls replaced.
+ */
+
 #include "common.h"
 #include "rsa.h"
 #include "sha.h"
@@ -76,7 +82,7 @@ bool RSA_setKey2048(u8 keyslot, const u8 *const mod, u32 exp)
 	REG_RSA_EXP[(0x100>>2) - 1] = exp;
 
 	if(slot->REG_RSA_SLOTSIZE != RSA_SLOTSIZE_2048) return false;
-	seqmemcpy((void*)REG_RSA_MOD, mod, 0x100);
+	memcpy((void*)REG_RSA_MOD, mod, 0x100);
 
 	return true;
 }
@@ -88,11 +94,11 @@ bool RSA_decrypt2048(void *const decSig, const void *const encSig)
 	if(!(rsaSlots[keyslot].REG_RSA_SLOTCNT & RSA_KEY_STAT_SET)) return false;
 
 	REG_RSA_CNT |= RSA_INPUT_NORMAL | RSA_INPUT_BIG;
-	seqmemcpy((void*)REG_RSA_TXT, encSig, 0x100);
+	memcpy((void*)REG_RSA_TXT, encSig, 0x100);
 
 	REG_RSA_CNT |= RSA_ENABLE;
 	rsaWaitBusy();
-	seqmemcpy(decSig, (void*)REG_RSA_TXT, 0x100);
+	memcpy(decSig, (void*)REG_RSA_TXT, 0x100);
 
 	return true;
 }
