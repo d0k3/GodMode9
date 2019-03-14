@@ -53,6 +53,10 @@ ifeq ($(SHOW_FREE),1)
     CFLAGS += -DSHOW_FREE
 endif
 
+ifeq ($(NO_LR),1)
+    CFLAGS += -DNO_LR
+endif
+
 ifdef FIXED_BRIGHTNESS
     CFLAGS += -DFIXED_BRIGHTNESS=$(FIXED_BRIGHTNESS)
 endif
