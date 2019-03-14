@@ -868,7 +868,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
 }
 
 bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...) {
-    const char* alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]'`^,~*?!@#$%&0123456789=+-_.";
+    const char* alphabet = " aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ(){}[]'`^,~*?!@#$%&0123456789=+-_.";
     bool ret = false;
     va_list va;
     
