@@ -40,9 +40,6 @@
 
 #define countof(x) \
     (sizeof(x) / sizeof((x)[0]))
-
-#define seqmemcpy(d,o,s) \
-    for(u32 i = 0; i < (s); i++) ((u8*)(void*)(d))[i] = ((u8*)(void*)(o))[i]
     
 #define bkpt \
     asm("bkpt\n\t")

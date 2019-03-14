@@ -10,7 +10,7 @@ INCDIRS := source source/common source/filesys source/crypto source/fatfs source
 INCLUDE := $(foreach dir,$(INCDIRS),-I"$(shell pwd)/$(dir)")
 
 ASFLAGS += $(SUBARCH) $(INCLUDE)
-CFLAGS  += $(SUBARCH) $(INCLUDE)
+CFLAGS  += $(SUBARCH) $(INCLUDE) -fno-builtin-memcpy
 LDFLAGS += $(SUBARCH) -Wl,-Map,$(TARGET).map
 
 include ../Makefile.common
