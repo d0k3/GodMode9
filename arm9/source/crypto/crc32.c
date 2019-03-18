@@ -67,7 +67,10 @@ u32 crc32_calculate_from_file(const char* fileName, u32 offset, u32 length) {
     u32 bufsiz = min(STD_BUFFER_SIZE, length);
     u8* buffer = (u8*) malloc(bufsiz);
     if (!buffer) return false;
-    if (fvx_open(&inputFile, fileName, FA_READ) != FR_OK) return crc32;
+    if (fvx_open(&inputFile, fileName, FA_READ) != FR_OK) {
+        free(buffer);
+        return crc32;
+    }
     fvx_lseek(&inputFile, offset);
     
     bool ret = true;

@@ -257,9 +257,9 @@ u32 beatReadChecksum() {
 
 bool beatReadString(u32 length, char text[]) {
     char strBuf[256];
-    for(u32 i = 0; i < length; i++) { strBuf[min(i, 256)] = beatRead(); }
-    strBuf[length] = '\0';
-    snprintf(text, 256, "%s", strBuf);
+    for(u32 i = 0; i < length; i++) { strBuf[min(i, 255)] = beatRead(); }
+    strBuf[min(length, 255)] = '\0';
+    snprintf(text, length+1, "%s", strBuf);
     return true;
 }
 
@@ -276,7 +276,7 @@ int ApplyBeatPatch(const char* targetName) {
     patch->relOffset = 0;
     if(bpsSize < 19) return fatalError(BEAT_PATCH_TOO_SMALL);
     
-    char header[4];
+    char header[5];
     beatReadString(4, header);
     if (strcmp(header, "BPS1") != 0) return fatalError(BEAT_PATCH_INVALID_HEADER);
     
@@ -427,7 +427,7 @@ int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* tar
         ((fvx_stat(targetPath, NULL) != FR_OK) && (fvx_mkdir(targetPath) != FR_OK)))
         return fatalError(BEAT_INVALID_FILE_PATH);
     
-    char header[4];
+    char header[5];
     beatReadString(4, header);
     if (strcmp(header, "BPM1") != 0) return fatalError(BEAT_PATCH_INVALID_HEADER);
     u64 metadataLength = beatReadNumber();
