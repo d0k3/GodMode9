@@ -22,7 +22,7 @@ void sha_update(const void* src, u32 size)
     
     while(size >= 0x40) {
         while(*REG_SHACNT & 1);
-        *((_sha_block*)REG_SHAINFIFO) = *((const _sha_block*)src32);
+        *((volatile _sha_block*)REG_SHAINFIFO) = *((const _sha_block*)src32);
         src32 += 16;
         size -= 0x40;
     }
