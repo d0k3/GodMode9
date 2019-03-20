@@ -2601,7 +2601,7 @@ u32 ScriptRunner(int entrypoint) {
         ExecuteGM9Script("V:/" VRAM0_AUTORUN_GM9);
     } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
         char loadpath[256];
-        if (FileSelector(loadpath, FLAVOR " scripts menu.\nSelect script:", "V:/" VRAM0_SCRIPTS, "*.gm9", HIDE_EXT))
+        if (FileSelector(loadpath, FLAVOR " scripts menu.\nSelect script:", "V:/" VRAM0_SCRIPTS, "*.gm9", HIDE_EXT, false))
             ExecuteGM9Script(loadpath);
     } else ShowPrompt(false, "Compiled as script autorunner\nbut no script provided.\n \nDerp!");
     
