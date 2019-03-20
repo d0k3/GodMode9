@@ -98,8 +98,12 @@ u64 IdentifyFileType(const char* path) {
         } else if (memcmp(header, smdh_magic, sizeof(smdh_magic)) == 0) {
             return GAME_SMDH; // SMDH file
         } else if (ValidateTwlHeader((TwlHeader*) data) == 0) {
-            if (((TwlHeader*)data)->ntr_rom_size <= fsize)
+            TwlHeader* twl = (TwlHeader*) data;
+            if (twl->ntr_rom_size <= fsize) { // NDS rom file
+                if ((twl->unit_code == 0x03) && !twl->twl_rom_region_start)
+                    return GAME_NDS | FLAG_DSIW; // NDS DSiWare rom file
                 return GAME_NDS; // NDS rom file
+            }
         }
     }
     

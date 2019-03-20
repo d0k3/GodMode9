@@ -35,8 +35,9 @@
 #define HDR_NAND    (1ULL<<30)
 #define TYPE_BASE   0xFFFFFFFFULL // 32 bit reserved for base types
 
-// #define FLAG_FIRM   (1ULL<<58) // <--- for CXIs containing FIRMs
-// #define FLAG_GBAVC  (1ULL<<59) // <--- for GBAVC CXIs
+// #define FLAG_FIRM   (1ULL<<57) // <--- for CXIs containing FIRMs
+// #define FLAG_GBAVC  (1ULL<<58) // <--- for GBAVC CXIs
+#define FLAG_DSIW   (1ULL<<59)
 #define FLAG_ENC    (1ULL<<60)
 #define FLAG_CTR    (1ULL<<61)
 #define FLAG_NUSCDN (1ULL<<62)
@@ -46,7 +47,7 @@
 #define FTYPE_VERIFICABLE(tp)   (tp&(IMG_NAND|GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_TMD|GAME_BOSS|SYS_FIRM))
 #define FTYPE_DECRYPTABLE(tp)   (tp&(GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_BOSS|GAME_NUSCDN|SYS_FIRM|BIN_KEYDB))
 #define FTYPE_ENCRYPTABLE(tp)   (tp&(GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_BOSS|BIN_KEYDB))
-#define FTYPE_CIABUILD(tp)      (tp&(GAME_NCSD|GAME_NCCH|GAME_TMD))
+#define FTYPE_CIABUILD(tp)      ((tp&(GAME_NCSD|GAME_NCCH|GAME_TMD)) || ((tp&GAME_NDS)&&(tp&(FLAG_DSIW))))
 #define FTYPE_CIABUILD_L(tp)    (FTYPE_CIABUILD(tp) && (tp&(GAME_TMD)))
 #define FTYPE_CXIDUMP(tp)       (tp&(GAME_TMD))
 #define FTYPE_TIKBUILD(tp)      (tp&(GAME_TICKET|SYS_TICKDB|BIN_TIKDB))

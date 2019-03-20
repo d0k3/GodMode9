@@ -1453,7 +1453,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     if ((BuildCiaHeader(&(cia->header)) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
         (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
-        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size)) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
         free(cia);
@@ -1519,7 +1519,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     if ((BuildCiaHeader(&(cia->header)) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
         (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
-        (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size)) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
         free(cia);
@@ -1551,6 +1551,69 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     
     // write the CIA stub (take #2)
     FindTitleKey(&(cia->ticket), title_id);
+    if ((FixTmdHashes(&(cia->tmd)) != 0) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_cia) != 0)) {
+        free(cia);
+        return 1;
+    }
+    
+    free(cia);
+    return 0;
+}
+
+u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
+    TwlHeader twl;
+    u8 title_id[8];
+    u32 save_size = 0;
+    u32 privsave_size = 0;
+    
+    // Init progress bar
+    if (!ShowProgress(0, 0, path_nds)) return 1;
+    
+    // load TWL header, get save sizes && title id
+    if (fvx_qread(path_nds, &twl, 0, sizeof(TwlHeader), NULL) != FR_OK)
+        return 1;
+    for (u32 i = 0; i < 8; i++)
+        title_id[i] = (twl.title_id >> ((7-i)*8)) & 0xFF;
+    save_size = twl.pubsav_size;
+    privsave_size = twl.prvsav_size;
+
+    // some basic sanity checks
+    // see: https://problemkaputt.de/gbatek.htm#dsicartridgeheader
+    // (gamecart dumps are not allowed)
+    u8 tidhigh_dsiware[4] = { 0x00, 0x03, 0x00, 0x04 };
+    if ((memcmp(title_id, tidhigh_dsiware, 3) != 0) || !title_id[3])
+        return 1;
+
+    // convert DSi title ID to 3DS title ID
+    u8 tidhigh_3ds[4] = { 0x00, 0x04, 0x80, 0x04 };
+    memcpy(title_id, tidhigh_3ds, 3); 
+    
+    // build the CIA stub
+    CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+    if (!cia) return 1;
+    memset(cia, 0, sizeof(CiaStub));
+    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+        (BuildCiaCert(cia->cert) != 0) ||
+        (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, privsave_size)) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_cia) != 0)) {
+        free(cia);
+        return 1;
+    }
+    
+    // insert NDS content
+    TmdContentChunk* chunk = cia->content_list;
+    memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
+    if (InsertCiaContent(path_cia, path_nds, 0, 0, chunk, NULL, false, false, false) != 0) {
+        free(cia);
+        return 1;
+    }
+    
+    // write the CIA stub (take #2)
+    FindTitleKey((&cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -1596,6 +1659,8 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
         ret = BuildCiaFromNcchFile(path, dest);
     else if (filetype & GAME_NCSD)
         ret = BuildCiaFromNcsdFile(path, dest);
+    else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW))
+        ret = BuildCiaFromNdsFile(path, dest); 
     else ret = 1;
     
     if (ret != 0) // try to get rid of the borked file

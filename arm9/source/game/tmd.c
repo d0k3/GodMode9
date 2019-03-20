@@ -76,7 +76,7 @@ u32 FixTmdHashes(TitleMetaData* tmd) {
     return 0;
 }
 
-u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size) {
+u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size, u32 twl_privsave_size) {
     const u8 sig_type[4] =  { TMD_SIG_TYPE };
     // safety check: number of contents
     if (n_contents > TMD_MAX_CONTENTS) return 1; // potential incompatibility here (!)
@@ -89,7 +89,8 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size
     tmd->version = 0x01;
     memcpy(tmd->title_id, title_id, 8);
     tmd->title_type[3] = 0x40; // whatever
-    for (u32 i = 0; i < 4; i++) tmd->save_size[i] = (save_size >> (i*8)) & 0xFF; // little endian?
+    for (u32 i = 0; i < 4; i++) tmd->save_size[i] = (save_size >> (i*8)) & 0xFF; // le save size
+    for (u32 i = 0; i < 4; i++) tmd->twl_privsave_size[i] = (twl_privsave_size >> (i*8)) & 0xFF; // le privsave size
     tmd->content_count[0] = (u8) ((n_contents >> 8) & 0xFF);
     tmd->content_count[1] = (u8) (n_contents & 0xFF);
     memset(tmd->contentinfo_hash, 0xFF, 0x20); // placeholder (hash)

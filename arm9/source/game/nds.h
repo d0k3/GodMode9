@@ -90,7 +90,11 @@ typedef struct {
     u64 secure_area_disable;
     u32 ntr_rom_size; // in byte
     u32 header_size;
-    u8  reserved1[56];
+    u32 arm9_param_tbl_offset;
+    u32 arm7_param_tbl_offset;
+    u16 ntr_rom_region_end;
+    u16 twl_rom_region_start;
+    u8  reserved1[44];
     u8  logo[156];
     u16 logo_crc;
     u16 header_crc;
