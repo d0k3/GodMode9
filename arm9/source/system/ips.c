@@ -20,10 +20,10 @@ typedef enum {
     IPS_MEMORY
 } IPSERROR;
 
-FIL patchFile, inFile, outFile;
-size_t patchSize;
-u8 *patch;
-u32 patchOffset;
+static FIL patchFile, inFile, outFile;
+static size_t patchSize;
+static u8 *patch;
+static u32 patchOffset;
 
 char errName[256];
 

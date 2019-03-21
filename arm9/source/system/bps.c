@@ -65,18 +65,18 @@ typedef struct {
     DataChunk dataChunks[];
 } BeatFile;
 
-BeatFile *patch;
-BeatFile *source;
-BeatFile *target;
+static BeatFile *patch;
+static BeatFile *source;
+static BeatFile *target;
 
-bool bpmIsActive;
-u32 bpsSize;
-u32 bpsChecksum;
+static bool bpmIsActive;
+static u32 bpsSize;
+static u32 bpsChecksum;
 
-u64 timer;
-u64 timerLastCheck;
+static u64 timer;
+static u64 timerLastCheck;
 
-char progressText[256];
+static char progressText[256];
 
 BeatFile* initFile(const char *path, u8 id, u64 targetSize) {
     u32 numChunks;
