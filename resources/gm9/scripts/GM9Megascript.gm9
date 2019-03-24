@@ -1167,6 +1167,12 @@ rm -o -s 0:/gm9/scripts/cleanup_sd_card.gm9
 
 rm -o -s 0:/arm9loaderhax.bin
 rm -o -s 0:/files9/aeskeydb.bin
+
+rm -o -s 0:/movable.sed
+rm -o -s 0:/steelhax/
+rm -o -s 0:/484E4441.bin
+rm -o -s 0:/484E4441.bin.patched 
+
  
 echo "SD card now squeaky clean from setup files."
 goto MainMenu_Scripts_from_Plailect's_Guide
@@ -1593,6 +1599,21 @@ end
 mv -n -w "0:/Nintendo 3DSTEMP" $[DESIREDPATH]
 echo "Folders successfully swapped."
 goto MainMenu_Miscellaneous
+
+################Clear Friendlist##################
+@Miscellaneous_Clear_Friendlist
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nClear friendlist"
+
+if	not ask "This script will delete friend code\nand friendlist,continue?"
+	echo "Operation Cancelled."
+	goto MainMenu_Miscellaneous
+if	not allow -a 1:
+	echo "Permissions denied. Aborting."
+	goto MainMenu_Miscellaneous
+end
+mv -w -k -n 1:/data/$[SYSID0]/sysdata/00010032/00000000 1:/data/$[SYSID0]/sysdata/00010032/00000001
+echo "Friend code and friendlist successfully deleted."
+goto MainMenu_Miscellaenous
 
 ################Lazarus3DS Options################
 
