@@ -26,17 +26,15 @@ memcpy:
 	orr     r12, r0, r1
 	ands    r12, r12, #3
 	beq     .L1
-	and     r4, r0, #3
-	and     r5, r1, #3
-	cmp     r4, r5
+	mov     r12, r0, LSL#30
+	cmp     r12, r1, LSL#30
 	bne     .L6
-	rsb     r4, r4, #4
 .L0:
 	ldrb    r3, [r1], #1
 	strb    r3, [r0], #1
 	subs    r2, r2, #1
 	popeq   {r0,r4-r9,pc}
-	subs    r4, r4, #1
+	adds    r12, r12, #0x40000000
 	bne     .L0
 .L1:
 	@ check if length higher than 32
