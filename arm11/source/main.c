@@ -5,62 +5,78 @@
 #include <vram.h>
 #include <types.h>
 
+#include <i2c.h>
+
+#define CFG11_MPCORE_CLKCNT ((vu16*)(0x10141300))
+#define CFG11_SOCINFO ((vu16*)(0x10140FFC))
+
 vu32 *entrypoint = (vu32*)0x1FFFFFFC;
 
-void PXI_IRQHandler(void)
+void PXI_RX_Handler(void)
 {
-    // char pxi_buf[PXI_MAXBUFLEN] = {0};
-    u32 pxi_args[PXI_FIFO_LEN]  = {0};
-    u8 pxi_cmd;
+    u32 pxi_cmd, ret;
+    u32 pxi_args[PXI_FIFO_LEN];
 
-    pxi_cmd = PXI_GetRemote();
+    pxi_cmd = PXI_Recv();
     switch (pxi_cmd) {
-    default:
-        break;
+        case PXI_SCREENINIT:
+        {
+            GPU_Init();
+            GPU_PSCFill(VRAM_START, VRAM_END, 0);
+            GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
+                                        VRAM_TOP_RA, VRAM_TOP_RB,
+                                        VRAM_BOT_A,  VRAM_BOT_B});
 
-    case PXI_SCREENINIT:
-    {
-        GPU_Init();
-        GPU_PSCFill(VRAM_START, VRAM_END, 0);
-        GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
-                                    VRAM_TOP_RA, VRAM_TOP_RB,
-                                    VRAM_BOT_A,  VRAM_BOT_B});
+            GPU_SetFramebufferMode(0, PDC_RGB24);
+            GPU_SetFramebufferMode(1, PDC_RGB24);
+            ret = 0;
+            break;
+        }
 
-        GPU_SetFramebufferMode(0, PDC_RGB24);
-        GPU_SetFramebufferMode(1, PDC_RGB24);
+        case PXI_BRIGHTNESS:
+        {
+            PXI_RecvArray(pxi_args, 1);
+            LCD_SetBrightness(0, pxi_args[0]);
+            LCD_SetBrightness(1, pxi_args[0]);
+            ret = pxi_args[0];
+            break;
+        }
 
-        PXI_SetRemote(PXI_BUSY);
-        break;
+        case PXI_I2C_READ:
+        {
+            PXI_RecvArray(pxi_args, 4);
+            ret = I2C_readRegBuf(pxi_args[0], pxi_args[1],
+                (u8*)pxi_args[2], pxi_args[3]);
+            break;
+        }
+
+        case PXI_I2C_WRITE:
+        {
+            PXI_RecvArray(pxi_args, 4);
+            ret = I2C_writeRegBuf(pxi_args[0], pxi_args[1],
+                (const u8*)pxi_args[2], pxi_args[3]);
+            break;
+        }
+
+        /* New CMD template:
+        case CMD_ID:
+        {
+            <var declarations/assignments>
+            <receive args from PXI FIFO>
+            <execute the command>
+            <set the return value>
+            break;
+        }
+        */
+
+        default:
+            ret = 0xFFFFFFFF;
+            break;
     }
 
-    case PXI_BRIGHTNESS:
-    {
-        PXI_RecvArray(pxi_args, 1);
-        PXI_SetRemote(PXI_BUSY);
-        LCD_SetBrightness(0, pxi_args[0]);
-        LCD_SetBrightness(1, pxi_args[0]);
-        break;
-    }
-
-    /* New CMD template:
-    case CMD_ID:
-    {
-        <var declarations/assignments>
-        <receive args from PXI FIFO>
-        <if necessary, copy stuff to pxi_buf>
-        PXI_SetRemote(PXI_BUSY);
-        <execute the command>
-        break;
-    }
-    */
-    }
-
-    PXI_SetRemote(PXI_READY);
+    PXI_Send(ret);
     return;
 }
-
-vu16 *CFG11_MPCORE_CLKCNT = (vu16*)(0x10141300);
-vu16 *CFG11_SOCINFO = (vu16*)(0x10140FFC);
 
 void main(void)
 {
@@ -77,20 +93,20 @@ void main(void)
         CPU_DisableIRQ();
     }
 
-    PXI_Reset();
     GIC_Reset();
-    GIC_SetIRQ(IRQ_PXI_SYNC, PXI_IRQHandler);
-    PXI_EnableIRQ();
-    CPU_EnableIRQ();
 
-    PXI_SetRemote(PXI_READY);
+    PXI_Reset();
+    I2C_init();
+    //MCU_init();
+
+    GIC_SetIRQ(IRQ_PXI_RX, PXI_RX_Handler);
+
+    CPU_EnableIRQ();
 
     *entrypoint = 0;
     while((entry=*entrypoint) == 0);
 
     CPU_DisableIRQ();
-    PXI_DisableIRQ();
-    PXI_Reset();
     GIC_Reset();
 
     ((void (*)())(entry))();
