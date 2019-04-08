@@ -12,7 +12,7 @@ void CheckBrightness() {
     // Volume Slider value is always between 0x00 and 0x3F
     curSlider >>= 2;
     #else
-    curSlider = FIXED_BRIGHTNESS;
+    curSlider = FIXED_BRIGHTNESS % sizeof(br_settings);
     #endif
     if (curSlider != prev_brightness) {
         PXI_DoCMD(PXI_BRIGHTNESS, (u32[]){br_settings[curSlider]}, 1);
@@ -35,15 +35,17 @@ bool IsCharging() {
 
 void Reboot() {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
-    flushEntireDCache();
-    if (I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 2))
-        while(true);
+    cpu_writeback_dc();
+    cpu_membarrier();
+    I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 2);
+    while(true);
 }
 
 void PowerOff()
 {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
-    flushEntireDCache();
-    if (I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 0))
-        while (true);
+    cpu_writeback_dc();
+    cpu_membarrier();
+    I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 0);
+    while(true);
 }

@@ -5,14 +5,14 @@
 
 .global __boot
 __boot:
-	cpsid aif, #(SR_SVC_MODE)
+	cpsid aif, #SR_SVC_MODE
 
     mov r0, #0
     mcr p15, 0, r0, c7, c7, 0
     mcr p15, 0, r0, c7, c14, 0
     mcr p15, 0, r0, c7, c10, 4
 
-    ldr sp, =__stack_top
+    ldr sp, =_stack_top
 
     @ Reset values
     ldr r0, =0x00054078
@@ -33,3 +33,8 @@ __boot:
 
     bl main
     b __boot
+
+.section .bss.stack
+.align 3
+    .space (8192 * 4)
+_stack_top:

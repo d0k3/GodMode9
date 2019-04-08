@@ -13,6 +13,7 @@
 #define SR_THUMB  (1<<5)
 #define SR_FIQ    (1<<6)
 #define SR_IRQ    (1<<7)
+#define SR_NOINT  (SR_FIQ | SR_IRQ)
 
 #ifdef ARM9
 #define CR_ENABLE_MPU    (1<<0)

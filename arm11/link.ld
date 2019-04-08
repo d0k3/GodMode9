@@ -12,6 +12,4 @@ SECTIONS
     .bss    : ALIGN(4) { __bss_start = .; *(.bss*); __bss_end = .; }
 
     . = ALIGN(4);
-
-    __stack_top = 0x1FFFE000;
 }
