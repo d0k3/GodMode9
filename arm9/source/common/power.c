@@ -1,6 +1,6 @@
+#include "arm.h"
 #include "power.h"
 #include "i2c.h"
-#include "cache.h"
 #include "pxi.h"
 
 static const u8 br_settings[] = {0x10, 0x17, 0x1E, 0x25, 0x2C, 0x34, 0x3C, 0x44, 0x4D, 0x56, 0x60, 0x6B, 0x79, 0x8C, 0xA7, 0xD2};
@@ -35,8 +35,8 @@ bool IsCharging() {
 
 void Reboot() {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
-    cpu_writeback_dc();
-    cpu_membarrier();
+    arm_wb_dc();
+    arm_dsb();
     I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 2);
     while(true);
 }
@@ -44,8 +44,8 @@ void Reboot() {
 void PowerOff()
 {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
-    cpu_writeback_dc();
-    cpu_membarrier();
+    arm_wb_dc();
+    arm_dsb();
     I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 0);
     while(true);
 }

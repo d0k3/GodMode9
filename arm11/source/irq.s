@@ -11,8 +11,8 @@
 .type main_irq_handler, %function
 main_irq_handler:
     sub lr, lr, #4             @ Fix return address
-    srsfd sp!, #0x13           @ Store IRQ mode LR and SPSR on the SVC stack
-    cps #0x13                  @ Switch to SVC mode
+    srsfd sp!, #SR_SVC_MODE    @ Store IRQ mode LR and SPSR on the SVC stack
+    cps #SR_SVC_MODE           @ Switch to SVC mode
     push {r0-r3, r12, lr}      @ Preserve registers
 
     1:

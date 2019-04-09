@@ -31,7 +31,7 @@ XRQ_Vectors:
     b .             @ FIQs are unused (except for debug?)
 
 XRQ_Reset:
-    msr cpsr_c, #(SR_ABT_MODE | SR_IRQ | SR_FIQ)
+    msr cpsr_c, #(SR_ABT_MODE | SR_NOINT)
     XRQ_FATAL 0
 
 XRQ_Undefined:
@@ -63,7 +63,7 @@ XRQ_MainHandler:
     @ Retrieve banked registers
     ands r0, r9, #(SR_PMODE_MASK & (0x0F))
     orreq r0, #(SR_SYS_MODE)
-    orr r0, #(0x10 | SR_IRQ | SR_FIQ)
+    orr r0, #(0x10 | SR_NOINT)
 
     msr cpsr_c, r0   @ Switch to previous mode
     mov r0, sp
@@ -71,7 +71,7 @@ XRQ_MainHandler:
     msr cpsr_c, r10  @ Return to abort
 
     add r2, sp, #(13*4)
-    stmia r2, {r0,r1,r8,r9}
+    stmia r2, {r0, r1, r8, r9}
 
     @ Give read/write access to all the memory regions
     ldr r0, =0x33333333
@@ -95,7 +95,7 @@ XRQ_MainHandler:
     mcr p15, 0, r0, c2, c0, 1   @ Inst cacheable 0, 2, 5
 
     @ Enable mpu/caches
-    ldr r1, =(CR_ENABLE_MPU | CR_ENABLE_DCACHE | CR_ENABLE_ICACHE | CR_ENABLE_DTCM)
+    ldr r1, =(CR_MPU | CR_DCACHE | CR_ICACHE | CR_DTCM)
     mrc p15, 0, r0, c1, c0, 0
     orr r0, r0, r1
     mcr p15, 0, r0, c1, c0, 0
@@ -105,11 +105,11 @@ XRQ_MainHandler:
     mov r0, r11
     blx r2
 
-    msr cpsr, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
+    msr cpsr, #(SR_SVC_MODE | SR_NOINT)
     mov r0, #0
-    .LXRQ_WFI:
+    1:
         mcr p15, 0, r0, c7, c0, 4
-        b .LXRQ_WFI
+        b 1b
 
 .pool
 

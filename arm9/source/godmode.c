@@ -19,6 +19,7 @@
 #include "power.h"
 #include "vram0.h"
 #include "i2c.h"
+#include "pxi.h"
 
 #ifndef N_PANES
 #define N_PANES 3
@@ -99,6 +100,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     // boot the FIRM (if we got a proper fixpath)
     if (*fixpath) {
         if (delete) PathDelete(bootpath);
+        PXI_DoCMD(PXI_LEGACY_BOOT, NULL, 0);
         BootFirm((FirmHeader*) firm, fixpath);
         while(1);
     }

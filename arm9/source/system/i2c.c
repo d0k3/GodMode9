@@ -1,6 +1,6 @@
 #include "common.h"
+#include "arm.h"
 
-#include "cache.h"
 #include "i2c.h"
 #include "pxi.h"
 
@@ -24,14 +24,13 @@ bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
 	int ret;
 	u32 args[] = {devId, regAddr, (u32)i2c_fcram_buf, size};
 
-	cpu_writeback_dc_range(i2c_fcram_buf, size);
-	cpu_membarrier();
+	arm_wb_dc_range(i2c_fcram_buf, size);
+	arm_dsb();
 
 	ret = PXI_DoCMD(PXI_I2C_READ, args, 4);
 
-	cpu_invalidate_dc_range(i2c_fcram_buf, size);
+	arm_inv_dc_range(i2c_fcram_buf, size);
 	memcpy(out, i2c_fcram_buf, size);
-
 	return ret;
 }
 
@@ -44,8 +43,8 @@ bool I2C_writeRegBuf(I2cDevice devId, u8 regAddr, const u8 *in, u32 size)
 	u32 args[] = {devId, regAddr, (u32)i2c_fcram_buf, size};
 
 	memcpy(i2c_fcram_buf, in, size);
-	cpu_writeback_dc_range(i2c_fcram_buf, size);
-	cpu_membarrier();
+	arm_wb_dc_range(i2c_fcram_buf, size);
+	arm_dsb();
 
 	ret = PXI_DoCMD(PXI_I2C_WRITE, args, 4);
 	return ret;
