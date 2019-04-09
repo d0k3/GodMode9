@@ -1,8 +1,5 @@
 #include <types.h>
-#include <cpu.h>
 #include <gic.h>
-
-#include <string.h>
 
 #define IRQVECTOR_BASE ((vu32*)0x1FFFFFA0)
 
@@ -14,7 +11,8 @@ void GIC_Reset(void)
     u32 irq_s;
 
     REG_GIC_CONTROL = 0;
-    memset(GIC_Handlers, 0, sizeof(GIC_Handlers));
+    for (int i = 0; i < 128; i++)
+        GIC_Handlers[i] = NULL;
 
     REG_DIC_CONTROL = 0;
     for (int i = 0; i < 4; i++) {

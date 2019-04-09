@@ -60,16 +60,16 @@ BootFirm_stub:
         addne r11, #0x30 @ Advance to the next section
         bne .LBootFirm_stub_copysect
 
-    @ Boot state
+        @ Boot state
         @ CPSR:
         @ ARM, Supervisor, IRQ/FIQs disabled
         @ Flags are undefined
-        msr cpsr_c, #(SR_SVC_MODE | SR_IRQ | SR_FIQ)
+        msr cpsr_c, #(SR_SVC_MODE | SR_NOINT)
 
         @ CP15:
         @ MPU and Caches are off
         @ TCMs are on (location/configuration is undefined)
-        @ Alternative exception vectors are enabled (0xFFFF0000)
+        @ High exception vectors are enabled (0xFFFF0000)
         ldr r3, =WBINV_DC
         ldr r4, =INV_IC
         ldr r5, =INITCP15
@@ -79,7 +79,7 @@ BootFirm_stub:
 
         @ Registers:
         @ R0 = 0x1 or 0x2
-        @ R1 = 0x23FFFE10
+        @ R1 = 0x27FFFE00
         @ R2 = 0x0003BEEF
         @ R3-R14 are undefined
 

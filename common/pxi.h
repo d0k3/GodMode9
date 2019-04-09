@@ -8,20 +8,18 @@
 
 #ifdef ARM9
 #define PXI_BASE (0x10008000)
-#define PXI_INIT_SYNC_SET   (33)
-#define PXI_INIT_SYNC_WAIT  (66)
+#define IRQ_PXI_RX  (14)
 #else
 #define PXI_BASE (0x10163000)
-#define IRQ_PXI_RX   (83)
-#define PXI_INIT_SYNC_SET  (66)
-#define PXI_INIT_SYNC_WAIT (33)
+#define IRQ_PXI_RX  (83)
 #endif
 
 enum {
-    PXI_SCREENINIT = 0,
-    PXI_BRIGHTNESS,
-    PXI_I2C_READ,
-    PXI_I2C_WRITE,
+	PXI_SCREENINIT = 0,
+	PXI_BRIGHTNESS,
+	PXI_I2C_READ,
+	PXI_I2C_WRITE,
+	PXI_LEGACY_BOOT,
 };
 
 #define PXI_FIFO_LEN (16)
@@ -49,55 +47,55 @@ enum {
 
 static inline void PXI_SetRemote(u8 msg)
 {
-    *PXI_SYNC_SEND = msg;
+	*PXI_SYNC_SEND = msg;
 }
 
 static inline u8 PXI_GetRemote(void)
 {
-    return *PXI_SYNC_RECV;
+	return *PXI_SYNC_RECV;
 }
 
 static inline void PXI_WaitRemote(u8 msg)
 {
-    while(PXI_GetRemote() != msg);
+	while(PXI_GetRemote() != msg);
 }
 
 static void PXI_Reset(void)
 {
-    *PXI_SYNC_IRQ = 0;
-    *PXI_CNT = PXI_CNT_SEND_FIFO_FLUSH | PXI_CNT_ENABLE_FIFO;
-    for (int i = 0; i < PXI_FIFO_LEN; i++)
-        *PXI_RECV;
+	*PXI_SYNC_IRQ = 0;
+	*PXI_CNT = PXI_CNT_SEND_FIFO_FLUSH | PXI_CNT_ENABLE_FIFO;
+	for (int i = 0; i < PXI_FIFO_LEN; i++)
+		*PXI_RECV;
 
-    *PXI_CNT = 0;
-    *PXI_CNT = PXI_CNT_RECV_FIFO_AVAIL_IRQ | PXI_CNT_ENABLE_FIFO;
+	*PXI_CNT = 0;
+	*PXI_CNT = PXI_CNT_RECV_FIFO_AVAIL_IRQ | PXI_CNT_ENABLE_FIFO;
 }
 
 static void PXI_Send(u32 w)
 {
-    while(*PXI_CNT & PXI_CNT_SEND_FIFO_FULL);
-    *PXI_SEND = w;
+	while(*PXI_CNT & PXI_CNT_SEND_FIFO_FULL);
+	*PXI_SEND = w;
 }
 
 static u32 PXI_Recv(void)
 {
-    while(*PXI_CNT & PXI_CNT_RECV_FIFO_EMPTY);
-    return *PXI_RECV;
+	while(*PXI_CNT & PXI_CNT_RECV_FIFO_EMPTY);
+	return *PXI_RECV;
 }
 
 static void PXI_SendArray(const u32 *w, u32 c)
 {
-    while(c--) PXI_Send(*(w++));
+	while(c--) PXI_Send(*(w++));
 }
 
 static void PXI_RecvArray(u32 *w, u32 c)
 {
-    while(c--) *(w++) = PXI_Recv();
+	while(c--) *(w++) = PXI_Recv();
 }
 
 static u32 PXI_DoCMD(u32 cmd, const u32 *args, u32 argc)
 {
-    PXI_Send(cmd);
-    PXI_SendArray(args, argc);
-    return PXI_Recv();
+	PXI_Send((argc << 16) | cmd);
+	PXI_SendArray(args, argc);
+	return PXI_Recv();
 }
