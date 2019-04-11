@@ -9,6 +9,7 @@
 #define BIT(x) (1 << (x))
 
 #ifndef __ASSEMBLER__
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 

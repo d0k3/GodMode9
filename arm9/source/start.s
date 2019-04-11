@@ -33,7 +33,7 @@ _start:
     blx r0 @ Invalidate Instruction Cache
 
     @ Disable caches / DTCM / MPU
-    ldr r1, =(CR_MPU | CR_DCACHE | CR_ICACHE | CR_DTCM | CR_TCM_LOAD)
+    ldr r1, =(CR_MPU | CR_CACHES | CR_DTCM | CR_TCM_LOAD)
     ldr r2, =(CR_ITCM)
     mrc p15, 0, r0, c1, c0, 0
     bic r0, r1
@@ -92,7 +92,7 @@ _start:
 
     @ Enable caches / DTCM / select low exception vectors
     ldr r1, =(CR_ALT_VECTORS | CR_V4TLD)
-    ldr r2, =(CR_MPU | CR_DCACHE | CR_ICACHE | CR_DTCM)
+    ldr r2, =(CR_MPU | CR_CACHES | CR_DTCM)
     mrc p15, 0, r0, c1, c0, 0
     bic r0, r1
     orr r0, r2

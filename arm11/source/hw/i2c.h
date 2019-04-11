@@ -19,7 +19,7 @@
  */
 
 #include <stdbool.h>
-#include "types.h"
+#include <types.h>
 
 
 #define I2C_STOP          (1u)

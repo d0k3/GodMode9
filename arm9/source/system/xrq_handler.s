@@ -95,7 +95,7 @@ XRQ_MainHandler:
     mcr p15, 0, r0, c2, c0, 1   @ Inst cacheable 0, 2, 5
 
     @ Enable mpu/caches
-    ldr r1, =(CR_MPU | CR_DCACHE | CR_ICACHE | CR_DTCM)
+    ldr r1, =(CR_MPU | CR_CACHES | CR_DTCM)
     mrc p15, 0, r0, c1, c0, 0
     orr r0, r0, r1
     mcr p15, 0, r0, c1, c0, 0

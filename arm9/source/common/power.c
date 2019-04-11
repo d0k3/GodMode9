@@ -35,8 +35,8 @@ bool IsCharging() {
 
 void Reboot() {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
-    arm_wb_dc();
-    arm_dsb();
+    ARM_WbDC();
+    ARM_DSB();
     I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 2);
     while(true);
 }
@@ -44,8 +44,8 @@ void Reboot() {
 void PowerOff()
 {
     I2C_writeReg(I2C_DEV_MCU, 0x22, 1 << 0); // poweroff LCD to prevent MCU hangs
-    arm_wb_dc();
-    arm_dsb();
+    ARM_WbDC();
+    ARM_DSB();
     I2C_writeReg(I2C_DEV_MCU, 0x20, 1 << 0);
     while(true);
 }

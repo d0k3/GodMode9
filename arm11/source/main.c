@@ -1,27 +1,25 @@
+#include <types.h>
+#include <vram.h>
 #include <arm.h>
 #include <pxi.h>
-#include <gic.h>
-#include <gpulcd.h>
-#include <vram.h>
-#include <types.h>
 
-#include <i2c.h>
-
-#define CFG11_MPCORE_CLKCNT	((vu16*)(0x10141300))
-#define CFG11_SOCINFO	((vu16*)(0x10140FFC))
+#include "arm/gic.h"
+#include "hw/gpulcd.h"
+#include "hw/i2c.h"
+#include "hw/mcu.h"
 
 #define LEGACY_BOOT_ENTRY	((vu32*)0x1FFFFFFC)
 #define LEGACY_BOOT_MAGIC	(0xDEADDEAD)
 
-void PXI_RX_Handler(void)
+void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
-	u32 ret, msg, cmd, argc, args[PXI_FIFO_LEN];
+	u32 ret, msg, cmd, argc, args[PXI_MAX_ARGS];
 
 	msg = PXI_Recv();
 	cmd = msg & 0xFFFF;
 	argc = msg >> 16;
 
-	if (argc > PXI_FIFO_LEN) {
+	if (argc > PXI_MAX_ARGS) {
 		PXI_Send(0xFFFFFFFF);
 		return;
 	}
@@ -29,6 +27,20 @@ void PXI_RX_Handler(void)
 	PXI_RecvArray(args, argc);
 
 	switch (cmd) {
+		case PXI_LEGACY_MODE:
+		{
+			*LEGACY_BOOT_ENTRY = LEGACY_BOOT_MAGIC;
+			ret = 0;
+			break;
+		}
+
+		case PXI_GET_SHMEM:
+		{
+			//ret = (u32)SHMEM_GetGlobalPointer();
+			ret = 0xFFFFFFFF;
+			break;
+		}
+
 		case PXI_SCREENINIT:
 		{
 			GPU_Init();
@@ -45,8 +57,7 @@ void PXI_RX_Handler(void)
 
 		case PXI_BRIGHTNESS:
 		{
-			LCD_SetBrightness(0, args[0]);
-			LCD_SetBrightness(1, args[0]);
+			LCD_SetBrightness(args[0]);
 			ret = args[0];
 			break;
 		}
@@ -60,13 +71,6 @@ void PXI_RX_Handler(void)
 		case PXI_I2C_WRITE:
 		{
 			ret = I2C_writeRegBuf(args[0], args[1], (u8*)args[2], args[3]);
-			break;
-		}
-
-		case PXI_LEGACY_BOOT:
-		{
-			*LEGACY_BOOT_ENTRY = LEGACY_BOOT_MAGIC;
-			ret = 0;
 			break;
 		}
 
@@ -89,38 +93,29 @@ void PXI_RX_Handler(void)
 	return;
 }
 
-void main(void)
+void MPCoreMain(void)
 {
 	u32 entry;
 
-	if ((*CFG11_SOCINFO & 2) && (!(*CFG11_MPCORE_CLKCNT & 1))) {
-		GIC_Reset();
-		GIC_SetIRQ(88, NULL);
-		arm_enable_ints();
-		*CFG11_MPCORE_CLKCNT = 0x8001;
-		do {
-			asm("wfi\n\t");
-		} while(!(*CFG11_MPCORE_CLKCNT & 0x8000));
-		arm_disable_ints();
-	}
-
-	GIC_Reset();
+	GIC_Enable(IRQ_PXI_RX, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
+	*LEGACY_BOOT_ENTRY = 0;
 
 	PXI_Reset();
 	I2C_init();
 	//MCU_init();
 
-	GIC_SetIRQ(IRQ_PXI_RX, PXI_RX_Handler);
-	*LEGACY_BOOT_ENTRY = 0;
+	PXI_Barrier(ARM11_READY_BARRIER);
+	ARM_EnableInterrupts();
 
-	arm_enable_ints();
-
+	// Process IRQs until the ARM9 tells us it's time to boot something else
 	do {
-		arm_wfi();
+		ARM_WFI();
 	} while(*LEGACY_BOOT_ENTRY != LEGACY_BOOT_MAGIC);
 
-	arm_disable_ints();
-	GIC_Reset();
+	// Perform any needed deinit stuff
+	ARM_DisableInterrupts();
+	GIC_GlobalReset();
+	GIC_LocalReset();
 
 	do {
 		entry = *LEGACY_BOOT_ENTRY;
