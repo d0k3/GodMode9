@@ -17,8 +17,9 @@
  */
 
 #include <stdbool.h>
-#include "types.h"
-#include "i2c.h"
+
+#include <types.h>
+#include "hw/i2c.h"
 
 
 #define I2C1_REGS_BASE  (0x10161000)

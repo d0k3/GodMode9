@@ -13,6 +13,10 @@ void main(int argc, char** argv, int entrypoint)
 
     PXI_Reset();
 
+    // Don't even try to send any messages until the
+    // ARM11 says it's ready
+    PXI_Barrier(ARM11_READY_BARRIER);
+
     PXI_DoCMD(PXI_SCREENINIT, NULL, 0);
     I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A);
 
