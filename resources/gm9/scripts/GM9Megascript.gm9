@@ -1109,8 +1109,6 @@ if	allow -a 1:
 	cp -w -o -s 0:/luma/customversion_sys.txt 1:/rw/luma/customversion_sys.txt
 	cp -w -o -s 0:/luma/splash.bin 1:/rw/luma/splash.bin
 	cp -w -o -s 0:/luma/splashbottom.bin 1:/rw/luma/splashbottom.bin
-	cp -w -o -s 0:/luma/splashpin.bin 1:/rw/luma/splashpin.bin
-	cp -w -o -s 0:/luma/payloads 1:/rw/luma/payloads
 	echo "Luma3DS copied successfully."
 else
 	echo "Permissions denied. Aborting."
@@ -1161,12 +1159,26 @@ rm -o -s 0:/ntrboot
 rm -o -s 0:/ntrboot.firm
  
 rm -o -s 0:/boot9strap
-rm -o -s 0:/cias
+
+for 0:/cias *
+    rm -o -s $[FORPATH]
+next
 rm -o -s 0:/gm9/scripts/setup_ctrnand_luma3ds.gm9
 rm -o -s 0:/gm9/scripts/cleanup_sd_card.gm9
 
 rm -o -s 0:/arm9loaderhax.bin
 rm -o -s 0:/files9/aeskeydb.bin
+
+rm -o -s 0:/steelhax
+rm -o -s 0:/movable.sed
+rm -o -s 0:/3ds/steelhax_installer/*
+rm -o -s 0:/3ds/steelhax_installer.*
+rm -o -s 0:/484E4441.bin
+rm -o -s 0:/484E4441.bin.patched
+rm -o -s 0:/frogcert.bin
+rm -o -s 0:/private/ds/app/4B47554A/001/T00031_1038C2A757B77_000.ppm
+rm -o -s 0:/3ds/Frogtool.3dsx
+rm -o -s 0:/3ds/squirrelboot.3dsx
  
 echo "SD card now squeaky clean from setup files."
 goto MainMenu_Scripts_from_Plailect's_Guide
@@ -1593,6 +1605,21 @@ end
 mv -n -w "0:/Nintendo 3DSTEMP" $[DESIREDPATH]
 echo "Folders successfully swapped."
 goto MainMenu_Miscellaneous
+
+################Clear Friendlist##################
+@Miscellaneous_Clear_Friendlist
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nClear friendlist"
+
+if	not ask "This script will delete friend code\nand friendlist,continue?"
+	echo "Operation Cancelled."
+	goto MainMenu_Miscellaneous
+if	not allow -a 1:
+	echo "Permissions denied. Aborting."
+	goto MainMenu_Miscellaneous
+end
+mv -w -k -n 1:/data/$[SYSID0]/sysdata/00010032/00000000 1:/data/$[SYSID0]/sysdata/00010032/00000001
+echo "Friend code and friendlist successfully deleted."
+goto MainMenu_Miscellaenous
 
 ################Lazarus3DS Options################
 
