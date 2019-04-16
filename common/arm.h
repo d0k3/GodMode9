@@ -58,8 +58,8 @@
 	#define ICACHE_SZ	(16384)
 	#define DCACHE_SZ	(16384)
 
-	#define MAX_IRQ	(96)
-	#define MAX_CPU	(2)
+	#define MAX_IRQ	(224)
+	#define MAX_CPU	(1)
 #endif
 
 #define CR_CACHES	(CR_DCACHE | CR_ICACHE)

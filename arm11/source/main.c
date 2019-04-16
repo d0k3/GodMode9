@@ -8,8 +8,8 @@
 #include "hw/i2c.h"
 #include "hw/mcu.h"
 
-#define LEGACY_BOOT_ENTRY	((vu32*)0x1FFFFFFC)
-#define LEGACY_BOOT_MAGIC	(0xDEADDEAD)
+static bool legacy;
+void SYS_CoreShutdown(void);
 
 void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
@@ -29,7 +29,8 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 	switch (cmd) {
 		case PXI_LEGACY_MODE:
 		{
-			*LEGACY_BOOT_ENTRY = LEGACY_BOOT_MAGIC;
+			// TODO: If SMP is enabled, an IPI should be sent here (with a DSB)
+			legacy = true;
 			ret = 0;
 			break;
 		}
@@ -65,11 +66,15 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 		case PXI_I2C_READ:
 		{
 			ret = I2C_readRegBuf(args[0], args[1], (u8*)args[2], args[3]);
+			ARM_WbDC_Range((void*)args[2], args[3]);
+			ARM_DSB();
 			break;
 		}
 
 		case PXI_I2C_WRITE:
 		{
+			ARM_InvDC_Range((void*)args[2], args[3]);
+			ARM_DSB();
 			ret = I2C_writeRegBuf(args[0], args[1], (u8*)args[2], args[3]);
 			break;
 		}
@@ -95,14 +100,8 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 void MPCoreMain(void)
 {
-	u32 entry;
-
+	legacy = false;
 	GIC_Enable(IRQ_PXI_RX, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
-	*LEGACY_BOOT_ENTRY = 0;
-
-	PXI_Reset();
-	I2C_init();
-	//MCU_init();
 
 	PXI_Barrier(ARM11_READY_BARRIER);
 	ARM_EnableInterrupts();
@@ -110,16 +109,10 @@ void MPCoreMain(void)
 	// Process IRQs until the ARM9 tells us it's time to boot something else
 	do {
 		ARM_WFI();
-	} while(*LEGACY_BOOT_ENTRY != LEGACY_BOOT_MAGIC);
+	} while(!legacy);
 
 	// Perform any needed deinit stuff
 	ARM_DisableInterrupts();
-	GIC_GlobalReset();
-	GIC_LocalReset();
 
-	do {
-		entry = *LEGACY_BOOT_ENTRY;
-	} while(entry == LEGACY_BOOT_MAGIC);
-
-	((void (*)())(entry))();
+	SYS_CoreShutdown();
 }

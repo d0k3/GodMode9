@@ -41,7 +41,7 @@
 #define LOCAL_IRQ_OFF(c, n) (((c) * LOCAL_IRQS) + (n))
 #define GLOBAL_IRQ_OFF(n)   (((MAX_CPU-1) * LOCAL_IRQS) + (n))
 #define IRQ_TABLE_OFF(c, n) \
-    (IRQN_IS_LOCAL((n)) ? LOCAL_IRQ_OFF((c), (n)) : GLOBAL_IRQ_OFF((n)))
+    (IRQN_IS_LOCAL(n) ? LOCAL_IRQ_OFF((c), (n)) : GLOBAL_IRQ_OFF(n))
 
 static IRQ_Handler IRQ_Handlers[IRQ_TABLE_OFF(0, MAX_IRQ)];
 
@@ -117,7 +117,7 @@ void GIC_GlobalReset(void)
 
     // Reset all DIC priorities to lowest and clear target processor regs
     for (int i = 32; i < intn; i++) {
-        REG_DIC_PRIORITY[i] = 0xF0;
+        REG_DIC_PRIORITY[i] = 0;
         REG_DIC_TARGETPROC[i] = 0;
     }
 
@@ -149,14 +149,14 @@ void GIC_LocalReset(void)
     REG_DIC_CLRPENDING[0] = ~0;
 
     for (int i = 0; i < 32; i++) {
-        REG_DIC_PRIORITY[i] = 0xF0;
+        REG_DIC_PRIORITY[i] = 0;
         REG_DIC_TARGETPROC[i] = 0;
     }
 
     for (int i = 0; i < 2; i++)
         REG_DIC_CFGREG[i] = ~0;
 
-    // Wait for the spurious IRQ
+    // Acknowledge until it gets a spurious IRQ
     do {
         irq_s = REG_GIC_PENDING(GIC_THIS_CPU_ALIAS);
         REG_GIC_IRQEND(GIC_THIS_CPU_ALIAS) = irq_s;

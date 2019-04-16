@@ -13,4 +13,4 @@ void GPU_PSCFill(u32 start, u32 end, u32 fv);
 #define PDC_RGBA4   (4<<0)
 void GPU_SetFramebufferMode(u32 screen, u8 mode);
 void GPU_SetFramebuffers(const u32 *framebuffers);
-void GPU_Init();
+void GPU_Init(void);

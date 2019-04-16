@@ -14,7 +14,7 @@ enum {
 
 enum {
 	GIC_HIGHEST_PRIO = 0x0,
-	GIC_LOWEST_PRIO = 0xF,
+	GIC_LOWEST_PRIO = 0xE,
 };
 
 void GIC_GlobalReset(void);
