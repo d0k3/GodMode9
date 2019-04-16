@@ -1,4 +1,6 @@
 #include <types.h>
+#include <common.h>
+
 #include <arm.h>
 
 #include "arm/mmu.h"
@@ -68,44 +70,26 @@ static MMU_Lvl2_Table *Alloc_Lvl2(void)
 
 
 /* functions to convert from internal page flag format to ARM */
+
+/* {TEX, CB} */
+static const u8 MMU_TypeLUT[MEMORY_TYPES][2] = {
+	[STRONGLY_ORDERED] = {0, 0},
+	[NON_CACHEABLE] = {1, 0},
+	[DEVICE_SHARED] = {0, 1},
+	[DEVICE_NONSHARED] = {2, 0},
+	[CACHED_WT] = {0, 2},
+	[CACHED_WB] = {1, 3},
+	[CACHED_WB_ALLOC] = {1, 3},
+};
+
 static u32 MMU_GetTEX(u32 f)
 {
-	switch(MMU_FLAGS_TYPE(f)) {
-		default:
-		case STRONGLY_ORDERED:
-		case CACHED_WT:
-		case DEVICE_SHARED:
-			return 0;
-
-		case CACHED_WB:
-		case NON_CACHEABLE:
-		case CACHED_WB_ALLOC:
-			return 1;
-
-		case DEVICE_NONSHARED:
-			return 2;
-	}
+	return MMU_TypeLUT[MMU_FLAGS_TYPE(f)][0];
 }
 
 static u32 MMU_GetCB(u32 f)
 {
-	switch(MMU_FLAGS_TYPE(f)) {
-		default:
-		case STRONGLY_ORDERED:
-		case NON_CACHEABLE:
-		case DEVICE_NONSHARED:
-			return 0;
-
-		case DEVICE_SHARED:
-			return 1;
-
-		case CACHED_WT:
-			return 2;
-
-		case CACHED_WB:
-		case CACHED_WB_ALLOC:
-			return 3;
-	}
+	return MMU_TypeLUT[MMU_FLAGS_TYPE(f)][1];
 }
 
 static u32 MMU_GetAP(u32 f)
@@ -114,10 +98,8 @@ static u32 MMU_GetAP(u32 f)
 		default:
 		case NO_ACCESS:
 			return 0;
-
 		case READ_ONLY:
 			return 0x21;
-
 		case READ_WRITE:
 			return 0x01;
 	}
@@ -281,11 +263,10 @@ u32 MMU_Map(u32 va, u32 pa, u32 size, u32 flags)
 			.mapfn = MMU_MapPage,
 		},
 	};
-	static const size_t VMapperCount = sizeof(VMappers)/sizeof(*VMappers);
 
 	while(size > 0) {
 		size_t i = 0;
-		for (i = 0; i < VMapperCount; i++) {
+		for (i = 0; i < countof(VMappers); i++) {
 			u32 abits = VMappers[i].bits;
 
 			if (MMU_MappingFits(va, pa, size, abits)) {
@@ -303,7 +284,7 @@ u32 MMU_Map(u32 va, u32 pa, u32 size, u32 flags)
 			}
 		}
 
-		if (i == VMapperCount)
+		if (i == countof(VMappers))
 			return size;
 	}
 

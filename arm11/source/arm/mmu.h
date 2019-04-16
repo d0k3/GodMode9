@@ -10,6 +10,7 @@ enum MMU_MemoryType {
 	CACHED_WT,
 	CACHED_WB,
 	CACHED_WB_ALLOC,
+	MEMORY_TYPES,
 };
 
 enum MMU_MemoryAccess {

@@ -8,14 +8,13 @@
 
 #include "hw/i2c.h"
 
+#include "system/sections.h"
+
 #define CFG11_MPCORE_CLKCNT	((vu16*)(0x10141300))
 #define CFG11_SOCINFO		((vu16*)(0x10140FFC))
 
-#define LEGACY_BOOT_ENTRY	((vu32*)0x1FFFFFFC)
-
-#define INIT_DONE	(0xDDEEFFAA)
-
-static volatile u32 sys_init_state = 0;
+#define LEGACY_BOOT_ENTRYPOINT	((vu32*)0x1FFFFFFC)
+#define LEGACY_BOOT_ROUTINE_SMP	(0x0001004C)
 
 static bool SYS_IsNewConsole(void)
 {
@@ -45,16 +44,11 @@ static void SYS_EnableClkMult(void)
 	}
 }
 
-#include "sections.h"
-
-#define	MMU_FLAGS_DEF	MMU_FLAGS(STRONGLY_ORDERED, READ_WRITE, 0, 1)
-
-static void SYS_CoreZeroInit(void)
+void SYS_CoreZeroInit(void)
 {
 	GIC_GlobalReset();
-	GIC_LocalReset();
 
-	*LEGACY_BOOT_ENTRY = 0;
+	*LEGACY_BOOT_ENTRYPOINT = 0;
 
 	SYS_EnableClkMult();
 
@@ -77,11 +71,13 @@ static void SYS_CoreZeroInit(void)
 	MMU_Map(0x18000000, 0x18000000, 6UL << 20, MMU_FLAGS(CACHED_WT, READ_WRITE, 1, 1));
 
 	// FCRAM
-	MMU_Map(0x20000000, 0x20000000, 128UL << 20, MMU_FLAGS(CACHED_WB, READ_WRITE, 1, 1));
-}
+	if (SYS_IsNewConsole()) {
+		MMU_Map(0x20000000, 0x20000000, 256UL << 20, MMU_FLAGS(CACHED_WB, READ_WRITE, 1, 1));
+	} else {
+		MMU_Map(0x20000000, 0x20000000, 128UL << 20, MMU_FLAGS(CACHED_WB, READ_WRITE, 1, 1));
+	}
 
-static void SYS_InitPeripherals(void)
-{
+	// Initialize peripherals
 	PXI_Reset();
 	I2C_init();
 	//MCU_init();
@@ -89,19 +85,13 @@ static void SYS_InitPeripherals(void)
 
 void SYS_CoreInit(void)
 {
-	if (!ARM_CoreID()) {
-		SYS_CoreZeroInit();
-	} else {
-		while(sys_init_state != INIT_DONE)
-			ARM_WFE();
+	// Reset local GIC registers
+	GIC_LocalReset();
 
-		GIC_LocalReset();
-	}
-
-	// set up MMU registers
+	// Set up MMU registers
 	MMU_Init();
 
-	// enable fancy ARM11 stuff
+	// Enable fancy ARM11 features
 	ARM_SetACR(ARM_GetACR() |
 		ACR_RETSTK | ACR_DBPRED | ACR_SBPRED | ACR_FOLDING | ACR_SMP);
 
@@ -110,32 +100,20 @@ void SYS_CoreInit(void)
 
 	ARM_DSB();
 
-	if (!ARM_CoreID()) {
-		SYS_InitPeripherals();
-
-		sys_init_state = INIT_DONE;
-		ARM_DSB();
-		ARM_SEV();
-	}
+	ARM_EnableInterrupts();
 }
 
-// assumes all cores have been initialized
+void SYS_CoreZeroShutdown(void)
+{
+	ARM_DisableInterrupts();
+	GIC_GlobalReset();
+}
+
 void SYS_CoreShutdown(void)
 {
 	u32 core = ARM_CoreID();
 
-	if (!core) {
-		// wait for the other cores to do their thing
-		while(sys_init_state != (INIT_DONE - MAX_CPU + 1)) {
-			ARM_WFE();
-			ARM_DSB();
-		}
-
-		GIC_GlobalReset();
-	} else {
-		__atomic_sub_fetch(&sys_init_state, 1, __ATOMIC_SEQ_CST);
-		ARM_SEV();
-	}
+	ARM_DisableInterrupts();
 
 	GIC_LocalReset();
 
@@ -148,11 +126,11 @@ void SYS_CoreShutdown(void)
 		~(ACR_RETSTK | ACR_DBPRED | ACR_SBPRED | ACR_FOLDING | ACR_SMP));
 
 	if (!core) {
-		while(*LEGACY_BOOT_ENTRY == 0);
-		((void (*)(void))(*LEGACY_BOOT_ENTRY))();
+		while(*LEGACY_BOOT_ENTRYPOINT == 0);
+		((void (*)(void))(*LEGACY_BOOT_ENTRYPOINT))();
 	} else {
 		// Branch to bootrom function that does SMP reinit magic
 		// (waits for IPI + branches to word @ 0x1FFFFFDC)
-		((void (*)(void))0x0001004C)();
+		((void (*)(void))LEGACY_BOOT_ROUTINE_SMP)();
 	}
 }
