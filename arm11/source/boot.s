@@ -45,20 +45,24 @@ __boot:
     b 1b
 
 corezero_start:
+    @ assume __bss_len is 16 byte aligned
     ldr r0, =__bss_pa
     ldr r1, =__bss_len
     mov r2, #0
+    mov r3, #0
+    mov r4, #0
+    mov r5, #0
     add r1, r0, r1
     .Lclearbss:
         cmp r0, r1
-        strlt r2, [r0], #4
+        stmltia r0!, {r2-r5}
         blt .Lclearbss
+
+    bl SYS_CoreZeroInit
 
 coresmp_start:
     bl SYS_CoreInit
-    bl MPCoreMain
-
-    b __boot
+    b MainLoop
 
 .section .bss.stack
 .align 3

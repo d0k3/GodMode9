@@ -8,8 +8,9 @@
 #include "hw/i2c.h"
 #include "hw/mcu.h"
 
-static bool legacy;
-void SYS_CoreShutdown(void);
+#include "system/sys.h"
+
+static bool legacy = false;
 
 void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
@@ -98,21 +99,18 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 	return;
 }
 
-void MPCoreMain(void)
+void MainLoop(void)
 {
-	legacy = false;
 	GIC_Enable(IRQ_PXI_RX, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
 
+	// ARM9 won't try anything funny until this point
 	PXI_Barrier(ARM11_READY_BARRIER);
-	ARM_EnableInterrupts();
 
 	// Process IRQs until the ARM9 tells us it's time to boot something else
 	do {
 		ARM_WFI();
 	} while(!legacy);
 
-	// Perform any needed deinit stuff
-	ARM_DisableInterrupts();
-
+	SYS_CoreZeroShutdown();
 	SYS_CoreShutdown();
 }

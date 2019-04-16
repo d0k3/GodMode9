@@ -1,5 +1,7 @@
 #pragma once
 
+#include <types.h>
+
 #define DEF_SECT_(n)	extern u32 __##n##_pa, __##n##_va, __##n##_len; static const u32 n##_pa = (u32)&__##n##_pa, n##_va = (u32)&__##n##_va;
 DEF_SECT_(vector)
 DEF_SECT_(text)
