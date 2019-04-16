@@ -16,15 +16,10 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * To ensure correct functionality, the builtin memcpy should perform a sequential copy.
- * If not, it should be replaced with a different reimplementation that does for sure act sequential.
- * Or alternatively, it's own memcpy with it's own name, say perhaps seqmemcpy, and memcpy calls replaced.
- */
-
 #include "common.h"
 #include "rsa.h"
 #include "sha.h"
+#include "mmio.h"
 
 
 
@@ -40,9 +35,9 @@
 #define REGs_RSA_SLOT2   ((vu32*)(RSA_REGS_BASE + 0x120))
 #define REGs_RSA_SLOT3   ((vu32*)(RSA_REGS_BASE + 0x130))
 #define rsaSlots         ((RsaSlot*)(RSA_REGS_BASE + 0x100))
-#define REG_RSA_EXP      ((vu32*)(RSA_REGS_BASE + 0x200))
-#define REG_RSA_MOD      (       (RSA_REGS_BASE + 0x400))
-#define REG_RSA_TXT      (       (RSA_REGS_BASE + 0x800))
+#define REGs_RSA_EXP     ((vu32*)(RSA_REGS_BASE + 0x200))
+#define REGs_RSA_MOD     ((vu32*)(RSA_REGS_BASE + 0x400))
+#define REGs_RSA_TXT     ((vu32*)(RSA_REGS_BASE + 0x800))
 
 typedef struct
 {
@@ -69,7 +64,7 @@ void RSA_selectKeyslot(u8 keyslot)
 	REG_RSA_CNT = (REG_RSA_CNT & ~RSA_KEYSLOT(0xFu)) | RSA_KEYSLOT(keyslot);
 }
 
-bool RSA_setKey2048(u8 keyslot, const u8 *const mod, u32 exp)
+bool RSA_setKey2048(u8 keyslot, const u32 *const mod, u32 exp)
 {
 	RsaSlot *slot = &rsaSlots[keyslot];
 	rsaWaitBusy();
@@ -78,35 +73,35 @@ bool RSA_setKey2048(u8 keyslot, const u8 *const mod, u32 exp)
 	if(!(slot->REG_RSA_SLOTCNT & RSA_KEY_UNK_BIT31)) slot->REG_RSA_SLOTCNT &= ~RSA_KEY_STAT_SET;
 
 	REG_RSA_CNT = RSA_INPUT_NORMAL | RSA_INPUT_BIG | RSA_KEYSLOT(keyslot);
-	memset((void*)REG_RSA_EXP, 0, 0x100 - 4);
-	REG_RSA_EXP[(0x100>>2) - 1] = exp;
+	iomemset(REGs_RSA_EXP, 0, 0x100 - 4);
+	REGs_RSA_EXP[(0x100>>2) - 1] = exp;
 
 	if(slot->REG_RSA_SLOTSIZE != RSA_SLOTSIZE_2048) return false;
-	memcpy((void*)REG_RSA_MOD, mod, 0x100);
+	iomemcpy(REGs_RSA_MOD, mod, 0x100);
 
 	return true;
 }
 
-bool RSA_decrypt2048(void *const decSig, const void *const encSig)
+bool RSA_decrypt2048(u32 *const decSig, const u32 *const encSig)
 {
 	const u8 keyslot = RSA_GET_KEYSLOT;
 	rsaWaitBusy();
 	if(!(rsaSlots[keyslot].REG_RSA_SLOTCNT & RSA_KEY_STAT_SET)) return false;
 
 	REG_RSA_CNT |= RSA_INPUT_NORMAL | RSA_INPUT_BIG;
-	memcpy((void*)REG_RSA_TXT, encSig, 0x100);
+	iomemcpy(REGs_RSA_TXT, encSig, 0x100);
 
 	REG_RSA_CNT |= RSA_ENABLE;
 	rsaWaitBusy();
-	memcpy(decSig, (void*)REG_RSA_TXT, 0x100);
+	iomemcpy(decSig, REGs_RSA_TXT, 0x100);
 
 	return true;
 }
 
 bool RSA_verify2048(const u32 *const encSig, const u32 *const data, u32 size)
 {
-	u8 decSig[0x100];
-	if(!RSA_decrypt2048(decSig, encSig)) return false;
+	alignas(4) u8 decSig[0x100];
+	if(!RSA_decrypt2048((u32*)(void*)decSig, encSig)) return false;
 
 	if(decSig[0] != 0x00 || decSig[1] != 0x01) return false;
 

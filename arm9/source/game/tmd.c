@@ -16,7 +16,7 @@ u32 ValidateTmd(TitleMetaData* tmd) {
 
 u32 ValidateTmdSignature(TitleMetaData* tmd) {
     static bool got_modexp = false;
-    static u8 mod[0x100] = { 0 };
+    static u32 mod[0x100 / 4] = { 0 };
     static u32 exp = 0;
     
     if (!got_modexp) {

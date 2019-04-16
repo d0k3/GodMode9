@@ -1,7 +1,7 @@
 #include "cert.h"
 #include "ff.h"
 
-u32 LoadCertFromCertDb(u64 offset, Certificate* cert, u8* mod, u32* exp) {
+u32 LoadCertFromCertDb(u64 offset, Certificate* cert, u32* mod, u32* exp) {
 	Certificate cert_local;
     FIL db;
     UINT bytes_read;

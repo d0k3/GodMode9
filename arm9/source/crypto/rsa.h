@@ -66,7 +66,7 @@ void RSA_selectKeyslot(u8 keyslot);
  *
  * @return     Returns true on success, false otherwise.
  */
-bool RSA_setKey2048(u8 keyslot, const u8 *const mod, u32 exp);
+bool RSA_setKey2048(u8 keyslot, const u32 *const mod, u32 exp);
 
 /**
  * @brief      Decrypts a RSA 2048 signature.
@@ -76,7 +76,7 @@ bool RSA_setKey2048(u8 keyslot, const u8 *const mod, u32 exp);
  *
  * @return     Returns true on success, false otherwise.
  */
-bool RSA_decrypt2048(void *const decSig, const void *const encSig);
+bool RSA_decrypt2048(u32 *const decSig, const u32 *const encSig);
 
 /**
  * @brief      Verifies a RSA 2048 SHA 256 signature.
