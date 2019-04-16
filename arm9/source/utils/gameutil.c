@@ -2088,7 +2088,8 @@ u32 ShowCiaCheckerInfo(const char* path) {
     	snprintf(typestr, 32, "Possibly Broken");
     else snprintf(typestr, 32, "%s %s%s",
     	console_id ? "Personal" : "Universal",
-    	(state_ticket == 2) ? "Legit" : (state_tmd == 2) ? "Pirate Legit" : "Custom",
+    	((state_ticket == 2) && (state_tmd == 2)) ? "Legit" :
+         (state_tmd == 2) ? "Pirate Legit" : "Custom",
     	is_dlc ? " DLC" : "");
 
     // output results
