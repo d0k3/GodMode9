@@ -45,20 +45,14 @@ __boot:
     b 1b
 
 corezero_start:
-    ldr r0, =__bss_start
-    ldr r1, =__bss_end
+    ldr r0, =__bss_pa
+    ldr r1, =__bss_len
     mov r2, #0
+    add r1, r0, r1
     .Lclearbss:
         cmp r0, r1
         strlt r2, [r0], #4
         blt .Lclearbss
-
-    @ Set up IRQ vector
-    ldr r0, =0x1FFFFFA0
-    ldr r1, =0xE51FF004
-    ldr r2, =irq_vector
-
-    stmia r0, {r1, r2}
 
 coresmp_start:
     bl SYS_CoreInit

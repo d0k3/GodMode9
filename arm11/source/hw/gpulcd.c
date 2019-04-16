@@ -19,7 +19,6 @@ void LCD_Initialize(u8 brightness)
 	*REG_LCD(0xA40) = brightness;
 	*REG_LCD(0x244) = 0x1023E;
 	*REG_LCD(0xA44) = 0x1023E;
-	return;
 }
 
 void LCD_Deinitialize(void)
@@ -28,7 +27,6 @@ void LCD_Deinitialize(void)
 	*REG_LCD(0xA44) = 0;
 	*REG_LCD(0x00C) = 0;
 	*REG_LCD(0x014) = 0;
-	return;
 }
 
 /* GPU Control Registers */
@@ -88,7 +86,6 @@ void GPU_SetFramebuffers(const u32 *framebuffers)
 	*GPU_PDC(1, 0x6C) = framebuffers[5];
 	*GPU_PDC(0, 0x78) = 0;
 	*GPU_PDC(1, 0x78) = 0;
-	return;
 }
 
 void GPU_SetFramebufferMode(u32 screen, u8 mode)
@@ -123,7 +120,6 @@ void GPU_SetFramebufferMode(u32 screen, u8 mode)
 
 	*fbcfg_reg = cfg;
 	*fbstr_reg = stride;
-	return;
 }
 
 void GPU_Init(void)
