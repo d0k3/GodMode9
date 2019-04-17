@@ -4,8 +4,9 @@
 #include <pxi.h>
 
 #include "arm/gic.h"
-#include "arm/scu.h"
 #include "arm/mmu.h"
+#include "arm/scu.h"
+#include "arm/timer.h"
 
 #include "hw/gpulcd.h"
 #include "hw/i2c.h"
@@ -93,6 +94,8 @@ void SYS_CoreZeroInit(void)
 
 	GPU_SetFramebufferMode(0, PDC_RGB24);
 	GPU_SetFramebufferMode(1, PDC_RGB24);
+
+	TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
 	MCU_WriteReg(0x22, 0x2A);
 }
 
