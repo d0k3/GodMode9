@@ -4,7 +4,7 @@
 #include "pxi.h"
 #include "i2c.h"
 
-#include "vram.h"
+#include "arm.h"
 
 void main(int argc, char** argv, int entrypoint)
 {
@@ -17,8 +17,9 @@ void main(int argc, char** argv, int entrypoint)
     // ARM11 says it's ready
     PXI_Barrier(ARM11_READY_BARRIER);
 
-    PXI_DoCMD(PXI_SCREENINIT, NULL, 0);
-    I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A);
+    // A pointer to the shared memory region is
+    // stored in the thread ID register in the ARM9
+    ARM_SetTID(PXI_DoCMD(PXI_GET_SHMEM, NULL, 0));
 
     #ifdef SCRIPT_RUNNER
     // Run the script runner

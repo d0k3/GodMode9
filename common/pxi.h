@@ -7,27 +7,25 @@
 #include <types.h>
 
 #ifdef ARM9
-#define PXI_BASE (0x10008000)
-#define IRQ_PXI_RX  (14)
+#define PXI_BASE	(0x10008000)
+#define PXI_RX_INTERRUPT	(14)
 #else
-#define PXI_BASE (0x10163000)
-#define IRQ_PXI_RX  (83)
+#define PXI_BASE	(0x10163000)
+#define PXI_RX_INTERRUPT	(83)
 #endif
 
 enum {
 	PXI_LEGACY_MODE = 0,
 	PXI_GET_SHMEM,
 
-	PXI_SCREENINIT,
-	PXI_BRIGHTNESS,
 	PXI_I2C_READ,
 	PXI_I2C_WRITE,
 };
 
 /*
- * These should be pseudo-random numbers
- * and shouldnt be similar to those
- * used by any other software
+ * These should be somewhat "unusual"
+ * IDs and shouldnt be similar to
+ * those used by any other software
  */
 enum {
 	ARM11_READY_BARRIER = 19,
@@ -52,7 +50,6 @@ enum {
 #define PXI_CNT_RECV_FIFO_EMPTY       (BIT(8))
 #define PXI_CNT_RECV_FIFO_FULL        (BIT(9))
 #define PXI_CNT_RECV_FIFO_AVAIL_IRQ   (BIT(10))
-#define PXI_CNT_ERROR_ACK             (BIT(14))
 #define PXI_CNT_ENABLE_FIFO           (BIT(15))
 
 static inline void PXI_SetRemote(u8 msg)
@@ -83,10 +80,10 @@ static inline void PXI_Reset(void)
 	PXI_SetRemote(0xFF);
 }
 
-static inline void PXI_Barrier(u8 bar)
+static inline void PXI_Barrier(u8 barrier_id)
 {
-	PXI_SetRemote(bar);
-	PXI_WaitRemote(bar);
+	PXI_SetRemote(barrier_id);
+	PXI_WaitRemote(barrier_id);
 }
 
 static inline void PXI_Send(u32 w)

@@ -17,4 +17,4 @@ void SYS_CoreZeroInit(void);
 void SYS_CoreInit(void);
 
 void SYS_CoreZeroShutdown(void);
-void SYS_CoreShutdown(void);
+void __attribute__((noreturn)) SYS_CoreShutdown(void);
