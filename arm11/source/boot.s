@@ -3,7 +3,7 @@
 
 #include <arm.h>
 
-#define STACK_SZ    (8192)
+#define STACK_SZ    (16384)
 
 .global __boot
 __boot:

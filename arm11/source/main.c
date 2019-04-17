@@ -1,9 +1,12 @@
+#include <hid_map.h>
+#include <common.h>
 #include <types.h>
 #include <vram.h>
 #include <arm.h>
 #include <pxi.h>
 
 #include "arm/gic.h"
+
 #include "hw/gpulcd.h"
 #include "hw/i2c.h"
 #include "hw/mcu.h"
@@ -11,6 +14,34 @@
 #include "system/sys.h"
 
 static bool legacy = false;
+
+#define REG_HID	(~(*(vu16*)(0x10146000)) & BUTTON_ANY)
+static const u8 brightness_lvls[] = {
+	0x10, 0x17, 0x1E, 0x25,
+	0x2C, 0x34, 0x3C, 0x44,
+	0x4D, 0x56, 0x60, 0x6B,
+	0x79, 0x8C, 0xA7, 0xD2
+};
+static int prev_bright_lvl = -1;
+static vu32 global_hid_state = 0;
+
+void VBlank_Handler(u32 __attribute__((unused)) irqn)
+{
+	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2);
+	cur_bright_lvl %= countof(brightness_lvls);
+
+	if (cur_bright_lvl != prev_bright_lvl) {
+		prev_bright_lvl = cur_bright_lvl;
+		LCD_SetBrightness(brightness_lvls[cur_bright_lvl]);
+	}
+
+	// the state should probably be stored on its own
+	// setion without caching enabled, since it must
+	// be readable by the ARM9 at all times anyway
+	global_hid_state = REG_HID | MCU_GetSpecialHID();
+	ARM_WbDC_Range((void*)&global_hid_state, 4);
+	ARM_DMB();
+}
 
 void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
@@ -38,29 +69,8 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_GET_SHMEM:
 		{
-			//ret = (u32)SHMEM_GetGlobalPointer();
-			ret = 0xFFFFFFFF;
-			break;
-		}
-
-		case PXI_SCREENINIT:
-		{
-			GPU_Init();
-			GPU_PSCFill(VRAM_START, VRAM_END, 0);
-			GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
-										VRAM_TOP_RA, VRAM_TOP_RB,
-										VRAM_BOT_A,  VRAM_BOT_B});
-
-			GPU_SetFramebufferMode(0, PDC_RGB24);
-			GPU_SetFramebufferMode(1, PDC_RGB24);
-			ret = 0;
-			break;
-		}
-
-		case PXI_BRIGHTNESS:
-		{
-			LCD_SetBrightness(args[0]);
-			ret = args[0];
+			ret = (u32)&global_hid_state;
+			//ret = 0xFFFFFFFF;
 			break;
 		}
 
@@ -68,14 +78,14 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 		{
 			ret = I2C_readRegBuf(args[0], args[1], (u8*)args[2], args[3]);
 			ARM_WbDC_Range((void*)args[2], args[3]);
-			ARM_DSB();
+			ARM_DMB();
 			break;
 		}
 
 		case PXI_I2C_WRITE:
 		{
 			ARM_InvDC_Range((void*)args[2], args[3]);
-			ARM_DSB();
+			ARM_DMB();
 			ret = I2C_writeRegBuf(args[0], args[1], (u8*)args[2], args[3]);
 			break;
 		}
@@ -96,12 +106,17 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 	}
 
 	PXI_Send(ret);
-	return;
 }
 
-void MainLoop(void)
+void __attribute__((noreturn)) MainLoop(void)
 {
-	GIC_Enable(IRQ_PXI_RX, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
+	// enable MCU interrupts
+	GIC_Enable(MCU_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO, MCU_HandleInterrupts);
+
+	// enable PXI RX interrupt
+	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
+
+	GIC_Enable(VBLANK_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 1, VBlank_Handler);
 
 	// ARM9 won't try anything funny until this point
 	PXI_Barrier(ARM11_READY_BARRIER);

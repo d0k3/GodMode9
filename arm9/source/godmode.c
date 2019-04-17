@@ -2097,11 +2097,11 @@ u32 GodMode(int entrypoint) {
     #endif
     while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
     if (show_splash) while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
-    
+
     // bootmenu handler
     if (bootmenu) {
         bootloader = false;
-        while (HID_STATE); // wait until no buttons are pressed
+        while (HID_ReadState()); // wait until no buttons are pressed
         while (!bootloader && !godmode9) {
             const char* optionstr[6] = { "Resume GodMode9", "Resume bootloader", "Select payload...", "Select script...",
                 "Poweroff system", "Reboot system" };

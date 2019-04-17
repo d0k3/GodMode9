@@ -1,4 +1,5 @@
 #include <types.h>
+#include <vram.h>
 #include <arm.h>
 #include <pxi.h>
 
@@ -6,7 +7,9 @@
 #include "arm/scu.h"
 #include "arm/mmu.h"
 
+#include "hw/gpulcd.h"
 #include "hw/i2c.h"
+#include "hw/mcu.h"
 
 #include "system/sections.h"
 
@@ -80,7 +83,17 @@ void SYS_CoreZeroInit(void)
 	// Initialize peripherals
 	PXI_Reset();
 	I2C_init();
-	//MCU_init();
+	MCU_Init();
+
+	GPU_Init();
+	GPU_PSCFill(VRAM_START, VRAM_END, 0);
+	GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
+								VRAM_TOP_RA, VRAM_TOP_RB,
+								VRAM_BOT_A,  VRAM_BOT_B});
+
+	GPU_SetFramebufferMode(0, PDC_RGB24);
+	GPU_SetFramebufferMode(1, PDC_RGB24);
+	MCU_WriteReg(0x22, 0x2A);
 }
 
 void SYS_CoreInit(void)
@@ -109,7 +122,7 @@ void SYS_CoreZeroShutdown(void)
 	GIC_GlobalReset();
 }
 
-void SYS_CoreShutdown(void)
+void __attribute__((noreturn)) SYS_CoreShutdown(void)
 {
 	u32 core = ARM_CoreID();
 
@@ -133,4 +146,5 @@ void SYS_CoreShutdown(void)
 		// (waits for IPI + branches to word @ 0x1FFFFFDC)
 		((void (*)(void))LEGACY_BOOT_ROUTINE_SMP)();
 	}
+	__builtin_unreachable();
 }
