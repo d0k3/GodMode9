@@ -15,13 +15,18 @@
 #define BUTTON_ANY    0x00000FFF
 #define BUTTON_ARROW  (BUTTON_RIGHT|BUTTON_LEFT|BUTTON_UP|BUTTON_DOWN)
 
-// special buttons / cart / sd
+// strings for button conversion
+#define BUTTON_STRINGS  "A", "B", "SELECT", "START", "RIGHT", "LEFT", "UP", "DOWN", "R", "L", "X", "Y"
+
+// special buttons / touchscreen / cart / sd
 #define BUTTON_POWER  ((u32)1 << 12)
 #define BUTTON_HOME   ((u32)1 << 13)
 #define BUTTON_WIFI   ((u32)1 << 14)
-#define CART_INSERT   ((u32)1 << 15)
-#define CART_EJECT    ((u32)1 << 16)
-#define SD_INSERT     ((u32)1 << 17)
-#define SD_EJECT      ((u32)1 << 18)
+#define BUTTON_TOUCH  ((u32)1 << 15)
+
+#define CART_INSERT   ((u32)1 << 16)
+#define CART_EJECT    ((u32)1 << 17)
+#define SD_INSERT     ((u32)1 << 18)
+#define SD_EJECT      ((u32)1 << 19)
 
 #define TIMEOUT_HID   ((u32)1 << 31)
