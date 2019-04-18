@@ -4,10 +4,19 @@
 #include "screenshot.h" // for screenshots
 
 #include "arm.h"
+#include "shmem.h"
 
+// there's some weird thing going on when reading this
+// with an LDRD instruction so for now they'll be two
+// separate things - hopefully LTO won't get in the way
 u32 HID_ReadState(void)
-{ // this should probably be abstracted away in something like "SHMEM_GetHID"
-    return *(u32*)ARM_GetTID();
+{
+    return ARM_GetSHMEM()->hid_state;
+}
+
+u32 HID_ReadRawTouchState(void)
+{
+    return ARM_GetSHMEM()->hid_state >> 32;
 }
 
 u32 InputWait(u32 timeout_sec) {

@@ -8,9 +8,11 @@
 #include "arm/scu.h"
 #include "arm/timer.h"
 
+#include "hw/codec.h"
 #include "hw/gpulcd.h"
 #include "hw/i2c.h"
 #include "hw/mcu.h"
+#include "hw/spi.h"
 
 #include "system/sections.h"
 
@@ -85,6 +87,8 @@ void SYS_CoreZeroInit(void)
 	PXI_Reset();
 	I2C_init();
 	MCU_Init();
+	SPI_Init();
+	CODEC_Init();
 
 	GPU_Init();
 	GPU_PSCFill(VRAM_START, VRAM_END, 0);
@@ -95,8 +99,8 @@ void SYS_CoreZeroInit(void)
 	GPU_SetFramebufferMode(0, PDC_RGB24);
 	GPU_SetFramebufferMode(1, PDC_RGB24);
 
-	TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
 	MCU_WriteReg(0x22, 0x2A);
+	TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
 }
 
 void SYS_CoreInit(void)

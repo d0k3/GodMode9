@@ -5,6 +5,7 @@
 #include "i2c.h"
 
 #include "arm.h"
+#include "shmem.h"
 
 void main(int argc, char** argv, int entrypoint)
 {
@@ -19,7 +20,7 @@ void main(int argc, char** argv, int entrypoint)
 
     // A pointer to the shared memory region is
     // stored in the thread ID register in the ARM9
-    ARM_SetTID(PXI_DoCMD(PXI_GET_SHMEM, NULL, 0));
+    ARM_InitSHMEM();
 
     #ifdef SCRIPT_RUNNER
     // Run the script runner
