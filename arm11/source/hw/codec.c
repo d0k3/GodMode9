@@ -157,7 +157,7 @@ static void CODEC_GetRawData(u8 *buffer)
 
 void CODEC_Get(CODEC_Input *input)
 {
-	u8 raw_data[0x34] = {0};
+	u8 raw_data[0x34];
 	s16 cpad_x, cpad_y;
 	bool ts_pressed;
 
@@ -167,15 +167,8 @@ void CODEC_Get(CODEC_Input *input)
 	cpad_y = ((raw_data[0x14] << 8 | raw_data[0x15]) & 0xFFF) - 2048;
 
 	// X axis is inverted
-	if (abs(cpad_x) > CPAD_THRESH)
-		input->cpad_x = -cpad_x / CPAD_FACTOR;
-	else
-		input->cpad_x = 0;
-
-	if (abs(cpad_y) > CPAD_THRESH)
-		input->cpad_y = cpad_y / CPAD_FACTOR;
-	else
-		input->cpad_y = 0;
+	input->cpad_x = (abs(cpad_x) > CPAD_THRESH) ? -cpad_x / CPAD_FACTOR : 0;
+	input->cpad_y = (abs(cpad_y) > CPAD_THRESH) ? cpad_y / CPAD_FACTOR : 0;
 
 	ts_pressed = !(raw_data[0] & BIT(4));
 	if (ts_pressed) {
