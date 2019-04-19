@@ -1059,7 +1059,6 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG, false);
     
     last_prog_width = prog_width;
-    
-    CheckBrightness();
+
     return !CheckButton(BUTTON_B);
 }

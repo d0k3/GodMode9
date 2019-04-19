@@ -10,9 +10,7 @@
 .global _start
 _start:
     @ Disable interrupts
-    mrs r4, cpsr
-    orr r4, r4, #(SR_IRQ | SR_FIQ)
-    msr cpsr_c, r4
+    msr cpsr_c, #(SR_SVC_MODE | SR_NOINT)
 
     @ Preserve boot registers
     mov r8, r0
@@ -35,9 +33,8 @@ _start:
     blx r0 @ Invalidate Instruction Cache
 
     @ Disable caches / DTCM / MPU
-    ldr r1, =(CR_ENABLE_MPU | CR_ENABLE_DCACHE | CR_ENABLE_ICACHE | \
-              CR_ENABLE_DTCM)
-    ldr r2, =(CR_ENABLE_ITCM)
+    ldr r1, =(CR_MPU | CR_CACHES | CR_DTCM | CR_TCM_LOAD)
+    ldr r2, =(CR_ITCM)
     mrc p15, 0, r0, c1, c0, 0
     bic r0, r1
     orr r0, r2
@@ -73,7 +70,7 @@ _start:
     @ mov r0, #0x10000000
     @ mov r1, #0x340
     @ strh r1, [r0, #0x20]
-    
+
     @ Setup heap
     ldr r0, =fake_heap_start
     ldr r1, =__HEAP_ADDR
@@ -94,16 +91,15 @@ _start:
         blo .LXRQ_Install
 
     @ Enable caches / DTCM / select low exception vectors
-    ldr r1, =(CR_ALT_VECTORS | CR_DISABLE_TBIT)
-    ldr r2, =(CR_ENABLE_MPU  | CR_ENABLE_DCACHE | CR_ENABLE_ICACHE | \
-              CR_ENABLE_DTCM | CR_CACHE_RROBIN)
+    ldr r1, =(CR_ALT_VECTORS | CR_V4TLD)
+    ldr r2, =(CR_MPU | CR_CACHES | CR_DTCM)
     mrc p15, 0, r0, c1, c0, 0
     bic r0, r1
     orr r0, r2
     mcr p15, 0, r0, c1, c0, 0
 
     @ Switch to system mode, disable interrupts, setup application stack
-    msr cpsr_c, #(SR_SYS_MODE | SR_IRQ | SR_FIQ)
+    msr cpsr_c, #(SR_SYS_MODE | SR_NOINT)
     ldr sp, =__STACK_TOP
 
     @ Check entrypoints
@@ -156,9 +152,8 @@ _start:
 
 
 .Lboot_main:
-    ldr r3, =main
     mov lr, #0
-    bx r3
+    ldr pc, =main
 
 
 __mpu_regions:

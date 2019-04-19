@@ -3,33 +3,68 @@
 
 #include <arm.h>
 
+#define STACK_SZ    (16384)
+
 .global __boot
 __boot:
-	cpsid aif, #(SR_SVC_MODE)
+	cpsid aif, #SR_SVC_MODE
 
+    @ Writeback and invalidate all DCache
+    @ Invalidate all caches
+    @ Data Synchronization Barrier
     mov r0, #0
+    mcr p15, 0, r0, c7, c10, 0
     mcr p15, 0, r0, c7, c7, 0
-    mcr p15, 0, r0, c7, c14, 0
     mcr p15, 0, r0, c7, c10, 4
 
-    ldr sp, =__stack_top
-
-    @ Reset values
+    @ Reset control registers
     ldr r0, =0x00054078
     ldr r1, =0x0000000F
-    ldr r2, =0x00000000
+    ldr r2, =0x00F00000
 
     mcr p15, 0, r0, c1, c0, 0
     mcr p15, 0, r1, c1, c0, 1
     mcr p15, 0, r2, c1, c0, 2
 
-    ldr r0, =__bss_start
-    ldr r1, =__bss_end
+    @ Get CPU ID
+    mrc p15, 0, r12, c0, c0, 5
+    ands r12, r12, #3
+
+    @ Setup stack according to CPU ID
+    ldr sp, =(_stack_base + STACK_SZ)
+    ldr r0, =STACK_SZ
+    mla sp, r0, r12, sp
+
+    beq corezero_start
+
+    cmp r12, #MAX_CPU
+    blo coresmp_start
+
+1:
+    wfi
+    b 1b
+
+corezero_start:
+    @ assume __bss_len is 16 byte aligned
+    ldr r0, =__bss_pa
+    ldr r1, =__bss_len
     mov r2, #0
+    mov r3, #0
+    mov r4, #0
+    mov r5, #0
+    add r1, r0, r1
     .Lclearbss:
         cmp r0, r1
-        strlt r2, [r0], #4
+        stmltia r0!, {r2-r5}
         blt .Lclearbss
 
-    bl main
-    b __boot
+    bl SYS_CoreZeroInit
+
+coresmp_start:
+    bl SYS_CoreInit
+    b MainLoop
+
+.section .bss.stack
+.align 3
+_stack_base:
+    .space (MAX_CPU * STACK_SZ)

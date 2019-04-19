@@ -1,97 +1,129 @@
-#include <cpu.h>
-#include <pxi.h>
-#include <gic.h>
-#include <gpulcd.h>
-#include <vram.h>
+#include <common.h>
 #include <types.h>
+#include <shmem.h>
+#include <arm.h>
+#include <pxi.h>
 
-vu32 *entrypoint = (vu32*)0x1FFFFFFC;
+#include "arm/gic.h"
 
-void PXI_IRQHandler(void)
+#include "hw/hid.h"
+#include "hw/gpulcd.h"
+#include "hw/i2c.h"
+#include "hw/mcu.h"
+
+#include "system/sys.h"
+
+static bool legacy = false;
+
+static GlobalSharedMemory SharedMemory_State;
+static const u8 brightness_lvls[] = {
+	0x10, 0x17, 0x1E, 0x25,
+	0x2C, 0x34, 0x3C, 0x44,
+	0x4D, 0x56, 0x60, 0x6B,
+	0x79, 0x8C, 0xA7, 0xD2
+};
+static int prev_bright_lvl = -1;
+
+void VBlank_Handler(u32 __attribute__((unused)) irqn)
 {
-    // char pxi_buf[PXI_MAXBUFLEN] = {0};
-    u32 pxi_args[PXI_FIFO_LEN]  = {0};
-    u8 pxi_cmd;
+	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2);
+	cur_bright_lvl %= countof(brightness_lvls);
 
-    pxi_cmd = PXI_GetRemote();
-    switch (pxi_cmd) {
-    default:
-        break;
+	if (cur_bright_lvl != prev_bright_lvl) {
+		prev_bright_lvl = cur_bright_lvl;
+		LCD_SetBrightness(brightness_lvls[cur_bright_lvl]);
+	}
 
-    case PXI_SCREENINIT:
-    {
-        GPU_Init();
-        GPU_PSCFill(VRAM_START, VRAM_END, 0);
-        GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
-                                    VRAM_TOP_RA, VRAM_TOP_RB,
-                                    VRAM_BOT_A,  VRAM_BOT_B});
-
-        GPU_SetFramebufferMode(0, PDC_RGB24);
-        GPU_SetFramebufferMode(1, PDC_RGB24);
-
-        PXI_SetRemote(PXI_BUSY);
-        break;
-    }
-
-    case PXI_BRIGHTNESS:
-    {
-        PXI_RecvArray(pxi_args, 1);
-        PXI_SetRemote(PXI_BUSY);
-        LCD_SetBrightness(0, pxi_args[0]);
-        LCD_SetBrightness(1, pxi_args[0]);
-        break;
-    }
-
-    /* New CMD template:
-    case CMD_ID:
-    {
-        <var declarations/assignments>
-        <receive args from PXI FIFO>
-        <if necessary, copy stuff to pxi_buf>
-        PXI_SetRemote(PXI_BUSY);
-        <execute the command>
-        break;
-    }
-    */
-    }
-
-    PXI_SetRemote(PXI_READY);
-    return;
+	// the state should probably be stored on its own
+	// setion without caching enabled, since it must
+	// be readable by the ARM9 at all times anyway
+	SharedMemory_State.hid_state = HID_GetState();
+	ARM_WbDC_Range(&SharedMemory_State, sizeof(SharedMemory_State));
+	ARM_DMB();
 }
 
-vu16 *CFG11_MPCORE_CLKCNT = (vu16*)(0x10141300);
-vu16 *CFG11_SOCINFO = (vu16*)(0x10140FFC);
-
-void main(void)
+void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
-    u32 entry;
+	u32 ret, msg, cmd, argc, args[PXI_MAX_ARGS];
 
-    if ((*CFG11_SOCINFO & 2) && (!(*CFG11_MPCORE_CLKCNT & 1))) {
-        GIC_Reset();
-        GIC_SetIRQ(88, NULL);
-        CPU_EnableIRQ();
-        *CFG11_MPCORE_CLKCNT = 0x8001;
-        do {
-            asm("wfi\n\t");
-        } while(!(*CFG11_MPCORE_CLKCNT & 0x8000));
-        CPU_DisableIRQ();
-    }
+	msg = PXI_Recv();
+	cmd = msg & 0xFFFF;
+	argc = msg >> 16;
 
-    PXI_Reset();
-    GIC_Reset();
-    GIC_SetIRQ(IRQ_PXI_SYNC, PXI_IRQHandler);
-    PXI_EnableIRQ();
-    CPU_EnableIRQ();
+	if (argc > PXI_MAX_ARGS) {
+		PXI_Send(0xFFFFFFFF);
+		return;
+	}
 
-    PXI_SetRemote(PXI_READY);
+	PXI_RecvArray(args, argc);
 
-    *entrypoint = 0;
-    while((entry=*entrypoint) == 0);
+	switch (cmd) {
+		case PXI_LEGACY_MODE:
+		{
+			// TODO: If SMP is enabled, an IPI should be sent here (with a DSB)
+			legacy = true;
+			ret = 0;
+			break;
+		}
 
-    CPU_DisableIRQ();
-    PXI_DisableIRQ();
-    PXI_Reset();
-    GIC_Reset();
+		case PXI_GET_SHMEM:
+		{
+			ret = (u32)&SharedMemory_State;
+			break;
+		}
 
-    ((void (*)())(entry))();
+		case PXI_I2C_READ:
+		{
+			ret = I2C_readRegBuf(args[0], args[1], (u8*)args[2], args[3]);
+			ARM_WbDC_Range((void*)args[2], args[3]);
+			ARM_DMB();
+			break;
+		}
+
+		case PXI_I2C_WRITE:
+		{
+			ARM_InvDC_Range((void*)args[2], args[3]);
+			ARM_DMB();
+			ret = I2C_writeRegBuf(args[0], args[1], (u8*)args[2], args[3]);
+			break;
+		}
+
+		/* New CMD template:
+		case CMD_ID:
+		{
+			<var declarations/assignments>
+			<execute the command>
+			<set the return value>
+			break;
+		}
+		*/
+
+		default:
+			ret = 0xFFFFFFFF;
+			break;
+	}
+
+	PXI_Send(ret);
+}
+
+void __attribute__((noreturn)) MainLoop(void)
+{
+	// enable PXI RX interrupt
+	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
+
+	// enable MCU interrupts
+	GIC_Enable(MCU_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 1, MCU_HandleInterrupts);
+
+	GIC_Enable(VBLANK_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 2, VBlank_Handler);
+
+	// ARM9 won't try anything funny until this point
+	PXI_Barrier(ARM11_READY_BARRIER);
+
+	// Process IRQs until the ARM9 tells us it's time to boot something else
+	do {
+		ARM_WFI();
+	} while(!legacy);
+
+	SYS_CoreZeroShutdown();
+	SYS_CoreShutdown();
 }
