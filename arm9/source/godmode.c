@@ -2184,7 +2184,7 @@ u32 GodMode(int entrypoint) {
             last_write_perm = GetWritePermissions();
             continue;
         }
-        
+
         // handle user input
         u32 pad_state = InputWait(3);
         bool switched = (pad_state & BUTTON_R1);
