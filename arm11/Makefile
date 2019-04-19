@@ -39,3 +39,5 @@ $(BUILD)/%.o: $(SOURCE)/%.s
 	@mkdir -p "$(@D)"
 	@echo "[$(PROCESSOR)] $<"
 	@$(CC) -c $(ASFLAGS) -o $@ $<
+
+include $(call rwildcard, $(BUILD), *.d)
