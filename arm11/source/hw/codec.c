@@ -25,32 +25,16 @@
 #define CPAD_FACTOR (150)
 
 /* SPI stuff */
-static void CODEC_DualTX(u8 *tx0, u8 len0, u8 *tx1, u8 len1)
+static void CODEC_WriteRead(u32 *txb, u8 txl, u32 *rxb, u8 rxl)
 {
 	SPI_XferInfo xfers[2];
 
-	xfers[0].buf = (u32*)tx0;
-	xfers[0].len = len0;
+	xfers[0].buf = txb;
+	xfers[0].len = txl;
 	xfers[0].read = false;
 
-	xfers[1].buf = (u32*)tx1;
-	xfers[1].len = len1;
-	xfers[1].read = false;
-
-	SPI_DoXfer(CODEC_SPI_DEV, xfers, 2);
-}
-
-static void CODEC_WriteRead(u8 *tx_buf, u8 tx_len,
-			  u8 *rx_buf, u8 rx_len)
-{
-	SPI_XferInfo xfers[2];
-
-	xfers[0].buf = (u32*)tx_buf;
-	xfers[0].len = tx_len;
-	xfers[0].read = false;
-
-	xfers[1].buf = (u32*)rx_buf;
-	xfers[1].len = rx_len;
+	xfers[1].buf = rxb;
+	xfers[1].len = rxl;
 	xfers[1].read = true;
 
 	SPI_DoXfer(CODEC_SPI_DEV, xfers, 2);
@@ -58,60 +42,49 @@ static void CODEC_WriteRead(u8 *tx_buf, u8 tx_len,
 
 static void CODEC_RegSelect(u8 reg)
 {
-	u8 buffer1[4];
-	u8 buffer2[0x40];
+	SPI_XferInfo xfer;
+	u32 cmd;
 
-	buffer1[0] = 0;
-	buffer2[0] = reg;
+	cmd = reg << 8;
 
-	CODEC_DualTX(buffer1, 1, buffer2, 1);
+	xfer.buf = &cmd;
+	xfer.len = 2;
+	xfer.read = false;
+
+	SPI_DoXfer(CODEC_SPI_DEV, &xfer, 1);
 }
 
-static u8 CODEC_RegRead(u8 offset)
+static u8 CODEC_RegRead(u8 reg)
 {
-	u8 buffer_wr[8];
-	u8 buffer_rd[0x40];
-
-	buffer_wr[0] = 1 | (offset << 1);
-
-	CODEC_WriteRead(buffer_wr, 1, buffer_rd, 1);
-
-	return buffer_rd[0];
+	u32 cmd, ret;
+	cmd = (reg << 1) | 1;
+	CODEC_WriteRead(&cmd, 1, &ret, 1);
+	return ret;
 }
 
 static void CODEC_RegWrite(u8 reg, u8 val)
 {
-	u8 buffer1[8];
-	u8 buffer2[0x40];
+	SPI_XferInfo xfer;
+	u32 cmd;
 
-	buffer1[0] = (reg << 1); // Write
-	buffer2[0] = val;
+	cmd = (val << 8) | (reg << 1);
 
-	CODEC_DualTX(buffer1, 1, buffer2, 1);
+	xfer.buf = &cmd;
+	xfer.len = 2;
+	xfer.read = false;
+
+	SPI_DoXfer(CODEC_SPI_DEV, &xfer, 1);
 }
 
-static void CODEC_RegReadBuf(u8 offset, void *buffer, u8 size)
+static void CODEC_RegReadBuf(u8 reg, u32 *out, u8 size)
 {
-	u8 buffer_wr[0x10];
-
-	buffer_wr[0] = 1 | (offset << 1);
-
-	CODEC_WriteRead(buffer_wr, 1, buffer, size);
+	u32 cmd = (reg << 1) | 1;
+	CODEC_WriteRead(&cmd, 1, out, size);
 }
 
-static void CODEC_RegMask(u8 offset, u8 mask0, u8 mask1)
+static void CODEC_RegMask(u8 reg, u8 mask0, u8 mask1)
 {
-	u8 buffer1[4];
-	u8 buffer2[0x40];
-
-	buffer1[0] = 1 | (offset << 1);
-
-	CODEC_WriteRead(buffer1, 1, buffer2, 1);
-
-	buffer1[0] = offset << 1;
-	buffer2[0] = (buffer2[0] & ~mask1) | (mask0 & mask1);
-
-	CODEC_DualTX(buffer1, 1, buffer2, 1);
+	CODEC_RegWrite(reg, (CODEC_RegRead(reg) & ~mask1) | (mask0 & mask1));
 }
 
 void CODEC_Init(void)
@@ -147,7 +120,7 @@ void CODEC_Init(void)
 	CODEC_RegMask(0x25, 0x10, 0x3C);
 }
 
-static void CODEC_GetRawData(u8 *buffer)
+void CODEC_GetRawData(u32 *buffer)
 {
 	CODEC_RegSelect(0x67);
 	CODEC_RegRead(0x26);
@@ -157,11 +130,12 @@ static void CODEC_GetRawData(u8 *buffer)
 
 void CODEC_Get(CODEC_Input *input)
 {
-	u8 raw_data[0x34];
+	u32 raw_data_buf[0x34 / 4];
+	u8 *raw_data = (u8*)raw_data_buf;
 	s16 cpad_x, cpad_y;
 	bool ts_pressed;
 
-	CODEC_GetRawData(raw_data);
+	CODEC_GetRawData(raw_data_buf);
 
 	cpad_x = ((raw_data[0x24] << 8 | raw_data[0x25]) & 0xFFF) - 2048;
 	cpad_y = ((raw_data[0x14] << 8 | raw_data[0x15]) & 0xFFF) - 2048;
