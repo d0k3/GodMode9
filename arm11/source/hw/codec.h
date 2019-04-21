@@ -9,4 +9,5 @@ typedef struct {
 
 void CODEC_Init(void);
 
+void CODEC_GetRawData(u32 *buffer);
 void CODEC_Get(CODEC_Input *input);
