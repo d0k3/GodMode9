@@ -1072,7 +1072,7 @@ static void DrawSimpleCircle(unsigned char *screen, int x, int y, int color, int
 
 bool ShowCalibrationDialog(void)
 {
-    int current_dot;
+    u32 current_dot;
     static const u32 dot_positions[][2] = {
         {16, 16},
         {320 - 16, 240 - 16},
@@ -1089,7 +1089,7 @@ bool ShowCalibrationDialog(void)
 
     current_dot = 0;
     while(current_dot < countof(dot_positions)) {
-        for (int i = 0; i < current_dot; i++)
+        for (u32 i = 0; i < current_dot; i++)
             DrawSimpleCircle(BOT_SCREEN, dot_positions[i][0], dot_positions[i][1], COLOR_BRIGHTGREEN, COLOR_BLACK);
         DrawSimpleCircle(BOT_SCREEN, dot_positions[current_dot][0], dot_positions[current_dot][1], COLOR_RED, COLOR_BLACK);
         for (u32 i = current_dot+1; i < countof(dot_positions); i++)

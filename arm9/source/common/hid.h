@@ -24,7 +24,7 @@ typedef struct {
 
 u32 HID_ReadRawTouchState(void);
 void HID_ReadTouchState(u16 *x, u16 *y);
-bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, u32 screen_w, u32 screen_h);
+bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, int screen_w, int screen_h);
 
 u32 InputWait(u32 timeout_sec);
 bool CheckButton(u32 button);
