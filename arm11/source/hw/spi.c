@@ -42,12 +42,12 @@
 
 static struct {
 	u32 bus;
-	u32 regcfg;
+	u32 reg;
 } SPI_Devices[] = {
-	{REG_SPI_BUS0, SPI_CONTROL_RATE(2) | SPI_CONTROL_CS(0)}, // device 0
-	{REG_SPI_BUS0, SPI_CONTROL_RATE(0) | SPI_CONTROL_CS(1)},
+	{REG_SPI_BUS0, SPI_CONTROL_RATE(2) | SPI_CONTROL_CS(0)},
+	{REG_SPI_BUS0, SPI_CONTROL_RATE(0) | SPI_CONTROL_CS(1)}, // NVRAM
 	{REG_SPI_BUS0, SPI_CONTROL_RATE(0) | SPI_CONTROL_CS(2)},
-	{REG_SPI_BUS1, SPI_CONTROL_RATE(5) | SPI_CONTROL_CS(0)},
+	{REG_SPI_BUS1, SPI_CONTROL_RATE(5) | SPI_CONTROL_CS(0)}, // CODEC
 	// TODO: complete this table
 };
 
@@ -74,6 +74,8 @@ static void SPI_SingleXfer(u32 reg, u32 bus, u32 *buffer, u32 len, bool read)
 	REG_SPI(bus, REG_SPI_CONTROL) = reg |
 		(read ? SPI_DIRECTION_READ : SPI_DIRECTION_WRITE) | SPI_CONTROL_START;
 
+	SPI_WaitFIFO(bus);
+
 	do {
 		if ((pos % SPI_FIFO_WIDTH) == 0)
 			SPI_WaitFIFO(bus);
@@ -88,19 +90,21 @@ static void SPI_SingleXfer(u32 reg, u32 bus, u32 *buffer, u32 len, bool read)
 	} while(pos < len);
 }
 
-int SPI_DoXfer(u32 dev, SPI_XferInfo *xfers, u32 xfer_cnt)
+int SPI_DoXfer(u32 dev, const SPI_XferInfo *xfers, u32 xfer_cnt)
 {
-	u32 bus;
-	u32 dev_reg;
+	u32 bus, reg;
 
 	bus = SPI_Devices[dev].bus;
-	dev_reg = SPI_Devices[dev].regcfg;
+	reg = SPI_Devices[dev].reg;
 
 	for (u32 i = 0; i < xfer_cnt; i++) {
-		SPI_XferInfo *xfer = &xfers[i];
+		const SPI_XferInfo *xfer = &xfers[i];
+
+		if (!xfer->buf || !xfer->len)
+			continue;
 
 		SPI_WaitBusy(bus);
-		SPI_SingleXfer(dev_reg, bus, xfer->buf, xfer->len, xfer->read);
+		SPI_SingleXfer(reg, bus, xfer->buf, xfer->len, xfer->read);
 	}
 
 	SPI_WaitBusy(bus);

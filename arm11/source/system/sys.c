@@ -85,8 +85,10 @@ void SYS_CoreZeroInit(void)
 
 	// Initialize peripherals
 	PXI_Reset();
+
 	I2C_init();
 	MCU_Init();
+
 	SPI_Init();
 	CODEC_Init();
 

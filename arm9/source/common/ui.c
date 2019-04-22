@@ -1062,3 +1062,83 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
 
     return !CheckButton(BUTTON_B);
 }
+
+static void DrawSimpleCircle(unsigned char *screen, int x, int y, int color, int bgcolor)
+{
+    x -= GetFontWidth() / 2;
+    y -= GetFontHeight() / 2;
+    DrawCharacter(screen, 'O', x, y, color, bgcolor);
+}
+
+bool ShowCalibrationDialog(void)
+{
+    int current_dot;
+    static const u32 dot_positions[][2] = {
+        {16, 16},
+        {320 - 16, 240 - 16},
+        {16, 240 - 16},
+        {320 - 16, 16},
+    };
+    HID_CalibrationData calibrations[countof(dot_positions)];
+
+    ClearScreenF(true, true, COLOR_BLACK);
+    for (u32 i = 0; i < countof(dot_positions); i++) {
+        calibrations[i].screen_x = dot_positions[i][0];
+        calibrations[i].screen_y = dot_positions[i][1];
+    }
+
+    current_dot = 0;
+    while(current_dot < countof(dot_positions)) {
+        for (int i = 0; i < current_dot; i++)
+            DrawSimpleCircle(BOT_SCREEN, dot_positions[i][0], dot_positions[i][1], COLOR_BRIGHTGREEN, COLOR_BLACK);
+        DrawSimpleCircle(BOT_SCREEN, dot_positions[current_dot][0], dot_positions[current_dot][1], COLOR_RED, COLOR_BLACK);
+        for (u32 i = current_dot+1; i < countof(dot_positions); i++)
+            DrawSimpleCircle(BOT_SCREEN, dot_positions[i][0], dot_positions[i][1], COLOR_WHITE, COLOR_BLACK);
+
+        while(HID_ReadState());
+
+        while(1) {
+            u32 pressed = HID_ReadState();
+            if (pressed & BUTTON_B) {
+                if (current_dot == 0)
+                    return false;
+                current_dot--;
+                break;
+            }
+
+            if (pressed & BUTTON_TOUCH) {
+                calibrations[current_dot].ts_raw = HID_ReadRawTouchState();
+                current_dot++;
+                if (current_dot == countof(dot_positions)) {
+                    return HID_SetCalibrationData(calibrations, countof(dot_positions), 320, 240);
+                }
+                break;
+            }
+        }
+    }
+
+    return true;
+}
+
+void ShowTouchPlayground(void)
+{
+    ClearScreenF(true, true, COLOR_BLACK);
+
+    while(1) {
+        u16 tx, ty;
+        u32 pressed = HID_ReadState();
+
+        if (pressed & BUTTON_TOUCH) {
+            HID_ReadTouchState(&tx, &ty);
+            if (tx < 320 && ty < 240)
+                DrawRectangle(BOT_SCREEN, tx, ty, 1, 1, COLOR_BRIGHTYELLOW);
+        } else {
+            tx = ty = 0;
+        }
+
+        DrawStringF(TOP_SCREEN, 16, 16, COLOR_WHITE, COLOR_BLACK, "Current touchscreen coordinates: %d, %d", tx, ty);
+        if (pressed & BUTTON_B)
+            return;
+    }
+
+}
