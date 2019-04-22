@@ -2506,11 +2506,15 @@ u32 GodMode(int entrypoint) {
             const char* optionstr[8];
             const char* buttonstr = (pad_state & BUTTON_HOME) ? "HOME" : "POWER";
             u32 n_opt = 0;
+            int calib = ++n_opt;
+            int playground = ++n_opt;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
+            if (calib > 0) optionstr[calib - 1] = "Calibrate touchscreen";
+            if (playground > 0) optionstr[playground - 1] = "Test touchscreen";
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
@@ -2531,6 +2535,10 @@ u32 GodMode(int entrypoint) {
                         ClearScreenF(true, true, COLOR_STD_BG);
                         break;
                     }
+                } else if (user_select == calib) {
+                    ShowPrompt(true, "CALIB: %d", ShowCalibrationDialog());
+                } else if (user_select == playground) {
+                    ShowTouchPlayground();
                 } else if (user_select == payloads) {
                     if (!CheckSupportDir(PAYLOADS_DIR)) ShowPrompt(false, "Payloads directory not found.\n(default path: 0:/gm9/" PAYLOADS_DIR ")");
                     else if (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))

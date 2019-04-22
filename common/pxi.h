@@ -20,6 +20,8 @@ enum {
 
 	PXI_I2C_READ,
 	PXI_I2C_WRITE,
+
+	PXI_NVRAM_READ,
 };
 
 /*
@@ -32,9 +34,7 @@ enum {
 };
 
 #define PXI_FIFO_LEN	(16)
-#define PXI_MAX_ARGS	(32)
-
-#define PXI_INIT_MAGIC	(0xDD)
+#define PXI_MAX_ARGS	(64)
 
 #define PXI_SYNC_RECV ((vu8*)(PXI_BASE + 0x00))
 #define PXI_SYNC_SEND ((vu8*)(PXI_BASE + 0x01))

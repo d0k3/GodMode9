@@ -18,11 +18,9 @@
 #include "hw/codec.h"
 #include "hw/spi.h"
 
-#define CODEC_SPI_DEV	(3)
+#define CODEC_SPI_DEV	3
 
-#define MAX_12BIT	(BIT(12) - 1)
 #define CPAD_THRESH	(150)
-#define CPAD_FACTOR (150)
 
 /* SPI stuff */
 static void CODEC_WriteRead(u32 *txb, u8 txl, u32 *rxb, u8 rxl)
@@ -141,8 +139,8 @@ void CODEC_Get(CODEC_Input *input)
 	cpad_y = ((raw_data[0x14] << 8 | raw_data[0x15]) & 0xFFF) - 2048;
 
 	// X axis is inverted
-	input->cpad_x = (abs(cpad_x) > CPAD_THRESH) ? -cpad_x / CPAD_FACTOR : 0;
-	input->cpad_y = (abs(cpad_y) > CPAD_THRESH) ? cpad_y / CPAD_FACTOR : 0;
+	input->cpad_x = (abs(cpad_x) > CPAD_THRESH) ? -cpad_x : 0;
+	input->cpad_y = (abs(cpad_y) > CPAD_THRESH) ? cpad_y : 0;
 
 	ts_pressed = !(raw_data[0] & BIT(4));
 	if (ts_pressed) {

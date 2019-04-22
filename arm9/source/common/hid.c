@@ -23,8 +23,14 @@ u32 HID_ReadRawTouchState(void)
     return ARM_GetSHMEM()->hid_state >> 32;
 }
 
-static u32 ts_x_org, ts_y_org;
-static fixp_t ts_x_mult, ts_y_mult;
+// ts_mult indicates a scalar for each axis
+// if |ts_mult| > 1 => point must be "scaled out"
+// if |ts_mult| < 1 => point must be "scaled in"
+// if ts_mult < 0 => axis is inverted
+static fixp_t ts_mult[2];
+
+// ts_org indicates the coordinate system origin
+static u32 ts_org[2];
 void HID_ReadTouchState(u16 *x, u16 *y)
 {
     u32 ts;
@@ -34,20 +40,20 @@ void HID_ReadTouchState(u16 *x, u16 *y)
     tx = INT_TO_FIXP(HID_RAW_TX(ts) - HID_TOUCH_MIDPOINT);
     ty = INT_TO_FIXP(HID_RAW_TY(ts) - HID_TOUCH_MIDPOINT);
 
-    *x = FIXP_TO_INT(fixp_round(fixp_product(tx, ts_x_mult))) + ts_x_org;
-    *y = FIXP_TO_INT(fixp_round(fixp_product(ty, ts_y_mult))) + ts_y_org;
+    *x = FIXP_TO_INT(fixp_round(fixp_product(tx, ts_mult[0]))) + ts_org[0];
+    *y = FIXP_TO_INT(fixp_round(fixp_product(ty, ts_mult[1]))) + ts_org[1];
 }
 
 bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, u32 screen_w, u32 screen_h)
 {
-    int x_mid, y_mid;
+    int mid_x, mid_y;
     fixp_t avg_x, avg_y;
 
-    if (!screen_w || !screen_h || point_cnt <= 0)
+    if (!screen_w || !screen_h || point_cnt <= 0 || point_cnt > 7)
         return false;
 
-    x_mid = screen_w / 2;
-    y_mid = screen_h / 2;
+    mid_x = screen_w / 2;
+    mid_y = screen_h / 2;
 
     avg_x = 0;
     avg_y = 0;
@@ -58,8 +64,8 @@ bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, u3
 
         // translate the [0, screen_w] x [0, screen_h] system
         // to [-screen_w/2, screen_w/2] x [-screen_h/2, screen_h/2]
-        screen_x = INT_TO_FIXP(data->screen_x - x_mid);
-        screen_y = INT_TO_FIXP(data->screen_y - y_mid);
+        screen_x = INT_TO_FIXP(data->screen_x - mid_x);
+        screen_y = INT_TO_FIXP(data->screen_y - mid_y);
 
         // same thing for raw touchscreen data
         touch_x = INT_TO_FIXP(HID_RAW_TX(data->ts_raw) - HID_TOUCH_MIDPOINT);
@@ -69,15 +75,16 @@ bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, u3
         if (!screen_x || !screen_y || !touch_x || !touch_y)
             return false;
 
-        avg_x += fixp_quotient(screen_x, touch_x);
-        avg_y += fixp_quotient(screen_y, touch_y);
+        // prevent integer overflows by dividing in this step
+        avg_x += fixp_quotient(screen_x, touch_x * point_cnt);
+        avg_y += fixp_quotient(screen_y, touch_y * point_cnt);
     }
 
-    ts_x_mult = avg_x / point_cnt;
-    ts_y_mult = avg_y / point_cnt;
-
-    ts_x_org = x_mid;
-    ts_y_org = y_mid;
+    // set state variables
+    ts_mult[0] = avg_x;
+    ts_mult[1] = avg_y;
+    ts_org[0] = mid_x;
+    ts_org[1] = mid_y;
     return true;
 }
 

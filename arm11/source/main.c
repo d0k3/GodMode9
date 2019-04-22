@@ -10,6 +10,7 @@
 #include "hw/gpulcd.h"
 #include "hw/i2c.h"
 #include "hw/mcu.h"
+#include "hw/nvram.h"
 
 #include "system/sys.h"
 
@@ -50,7 +51,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 	cmd = msg & 0xFFFF;
 	argc = msg >> 16;
 
-	if (argc > PXI_MAX_ARGS) {
+	if (argc >= PXI_MAX_ARGS) {
 		PXI_Send(0xFFFFFFFF);
 		return;
 	}
@@ -74,6 +75,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_I2C_READ:
 		{
+			ARM_InvDC_Range((void*)args[2], args[3]);
 			ret = I2C_readRegBuf(args[0], args[1], (u8*)args[2], args[3]);
 			ARM_WbDC_Range((void*)args[2], args[3]);
 			ARM_DMB();
@@ -85,6 +87,16 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 			ARM_InvDC_Range((void*)args[2], args[3]);
 			ARM_DMB();
 			ret = I2C_writeRegBuf(args[0], args[1], (u8*)args[2], args[3]);
+			break;
+		}
+
+		case PXI_NVRAM_READ:
+		{
+			ARM_InvDC_Range((void*)args[1], args[2]);
+			NVRAM_Read(args[0], (u32*)args[1], args[2]);
+			ARM_WbDC_Range((void*)args[1], args[2]);
+			ARM_DMB();
+			ret = 0;
 			break;
 		}
 
