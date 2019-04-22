@@ -31,6 +31,9 @@
 #define int_sign(x) \
     (((x) > 0) - ((x) < 0))
 
+#define clamp(x, min, max) \
+    ((x) < (max) ? ((x) > (min) ? (x) : (min)) : (max))
+
 #define getbe16(d) \
     (((d)[0]<<8) | (d)[1])
 #define getbe32(d) \
