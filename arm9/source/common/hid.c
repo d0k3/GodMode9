@@ -92,8 +92,6 @@ bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, in
     return true;
 }
 
-#include "ui.h"
-
 u32 InputWait(u32 timeout_sec) {
     static u64 delay = 0;
     u64 timer = timer_start();

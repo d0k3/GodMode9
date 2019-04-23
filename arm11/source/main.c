@@ -14,9 +14,8 @@
 
 #include "system/sys.h"
 
-static bool legacy = false;
-
 static GlobalSharedMemory SharedMemory_State;
+
 static const u8 brightness_lvls[] = {
 	0x10, 0x17, 0x1E, 0x25,
 	0x2C, 0x34, 0x3C, 0x44,
@@ -27,9 +26,7 @@ static int prev_bright_lvl = -1;
 
 void VBlank_Handler(u32 __attribute__((unused)) irqn)
 {
-	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2);
-	cur_bright_lvl %= countof(brightness_lvls);
-
+	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2) % countof(brightness_lvls);
 	if (cur_bright_lvl != prev_bright_lvl) {
 		prev_bright_lvl = cur_bright_lvl;
 		LCD_SetBrightness(brightness_lvls[cur_bright_lvl]);
@@ -42,6 +39,8 @@ void VBlank_Handler(u32 __attribute__((unused)) irqn)
 	ARM_WbDC_Range(&SharedMemory_State, sizeof(SharedMemory_State));
 	ARM_DMB();
 }
+
+static bool legacy = false;
 
 void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
@@ -90,12 +89,25 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 			break;
 		}
 
+		case PXI_NVRAM_ONLINE:
+		{
+			ret = (NVRAM_Status() & NVRAM_SR_WIP) == 0;
+			break;
+		}
+
 		case PXI_NVRAM_READ:
 		{
 			ARM_InvDC_Range((void*)args[1], args[2]);
 			NVRAM_Read(args[0], (u32*)args[1], args[2]);
 			ARM_WbDC_Range((void*)args[1], args[2]);
 			ARM_DMB();
+			ret = 0;
+			break;
+		}
+
+		case PXI_NOTIFY_LED:
+		{
+			MCU_SetNotificationLED(args[0], args[1]);
 			ret = 0;
 			break;
 		}

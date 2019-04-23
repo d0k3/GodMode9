@@ -27,7 +27,7 @@
 // true if spiflash is installed, false otherwise
 static inline bool spiflash_get_status(void)
 { // there should probably be a command for this...
-	return true;
+	return PXI_DoCMD(PXI_NVRAM_ONLINE, NULL, 0);
 }
 
 static inline void spiflash_read(u32 offset, u32 size, u8 *buf)
