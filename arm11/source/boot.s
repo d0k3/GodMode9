@@ -1,3 +1,21 @@
+/*
+ *   This file is part of GodMode9
+ *   Copyright (C) 2017-2019 Wolfvak
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 .section .text.boot
 .align 4
 
@@ -45,18 +63,20 @@ __boot:
     b 1b
 
 corezero_start:
-    @ assume __bss_len is 16 byte aligned
+    @ assume __bss_len is 128 byte aligned
     ldr r0, =__bss_pa
     ldr r1, =__bss_len
+    add r1, r0, r1
     mov r2, #0
     mov r3, #0
     mov r4, #0
     mov r5, #0
-    add r1, r0, r1
     .Lclearbss:
         cmp r0, r1
-        stmltia r0!, {r2-r5}
-        blt .Lclearbss
+        .rept (128 / 16) @ 16 bytes copied per block
+        stmloia r0!, {r2-r5}
+        .endr
+        blo .Lclearbss
 
     bl SYS_CoreZeroInit
 
