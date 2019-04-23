@@ -1,6 +1,7 @@
 /*
- *   This file is part of fastboot 3DS
+ *   This file is part of GodMode9
  *   Copyright (C) 2017 derrek, profi200
+ *   Copyright (C) 2019 Wolfvak
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -16,7 +17,6 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// Modified to make all routines inlined, since they're so simple anyway...
 #pragma once
 
 #include <types.h>

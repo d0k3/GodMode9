@@ -1,5 +1,3 @@
-#pragma once
-
 /*
  *   This file is part of fastboot 3DS
  *   Copyright (C) 2017 derrek, profi200
@@ -17,6 +15,8 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#pragma once
 
 #include <stdbool.h>
 #include <types.h>
