@@ -24,9 +24,12 @@
 #define BUTTON_WIFI   ((u32)1 << 14)
 #define BUTTON_TOUCH  ((u32)1 << 15)
 
-#define CART_INSERT   ((u32)1 << 16)
-#define CART_EJECT    ((u32)1 << 17)
-#define SD_INSERT     ((u32)1 << 18)
-#define SD_EJECT      ((u32)1 << 19)
+#define SHELL_OPEN    ((u32)1 << 16)
+#define SHELL_CLOSED  ((u32)1 << 17)
+
+#define CART_INSERT   ((u32)1 << 18)
+#define CART_EJECT    ((u32)1 << 19)
+#define SD_INSERT     ((u32)1 << 20)
+#define SD_EJECT      ((u32)1 << 21)
 
 #define TIMEOUT_HID   ((u32)1 << 31)
