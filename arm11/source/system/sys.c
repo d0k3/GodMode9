@@ -40,12 +40,10 @@ static void SYS_EnableClkMult(void)
 	// as early as possible in the initialization chain
 	if (SYS_IsNewConsole() && !SYS_ClkMultEnabled()) {
 		GIC_Enable(88, BIT(0), GIC_HIGHEST_PRIO, NULL);
-		ARM_EnableInterrupts();
 		*CFG11_MPCORE_CLKCNT = 0x8001;
 		do {
 			ARM_WFI();
 		} while(!(*CFG11_MPCORE_CLKCNT & 0x8000));
-		ARM_DisableInterrupts();
 		GIC_Disable(88, BIT(0));
 	}
 }
