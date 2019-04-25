@@ -50,6 +50,7 @@ bool SetFontFromPbm(const void* pbm, const u32 pbm_size);
 
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_main, bool clear_alt, int color);
+void DrawPixel(u8* screen, int x, int y, int color);
 void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
 void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap);
 void DrawQrCode(u8* screen, u8* qrcode);
@@ -82,6 +83,3 @@ u64 ShowNumberPrompt(u64 start_val, const char *format, ...);
 bool ShowDataPrompt(u8* data, u32* size, const char *format, ...);
 bool ShowRtcSetterPrompt(void* time, const char *format, ...);
 bool ShowProgress(u64 current, u64 total, const char* opstr);
-
-bool ShowCalibrationDialog(void);
-void ShowTouchPlayground(void);
