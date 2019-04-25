@@ -2536,7 +2536,7 @@ u32 GodMode(int entrypoint) {
                         break;
                     }
                 } else if (user_select == calib) {
-                    ShowPrompt(true, "CALIB: %d", ShowCalibrationDialog());
+                    ShowPrompt(false, "Touchscreen calibration %s!", (ShowCalibrationDialog()) ? "success" : "failed");
                 } else if (user_select == playground) {
                     ShowTouchPlayground();
                 } else if (user_select == payloads) {
