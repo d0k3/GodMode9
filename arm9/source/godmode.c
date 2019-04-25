@@ -3,6 +3,7 @@
 #include "support.h"
 #include "ui.h"
 #include "hid.h"
+#include "touchcal.h"
 #include "fs.h"
 #include "utils.h"
 #include "nand.h"
