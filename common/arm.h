@@ -79,7 +79,7 @@
 
 #define ARM_MRC(cp, op1, reg, crn, crm, op2)	asm_v( \
 	"MRC " #cp ", " #op1 ", %[R], " #crn ", " #crm ", " #op2 "\n\t" \
-	: [R] "=r"(reg) : "memory","cc")
+	: [R] "=r"(reg) :: "memory","cc")
 
 #define ARM_MSR(cp, reg)	asm_v( \
 	"MSR " #cp ", %[R]\n\t" \
