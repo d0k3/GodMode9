@@ -36,12 +36,9 @@ bool ShowCalibrationDialog(void)
             }
         }
 
-        // wait until touchscreen released
-        while (HID_ReadState() & (BUTTON_B | BUTTON_TOUCH));
-
         // wait for input, store calibration data
         while (1) {
-            u32 pressed = HID_ReadState();
+            u32 pressed = InputWait(0);
             if (pressed & BUTTON_B) {
                 return false;
             } else if (pressed & BUTTON_TOUCH) {
@@ -58,21 +55,22 @@ void ShowTouchPlayground(void)
 {
     ClearScreen(BOT_SCREEN, COLOR_STD_BG);
 
-    while(1) {
-        u16 tx, ty;
-        u32 pressed = HID_ReadState();
+    while (1) {
+        DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
+        	"Current touchscreen coordinates: 000, 000");
+        
+        u32 pressed = InputWait(0);
+        if (pressed & BUTTON_B) return;
 
-        if (pressed & BUTTON_TOUCH) {
+        while (pressed & BUTTON_TOUCH) {
+        	u16 tx, ty;
             HID_ReadTouchState(&tx, &ty);
             if (tx < 320 && ty < 240)
                 DrawPixel(BOT_SCREEN, tx, ty, COLOR_BRIGHTYELLOW);
-        } else {
-            tx = ty = 0;
+            DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
+            	"Current touchscreen coordinates: %3.3d, %3.3d", tx, ty);
+        	pressed = HID_ReadState();
         }
-
-        DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG, "Current touchscreen coordinates: %3.3d, %3.3d", tx, ty);
-        if (pressed & BUTTON_B)
-            return;
     }
 
 }
