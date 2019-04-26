@@ -117,10 +117,8 @@ bool CalibrateTouchFromFlash(void) {
     u32 fw_usercfg_buf[0x100 / 0x4];
     u8* fw_usercfg = (u8*) fw_usercfg_buf;
     spiflash_read(0x1FE00, 0x100, fw_usercfg);
-    if (getle16(fw_usercfg + 0x72) != crc16_quick(fw_usercfg, 0x70)) {
-    	ShowPrompt(false, "ugh");
-    	return false; 
-    }
+    if (getle16(fw_usercfg + 0x72) != crc16_quick(fw_usercfg, 0x70))
+    	return false;
 
     // get touchscreen calibration data from user settings
     u8 *ts_data = fw_usercfg + 0x58;
