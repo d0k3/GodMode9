@@ -2049,6 +2049,7 @@ u32 GodMode(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
+    CalibrateTouchFromFlash(); // !!! this may need some further checking
     
     // custom font handling
     if (CheckSupportFile("font.pbm")) {
@@ -2537,7 +2538,7 @@ u32 GodMode(int entrypoint) {
                         break;
                     }
                 } else if (user_select == calib) {
-                    ShowPrompt(false, "Touchscreen calibration %s!", (ShowCalibrationDialog()) ? "success" : "failed");
+                    ShowPrompt(false, "Touchscreen calibration %s!", (ShowTouchCalibrationDialog()) ? "success" : "failed");
                 } else if (user_select == playground) {
                     ShowTouchPlayground();
                 } else if (user_select == payloads) {
@@ -2599,6 +2600,7 @@ u32 ScriptRunner(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
+    CalibrateTouchFromFlash(); // !!! this may need some further checking
     
     while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
