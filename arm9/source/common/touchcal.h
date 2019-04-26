@@ -2,5 +2,6 @@
 
 #include "common.h"
 
-bool ShowCalibrationDialog(void);
+bool ShowTouchCalibrationDialog(void);
 void ShowTouchPlayground(void);
+bool CalibrateTouchFromFlash(void);
