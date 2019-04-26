@@ -1871,6 +1871,8 @@ u32 HomeMoreMenu(char* current_path) {
     int clock = ++n_opt;
     int sysinfo = ++n_opt;
     int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL)) ? (int) ++n_opt : -1;
+    int calib = ++n_opt;
+    int playground = ++n_opt;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1880,6 +1882,8 @@ u32 HomeMoreMenu(char* current_path) {
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
     if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
     if (readme > 0) optionstr[readme - 1] = "Show ReadMe";
+    if (calib > 0) optionstr[calib - 1] = "Calibrate touchscreen";
+    if (playground > 0) optionstr[playground - 1] = "Touchscreen playground";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1992,6 +1996,12 @@ u32 HomeMoreMenu(char* current_path) {
         char* README_md = FindVTarFileInfo(VRAM0_README_MD, &README_md_size);
         MemToCViewer(README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
+    }
+    else if (user_select == calib) {
+        ShowPrompt(false, "Touchscreen calibration %s!", (ShowTouchCalibrationDialog()) ? "success" : "failed");
+    }
+    else if (user_select == playground) {
+        ShowTouchPlayground();
     } else return 1;
     
     return HomeMoreMenu(current_path);
@@ -2508,15 +2518,11 @@ u32 GodMode(int entrypoint) {
             const char* optionstr[8];
             const char* buttonstr = (pad_state & BUTTON_HOME) ? "HOME" : "POWER";
             u32 n_opt = 0;
-            int calib = ++n_opt;
-            int playground = ++n_opt;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
-            if (calib > 0) optionstr[calib - 1] = "Calibrate touchscreen";
-            if (playground > 0) optionstr[playground - 1] = "Test touchscreen";
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
@@ -2537,10 +2543,6 @@ u32 GodMode(int entrypoint) {
                         ClearScreenF(true, true, COLOR_STD_BG);
                         break;
                     }
-                } else if (user_select == calib) {
-                    ShowPrompt(false, "Touchscreen calibration %s!", (ShowTouchCalibrationDialog()) ? "success" : "failed");
-                } else if (user_select == playground) {
-                    ShowTouchPlayground();
                 } else if (user_select == payloads) {
                     if (!CheckSupportDir(PAYLOADS_DIR)) ShowPrompt(false, "Payloads directory not found.\n(default path: 0:/gm9/" PAYLOADS_DIR ")");
                     else if (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))
