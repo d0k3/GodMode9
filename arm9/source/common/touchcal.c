@@ -17,7 +17,7 @@ static const HID_CalibrationData default_calib = {
 
 static bool SetCalibrationDefaults(void)
 {
-	// Hardcoding this isn't ideal but it's better than
+    // Hardcoding this isn't ideal but it's better than
     // leaving the system without any state to work with
     return HID_SetCalibrationData(&default_calib, 1, SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
 }
@@ -79,34 +79,34 @@ void ShowTouchPlayground(void)
 
     while (1) {
         DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
-        	"Current touchscreen coordinates: 000, 000");
+            "Current touchscreen coordinates: 000, 000");
         
         u32 pressed = InputWait(0);
         if (pressed & BUTTON_B) return;
 
         while (pressed & BUTTON_TOUCH) {
-        	u16 tx, ty;
+            u16 tx, ty;
             HID_ReadTouchState(&tx, &ty);
             if (tx < SCREEN_WIDTH_BOT && ty < SCREEN_HEIGHT)
                 DrawPixel(BOT_SCREEN, tx, ty, COLOR_BRIGHTYELLOW);
             DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
-            	"Current touchscreen coordinates: %3.3d, %3.3d", tx, ty);
-        	pressed = HID_ReadState();
+                "Current touchscreen coordinates: %3.3d, %3.3d", tx, ty);
+            pressed = HID_ReadState();
         }
     }
 }
 
 bool CalibrateTouchFromFlash(void) {
-	HID_CalibrationData data[2];
+    HID_CalibrationData data[2];
 
     // set calibration defaults
     SetCalibrationDefaults();
  
- 	// check SPIflash status
+    // check SPIflash status
     if (!spiflash_get_status())
         return false;
  
- 	// check NVRAM console ID
+    // check NVRAM console ID
     u32 console_id = 0;
     spiflash_read(0x001C, 4, (u8*)&console_id);
     if (((console_id >> 8) & 0xFF) != 0x57)
@@ -118,7 +118,7 @@ bool CalibrateTouchFromFlash(void) {
     u8* fw_usercfg = (u8*) fw_usercfg_buf;
     spiflash_read(0x1FE00, 0x100, fw_usercfg);
     if (getle16(fw_usercfg + 0x72) != crc16_quick(fw_usercfg, 0x70))
-    	return false;
+        return false;
 
     // get touchscreen calibration data from user settings
     u8 *ts_data = fw_usercfg + 0x58;

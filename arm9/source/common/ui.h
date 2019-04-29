@@ -48,6 +48,8 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h);
 bool SetFontFromPbm(const void* pbm, const u32 pbm_size);
 
+u32 GetColor(u8* screen, int x, int y);
+
 void ClearScreen(unsigned char *screen, int color);
 void ClearScreenF(bool clear_main, bool clear_alt, int color);
 void DrawPixel(u8* screen, int x, int y, int color);
