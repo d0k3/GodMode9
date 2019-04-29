@@ -68,6 +68,12 @@ static u8 CODEC_RegRead(u8 reg)
 	return ret;
 }
 
+static void CODEC_RegReadBuf(u8 reg, u32 *out, u8 size)
+{
+	u32 cmd = (reg << 1) | 1;
+	CODEC_WriteRead(&cmd, 1, out, size);
+}
+
 static void CODEC_RegWrite(u8 reg, u8 val)
 {
 	SPI_XferInfo xfer;
@@ -82,54 +88,34 @@ static void CODEC_RegWrite(u8 reg, u8 val)
 	SPI_DoXfer(CODEC_SPI_DEV, &xfer, 1);
 }
 
-static void CODEC_RegReadBuf(u8 reg, u32 *out, u8 size)
-{
-	u32 cmd = (reg << 1) | 1;
-	CODEC_WriteRead(&cmd, 1, out, size);
-}
-
 static void CODEC_RegMask(u8 reg, u8 mask0, u8 mask1)
 {
 	CODEC_RegWrite(reg, (CODEC_RegRead(reg) & ~mask1) | (mask0 & mask1));
 }
 
+// elder god magic
 void CODEC_Init(void)
 {
 	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x24, 0x98);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x26, 0x00);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x25, 0x43);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x24, 0x18);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x17, 0x43);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x19, 0x69);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x1B, 0x80);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x27, 0x11);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x26, 0xEC);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x24, 0x18);
-	CODEC_RegSelect(0x67);
 	CODEC_RegWrite(0x25, 0x53);
 
-	CODEC_RegSelect(0x67);
 	CODEC_RegMask(0x26, 0x80, 0x80);
-	CODEC_RegSelect(0x67);
 	CODEC_RegMask(0x24, 0x00, 0x80);
-	CODEC_RegSelect(0x67);
 	CODEC_RegMask(0x25, 0x10, 0x3C);
 }
 
 void CODEC_GetRawData(u32 *buffer)
 {
-	CODEC_RegSelect(0x67);
-	CODEC_RegRead(0x26);
 	CODEC_RegSelect(0xFB);
 	CODEC_RegReadBuf(1, buffer, 0x34);
 }
