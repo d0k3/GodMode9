@@ -1,4 +1,5 @@
 #include "godmode.h"
+#include "paint9.h"
 #include "memmap.h"
 #include "support.h"
 #include "ui.h"
@@ -2001,7 +2002,8 @@ u32 HomeMoreMenu(char* current_path) {
         ShowPrompt(false, "Touchscreen calibration %s!", (ShowTouchCalibrationDialog()) ? "success" : "failed");
     }
     else if (user_select == playground) {
-        ShowTouchPlayground();
+        // ShowTouchPlayground();
+        Paint9();
     } else return 1;
     
     return HomeMoreMenu(current_path);

@@ -149,6 +149,18 @@ void ClearScreenF(bool clear_main, bool clear_alt, int color)
     if (clear_alt) ClearScreen(ALT_SCREEN, color);
 }
 
+u32 GetColor(u8* screen, int x, int y)
+{
+    u32 color = 0;
+    int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
+    int yDisplacement = ((SCREEN_HEIGHT - y - 1) * BYTES_PER_PIXEL);
+    u8* screenPos = screen + xDisplacement + yDisplacement;
+    color |= (*(screenPos + 0) << 16 );  // B
+    color |= (*(screenPos + 1) <<  8 );  // G
+    color |= (*(screenPos + 2) <<  0 );  // R
+    return color;
+}
+
 void DrawPixel(u8* screen, int x, int y, int color)
 {
     int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
