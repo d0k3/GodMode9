@@ -31,13 +31,16 @@ static fixp_t ts_mult[2];
 
 // ts_org indicates the coordinate system origin
 static int ts_org[2];
-void HID_ReadTouchState(u16 *x, u16 *y)
+bool HID_ReadTouchState(u16 *x, u16 *y)
 {
     u32 ts;
     int xc, yc;
     fixp_t tx, ty;
 
     ts = HID_ReadRawTouchState();
+    if (ts & BIT(31))
+        return false;
+
     tx = INT_TO_FIXP(HID_RAW_TX(ts) - HID_TOUCH_MIDPOINT);
     ty = INT_TO_FIXP(HID_RAW_TY(ts) - HID_TOUCH_MIDPOINT);
 
@@ -46,6 +49,7 @@ void HID_ReadTouchState(u16 *x, u16 *y)
 
     *x = clamp(xc, 0, (ts_org[0] * 2) - 1);
     *y = clamp(yc, 0, (ts_org[1] * 2) - 1);
+    return true;
 }
 
 bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, int screen_w, int screen_h)
