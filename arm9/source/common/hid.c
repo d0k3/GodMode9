@@ -10,6 +10,7 @@
 #define HID_TOUCH_MAXPOINT  (0x1000)
 #define HID_TOUCH_MIDPOINT  (HID_TOUCH_MAXPOINT / 2)
 
+
 // there's some weird thing going on when reading this
 // with an LDRD instruction so for now they'll be two
 // separate things - hopefully LTO won't get in the way
