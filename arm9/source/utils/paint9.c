@@ -17,13 +17,13 @@ enum P9BOXES {
 
 static const TouchBox paint9_boxes[] = {
     { 30, 0, SCREEN_WIDTH_BOT - (2*30), SCREEN_HEIGHT, P9BOX_CANVAS },
-    { SCREEN_WIDTH_BOT - PAINT9_COLSEL_WIDTH - 10, 10, PAINT9_COLSEL_WIDTH, PAINT9_COLSEL_HEIGHT, P9BOX_PICKER },
-    { 10, 10 + ((PAINT9_BRUSH_SIZE+3)*0), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+0 },
-    { 10, 10 + ((PAINT9_BRUSH_SIZE+3)*1), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+1 },
-    { 10, 10 + ((PAINT9_BRUSH_SIZE+3)*2), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+2 },
-    { 10, 10 + ((PAINT9_BRUSH_SIZE+3)*3), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+3 },
-    { 10, 10 + ((PAINT9_BRUSH_SIZE+3)*4), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+4 },
-    { 10, 10 + ((PAINT9_BRUSH_SIZE+3)*5), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+5 }
+    { SCREEN_WIDTH_BOT - PAINT9_COLSEL_WIDTH - 7, 10, PAINT9_COLSEL_WIDTH, PAINT9_COLSEL_HEIGHT, P9BOX_PICKER },
+    { 7, 10 + ((PAINT9_BRUSH_SIZE+3)*0), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+0 },
+    { 7, 10 + ((PAINT9_BRUSH_SIZE+3)*1), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+1 },
+    { 7, 10 + ((PAINT9_BRUSH_SIZE+3)*2), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+2 },
+    { 7, 10 + ((PAINT9_BRUSH_SIZE+3)*3), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+3 },
+    { 7, 10 + ((PAINT9_BRUSH_SIZE+3)*4), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+4 },
+    { 7, 10 + ((PAINT9_BRUSH_SIZE+3)*5), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+5 }
 };
 
 static const u8 color_picker_tmp[PAINT9_COLSEL_HEIGHT * BYTES_PER_PIXEL] = {
@@ -127,6 +127,7 @@ void Paint9_DrawBrush(u16 px, u16 py, u32 color_fg, u32 color_bg, u32 id) {
 
 u32 Paint9(void) {
     static u32 brush_bg = RGB(0x20, 0x20, 0x20);
+    static u32 outline_bg = RGB(0x18, 0x18, 0x18);
     u16 x_cb = paint9_boxes[2].x + (PAINT9_BRUSH_SIZE/2) + 1;
     u16 y_cb = SCREEN_HEIGHT - 10 - (PAINT9_BRUSH_SIZE/2) - 1;
 
@@ -137,6 +138,10 @@ u32 Paint9(void) {
     ClearScreenF(true, true, COLOR_STD_BG);
     DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_TRANSPARENT,
         "Paint9\n \nYou may save your creation at\nany time via the screenshot\nfunction (L+R).\n \nHave fun!");
+
+    // outline canvas
+    DrawRectangle(BOT_SCREEN, 0, 0, 30, SCREEN_HEIGHT, outline_bg);
+    DrawRectangle(BOT_SCREEN, SCREEN_WIDTH_BOT - 30, 0, 30, SCREEN_HEIGHT, outline_bg);
 
     // draw color picker
     u32 pick_x = paint9_boxes[1].x;
