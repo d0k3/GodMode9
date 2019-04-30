@@ -1872,8 +1872,6 @@ u32 HomeMoreMenu(char* current_path) {
     int clock = ++n_opt;
     int sysinfo = ++n_opt;
     int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL)) ? (int) ++n_opt : -1;
-    int calib = ++n_opt;
-    int playground = ++n_opt;
     
     if (sdformat > 0) optionstr[sdformat - 1] = "SD format menu";
     if (bonus > 0) optionstr[bonus - 1] = "Bonus drive setup";
@@ -1883,8 +1881,6 @@ u32 HomeMoreMenu(char* current_path) {
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
     if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
     if (readme > 0) optionstr[readme - 1] = "Show ReadMe";
-    if (calib > 0) optionstr[calib - 1] = "Calibrate touchscreen";
-    if (playground > 0) optionstr[playground - 1] = "Touchscreen playground";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
@@ -1997,13 +1993,6 @@ u32 HomeMoreMenu(char* current_path) {
         char* README_md = FindVTarFileInfo(VRAM0_README_MD, &README_md_size);
         MemToCViewer(README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
-    }
-    else if (user_select == calib) {
-        ShowPrompt(false, "Touchscreen calibration %s!", (ShowTouchCalibrationDialog()) ? "success" : "failed");
-    }
-    else if (user_select == playground) {
-        // ShowTouchPlayground();
-        Paint9();
     } else return 1;
     
     return HomeMoreMenu(current_path);
@@ -2525,18 +2514,32 @@ u32 GodMode(int entrypoint) {
             int scripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
+            int test = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
             if (payloads > 0) optionstr[payloads - 1] = "Payloads...";
             if (more > 0) optionstr[more - 1] = "More...";
+            if (test > 0) optionstr[test - 1] = "Testing...";
             
             int user_select = 0;
             while ((user_select = ShowSelectPrompt(n_opt, optionstr, "%s button pressed.\nSelect action:", buttonstr)) &&
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
-                else if (user_select == scripts) {
+                else if (user_select == test) {
+                    const char* testopts[2] = { "Calibrate touchscreen", "Touchscreen playground" };
+                    u32 testsel = ShowSelectPrompt(2, testopts, "Testing menu.\nSelect action:", buttonstr);
+                    if (testsel == 1) {
+                        ShowPrompt(false, "Touchscreen calibration %s!",
+                            (ShowTouchCalibrationDialog()) ? "success" : "failed");
+                        break;
+                    } else if (testsel == 2) {
+                        // ShowTouchPlayground();
+                        Paint9();
+                        break;
+                    }
+                } else if (user_select == scripts) {
                     if (!CheckSupportDir(SCRIPTS_DIR)) {
                         ShowPrompt(false, "Scripts directory not found.\n(default path: 0:/gm9/" SCRIPTS_DIR ")");
                     } else if (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9")) {
