@@ -12,4 +12,4 @@ typedef struct {
 } __attribute__((packed)) TouchBox;
 
 // this assumes the touchscreen is actually in use
-bool TouchBoxGet(u16* x, u16* y, u32* id, TouchBox* tbs, u32 tbn);
+bool TouchBoxGet(u16* x, u16* y, u32* id, const TouchBox* tbs, const u32 tbn);

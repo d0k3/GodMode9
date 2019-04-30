@@ -15,7 +15,7 @@ enum P9BOXES {
 	P9BOX_BRUSH_N = 3
 };
 
-static TouchBox paint9_boxes[] = {
+static const TouchBox paint9_boxes[] = {
 	{ 30, 0, SCREEN_WIDTH_BOT - (2*30), SCREEN_HEIGHT, P9BOX_CANVAS },
 	{ SCREEN_WIDTH_BOT - PAINT9_COLSEL_WIDTH - 10, 10, PAINT9_COLSEL_WIDTH, PAINT9_COLSEL_HEIGHT, P9BOX_PICKER },
 	{ 10, 10 + ((PAINT9_BRUSH_SIZE+3)*0), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+0 },
@@ -26,7 +26,7 @@ static TouchBox paint9_boxes[] = {
 	{ 10, 10 + ((PAINT9_BRUSH_SIZE+3)*5), PAINT9_BRUSH_SIZE, PAINT9_BRUSH_SIZE, P9BOX_BRUSH_N+5 }
 };
 
-static u8 color_picker_tmp[PAINT9_COLSEL_HEIGHT * BYTES_PER_PIXEL] = {
+static const u8 color_picker_tmp[PAINT9_COLSEL_HEIGHT * BYTES_PER_PIXEL] = {
 	0xFD, 0x01, 0x00, 0xFD, 0x01, 0x00, 0xFC, 0x00, 0x01, 0xFD, 0x00, 0x04, 
 	0xFE, 0x00, 0x0A, 0xFF, 0x00, 0x0E, 0xFE, 0x00, 0x10, 0xFF, 0x00, 0x15,
 	0xFE, 0x00, 0x1E, 0xFE, 0x00, 0x27, 0xFC, 0x00, 0x2F, 0xFD, 0x00, 0x36,
@@ -84,7 +84,7 @@ static u8 color_picker_tmp[PAINT9_COLSEL_HEIGHT * BYTES_PER_PIXEL] = {
 	0xFE, 0x04, 0x00, 0xFF, 0x02, 0x02, 0xFE, 0x01, 0x03, 0xFD, 0x00, 0x02
 };
 
-static u16 brushes_tmp[PAINT9_N_BRUSHES][PAINT9_BRUSH_SIZE] = {
+static const u16 brushes_tmp[PAINT9_N_BRUSHES][PAINT9_BRUSH_SIZE] = {
 	{ 0x0FE0, 0x1FF0, 0x3FF8, 0x7FFC, 0xFFFE, 0xFFFE, 0xFFFE,0xFFFE,
 		0xFFFE, 0xFFFE, 0xFFFE, 0x7FFC, 0x3FF8, 0x1FF0, 0x0FE0 },
 	{ 0x0000, 0x0000, 0x07C0, 0x0FE0, 0x1FF0, 0x3FF8, 0x3FF8, 0x3FF8,
@@ -101,7 +101,7 @@ static u16 brushes_tmp[PAINT9_N_BRUSHES][PAINT9_BRUSH_SIZE] = {
 
 
 void Paint9_DrawBrush(u16 px, u16 py, u32 color_fg, u32 color_bg, u32 id) {
-	u16* brush = brushes_tmp[id];
+	const u16* brush = brushes_tmp[id];
 
 	// fix px / py
 	s16 pxf = px - (PAINT9_BRUSH_SIZE/2);
@@ -139,22 +139,13 @@ u32 Paint9(void) {
 		"Paint9\n \nYou may save your creation at\nany time via the screenshot\nfunction (L+R).\n \nHave fun!");
 
 	// draw color picker
+	u32 pick_x = paint9_boxes[1].x;
+	u32 pick_y = paint9_boxes[1].y;
 	for (u32 y = 0; y < PAINT9_COLSEL_HEIGHT; y++) {
-		// set up color picker
-		u8 color_picker[PAINT9_COLSEL_WIDTH * PAINT9_COLSEL_HEIGHT * BYTES_PER_PIXEL];
-		u8* rgb = color_picker_tmp + (y * BYTES_PER_PIXEL);
-		u8* ptr = color_picker + (y * BYTES_PER_PIXEL * PAINT9_COLSEL_WIDTH);
-		for (u32 x = 0; x < PAINT9_COLSEL_WIDTH; x++) {
-			memcpy(ptr, rgb, BYTES_PER_PIXEL);
-			ptr += BYTES_PER_PIXEL;
-		}
-
-		// draw color picker
-		u32 x = paint9_boxes[1].x;
-		u32 y = paint9_boxes[1].y;
-		u32 w = paint9_boxes[1].w;
-		u32 h = paint9_boxes[1].h;
-		DrawBitmap(BOT_SCREEN, x, y, w, h, color_picker);
+		const u8* rgb = color_picker_tmp + (y * BYTES_PER_PIXEL);
+		color = RGB(rgb[0], rgb[1], rgb[2]);
+		for (u32 x = 0; x < PAINT9_COLSEL_WIDTH; x++)
+			DrawPixel(BOT_SCREEN, pick_x + x, pick_y + y, color);
 	}
 
 	// draw brushes
