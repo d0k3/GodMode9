@@ -150,8 +150,10 @@ u32 InputWait(u32 timeout_sec) {
             continue;
 
         // handle closed shell (wait for open)
-        if (newpad & SHELL_CLOSED)
-            while ((newpad = HID_ReadState()) & SHELL_CLOSED);
+        if (newpad & SHELL_CLOSED) {
+            while (HID_ReadState() & SHELL_CLOSED);
+            continue;
+        }
 
         u32 t_pressed = 0;
         while((t_pressed++ < 0x13000) && (newpad == HID_ReadState()));
