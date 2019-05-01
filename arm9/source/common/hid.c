@@ -138,7 +138,7 @@ u32 InputWait(u32 timeout_sec) {
         while (HID_ReadState() & SHELL_CLOSED);
     }
 
-    delay = delay ? 72 : 128;
+    delay = delay ? 144 : 256;
 
     do {
         u32 newpad = HID_ReadState();
@@ -172,13 +172,11 @@ u32 InputWait(u32 timeout_sec) {
             continue;
         }
 
-        u32 t_pressed = 0;
-        while((t_pressed++ < 0x13000) && (newpad == HID_ReadState()));
-        if (t_pressed >= 0x13000) {
-            if ((newpad & BUTTON_ANY) == (BUTTON_R1 | BUTTON_L1))
-                CreateScreenshot(); // screenshot handling
-            return newpad;
-        }
+        // screenshot handling
+        if ((newpad & BUTTON_ANY) == (BUTTON_R1 | BUTTON_L1))
+            CreateScreenshot();
+
+        return newpad;
     } while (!timeout_sec || (timeout_sec && (timer_sec(timer) < timeout_sec)));
 
     return TIMEOUT_HID;
