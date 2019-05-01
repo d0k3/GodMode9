@@ -1,6 +1,7 @@
 #include "hid.h"
 #include "i2c.h"
 #include "timer.h"
+#include "colors.h"
 #include "screenshot.h" // for screenshots
 
 #include "arm.h"
@@ -10,6 +11,14 @@
 #define HID_TOUCH_MAXPOINT  (0x1000)
 #define HID_TOUCH_MIDPOINT  (HID_TOUCH_MAXPOINT / 2)
 
+
+static void SetNotificationLED(u32 period_ms, u32 bgr_color)
+{
+    u32 rgb_color =
+        ((bgr_color >> 16) & 0xFF) | (bgr_color & 0xFF00) | ((bgr_color & 0xFF) << 16);
+    u32 args[] = {period_ms, rgb_color};
+    PXI_DoCMD(PXI_NOTIFY_LED, args, 2);
+}
 
 // there's some weird thing going on when reading this
 // with an LDRD instruction so for now they'll be two
@@ -105,6 +114,13 @@ u32 InputWait(u32 timeout_sec) {
     u32 oldcart = CART_STATE;
     u32 oldsd = SD_STATE;
 
+    // enable notification LED if shell is closed
+    // (this means we're waiting for user input)
+    if (oldpad & SHELL_CLOSED) {
+        SetNotificationLED(1000, COLOR_GREEN);
+        while (HID_ReadState() & SHELL_CLOSED);
+    }
+
     delay = delay ? 72 : 128;
 
     do {
@@ -132,6 +148,12 @@ u32 InputWait(u32 timeout_sec) {
             (!(newpad & BUTTON_ARROW) ||
             (delay && (timer_msec(timer) < delay))))
             continue;
+
+        // handle closed shell (wait for open)
+        if (newpad & SHELL_CLOSED) {
+            while (HID_ReadState() & SHELL_CLOSED);
+            continue;
+        }
 
         u32 t_pressed = 0;
         while((t_pressed++ < 0x13000) && (newpad == HID_ReadState()));
