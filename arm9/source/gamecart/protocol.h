@@ -12,8 +12,8 @@
 
 
 #define LATENCY 0x822Cu
+#define BSWAP32(n)  __builtin_bswap32(n)
 
-u32 BSWAP32(u32 val);
 
 void Cart_Init(void);
 int Cart_IsInserted(void);

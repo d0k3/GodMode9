@@ -151,12 +151,13 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 void __attribute__((noreturn)) MainLoop(void)
 {
 	// enable PXI RX interrupt
-	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO, PXI_RX_Handler);
+	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 2, PXI_RX_Handler);
 
 	// enable MCU interrupts
 	GIC_Enable(MCU_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 1, MCU_HandleInterrupts);
 
-	GIC_Enable(VBLANK_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 2, VBlank_Handler);
+	// set up VBlank interrupt to always have the highest priority
+	GIC_Enable(VBLANK_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO, VBlank_Handler);
 
 	// ARM9 won't try anything funny until this point
 	PXI_Barrier(ARM11_READY_BARRIER);

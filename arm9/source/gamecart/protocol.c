@@ -36,13 +36,6 @@ static u32 A0_Response = 0xFFFFFFFFu;
 static u32 rand1 = 0;
 static u32 rand2 = 0;
 
-u32 BSWAP32(u32 val) {
-    return (((val >> 24) & 0xFF)) |
-           (((val >> 16) & 0xFF) << 8) |
-           (((val >> 8) & 0xFF) << 16) |
-           ((val & 0xFF) << 24);
-}
-
 // updated function by profi200
 static void ResetCardSlot(void)
 {

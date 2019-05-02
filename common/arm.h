@@ -18,6 +18,7 @@
 #define SR_NOINT	(SR_NOFIQ | SR_NOIRQ)
 
 #ifdef ARM9
+	#define CPU_FREQ	(134055928)
 	#define CR_MPU		BIT(0)
 	#define CR_DCACHE	BIT(2)
 	#define CR_ICACHE	BIT(12)
@@ -38,6 +39,7 @@
 	#define MAX_IRQ	(32)
 	#define MAX_CPU	(1)
 #else // ARM11
+	#define CPU_FREQ	(268111856)
 	#define CR_MMU		BIT(0)
 	#define CR_ALIGN	BIT(1)
 	#define CR_DCACHE	BIT(2)
