@@ -2,8 +2,9 @@
 // https://github.com/eai04191/beat/blob/master/nall/crc32.hpp
 // Ported by Hyarion for use with VirtualFatFS
 
-#include "crc32.h"
 #include "common.h"
+#include "crc32.h"
+#include "vff.h"
 
 u32 crc32_adjust(u32 crc32, u8 input) {
     static const u32 crc32_table[256] = {

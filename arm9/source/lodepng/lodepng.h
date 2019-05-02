@@ -39,6 +39,18 @@ compiler command to disable them without modifying this header, e.g.
 In addition to those below, you can also define LODEPNG_NO_COMPILE_CRC to
 allow implementing a custom lodepng_crc32.
 */
+
+#define LODEPNG_NO_COMPILE_CRC
+#define LODEPNG_NO_COMPILE_DISK
+#define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
+#define LODEPNG_NO_COMPILE_ERROR_TEXT
+
+#include "crc32.h"
+static inline unsigned lodepng_crc32(const unsigned char *data, size_t length)
+{
+  return crc32_calculate(0, data, length);
+}
+
 /*deflate & zlib. If disabled, you must specify alternative zlib functions in
 the custom_zlib field of the compress and decompress settings*/
 #ifndef LODEPNG_NO_COMPILE_ZLIB

@@ -215,7 +215,7 @@ void slideByte(sCompressInfo* a_pInfo, const u8* a_pSrc) {
     }
 }
 
-inline void slide(sCompressInfo* a_pInfo, const u8* a_pSrc, int a_nSize) {
+static inline void slide(sCompressInfo* a_pInfo, const u8* a_pSrc, int a_nSize) {
     for (int i = 0; i < a_nSize; i++) {
         slideByte(a_pInfo, a_pSrc--);
     }
