@@ -26,6 +26,17 @@ u32 HID_ReadRawTouchState(void);
 bool HID_ReadTouchState(u16 *x, u16 *y);
 bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, int screen_w, int screen_h);
 
+typedef struct {
+    u16 x;
+    u16 y;
+    u16 w;
+    u16 h;
+    u32 id; // shouldn't be zero
+} __attribute__((packed)) TouchBox;
+
+// abstraction for HID_ReadTouchState, also returns touchbox id (if any)
+bool TouchBoxGet(u16* x, u16* y, u32* id, const TouchBox* tbs, const u32 tbn);
+
 u32 InputWait(u32 timeout_sec);
 bool CheckButton(u32 button);
 
