@@ -48,7 +48,7 @@ allow implementing a custom lodepng_crc32.
 #include "crc32.h"
 static inline unsigned lodepng_crc32(const unsigned char *data, size_t length)
 {
-  return crc32_calculate(0, data, length);
+  return crc32_calculate(0xffffffffu, data, length) ^ 0xffffffffu;
 }
 
 /*deflate & zlib. If disabled, you must specify alternative zlib functions in
