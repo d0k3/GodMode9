@@ -38,7 +38,7 @@ typedef struct {
     u8 ticket_padding[0x40 - (TICKET_SIZE % 0x40)];
     TitleMetaData tmd;
     TmdContentChunk content_list[TMD_MAX_CONTENTS];
-} __attribute__((packed)) CiaStub;
+} __attribute__((packed, aligned(16))) CiaStub;
 
 typedef struct { // first 0x20 bytes are identical with CIA header
     u32 size_header;

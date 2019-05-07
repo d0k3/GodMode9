@@ -22,13 +22,13 @@ typedef struct {
     u8 type[2];
     u8 size[8];
     u8 hash[0x20];
-} __attribute__((packed)) TmdContentChunk;
+} __attribute__((packed, aligned(4))) TmdContentChunk;
 
 typedef struct {
     u8 index[2];
     u8 cmd_count[2];
     u8 hash[0x20];
-} __attribute__((packed)) TmdContentInfo;
+} __attribute__((packed, aligned(4))) TmdContentInfo;
 
 typedef struct {
     u8 sig_type[4];
@@ -55,7 +55,7 @@ typedef struct {
     u8 reserved3[2];
     u8 contentinfo_hash[0x20];
     TmdContentInfo contentinfo[64];
-} __attribute__((packed)) TitleMetaData;
+} __attribute__((packed, aligned(16))) TitleMetaData;
 
 u32 ValidateTmd(TitleMetaData* tmd);
 u32 ValidateTmdSignature(TitleMetaData* tmd);

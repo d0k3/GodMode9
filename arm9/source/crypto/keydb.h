@@ -24,7 +24,7 @@ typedef struct {
     u8   keyUnitType; // 0 for ALL units / 1 for devkit exclusive / 2 for retail exclusive
     u8   isEncrypted; // 0 if not / anything else if it is
     u8   key[16];
-} __attribute__((packed)) AesKeyInfo;
+} __attribute__((packed)) __attribute__((aligned(16))) AesKeyInfo;
 
 u32 GetUnitKeysType(void);
 void CryptAesKeyInfo(AesKeyInfo* info);

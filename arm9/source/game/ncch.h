@@ -54,7 +54,7 @@ typedef struct {
     u64 aci_limit_title_id;
     u32 aci_limit_core_version;
     u8  aci_limit_data[0x200 - 0xC];
-} __attribute__((packed)) NcchExtHeader;
+} __attribute__((packed, aligned(16))) NcchExtHeader;
 
 // see: https://www.3dbrew.org/wiki/NCCH#NCCH_Header
 typedef struct {

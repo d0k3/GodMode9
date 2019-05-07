@@ -2403,7 +2403,7 @@ u32 BuildSeedInfo(const char* path, bool dump) {
     char path_str[128];
     if (path_in && (strnlen(path_in, 16) == 2)) { // when only a drive is given...
         // grab the key Y from movable.sed
-        u8 movable_keyy[16];
+        u8 movable_keyy[16] __attribute__((aligned(4)));
         snprintf(path_str, 128, "%s/private/movable.sed", path_in);
         if (fvx_qread(path_str, movable_keyy, 0x110, 0x10, NULL) != FR_OK)
             return 1;

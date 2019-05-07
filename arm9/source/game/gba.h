@@ -86,7 +86,7 @@ typedef struct {
     u8 checksum;     // header checksum, required
     u8 reserved[2];  // always 0x00
     // stuff for multiboot not included
-} __attribute__((packed)) AgbHeader;
+} __attribute__((packed, aligned(16))) AgbHeader;
 
 
 u32 ValidateAgbSaveHeader(AgbSaveHeader* header);

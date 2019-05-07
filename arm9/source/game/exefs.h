@@ -13,6 +13,6 @@ typedef struct {
     ExeFsFileHeader files[10];
     u8 reserved[0x20];
     u8 hashes[10][0x20];
-} __attribute__((packed)) ExeFsHeader;
+} __attribute__((packed, aligned(16))) ExeFsHeader;
 
 u32 ValidateExeFsHeader(ExeFsHeader* exefs, u32 size);

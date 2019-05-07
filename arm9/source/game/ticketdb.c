@@ -54,7 +54,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
 
 Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls) {
     // chunk must be aligned to 0x200 byte in file and at least 0x400 byte big
-    Ticket* tick = (Ticket*) (chunk + 0x18);
+    Ticket* tick = (Ticket*) (void*) (chunk + 0x18);
     if ((getle32(chunk + 0x10) == 0) || (getle32(chunk + 0x14) != sizeof(Ticket))) return NULL;
     if (ValidateTicket(tick) != 0) return NULL; // ticket not validated
     if (title_id && (memcmp(title_id, tick->title_id, 8) != 0)) return NULL; // title id not matching

@@ -402,7 +402,7 @@ void upd_var(const char* name) {
         if (!name || (strncmp(name, env_id0_name, _VAR_NAME_LEN) == 0)) {
             const char* path = emu ? "4:/private/movable.sed" : "1:/private/movable.sed";
             char env_id0[32+1];
-            u8 sd_keyy[0x10];
+            u8 sd_keyy[0x10] __attribute__((aligned(4)));
             if (FileGetData(path, sd_keyy, 0x10, 0x110) == 0x10) {
                 u32 sha256sum[8];
                 sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);

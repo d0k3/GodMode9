@@ -41,7 +41,7 @@ typedef struct {
     u8 reserved3[2];
     u8 timelimits[0x40];
     u8 content_index[0xAC];
-} __attribute__((packed)) Ticket;
+} __attribute__((packed, aligned(16))) Ticket;
 
 u32 ValidateTicket(Ticket* ticket);
 u32 ValidateTicketSignature(Ticket* ticket);

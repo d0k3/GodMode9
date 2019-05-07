@@ -160,7 +160,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     else if (!cmac_type) return 1;
     
     const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
-    u8 hashdata[0x200]; 
+    u8 hashdata[0x200] __attribute__((aligned(4))); 
     u32 keyslot = cmac_keyslot[cmac_type];
     u32 hashsize = 0;
     
@@ -247,7 +247,7 @@ u32 FixFileCmac(const char* path) {
 
 u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
     AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) data;
-    u8 temp[0x30]; // final hash @temp+0x00
+    u8 temp[0x30] __attribute__((aligned(4))); // final hash @temp+0x00
     
     // safety check
     if (ValidateAgbSaveHeader(agbsave) != 0)

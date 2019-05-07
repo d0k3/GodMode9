@@ -527,7 +527,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     }
     
     // check sector 0x96 on N3DS, offer fix if required
-    u8 sector0x96[0x200];
+    u8 sector0x96[0x200] __attribute__((aligned(4)));
     bool fix_sector0x96 = false;
     ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND);
     if (!IS_O3DS && !CheckSector0x96Crypto()) {
@@ -605,7 +605,7 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
 
 u32 SafeInstallKeyDb(const char* path) {
     const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
-    u8 keydb[KEYDB_PERFECT_SIZE];
+    u8 keydb[KEYDB_PERFECT_SIZE] __attribute__((aligned(4)));
     
     char pathstr[32 + 1]; // truncated path string
     TruncateString(pathstr, path, 32, 8);

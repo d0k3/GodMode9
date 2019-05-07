@@ -29,7 +29,7 @@ u32 ValidateAgbSaveHeader(AgbSaveHeader* header) {
 // http://problemkaputt.de/gbatek.htm#gbacartridgeheader
 u32 ValidateAgbHeader(AgbHeader* agb) {
     const u8 logo_sha[0x20] = { AGBLOGO_SHA256 };
-    u8 logo[0x9C];
+    u8 logo[0x9C] __attribute__((aligned(4)));
     
     // check fixed value
     if (agb->fixed != 0x96) return 1;
