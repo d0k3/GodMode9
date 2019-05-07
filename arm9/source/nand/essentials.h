@@ -17,7 +17,7 @@ typedef struct {
     u8 signature[0x100];
     u8 unknown[0x8]; // normally zero
     u8 codeseed[0x8]; // the actual data
-} __attribute__((packed)) LocalFriendCodeSeed;
+} __attribute__((packed, aligned(4))) LocalFriendCodeSeed;
 
 // /private/movable.sed file
 // see: http://3dbrew.org/wiki/Nand/private/movable.sed
@@ -28,7 +28,7 @@ typedef struct {
     u8 keyy_high[8];
     u8 unknown[0x10];
     u8 cmac[0x10];
-} __attribute__((packed)) MovableSed;
+} __attribute__((packed, aligned(4))) MovableSed;
 
 // /rw/sys/SecureInfo_A (/_B) file
 // see: http://3dbrew.org/wiki/Nandrw/sys/SecureInfo_A
@@ -37,7 +37,7 @@ typedef struct {
     u8 region;
     u8 unknown;
     char serial[0xF];
-} __attribute__((packed)) SecureInfo;
+} __attribute__((packed, aligned(4))) SecureInfo;
 
 // includes all essential system files
 // (this is of our own making)
@@ -58,4 +58,4 @@ typedef struct {
     u8 padding_hwcal0[0x200 - (SIZE_HWCAL%0x200)];
     u8 hwcal1[SIZE_HWCAL];
     u8 padding_hwcal1[0x200 - (SIZE_HWCAL%0x200)];
-} __attribute__((packed)) EssentialBackup;
+} __attribute__((packed, aligned(16))) EssentialBackup;

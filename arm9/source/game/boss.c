@@ -4,7 +4,7 @@
 
 // http://3dbrew.org/wiki/SpotPass#Content_Header
 u32 CheckBossHash(BossHeader* boss, bool encrypted) {
-    u8 hash_area[0x14] = { 0 };
+    u8 hash_area[0x14] __attribute__((aligned(4))) = { 0 };
     u8 boss_sha256[0x20];
     u8 l_sha256[0x20];
     

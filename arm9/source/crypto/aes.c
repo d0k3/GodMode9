@@ -1,11 +1,14 @@
 /* original version by megazig */
 #include "aes.h"
 
-//FIXME some things make assumptions about alignemnts!
-
+// FIXME some things make assumptions about alignemnts!
+// setup_aeskey? and set_ctr do not anymore (c) d0k3
 void setup_aeskeyX(uint8_t keyslot, const void* keyx)
 {
-    const uint32_t * _keyx = (const uint32_t*)keyx;
+    uint32_t _keyx[4] __attribute__((aligned(32)));
+    for (uint32_t i = 0; i < 16u; i++)
+        ((uint8_t*)_keyx)[i] = ((uint8_t*)keyx)[i];
+
     *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
     if (keyslot > 3) {
@@ -25,7 +28,10 @@ void setup_aeskeyX(uint8_t keyslot, const void* keyx)
 
 void setup_aeskeyY(uint8_t keyslot, const void* keyy)
 {
-    const uint32_t * _keyy = (const uint32_t*)keyy;
+    uint32_t _keyy[4] __attribute__((aligned(32)));
+    for (uint32_t i = 0; i < 16u; i++)
+        ((uint8_t*)_keyy)[i] = ((uint8_t*)keyy)[i];
+
     *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
     if (keyslot > 3) {
@@ -45,7 +51,10 @@ void setup_aeskeyY(uint8_t keyslot, const void* keyy)
 
 void setup_aeskey(uint8_t keyslot, const void* key)
 {
-    const uint32_t * _key = (const uint32_t*)key;
+    uint32_t _key[4] __attribute__((aligned(32)));
+    for (uint32_t i = 0; i < 16u; i++)
+        ((uint8_t*)_key)[i] = ((uint8_t*)key)[i];
+
     *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *REG_AESKEYCNT = (*REG_AESKEYCNT >> 6 << 6) | keyslot | 0x80;
     if (keyslot > 3) {
@@ -73,7 +82,10 @@ void use_aeskey(uint32_t keyno)
 
 void set_ctr(void* iv)
 {
-    uint32_t * _iv = (uint32_t*)iv;
+    uint32_t _iv[4] __attribute__((aligned(32)));
+    for (uint32_t i = 0; i < 16u; i++)
+        ((uint8_t*)_iv)[i] = ((uint8_t*)iv)[i];
+
     *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
     *(REG_AESCTR + 0) = _iv[3];
     *(REG_AESCTR + 1) = _iv[2];

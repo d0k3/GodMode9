@@ -52,7 +52,7 @@ u32 GetNcchCtr(u8* ctr, NcchHeader* ncch, u8 section) {
 }
 
 u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
-    static u8 lseed[16+8] = { 0 }; // seed plus title ID for easy validation
+    static u8 lseed[16+8] __attribute__((aligned(4))) = { 0 }; // seed plus title ID for easy validation
     u64 titleId = ncch->programId;
     u32 hash_seed = ncch->hash_seed;
     u32 sha256sum[8];
@@ -175,7 +175,7 @@ u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid) {
         static u8 lsignature[16] = { 0 };
         static u64 ltitleId = 0;
         if ((memcmp(lsignature, ncch->signature, 16) != 0) || (ltitleId != ncch->programId)) {
-            u8 keydata[16+16];
+            u8 keydata[16+16] __attribute__((aligned(4)));
             memcpy(keydata, ncch->signature, 16);
             if (GetNcchSeed(keydata + 16, ncch) != 0)
                 return 1;
