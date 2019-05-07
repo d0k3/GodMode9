@@ -14,10 +14,7 @@ void sha_init(u32 mode)
 
 void sha_update(const void* src, u32 size)
 {    
-    u32 _src32[4] __attribute__((aligned(32)));
-    u32* src32 = _src32;
-    for (u32 i = 0; i < 16u; i++)
-        ((u8*)_src32)[i] = ((u8*)src)[i];
+    const u32* src32 = (const u32*)src;
     
     while(size >= 0x40) {
         while(*REG_SHACNT & 1);
