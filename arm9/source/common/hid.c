@@ -106,21 +106,20 @@ bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, in
     return true;
 }
 
-bool TouchBoxGet(u16* x, u16* y, u32* id, const TouchBox* tbs, const u32 tbn) {
-    *id = 0;
-
-    // read coordinates, check if inside touchbox
-    if (!HID_ReadTouchState(x, y)) return false;
-    for (u32 i = 0; i < tbn; i++) {
+TouchBox* TouchBoxGet(u32* id, const u16 x, const u16 y, const TouchBox* tbs, const u32 tbn) {
+    // check if inside touchbox
+    for (u32 i = 0; !tbn || (i < tbn); i++) {
         const TouchBox* tb = tbs + i;
-        if ((*x >= tb->x) && (*y >= tb->y) &&
-            (*x < tb->x + tb->w) && (*y < tb->y + tb->h)) {
-            *id = tb->id;
-            break;
+        if (tb->id == 0) break;
+        if ((x >= tb->x) && (y >= tb->y) &&
+            (x < tb->x + tb->w) && (y < tb->y + tb->h)) {
+            if (id) *id = tb->id;
+            return tb;
         }
     }
 
-    return true;
+    if (id) *id = 0;
+    return NULL;
 }
 
 u32 InputWait(u32 timeout_sec) {
