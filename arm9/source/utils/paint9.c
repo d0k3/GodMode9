@@ -169,9 +169,10 @@ u32 Paint9(void) {
 
         u16 tx, ty;
         u32 tb_id;
-        while (TouchBoxGet(&tx, &ty, &tb_id, paint9_boxes, 8)) {
+        while (HID_ReadTouchState(&tx, &ty)) {
             DrawStringF(TOP_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
                 "Touchscreen coordinates (%d/%d)    ", tx, ty);
+            TouchBoxGet(&tb_id, tx, ty, paint9_boxes, 8);
             if (tb_id == P9BOX_CANVAS) {
                 Paint9_DrawBrush(tx, ty, color, COLOR_TRANSPARENT, brush_id);
                 continue;
