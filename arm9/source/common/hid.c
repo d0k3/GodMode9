@@ -106,7 +106,7 @@ bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, in
     return true;
 }
 
-TouchBox* TouchBoxGet(u32* id, const u16 x, const u16 y, const TouchBox* tbs, const u32 tbn) {
+const TouchBox* TouchBoxGet(u32* id, const u16 x, const u16 y, const TouchBox* tbs, const u32 tbn) {
     // check if inside touchbox
     for (u32 i = 0; !tbn || (i < tbn); i++) {
         const TouchBox* tb = tbs + i;
@@ -114,7 +114,7 @@ TouchBox* TouchBoxGet(u32* id, const u16 x, const u16 y, const TouchBox* tbs, co
         if ((x >= tb->x) && (y >= tb->y) &&
             (x < tb->x + tb->w) && (y < tb->y + tb->h)) {
             if (id) *id = tb->id;
-            return tb;
+            return tb; // we know const is discarded here
         }
     }
 

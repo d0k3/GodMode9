@@ -35,7 +35,7 @@ typedef struct {
 } TouchBox;
 
 // abstraction for HID_ReadTouchState, also returns touchbox id (if any)
-TouchBox* TouchBoxGet(u32* id, const u16 x, const u16 y, const TouchBox* tbs, const u32 tbn);
+const TouchBox* TouchBoxGet(u32* id, const u16 x, const u16 y, const TouchBox* tbs, const u32 tbn);
 
 u32 InputWait(u32 timeout_sec);
 bool CheckButton(u32 button);

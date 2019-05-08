@@ -4,6 +4,7 @@
 #include "support.h"
 #include "ui.h"
 #include "hid.h"
+#include "swkbd.h"
 #include "touchcal.h"
 #include "fs.h"
 #include "utils.h"
@@ -2048,7 +2049,7 @@ u32 GodMode(int entrypoint) {
     
     InitSDCardFS();
     AutoEmuNandBase(true);
-    InitNandCrypto(entrypoint != ENTRY_B9S);
+    InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
     CalibrateTouchFromFlash(); // !!! this may need some further checking
     
@@ -2528,8 +2529,8 @@ u32 GodMode(int entrypoint) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
                 else if (user_select == test) {
-                    const char* testopts[2] = { "Calibrate touchscreen", "Touchscreen playground" };
-                    u32 testsel = ShowSelectPrompt(2, testopts, "Testing menu.\nSelect action:", buttonstr);
+                    const char* testopts[3] = { "Calibrate touchscreen", "Touchscreen playground", "Software keyboard" };
+                    u32 testsel = ShowSelectPrompt(3, testopts, "Testing menu.\nSelect action:", buttonstr);
                     if (testsel == 1) {
                         ShowPrompt(false, "Touchscreen calibration %s!",
                             (ShowTouchCalibrationDialog()) ? "success" : "failed");
@@ -2537,6 +2538,11 @@ u32 GodMode(int entrypoint) {
                     } else if (testsel == 2) {
                         // ShowTouchPlayground();
                         Paint9();
+                        break;
+                    } else if (testsel == 3) {
+                        char inputstr[64] = { 0 };
+                        if (ShowKeyboard(inputstr, 64, "Want to test the swkbd?\nEnter anything you want below:"))
+                            ShowPrompt(false, "You entered: %s", inputstr);
                         break;
                     }
                 } else if (user_select == scripts) {
