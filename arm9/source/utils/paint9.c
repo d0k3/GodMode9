@@ -2,7 +2,7 @@
 #include "hid.h"
 #include "ui.h"
 
-
+/*
 #define PAINT9_BRUSH_SIZE       15  // don't change!
 #define PAINT9_N_BRUSHES        6   // don't change!
 #define PAINT9_COLSEL_WIDTH     16
@@ -190,3 +190,6 @@ u32 Paint9(void) {
     ClearScreenF(true, true, COLOR_STD_BG);
     return 0;
 }
+*/
+
+u32 Paint9(void) { return 0; }

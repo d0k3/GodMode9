@@ -19,6 +19,9 @@ void main(int argc, char** argv, int entrypoint)
     // ARM11 says it's ready
     PXI_Barrier(ARM11_READY_BARRIER);
 
+    // Set screens to RGB16 mode
+    PXI_DoCMD(PXI_SET_VMODE, (u32[]){0}, 1);
+
     // A pointer to the shared memory region is
     // stored in the thread ID register in the ARM9
     ARM_InitSHMEM();

@@ -103,11 +103,12 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     // boot the FIRM (if we got a proper fixpath)
     if (*fixpath) {
         if (delete) PathDelete(bootpath);
+        PXI_DoCMD(PXI_SET_VMODE, (u32[]){1}, 1);
         PXI_DoCMD(PXI_LEGACY_MODE, NULL, 0);
         BootFirm((FirmHeader*) firm, fixpath);
         while(1);
     }
-    
+
     // a return was not intended
     free(firm);
     return 1;
@@ -674,7 +675,7 @@ u32 FileHexViewer(const char* path) {
             u32 y = row * (FONT_HEIGHT_EXT + (2*vpad)) + vpad;
             u32 curr_pos = row * cols;
             u32 cutoff = (curr_pos >= total_data) ? 0 : (total_data >= curr_pos + cols) ? cols : total_data - curr_pos;
-            u8* screen = TOP_SCREEN;
+            u16* screen = TOP_SCREEN;
             u32 x0 = 0;
             
             // marked offsets handling

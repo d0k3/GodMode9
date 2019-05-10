@@ -93,16 +93,16 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
 bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
     u32 w, h;
     u8* ptr = NULL;
-    
+
     if (!pbm) {
         u64 pbm_size64 = 0;
         pbm = FindVTarFileInfo(VRAM0_FONT_PBM, &pbm_size64);
         pbm_size = (u32) pbm_size64;
     }
-    
+
     if (pbm)
         ptr = GetFontFromPbm(pbm, pbm_size, &w, &h);
-    
+
     if (!ptr) {
         return false;
     } else if (w > 8) {
@@ -126,21 +126,20 @@ bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
         font_height = h / 256;
         memcpy(font_bin, ptr, h);
     }
-    
+
     line_height = min(10, font_height + 2);
     return true;
 }
 
-void ClearScreen(u8* screen, int color)
+void ClearScreen(u16* screen, int color)
 {
     int width = (screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT;
-    if (color == COLOR_TRANSPARENT) color = COLOR_BLACK;
-    if (!color) memset(screen, 0x00, (width * SCREEN_HEIGHT * 3));
-    else for (int i = 0; i < (width * SCREEN_HEIGHT); i++) {
-        *(screen++) = color >> 16;  // B
-        *(screen++) = color >> 8;   // G
-        *(screen++) = color & 0xFF; // R
-    }
+    if (color == COLOR_TRANSPARENT)
+        color = COLOR_BLACK;
+
+    color |= color << 16;
+    for (int i = 0; i < (width * SCREEN_HEIGHT); i++)
+        *(screen++) = color;
 }
 
 void ClearScreenF(bool clear_main, bool clear_alt, int color)
@@ -149,123 +148,108 @@ void ClearScreenF(bool clear_main, bool clear_alt, int color)
     if (clear_alt) ClearScreen(ALT_SCREEN, color);
 }
 
-u32 GetColor(u8* screen, int x, int y)
+u16 GetColor(u16* screen, int x, int y)
 {
-    u32 color = 0;
-    int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
-    int yDisplacement = ((SCREEN_HEIGHT - y - 1) * BYTES_PER_PIXEL);
-    u8* screenPos = screen + xDisplacement + yDisplacement;
-    color |= (*(screenPos + 0) << 16 );  // B
-    color |= (*(screenPos + 1) <<  8 );  // G
-    color |= (*(screenPos + 2) <<  0 );  // R
-    return color;
+    int xDisplacement = x * SCREEN_HEIGHT;
+    int yDisplacement = SCREEN_HEIGHT - y - 1;
+    return screen[xDisplacement + yDisplacement];
 }
 
-void DrawPixel(u8* screen, int x, int y, int color)
+void DrawPixel(u16* screen, int x, int y, int color)
 {
-    int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
-    int yDisplacement = ((SCREEN_HEIGHT - y - 1) * BYTES_PER_PIXEL);
-    u8* screenPos = screen + xDisplacement + yDisplacement;
-    *(screenPos + 0) = color >> 16;  // B
-    *(screenPos + 1) = color >> 8;   // G
-    *(screenPos + 2) = color & 0xFF; // R
+    int xDisplacement = x * SCREEN_HEIGHT;
+    int yDisplacement = SCREEN_HEIGHT - y - 1;
+    screen[xDisplacement + yDisplacement] = color;
 }
 
-void DrawRectangle(u8* screen, int x, int y, int width, int height, int color)
+void DrawRectangle(u16* screen, int x, int y, int width, int height, int color)
 {
     for (int yy = 0; yy < height; yy++) {
-        int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
-        int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
-        u8* screenPos = screen + xDisplacement + yDisplacement;
+        int xDisplacement = x * SCREEN_HEIGHT;
+        int yDisplacement = (SCREEN_HEIGHT - (y + yy) - 1);
+        u16* screenPos = screen + xDisplacement + yDisplacement;
         for (int xx = width - 1; xx >= 0; xx--) {
-            *(screenPos + 0) = color >> 16;  // B
-            *(screenPos + 1) = color >> 8;   // G
-            *(screenPos + 2) = color & 0xFF; // R
-            screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
+            *screenPos = color;
+            screenPos += SCREEN_HEIGHT;
         }
     }
 }
 
-void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap)
+void DrawBitmap(u16* screen, int x, int y, int w, int h, const u8* bitmap)
 {
     // on negative values: center the bitmap
     if (x < 0) x = (SCREEN_WIDTH(screen) - w) >> 1;
     if (y < 0) y = (SCREEN_HEIGHT - h) >> 1;
-    
+
     // bug out on too big bitmaps / too large dimensions
     if ((x < 0) || (y < 0) || (w > SCREEN_WIDTH(screen)) || (h > SCREEN_HEIGHT))
         return;
-    
-    u8* bitmapPos = bitmap;
+
     for (int yy = 0; yy < h; yy++) {
-        int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
-        int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
-        u8* screenPos = screen + xDisplacement + yDisplacement;
+        int xDisplacement = x * SCREEN_HEIGHT;
+        int yDisplacement = SCREEN_HEIGHT - (y + yy) - 1;
+        u16* screenPos = screen + xDisplacement + yDisplacement;
         for (int xx = 0; xx < w; xx++) {
-            memcpy(screenPos, bitmapPos, BYTES_PER_PIXEL);
-            bitmapPos += BYTES_PER_PIXEL;
-            screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
+            *(screenPos) = RGB(bitmap[2], bitmap[1], bitmap[0]);
+            bitmap += 3;
+            screenPos += SCREEN_HEIGHT;
         }
     }
 }
 
-void DrawQrCode(u8* screen, u8* qrcode)
+void DrawQrCode(u16* screen, const u8* qrcode)
 {
     const u32 size_qr = qrcodegen_getSize(qrcode);
     u32 size_qr_s = size_qr;
     u32 size_canvas = size_qr + 8;
-    
+
     // handle scaling
     u32 scale = 1;
     for (; size_canvas * (scale+1) < SCREEN_HEIGHT; scale++);
     size_qr_s *= scale;
     size_canvas *= scale;
-    
+
     // clear screen, draw the canvas
     u32 x_canvas = (SCREEN_WIDTH(screen) - size_canvas) / 2;
     u32 y_canvas = (SCREEN_HEIGHT - size_canvas) / 2;
     ClearScreen(screen, COLOR_STD_BG);
     DrawRectangle(screen, x_canvas, y_canvas, size_canvas, size_canvas, COLOR_WHITE);
-    
+
     // draw the QR code
     u32 x_qr = (SCREEN_WIDTH(screen) - size_qr_s) / 2;
     u32 y_qr = (SCREEN_HEIGHT - size_qr_s) / 2;
-    int xDisplacement = (x_qr * BYTES_PER_PIXEL * SCREEN_HEIGHT);
+    int xDisplacement = x_qr * SCREEN_HEIGHT;
     for (u32 y = 0; y < size_qr_s; y++) {
-        int yDisplacement = ((SCREEN_HEIGHT - (y_qr + y) - 1) * BYTES_PER_PIXEL);
-        u8* screenPos = screen + xDisplacement + yDisplacement;
+        int yDisplacement = SCREEN_HEIGHT - (y_qr + y) - 1;
+        u16* screenPos = screen + xDisplacement + yDisplacement;
         for (u32 x = 0; x < size_qr_s; x++) {
-            u8 c = qrcodegen_getModule(qrcode, x/scale, y/scale) ? 0x00 : 0xFF;
-            memset(screenPos, c, BYTES_PER_PIXEL);
-            screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
+            u8 c = qrcodegen_getModule(qrcode, x/scale, y/scale) ? COLOR_WHITE : COLOR_BLACK;
+            *(screenPos) = c;
+            screenPos += SCREEN_HEIGHT;
         }
     }
 }
 
-void DrawCharacter(u8* screen, int character, int x, int y, int color, int bgcolor)
+void DrawCharacter(u16* screen, int character, int x, int y, int color, int bgcolor)
 {
     for (int yy = 0; yy < (int) font_height; yy++) {
-        int xDisplacement = (x * BYTES_PER_PIXEL * SCREEN_HEIGHT);
-        int yDisplacement = ((SCREEN_HEIGHT - (y + yy) - 1) * BYTES_PER_PIXEL);
-        u8* screenPos = screen + xDisplacement + yDisplacement;
+        int xDisplacement = x * SCREEN_HEIGHT;
+        int yDisplacement = SCREEN_HEIGHT - (y + yy) - 1;
+        u16* screenPos = screen + xDisplacement + yDisplacement;
 
         u8 charPos = font_bin[character * font_height + yy];
         for (int xx = 7; xx >= (8 - (int) font_width); xx--) {
             if ((charPos >> xx) & 1) {
-                *(screenPos + 0) = color >> 16;  // B
-                *(screenPos + 1) = color >> 8;   // G
-                *(screenPos + 2) = color & 0xFF; // R
+                *screenPos = color;
             } else if (bgcolor != COLOR_TRANSPARENT) {
-                *(screenPos + 0) = bgcolor >> 16;  // B
-                *(screenPos + 1) = bgcolor >> 8;   // G
-                *(screenPos + 2) = bgcolor & 0xFF; // R
+                *screenPos = bgcolor;
             }
-            screenPos += BYTES_PER_PIXEL * SCREEN_HEIGHT;
+            screenPos += SCREEN_HEIGHT;
         }
     }
 }
 
-void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8)
+void DrawString(u16* screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8)
 {
     size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / font_width;
     size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
@@ -275,7 +259,7 @@ void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolo
     }
 }
 
-void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *format, ...)
+void DrawStringF(u16* screen, int x, int y, int color, int bgcolor, const char *format, ...)
 {
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
@@ -287,19 +271,19 @@ void DrawStringF(u8* screen, int x, int y, int color, int bgcolor, const char *f
         DrawString(screen, text, x, y, color, bgcolor, true);
 }
 
-void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ...)
+void DrawStringCenter(u16* screen, int color, int bgcolor, const char *format, ...)
 {
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
     va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
-    
+
     u32 w = GetDrawStringWidth(str);
     u32 h = GetDrawStringHeight(str);
     int x = (w >= SCREEN_WIDTH(screen)) ? 0 : (SCREEN_WIDTH(screen) - w) >> 1;
     int y = (h >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - h) >> 1;
-    
+
     DrawStringF(screen, x, y, color, bgcolor, "%s", str);
 }
 
@@ -418,16 +402,16 @@ void ShowIconString(u8* icon, int w, int h, const char *format, ...)
     static const u32 icon_offset = 10;
     u32 str_width, str_height, tot_height;
     u32 x_str, y_str, x_bmp, y_bmp;
-    
+
     ClearScreenF(true, false, COLOR_STD_BG);
     if (!format || !*format) return; // only if there is something in there
-    
+
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
     va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
-    
+
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str);
     tot_height = h + icon_offset + str_height;
@@ -435,7 +419,7 @@ void ShowIconString(u8* icon, int w, int h, const char *format, ...)
     y_str = (str_height >= SCREEN_HEIGHT) ? 0 : h + icon_offset + (SCREEN_HEIGHT - tot_height) / 2;
     x_bmp = (w >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - w) / 2;
     y_bmp = (tot_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - tot_height) / 2;
-    
+
     DrawBitmap(MAIN_SCREEN, x_bmp, y_bmp, w, h, icon);
     DrawStringF(MAIN_SCREEN, x_str, y_str, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
 }
@@ -443,17 +427,17 @@ void ShowIconString(u8* icon, int w, int h, const char *format, ...)
 bool ShowPrompt(bool ask, const char *format, ...)
 {
     bool ret = true;
-    
+
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
     va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
-    
+
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s\n \n%s", str,
         (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
-    
+
     while (true) {
         u32 pad_state = InputWait(0);
         if (pad_state & BUTTON_A) break;
@@ -462,50 +446,49 @@ bool ShowPrompt(bool ask, const char *format, ...)
             break;
         }
     }
-    
+
     ClearScreenF(true, false, COLOR_STD_BG);
-    
     return ret;
 }
 
 #ifndef AUTO_UNLOCK
 #define PRNG (*(volatile u32*)0x10011000)
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
-    const int seqcolors[7] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN, COLOR_BRIGHTYELLOW,
+    static const int seqcolors[7] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN, COLOR_BRIGHTYELLOW,
         COLOR_ORANGE, COLOR_BRIGHTBLUE, COLOR_RED, COLOR_DARKRED };
     const u32 seqlen_max = 7;
     const u32 seqlen = seqlen_max - ((seqlvl < 3) ? 2 : (seqlvl < 4) ? 1 : 0);
-    
-    
+
+
     u32 color_bg = COLOR_STD_BG;
     u32 color_font = COLOR_STD_FONT;
     u32 color_off = COLOR_GREY;
     u32 color_on = seqcolors[seqlvl];
     u32 lvl = 0;
-    
+
     u32 str_width, str_height;
     u32 x, y;
-    
-    
+
+
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
     va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
-    
+
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str) + (4*line_height);
     if (str_width < 24 * font_width) str_width = 24 * font_width;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
-    
+
     if (seqlvl >= 6) { // special handling
         color_bg = seqcolors[seqlvl];
         color_font = COLOR_BLACK;
         color_off = COLOR_BLACK;
         color_on = COLOR_DARKGREY;
     }
-    
+
     ClearScreenF(true, false, color_bg);
     DrawStringF(MAIN_SCREEN, x, y, color_font, color_bg, "%s", str);
     #ifndef TIMER_UNLOCK
