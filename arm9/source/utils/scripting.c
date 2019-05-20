@@ -1311,7 +1311,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "encrypt failed");
     }
     else if (id == CMD_ID_BUILDCIA) {
-        ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('n'))) == 0);
+        ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('l'))) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
     }
     else if (id == CMD_ID_EXTRCODE) {
