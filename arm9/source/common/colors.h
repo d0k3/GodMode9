@@ -1,7 +1,9 @@
 #pragma once
 
-
-#define RGB(r,g,b) ((int) ((b)<<16|(g)<<8|(r)))
+#define RGB(r,g,b) \
+	(((u32)(r) >> 3) << 11 | \
+	((u32)(g) >> 2) << 5 | \
+	((u32)(b) >> 3))
 
 // a base set of colors below
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)

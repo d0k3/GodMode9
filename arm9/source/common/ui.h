@@ -10,7 +10,7 @@
 #include "fsdir.h" // only required for ShowFileScrollPrompt
 
 
-#define BYTES_PER_PIXEL 3
+#define BYTES_PER_PIXEL 2
 #define SCREEN_HEIGHT 240
 #define SCREEN_WIDTH(s) ((s == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT)
 #define SCREEN_WIDTH_TOP 400
@@ -21,8 +21,8 @@
 #define FONT_WIDTH_EXT   GetFontWidth()
 #define FONT_HEIGHT_EXT  GetFontHeight()
 
-#define TOP_SCREEN          ((u8*)VRAM_TOP_LA)
-#define BOT_SCREEN          ((u8*)VRAM_BOT_A)
+#define TOP_SCREEN          ((u16*)VRAM_TOP_LA)
+#define BOT_SCREEN          ((u16*)VRAM_BOT_A)
 
 #ifdef SWITCH_SCREENS
 #define MAIN_SCREEN         TOP_SCREEN
@@ -48,19 +48,19 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h);
 bool SetFontFromPbm(const void* pbm, const u32 pbm_size);
 
-u32 GetColor(u8* screen, int x, int y);
+u16 GetColor(u16 *screen, int x, int y);
 
-void ClearScreen(unsigned char *screen, int color);
-void ClearScreenF(bool clear_main, bool clear_alt, int color);
-void DrawPixel(u8* screen, int x, int y, int color);
-void DrawRectangle(u8* screen, int x, int y, int width, int height, int color);
-void DrawBitmap(u8* screen, int x, int y, int w, int h, u8* bitmap);
-void DrawQrCode(u8* screen, u8* qrcode);
+void ClearScreen(u16 *screen, u32 color);
+void ClearScreenF(bool clear_main, bool clear_alt, u32 color);
+void DrawPixel(u16 *screen, int x, int y, int color);
+void DrawRectangle(u16 *screen, int x, int y, int width, int height, int color);
+void DrawBitmap(u16 *screen, int x, int y, int w, int h, const u8* bitmap);
+void DrawQrCode(u16 *screen, const u8* qrcode);
 
-void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
-void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8);
-void DrawStringF(unsigned char *screen, int x, int y, int color, int bgcolor, const char *format, ...);
-void DrawStringCenter(u8* screen, int color, int bgcolor, const char *format, ...);
+void DrawCharacter(u16 *screen, int character, int x, int y, int color, int bgcolor);
+void DrawString(u16 *screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8);
+void DrawStringF(u16 *screen, int x, int y, int color, int bgcolor, const char *format, ...);
+void DrawStringCenter(u16 *screen, int color, int bgcolor, const char *format, ...);
 
 u32 GetDrawStringHeight(const char* str);
 u32 GetDrawStringWidth(const char* str);

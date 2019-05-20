@@ -90,6 +90,15 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 			break;
 		}
 
+		case PXI_SET_VMODE:
+		{
+			int mode = args[0] ? PDC_RGB24 : PDC_RGB565;
+			GPU_SetFramebufferMode(0, mode);
+			GPU_SetFramebufferMode(1, mode);
+			ret = 0;
+			break;
+		}
+
 		case PXI_I2C_READ:
 		{
 			ARM_InvDC_Range((void*)args[2], args[3]);
