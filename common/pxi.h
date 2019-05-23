@@ -39,6 +39,7 @@ enum {
 	PXI_NVRAM_READ,
 
 	PXI_NOTIFY_LED,
+	PXI_BRIGHTNESS,
 };
 
 /*

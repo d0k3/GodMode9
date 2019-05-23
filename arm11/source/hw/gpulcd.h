@@ -22,6 +22,8 @@
 #define VBLANK_INTERRUPT	(0x2A)
 
 void LCD_SetBrightness(u8 brightness);
+u8 LCD_GetBrightness(void);
+
 void LCD_Deinitialize(void);
 
 void GPU_PSCFill(u32 start, u32 end, u32 fv);

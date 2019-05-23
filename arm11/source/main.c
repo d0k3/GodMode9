@@ -34,6 +34,7 @@
 
 static GlobalSharedMemory SharedMemory_State;
 
+#ifndef FIXED_BRIGHTNESS
 static const u8 brightness_lvls[] = {
 	0x10, 0x17, 0x1E, 0x25,
 	0x2C, 0x34, 0x3C, 0x44,
@@ -41,14 +42,19 @@ static const u8 brightness_lvls[] = {
 	0x79, 0x8C, 0xA7, 0xD2
 };
 static int prev_bright_lvl = -1;
+#endif
+
+static bool auto_brightness = true;
 
 void VBlank_Handler(u32 __attribute__((unused)) irqn)
 {
+	#ifndef FIXED_BRIGHTNESS
 	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2) % countof(brightness_lvls);
-	if (cur_bright_lvl != prev_bright_lvl) {
+	if ((cur_bright_lvl != prev_bright_lvl) && auto_brightness) {
 		prev_bright_lvl = cur_bright_lvl;
 		LCD_SetBrightness(brightness_lvls[cur_bright_lvl]);
 	}
+	#endif
 
 	// the state should probably be stored on its own
 	// setion without caching enabled, since it must
@@ -58,7 +64,7 @@ void VBlank_Handler(u32 __attribute__((unused)) irqn)
 	ARM_DMB();
 }
 
-static bool legacy = false;
+static bool legacy_boot = false;
 
 void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 {
@@ -79,7 +85,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 		case PXI_LEGACY_MODE:
 		{
 			// TODO: If SMP is enabled, an IPI should be sent here (with a DSB)
-			legacy = true;
+			legacy_boot = true;
 			ret = 0;
 			break;
 		}
@@ -139,6 +145,18 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 			break;
 		}
 
+		case PXI_BRIGHTNESS:
+		{
+			ret = LCD_GetBrightness();
+			if (args[0] && (args[0] < 0x100)) {
+				LCD_SetBrightness(args[0]);
+				auto_brightness = false;
+			} else {
+				auto_brightness = true;
+			}
+			break;
+		}
+
 		/* New CMD template:
 		case CMD_ID:
 		{
@@ -159,6 +177,10 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 void __attribute__((noreturn)) MainLoop(void)
 {
+	#ifdef FIXED_BRIGHTNESS
+	LCD_SetBrightness(FIXED_BRIGHTNESS);
+	#endif
+
 	// enable PXI RX interrupt
 	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 2, PXI_RX_Handler);
 
@@ -174,7 +196,7 @@ void __attribute__((noreturn)) MainLoop(void)
 	// Process IRQs until the ARM9 tells us it's time to boot something else
 	do {
 		ARM_WFI();
-	} while(!legacy);
+	} while(!legacy_boot);
 
 	SYS_CoreZeroShutdown();
 	SYS_CoreShutdown();

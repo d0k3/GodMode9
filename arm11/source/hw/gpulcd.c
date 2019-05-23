@@ -29,6 +29,11 @@ void LCD_SetBrightness(u8 brightness)
 	*REG_LCD(0xA40) = brightness;
 }
 
+u8 LCD_GetBrightness(void)
+{
+	return *REG_LCD(0x240);
+}
+
 void LCD_Initialize(u8 brightness)
 {
 	*REG_LCD(0x014) = 0x00000001;
