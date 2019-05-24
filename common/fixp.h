@@ -37,7 +37,7 @@ typedef int32_t fixp_t;
 #define FIXP_ZERO_UNIT	(0)
 
 #define FIXP_FRAC_MASK	(FIXP_WHOLE_UNIT - 1)
-#define FIXP_UNIT_MASK	(~0 & ~FIXP_FRAC_MASK)
+#define FIXP_UNIT_MASK	(~FIXP_FRAC_MASK)
 
 static inline fixp_t fixp_product(fixp_t a, fixp_t b)
 {

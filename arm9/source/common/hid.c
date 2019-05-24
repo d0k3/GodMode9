@@ -41,30 +41,34 @@ static fixp_t ts_mult[2];
 
 // ts_org indicates the coordinate system origin
 static int ts_org[2];
-bool HID_ReadTouchState(u16 *x, u16 *y)
-{
-    u32 ts;
-    int xc, yc;
-    fixp_t tx, ty;
 
-    ts = HID_ReadRawTouchState();
+bool HID_TouchCalibratedTransform(u32 ts, u16 *x, u16 *y)
+{
+    int xc, yc;
+    int tx, ty;
+
     if (ts & BIT(31))
         return false;
 
-    tx = INT_TO_FIXP(HID_RAW_TX(ts) - HID_TOUCH_MIDPOINT);
-    ty = INT_TO_FIXP(HID_RAW_TY(ts) - HID_TOUCH_MIDPOINT);
+    tx = HID_RAW_TX(ts) - HID_TOUCH_MIDPOINT;
+    ty = HID_RAW_TY(ts) - HID_TOUCH_MIDPOINT;
 
-    xc = FIXP_TO_INT(fixp_round(fixp_product(tx, ts_mult[0]))) + ts_org[0];
-    yc = FIXP_TO_INT(fixp_round(fixp_product(ty, ts_mult[1]))) + ts_org[1];
+    xc = FIXP_TO_INT(fixp_round(tx * ts_mult[0])) + ts_org[0];
+    yc = FIXP_TO_INT(fixp_round(ty * ts_mult[1])) + ts_org[1];
 
     *x = clamp(xc, 0, (ts_org[0] * 2) - 1);
     *y = clamp(yc, 0, (ts_org[1] * 2) - 1);
     return true;
 }
 
-bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, int screen_w, int screen_h)
+bool HID_ReadTouchState(u16 *x, u16 *y)
 {
-    int mid_x, mid_y;
+    return HID_TouchCalibratedTransform(HID_ReadRawTouchState(), x, y);
+}
+
+bool HID_SetCalibrationData(const HID_CalibrationData *calibs, u32 point_cnt, u32 screen_w, u32 screen_h)
+{
+    u32 mid_x, mid_y;
     fixp_t avg_x, avg_y;
 
     if (!screen_w || !screen_h || point_cnt <= 0 || point_cnt > 7)
@@ -75,8 +79,7 @@ bool HID_SetCalibrationData(const HID_CalibrationData *calibs, int point_cnt, in
 
     avg_x = 0;
     avg_y = 0;
-
-    for (int i = 0; i < point_cnt; i++) {
+    for (u32 i = 0; i < point_cnt; i++) {
         const HID_CalibrationData *data = &calibs[i];
         fixp_t screen_x, screen_y, touch_x, touch_y;
 
