@@ -46,9 +46,8 @@ _start:
     mcr p15, 0, r0, c5, c0, 3 @ write instruction access
 
     @ Set MPU regions and cache settings
-    ldr lr, =__mpu_regions
-    ldmia lr, {r0-r7}
-    mov lr, #0b00101000
+    ldr r0, =__mpu_regions
+    ldmia r0, {r0-r7}
     mcr p15, 0, r0, c6, c0, 0
     mcr p15, 0, r1, c6, c1, 0
     mcr p15, 0, r2, c6, c2, 0
@@ -57,9 +56,13 @@ _start:
     mcr p15, 0, r5, c6, c5, 0
     mcr p15, 0, r6, c6, c6, 0
     mcr p15, 0, r7, c6, c7, 0
-    mcr p15, 0, lr, c3, c0, 0	@ Write bufferable
-    mcr p15, 0, lr, c2, c0, 0	@ Data cacheable
-    mcr p15, 0, lr, c2, c0, 1	@ Inst cacheable
+
+    mov r0, #0b10101000 @ enable write buffer for VRAM
+    mcr p15, 0, r0, c3, c0, 0	@ Write bufferable
+
+    mov r0, #0b00101000
+    mcr p15, 0, r0, c2, c0, 0	@ Data cacheable
+    mcr p15, 0, r0, c2, c0, 1	@ Inst cacheable
 
     @ Enable DTCM
     ldr r0, =0x3000800A

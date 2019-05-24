@@ -52,15 +52,15 @@ u16 GetColor(u16 *screen, int x, int y);
 
 void ClearScreen(u16 *screen, u32 color);
 void ClearScreenF(bool clear_main, bool clear_alt, u32 color);
-void DrawPixel(u16 *screen, int x, int y, int color);
-void DrawRectangle(u16 *screen, int x, int y, int width, int height, int color);
-void DrawBitmap(u16 *screen, int x, int y, int w, int h, const u8* bitmap);
+void DrawPixel(u16 *screen, int x, int y, u32 color);
+void DrawRectangle(u16 *screen, int x, int y, u32 width, u32 height, u32 color);
+void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u8* bitmap);
 void DrawQrCode(u16 *screen, const u8* qrcode);
 
-void DrawCharacter(u16 *screen, int character, int x, int y, int color, int bgcolor);
-void DrawString(u16 *screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8);
-void DrawStringF(u16 *screen, int x, int y, int color, int bgcolor, const char *format, ...);
-void DrawStringCenter(u16 *screen, int color, int bgcolor, const char *format, ...);
+void DrawCharacter(u16 *screen, int character, int x, int y, u32 color, u32 bgcolor);
+void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor, bool fix_utf8);
+void DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *format, ...);
+void DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...);
 
 u32 GetDrawStringHeight(const char* str);
 u32 GetDrawStringWidth(const char* str);

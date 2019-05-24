@@ -25,19 +25,21 @@ static u32 font_height = 0;
 static u32 line_height = 0;
 static u8 font_bin[FONT_MAX_HEIGHT * 256];
 
+#define PIXEL_OFFSET(x, y)  (((x) * SCREEN_HEIGHT) + (SCREEN_HEIGHT - (y) - 1))
+
 
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     char* hdr = (char*) pbm;
     u32 hdr_max_size = min(512, pbm_size);
     u32 pbm_w = 0;
     u32 pbm_h = 0;
-    
+
     // minimum size
     if (hdr_max_size < 7) return NULL;
-    
+
     // check header magic, then skip over
     if (strncmp(hdr, "P4\n", 3) != 0) return NULL;
-    
+
     // skip any comments
     u32 p = 3;
     while (hdr[p] == '#') {
@@ -45,29 +47,29 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
             if (p >= hdr_max_size) return NULL;
         }
     }
-    
+
     // parse width
     while ((hdr[p] >= '0') && (hdr[p] <= '9')) {
         if (p >= hdr_max_size) return NULL;
         pbm_w *= 10;
         pbm_w += hdr[p++] - '0';
     }
-    
+
     // whitespace
     if ((hdr[p++] != ' ') || (p >= hdr_max_size))
         return NULL;
-    
+
     // parse height
     while ((hdr[p] >= '0') && (hdr[p] <= '9')) {
         if (p >= hdr_max_size) return NULL;
         pbm_h *= 10;
         pbm_h += hdr[p++] - '0';
     }
-    
+
     // line break
     if ((hdr[p++] != '\n') || (p >= hdr_max_size))
         return NULL;
-    
+
     // check sizes
     if (pbm_w <= 8) { // 1x256 format
         if ((pbm_w > FONT_MAX_WIDTH) || (pbm_h % 256) ||
@@ -81,7 +83,7 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
             ((pbm_h * pbm_w / 8) != (pbm_size - p)))
             return NULL;
     }
-    
+
     // all good
     if (w) *w = pbm_w;
     if (h) *h = pbm_h;
@@ -93,23 +95,23 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
 bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
     u32 w, h;
     u8* ptr = NULL;
-    
+
     if (!pbm) {
         u64 pbm_size64 = 0;
         pbm = FindVTarFileInfo(VRAM0_FONT_PBM, &pbm_size64);
         pbm_size = (u32) pbm_size64;
     }
-    
+
     if (pbm)
         ptr = GetFontFromPbm(pbm, pbm_size, &w, &h);
-    
+
     if (!ptr) {
         return false;
     } else if (w > 8) {
         font_width = w / 16;
         font_height = h / 16;
         memset(font_bin, 0x00, w * h / 8);
-        
+
         for (u32 cy = 0; cy < 16; cy++) {
             for (u32 row = 0; row < font_height; row++) {
                 for (u32 cx = 0; cx < 16; cx++) {
@@ -126,7 +128,7 @@ bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
         font_height = h / 256;
         memcpy(font_bin, ptr, h);
     }
-    
+
     line_height = min(10, font_height + 2);
     return true;
 }
@@ -151,50 +153,41 @@ void ClearScreenF(bool clear_main, bool clear_alt, u32 color)
 
 u16 GetColor(u16 *screen, int x, int y)
 {
-    int xDisplacement = x * SCREEN_HEIGHT;
-    int yDisplacement = SCREEN_HEIGHT - y - 1;
-    return screen[xDisplacement + yDisplacement];
+    return screen[PIXEL_OFFSET(x, y)];
 }
 
-void DrawPixel(u16 *screen, int x, int y, int color)
+void DrawPixel(u16 *screen, int x, int y, u32 color)
 {
-    int xDisplacement = x * SCREEN_HEIGHT;
-    int yDisplacement = SCREEN_HEIGHT - y - 1;
-    screen[xDisplacement + yDisplacement] = color;
+    screen[PIXEL_OFFSET(x, y)] = color;
 }
 
-void DrawRectangle(u16 *screen, int x, int y, int width, int height, int color)
+void DrawRectangle(u16 *screen, int x, int y, u32 width, u32 height, u32 color)
 {
-    for (int yy = 0; yy < height; yy++) {
-        int xDisplacement = x * SCREEN_HEIGHT;
-        int yDisplacement = (SCREEN_HEIGHT - (y + yy) - 1);
-        u16* screenPos = screen + xDisplacement + yDisplacement;
-        for (int xx = width - 1; xx >= 0; xx--) {
-            *screenPos = color;
-            screenPos += SCREEN_HEIGHT;
-        }
+    screen += PIXEL_OFFSET(x, y) - height;
+    while(width--) {
+        for (u32 h = 0; h < height; h++)
+            screen[h] = color;
+        screen += SCREEN_HEIGHT;
     }
 }
 
-void DrawBitmap(u16 *screen, int x, int y, int w, int h, const u8* bitmap)
+void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u8* bitmap)
 {
     // on negative values: center the bitmap
     if (x < 0) x = (SCREEN_WIDTH(screen) - w) >> 1;
     if (y < 0) y = (SCREEN_HEIGHT - h) >> 1;
-    
+
     // bug out on too big bitmaps / too large dimensions
     if ((x < 0) || (y < 0) || (w > SCREEN_WIDTH(screen)) || (h > SCREEN_HEIGHT))
         return;
 
-    for (int yy = 0; yy < h; yy++) {
-        int xDisplacement = x * SCREEN_HEIGHT;
-        int yDisplacement = SCREEN_HEIGHT - (y + yy) - 1;
-        u16 *screenPos = screen + xDisplacement + yDisplacement;
-        for (int xx = 0; xx < w; xx++) {
-            *(screenPos) = RGB(bitmap[2], bitmap[1], bitmap[0]);
+    screen += PIXEL_OFFSET(x, y);
+    while(h--) {
+        for (u32 i = 0; i < w; i++) {
+            screen[i * SCREEN_HEIGHT] = RGB(bitmap[2], bitmap[1], bitmap[0]);
             bitmap += 3;
-            screenPos += SCREEN_HEIGHT;
         }
+        screen--;
     }
 }
 
@@ -203,19 +196,19 @@ void DrawQrCode(u16 *screen, const u8* qrcode)
     const u32 size_qr = qrcodegen_getSize(qrcode);
     u32 size_qr_s = size_qr;
     u32 size_canvas = size_qr + 8;
-    
+
     // handle scaling
     u32 scale = 1;
     for (; size_canvas * (scale+1) < SCREEN_HEIGHT; scale++);
     size_qr_s *= scale;
     size_canvas *= scale;
-    
+
     // clear screen, draw the canvas
     u32 x_canvas = (SCREEN_WIDTH(screen) - size_canvas) / 2;
     u32 y_canvas = (SCREEN_HEIGHT - size_canvas) / 2;
     ClearScreen(screen, COLOR_STD_BG);
     DrawRectangle(screen, x_canvas, y_canvas, size_canvas, size_canvas, COLOR_WHITE);
-    
+
     // draw the QR code
     u32 x_qr = (SCREEN_WIDTH(screen) - size_qr_s) / 2;
     u32 y_qr = (SCREEN_HEIGHT - size_qr_s) / 2;
@@ -231,7 +224,7 @@ void DrawQrCode(u16 *screen, const u8* qrcode)
     }
 }
 
-void DrawCharacter(u16 *screen, int character, int x, int y, int color, int bgcolor)
+void DrawCharacter(u16 *screen, int character, int x, int y, u32 color, u32 bgcolor)
 {
     for (int yy = 0; yy < (int) font_height; yy++) {
         int xDisplacement = x * SCREEN_HEIGHT;
@@ -250,17 +243,18 @@ void DrawCharacter(u16 *screen, int character, int x, int y, int color, int bgco
     }
 }
 
-void DrawString(u16 *screen, const char *str, int x, int y, int color, int bgcolor, bool fix_utf8)
+void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor, bool fix_utf8)
 {
     size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / font_width;
     size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
+
     for (size_t i = 0; i < len; i++) {
         char c = (char) (fix_utf8 && str[i] >= 0x80) ? '?' : str[i]; 
         DrawCharacter(screen, c, x + i * font_width, y, color, bgcolor);
     }
 }
 
-void DrawStringF(u16 *screen, int x, int y, int color, int bgcolor, const char *format, ...)
+void DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *format, ...)
 {
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
@@ -272,19 +266,19 @@ void DrawStringF(u16 *screen, int x, int y, int color, int bgcolor, const char *
         DrawString(screen, text, x, y, color, bgcolor, true);
 }
 
-void DrawStringCenter(u16 *screen, int color, int bgcolor, const char *format, ...)
+void DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...)
 {
     char str[STRBUF_SIZE] = { 0 };
     va_list va;
     va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
-    
+
     u32 w = GetDrawStringWidth(str);
     u32 h = GetDrawStringHeight(str);
     int x = (w >= SCREEN_WIDTH(screen)) ? 0 : (SCREEN_WIDTH(screen) - w) >> 1;
     int y = (h >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - h) >> 1;
-    
+
     DrawStringF(screen, x, y, color, bgcolor, "%s", str);
 }
 
@@ -890,16 +884,16 @@ u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
     char inputstr[16 + 1] = { 0 };
     u64 ret = 0;
     va_list va;
-    
+
     if (n_digits > 16) n_digits = 16;
     snprintf(inputstr, 16 + 1, "%0*llX", (int) n_digits, start_val);
-    
+
     va_start(va, format);
     if (ShowInputPrompt(inputstr, n_digits + 1, 0, alphabet, format, va)) {
         sscanf(inputstr, "%llX", &ret);
     } else ret = (u64) -1;
     va_end(va);
-    
+
     return ret; 
 }
 

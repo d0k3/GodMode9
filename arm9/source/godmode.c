@@ -2049,7 +2049,7 @@ u32 GodMode(int entrypoint) {
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
     CalibrateTouchFromFlash(); // !!! this may need some further checking
-    
+
     // custom font handling
     if (CheckSupportFile("font.pbm")) {
         u8* pbm = (u8*) malloc(0x10000); // arbitrary, should be enough by far
