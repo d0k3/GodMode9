@@ -21,9 +21,10 @@ u8 *PNG_Decompress(const u8 *png, size_t png_len, u32 *w, u32 *h)
 	u32 res;
 	size_t w_, h_;
 
+	img = NULL;
 	res = lodepng_decode24(&img, &w_, &h_, png, png_len);
 	if (res) {
-		if (img) free(img);
+		free(img);
 		return NULL;
 	}
 	_rgb_swap(img, w_ * h_ * 3);
@@ -33,18 +34,21 @@ u8 *PNG_Decompress(const u8 *png, size_t png_len, u32 *w, u32 *h)
 	return img;
 }
 
-u8 *PNG_Compress(u8 *fb, u32 w, u32 h, size_t *png_sz)
+u8 *PNG_Compress(const u8 *fb, u32 w, u32 h, size_t *png_sz)
 {
+	u8 *img;
 	u32 res;
 	size_t png_size;
-	u8 *img;
 
+	img = NULL;
 	res = lodepng_encode24(&img, &png_size, fb, w, h);
 	if (res) {
-		if (img) free(img);
+		free(img);
 		return NULL;
 	}
-	if (png_sz) *png_sz = png_size;
+
+	if (png_sz)
+		*png_sz = png_size;
 
 	return img;
 }

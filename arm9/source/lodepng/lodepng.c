@@ -5220,15 +5220,6 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
   }
 }
 
-/* log2 approximation. A slight bit faster than std::log. */
-static float flog2(float f)
-{
-  float result = 0;
-  while(f > 32) { result += 4; f /= 16; }
-  while(f > 2) { ++result; f /= 2; }
-  return result + 1.442695f * (f * f * f / 3 - 3 * f * f / 2 + 3 * f - 1.83333f);
-}
-
 static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
                        const LodePNGColorMode* info, const LodePNGEncoderSettings* settings)
 {
@@ -5332,52 +5323,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
         for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       }
-    }
-
-    for(type = 0; type != 5; ++type) lodepng_free(attempt[type]);
-  }
-  else if(strategy == LFS_ENTROPY)
-  {
-    float sum[5];
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    float smallest = 0;
-    unsigned type, bestType = 0;
-    unsigned count[256];
-
-    for(type = 0; type != 5; ++type)
-    {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) return 83; /*alloc fail*/
-    }
-
-    for(y = 0; y != h; ++y)
-    {
-      /*try the 5 filter types*/
-      for(type = 0; type != 5; ++type)
-      {
-        filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        for(x = 0; x != 256; ++x) count[x] = 0;
-        for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
-        ++count[type]; /*the filter type itself is part of the scanline*/
-        sum[type] = 0;
-        for(x = 0; x != 256; ++x)
-        {
-          float p = count[x] / (float)(linebytes + 1);
-          sum[type] += count[x] == 0 ? 0 : flog2(1 / p) * p;
-        }
-        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(type == 0 || sum[type] < smallest)
-        {
-          bestType = type;
-          smallest = sum[type];
-        }
-      }
-
-      prevline = &in[y * linebytes];
-
-      /*now fill the out values*/
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
     }
 
     for(type = 0; type != 5; ++type) lodepng_free(attempt[type]);

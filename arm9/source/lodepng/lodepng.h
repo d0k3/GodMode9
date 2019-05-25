@@ -558,9 +558,6 @@ typedef enum LodePNGFilterStrategy
   LFS_ZERO,
   /*Use filter that gives minimum sum, as described in the official PNG filter heuristic.*/
   LFS_MINSUM,
-  /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
-  on the image, this is better or worse than minsum.*/
-  LFS_ENTROPY,
   /*
   Brute-force-search PNG filters by compressing each filter for each scanline.
   Experimental, very slow, and only rarely gives better compression than MINSUM.

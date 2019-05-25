@@ -1,3 +1,3 @@
 #pragma once
 
-void CreateScreenshot();
+void CreateScreenshot(void);
