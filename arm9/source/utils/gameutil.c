@@ -1971,7 +1971,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
 u32 ShowSmdhTitleInfo(Smdh* smdh) {
     const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
-    u8 icon[SMDH_SIZE_ICON_BIG];
+    u16 icon[SMDH_SIZE_ICON_BIG];
     char desc_l[SMDH_SIZE_DESC_LONG+1];
     char desc_s[SMDH_SIZE_DESC_SHORT+1];
     char pub[SMDH_SIZE_PUBLISHER+1];
@@ -1992,7 +1992,7 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
 
 u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon) {
     const u32 lwrap = 24;
-    u8 icon[TWLICON_SIZE_ICON];
+    u16 icon[TWLICON_SIZE_ICON];
     char desc[TWLICON_SIZE_DESC+1];
     if ((GetTwlIcon(icon, twl_icon) != 0) ||
         (GetTwlTitle(desc, twl_icon) != 0))

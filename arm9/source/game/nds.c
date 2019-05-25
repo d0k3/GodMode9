@@ -52,7 +52,7 @@ u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon) {
 }
 
 // TWL icon: 32x32 pixel, 8x8 tiles
-u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon) {
+u32 GetTwlIcon(u16* icon, const TwlIconData* twl_icon) {
     const u32 h = TWLICON_DIM_ICON; // fixed size
     const u32 w = TWLICON_DIM_ICON; // fixed size
     const u16* palette = twl_icon->palette;
@@ -60,13 +60,17 @@ u32 GetTwlIcon(u8* icon, const TwlIconData* twl_icon) {
     for (u32 y = 0; y < h; y += 8) {
         for (u32 x = 0; x < w; x += 8) {
             for (u32 i = 0; i < 8*8; i++) {
+                u16 pix555;
+                u8 r, g, b;
                 u32 ix = x + (i & 0x7);
                 u32 iy = y + (i >> 3);
-                u16 pix555 = palette[((i%2) ? (*pix4 >> 4) : *pix4) & 0xF];
-                u8* pix888 = icon + ((iy * w) + ix) * 3;
-                *(pix888++) = ((pix555 >> 10) & 0x1F) << 3; // B
-                *(pix888++) = ((pix555 >>  5) & 0x1F) << 3; // G
-                *(pix888++) = ((pix555 >>  0) & 0x1F) << 3; // R
+
+                pix555 = palette[((i%2) ? (*pix4 >> 4) : *pix4) & 0xF];
+                r = pix555 & 0x1F;
+                g = ((pix555 >> 5) & 0x1F) << 1;
+                g |= (g >> 1) & 1;
+                b = (pix555 >> 10) & 0x1F;
+                icon[(iy * w) + ix] = (r << 11) | (g << 5) | b;
                 if (i % 2) pix4++;
             }
         }

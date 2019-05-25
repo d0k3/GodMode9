@@ -1840,7 +1840,7 @@ bool ExecuteGM9Script(const char* path_script) {
                 if (preview_mode > 2) {
                     char* preview_str = get_var("PREVIEW_MODE", NULL);
                     u32 bitmap_width, bitmap_height;
-                    u8* bitmap = NULL;
+                    u16* bitmap = NULL;
 
                     u8* png = (u8*) malloc(SCREEN_SIZE_TOP);
                     if (png) {

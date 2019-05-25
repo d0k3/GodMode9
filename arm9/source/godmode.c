@@ -115,10 +115,10 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
 }
 
 u32 SplashInit(const char* modestr) {
+    u16* bitmap;
     u64 splash_size;
     u32 splash_width, splash_height;
     u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PNG, &splash_size);
-    u8* bitmap = NULL;
     const char* namestr = FLAVOR " " VERSION;
     const char* loadstr = "booting...";
     const u32 pos_xb = 10;
@@ -131,7 +131,10 @@ u32 SplashInit(const char* modestr) {
     if (splash) {
         bitmap = PNG_Decompress(splash, splash_size, &splash_width, &splash_height);
         if (bitmap) DrawBitmap(TOP_SCREEN, -1, -1, splash_width, splash_height, bitmap);
-    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PNG " not found)");
+    } else {
+        DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_SPLASH_PNG " not found)");
+        bitmap = NULL;
+    }
 
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
@@ -144,7 +147,7 @@ u32 SplashInit(const char* modestr) {
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
     DrawStringF(BOT_SCREEN, pos_xb, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "built: " DBUILTL);
 
-    if (bitmap) free(bitmap);
+    free(bitmap);
     return 0;
 }
 
@@ -494,7 +497,7 @@ u32 SdFormatMenu(const char* slabel) {
 u32 FileGraphicsViewer(const char* path) {
     const u32 max_size = SCREEN_SIZE(ALT_SCREEN);
     u64 filetype = IdentifyFileType(path);
-    u8* bitmap = NULL;
+    u16* bitmap = NULL;
     u8* input = (u8*)malloc(max_size);
     u32 w = 0;
     u32 h = 0;
@@ -519,8 +522,8 @@ u32 FileGraphicsViewer(const char* path) {
         ClearScreenF(true, true, COLOR_STD_BG);
     } else ret = 1;
 
-    if (bitmap) free(bitmap);
-    if (input) free(input);
+    free(bitmap);
+    free(input);
     return ret;
 }
 

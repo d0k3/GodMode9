@@ -8,7 +8,7 @@
                      32, 33, 40, 41, 34, 35, 42, 43, 48, 49, 56, 57, 50, 51, 58, 59, \
                      36, 37, 44, 45, 38, 39, 46, 47, 52, 53, 60, 61, 54, 55, 62, 63
 
-u32 ConvertSmdhIcon(u8* icon, const u16* smdh_icon, u32 w, u32 h) {
+u32 ConvertSmdhIcon(u16* icon, const u16* smdh_icon, u32 w, u32 h) {
     const u32 lut[8*8] = { SMDH_LUT };
     u16* pix565 = (u16*) smdh_icon;
     for (u32 y = 0; y < h; y += 8) {
@@ -16,11 +16,7 @@ u32 ConvertSmdhIcon(u8* icon, const u16* smdh_icon, u32 w, u32 h) {
             for (u32 i = 0; i < 8*8; i++) {
                 u32 ix = x + (lut[i] & 0x7);
                 u32 iy = y + (lut[i] >> 3);
-                u8* pix888 = icon + ((iy * w) + ix) * 3;
-                *(pix888++) = ((*pix565 >>  0) & 0x1F) << 3; // B
-                *(pix888++) = ((*pix565 >>  5) & 0x3F) << 2; // G
-                *(pix888++) = ((*pix565 >> 11) & 0x1F) << 3; // R
-                pix565++;
+                icon[(iy * w) + ix] = *(pix565++);
             }
         }
     }
@@ -52,11 +48,11 @@ u32 GetSmdhPublisher(char* pub, const Smdh* smdh) {
 }
 
 // small icons are 24x24 => 0x6C0 byte in RGB888
-u32 GetSmdhIconSmall(u8* icon, const Smdh* smdh) {
+u32 GetSmdhIconSmall(u16* icon, const Smdh* smdh) {
     return ConvertSmdhIcon(icon, smdh->icon_small, SMDH_DIM_ICON_SMALL, SMDH_DIM_ICON_SMALL);
 }
 
 // big icons are 48x48 => 0x1B00 byte in RGB888
-u32 GetSmdhIconBig(u8* icon, const Smdh* smdh) {
+u32 GetSmdhIconBig(u16* icon, const Smdh* smdh) {
     return ConvertSmdhIcon(icon, smdh->icon_big, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG);
 }

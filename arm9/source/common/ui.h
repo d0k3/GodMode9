@@ -48,13 +48,13 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h);
 bool SetFontFromPbm(const void* pbm, const u32 pbm_size);
 
-u16 GetColor(u16 *screen, int x, int y);
+u16 GetColor(const u16 *screen, int x, int y);
 
 void ClearScreen(u16 *screen, u32 color);
 void ClearScreenF(bool clear_main, bool clear_alt, u32 color);
 void DrawPixel(u16 *screen, int x, int y, u32 color);
 void DrawRectangle(u16 *screen, int x, int y, u32 width, u32 height, u32 color);
-void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u8* bitmap);
+void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u16* bitmap);
 void DrawQrCode(u16 *screen, const u8* qrcode);
 
 void DrawCharacter(u16 *screen, int character, int x, int y, u32 color, u32 bgcolor);
@@ -74,7 +74,7 @@ void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 
 void ShowString(const char *format, ...);
-void ShowIconString(u8* icon, int w, int h, const char *format, ...);
+void ShowIconString(u16* icon, int w, int h, const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
 u32 ShowFileScrollPrompt(u32 n, const DirEntry** entries, bool hide_ext, const char *format, ...);

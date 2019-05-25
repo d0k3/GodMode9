@@ -9,8 +9,8 @@
 #define SMDH_SIZE_PUBLISHER     64
 #define SMDH_DIM_ICON_SMALL     24
 #define SMDH_DIM_ICON_BIG       48
-#define SMDH_SIZE_ICON_SMALL    (SMDH_DIM_ICON_SMALL * SMDH_DIM_ICON_SMALL * 3) // w * h * bpp (rgb888)
-#define SMDH_SIZE_ICON_BIG      (SMDH_DIM_ICON_BIG * SMDH_DIM_ICON_BIG * 3) // w * h * bpp (rgb888)
+#define SMDH_SIZE_ICON_SMALL    (SMDH_DIM_ICON_SMALL * SMDH_DIM_ICON_SMALL * 2) // w * h * bpp (rgb565)
+#define SMDH_SIZE_ICON_BIG      (SMDH_DIM_ICON_BIG * SMDH_DIM_ICON_BIG * 2) // w * h * bpp (rgb565)
 
 // see: https://www.3dbrew.org/wiki/SMDH#Application_Titles
 typedef struct {
@@ -42,5 +42,5 @@ typedef struct {
 u32 GetSmdhDescShort(char* desc, const Smdh* smdh);
 u32 GetSmdhDescLong(char* desc, const Smdh* smdh);
 u32 GetSmdhPublisher(char* pub, const Smdh* smdh);
-u32 GetSmdhIconSmall(u8* icon, const Smdh* smdh);
-u32 GetSmdhIconBig(u8* icon, const Smdh* smdh);
+u32 GetSmdhIconSmall(u16* icon, const Smdh* smdh);
+u32 GetSmdhIconBig(u16* icon, const Smdh* smdh);

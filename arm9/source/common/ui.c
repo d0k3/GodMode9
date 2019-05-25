@@ -151,7 +151,7 @@ void ClearScreenF(bool clear_main, bool clear_alt, u32 color)
     if (clear_alt) ClearScreen(ALT_SCREEN, color);
 }
 
-u16 GetColor(u16 *screen, int x, int y)
+u16 GetColor(const u16 *screen, int x, int y)
 {
     return screen[PIXEL_OFFSET(x, y)];
 }
@@ -171,7 +171,7 @@ void DrawRectangle(u16 *screen, int x, int y, u32 width, u32 height, u32 color)
     }
 }
 
-void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u8* bitmap)
+void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u16* bitmap)
 {
     // on negative values: center the bitmap
     if (x < 0) x = (SCREEN_WIDTH(screen) - w) >> 1;
@@ -183,10 +183,8 @@ void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u8* bitmap)
 
     screen += PIXEL_OFFSET(x, y);
     while(h--) {
-        for (u32 i = 0; i < w; i++) {
-            screen[i * SCREEN_HEIGHT] = RGB(bitmap[2], bitmap[1], bitmap[0]);
-            bitmap += 3;
-        }
+        for (u32 i = 0; i < w; i++)
+            screen[i * SCREEN_HEIGHT] = *(bitmap++);
         screen--;
     }
 }
@@ -392,7 +390,7 @@ void ShowString(const char *format, ...)
     } else ClearScreenF(true, false, COLOR_STD_BG);
 }
 
-void ShowIconString(u8* icon, int w, int h, const char *format, ...)
+void ShowIconString(u16* icon, int w, int h, const char *format, ...)
 {
     static const u32 icon_offset = 10;
     u32 str_width, str_height, tot_height;
