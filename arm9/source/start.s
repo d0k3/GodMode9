@@ -16,7 +16,7 @@ _start:
     mov r8, r0
     mov r9, r1
     mov r10, r2
-    mov r11, r3
+    @mov r11, r3 @ unnecessary for now
 
     @ Clear bss
     ldr r0, =__bss_start
@@ -92,10 +92,9 @@ _start:
         blo .LXRQ_Install
 
     @ Enable caches / TCMs / select high exception vectors
-    ldr r2, =(CR_MPU | CR_CACHES | CR_ITCM | CR_DTCM | CR_ALT_VECTORS)
+    ldr r1, =(CR_MPU | CR_CACHES | CR_ITCM | CR_DTCM | CR_ALT_VECTORS)
     mrc p15, 0, r0, c1, c0, 0
-    bic r0, r1
-    orr r0, r2
+    orr r0, r1
     mcr p15, 0, r0, c1, c0, 0
 
     @ Switch to system mode, disable interrupts, setup application stack
@@ -103,63 +102,59 @@ _start:
     ldr sp, =__STACK_TOP
 
     @ Check entrypoints
+    @ assume by default that the entrypoint
+    @ cant be detected and fix up if necessary
+    mov r0, #0
+    mov r1, #0
+    ldr r2, =ENTRY_UNKNOWN
 
-    @ b9s
+    @ returning from main will trigger a prefetch abort
+    mov lr, #0
+
+    @ B9S
+    @ if (R2 & 0xFFFF) == 0xBEEF
     ldr r3, =0xBEEF
     lsl r2, r10, #16
-    lsr r2, r2, #16
-    cmp r2, r3
+    cmp r3, r2, lsr #16
 
     moveq r0, r8
     moveq r1, r9
-    moveq r2, #(ENTRY_B9S)
-    beq .Lboot_main
+    ldreq r2, =ENTRY_B9S
+    ldreq pc, =main
 
     @ ntrboot
-    ldr r4, =0x1FFFE00C
-    ldr r5, =0x1FFFE010
+    @ if ([0x1FFFE010] | [0x1FFFE014]) == 0
+    @ && ([0x1FFFE00C] & 0xFF00FF00) == 0x02000000
+    ldr r3, =0x1FFFE010
 
-    ldrd r6, r7, [r5]
-    orr r6, r6, r7
-    cmp r6, #0
-    ldreqb r6, [r4, #1]
-    ldreqb r7, [r4, #3]
-    cmpeq r6, #0
-    cmpeq r7, #2
-
-    moveq r0, #0
-    moveq r1, #0
-    moveq r2, #(ENTRY_NTRBOOT)
-    beq .Lboot_main
+    ldrd r4, r5, [r3]
+    orrs r4, r4, r5
+    ldreq r4, [r3, #-4]
+    ldreq r5, =0xFF00FF00
+    andeq r4, r4, r5
+    cmpeq r4, #0x02000000
+    ldreq r2, =ENTRY_NTRBOOT
+    ldreq pc, =main
 
     @ nandboot
-    ldrd r6, r7, [r5]
-    orr r6, r6, r7
-    cmp r6, #0
-    beq .Lentrycheck_firmboot_end
-    ldrb r6, [r4, #0]
-    cmp r6, #0
-    moveq r0, #0
-    moveq r1, #0
-    moveq r2, #(ENTRY_NANDBOOT)
-    beq .Lboot_main
-.Lentrycheck_firmboot_end:
+    @ if ([0x1FFFE010] | [0x1FFFE014]) == 0
+    @ && ([0x1FFFE00C] & 0xFF) == 0
+    ldrd r4, r5, [r3]
+    orrs r4, r4, r5
+    ldreqb r4, [r3, #-4]
+    cmpeq r4, #0
+    ldreq r2, =ENTRY_NANDBOOT
 
-    @ Unknown
-    mov r0, #0
-    mov r1, #0
-    mov r2, #(ENTRY_UNKNOWN)
-
-
-.Lboot_main:
-    mov lr, #0
+    @ unconditionally branch into the main C function
+    @ if no entrypoint was detected
+    @ R2 will be ENTRY_UNKNOWN
     ldr pc, =main
 
 
 __mpu_regions:
     .word 0xFFFF001F @ FFFF0000 64k  | bootrom (unprotected / protected)
     .word 0x3000801B @ 30008000 16k  | dtcm
-    .word 0x01FF8035 @ 01FF8000 32k  | itcm (+ mirrors)
+    .word 0x01FF801D @ 01FF8000 32k  | itcm (+ mirrors)
     .word 0x08000029 @ 08000000 2M   | arm9 mem (O3DS / N3DS)
     .word 0x10000029 @ 10000000 2M   | io mem (ARM9 / first 2MB)
     .word 0x20000037 @ 20000000 256M | fcram (O3DS / N3DS)
