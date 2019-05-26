@@ -3,125 +3,95 @@
  Read LICENSE for more details
 */
 
-.section .text.xrqh
 .arm
 
 #include <arm.h>
 #include <brf.h>
 #include "memmap.h"
 
-.macro XRQ_FATAL id=0
-    ldr sp, =__STACK_ABT_TOP
-    sub sp, sp, #(18*4)  @ Reserve space for registers
-    stmia sp, {r0-r12}
-    mov r11, #\id
-    b XRQ_MainHandler
+.macro TRAP_ENTRY xrq_id
+    msr cpsr_f, #(\xrq_id << 29) @ preserve xrq id (idea grabbed from fb3ds)
 .endm
 
+.section .vectors, "ax"
 .global XRQ_Start
 XRQ_Start:
-XRQ_Vectors:
-    b XRQ_Reset
-    b XRQ_Undefined
-    b XRQ_SWI
-    b XRQ_PAbort
-    b XRQ_DAbort
-    b .             @ Reserved exception vector
-    subs pc, lr, #4 @ IRQs are unhandled
-    b .             @ FIQs are unused (except for debug?)
+    ldr pc, IRQ_Vector
+    IRQ_Vector: .word IRQ_Handler
+    ldr pc, FIQ_Vector
+    FIQ_Vector: .word FIQ_Handler
+    ldr pc, SVC_Vector
+    SVC_Vector: .word SVC_Handler
+    ldr pc, UND_Vector
+    UND_Vector: .word UND_Handler
+    ldr pc, PABT_Vector
+    PABT_Vector: .word PABT_Handler
+    ldr pc, DABT_Vector
+    DABT_Vector: .word DABT_Handler
+.global XRQ_End
+XRQ_End:
 
-XRQ_Reset:
-    msr cpsr_c, #(SR_ABT_MODE | SR_NOINT)
-    XRQ_FATAL 0
 
-XRQ_Undefined:
-    XRQ_FATAL 1
+.section .text.xrqs
+IRQ_Handler:
+    TRAP_ENTRY 6
+    b XRQ_Fatal
 
-XRQ_SWI:
-    XRQ_FATAL 2
+FIQ_Handler:
+    TRAP_ENTRY 7
+    b XRQ_Fatal
 
-XRQ_PAbort:
-    XRQ_FATAL 3
+SVC_Handler:
+    TRAP_ENTRY 2
+    b XRQ_Fatal
 
-XRQ_DAbort:
-    XRQ_FATAL 4
+UND_Handler:
+    TRAP_ENTRY 1
+    b XRQ_Fatal
 
-@ r11 = exception number
-XRQ_MainHandler:
-    mrs r10, cpsr
-    mrs r9, spsr
-    mov r8, lr
+PABT_Handler:
+    TRAP_ENTRY 3
+    b XRQ_Fatal
 
-    @ Disable mpu / caches
-    ldr r4, =BRF_WB_INV_DCACHE
-    ldr r5, =BRF_INVALIDATE_ICACHE
-    ldr r6, =BRF_RESETCP15
-    blx r4
-    blx r5
-    blx r6
+DABT_Handler:
+    sub lr, lr, #4 @ R14_abt = PC + 8, so it needs a small additional fixup
+    TRAP_ENTRY 4
+    @b XRQ_Fatal
 
-    @ Retrieve banked registers
-    ands r0, r9, #(SR_PMODE_MASK & (0x0F))
-    orreq r0, #(SR_SYS_MODE)
-    orr r0, #(0x10 | SR_NOINT)
+XRQ_Fatal:
+    sub lr, lr, #4 @ PC exception fixup
 
-    msr cpsr_c, r0   @ Switch to previous mode
-    mov r0, sp
-    mov r1, lr
-    msr cpsr_c, r10  @ Return to abort
+    ldr sp, =(__STACK_ABT_TOP - 18*4) @ Set up abort stack, 8 byte aligned
+    stmia sp, {r0-r7}                 @ Preserve non-banked GPRs
 
-    add r2, sp, #(13*4)
-    stmia r2, {r0, r1, r8, r9}
+    mrs r1, cpsr
+    orr r0, r1, #SR_NOINT
+    msr cpsr_c, r0        @ Disable interrupts
 
-    @ Give read/write access to all the memory regions
-    ldr r0, =0x33333333
-    mcr p15, 0, r0, c5, c0, 2 @ write data access
-    mcr p15, 0, r0, c5, c0, 3 @ write instruction access
+    lsr r0, r1, #29       @ Retrieve exception source
 
-    @ Sets MPU regions and cache settings
-    adr r0, __abt_mpu_regions
-    ldmia r0, {r1-r8}
-    mov r0, #0b00110010 @ bootrom, arm9 mem and fcram are cacheable/bufferable
-    mcr p15, 0, r1, c6, c0, 0
-    mcr p15, 0, r2, c6, c1, 0
-    mcr p15, 0, r3, c6, c2, 0
-    mcr p15, 0, r4, c6, c3, 0
-    mcr p15, 0, r5, c6, c4, 0
-    mcr p15, 0, r6, c6, c5, 0
-    mcr p15, 0, r7, c6, c6, 0
-    mcr p15, 0, r8, c6, c7, 0
-    mcr p15, 0, r0, c3, c0, 0   @ Write bufferable 0, 2, 5
-    mcr p15, 0, r0, c2, c0, 0   @ Data cacheable 0, 2, 5
-    mcr p15, 0, r0, c2, c0, 1   @ Inst cacheable 0, 2, 5
+    mrs r2, spsr
+    str lr, [sp, #15*4]
+    str r2, [sp, #16*4]   @ Preserve exception PC and CPSR
 
-    @ Enable mpu/caches
-    ldr r1, =(CR_MPU | CR_CACHES | CR_DTCM)
-    mrc p15, 0, r0, c1, c0, 0
-    orr r0, r0, r1
-    mcr p15, 0, r0, c1, c0, 0
+    ands r2, r2, #SR_PMODE_MASK
+    orreq r2, r2, #SR_SYS_MODE     @ Force a switch to system mode if
+                                   @ the exception happened in user mode
+    orr r2, r2, #(0x10 | SR_NOINT) @ With interrupts disabled
 
-    ldr r2, =XRQ_DumpRegisters @ void XRQ_DumpRegisters(u32 xrq_id, u32 *regs)
+    add r3, sp, #8*4
+    msr cpsr_c, r2
+    nop
+    nop
+    stmia r3, {r8-r14}    @ Preserve banked GPRs (R8-R12, SP_xrq, LR_xrq)
+    nop
+    nop
+    msr cpsr_c, r1
+
     mov r1, sp
-    mov r0, r11
-    blx r2
+    bl XRQ_DumpRegisters @ XRQ_DumpRegisters(exception_number, saved_regs);
 
-    msr cpsr, #(SR_SVC_MODE | SR_NOINT)
     mov r0, #0
     1:
         mcr p15, 0, r0, c7, c0, 4
         b 1b
-
-.pool
-
-__abt_mpu_regions:
-    .word 0x0000003F @ 00000000 4G   | background region (includes IO regs)
-    .word 0xFFFF001F @ FFFF0000 64k  | bootrom (unprotected / protected)
-    .word 0x3000801B @ 30008000 16k  | dtcm
-    .word 0x00000035 @ 00000000 128M | itcm
-    .word 0x08000029 @ 08000000 2M   | arm9 mem (O3DS / N3DS)
-    .word 0x20000037 @ 20000000 256M | fcram (O3DS / N3DS)
-    .word 0x1FF00027 @ 1FF00000 1M   | dsp / axi wram
-    .word 0x1800002D @ 18000000 8M   | vram (+ 2MB)
-
-.global XRQ_End
-XRQ_End:

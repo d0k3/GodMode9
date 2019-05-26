@@ -15,23 +15,45 @@
 
 #include <arm.h>
 
-#define PC_DUMPRAD (0x30)
-#define SP_DUMPLEN (0x60)
+#define PC_DUMPRAD (0x40)
+#define SP_DUMPLEN (0x30)
+extern u32 __text_s, __text_e;
+
+static bool sp_dumpable(u32 sp, u32 *sp_lower, u32 *sp_upper)
+{
+    if ((sp >= __STACK_TOP) || (sp < (__STACK_TOP - __STACK_LEN)))
+        return false;
+    *sp_lower = sp;
+    *sp_upper = min(sp + SP_DUMPLEN, __STACK_TOP);
+    return true;
+}
+
+static bool pc_dumpable(u32 pc, u32 *pc_lower, u32 *pc_upper)
+{
+    u32 code_start = (u32)(&__text_s), code_end = (u32)(&__text_e);
+
+    if ((pc >= code_end) || (pc < code_start))
+        return false;
+
+    *pc_lower = max(pc - PC_DUMPRAD, code_start);
+    *pc_upper = min(pc + PC_DUMPRAD, code_end);
+    return true;
+}
 
 #define XRQ_DUMPDATAFUNC(type, size) \
-int XRQ_DumpData_##type(char *b, u32 s, u32 e) \
+static unsigned XRQ_DumpData_##type(char *b, u32 s, u32 e) \
 { \
     char *c = b; \
     while(s<e) { \
         b+=sprintf(b, "%08lX: ",s); \
         type *dl = (type*)s; \
-        for (u32 i=0; i<(16/((size)/2)); i++) { \
+        for (u32 i = 0; i < (16 / sizeof(type)); i++) { \
             b+=sprintf(b, "%0" #size "lX ", (u32)dl[i]); \
         } \
         b+=sprintf(b, "\n"); \
         s+=16; \
     } \
-    return (int)(b-c); \
+    return (unsigned)(b-c); \
 }
 XRQ_DUMPDATAFUNC(u8,  2)
 XRQ_DUMPDATAFUNC(u16, 4)
@@ -46,7 +68,7 @@ const char *XRQ_Name[] = {
 
 void XRQ_DumpRegisters(u32 xrq, u32 *regs)
 {
-    u32 sp, st, pc;
+    u32 sp, sp_lower, sp_upper, pc, pc_lower, pc_upper;
     char dumpstr[2048], *wstr = dumpstr;
 
     DsTime dstime;
@@ -75,24 +97,25 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, draw_x, draw_y, COLOR_STD_FONT, COLOR_STD_BG, dumpstr);
 
-
     /* Dump STACK */
     sp = regs[13] & ~0xF;
-    st = __STACK_TOP;
-    wstr += sprintf(wstr, "Stack dump:\n");
-    wstr += XRQ_DumpData_u8(wstr, sp, min(sp+SP_DUMPLEN, st));
-    wstr += sprintf(wstr, "\n");
-
-
-    /* Dump TEXT */
-    pc = regs[15] & ~0xF;
-    wstr += sprintf(wstr, "Code dump:\n");
-    if (regs[16] & SR_THUMB) {
-        wstr += XRQ_DumpData_u16(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
-    } else {
-        wstr += XRQ_DumpData_u32(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
+    if (sp_dumpable(sp, &sp_lower, &sp_upper)) {
+        wstr += sprintf(wstr, "Stack:\n");
+        wstr += XRQ_DumpData_u8(wstr, sp_lower, sp_upper);
+        wstr += sprintf(wstr, "\n");
     }
 
+    /* Dump CODE */
+    pc = regs[15] & ~0xF;
+    if (pc_dumpable(pc, &pc_lower, &pc_upper)) {
+        wstr += sprintf(wstr, "Code:\n");
+        wstr += XRQ_DumpData_u32(wstr, pc_lower, pc_upper);
+        /*if (regs[16] & SR_THUMB) { // no need to take Thumb code into account
+            wstr += XRQ_DumpData_u16(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
+        } else {
+            wstr += XRQ_DumpData_u32(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
+        }*/
+    }
 
     /* Draw QR Code */
     u8 qrcode[qrcodegen_BUFFER_LEN_MAX];

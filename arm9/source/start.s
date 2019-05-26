@@ -32,18 +32,18 @@ _start:
     ldr r0, =BRF_INVALIDATE_ICACHE
     blx r0 @ Invalidate Instruction Cache
 
-    @ Disable caches / DTCM / MPU
-    ldr r1, =(CR_MPU | CR_CACHES | CR_DTCM | CR_TCM_LOAD)
-    ldr r2, =(CR_ITCM)
+    @ Disable caches / TCMs / MPU
+    ldr r1, =(CR_MPU | CR_CACHES | CR_DTCM | CR_ITCM | CR_TCM_LOAD)
     mrc p15, 0, r0, c1, c0, 0
     bic r0, r1
-    orr r0, r2
     mcr p15, 0, r0, c1, c0, 0
 
-    @ Give full access to defined memory regions
-    ldr r0, =0x33333333
-    mcr p15, 0, r0, c5, c0, 2 @ write data access
-    mcr p15, 0, r0, c5, c0, 3 @ write instruction access
+    @ Set access permissions
+    ldr r0, =0x11111115 @ RO data access for BootROM, RW otherwise
+    ldr r1, =0x00505005 @ Can only execute code from ARM9 RAM, FCRAM and BootROM
+
+    mcr p15, 0, r0, c5, c0, 2
+    mcr p15, 0, r1, c5, c0, 3
 
     @ Set MPU regions and cache settings
     ldr r0, =__mpu_regions
@@ -64,15 +64,12 @@ _start:
     mcr p15, 0, r0, c2, c0, 0	@ Data cacheable
     mcr p15, 0, r0, c2, c0, 1	@ Inst cacheable
 
-    @ Enable DTCM
+    @ Configure TCMs
     ldr r0, =0x3000800A
-    mcr p15, 0, r0, c9, c1, 0  @ set the DTCM Region Register
+    ldr r1, =0x00000024
+    mcr p15, 0, r0, c9, c1, 0 @ DTCM
+    mcr p15, 0, r1, c9, c1, 1 @ ITCM
 
-    @ Fix SDMC mounting
-    @ (this is done in sdmmc.c instead)
-    @ mov r0, #0x10000000
-    @ mov r1, #0x340
-    @ strh r1, [r0, #0x20]
 
     @ Setup heap
     ldr r0, =fake_heap_start
@@ -84,18 +81,18 @@ _start:
     str r1, [r0]
 
     @ Install exception handlers
-    ldr r0, =XRQ_Start
-    ldr r1, =XRQ_End
-    ldr r2, =0x00000000
+    ldr r0, =__vectors_lma
+    ldr r1, =__vectors_len
+    ldr r2, =XRQ_Start
+    add r1, r0, r1
     .LXRQ_Install:
         cmp r0, r1
         ldrlo r3, [r0], #4
         strlo r3, [r2], #4
         blo .LXRQ_Install
 
-    @ Enable caches / DTCM / select low exception vectors
-    ldr r1, =(CR_ALT_VECTORS | CR_V4TLD)
-    ldr r2, =(CR_MPU | CR_CACHES | CR_DTCM)
+    @ Enable caches / TCMs / select high exception vectors
+    ldr r2, =(CR_MPU | CR_CACHES | CR_ITCM | CR_DTCM | CR_ALT_VECTORS)
     mrc p15, 0, r0, c1, c0, 0
     bic r0, r1
     orr r0, r2
@@ -162,7 +159,7 @@ _start:
 __mpu_regions:
     .word 0xFFFF001F @ FFFF0000 64k  | bootrom (unprotected / protected)
     .word 0x3000801B @ 30008000 16k  | dtcm
-    .word 0x00000035 @ 00000000 128M | itcm (+ mirrors)
+    .word 0x01FF8035 @ 01FF8000 32k  | itcm (+ mirrors)
     .word 0x08000029 @ 08000000 2M   | arm9 mem (O3DS / N3DS)
     .word 0x10000029 @ 10000000 2M   | io mem (ARM9 / first 2MB)
     .word 0x20000037 @ 20000000 256M | fcram (O3DS / N3DS)

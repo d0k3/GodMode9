@@ -25,7 +25,8 @@
 
 .global __boot
 __boot:
-	cpsid aif, #SR_SVC_MODE
+    cpsid aif, #SR_SVC_MODE
+    clrex
 
     @ Writeback and invalidate all DCache
     @ Invalidate all caches
@@ -43,6 +44,18 @@ __boot:
     mcr p15, 0, r0, c1, c0, 0
     mcr p15, 0, r1, c1, c0, 1
     mcr p15, 0, r2, c1, c0, 2
+
+    @ VFPv2 init
+    @ https://github.com/derrekr/fastboot3DS/blob/f63c967369451b1fd0078e649cf0010fe10a62fd/source/arm11/start.s#L195
+    mov r0, #0
+    mov r1, #0xF00000           @ Give full access to cp10/11 in user and privileged mode
+    mov r2, #0x40000000         @ Clear exception bits and enable VFP11
+    mov r3, #0x3C00000          @ Round towards zero (RZ) mode, flush-to-zero mode, default NaN mode
+    mcr p15, 0, r1, c1, c0, 2   @ Write Coprocessor Access Control Register
+    mcr p15, 0, r0, c7, c5, 4   @ Flush Prefetch Buffer
+    fmxr fpexc, r2              @ Write Floating-point exception register
+    fmxr fpscr, r3              @ Write Floating-Point Status and Control Register
+
 
     @ Get CPU ID
     mrc p15, 0, r12, c0, c0, 5
