@@ -47,12 +47,12 @@ u32 GetSmdhPublisher(char* pub, const Smdh* smdh) {
     return 0;
 }
 
-// small icons are 24x24 => 0x6C0 byte in RGB888
+// small icons are 24x24 => 0x480 bytes in RGB565
 u32 GetSmdhIconSmall(u16* icon, const Smdh* smdh) {
     return ConvertSmdhIcon(icon, smdh->icon_small, SMDH_DIM_ICON_SMALL, SMDH_DIM_ICON_SMALL);
 }
 
-// big icons are 48x48 => 0x1B00 byte in RGB888
+// big icons are 48x48 => 0x1200 byte in RGB565
 u32 GetSmdhIconBig(u16* icon, const Smdh* smdh) {
     return ConvertSmdhIcon(icon, smdh->icon_big, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG);
 }

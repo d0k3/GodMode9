@@ -4,8 +4,7 @@
 #include "lodepng.h"
 #include "png.h"
 
-#ifndef MONITOR_HEAP
-// dest and src can overlap
+// dest and src can be the same
 static inline void _rgb24_to_rgb565(u16 *dest, const u8 *src, size_t dim)
 {
 	for (size_t i = 0; i < dim; i++) {
@@ -18,7 +17,7 @@ static inline void _rgb24_to_rgb565(u16 *dest, const u8 *src, size_t dim)
 	}
 }
 
-// dest and src CAN NOT overlap
+// dest and src CAN NOT be the same
 static inline void _rgb565_to_rgb24(u8 *dest, const u16 *src, size_t dim)
 {
 	for (size_t i = 0; i < dim; i++) {
@@ -77,22 +76,3 @@ u8 *PNG_Compress(const u16 *fb, u32 w, u32 h, size_t *png_sz)
 
 	return img;
 }
-#else
-u8 *PNG_Decompress(const u8 *png, size_t png_len, u32 *w, u32 *h)
-{
-	(void) png;
-	(void) w;
-	(void) h;
-	(void) png_len;
-	return NULL;
-}
-
-u8 *PNG_Compress(u8 *fb, u32 w, u32 h, size_t *png_sz)
-{
-	(void) fb;
-	(void) png_sz;
-	(void) w;
-	(void) h;
-	return NULL;
-}
-#endif

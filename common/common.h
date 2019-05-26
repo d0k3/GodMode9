@@ -15,6 +15,7 @@
 # ifdef MONITOR_HEAP
 #include "mymalloc.h"
 #define malloc my_malloc
+#define realloc my_realloc
 #define free my_free
 # endif
 #endif

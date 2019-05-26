@@ -46,15 +46,18 @@ void CreateScreenshot(void) {
     png = PNG_Compress(buffer, snap_w, snap_h, &png_size);
 
     if (png && png_size) {
-        fvx_qwrite(filename, png, 0, png_size, NULL);
+        u16 *buffer_top = buffer, *buffer_bottom = buffer + bot_offset;
 
         // "snap effect"
-        /*memcpy(buffer_b, BOT_SCREEN, SCREEN_SIZE_BOT);
-        memcpy(buffer_t, TOP_SCREEN, SCREEN_SIZE_TOP);
+        memcpy(buffer_bottom, BOT_SCREEN, SCREEN_SIZE_BOT);
+        memcpy(buffer_top, TOP_SCREEN, SCREEN_SIZE_TOP);
         memset(BOT_SCREEN, 0, SCREEN_SIZE_BOT);
         memset(TOP_SCREEN, 0, SCREEN_SIZE_TOP);
-        memcpy(BOT_SCREEN, buffer_b, SCREEN_SIZE_BOT);
-        memcpy(TOP_SCREEN, buffer_t, SCREEN_SIZE_TOP);*/
+
+        fvx_qwrite(filename, png, 0, png_size, NULL);
+
+        memcpy(BOT_SCREEN, buffer_bottom, SCREEN_SIZE_BOT);
+        memcpy(TOP_SCREEN, buffer_top, SCREEN_SIZE_TOP);
     }
     // what to do on error...?
 
