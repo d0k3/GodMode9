@@ -235,7 +235,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     if (!BuildKeyboard(swkbd_numpad, keys_numpad, layout_numpad)) return false;
 
     // (instructional) text
-    char str[512] = { 0 }; // arbitrary limit, should be more than enough
+    char str[512]; // arbitrary limit, should be more than enough
     va_list va;
     va_start(va, format);
     vsnprintf(str, 512, format, va);
