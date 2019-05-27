@@ -27,7 +27,6 @@ static u8 font_bin[FONT_MAX_HEIGHT * 256];
 
 #define PIXEL_OFFSET(x, y)  (((x) * SCREEN_HEIGHT) + (SCREEN_HEIGHT - (y) - 1))
 
-
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     char* hdr = (char*) pbm;
     u32 hdr_max_size = min(512, pbm_size);
@@ -163,7 +162,7 @@ void DrawPixel(u16 *screen, int x, int y, u32 color)
 
 void DrawRectangle(u16 *screen, int x, int y, u32 width, u32 height, u32 color)
 {
-    screen += PIXEL_OFFSET(x, y) - height;
+    screen += PIXEL_OFFSET(x, y) - height + 1;
     while(width--) {
         for (u32 h = 0; h < height; h++)
             screen[h] = color;
