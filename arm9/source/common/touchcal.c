@@ -14,11 +14,14 @@ static const HID_CalibrationData default_calib = {
     // so it's better to go with a sane default
 };
 
+static bool is_calibrated = false;
+
 
 static bool SetCalibrationDefaults(void)
 {
     // Hardcoding this isn't ideal but it's better than
     // leaving the system without any state to work with
+    is_calibrated = false; // no, this is not proper calibration
     return HID_SetCalibrationData(&default_calib, 1, SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
 }
 
@@ -70,7 +73,8 @@ bool ShowTouchCalibrationDialog(void)
         }
     }
 
-    return HID_SetCalibrationData(calibrations, countof(dot_positions), SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
+    is_calibrated = HID_SetCalibrationData(calibrations, countof(dot_positions), SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
+    return is_calibrated;
 }
 
 bool CalibrateTouchFromFlash(void) {
@@ -105,6 +109,11 @@ bool CalibrateTouchFromFlash(void) {
         data[i].screen_x = (((int)ts_data[base + 4]) * SCREEN_WIDTH_BOT) / 256;
         data[i].screen_y = (((int)ts_data[base + 5]) * SCREEN_HEIGHT) / 192;
     }
- 
-    return HID_SetCalibrationData(data, 2, SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
+
+    is_calibrated = HID_SetCalibrationData(data, 2, SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
+    return is_calibrated;
+}
+
+bool TouchIsCalibrated(void) {
+    return is_calibrated;
 }

@@ -1,7 +1,6 @@
 #include <stdarg.h>
 
 #include "swkbd.h"
-#include "ui.h"
 #include "timer.h"
 #include "hid.h"
 
@@ -245,6 +244,9 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     u32 str_x = (str_width >= SCREEN_WIDTH_BOT) ? 0 : (SCREEN_WIDTH_BOT - str_width) / 2;
     ClearScreen(BOT_SCREEN, COLOR_STD_BG);
     DrawStringF(BOT_SCREEN, str_x, 20, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+
+    // wait for all keys released
+    while (HID_ReadState() & BUTTON_ANY);
 
     // handle keyboard
     u32 uppercase = 0; // 1 -> uppercase once, 2 -> uppercase always

@@ -1,6 +1,9 @@
 #pragma once
 
 #include "common.h"
+#include "ui.h"
+#include "touchcal.h"
+
 
 // special key ids
 enum {
@@ -80,4 +83,6 @@ enum {
     3, 30, 34, 30, 0, \
     0
 
+
+#define ShowKeyboardOrPrompt (TouchIsCalibrated() ? ShowKeyboard : ShowStringPrompt)
 bool ShowKeyboard(char* inputstr, u32 max_size, const char *format, ...);

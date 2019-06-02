@@ -12,6 +12,7 @@
 #include "sha.h"
 #include "hid.h"
 #include "ui.h"
+#include "swkbd.h"
 #include "png.h"
 #include "ips.h"
 #include "bps.h"
@@ -1012,7 +1013,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char* var = get_var(argv[1], NULL);
         strncpy(input, var, _VAR_CNT_LEN);
         input[_VAR_CNT_LEN - 1] = '\0';
-        ret = ShowStringPrompt(input, _VAR_CNT_LEN, "%s", argv[0]);
+        ret = ShowKeyboardOrPrompt(input, _VAR_CNT_LEN, "%s", argv[0]);
         if (ret) set_var(argv[1], "");
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
         if (ret) {

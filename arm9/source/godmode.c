@@ -3,6 +3,7 @@
 #include "memmap.h"
 #include "support.h"
 #include "ui.h"
+#include "swkbd.h"
 #include "hid.h"
 #include "swkbd.h"
 #include "touchcal.h"
@@ -450,7 +451,7 @@ u32 SdFormatMenu(const char* slabel) {
     else cluster_size = cluster_size_table[user_select];
     
     snprintf(label, 16, "0:%s", (slabel && *slabel) ? slabel : "GM9SD");
-    if (!ShowStringPrompt(label + 2, 11 + 1, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
+    if (!ShowKeyboardOrPrompt(label + 2, 11 + 1, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
         return 1;
     
     if (!FormatSDCard(emunand_size_mb, cluster_size, label)) {
@@ -752,7 +753,7 @@ u32 FileHexViewer(const char* path) {
                     if (new_offset != (u64) -1) offset = new_offset;
                 } else if (user_select == 2) {
                     if (!found_size) *found_data = 0;
-                    if (ShowStringPrompt((char*) found_data, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                    if (ShowKeyboardOrPrompt((char*) found_data, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
                         found_size = strnlen((char*) found_data, 64);
                         found_offset = FileFindData(path, found_data, found_size, offset);
                         if (found_offset == (u32) -1) {
@@ -2051,7 +2052,7 @@ u32 GodMode(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
-    CalibrateTouchFromFlash(); // !!! this may need some further checking
+    CalibrateTouchFromFlash();
 
     // custom font handling
     if (CheckSupportFile("font.pbm")) {
@@ -2218,7 +2219,7 @@ u32 GodMode(int entrypoint) {
                     char searchstr[256];
                     snprintf(searchstr, 256, (user_select == srch_t) ? "*.tmd" : "*");
                     TruncateString(namestr, curr_entry->name, 20, 8);
-                    if ((user_select == srch_t) || ShowStringPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
+                    if ((user_select == srch_t) || ShowKeyboardOrPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
                         SetFSSearch(searchstr, curr_entry->path, (user_select == srch_t));
                         snprintf(current_path, 256, "Z:");
                         GetDirContents(current_dir, current_path);
@@ -2469,7 +2470,7 @@ u32 GodMode(int entrypoint) {
                 char namestr[20+1];
                 TruncateString(namestr, curr_entry->name, 20, 12);
                 snprintf(newname, 255, "%s", curr_entry->name);
-                if (ShowStringPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
+                if (ShowKeyboardOrPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
                     if (!PathRename(curr_entry->path, newname))
                         ShowPrompt(false, "Failed renaming path:\n%s", namestr);
                     else {
@@ -2486,7 +2487,7 @@ u32 GodMode(int entrypoint) {
                     char ename[256];
                     u64 fsize = 0;
                     snprintf(ename, 255, (type == 1) ? "newdir" : "dummy.bin");
-                    if ((ShowStringPrompt(ename, 256, "Create a new %s here?\nEnter name below.", typestr)) &&
+                    if ((ShowKeyboardOrPrompt(ename, 256, "Create a new %s here?\nEnter name below.", typestr)) &&
                         ((type != 2) || ((fsize = ShowNumberPrompt(0, "Create a new %s here?\nEnter file size below.", typestr)) != (u64) -1))) {
                         if (((type == 1) && !DirCreate(current_path, ename)) ||
                             ((type == 2) && !FileCreateDummy(current_path, ename, fsize))) {
@@ -2514,14 +2515,14 @@ u32 GodMode(int entrypoint) {
             int reboot = ++n_opt;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
-            int more = ++n_opt;
             int test = ++n_opt;
+            int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
             if (payloads > 0) optionstr[payloads - 1] = "Payloads...";
-            if (more > 0) optionstr[more - 1] = "More...";
             if (test > 0) optionstr[test - 1] = "Testing...";
+            if (more > 0) optionstr[more - 1] = "More...";
             
             int user_select = 0;
             while ((user_select = ShowSelectPrompt(n_opt, optionstr, "%s button pressed.\nSelect action:", buttonstr)) &&

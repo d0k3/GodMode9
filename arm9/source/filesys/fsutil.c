@@ -10,6 +10,7 @@
 #include "sdmmc.h"
 #include "ff.h"
 #include "ui.h"
+#include "swkbd.h"
 
 #define SKIP_CUR        (1UL<<10)
 #define OVERWRITE_CUR   (1UL<<11)
@@ -625,7 +626,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         
         // check & fix destination == origin
         while (strncasecmp(ldest, lorig, 255) == 0) {
-            if (!ShowStringPrompt(dname, 255 - (dname - ldest), "%s\nDestination equals origin\nChoose another name?", deststr))
+            if (!ShowKeyboardOrPrompt(dname, 255 - (dname - ldest), "%s\nDestination equals origin\nChoose another name?", deststr))
                 return false;
         }
         
@@ -641,7 +642,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
                 "Destination already exists:\n%s", deststr);
             if (user_select == 1) {
                 do {
-                    if (!ShowStringPrompt(dname, 255 - (dname - ldest), "Choose new destination name"))
+                    if (!ShowKeyboardOrPrompt(dname, 255 - (dname - ldest), "Choose new destination name"))
                         return false;
                 } while (fa_stat(ldest, NULL) == FR_OK);
             } else if (user_select == 2) {
