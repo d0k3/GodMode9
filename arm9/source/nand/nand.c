@@ -85,14 +85,10 @@ bool GetOtp0x90(void* otp0x90, u32 len)
 bool InitNandCrypto(bool init_full)
 {   
     // part #0: KeyX / KeyY for secret sector 0x96
-    // on a9lh this MUST be run before accessing the SHA register in any other way
     if (IS_UNLOCKED) { // if OTP is unlocked
         // see: https://www.3dbrew.org/wiki/OTP_Registers
         sha_quick(OtpSha256, (u8*) __OTP_ADDR, 0x90, SHA256_MODE);
         Crypto0x96 = true; // valid 100% in that case, others need checking
-    } else if (IS_A9LH) { // for a9lh
-        // store the current SHA256 from register
-        memcpy(OtpSha256, (void*) REG_SHAHASH, 32);
     }
     if (!CheckSector0x96Crypto()) { // if all else fails...
         u8 __attribute__((aligned(32))) otp0x90[0x90];
@@ -168,8 +164,8 @@ bool InitNandCrypto(bool init_full)
     if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_CTR, 0, NAND_SYSNAND) != 0)
         LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL);
     
-    // part #4: AGBSAVE CMAC KEY (set up on A9LH and SigHax)
-    if (init_full && (IS_A9LH || IS_SIGHAX))
+    // part #4: AGBSAVE CMAC KEY (set up on unlocked systems)
+    if (init_full && IS_UNLOCKED)
         LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
     
     // part #5: FULL INIT

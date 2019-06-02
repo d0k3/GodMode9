@@ -1037,11 +1037,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool renamable = (FTYPE_RENAMABLE(filetype));
     bool trimable = (FTYPE_TRIMABLE(filetype)) && !(drvtype & DRV_VIRTUAL) && !(drvtype & DRV_ALIAS) &&
         !(drvtype & DRV_CTRNAND) && !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_IMAGE);
-    bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_A9LH && (drvtype & DRV_FAT));
+    bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_UNLOCKED && (drvtype & DRV_FAT));
     bool hsinjectable = (FTYPE_HASCODE(filetype));
     bool extrcodeable = (FTYPE_HASCODE(filetype));
     bool extrdiffable = (FTYPE_ISDISADIFF(filetype));
-    bool restorable = (FTYPE_RESTORABLE(filetype) && IS_A9LH && !(drvtype & DRV_SYSNAND));
+    bool restorable = (FTYPE_RESTORABLE(filetype) && IS_UNLOCKED && !(drvtype & DRV_SYSNAND));
     bool ebackupable = (FTYPE_EBACKUP(filetype));
     bool ncsdfixable = (FTYPE_NCSDFIXABLE(filetype));
     bool xorpadable = (FTYPE_XORPAD(filetype));
@@ -2011,7 +2011,7 @@ u32 GodMode(int entrypoint) {
     u32 last_write_perm = GetWritePermissions();
     u32 last_clipboard_size = 0;
     
-    bool bootloader = IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT);
+    bool bootloader = IS_UNLOCKED && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
     
@@ -2030,7 +2030,7 @@ u32 GodMode(int entrypoint) {
     // get mode string for splash screen
     const char* disp_mode = NULL;
     if (bootloader) disp_mode = "bootloader mode\nR+LEFT for menu";
-    else if (!IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT)) disp_mode = "oldloader mode";
+    else if (!IS_UNLOCKED && (entrypoint == ENTRY_NANDBOOT)) disp_mode = "oldloader mode";
     else if (entrypoint == ENTRY_NTRBOOT) disp_mode = "ntrboot mode";
     else if (entrypoint == ENTRY_UNKNOWN) disp_mode = "unknown mode";
     
@@ -2075,7 +2075,7 @@ u32 GodMode(int entrypoint) {
     }
     
     // check internal clock
-    if (IS_SIGHAX) { // we could actually do this on any entrypoint
+    if (IS_UNLOCKED) { // we could actually do this on any entrypoint
         DsTime dstime;
         get_dstime(&dstime);
         if ((DSTIMEGET(&dstime, bcd_Y) < 18) &&
@@ -2619,7 +2619,7 @@ u32 ScriptRunner(int entrypoint) {
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
 
     // you didn't really install a scriptrunner to NAND, did you?
-    if (IS_SIGHAX && (entrypoint == ENTRY_NANDBOOT))
+    if (IS_UNLOCKED && (entrypoint == ENTRY_NANDBOOT))
         BootFirmHandler("0:/iderped.firm", false, false);
     
     if (PathExist("V:/" VRAM0_AUTORUN_GM9)) {

@@ -387,8 +387,8 @@ u32 SafeRestoreNandDump(const char* path) {
     if ((ValidateNandDump(path) != 0) && // NAND dump validation
         !ShowPrompt(true, "Error: NAND dump is corrupt.\nStill continue?"))
         return 1;
-    if (!IS_A9LH) {
-        ShowPrompt(false, "Error: B9S/A9LH not detected.");
+    if (!IS_UNLOCKED) {
+        ShowPrompt(false, "Error: System is locked.");
         return 1;
     }
     if (fvx_stat("S:/essential.exefs", NULL) != FR_OK) {
