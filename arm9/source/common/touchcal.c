@@ -73,29 +73,6 @@ bool ShowTouchCalibrationDialog(void)
     return HID_SetCalibrationData(calibrations, countof(dot_positions), SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
 }
 
-void ShowTouchPlayground(void)
-{
-    ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-
-    while (1) {
-        DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
-            "Current touchscreen coordinates: 000, 000");
-        
-        u32 pressed = InputWait(0);
-        if (pressed & BUTTON_B) return;
-
-        while (pressed & BUTTON_TOUCH) {
-            u16 tx, ty;
-            HID_ReadTouchState(&tx, &ty);
-            if (tx < SCREEN_WIDTH_BOT && ty < SCREEN_HEIGHT)
-                DrawPixel(BOT_SCREEN, tx, ty, COLOR_BRIGHTYELLOW);
-            DrawStringF(BOT_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
-                "Current touchscreen coordinates: %3.3d, %3.3d", tx, ty);
-            pressed = HID_ReadState();
-        }
-    }
-}
-
 bool CalibrateTouchFromFlash(void) {
     HID_CalibrationData data[2];
 
