@@ -722,6 +722,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     const u32 alphabet_size = strnlen(alphabet, 256);
     const u32 input_shown = 22;
     const u32 fast_scroll = 4;
+    const u64 aprv_delay = 128;
 
     u32 str_width, str_height;
     u32 x, y;
@@ -747,10 +748,13 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 40, COLOR_STD_FONT, COLOR_STD_BG,
         "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
 
+    // wait for all keys released
+    while (HID_ReadState() & BUTTON_ANY);
+
     int cursor_a = -1;
     u32 cursor_s = 0;
     u32 scroll = 0;
-    bool aprv = false;
+    u64 aprv = 0;
     bool ret = false;
 
     while (true) {
@@ -781,7 +785,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         // alphabet preview
         if (alphabet_size > (SCREEN_WIDTH(MAIN_SCREEN) / font_width)) {
             const u32 aprv_y = y + str_height - 60;
-            if (aprv) {
+            if (timer_msec(aprv) < aprv_delay) {
                 const u32 aprv_pad = 1;
                 const u32 aprv_cx = x + ((1 + cursor_s - scroll) * font_width);
                 u32 aprv_x = aprv_cx % (font_width + aprv_pad);
@@ -798,7 +802,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
         }
 
         u32 pad_state = InputWait(3);
-        aprv = (pad_state & (BUTTON_UP|BUTTON_DOWN|BUTTON_R1)) && !(pad_state & (BUTTON_RIGHT|BUTTON_LEFT));
+        if (pad_state & (BUTTON_UP|BUTTON_DOWN|BUTTON_R1)) aprv = timer_start();
         if (pad_state & BUTTON_A) {
             ret = true;
             break;
