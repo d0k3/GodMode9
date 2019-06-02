@@ -163,7 +163,7 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') | _FLG('p')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
     { CMD_ID_INJECT  , "inject"  , 2, _FLG('n') },
-    { CMD_ID_FILL    , "fill"    , 2, 0 },
+    { CMD_ID_FILL    , "fill"    , 2, _FLG('n') },
     { CMD_ID_FDUMMY  , "fdummy"  , 2, 0 },
     { CMD_ID_RM      , "rm"      , 1, 0 },
     { CMD_ID_MKDIR   , "mkdir"   , 1, 0 },
@@ -1142,6 +1142,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     }
     else if (id == CMD_ID_FILL) {
         u32 flags_ext = ALLOW_EXPAND;
+        if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         u8 fillbyte = 0;
         if ((strnlen(argv[1], _ARG_MAX_LEN) != 2) || !strntohex(argv[1], &fillbyte, 1)) {
             ret = false;
