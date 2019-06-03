@@ -28,7 +28,8 @@
 
 #define CODEC_SPI_DEV	3
 
-#define CPAD_THRESH	(150)
+#define CPAD_THRESH_X (750)
+#define CPAD_THRESH_Y (150)
 
 /* SPI stuff */
 static void CODEC_WriteRead(u32 *txb, u8 txl, u32 *rxb, u8 rxl)
@@ -133,8 +134,8 @@ void CODEC_Get(CODEC_Input *input)
 	cpad_y = ((raw_data[0x14] << 8 | raw_data[0x15]) & 0xFFF) - 2048;
 
 	// X axis is inverted
-	input->cpad_x = (abs(cpad_x) > CPAD_THRESH) ? -cpad_x : 0;
-	input->cpad_y = (abs(cpad_y) > CPAD_THRESH) ? cpad_y : 0;
+	input->cpad_x = (abs(cpad_x) > CPAD_THRESH_X) ? -cpad_x : 0;
+	input->cpad_y = (abs(cpad_y) > CPAD_THRESH_Y) ? cpad_y : 0;
 
 	ts_pressed = !(raw_data[0] & BIT(4));
 	if (ts_pressed) {
