@@ -148,10 +148,11 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 		case PXI_BRIGHTNESS:
 		{
 			ret = LCD_GetBrightness();
-			if (args[0] && (args[0] < 0x100)) {
+			if ((args[0] > 0) && (args[0] < 0x100)) {
 				LCD_SetBrightness(args[0]);
 				auto_brightness = false;
 			} else {
+				prev_bright_lvl = -1;
 				auto_brightness = true;
 			}
 			break;

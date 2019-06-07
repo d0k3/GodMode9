@@ -3,6 +3,18 @@
 #include "i2c.h"
 #include "pxi.h"
 
+u32 SetScreenBrightness(int level) {
+    u32 arg;
+
+    if (level != BRIGHTNESS_AUTOMATIC) {
+        arg = clamp(level, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+    } else {
+        arg = 0;
+    }
+
+    return PXI_DoCMD(PXI_BRIGHTNESS, &arg, 1);
+}
+
 u32 GetBatteryPercent() {
     u8 battery = 0;
     I2C_readRegBuf(I2C_DEV_MCU, 0x0B, &battery, 1);

@@ -85,3 +85,5 @@ u64 ShowNumberPrompt(u64 start_val, const char *format, ...);
 bool ShowDataPrompt(u8* data, u32* size, const char *format, ...);
 bool ShowRtcSetterPrompt(void* time, const char *format, ...);
 bool ShowProgress(u64 current, u64 total, const char* opstr);
+
+int ShowBrightnessConfig(int set_brightness);

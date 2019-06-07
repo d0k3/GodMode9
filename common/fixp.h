@@ -53,3 +53,8 @@ static inline fixp_t fixp_round(fixp_t n)
 {
 	return (n + FIXP_HALF_UNIT) & FIXP_UNIT_MASK;
 }
+
+static inline fixp_t fixp_changespace(fixp_t n, fixp_t lower_s, fixp_t upper_s, fixp_t lower_d, fixp_t upper_d)
+{
+	return fixp_product(n - lower_s, fixp_quotient(upper_d, upper_s)) + lower_d;
+}
