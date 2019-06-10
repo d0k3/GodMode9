@@ -1322,7 +1322,7 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
                 {"Use personalized ticket (legit)", "Use generic ticket (not legit)"};
             if (!default_action) {
                 default_action = ShowSelectPrompt(2, optionstr,
-                    "ID %016llX\nLegit ticket is personalized.\nChoose default action:", getbe64(title_id));
+                    "ID %016llX\nLegit ticket is personalized.\nCIA may not be installable.\nChoose default action:", getbe64(title_id));
                 ShowProgress(0, 0, path_tmd);
             }
             if (!default_action) return 1;
