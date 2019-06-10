@@ -1883,6 +1883,7 @@ u32 HomeMoreMenu(char* current_path) {
     int bsupport = ++n_opt;
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
+    int bright = ++n_opt;
     int sysinfo = ++n_opt;
     int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL)) ? (int) ++n_opt : -1;
     
@@ -1892,6 +1893,7 @@ u32 HomeMoreMenu(char* current_path) {
     if (bsupport > 0) optionstr[bsupport - 1] = "Build support files";
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
+    if (bright > 0) optionstr[bright - 1] = "Configure brightness";
     if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
     if (readme > 0) optionstr[readme - 1] = "Show ReadMe";
     
@@ -1993,6 +1995,15 @@ u32 HomeMoreMenu(char* current_path) {
         }
         return 0;
     }
+    else if (user_select == bright) { // brightness config dialogue
+        s32 old_brightness, new_brightness;
+        if (!LoadSupportFile("gm9bright.cfg", &old_brightness, 4))
+            old_brightness = BRIGHTNESS_AUTOMATIC; // auto by default
+        new_brightness = ShowBrightnessConfig(old_brightness);
+        if (old_brightness != new_brightness)
+            SaveSupportFile("gm9bright.cfg", &new_brightness, 4);
+        return 0;
+    }
     else if (user_select == sysinfo) { // Myria's system info
         char* sysinfo_txt = (char*) malloc(STD_BUFFER_SIZE);
         if (!sysinfo_txt) return 1;
@@ -2026,6 +2037,7 @@ u32 GodMode(int entrypoint) {
     bool bootloader = IS_UNLOCKED && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
     bool godmode9 = !bootloader;
+
     
     // FIRM from FCRAM handling
     FirmHeader* firm_in_mem = (FirmHeader*) __FIRMTMP_ADDR; // should be safe here
@@ -2064,6 +2076,11 @@ u32 GodMode(int entrypoint) {
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
     CalibrateTouchFromFlash();
+
+    // brightness from file?
+    s32 brightness = -1;
+    if (LoadSupportFile("gm9bright.cfg", &brightness, 0x4))
+        SetScreenBrightness(brightness);
 
     // custom font handling
     if (CheckSupportFile("font.pbm")) {

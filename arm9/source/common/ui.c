@@ -1064,16 +1064,17 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
 
 int ShowBrightnessConfig(int set_brightness)
 {
+    const int old_brightness = set_brightness;
     u32 btn_input, bar_count;
     int bar_x_pos, bar_y_pos, bar_width, bar_height;
 
     const char *brightness_str =
-        "[<] Decrease brightness\n"
-        "[>] Increase brightness\n"
-        "[X] Use the volume slider as control\n"
-        "\n"
-        "[A] Set screen brightness\n"
-        "[B] Exit";
+        "[\x1B] Decrease brightness\n"
+        "[\x1A] Increase brightness\n"
+        " \n"
+        "[X] Use volume slider control\n"
+        "[A] Set current brightness\n"
+        "[B] Cancel";
     static const u16 brightness_slider_colmasks[] = {
         COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE
     };
@@ -1094,7 +1095,7 @@ int ShowBrightnessConfig(int set_brightness)
     // draw initial UI stuff
     DrawStringF(MAIN_SCREEN,
         (SCREEN_WIDTH_MAIN - GetDrawStringWidth(brightness_str)) / 2,
-        (SCREEN_HEIGHT / 4) * 3, COLOR_STD_FONT, COLOR_STD_BG, brightness_str);
+        (SCREEN_HEIGHT / 4) * 2, COLOR_STD_FONT, COLOR_STD_BG, brightness_str);
 
     // draw all color gradient bars
     for (int x = 0; x < bar_width; x++) {
@@ -1117,9 +1118,9 @@ int ShowBrightnessConfig(int set_brightness)
     }
 
     while(1) {
-        int old_br, slider_x_pos, slider_y_pos;
+        int prev_brightness, slider_x_pos, slider_y_pos;
 
-        old_br = set_brightness;
+        prev_brightness = set_brightness;
         slider_y_pos = bar_y_pos + (bar_height * 3) + font_height;
 
         if (set_brightness != BRIGHTNESS_AUTOMATIC) {
@@ -1148,8 +1149,9 @@ int ShowBrightnessConfig(int set_brightness)
             set_brightness += 10;
         } else if (btn_input & BUTTON_X) {
             set_brightness = BRIGHTNESS_AUTOMATIC;
+            break;
         } else if (btn_input & BUTTON_B) {
-            set_brightness = 0;
+            set_brightness = old_brightness;
             break;
         } else if (btn_input & BUTTON_A) {
             break;
@@ -1158,10 +1160,11 @@ int ShowBrightnessConfig(int set_brightness)
         if (set_brightness != BRIGHTNESS_AUTOMATIC)
             set_brightness = clamp(set_brightness, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
 
-        if (set_brightness != old_br)
+        if (set_brightness != prev_brightness)
             SetScreenBrightness(set_brightness);
     }
 
     ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
+    SetScreenBrightness(set_brightness);
     return set_brightness;
 }
