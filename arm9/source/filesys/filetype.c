@@ -118,6 +118,9 @@ u64 IdentifyFileType(const char* path) {
     } else if ((fsize > sizeof(ThreedsxHeader)) &&
         (memcmp(data, threedsx_magic, sizeof(threedsx_magic)) == 0)) {
         return GAME_3DSX; // 3DSX (executable) file
+    } else if ((fsize > sizeof(CmdHeader)) &&
+        CheckCmdSize((CmdHeader*) data, fsize) == 0) {
+        return GAME_CMD; // CMD file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {

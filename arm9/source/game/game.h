@@ -13,5 +13,7 @@
 #include "gba.h"
 #include "tad.h"
 #include "3dsx.h"
+#include "tmd.h"
+#include "cmd.h"
 #include "ticketdb.h"
 #include "ncchinfo.h"

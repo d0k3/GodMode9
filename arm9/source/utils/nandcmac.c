@@ -1,6 +1,7 @@
 #include "nandcmac.h"
 #include "fsperm.h"
 #include "gba.h"
+#include "cmd.h"
 #include "sha.h"
 #include "aes.h"
 #include "vff.h"
@@ -21,6 +22,8 @@
 #define CMAC_MOVABLE        9
 #define CMAC_AGBSAVE       10
 #define CMAC_AGBSAVE_SD    11
+#define CMAC_CMD_SD        12
+#define CMAC_CMD_TWLN      13 // unsupported
 
 // see: https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
 #define CMAC_SAVETYPE NULL, "CTR-EXT0", "CTR-EXT0", "CTR-SYS0", "CTR-NOR0", "CTR-SAV0", "CTR-SIGN", "CTR-9DB0", "CTR-9DB0", NULL, NULL, NULL
@@ -97,6 +100,7 @@ u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
     if (!cmac_type) return 1;
     else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
     else if ((cmac_type == CMAC_AGBSAVE) ||  (cmac_type == CMAC_AGBSAVE_SD)) offset = 0x010;
+    else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1; // can't do that here
     else offset = 0x000;
     
     if (do_write && !CheckWritePermissions(path)) return 1;
@@ -128,6 +132,9 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             ext && (strncasecmp(ext, "sav", 4) == 0)) {
             // cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : (CheckAgbSaveHeader(path) == 0) ? CMAC_AGBSAVE_SD : 0;
             cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : 0;
+        } else if ((sscanf(path, "%c:/title/%08lx/%08lx/content/cmd/%08lx.cmd", &drv, &tid_high, &tid_low, &sid) == 4) &&
+            ext && (strncasecmp(ext, "cmd", 4) == 0)) {
+            cmac_type = CMAC_CMD_SD; // this needs special handling, it's in here just for detection
         }
     } else if ((drv == '1') || (drv == '4') || (drv == '7')) { // data on CTRNAND
         u64 id0_high, id0_low; // ID0
@@ -140,6 +147,11 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             cmac_type = CMAC_EXTDATA_SYS;
         } else if (sscanf(path, "%c:/data/%016llx%016llx/sysdata/%08lx/%08lx", &drv, &id0_high, &id0_low, &fid_low, &fid_high) == 5)
             cmac_type = CMAC_SAVEDATA_SYS;
+    } else if ((drv == '2') || (drv == '5') || (drv == '8')) { // data on TWLN
+        if ((sscanf(path, "%c:/title/%08lx/%08lx/content/cmd/%08lx.cmd", &drv, &tid_high, &tid_low, &sid) == 4) &&
+            ext && (strncasecmp(ext, "cmd", 4) == 0)) {
+            cmac_type = CMAC_CMD_TWLN; // this is not supported (yet), it's in here just for detection
+        }
     }
     
     if (!cmac_type) { // path independent stuff
@@ -157,6 +169,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     // exit with cmac_type if (u8*) cmac is NULL
     // somewhat hacky, but can be used to check if file has a CMAC
     if (!cmac) return cmac_type;
+    else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1;
     else if (!cmac_type) return 1;
     
     const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
@@ -234,15 +247,26 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
 }
 
 u32 CheckFileCmac(const char* path) {
-    u8 fcmac[16];
-    u8 ccmac[16];
-    return ((ReadFileCmac(path, fcmac) == 0) && (CalculateFileCmac(path, ccmac) == 0) &&
-        (memcmp(fcmac, ccmac, 16) == 0)) ? 0 : 1;
+    u32 cmac_type = CalculateFileCmac(path, NULL);
+    if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) {
+        return CheckCmdCmac(path);
+    } else if (cmac_type) {
+        u8 fcmac[16];
+        u8 ccmac[16];
+        return ((ReadFileCmac(path, fcmac) == 0) && (CalculateFileCmac(path, ccmac) == 0) &&
+            (memcmp(fcmac, ccmac, 16) == 0)) ? 0 : 1;
+    } else return 1;
+    
 }
 
 u32 FixFileCmac(const char* path) {
-    u8 ccmac[16];
-    return ((CalculateFileCmac(path, ccmac) == 0) && (WriteFileCmac(path, ccmac) == 0)) ? 0 : 1;
+    u32 cmac_type = CalculateFileCmac(path, NULL);
+    if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) {
+        return FixCmdCmac(path);
+    } else if (cmac_type) {
+        u8 ccmac[16];
+        return ((CalculateFileCmac(path, ccmac) == 0) && (WriteFileCmac(path, ccmac) == 0)) ? 0 : 1;
+    } else return 1;
 }
 
 u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
@@ -278,6 +302,100 @@ u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
     aes_cmac(temp, &(agbsave->cmac), 2);
     if (cmac) memcpy(cmac, &(agbsave->cmac), 0x10);
     
+    return 0;
+}
+
+u32 CheckFixCmdCmac(const char* path, bool fix) {
+    u8 cmac[16] __attribute__((aligned(4)));
+    u32 keyslot = ((*path == 'A') || (*path == 'B')) ? 0x30 : 0x0B;
+    bool fixed = false;
+
+    // setup the keyslot if required
+    if ((keyslot == 0x30) && (SetupSlot0x30(*path) != 0))
+        return 1;
+
+    // set up the temporary path for contents
+    u32 pos_name_content = 2 + 1 + 5 + 1 + 8 + 1 + 8 + 1 + 7 + 1;
+    char path_content[256]; // that will be more than enough
+    char* name_content = path_content + pos_name_content;
+    strncpy(path_content, path, 256);
+    if (strnlen(path_content, 256) < pos_name_content)
+        return 1;
+
+    // hacky check for DLC conents
+    bool is_dlc = (strncasecmp(path + 2 + 1 + 5 + 1, "0004008c", 8) == 0);
+
+    // cmd data
+    u64 cmd_size = fvx_qsize(path);
+    u8* cmd_data = malloc(cmd_size);
+    CmdHeader* cmd = (CmdHeader*) (void*) cmd_data;
+    
+    // check for out of memory
+    if (cmd_data == NULL) return 1;
+
+    // read the full file to memory and check it (we may write it back later)
+    if ((fvx_qread(path, cmd_data, 0, cmd_size, NULL) != FR_OK) ||
+        (CheckCmdSize(cmd, cmd_size) != 0)) {
+        free(cmd_data);
+        return 1;
+    }
+
+
+    // now, check the CMAC@0x10
+    use_aeskey(keyslot);
+    aes_cmac(cmd_data, cmac, 1);
+    if (memcmp(cmd->cmac, cmac, 0x10) != 0) {
+        if (fix) {
+            fixed = true;
+            memcpy(cmd->cmac, cmac, 0x10);
+        } else {
+            free(cmd_data);
+            return 1;
+        }
+    }
+
+    // further checking will be more complicated
+    // set up pointers to cmd data (pointer arithemtic is hard)
+    u32 n_entries = cmd->n_entries;
+    u32* cnt_id = (u32*) (cmd + 1);
+    u8* cnt_cmac = (u8*) (cnt_id + cmd->n_entries + cmd->n_cmacs);
+
+    // check all ids and cmacs
+    for (u32 cnt_idx = 0; cnt_idx < n_entries; cnt_idx++, cnt_id++, cnt_cmac += 0x10) {
+        u8 hashdata[0x108] __attribute__((aligned(4)));
+        u8 shasum[32];
+        if (*cnt_id == 0xFFFFFFFF) continue; // unavailable content
+        snprintf(name_content, 32, "%s%08lX.app", (is_dlc) ? "00000000/" : "", *cnt_id);
+        if (fvx_qread(path_content, hashdata, 0x100, 0x100, NULL) != FR_OK) {
+            free(cmd_data);
+            return 1; // failed to read content
+        }
+        memcpy(hashdata + 0x100, &cnt_idx, 4);
+        memcpy(hashdata + 0x104, cnt_id, 4);
+        // hash block complete, check it
+        sha_quick(shasum, hashdata, 0x108, SHA256_MODE);
+        use_aeskey(keyslot);
+        aes_cmac(shasum, cmac, 2);
+        if (memcmp(cnt_cmac, cmac, 0x10) != 0) {
+            if (fix) {
+                fixed = true;
+                memcpy(cnt_cmac, cmac, 0x10);
+            } else {
+                free(cmd_data);
+                return 1; // bad cmac
+            }
+        }
+    }
+
+    // if fixing is enable, write back cmd file
+    if (fix && fixed && CheckWritePermissions(path) &&
+        (fvx_qwrite(path, cmd_data, 0, cmd_size, NULL) != FR_OK)) {
+        free(cmd_data);
+        return 1;
+    }
+
+    // if we end up here, everything is fine
+    free(cmd_data);
     return 0;
 }
 

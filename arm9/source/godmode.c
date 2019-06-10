@@ -875,22 +875,33 @@ u32 Sha256Calculator(const char* path) {
 
 u32 CmacCalculator(const char* path) {
     char pathstr[32 + 1];
-    u8 cmac[16];
     TruncateString(pathstr, path, 32, 8);
-    if (CalculateFileCmac(path, cmac) != 0) {
-        ShowPrompt(false, "Calculating CMAC: failed!");
-        return 1;
-    } else {
-        u8 cmac_file[16];
-        bool identical = ((ReadFileCmac(path, cmac_file) == 0) && (memcmp(cmac, cmac_file, 16) == 0));
-        if (ShowPrompt(!identical, "%s\n%016llX%016llX\n%s%s%s",
-            pathstr, getbe64(cmac + 0), getbe64(cmac + 8),
-            "CMAC verification: ", (identical) ? "passed!" : "failed!",
-            (!identical) ? "\n \nFix CMAC in file?" : "") &&
-            !identical && (WriteFileCmac(path, cmac) != 0)) {
+    if (IdentifyFileType(path) != GAME_CMD) {
+        u8 cmac[16] __attribute__((aligned(4)));
+        if (CalculateFileCmac(path, cmac) != 0) {
+            ShowPrompt(false, "Calculating CMAC: failed!");
+            return 1;
+        } else {
+            u8 cmac_file[16];
+            bool identical = ((ReadFileCmac(path, cmac_file) == 0) && (memcmp(cmac, cmac_file, 16) == 0));
+            if (ShowPrompt(!identical, "%s\n%016llX%016llX\n%s%s%s",
+                pathstr, getbe64(cmac + 0), getbe64(cmac + 8),
+                "CMAC verification: ", (identical) ? "passed!" : "failed!",
+                (!identical) ? "\n \nFix CMAC in file?" : "") &&
+                !identical && (WriteFileCmac(path, cmac) != 0)) {
+                ShowPrompt(false, "Fixing CMAC: failed!");
+            }
+        }
+    } else { // special handling for CMD files
+        bool correct = (CheckCmdCmac(path) == 0);
+        if (ShowPrompt(!correct, "%s\nXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n%s%s%s",
+            pathstr, "CMAC verification: ", (correct) ? "passed!" : "failed!",
+            (!correct) ? "\n \nFix CMAC in file?" : "") &&
+            !correct && (FixCmdCmac(path) != 0)) {
             ShowPrompt(false, "Fixing CMAC: failed!");
         }
     }
+    
     
     return 0;
 }
