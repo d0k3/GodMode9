@@ -5,7 +5,6 @@
 .global wait
 .type wait, %function
 wait:
-	subs r0, r0, #2
-	nop
-	bgt wait
+	subs r0, r0, #4
+	bcs wait
 	bx lr

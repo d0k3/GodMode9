@@ -469,7 +469,7 @@ int SD_Init()
 
 	// We need to send at least 74 clock pulses.
 	set_target(&handleSD);
-	wait(0x1980); // ~75-76 clocks
+	wait(2 * 128 * 74);
 
 	sdmmc_send_command(&handleSD,0,0);
 	sdmmc_send_command(&handleSD,0x10408,0x1AA);
