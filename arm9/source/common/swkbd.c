@@ -281,9 +281,11 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
             break;
         } else if (key == KEY_BKSPC) {
             if (cursor) {
-                memmove(inputstr + cursor - 1, inputstr + cursor, max_size - cursor);
+                if (cursor <= inputstr_size) {
+                    memmove(inputstr + cursor - 1, inputstr + cursor, inputstr_size - cursor + 1);
+                    inputstr_size--;
+                }
                 cursor--;
-                inputstr_size--;
             }
         } else if (key == KEY_LEFT) {
             if (cursor) cursor--;
