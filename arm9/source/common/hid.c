@@ -145,7 +145,7 @@ u32 InputWait(u32 timeout_sec) {
     do {
         u32 newpad = HID_ReadState();
 
-        if (!newpad) { // no buttons pressed, check for I/O changes instead
+        if (!(newpad & BUTTON_ANY)) { // no buttons pressed, check for I/O changes instead
             u32 state = CART_STATE;
             if (state != oldcart)
                 return state ? CART_INSERT : CART_EJECT;

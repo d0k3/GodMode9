@@ -6,8 +6,10 @@
 
 static CartData* cdata = NULL;
 static bool cart_init = false;
+static bool cart_checked = false;
 
 u32 InitVCartDrive(void) {
+    if (!cart_checked) cart_checked = true;
     if (!cdata) cdata = (CartData*) malloc(sizeof(CartData));
     cart_init = (cdata && (InitCardRead(cdata) == 0) && (cdata->cart_size <= FAT_LIMIT));
     if (!cart_init && cdata) {
@@ -73,7 +75,7 @@ u64 GetVCartDriveSize(void) {
 
 void GetVCartTypeString(char* typestr) {
     // typestr needs to be at least 11 + 1 chars big
-    if (!cart_init || !cdata) sprintf(typestr, "EMPTY");
+    if (!cart_init || !cdata) sprintf(typestr, cart_checked ? "EMPTY" : "INIT");
     else sprintf(typestr, "%s%08lX",
         (cdata->cart_type & CART_CTR) ? "CTR" :
         (cdata->cart_type & CART_TWL) ? "TWL" :
