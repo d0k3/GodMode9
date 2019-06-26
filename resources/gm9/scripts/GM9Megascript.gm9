@@ -128,12 +128,12 @@ end
 
 imgmount $[NANDBAK]
 find I:/ctrnand_full.bin NULL
-find I:/twln.bin NULL
-find I:/twlp.bin NULL
+find I:/twln.fat16.img NULL
+find I:/twlp.fat12.img NULL
 
 cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
-cp -w -n I:/twln.bin S:/twln.bin
-cp -w -n I:/twlp.bin S:/twlp.bin
+cp -w -n I:/twln.fat16.img S:/twln.fat16.img
+cp -w -n I:/twlp.fat12.img S:/twlp.fat12.img
 imgumount
 echo "$[NANDBAK]\nsuccessfully restored to SysNAND."
 goto MainMenu_Restore_Options
@@ -278,10 +278,10 @@ end
 if	allow -a S:
 	allow -a 0:
 	
-	cp -w -o -s -n S:/firm0.bin $[GM9OUT]/$[SERIAL]_firm0.bin
-	cp -w -o -s -n S:/firm1.bin $[GM9OUT]/$[SERIAL]_firm1.bin
-	cp -w -n $[B9S] S:/firm0.bin
-	cp -w -n $[B9S] S:/firm1.bin
+	cp -w -o -s -n S:/firm0.firm $[GM9OUT]/$[SERIAL]_firm0.firm
+	cp -w -o -s -n S:/firm1.firm $[GM9OUT]/$[SERIAL]_firm1.firm
+	cp -w -n $[B9S] S:/firm0.firm
+	cp -w -n $[B9S] S:/firm1.firm
 	echo "Boot9Strap successfully installed."
 else
 	echo "Permissions denied. Aborting."
@@ -349,11 +349,11 @@ else
 	goto Hax_Options_Install_Boot9Strap
 end
 
-cp -w -o -s -n S:/firm0.bin 9:/sdcompiled/gm9/out/$[SERIAL]_firm0.bin
-cp -w -o -s -n S:/firm1.bin 9:/sdcompiled/gm9/out/$[SERIAL]_firm1.bin
+cp -w -o -s -n S:/firm0.firm 9:/sdcompiled/gm9/out/$[SERIAL]_firm0.firm
+cp -w -o -s -n S:/firm1.firm 9:/sdcompiled/gm9/out/$[SERIAL]_firm1.firm
 
-cp -w -n $[B9S] S:/firm0.bin
-cp -w -n $[B9S] S:/firm1.bin
+cp -w -n $[B9S] S:/firm0.firm
+cp -w -n $[B9S] S:/firm1.firm
 
 rm -o -s 1:/boot.*
 rm -o -s 1:/rw/luma
@@ -436,8 +436,8 @@ if	allow -a S:
 	allow -a 1:
 	rm -o -s 1:/boot.firm
 	rm -o -s 1:/rw/luma
-	cp -n $[NATIVE_FIRM] S:/firm0.bin
-	cp -n $[NATIVE_FIRM] S:/firm1.bin
+	cp -n $[NATIVE_FIRM] S:/firm0.firm
+	cp -n $[NATIVE_FIRM] S:/firm1.firm
 	echo "CFW un-installed successfully"
 else
 	echo "Permissions denied. Aborting."
@@ -461,8 +461,8 @@ if	allow S:/nand.bin
 	allow 1:
 	rm -o -s 1:/boot.firm
 	rm -o -s 1:/rw/luma
-	cp -n $[NATIVE_FIRM] S:/firm0.bin
-	cp -n $[NATIVE_FIRM] S:/firm1.bin
+	cp -n $[NATIVE_FIRM] S:/firm0.firm
+	cp -n $[NATIVE_FIRM] S:/firm1.firm
 	echo "CFW uninstalled successfully"
 else
 	echo "Permissions denied. Aborting."
@@ -1673,7 +1673,7 @@ if	not cp -w -h S:/twlmbr.bin 0:/donor/twlmbr.bin
 	goto Miscellaneous_Lazarus3DS
 end
 
-if	not cp -w S:/twln.bin 0:/donor/twln.bin
+if	not cp -w S:/twln.fat16.img 0:/donor/twln.fat16.img
 	echo "Interrupted. Aborting."
 	rm -o -s 0:/donor/ctrnand_full.bin
 	rm -o -s 0:/donor/nand_hdr.bin
@@ -1681,12 +1681,12 @@ if	not cp -w S:/twln.bin 0:/donor/twln.bin
 	goto Miscellaneous_Lazarus3DS
 end
 
-if	not cp -w S:/twlp.bin 0:/donor/twlp.bin
+if	not cp -w S:/twlp.fat12.img 0:/donor/twlp.fat12.img
 	echo "Interrupted. Aborting."
 	rm -o -s 0:/donor/ctrnand_full.bin
 	rm -o -s 0:/donor/nand_hdr.bin
 	rm -o -s 0:/donor/twlmbr.bin
-	rm -o -s 0:/donor/twln.bin
+	rm -o -s 0:/donor/twln.fat16.img
 	goto Miscellaneous_Lazarus3DS
 end
 
@@ -1695,8 +1695,8 @@ if	not cp -w -h S:/sector0x96.bin 0:/donor/sector0x96.bin
 	rm -o -s 0:/donor/ctrnand_full.bin
 	rm -o -s 0:/donor/nand_hdr.bin
 	rm -o -s 0:/donor/twlmbr.bin
-	rm -o -s 0:/donor/twln.bin
-	rm -o -s 0:/donor/twlp.bin
+	rm -o -s 0:/donor/twln.fat16.img
+	rm -o -s 0:/donor/twlp.fat12.img
 	goto Miscellaneous_Lazarus3DS
 end
 
@@ -1723,22 +1723,22 @@ cp -w -n $[TICKETDB] 7:/dbs/ticket.db
 imgumount
 
 echo "Setting up Donated TWLN."
-imgmount 0:/donor/twln.bin
+imgmount 0:/donor/twln.fat16.img
 
 rm -o -s 7:/title/00030004
 rm -o -s 7:/shared2/0000
 imgumount
 
 echo "Setting up Donated TWLP."
-imgmount 0:/donor/twlp.bin
+imgmount 0:/donor/twlp.fat12.img
 
 rm -o -s 7:/photo/DCIM
 imgumount
 
 echo "Calculating Missing Hashes."
 shaget 0:/donor/ctrnand_full.bin 0:/donor/ctrnand_full.bin.sha
-shaget 0:/donor/twln.bin 0:/donor/twln.bin.sha
-shaget 0:/donor/twlp.bin 0:/donor/twlp.bin.sha
+shaget 0:/donor/twln.fat16.img 0:/donor/twln.fat16.img.sha
+shaget 0:/donor/twlp.fat12 0:/donor/twlp.fat12.img.sha
 
 echo "Wrapping Things up."
 rm -o -s 0:/gm9/scripts/Lazarus-Prep.gm9
@@ -1774,12 +1774,12 @@ if	not find 0:/pit/twlmbr.bin TWLMBR
 	goto Miscellaneous_Lazarus3DS
 end
 
-if	not find 0:/pit/twln_*.bin TWLN
+if	not find 0:/pit/twln_*.fat16.img TWLN
 	echo "TWLN not found!"
 	goto Miscellaneous_Lazarus3DS
 end
 
-if	not find 0:/pit/twlp.bin TWLP
+if	not find 0:/pit/twlp.fat12.img TWLP
 	echo "TWLP not found!"
 	goto Miscellaneous_Lazarus3DS
 end
@@ -1887,9 +1887,9 @@ cp -w -n $[SIGHAX] S:/nand_hdr.bin
 
 cp -w -n $[TWLMBR] S:/twlmbr.bin
 
-cp -w -n $[TWLN] S:/twln.bin
+cp -w -n $[TWLN] S:/twln.fat16.img
 
-cp -w -n $[TWLP] S:/twlp.bin
+cp -w -n $[TWLP] S:/twlp.fat12.img
 
 cp -w -n $[CTRNAND] S:/ctrnand_full.bin
 
@@ -1931,8 +1931,8 @@ fixcmac 1:/data
 fixcmac 1:/private
 
 set ERRORMSG "Unable to inject boot9strap!\n \nRun SafeB9SInstaller after."
-cp -w -o -n $[B9S] S:/firm0.bin
-cp -w -o -n $[B9S] S:/firm1.bin
+cp -w -o -n $[B9S] S:/firm0.firm
+cp -w -o -n $[B9S] S:/firm1.firm
 
 cp -w $[SECRET] S:/sector0x96.bin
 
