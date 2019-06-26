@@ -11,10 +11,10 @@
 #define PATH_SYS_LVL2   "1:/rw/sys/LocalFriendCodeSeed_B", "1:/rw/sys/LocalFriendCodeSeed_A", \
                         "1:/rw/sys/SecureInfo_A", "1:/rw/sys/SecureInfo_B", \
                         "1:/private/movable.sed", "1:/ro/sys/HWCAL0.dat", "1:/ro/sys/HWCAL1.dat", \
-                        "S:/ctrnand_fat.fat16.img", "S:/ctrnand_full.bin", "S:/" ESSENTIAL_NAME
+                        "S:/ctrnand_fs.fat16.img", "S:/ctrnand_full.bin", "S:/" ESSENTIAL_NAME
 #define PATH_SYS_LVL3   "S:/firm0.firm", "S:/firm1.firm", "S:/nand.bin", "S:/nand_minsize.bin", "S:/nand_hdr.bin", \
                         "S:/sector0x96.bin", "S:/twlmbr.bin"
-#define PATH_EMU_LVL1   "E:/ctrnand_fat.fat16.img", "E:/ctrnand_full.bin", "E:/nand.bin", "E:/nand_minsize.bin", "E:/nand_hdr.bin"
+#define PATH_EMU_LVL1   "E:/ctrnand_fs.fat16.img", "E:/ctrnand_full.bin", "E:/nand.bin", "E:/nand_minsize.bin", "E:/nand_hdr.bin"
 
 // write permissions - careful with this
 static u32 write_permissions = PERM_BASE;
