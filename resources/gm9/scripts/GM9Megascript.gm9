@@ -1738,7 +1738,7 @@ imgumount
 echo "Calculating Missing Hashes."
 shaget 0:/donor/ctrnand_full.bin 0:/donor/ctrnand_full.bin.sha
 shaget 0:/donor/twln.fat16.img 0:/donor/twln.fat16.img.sha
-shaget 0:/donor/twlp.fat12 0:/donor/twlp.fat12.img.sha
+shaget 0:/donor/twlp.fat12.img 0:/donor/twlp.fat12.img.sha
 
 echo "Wrapping Things up."
 rm -o -s 0:/gm9/scripts/Lazarus-Prep.gm9
