@@ -97,21 +97,21 @@ set ERRORMSG "SysNAND not changed."
 if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
     if ask "Safe restore\n$[NANDBAK]\nto SysNAND?"
         allow S:/ctrnand_full.bin
-        allow S:/twln.bin
-        allow S:/twlp.bin
+        allow S:/twln.fat16.img
+        allow S:/twlp.fat12.img
         set ERRORMSG "Not a valid NAND backup."
         imgmount $[NANDBAK]
         if find I:/ctrnand_full.bin NULL
-            if find I:/twln.bin NULL
-                if find I:/twlp.bin NULL
+            if find I:/twln.fat16.img NULL
+                if find I:/twlp.fat12.img NULL
                     # Uncomment the "verify" command below to enable verification.
                     # I left it out since the firm partitions are not being touched.
                     # If you do not want the script to even try to recover content from a bricked image, enable it.
                     #verify I:/nand_minsize.bin
                     set ERRORMSG "An error occurred during the transfer.\nPlease try again."
                     cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
-                    cp -w -n I:/twln.bin S:/twln.bin
-                    cp -w -n I:/twlp.bin S:/twlp.bin
+                    cp -w -n I:/twln.fat16.img S:/twln.fat16.img
+                    cp -w -n I:/twlp.fat12.img S:/twlp.fat12.img
                     imgumount
                 else
                     echo "Not a valid NAND backup."
@@ -135,8 +135,8 @@ if find E:/nand.bin NULL
         if ask "Please make sure you have a backup of your SysNAND.\nAre you certain you want to continue?"
             allow S:/nand.bin
             cp -w -n E:/ctrnand_full.bin S:/ctrnand_full.bin
-            cp -w -n E:/twln.bin S:/twln.bin
-            cp -w -n E:/twlp.bin S:/twlp.bin
+            cp -w -n E:/twln.fat16.img S:/twln.fat16.img
+            cp -w -n E:/twlp.fat12.img S:/twlp.fat12.img
         end
     else
         echo "No qualifying exploit found.\nAborting to avoid bricking the device."
