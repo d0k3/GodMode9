@@ -2643,6 +2643,11 @@ u32 ScriptRunner(int entrypoint) {
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
     CalibrateTouchFromFlash(); // !!! this may need some further checking
+
+    // brightness from file?
+    s32 brightness = -1;
+    if (LoadSupportFile("gm9bright.cfg", &brightness, 0x4))
+        SetScreenBrightness(brightness);
     
     while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
     while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec

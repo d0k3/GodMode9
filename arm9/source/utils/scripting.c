@@ -16,6 +16,7 @@
 #include "png.h"
 #include "ips.h"
 #include "bps.h"
+#include "pxi.h"
 
 
 #define _MAX_ARGS       4
@@ -1407,6 +1408,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                     snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
                 else strncpy(fixpath, argv[0], 256);
                 fixpath[255] = '\0';
+                PXI_DoCMD(PXI_SET_VMODE, (u32[]){1}, 1);
+                PXI_DoCMD(PXI_LEGACY_MODE, NULL, 0);
                 BootFirm((FirmHeader*)(void*)firm, fixpath);
                 while(1);
             } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
