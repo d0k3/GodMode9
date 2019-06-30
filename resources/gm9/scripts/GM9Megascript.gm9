@@ -1,5 +1,5 @@
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits:\nd0k3\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nemillois\nAnalogMan151\nTurdPooCharger\netc."
-set GM9IN "0:/gm9/in"
+set GM9IN "0:/3ds/gm9/in"
 if	not find $[GM9IN] NULL
 	mkdir $[GM9IN]
 end
@@ -349,8 +349,8 @@ else
 	goto Hax_Options_Install_Boot9Strap
 end
 
-cp -w -o -s -n S:/firm0.bin 9:/sdcompiled/gm9/out/$[SERIAL]_firm0.bin
-cp -w -o -s -n S:/firm1.bin 9:/sdcompiled/gm9/out/$[SERIAL]_firm1.bin
+cp -w -o -s -n S:/firm0.bin 9:/sdcompiled/3ds/gm9/out/$[SERIAL]_firm0.bin
+cp -w -o -s -n S:/firm1.bin 9:/sdcompiled/3ds/gm9/out/$[SERIAL]_firm1.bin
 
 cp -w -n $[B9S] S:/firm0.bin
 cp -w -n $[B9S] S:/firm1.bin
