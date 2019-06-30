@@ -58,7 +58,7 @@ set SUCCESSMSG "HelloScript testing script success"
 # -u / -unequal check if not matching instead
 # These checks will (most likely) pass
 chk "hello" "HeLlo"
-chk "0:/gm9/out" $[GM9OUT]
+chk "0:/3ds/gm9/out" $[GM9OUT]
 chk $[SYSID0] $[SYSID0]
 # unsure about these
 chk -o $[HAX] "sighax"
