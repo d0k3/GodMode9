@@ -84,7 +84,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     u32 n_entries = 0;
     
     char sdlabel[16];
-    if (!GetFATVolumeLabel("0:", sdlabel))
+    if (!GetFATVolumeLabel("0:", sdlabel) || !(*sdlabel))
         snprintf(sdlabel, 16, "NOLABEL");
 
     char carttype[16];
