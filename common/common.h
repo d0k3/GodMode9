@@ -80,7 +80,7 @@ static inline u32 xbits(u32 *map, u32 start, u32 n)
 
 
 // standard output path (support file paths are in support.h)
-#define OUTPUT_PATH     "0:/gm9/out"
+#define OUTPUT_PATH     "0:/3ds/gm9/out"
 
 // used in several places
 #define STD_BUFFER_SIZE     0x100000 // must be a multiple of 0x200
