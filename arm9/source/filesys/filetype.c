@@ -129,7 +129,7 @@ u64 IdentifyFileType(const char* path) {
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&
         (strncasecmp(fname, NCCHINFO_NAME, 32) == 0)) {
         return BIN_NCCHNFO; // ncchinfo.bin file
-    } else if (ext && (strncasecmp(ext, "png", 4) == 0) &&
+    } else if ((strncasecmp(ext, "png", 4) == 0) &&
         (fsize > sizeof(png_magic)) && (memcmp(data, png_magic, sizeof(png_magic)) == 0)) {
         return GFX_PNG;
     } else if (ext && ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0))) {
@@ -155,7 +155,7 @@ u64 IdentifyFileType(const char* path) {
         if (fsize < STD_BUFFER_SIZE) type |= TXT_GENERIC;
         return type;
     } else if ((strncmp(path + 2, "/Nintendo DSiWare/", 18) == 0) &&
-        (sscanf(fname, "%08lx.bin", &id) == 1) && ext && (strncasecmp(ext, "bin", 4) == 0)) {
+        (sscanf(fname, "%08lx.bin", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0)) {
         TadHeader hdr;
         if ((FileGetData(path, &hdr, TAD_HEADER_LEN, TAD_HEADER_OFFSET) == TAD_HEADER_LEN) &&
             (strncmp(hdr.magic, TAD_HEADER_MAGIC, strlen(TAD_HEADER_MAGIC)) == 0))
