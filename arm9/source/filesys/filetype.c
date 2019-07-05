@@ -132,7 +132,7 @@ u64 IdentifyFileType(const char* path) {
     } else if ((strncasecmp(ext, "png", 4) == 0) &&
         (fsize > sizeof(png_magic)) && (memcmp(data, png_magic, sizeof(png_magic)) == 0)) {
         return GFX_PNG;
-    } else if (ext && ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0))) {
+    } else if ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0)) {
         char path_cetk[256];
         char* ext_cetk = path_cetk + (ext - path);
         strncpy(path_cetk, path, 256);
@@ -150,7 +150,7 @@ u64 IdentifyFileType(const char* path) {
         return BIN_LEGKEY; // legacy key file
     } else if (ValidateText((char*) data, (fsize > 0x200) ? 0x200 : fsize)) {
         u64 type = 0;
-        if ((fsize <= SCRIPT_MAX_SIZE) && ext && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
+        if ((fsize <= SCRIPT_MAX_SIZE) && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
             type |= TXT_SCRIPT; // should be a script (which is also generic text)
         if (fsize < STD_BUFFER_SIZE) type |= TXT_GENERIC;
         return type;
