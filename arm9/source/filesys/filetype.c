@@ -25,6 +25,8 @@ u64 IdentifyFileType(const char* path) {
     size_t fsize = FileGetSize(path);
     char* fname = strrchr(path, '/');
     char* ext = (fname) ? strrchr(++fname, '.') : NULL;
+    if (ext) ext++;
+    else ext = "";
     u32 id = 0;
     
     
@@ -32,7 +34,6 @@ u64 IdentifyFileType(const char* path) {
     if (!fname) return 0;
     if (strncmp(fname, "._", 2) == 0) return 0;
     
-    if (ext) ext++;
     if (FileGetData(path, header, 0x200, 0) < min(0x200, fsize)) return 0;
     if (!fsize) return 0;
     
