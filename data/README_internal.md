@@ -8,8 +8,8 @@ As always, be smart, keep backups, just to be safe.
 
 
 ## Quick start guide
-These short instructions apply to all users who have boot9strap and Luma3DS installed (Luma3DS set up with standard paths), which will be the majority of all GodMode9 users. Here's how to set it up quickly:
-* Rename `GodMode9.firm` (from the release archive) to `X_GodMode9.firm` (change `X` to the button of your choice) and put it into `sd:/luma/payloads/`
+The recommended bootloader for use with GodMode9 is fastboot3DS. There are known issues for some users when using the standard setup based on boot9strap and Luma3DS. If you insist on using that setup follow the instructions found in a certain guide. Here's how to set up GodMode9 (and fastboot3DS) up quickly:
+* Download OpenFirmInstaller and follow the quick setup instructions found there.
 * Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `seeddb.bin` and `encTitleKeys.bin` from somewhere (don't ask me!) and put these two files into `sd:/gm9/support` (optional but recommended for full functionality).
 * It is also recommended you setup the RTC clock if you're running GodMode9 for the first time. Find the option via HOME button -> `More...`. Also keep in mind that you should fix your system OS clock afterwards.
 * Helpful hint #1: Go to https://3ds.guide/godmode9-usage for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
