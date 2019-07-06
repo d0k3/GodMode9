@@ -996,7 +996,7 @@ u32 FileAttrMenu(const char* file_path) {
                 return 0;
             } else if (vrt) continue;
 
-            switch (pad_state) {
+            switch (pad_state & BUTTON_ARROW) {
                 case BUTTON_UP:
                     new_attrib ^= AM_RDO;
                     break;
