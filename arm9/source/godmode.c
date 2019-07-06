@@ -34,7 +34,7 @@
 
 #define BOOTPAUSE_KEY   (BUTTON_R1|BUTTON_UP)
 #define BOOTMENU_KEY    (BUTTON_R1|BUTTON_LEFT)
-#define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm", "0:/3ds/gm9/boot.firm", "1:/rw/gm9/boot.firm"
+#define BOOTFIRM_PATHS  "0:/bootonce.firm", "0:/boot.firm", "1:/boot.firm", "0:/gm9/boot.firm", "1:/rw/gm9/boot.firm"
 #define BOOTFIRM_TEMPS  0x1 // bits mark paths as temporary
 
 #ifdef SALTMODE // ShadowHand's own bootmenu key override
