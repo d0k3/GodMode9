@@ -944,52 +944,100 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
     return 0;
 }
 
-u32 FileAttrMenu(const char* file_path) {
+u32 DirFileAttrMenu(const char* path, const char *name) {
+    bool drive;
     FILINFO fno;
-    if (fvx_stat(file_path, &fno) != FR_OK) {
-        char pathstr[32 + 1];
-        TruncateString(pathstr, file_path, 32, 8);
-        ShowPrompt(false, "%s\nFile info failed!", pathstr);
-        return 1;
+    u8 new_attrib;
+    char namestr[32], datestr[32], attrstr[128], sizestr[64];
+
+    drive = (path[2] == '\0');
+    TruncateString(namestr, name, 31, 8);
+
+    if (drive) {
+        char freestr[32], drvsstr[32], usedstr[32];
+        datestr[0] = attrstr[0] = '\0';
+
+        FormatBytes(freestr, GetFreeSpace(path));
+        FormatBytes(drvsstr, GetTotalSpace(path));
+        FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path));
+
+        snprintf(sizestr, 64, "space free: %s\nspace used: %s\nspace total: %s",
+            freestr, usedstr, drvsstr);
+    } else {
+        char bytestr[32];
+
+        if (fvx_stat(path, &fno) != FR_OK)
+            return 1;
+
+        snprintf(datestr, 64, "%s: %04d-%02d-%02d %02d:%02d:%02d",
+            (fno.fattrib & AM_DIR) ? "created" : "modified",
+            1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0xF, fno.fdate & 0x1F,
+            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, (fno.ftime & 0x1F) << 1
+        );
+
+        new_attrib = fno.fattrib;
+
+        if (fno.fattrib & AM_DIR) {
+            u64 tsize = 0;
+            u32 tdirs = 0;
+            u32 tfiles = 0;
+
+            if (!DirInfo(path, &tsize, &tdirs, &tfiles))
+                return 1;
+
+            FormatBytes(bytestr, tsize);
+            snprintf(sizestr, 64, "%lu files & %lu subdirs\n%s total space",
+                tfiles, tdirs, bytestr);
+        } else {
+            FormatBytes(bytestr, fno.fsize);
+            snprintf(sizestr, 64, "filesize: %s byte", bytestr);
+        }
     }
 
-    char namestr[32 + 1];
-    char sizestr[32];
-    TruncateString(namestr, fno.fname, 32, 8);
-    FormatNumber(sizestr, fno.fsize);
-    const bool vrt = (fno.fattrib & AM_VRT);
-    u8 new_attrib = fno.fattrib;
+    while(true) {
+        const bool vrt = (!drive) && (fno.fattrib & AM_VRT);
 
-    while (true) {
+        if (!drive) {
+            snprintf(attrstr, 128,
+                "[%c] %sread-only  [%c] %shidden\n"
+                "[%c] %ssystem     [%c] %sarchive\n"
+                "[%c] %svirtual\n"
+                "\n"
+                "%s",
+                (new_attrib & AM_RDO) ? 'X' : ' ', vrt ? "" : "\x18 ",
+                (new_attrib & AM_HID) ? 'X' : ' ', vrt ? "" : "\x19 ",
+                (new_attrib & AM_SYS) ? 'X' : ' ', vrt ? "" : "\x1A ",
+                (new_attrib & AM_ARC) ? 'X' : ' ', vrt ? "" : "\x1B ",
+                vrt ? 'X' : ' ', vrt ? "" : "  ",
+                vrt ? "" : "(\x18\x19\x1A\x1B to change attributes)"
+            );
+        }
+
         ShowString(
-            "%s\n"
+            "%s\n" // name
             " \n"
-            "filesize: %s byte\n"
-            "modified: %04lu-%02lu-%02lu %02lu:%02lu:%02lu\n"
+            "%s\n" // size
+            "%s\n" // date
             " \n"
-            "[%c] %sread-only  [%c] %shidden\n"
-            "[%c] %ssystem     [%c] %sarchive\n"
-            "[%c] %svirtual\n"
+            "%s\n" // attr
             " \n"
-            "%s"
-            "%s",
-            namestr, sizestr,
-            1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0x0F, (fno.fdate >> 0) & 0x1F,
-            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, ((fno.ftime >> 0) & 0x1F) << 1,
-            (new_attrib & AM_RDO) ? 'X' : ' ', (vrt ? "" : "\x18 "),
-            (new_attrib & AM_HID) ? 'X' : ' ', (vrt ? "" : "\x19 "),
-            (new_attrib & AM_SYS) ? 'X' : ' ', (vrt ? "" : "\x1A "),
-            (new_attrib & AM_ARC) ? 'X' : ' ', (vrt ? "" : "\x1B "),
-            vrt ? 'X' : ' ', (vrt ? "" : "  "),
-            vrt ? "" : "(\x18\x19\x1A\x1B to change attributes)\n",
-            (vrt || (new_attrib == fno.fattrib)) ? "(<A> to continue)" : "(<A> to apply, <B> to cancel)");
+            "%s\n", // options
+            namestr, sizestr, datestr, attrstr,
+            (drive || vrt || (new_attrib == fno.fattrib)) ? "(<A> to continue)" : "(<A> to apply, <B> to cancel)"
+        );
 
-        while (true) {
+        while(true) {
             u32 pad_state = InputWait(0);
+
+            if (drive && (pad_state & BUTTON_A)) {
+                ClearScreenF(true, false, COLOR_STD_BG);
+                return 0;
+            }
+
             if (pad_state & (BUTTON_A | BUTTON_B)) {
                 bool apply = !vrt && (new_attrib != fno.fattrib) && (pad_state & BUTTON_A);
                 const u8 mask = (AM_RDO | AM_HID | AM_SYS | AM_ARC);
-                if (apply && !PathAttr(file_path, new_attrib & mask, mask)) {
+                if (apply && !PathAttr(path, new_attrib & mask, mask)) {
                     ShowPrompt(false, "%s\nFailed to set attributes!", namestr);
                 }
                 ClearScreenF(true, false, COLOR_STD_BG);
@@ -1019,6 +1067,7 @@ u32 FileAttrMenu(const char* file_path) {
 
 u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pane) {
     const char* file_path = (&(current_dir->entry[*cursor]))->path;
+    const char* file_name = (&(current_dir->entry[*cursor]))->name;
     const char* optionstr[16];
     
     // check for file lock
@@ -1202,7 +1251,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return FileHandlerMenu(current_path, cursor, scroll, pane);
     }
     else if (user_select == fileinfo) { // -> show file info
-        FileAttrMenu(file_path);
+        DirFileAttrMenu(file_path, file_name);
         return 0;
     }
     else if (user_select == copystd) { // -> copy to OUTPUT_PATH
@@ -2259,36 +2308,11 @@ u32 GodMode(int entrypoint) {
                     RecursiveFixFileCmac(curr_entry->path);
                     ShowPrompt(false, "Fix CMACs for drive finished.");
                 } else if (user_select == dirnfo) {
-                    bool is_drive = (!*current_path);
-                    FILINFO fno;
-                    u64 tsize = 0;
-                    u32 tdirs = 0;
-                    u32 tfiles = 0;
-                    
-                    ShowString("Analyzing %s, please wait...", is_drive ? "drive" : "dir");
-                    if ((is_drive || (fvx_stat(curr_entry->path, &fno) == FR_OK)) &&
-                        DirInfo(curr_entry->path, &tsize, &tdirs, &tfiles)) {
-                        char bytestr[32];
-                        FormatBytes(bytestr, tsize);
-                        if (is_drive) {
-                            char freestr[32];
-                            char drvsstr[32];
-                            char usedstr[32];
-                            FormatBytes(freestr, GetFreeSpace(curr_entry->path));
-                            FormatBytes(drvsstr, GetTotalSpace(curr_entry->path));
-                            FormatBytes(usedstr, GetTotalSpace(curr_entry->path) - GetFreeSpace(curr_entry->path));
-                            ShowPrompt(false, "%s\n \n%lu files & %lu subdirs\n%s total size\n \nspace free: %s\nspace used: %s\nspace total: %s",
-                                namestr, tfiles, tdirs, bytestr, freestr, usedstr, drvsstr);
-                        } else {
-                            ShowPrompt(false, "%s\n \ncreated: %04lu-%02lu-%02lu %02lu:%02lu:%02lu\n%lu files & %lu subdirs\n%s total size\n \n[%c] read-only [%c] hidden\n[%c] system    [%c] archive\n[%c] virtual",
-                                namestr,
-                                1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0x0F, (fno.fdate >> 0) & 0x1F,
-                                (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, ((fno.ftime >> 0) & 0x1F) << 1,
-                                tfiles, tdirs, bytestr,
-                                (fno.fattrib & AM_RDO) ? 'X' : ' ', (fno.fattrib & AM_HID) ? 'X' : ' ', (fno.fattrib & AM_SYS) ? 'X' : ' ' ,
-                                (fno.fattrib & AM_ARC) ? 'X' : ' ', (fno.fattrib & AM_VRT) ? 'X' : ' ');
-                        }
-                    } else ShowPrompt(false, "Analyze %s: failed!", is_drive ? "drive" : "dir");
+                    if (DirFileAttrMenu(curr_entry->path, curr_entry->name)) {
+                        ShowPrompt(false, "Failed to analyze %s\n",
+                            (current_path[0] == '\0') ? "drive" : "dir"
+                        );
+                    }
                 } else if (user_select == stdcpy) {
                     StandardCopy(&cursor, &scroll);
                 }
