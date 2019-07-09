@@ -350,24 +350,6 @@ int SPIGetCardType(CardType* type, int infrared) {
 	while(tries < maxTries){ 
 		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
 		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
-		res = SPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-		if(res) return res;
 		
 		if ((sr & 0xfd) == 0x00 && (jedec != 0x00ffffff)) { break; }		
 		if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { t = EEPROM_512B; break; }

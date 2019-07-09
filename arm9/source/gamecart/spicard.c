@@ -100,11 +100,15 @@ bool _SPICARD_autoPollBit(u32 params)
 }
 */
 
-void SPICARD_writeRead(NspiClk clk, const u32 *in, u32 *out, u32 inSize, u32 outSize, bool done)
+void SPICARD_writeRead(NspiClk clk, const void *in, void *out, u32 inSize, u32 outSize, bool done)
 {
 	const u32 cntParams = NSPI_CNT_ENABLE | NSPI_CNT_BUS_1BIT | clk;
 
-	if(in)
+	u32 buf;
+	char *in_ = (char *) in;
+	char *out_ = (char *) out;
+
+	if(in_)
 	{
 		REG_NSPI_BLKLEN = inSize;
 		REG_NSPI_CNT = cntParams | NSPI_CNT_DIRE_WRITE;
@@ -113,13 +117,15 @@ void SPICARD_writeRead(NspiClk clk, const u32 *in, u32 *out, u32 inSize, u32 out
 		do
 		{
 			if((counter & 31) == 0) nspiWaitFifoBusy();
-			REG_NSPI_FIFO = *in++;
+			memcpy(&buf, in_, min(4, inSize - counter));
+			REG_NSPI_FIFO = buf;
 			counter += 4;
+			in_ += 4;
 		} while(counter < inSize);
 
 		nspiWaitBusy();
 	}
-	if(out)
+	if(out_)
 	{
 		REG_NSPI_BLKLEN = outSize;
 		REG_NSPI_CNT = cntParams | NSPI_CNT_DIRE_READ;
@@ -128,8 +134,10 @@ void SPICARD_writeRead(NspiClk clk, const u32 *in, u32 *out, u32 inSize, u32 out
 		do
 		{
 			if((counter & 31) == 0) nspiWaitFifoBusy();
-			*out++ = REG_NSPI_FIFO;
+			buf = REG_NSPI_FIFO;
+			memcpy(out_, &buf, min(4, outSize - counter));
 			counter += 4;
+			out_ += 4;
 		} while(counter < outSize);
 
 		nspiWaitBusy();
