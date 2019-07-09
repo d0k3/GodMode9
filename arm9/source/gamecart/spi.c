@@ -35,6 +35,8 @@ int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answer
 	}
 	SPICARD_writeRead(NSPI_CLK_4MHz, cmd, answer, cmdSize, answerSize, false);
 	SPICARD_writeRead(NSPI_CLK_4MHz, data, NULL, dataSize, 0, true);
+
+	SPICARD_deinit();
 	
 	return 0;
 }

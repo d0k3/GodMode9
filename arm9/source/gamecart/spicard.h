@@ -57,9 +57,14 @@ typedef enum
 
 
 /**
- * @brief      Initializes the SPI buses. Call this only once.
+ * @brief      Activates the SPI bus. Use after some cartridge interface has been initialized.
  */
 void SPICARD_init(void);
+
+/**
+ * @brief      Deactivates the SPI bus.
+ */
+void SPICARD_deinit(void);
 
 /**
  * @brief      Automatically polls a bit of the command response. Use with the macro below.
