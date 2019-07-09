@@ -80,7 +80,7 @@ bool _SPICARD_autoPollBit(u32 params);
  * @param[in]  outSize  Output size. Must be <= 0x1FFFFF.
  * @param[in]  done     Set to true if this is the last transfer (chip select).
  */
-void SPICARD_writeRead(NspiClk clk, const u32 *in, u32 *out, u32 inSize, u32 outSize, bool done);
+void SPICARD_writeRead(NspiClk clk, const void *in, void *out, u32 inSize, u32 outSize, bool done);
 
 
 /**
