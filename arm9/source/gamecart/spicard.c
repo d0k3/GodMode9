@@ -20,6 +20,8 @@
 #include "spicard.h"
 #include "delay.h"
 
+#define REG_CFG9_CARDCTL      *((vu16*)0x1000000C)
+
 #define SPICARD_REGS_BASE  0x1000D800
 #define REG_NSPI_CNT       *((vu32*)(SPICARD_REGS_BASE + 0x00))
 #define REG_NSPI_DONE      *((vu32*)(SPICARD_REGS_BASE + 0x04))
@@ -44,43 +46,12 @@ static inline void nspiWaitFifoBusy(void)
 
 void SPICARD_init(void)
 {
-	static bool inited = false;
-	if(inited) return;
-	inited = true;
-
-	// TODO
-#define REG_CFG9_CARDCTL      *((vu16*)0x1000000C)
-#define REG_CFG9_CARDSTATUS   *((vu8* )0x10000010)
-#define REG_CFG9_CARDCYCLES0  *((vu16*)0x10000012)
-#define REG_CFG9_CARDCYCLES1  *((vu16*)0x10000014)
-
-#define REG_NTRCARDMCNT       *((vu16*)0x10164000)
-#define REG_NTRCARDROMCNT     *((vu32*)0x10164004)
-
-	REG_CFG9_CARDCYCLES0 = 0x1988;
-	REG_CFG9_CARDCYCLES1 = 0x264C;
-	// boot9 waits here. Unnecessary?
-
-	REG_CFG9_CARDSTATUS = 3u<<2;     // Request power off
-	while(REG_CFG9_CARDSTATUS != 0); // Aotomatically changes to 0 (off)
-	ioDelay(1000);
-
-	REG_CFG9_CARDSTATUS = 1u<<2;     // Prepare power on
-	ioDelay(10000);
-
-	REG_CFG9_CARDSTATUS = 2u<<2;     // Power on
-	ioDelay(27000);
-
-	// Switch to NTRCARD controller.
-	REG_CFG9_CARDCTL = 0;
-	REG_NTRCARDMCNT = 0xC000u;
-	REG_NTRCARDROMCNT = 0x20000000;
-	ioDelay(120000);
-
 	REG_CFG9_CARDCTL |= 1u<<8;
+}
 
-	REG_NSPI_INT_MASK = NSPI_INT_TRANSF_END; // Disable interrupt 1
-	REG_NSPI_INT_STAT = NSPI_INT_AP_TIMEOUT | NSPI_INT_AP_SUCCESS | NSPI_INT_TRANSF_END; // Aknowledge
+void SPICARD_deinit(void)
+{
+	REG_CFG9_CARDCTL &= ~(1u<<8);
 }
 
 /*
@@ -103,6 +74,8 @@ bool _SPICARD_autoPollBit(u32 params)
 void SPICARD_writeRead(NspiClk clk, const void *in, void *out, u32 inSize, u32 outSize, bool done)
 {
 	const u32 cntParams = NSPI_CNT_ENABLE | NSPI_CNT_BUS_1BIT | clk;
+
+	REG_CFG9_CARDCTL |= 1u<<8;
 
 	u32 buf;
 	char *in_ = (char *) in;
