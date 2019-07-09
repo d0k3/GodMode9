@@ -18,6 +18,7 @@
 
 #include "spi.h"
 #include "spicard.h"
+#include "timer.h"
 #include "ui.h"
 
 // Deliberately written in C! (except for a few lines)
@@ -44,10 +45,12 @@ int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answer
 int SPIWaitWriteEnd(CardType type) {
 	u8 cmd = SPI_CMD_RDSR, statusReg = 0;
 	int res = 0;
+	u64 time_start = timer_start();
 
 	do{
 		res = SPIWriteRead(type, &cmd, 1, &statusReg, 1, 0, 0);
 		if(res) return res;
+		if(timer_msec(time_start) > 1000) return 1;
 	} while(statusReg & SPI_FLG_WIP);
 
 	return 0;
