@@ -19,7 +19,6 @@
 #include "spi.h"
 #include "spicard.h"
 #include "timer.h"
-#include "ui.h"
 
 // Deliberately written in C! (except for a few lines)
 
@@ -89,8 +88,6 @@ int SPIReadJEDECIDAndStatusReg(CardType type, u32* id, u8* statusReg) {
 	if(id) *id = id_;
 	if(statusReg) *statusReg = reg;
 	
-	ShowPrompt(false, "JEDEC = %lx, StatusReg = %hhx", *id, reg);
-
 	return 0;
 }
 

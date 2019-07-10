@@ -252,3 +252,18 @@ u32 WriteCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
     return (SPIWriteSaveData((CardType) cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;
 }
+
+u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+    u8 ownBuf[JEDECID_AND_SREG_SIZE] = { 0 };
+    u32 id;
+    u8 sReg;
+    if (offset >= JEDECID_AND_SREG_SIZE) return 1;
+    if (offset + count > JEDECID_AND_SREG_SIZE) count = JEDECID_AND_SREG_SIZE - offset;
+    SPIReadJEDECIDAndStatusReg((CardType) cdata->save_type, &id, &sReg);
+    ownBuf[0] = (id >> 16) & 0xff;
+    ownBuf[1] = (id >> 8) & 0xff;
+    ownBuf[2] = id & 0xff;
+    ownBuf[JEDECID_AND_SREG_SIZE - 1] = sReg;
+    memcpy(buffer, ownBuf, count);
+    return 0;
+}
