@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "spi.h"
 
 #define CART_NONE   0
 #define CART_CTR    (1<<0)
@@ -19,7 +20,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 save_size;
-    int save_type;
+    CardType save_type;
     u32 arm9i_rom_offset; // TWL specific
 } PACKED_ALIGN(16) CartData;
 
