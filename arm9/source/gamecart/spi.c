@@ -95,11 +95,12 @@ u32 SPIGetPageSize(CardType type) {
 	u32 EEPROMSizes[] = { 16, 32, 128, 256 };
 	if(type == NO_CHIP || type > CHIP_LAST) return 0;
 	else if(type < FLASH_256KB_1) return EEPROMSizes[(int) type];
-	else return 256;
+	else if(type < FLASH_64KB_CTR ) return 256;
+	else return 0; // TODO
 }
 
 u32 SPIGetCapacity(CardType type) {
-	u32 sz[] = { 9, 13, 16, 17, 18, 18, 19, 19, 20, 23, 19, 19 };
+	u32 sz[] = { 9, 13, 16, 17, 18, 18, 19, 19, 20, 23, 16, 17, 18, 19, 20, 21, 22, 23, 19, 18 };
 	
 	if(type == NO_CHIP || type > CHIP_LAST) return 0;
 	else return 1 << sz[(int) type];
@@ -251,6 +252,14 @@ int SPIReadSaveData(CardType type, u32 offset, void* data, u32 size) {
 		case FLASH_8MB:
 		case FLASH_512KB_INFRARED:
 		case FLASH_256KB_INFRARED:
+		case FLASH_64KB_CTR:
+		case FLASH_128KB_CTR:
+		case FLASH_256KB_CTR:
+		case FLASH_512KB_CTR:
+		case FLASH_1MB_CTR:
+		case FLASH_2MB_CTR:
+		case FLASH_4MB_CTR:
+		case FLASH_8MB_CTR:
 			cmdSize = 4;
 			cmd[1] = (u8)(pos >> 16);
 			cmd[2] = (u8)(pos >> 8);
@@ -346,7 +355,7 @@ int SPIGetCardType(CardType* type, int infrared) {
 	u32 tries = 0;
 	CardType t = (infrared == 1) ? FLASH_INFRARED_DUMMY : FLASH_STD_DUMMY;
 	int res; 
-	u32 jedecOrderedList[] = { 0x204012, 0x621600, 0x204013, 0x621100, 0x204014, 0x202017};
+	u32 jedecOrderedList[] = { 0x204012, 0x621600, 0x204013, 0x621100, 0x204014, 0x202017, 0xC22210, 0xC22211, 0xC22212, 0xC22213, 0xC22214, 0xC22215, 0xC22216, 0xC22217 };
 	
 	u32 maxTries = (infrared == -1) ? 2 : 1; // note: infrared = -1 fails 1/3 of the time
 	while(tries < maxTries){ 
@@ -390,9 +399,9 @@ int SPIGetCardType(CardType* type, int infrared) {
 		if(infrared == 1) *type = NO_CHIP; // did anything go wrong?
 		if(jedec == 0x204017) { *type = FLASH_8MB; return 0; } // 8MB. savegame-manager: which one? (more work is required to unlock this save chip!)
 		
-		int i;
+		size_t i;
 		
-		for(i = 0; i < 6; ++i) {
+		for(i = 0; i < sizeof(jedecOrderedList) / sizeof(int); ++i) {
 			if(jedec == jedecOrderedList[i]) { *type = (CardType)((int) FLASH_256KB_1 + i); return 0; }  
 		}
 		

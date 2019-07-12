@@ -63,11 +63,22 @@ typedef enum {
 	FLASH_8MB = 9, // <- can't restore savegames, and maybe not read them atm
 	FLASH_STD_DUMMY = 4,
 	
-	FLASH_512KB_INFRARED = 10,
-	FLASH_256KB_INFRARED = 11, // AFAIK, only "Active Health with Carol Vorderman" has such a flash save memory
-	FLASH_INFRARED_DUMMY = 9,
+	FLASH_64KB_CTR = 10, // I am extrapolating from the dataheets, only a few of these have been observed in the wild
+	FLASH_128KB_CTR = 11, // Most common, including Ocarina of time 3D
+	FLASH_256KB_CTR = 12,
+	FLASH_512KB_CTR = 13, // Also common, including Detective Pikachu
+	FLASH_1MB_CTR = 14, // For example Pokemon Ultra Sun
+	FLASH_2MB_CTR = 15,
+	FLASH_4MB_CTR = 16,
+	FLASH_8MB_CTR = 17,
+	// Animal crossing: New leaf???
+	// (What is that? 3dbrew states 10M, but Macronix only makes powers of 2)
+
+	FLASH_512KB_INFRARED = 18,
+	FLASH_256KB_INFRARED = 19, // AFAIK, only "Active Health with Carol Vorderman" has such a flash save memory
+	FLASH_INFRARED_DUMMY = 17,
 	
-	CHIP_LAST = 11,
+	CHIP_LAST = 19,
 } CardType;
 
 int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, void* data, u32 dataSize);
