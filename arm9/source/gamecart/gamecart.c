@@ -25,7 +25,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 save_size;
-    int save_type;
+    CardType save_type;
     u32 unused_offset;
 } PACKED_ALIGN(16) CartDataCtr;
 
@@ -41,7 +41,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 save_size;
-    int save_type;
+    CardType save_type;
     u32 arm9i_rom_offset;
 } PACKED_ALIGN(16) CartDataNtrTwl;
 
@@ -101,10 +101,10 @@ u32 InitCartRead(CartData* cdata) {
         
         // save data
         u32 card2_offset = getle32(cdata->header + 0x200);
-        if ((card2_offset != 0xFFFFFFFF) || (SPIGetCardType((CardType*) (CardType*) &(cdata->save_type), 0) != 0) || (cdata->save_type < 0)) {
-            cdata->save_type = -1;
-            cdata->save_size = 0;
-        } else cdata->save_size = SPIGetCapacity((CardType) cdata->save_type);
+        if ((card2_offset != 0xFFFFFFFF) || (SPIGetCardType(&(cdata->save_type), 0) != 0)) {
+            cdata->save_type = NO_CHIP;
+        }
+        cdata->save_size = SPIGetCapacity(cdata->save_type);
     } else { // NTR/TWL cartridges
         // NTR header
         TwlHeader* nds_header = (void*)cdata->header;
@@ -136,10 +136,10 @@ u32 InitCartRead(CartData* cdata) {
         
         // save data
         u32 infrared = (*(nds_header->game_code) == 'I') ? 1 : 0;
-        if ((SPIGetCardType((CardType*) &(cdata->save_type), infrared) != 0) || (cdata->save_type < 0)) {
-            cdata->save_type = -1;
-            cdata->save_size = 0;
-        } else cdata->save_size = SPIGetCapacity((CardType) cdata->save_type);
+        if (SPIGetCardType(&(cdata->save_type), infrared) != 0) {
+            cdata->save_type = NO_CHIP;
+        }
+        cdata->save_size = SPIGetCapacity(cdata->save_type);
     }
     return 0;
 }
