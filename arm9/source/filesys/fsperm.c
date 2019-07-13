@@ -69,7 +69,7 @@ bool CheckWritePermissions(const char* path) {
         snprintf(area_name, 16, "game images");
     } else if (drvtype & DRV_CART) {
         perm = PERM_CART;
-        snprintf(area_name, 16, "gamecarts");
+        snprintf(area_name, 16, "gamecart saves");
     } else if (drvtype & DRV_VRAM) {
         perm = PERM_VRAM;
         snprintf(area_name, 16, "vram0");
@@ -100,7 +100,7 @@ bool CheckWritePermissions(const char* path) {
         return true;
     
     // offer unlock if possible
-    if (!(perm & (PERM_VRAM|PERM_CART|PERM_GAME|PERM_XORPAD))) {
+    if (!(perm & (PERM_VRAM|PERM_GAME|PERM_XORPAD))) {
         // ask the user
         if (!ShowPrompt(true, "Writing to %s is locked!\nUnlock it now?", area_name))
             return false;
@@ -167,6 +167,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             break;
         case PERM_SDDATA:
             if (!ShowUnlockSequence(2, "You want to enable SD data\nwriting permissions.\n \nThis enables you to modify\ninstallations, user data &\nsavegames."))
+                return false;
+            break;
+        case PERM_CART:
+            if (!ShowUnlockSequence(2, "You want to enable gamecart\nsave writing permissions."))
                 return false;
             break;
         #ifndef SAFEMODE
