@@ -89,7 +89,7 @@ int SPIGetCardType(CardType* type, int infrared);
 u32 SPIGetPageSize(CardType type);
 u32 SPIGetCapacity(CardType type);
 
-int SPIWriteSaveData(CardType type, u32 offset, void* data, u32 size);
+int SPIWriteSaveData(CardType type, u32 offset, const void* data, u32 size);
 int SPIReadSaveData(CardType type, u32 offset, void* data, u32 size);
 
 // int SPIEraseSector(CardType type, u32 offset);

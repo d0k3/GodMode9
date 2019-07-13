@@ -16,7 +16,7 @@
 #define PERM_MEMORY     (1UL<<10)
 #define PERM_GAME       (1UL<<11) // can't be enabled, placeholder
 #define PERM_XORPAD     (1UL<<12) // can't be enabled, placeholder
-#define PERM_CART       (1UL<<13) // can't be enabled, placeholder
+#define PERM_CART       (1UL<<13)
 #define PERM_VRAM       (1UL<<14) // can't be enabled, placeholder
 #define PERM_BASE       (PERM_SDCARD | PERM_IMAGE | PERM_RAMDRIVE | PERM_EMU_LVL0 | PERM_SYS_LVL0)
 
@@ -24,7 +24,7 @@
 #define PERM_BLUE       (GetWritePermissions()&PERM_MEMORY)
 #define PERM_RED        (GetWritePermissions()&(PERM_SYS_LVL3&~PERM_SYS_LVL2))
 #define PERM_ORANGE     (GetWritePermissions()&(PERM_SYS_LVL2&~PERM_SYS_LVL1))
-#define PERM_YELLOW     (GetWritePermissions()&((PERM_SYS_LVL1&~PERM_SYS_LVL0)|(PERM_EMU_LVL1&~PERM_EMU_LVL0)|(PERM_SDDATA&~PERM_SDCARD)))
+#define PERM_YELLOW     (GetWritePermissions()&((PERM_SYS_LVL1&~PERM_SYS_LVL0)|(PERM_EMU_LVL1&~PERM_EMU_LVL0)|(PERM_SDDATA&~PERM_SDCARD)|PERM_CART))
 #define PERM_GREEN      (GetWritePermissions()&(PERM_SDCARD|PERM_IMAGE|PERM_RAMDRIVE|PERM_EMU_LVL0|PERM_SYS_LVL0))
 
 /** Check if writing to this path is allowed **/

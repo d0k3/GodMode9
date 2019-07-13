@@ -247,7 +247,7 @@ u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     return (SPIReadSaveData((CardType) cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;
 }
 
-u32 WriteCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+u32 WriteCartSave(const u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
     return (SPIWriteSaveData((CardType) cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;

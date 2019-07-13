@@ -30,5 +30,5 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata);
 u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata);
-u32 WriteCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata);
+u32 WriteCartSave(const u8* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata);

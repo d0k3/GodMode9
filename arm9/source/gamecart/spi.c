@@ -106,7 +106,7 @@ u32 SPIGetCapacity(CardType type) {
 	else return 1 << sz[(int) type];
 }
 
-int SPIWriteSaveData(CardType type, u32 offset, void* data, u32 size) {
+int SPIWriteSaveData(CardType type, u32 offset, const void* data, u32 size) {
 	u8 cmd[4] = { 0 };
 	u32 cmdSize = 4;
 	
@@ -167,7 +167,7 @@ int SPIWriteSaveData(CardType type, u32 offset, void* data, u32 size) {
 			case FLASH_8MB:
 				return 0xC8E13404; // writing is unsupported (so is reading? need to test)
 			default:
-				return 0; // never happens
+				return -1; // never happens
 		}
 		
 		u32 remaining = end - pos;

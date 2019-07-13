@@ -65,7 +65,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
         } else if (vdir->index == 7) { // JEDEC id and status register
             strcpy(vfile->name, "jedecid_and_sreg.bin");
             vfile->size = JEDECID_AND_SREG_SIZE;
-            vfile->flags = VFLAG_JEDECID_AND_SRFG;
+            vfile->flags |= VFLAG_JEDECID_AND_SRFG;
             return true;
         }
     }
@@ -83,6 +83,14 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
     else if (vfile->flags & VFLAG_JEDECID_AND_SRFG)
         return ReadCartSaveJedecId(buffer, foffset, count, cdata);
     else return ReadCartBytes(buffer, foffset, count, cdata);
+}
+
+int WriteVCartFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
+    if (!cdata) return -1;
+    if (vfile->flags & VFLAG_SAVEGAME) {
+        return WriteCartSave(buffer, offset, count, cdata);
+    }
+    return -1;
 }
 
 u64 GetVCartDriveSize(void) {
