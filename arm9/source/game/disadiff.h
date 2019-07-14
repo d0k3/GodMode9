@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "vff.h"
 
 
 // info taken from here:
@@ -107,8 +108,12 @@ typedef struct {
     u8 padding[4]; // all zeroes when encrypted
 } __attribute__((packed)) DifiStruct;
 
-// condensed info to enable reading IVFC lvl4
+// condensed info to enable reading/writing IVFC lvl4
 typedef struct {
+    u32 offset_partition_hash;
+    u32 offset_difi;
+    u32 offset_master_hash; // relative to start of difi
+    u32 size_master_hash;
     u32 offset_dpfs_lvl1; // relative to start of file
     u32 offset_dpfs_lvl2; // relative to start of file
     u32 offset_dpfs_lvl3; // relative to start of file
@@ -117,13 +122,25 @@ typedef struct {
     u32 size_dpfs_lvl3;
     u32 log_dpfs_lvl2;
     u32 log_dpfs_lvl3;
+    u32 log_ivfc_lvl1;
+    u32 log_ivfc_lvl2;
+    u32 log_ivfc_lvl3;
+    u32 log_ivfc_lvl4;
+    u32 offset_ivfc_lvl1; // relative to DPFS lvl3
+    u32 offset_ivfc_lvl2; // relative to DPFS lvl3
+    u32 offset_ivfc_lvl3; // relative to DPFS lvl3
     u32 offset_ivfc_lvl4; // relative to DPFS lvl3 if not external
+    u32 size_ivfc_lvl1;
+    u32 size_ivfc_lvl2;
+    u32 size_ivfc_lvl3;
     u32 size_ivfc_lvl4;
     u8  dpfs_lvl1_selector;
     u8  ivfc_use_extlvl4;
     u8* dpfs_lvl2_cache; // optional, NULL when unused
-} __attribute__((packed)) DisaDiffReaderInfo;
+} __attribute__((packed)) DisaDiffRWInfo;
 
-u32 GetDisaDiffReaderInfo(const char* path, DisaDiffReaderInfo* info, bool partitionB);
-u32 BuildDisaDiffDpfsLvl2Cache(const char* path, DisaDiffReaderInfo* info, u8* cache, u32 cache_size);
-u32 ReadDisaDiffIvfcLvl4(const char* path, DisaDiffReaderInfo* info, u32 offset, u32 size, void* buffer);
+void SetDisaDiffFile(FIL* fp); // Pass an already open file. Other calls will ignore path argument if a non-NULL was last passed to this function.
+u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB);
+u32 BuildDisaDiffDpfsLvl2Cache(const char* path, const DisaDiffRWInfo* info, u8* cache, u32 cache_size);
+u32 ReadDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offset, u32 size, void* buffer);
+u32 WriteDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offset, u32 size, const void* buffer);
