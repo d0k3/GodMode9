@@ -43,7 +43,7 @@ static const VirtualFile vTickDbFileTemplates[] = {
 
 static TickDbInfo* tick_info = NULL;
 static u8* lvl2_cache = NULL;
-static DisaDiffReaderInfo diff_info;
+static DisaDiffRWInfo diff_info;
 static bool scanned_raw = false;
 
 
@@ -130,7 +130,7 @@ u64 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
     memset(tick_info, 0, 16);
     
     // setup DIFF reading
-    if ((GetDisaDiffReaderInfo(NULL, &diff_info, false) != 0) ||
+    if ((GetDisaDiffRWInfo(NULL, &diff_info, false) != 0) ||
         !(lvl2_cache = (u8*) malloc(diff_info.size_dpfs_lvl2)) ||
         (BuildDisaDiffDpfsLvl2Cache(NULL, &diff_info, lvl2_cache, diff_info.size_dpfs_lvl2) != 0)) {
         DeinitVTickDbDrive();

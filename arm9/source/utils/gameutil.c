@@ -1843,9 +1843,9 @@ u32 ExtractDataFromDisaDiff(const char* path) {
     if (!CheckWritePermissions(dest)) return 1;
     
     // prepare DISA / DIFF read
-    DisaDiffReaderInfo info;
+    DisaDiffRWInfo info;
     u8* lvl2_cache = NULL;
-    if ((GetDisaDiffReaderInfo(path, &info, false) != 0) ||
+    if ((GetDisaDiffRWInfo(path, &info, false) != 0) ||
         !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
         (BuildDisaDiffDpfsLvl2Cache(path, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
         if (lvl2_cache) free(lvl2_cache);
