@@ -118,7 +118,7 @@ void SYS_CoreZeroInit(void)
 	GPU_SetFramebufferMode(1, PDC_RGB24);
 
 	MCU_PushToLCD(true);
-	TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
+	TIMER_WaitTicks(CLK_MS_TO_TICKS(5));
 }
 
 void SYS_CoreInit(void)
@@ -162,6 +162,8 @@ void __attribute__((noreturn)) SYS_CoreShutdown(void)
 	ARM_SetCR(ARM_GetCR() & ~(CR_MMU | CR_CACHES | CR_FLOWPRED));
 	ARM_SetACR(ARM_GetACR() &
 		~(ACR_RETSTK | ACR_DBPRED | ACR_SBPRED | ACR_FOLDING | ACR_SMP));
+
+	SPI_Deinit();
 
 	if (!core) {
 		while(*LEGACY_BOOT_ENTRYPOINT == 0);
