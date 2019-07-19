@@ -68,6 +68,7 @@ enum {
 #define PXI_CNT_RECV_FIFO_EMPTY       (BIT(8))
 #define PXI_CNT_RECV_FIFO_FULL        (BIT(9))
 #define PXI_CNT_RECV_FIFO_AVAIL_IRQ   (BIT(10))
+#define PXI_CNT_ACKNOWLEDGE_ERROR     (BIT(14))
 #define PXI_CNT_ENABLE_FIFO           (BIT(15))
 
 static inline void PXI_SetRemote(u8 msg)
@@ -93,7 +94,8 @@ static inline void PXI_Reset(void)
 		*PXI_RECV;
 
 	*PXI_CNT = 0;
-	*PXI_CNT = PXI_CNT_RECV_FIFO_AVAIL_IRQ | PXI_CNT_ENABLE_FIFO;
+	*PXI_CNT = PXI_CNT_RECV_FIFO_AVAIL_IRQ | PXI_CNT_ENABLE_FIFO |
+				PXI_CNT_ACKNOWLEDGE_ERROR;
 
 	PXI_SetRemote(0xFF);
 }

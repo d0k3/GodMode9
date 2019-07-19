@@ -29,3 +29,4 @@ typedef struct {
 int SPI_DoXfer(u32 dev, const SPI_XferInfo *xfer, u32 xfer_cnt);
 
 void SPI_Init(void);
+void SPI_Deinit(void);

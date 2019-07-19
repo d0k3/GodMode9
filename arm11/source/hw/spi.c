@@ -126,3 +126,10 @@ void SPI_Init(void)
 	// interface used during the NDS days
 	*REG_CFG_SPI_CNT = 7;
 }
+
+void SPI_Deinit(void)
+{
+	// Keep backwards compatibility with software that
+	// assumes all bus interfaces will be set to old
+	*REG_CFG_SPI_CNT = 0;
+}

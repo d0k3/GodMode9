@@ -172,14 +172,14 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 			case MCU_SHELL_OPEN:
 				MCU_PushToLCD(true);
 				MCU_UpdateShellState(true);
-				TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
+				TIMER_WaitTicks(CLK_MS_TO_TICKS(5));
 				MCU_ResetLED();
 				break;
 
 			case MCU_SHELL_CLOSE:
 				MCU_PushToLCD(false);
 				MCU_UpdateShellState(false);
-				TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
+				TIMER_WaitTicks(CLK_MS_TO_TICKS(5));
 				break;
 
 			case MCU_VOL_SLIDER:
@@ -196,7 +196,7 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 
 void MCU_Init(void)
 {
-	u32 mask = 0xFFBF0800;
+	const u32 mask = 0xFFBF0800;
 	MCU_WriteRegBuf(REG_INT_EN, (const u8*)&mask, sizeof(mask));
 	MCU_ResetLED();
 
