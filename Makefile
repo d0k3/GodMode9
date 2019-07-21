@@ -13,6 +13,7 @@ export DBUILTL  :=	$(shell date +'%Y-%m-%d %H:%M:%S')
 
 export OUTDIR := output
 export RELDIR := release
+export COMMON_DIR := ../common
 
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar

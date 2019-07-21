@@ -61,23 +61,6 @@
 #define STATIC_ASSERT(...) \
     _Static_assert((__VA_ARGS__), #__VA_ARGS__)
 
-static inline u32 xbits(u32 *map, u32 start, u32 n)
-{
-    u32 ret, mask, off, shift;
-
-    if (n > 32)
-        return -1;
-
-    mask = ((u32)(1 << n)) - 1;
-    off = start / 32;
-    shift = start % 32;
-
-    ret = map[off] >> shift;
-    if ((n + shift) > 32)
-        ret |= map[off+1] << (32 - shift);
-    return ret & mask;
-}
-
 
 // standard output path (support file paths are in support.h)
 #define OUTPUT_PATH     "0:/gm9/out"
