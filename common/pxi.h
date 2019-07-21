@@ -86,26 +86,6 @@ static inline void PXI_WaitRemote(u8 msg)
 	while(PXI_GetRemote() != msg);
 }
 
-static inline void PXI_Reset(void)
-{
-	*PXI_SYNC_IRQ = 0;
-	*PXI_CNT = PXI_CNT_SEND_FIFO_FLUSH | PXI_CNT_ENABLE_FIFO;
-	for (int i = 0; i < PXI_FIFO_LEN; i++)
-		*PXI_RECV;
-
-	*PXI_CNT = 0;
-	*PXI_CNT = PXI_CNT_RECV_FIFO_AVAIL_IRQ | PXI_CNT_ENABLE_FIFO |
-				PXI_CNT_ACKNOWLEDGE_ERROR;
-
-	PXI_SetRemote(0xFF);
-}
-
-static inline void PXI_Barrier(u8 barrier_id)
-{
-	PXI_SetRemote(barrier_id);
-	PXI_WaitRemote(barrier_id);
-}
-
 static inline void PXI_Send(u32 w)
 {
 	while(*PXI_CNT & PXI_CNT_SEND_FIFO_FULL);
@@ -118,19 +98,10 @@ static inline u32 PXI_Recv(void)
 	return *PXI_RECV;
 }
 
-static inline void PXI_SendArray(const u32 *w, u32 c)
-{
-	while(c--) PXI_Send(*(w++));
-}
+void PXI_Barrier(u8 barrier_id);
+void PXI_Reset(void);
 
-static inline void PXI_RecvArray(u32 *w, u32 c)
-{
-	while(c--) *(w++) = PXI_Recv();
-}
+void PXI_SendArray(const u32 *w, u32 c);
+void PXI_RecvArray(u32 *w, u32 c);
 
-static inline u32 PXI_DoCMD(u32 cmd, const u32 *args, u32 argc)
-{
-	PXI_Send((argc << 16) | cmd);
-	PXI_SendArray(args, argc);
-	return PXI_Recv();
-}
+u32 PXI_DoCMD(u32 cmd, const u32 *args, u32 argc);

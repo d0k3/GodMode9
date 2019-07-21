@@ -1,0 +1,35 @@
+
+OBJECTS := $(patsubst $(SOURCE)/%.s, $(BUILD)/%.o, \
+          $(patsubst $(SOURCE)/%.c, $(BUILD)/%.o, \
+          $(call rwildcard, $(SOURCE), *.s *.c)))
+
+OBJECTS_COMMON := $(patsubst $(COMMON_DIR)/%.c, $(BUILD)/%.cmn.o, \
+				$(call rwildcard, $(COMMON_DIR), *.c))
+
+.PHONY: all
+all: $(TARGET).elf
+
+.PHONY: clean
+clean:
+	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).map
+
+$(TARGET).elf: $(OBJECTS) $(OBJECTS_COMMON)
+	@mkdir -p "$(@D)"
+	@$(CC) $(LDFLAGS) $^ -o $@
+
+$(BUILD)/%.cmn.o: $(COMMON_DIR)/%.c
+	@mkdir -p "$(@D)"
+	@echo "[$(PROCESSOR)] $<"
+	@$(CC) -c $(CFLAGS) -o $@ $<
+
+$(BUILD)/%.o: $(SOURCE)/%.c
+	@mkdir -p "$(@D)"
+	@echo "[$(PROCESSOR)] $<"
+	@$(CC) -c $(CFLAGS) -o $@ $<
+
+$(BUILD)/%.o: $(SOURCE)/%.s
+	@mkdir -p "$(@D)"
+	@echo "[$(PROCESSOR)] $<"
+	@$(CC) -c $(ASFLAGS) -o $@ $<
+
+include $(call rwildcard, $(BUILD), *.d)
