@@ -64,7 +64,7 @@ typedef struct {
 	u32 red[8];
 	u32 green[8];
 	u32 blue[8];
-} __attribute__((packed)) MCU_NotificationLED;
+} PACKED_STRUCT MCU_NotificationLED;
 
 static u8 cached_volume_slider = 0;
 static u32 spec_hid = 0, shell_state = SHELL_OPEN;

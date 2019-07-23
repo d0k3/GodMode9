@@ -18,20 +18,19 @@ u64 IdentifyFileType(const char* path) {
     const u8 smdh_magic[] = { SMDH_MAGIC };
     const u8 threedsx_magic[] = { THREEDSX_EXT_MAGIC };
     const u8 png_magic[] = { PNG_MAGIC };
-    
+
     if (!path) return 0; // safety
-    u8 header[0x200] __attribute__((aligned(32))); // minimum required size
+    u8 ALIGN(32) header[0x200]; // minimum required size
     void* data = (void*) header;
     size_t fsize = FileGetSize(path);
     char* fname = strrchr(path, '/');
     char* ext = (fname) ? strrchr(++fname, '.') : NULL;
     u32 id = 0;
-    
-    
+
     // block crappy "._" files from getting recognized as filetype
     if (!fname) return 0;
     if (strncmp(fname, "._", 2) == 0) return 0;
-    
+
     if (ext) {
         ext++;
     } else {
@@ -39,7 +38,7 @@ u64 IdentifyFileType(const char* path) {
     }
     if (FileGetData(path, header, 0x200, 0) < min(0x200, fsize)) return 0;
     if (!fsize) return 0;
-    
+
     if (fsize >= 0x200) {
         if (ValidateNandNcsdHeader((NandNcsdHeader*) data) == 0) {
             return (fsize >= GetNandNcsdMinSizeSectors((NandNcsdHeader*) data) * 0x200) ?
@@ -57,7 +56,7 @@ u64 IdentifyFileType(const char* path) {
         } else if (ValidateCiaHeader((CiaHeader*) data) == 0) {
             // this only works because these functions ignore CIA content index
             CiaInfo info;
-            GetCiaInfo(&info, (CiaHeader*) header);
+            GetCiaInfo(&info, data);
             if (fsize >= info.size_cia)
                 return GAME_CIA; // CIA file
         } else if (ValidateNcsdHeader((NcsdHeader*) data) == 0) {

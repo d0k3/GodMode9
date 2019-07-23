@@ -17,7 +17,7 @@ typedef struct {
     u32 subtype;
     u32 index;
     u32 flags;
-} __attribute__((packed)) VirtualNandTemplate;
+} PACKED_STRUCT VirtualNandTemplate;
 
 // see NP_TYPE_ and NP_SUBTYPE_ in nand.h
 static const VirtualNandTemplate vNandTemplates[] = {

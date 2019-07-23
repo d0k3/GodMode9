@@ -120,7 +120,7 @@ u32 EmbedEssentialBackup(const char* path) {
     
     // leaving out the write permissions check here, it's okay
     if ((BuildEssentialBackup(path, essential) != 0) ||
-        (ValidateNandNcsdHeader((NandNcsdHeader*) essential->nand_hdr) != 0) ||
+        (ValidateNandNcsdHeader((void*)essential->nand_hdr) != 0) ||
         (fvx_qwrite(path, essential, SECTOR_D0K3 * 0x200, sizeof(EssentialBackup), NULL) != FR_OK)) {
         free(essential);
         return 1;

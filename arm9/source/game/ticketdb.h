@@ -25,13 +25,13 @@ typedef struct {
     u8  reserved[4];
     u8  title_id[8];
     u8  titlekey[16];
-} __attribute__((packed)) TitleKeyEntry;
+} PACKED_STRUCT TitleKeyEntry;
 
 typedef struct {
     u32 n_entries;
     u8  reserved[12];
     TitleKeyEntry entries[256]; // this number is only a placeholder
-} __attribute__((packed)) TitleKeysInfo;
+} PACKED_STRUCT TitleKeysInfo;
 
 
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);

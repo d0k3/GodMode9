@@ -16,7 +16,7 @@ typedef struct {
     u32  ncchFlag3;
     u64  titleId;
     char filename[112];
-} __attribute__((packed)) NcchInfoEntry;
+} PACKED_STRUCT NcchInfoEntry;
 
 typedef struct {
     u32 padding;

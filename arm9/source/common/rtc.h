@@ -17,7 +17,7 @@ typedef struct {
     u8 bcd_M;
     u8 bcd_Y;
 	u8 leap_count;
-} __attribute__((packed)) DsTime;
+} PACKED_STRUCT DsTime;
 
 bool is_valid_dstime(DsTime* dstime);
 bool get_dstime(DsTime* dstime);

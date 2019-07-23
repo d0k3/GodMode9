@@ -11,13 +11,13 @@ typedef struct {
     u8  chs_end[3];     // 0xFE 0xFF 0xFF
     u32 sector;         // 0x2000 (4MB offset, 512 byte sectors)
     u32 count;
-} __attribute__((packed)) MbrPartitionInfo;
+} PACKED_ALIGN(2) MbrPartitionInfo;
 
 typedef struct {
     char text[446];
     MbrPartitionInfo partitions[4]; 
     u16  magic;         // 0xAA55
-} __attribute__((packed)) MbrHeader;
+} PACKED_ALIGN(2) MbrHeader;
 
 typedef struct { // unused
     u32 signature0;     // 0x41615252
@@ -27,7 +27,7 @@ typedef struct { // unused
     u32 clr_next;       // 0xFFFFFFFF
     u8  reserved1[14];
     u16 magic;          // 0xAA55
-} __attribute__((packed)) FileSystemInfo;
+} PACKED_STRUCT FileSystemInfo;
 
 typedef struct {
     u8   jmp[3];        // 0x90 0x00 0xEB
@@ -59,7 +59,7 @@ typedef struct {
     char fs_type[8];    // "FAT32   "
     u8   reserved4[420];
     u16  magic;         // 0xAA55
-} __attribute__((packed)) Fat32Header;
+} PACKED_STRUCT Fat32Header;
 
 typedef struct { // this struct is not tested enough!
     u8   jmp[3];        // 0x90 0x00 0xEB
@@ -84,7 +84,7 @@ typedef struct { // this struct is not tested enough!
     char fs_type[8];    // "FAT16   "
     u8   reserved4[448];
     u16  magic;         // 0xAA55
-} __attribute__((packed)) Fat16Header;
+} PACKED_STRUCT Fat16Header;
 
 u32 ValidateMbrHeader(MbrHeader* mbr);
 u32 ValidateFatHeader(void* fat);

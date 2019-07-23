@@ -93,13 +93,13 @@ typedef struct {
     u64 titleId;
     u8 seed[16];
     u8 reserved[8];
-} __attribute__((packed)) SeedInfoEntry;
+} PACKED_STRUCT SeedInfoEntry;
 
 typedef struct {
     u32 n_entries;
     u8 padding[12];
     SeedInfoEntry entries[256]; // this number is only a placeholder
-} __attribute__((packed)) SeedInfo;
+} PACKED_STRUCT SeedInfo;
 
 u32 ValidateNcchHeader(NcchHeader* header);
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid);

@@ -20,4 +20,4 @@ typedef struct {
     u32 offset_smdh;
     u32 size_smdh;
     u32 offset_romfs_lv3;
-} __attribute__((packed)) ThreedsxHeader;
+} PACKED_STRUCT ThreedsxHeader;

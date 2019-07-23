@@ -26,7 +26,7 @@ typedef struct {
     char dev_minor[8];
     char fname_prefix[155];
     char unused[12];
-} __attribute__((packed)) TarHeader;
+} PACKED_STRUCT TarHeader;
 
 
 u32 ValidateTarHeader(void* tardata, void* tardata_end);

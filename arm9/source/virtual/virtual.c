@@ -10,7 +10,7 @@
 typedef struct {
     char drv_letter;
     u32 virtual_src;
-} __attribute__((packed)) VirtualDrive;
+} PACKED_STRUCT VirtualDrive;
 
 static const VirtualDrive virtualDrives[] = { VRT_DRIVES };
 

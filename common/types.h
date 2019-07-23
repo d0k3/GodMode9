@@ -13,6 +13,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define ALIGN(n)        __attribute__((aligned(n)))
+#define PACKED_ALIGN(n) __attribute__((packed, aligned(n)))
+#define PACKED_STRUCT   PACKED_ALIGN(4)
+
 #define asm_v asm __volatile__
 
 typedef uint8_t  u8;

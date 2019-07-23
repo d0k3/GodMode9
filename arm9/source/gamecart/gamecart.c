@@ -24,7 +24,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 unused_offset;
-} __attribute__((packed, aligned(16))) CartDataCtr;
+} PACKED_ALIGN(16) CartDataCtr;
 
 typedef struct {
     TwlHeader ntr_header;
@@ -38,15 +38,15 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 arm9i_rom_offset;
-} __attribute__((packed, aligned(16))) CartDataNtrTwl;
+} PACKED_ALIGN(16) CartDataNtrTwl;
 
 u32 GetCartName(char* name, CartData* cdata) {
     if (cdata->cart_type & CART_CTR) {
-        CartDataCtr* cdata_i = (CartDataCtr*)(void*) cdata;
+        CartDataCtr* cdata_i = (CartDataCtr*)cdata;
         NcsdHeader* ncsd = &(cdata_i->ncsd);
         snprintf(name, 24, "%016llX_v%02lu", ncsd->mediaId, cdata_i->rom_version);
     }  else if (cdata->cart_type & CART_NTR) {
-        CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)(void*) cdata;
+        CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)cdata;
         TwlHeader* nds = &(cdata_i->ntr_header);
         snprintf(name, 24, "%.12s_%.6s_%02u", nds->game_title, nds->game_code, nds->rom_version);
     } else return 1;
@@ -95,7 +95,7 @@ u32 InitCardRead(CartData* cdata) {
         memset(priv_header + 0x48, 0xFF, 8);
     } else {
         // NTR header
-        TwlHeader* nds_header = (TwlHeader*) cdata->header;
+        TwlHeader* nds_header = (void*)cdata->header;
         NTR_CmdReadHeader(cdata->header);
         if (!(*(cdata->header))) return 1; // error reading the header
         if (!NTR_Secure_Init(cdata->header, Cart_GetID(), 0)) return 1;

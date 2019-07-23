@@ -678,8 +678,8 @@ bool BuildVGameTadDir(void) {
     u32 n = 0;
     
     // read header, setup table
-    u8 hdr_data[TAD_HEADER_LEN];
-    TadHeader* hdr = (TadHeader*) hdr_data;
+    u8 ALIGN(32) hdr_data[TAD_HEADER_LEN];
+    TadHeader* hdr = (void*)hdr_data;
     TadContentTable tbl;
     ReadGameImageBytes(hdr_data, TAD_HEADER_OFFSET, TAD_HEADER_LEN);
     if (BuildTadContentTable(&tbl, hdr_data) != 0) {
@@ -772,18 +772,18 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
         (type & GAME_NDS  ) ? VFLAG_NDS   :
         (type & GAME_TAD  ) ? VFLAG_TAD : 0;
     if (!base_vdir) return 0;
-    
+
     // set up vgame buffer
     vgame_buffer = (void*) malloc(0x40000);
     if (!vgame_buffer) return 0;
-    
-    templates_cia   = (VirtualFile*) ((u8*) vgame_buffer); // first 184kb reserved (enough for 3364 entries)
-    templates_firm  = (VirtualFile*) (((u8*) vgame_buffer) + 0x2E000); // 2kb reserved (enough for 36 entries)
-    templates_ncsd  = (VirtualFile*) (((u8*) vgame_buffer) + 0x2E800); // 2kb reserved (enough for 36 entries)
-    templates_ncch  = (VirtualFile*) (((u8*) vgame_buffer) + 0x2F000); // 1kb reserved (enough for 18 entries)
-    templates_nds   = (VirtualFile*) (((u8*) vgame_buffer) + 0x2F400); // 1kb reserved (enough for 18 entries)
-    templates_exefs = (VirtualFile*) (((u8*) vgame_buffer) + 0x2F800); // 1kb reserved (enough for 18 entries)
-    templates_tad   = (VirtualFile*) (((u8*) vgame_buffer) + 0x2FC00); // 1kb reserved (enough for 18 entries)
+
+    templates_cia   = (void*) ((u8*) vgame_buffer); // first 184kb reserved (enough for 3364 entries)
+    templates_firm  = (void*) (((u8*) vgame_buffer) + 0x2E000); // 2kb reserved (enough for 36 entries)
+    templates_ncsd  = (void*) (((u8*) vgame_buffer) + 0x2E800); // 2kb reserved (enough for 36 entries)
+    templates_ncch  = (void*) (((u8*) vgame_buffer) + 0x2F000); // 1kb reserved (enough for 18 entries)
+    templates_nds   = (void*) (((u8*) vgame_buffer) + 0x2F400); // 1kb reserved (enough for 18 entries)
+    templates_exefs = (void*) (((u8*) vgame_buffer) + 0x2F800); // 1kb reserved (enough for 18 entries)
+    templates_tad   = (void*) (((u8*) vgame_buffer) + 0x2FC00); // 1kb reserved (enough for 18 entries)
     cia   = (CiaStub*)       (void*) (((u8*) vgame_buffer) + 0x30000); // 61kB reserved - should be enough by far
     twl   = (TwlHeader*)     (void*) (((u8*) vgame_buffer) + 0x3F400); // 512 byte reserved (not the full thing)
     a9l   = (FirmA9LHeader*) (void*) (((u8*) vgame_buffer) + 0x3F600); // 512 byte reserved

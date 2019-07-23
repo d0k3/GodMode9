@@ -18,7 +18,7 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 arm9i_rom_offset; // TWL specific
-} __attribute__((packed)) CartData;
+} PACKED_ALIGN(16) CartData;
 
 u32 GetCartName(char* name, CartData* cdata);
 u32 InitCardRead(CartData* cdata);

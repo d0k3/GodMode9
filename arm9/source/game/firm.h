@@ -28,7 +28,7 @@ typedef struct {
     u32 size;
     u32 method;
     u8  hash[0x20];
-} __attribute__((packed)) FirmSectionHeader;
+} PACKED_STRUCT FirmSectionHeader;
 
 // see: https://www.3dbrew.org/wiki/FIRM#FIRM_Header
 typedef struct {

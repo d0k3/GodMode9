@@ -45,7 +45,7 @@ typedef struct {
     u8  icon_anim[0x200 * 0x8]; // 32x32x4bpp / 8 frames
     u16 palette_anim[0x10 * 0x8]; // 8 frames
     u16 sequence_anim[0x40];
-} __attribute__((packed)) TwlIconData;
+} PACKED_STRUCT TwlIconData;
 
 // very limited, information taken from here:
 // https://github.com/devkitPro/ndstool/blob/dsi-support/source/header.h
@@ -121,7 +121,7 @@ typedef struct {
     u8  reserved3[176];
     u8  unknown3[0x10];
     u8  ignored4[0xD00]; // ignored
-} __attribute__((packed)) TwlHeader;
+} PACKED_STRUCT TwlHeader;
 
 u32 ValidateTwlHeader(TwlHeader* twl);
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon);

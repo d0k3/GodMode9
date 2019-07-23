@@ -8,7 +8,7 @@ typedef struct {
     u8   slot;           // keyslot, 0x00...0x39
     u8   keyUnitType;    // 0 for ALL units / 1 for devkit exclusive / 2 for retail exclusive
     u8   sample[16];     // sample data, encoded with src = keyY = ctr = { 0 }
-} __attribute__((packed)) AesNcchSampleInfo;
+} PACKED_STRUCT AesNcchSampleInfo;
 
 static u64 keyState  = 0;
 static u64 keyXState = 0;

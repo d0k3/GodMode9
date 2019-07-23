@@ -505,24 +505,24 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
     // workaround for info == NULL
     NandPartitionInfo dummy;
     if (!info) info = &dummy;
-    
+
     // workaround for ZERONAND
     if (nand_src == NAND_ZERONAND) nand_src = NAND_SYSNAND;
-    
+
     // find type & subtype in NCSD header
-    u8 header[0x200];
+    u8 ALIGN(8) header[0x200];
     ReadNandSectors(header, 0x00, 1, 0xFF, nand_src);
-    NandNcsdHeader* ncsd = (NandNcsdHeader*) header;
+    NandNcsdHeader* ncsd = (void*)header;
     if ((ValidateNandNcsdHeader(ncsd) != 0) ||
         ((type == NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, NP_TYPE_STD, subtype, 0, ncsd) != 0)) ||
         ((type != NP_TYPE_FAT) && (GetNandNcsdPartitionInfo(info, type, subtype, index, ncsd) != 0)))
         return 1; // not found
-    
+
     if (type == NP_TYPE_BONUS) { // size of bonus partition
         info->count = GetNandSizeSectors(nand_src) - info->sector;
     } else if (type == NP_TYPE_FAT) { // FAT type specific stuff
         ReadNandSectors(header, info->sector, 1, info->keyslot, nand_src);
-        MbrHeader* mbr = (MbrHeader*) header;
+        MbrHeader* mbr = (void*)header;
         if ((ValidateMbrHeader(mbr) != 0) || (index >= 4) ||
             (mbr->partitions[index].sector == 0) || (mbr->partitions[index].count == 0) ||
             (mbr->partitions[index].sector + mbr->partitions[index].count > info->count))
@@ -530,7 +530,7 @@ u32 GetNandPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32 ind
         info->sector += mbr->partitions[index].sector;
         info->count = mbr->partitions[index].count;
     }
-    
+
     return 0;
 }
 

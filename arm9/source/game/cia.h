@@ -15,7 +15,7 @@ typedef struct {
     u32 core_version; // 2 normally
     u8  reserved1[0xFC];
     u8  smdh[0x36C0]; // from ExeFS
-} __attribute__((packed)) CiaMeta;
+} PACKED_STRUCT CiaMeta;
 
 typedef struct {
     u32 size_header;
@@ -27,7 +27,7 @@ typedef struct {
     u32 size_meta;
     u64 size_content;
     u8  content_index[0x2000];
-} __attribute__((packed)) CiaHeader;
+} PACKED_STRUCT CiaHeader;
 
 typedef struct {
     CiaHeader header;
@@ -38,7 +38,7 @@ typedef struct {
     u8 ticket_padding[0x40 - (TICKET_SIZE % 0x40)];
     TitleMetaData tmd;
     TmdContentChunk content_list[TMD_MAX_CONTENTS];
-} __attribute__((packed, aligned(16))) CiaStub;
+} PACKED_ALIGN(16) CiaStub;
 
 typedef struct { // first 0x20 bytes are identical with CIA header
     u32 size_header;
@@ -58,7 +58,7 @@ typedef struct { // first 0x20 bytes are identical with CIA header
     u32 offset_meta;
     u32 offset_content_list;
     u32 max_contents;
-} __attribute__((packed)) CiaInfo;
+} PACKED_STRUCT CiaInfo;
 
 u32 ValidateCiaHeader(CiaHeader* header);
 u32 GetCiaInfo(CiaInfo* info, CiaHeader* header);
