@@ -342,17 +342,17 @@ void set_preview(const char* name, const char* content) {
         else if (strncasecmp(content, "full", _VAR_CNT_LEN) == 0) preview_mode = 2;
         else preview_mode = 0xFF; // unknown preview mode
     } else if (strncmp(name, "PREVIEW_COLOR_ACTIVE", _VAR_NAME_LEN) == 0) {
-        u8 rgb[4] = { 0 };
+        u8 rgb[4];
         if (strntohex(content, rgb, 3))
-            script_color_active = getle32(rgb);
+            script_color_active = rgb888_buf_to_rgb565(rgb);
     } else if (strncmp(name, "PREVIEW_COLOR_COMMENT", _VAR_NAME_LEN) == 0) {
-        u8 rgb[4] = { 0 };
+        u8 rgb[4];
         if (strntohex(content, rgb, 3))
-            script_color_comment = getle32(rgb);
+            script_color_comment = rgb888_buf_to_rgb565(rgb);
     } else if (strncmp(name, "PREVIEW_COLOR_CODE", _VAR_NAME_LEN) == 0) {
-        u8 rgb[4] = { 0 };
+        u8 rgb[4];
         if (strntohex(content, rgb, 3))
-            script_color_code = getle32(rgb);
+            script_color_code = rgb888_buf_to_rgb565(rgb);
     }
 }
 
