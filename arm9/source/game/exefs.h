@@ -6,7 +6,7 @@ typedef struct {
     char name[8];
     u32  offset;
     u32  size;
-} __attribute__((packed)) ExeFsFileHeader;
+} PACKED_STRUCT ExeFsFileHeader;
 
 // see: https://www.3dbrew.org/wiki/ExeFS
 typedef struct {

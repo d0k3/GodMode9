@@ -49,12 +49,12 @@ typedef struct {
     u32 sector;
     u32 count;
     u32 keyslot;
-} __attribute__((packed)) NandPartitionInfo;
+} PACKED_STRUCT NandPartitionInfo;
 
 typedef struct {
     u32 offset;
     u32 size;
-} __attribute__((packed)) NandNcsdPartition;
+} PACKED_STRUCT NandNcsdPartition;
 
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
 typedef struct {
@@ -67,7 +67,7 @@ typedef struct {
     NandNcsdPartition partitions[8];
     u8  unknown[0x5E];
     u8  twl_mbr[0x42];
-} __attribute__((packed)) NandNcsdHeader;
+} PACKED_STRUCT NandNcsdHeader;
 
 
 bool InitNandCrypto(bool init_full);

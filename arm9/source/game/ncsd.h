@@ -17,7 +17,7 @@
 typedef struct {
     u32 offset;
     u32 size;
-} __attribute__((packed)) NcchPartition;
+} PACKED_STRUCT NcchPartition;
 
 // see: https://www.3dbrew.org/wiki/NCSD#NCSD_header
 typedef struct {
@@ -34,7 +34,7 @@ typedef struct {
     u8  partition_flags[8];
     u8  partitionId_table[8][8];
     u8  reserved[0x30];
-} __attribute__((packed)) NcsdHeader;
+} PACKED_STRUCT NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
 u64 GetNcsdTrimmedSize(NcsdHeader* header);

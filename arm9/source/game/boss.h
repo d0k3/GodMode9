@@ -35,7 +35,7 @@ typedef struct {
     u8 unknown3[4];
     u8 hash_payload[0x20];
     u8 signature_payload[0x100];
-} __attribute__((packed)) BossHeader;
+} PACKED_STRUCT BossHeader;
 
 u32 ValidateBossHeader(BossHeader* header, u32 fsize);
 u32 GetBossPayloadHashHeader(u8* header, BossHeader* boss);

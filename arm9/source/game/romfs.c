@@ -51,7 +51,7 @@ u32 ValidateLv3Header(RomFsLv3Header* lv3, u32 max_size) {
 
 // build index of RomFS lvl3
 u32 BuildLv3Index(RomFsLv3Index* index, u8* lv3) {
-    RomFsLv3Header* hdr = (RomFsLv3Header*) lv3;
+    RomFsLv3Header* hdr = (void*)lv3;
     index->header = hdr;
     index->dirhash = (u32*) (void*) (lv3 + hdr->offset_dirhash);
     index->dirmeta = lv3 + hdr->offset_dirmeta;
@@ -90,7 +90,7 @@ RomFsLv3DirMeta* GetLv3DirMeta(const char* name, u32 offset_parent, RomFsLv3Inde
     // process the hashbucket (make sure we got the correct data)
     // slim chance of endless loop with broken lvl3 here
     for (; offset < index->size_dirmeta; offset = meta->offset_samehash) {
-        meta = (RomFsLv3DirMeta*) (index->dirmeta + offset);
+        meta = (void*)(index->dirmeta + offset);
         if ((offset_parent == meta->offset_parent) &&
             ((u32) name_len == meta->name_len / 2) &&
             (memcmp(wname, meta->wname, name_len * 2) == 0))
@@ -115,7 +115,7 @@ RomFsLv3FileMeta* GetLv3FileMeta(const char* name, u32 offset_parent, RomFsLv3In
     // process the hashbucket (make sure we got the correct data)
     // slim chance of endless loop with broken lvl3 here
     for (; offset < index->size_filemeta; offset = meta->offset_samehash) {
-        meta = (RomFsLv3FileMeta*) (index->filemeta + offset);
+        meta = (void*)(index->filemeta + offset);
         if ((offset_parent == meta->offset_parent) &&
             ((u32) name_len == meta->name_len / 2) &&
             (memcmp(wname, meta->wname, name_len * 2) == 0))

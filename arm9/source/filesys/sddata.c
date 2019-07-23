@@ -11,7 +11,7 @@ typedef struct {
     FIL* fptr;
     u8 ctr[16];
     u8 keyy[16];
-} __attribute__((packed)) FilCryptInfo;
+} PACKED_STRUCT FilCryptInfo;
 
 static FilCryptInfo filcrypt[NUM_FILCRYPTINFO] = { 0 };
 

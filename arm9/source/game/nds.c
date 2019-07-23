@@ -13,12 +13,12 @@ typedef struct {
     u32 subtable_offset;
     u16 file0_id;
     u16 parent_id; // total # of dirs for root entry
-} __attribute__((packed)) NitroFntBaseEntry;
+} PACKED_ALIGN(1) NitroFntBaseEntry;
 
 typedef struct {
     u32 start_address;
     u32 end_address;
-} __attribute__((packed)) NitroFatEntry;
+} PACKED_ALIGN(1) NitroFatEntry;
 
 
 u32 ValidateTwlHeader(TwlHeader* twl) {
@@ -27,8 +27,8 @@ u32 ValidateTwlHeader(TwlHeader* twl) {
 }
 
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon) {
-    u8 ntr_header[0x200]; // we only need the NTR header (ignore TWL stuff)
-    TwlHeader* twl = hdr ? hdr : (TwlHeader*) ntr_header;
+    u8 ALIGN(32) ntr_header[0x200]; // we only need the NTR header (ignore TWL stuff)
+    TwlHeader* twl = hdr ? hdr : (void*) ntr_header;
     u32 hdr_size = hdr ? sizeof(TwlHeader) : 0x200; // load full header if buffer provided
     UINT br;
     if ((fvx_qread(path, twl, 0, hdr_size, &br) != FR_OK) || (br != hdr_size) ||

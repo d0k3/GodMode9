@@ -11,7 +11,7 @@
 typedef struct {
     u32 off_size_comp; // 0xOOSSSSSS, where O == reverse offset and S == size
     u32 addsize_dec; // decompressed size - compressed size
-} __attribute__((packed)) CodeLzssFooter;
+} PACKED_ALIGN(4) CodeLzssFooter;
 
 
 u32 GetCodeLzssUncompressedSize(void* footer, u32 comp_size) {
@@ -353,7 +353,7 @@ bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_
             memcpy(a_pCompressed, a_pUncompressed, uOrigSafe);
             memmove(a_pCompressed + uOrigSafe, pCompressBuffer + uCompressSafe, uCompressedSize);
             memset(a_pCompressed + uPadOffset, 0xFF, uCompFooterOffset - uPadOffset);
-            CodeLzssFooter* pCompFooter = (CodeLzssFooter*)(a_pCompressed + uCompFooterOffset);
+            CodeLzssFooter* pCompFooter = (void*)(a_pCompressed + uCompFooterOffset);
             pCompFooter->off_size_comp = uTop | (uBottom << 24);
             pCompFooter->addsize_dec = a_uUncompressedSize - *a_uCompressedSize;
         }

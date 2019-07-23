@@ -24,13 +24,13 @@ typedef struct {
     u8  ticket_id[8];
     u8  console_id[4];
     u8  eshop_id[4];
-} __attribute__((packed)) TickDbEntry;
+} PACKED_STRUCT TickDbEntry;
 
 typedef struct {
     u32 n_entries;
     u8  reserved[12];
     TickDbEntry entries[256]; // this number is only a placeholder (dangerous?)
-} __attribute__((packed)) TickDbInfo;
+} PACKED_STRUCT TickDbInfo;
 
 // only for the main directory
 static const VirtualFile vTickDbFileTemplates[] = {

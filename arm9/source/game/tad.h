@@ -16,19 +16,19 @@ typedef struct {
     u32 header_end;
     u32 footer_end;
     u32 content_end[TAD_NUM_CONTENT];
-} __attribute__((packed)) TadContentTable;
+} PACKED_STRUCT TadContentTable;
 
 // see: https://www.3dbrew.org/wiki/DSiWare_Exports#Block_Metadata
 typedef struct {
     u8 cmac[16];
     u8 iv0[16];
-} __attribute__((packed)) TadBlockMetaData;
+} PACKED_STRUCT TadBlockMetaData;
 
 // see: https://www.3dbrew.org/wiki/DSiWare_Exports#File_Structure_v2
 typedef struct {
     TwlIconData icon_data;
     u8 unknown[0x4000 - sizeof(TwlIconData)];
-} __attribute__((packed)) TadBanner;
+} PACKED_STRUCT TadBanner;
 
 // see: https://www.3dbrew.org/wiki/DSiWare_Exports#Header_2
 typedef struct {
@@ -43,7 +43,7 @@ typedef struct {
     u8  unknown1[0x30];
     u8  tmd_reserved[0x3E];
     u8  padding[0x0E];
-} __attribute__((packed)) TadHeader;
+} PACKED_STRUCT TadHeader;
 
 // see: https://www.3dbrew.org/wiki/DSiWare_Exports#Footer
 typedef struct {
@@ -54,6 +54,6 @@ typedef struct {
     u8  ecdsa_apcert[0x180];
     u8  ecdsa_ctcert[0x180];
     u8  padding[0x4];
-} __attribute__((packed)) TadFooter;
+} PACKED_STRUCT TadFooter;
 
 u32 BuildTadContentTable(void* table, void* header);

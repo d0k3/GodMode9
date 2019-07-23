@@ -44,7 +44,7 @@ typedef struct {
     u32 unknown0;
     u32 unknown1;
     u8  padding[4]; // masterhash follows
-} __attribute__((packed)) RomFsIvfcHeader;
+} PACKED_STRUCT RomFsIvfcHeader;
 
 typedef struct {
     u32 size_header;
@@ -57,7 +57,7 @@ typedef struct {
     u32 offset_filemeta;
     u32 size_filemeta;
     u32 offset_filedata;
-} __attribute__((packed)) RomFsLv3Header;
+} PACKED_STRUCT RomFsLv3Header;
 
 typedef struct {
     u32 offset_parent;
@@ -67,7 +67,7 @@ typedef struct {
     u32 offset_samehash;
     u32 name_len;
     u16 wname[256]; // 256 assumed to be max name length
-} __attribute__((packed)) RomFsLv3DirMeta;
+} PACKED_STRUCT RomFsLv3DirMeta;
 
 typedef struct {
     u32 offset_parent;
@@ -77,7 +77,7 @@ typedef struct {
     u32 offset_samehash;
     u32 name_len;
     u16 wname[256]; // 256 assumed to be max name length
-} __attribute__((packed)) RomFsLv3FileMeta;
+} PACKED_STRUCT RomFsLv3FileMeta;
 
 typedef struct {
     RomFsLv3Header* header;
@@ -90,7 +90,7 @@ typedef struct {
     u32  mod_file;
     u32  size_dirmeta;
     u32  size_filemeta;
-} __attribute__((packed)) RomFsLv3Index;
+} PACKED_STRUCT RomFsLv3Index;
 
 
 u64 GetRomFsLvOffset(RomFsIvfcHeader* ivfc, u32 lvl);

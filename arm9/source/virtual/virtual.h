@@ -37,7 +37,7 @@ typedef struct {
     u64 size;
     u32 keyslot;
     u32 flags;
-} __attribute__((packed)) VirtualFile;
+} VirtualFile;
 
 // virtual dirs are only relevant for virtual game drives
 typedef struct {
@@ -45,7 +45,7 @@ typedef struct {
     u64 offset;
     u64 size;
     u32 flags;
-} __attribute__((packed)) VirtualDir;
+} VirtualDir;
 
 u32 GetVirtualSource(const char* path);
 bool InitVirtualImageDrive(void);

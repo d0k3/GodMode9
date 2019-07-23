@@ -17,6 +17,6 @@ typedef struct {
     u8 mod[0x100];
     u8 exp[0x04];
     u8 padding1[0x34];
-} __attribute__((packed)) Certificate;
+} PACKED_STRUCT Certificate;
 
 u32 LoadCertFromCertDb(u64 offset, Certificate* cert, u32* mod, u32* exp);
