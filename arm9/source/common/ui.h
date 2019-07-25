@@ -88,7 +88,7 @@ bool ShowProgress(u64 current, u64 total, const char* opstr);
 
 int ShowBrightnessConfig(int set_brightness);
 
-static u16 rgb888_to_rgb565(u32 rgb) {
+static inline u16 rgb888_to_rgb565(u32 rgb) {
 	u8 r, g, b;
 	r = (rgb >> 16) & 0x1F;
 	g = (rgb >> 8) & 0x3F;
@@ -96,10 +96,10 @@ static u16 rgb888_to_rgb565(u32 rgb) {
 	return (r << 11) | (g << 5) | b;
 }
 
-static u16 rgb888_buf_to_rgb565(u8 *rgb) {
+static inline u16 rgb888_buf_to_rgb565(u8 *rgb) {
 	u8 r, g, b;
-	r = rgb[0] & 0x1F;
-	g = rgb[1] & 0x3F;
-	b = rgb[2] & 0x1F;
+	r = (rgb[0] >> 3);
+	g = (rgb[1] >> 2);
+	b = (rgb[2] >> 3);
 	return (r << 11) | (g << 5) | b;
 }
