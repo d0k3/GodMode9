@@ -9,7 +9,7 @@ void SPITestWaitWriteEnd(CardType type) {
 
 int SPITestEraseSector(CardType type, u32 offset, u8 actualCmd) {
     u8 cmd[4] = { actualCmd, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
-    if(type == NO_CHIP || type == FLASH_8MB) return 0xC8E13404;
+    if(type == NO_CHIP) return 0xC8E13404;
     
     int res = SPIWaitWriteEnd(type);
     
@@ -57,7 +57,7 @@ int SPITestBytes(CardType t, u32 id, u8 *buf, u8 byte, const char *word, u32 siz
 }
 
 void SPIFlashTest(void) {
-    CardType t = ShowPrompt(true, "Does the cart have IR?") ? FLASH_512KB_INFRARED : FLASH_256KB_1;
+    CardType t = ShowPrompt(true, "Does the cart have IR?") ? FLASH_512KB_1_INFRARED : FLASH_256KB_1;
     u32 size;
     u32 pageSize;
     u32 jedecid;

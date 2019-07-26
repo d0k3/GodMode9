@@ -1,5 +1,7 @@
 /*
- *  This file is part of TWLSaveTool.
+ *  This file is based on SPI.cpp from TWLSaveTool. Its copyright notice is
+ *  reproduced below.
+ *
  *  Copyright (C) 2015-2016 TuxSH
  *
  *  TWLSaveTool is free software: you can redistribute it and/or modify
@@ -20,13 +22,90 @@
 #include "spicard.h"
 #include "timer.h"
 
-// Deliberately written in C! (except for a few lines)
+// declarations for actual implementations
+int SPIEnableWriting_512B(CardType type);
+int SPIEnableWriting_regular(CardType type);
+int SPIReadSaveData_9bit(CardType type, u32 offset, void* data, u32 size);
+int SPIReadSaveData_16bit(CardType type, u32 offset, void* data, u32 size);
+int SPIReadSaveData_24bit(CardType type, u32 offset, void* data, u32 size);
+int SPIWriteSaveData_9bit(CardType type, u32 offset, const void* data, u32 size);
+int SPIWriteSaveData_16bit(CardType type, u32 offset, const void* data, u32 size);
+int SPIWriteSaveData_24bit_write(CardType type, u32 offset, const void* data, u32 size);
+int SPIWriteSaveData_24bit_erase_program(CardType type, u32 offset, const void* data, u32 size);
+int SPIEraseSector_emulated(CardType type, u32 offset);
+int SPIEraseSector_real(CardType type, u32 offset);
 
-// u8* fill_buf = NULL;
+const CardTypeData EEPROM_512B_ = { SPIEnableWriting_512B, SPIReadSaveData_9bit, SPIWriteSaveData_9bit, SPIEraseSector_emulated, 0xffffff, 1 << 9, 16, 16, 16, false, 0, 0, 0 };
 
-int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, void* data, u32 dataSize) {
+const CardTypeData EEPROM_STD_DUMMY = { SPIEnableWriting_regular, SPIReadSaveData_16bit, SPIWriteSaveData_16bit, SPIEraseSector_emulated, 0xffffff, UINT32_MAX, 1, 1, 1, false, SPI_EEPROM_CMD_WRITE, 0, 0 };
+const CardTypeData EEPROMTypes[] = {
+	{ SPIEnableWriting_regular, SPIReadSaveData_16bit, SPIWriteSaveData_16bit, SPIEraseSector_emulated, 0xffffff, 1 << 13, 32, 32, 32, false, SPI_EEPROM_CMD_WRITE, 0, 0}, // EEPROM 8 KB
+	{ SPIEnableWriting_regular, SPIReadSaveData_16bit, SPIWriteSaveData_16bit, SPIEraseSector_emulated, 0xffffff, 1 << 16, 128, 128, 128, false, SPI_EEPROM_CMD_WRITE, 0, 0}, // EEPROM 64 KB
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_emulated, 0xffffff, 1 << 17, 256, 256, 256, false, SPI_EEPROM_CMD_WRITE, 0, 0}, // EEPROM 128 KB
+};
+
+const CardTypeData FLASH_STD_DUMMY = { NULL, SPIReadSaveData_24bit, NULL, NULL, 0x0, 0, 0, 0, 0, false, 0, 0, 0 };
+const CardTypeData FlashStdTypes[] = {
+	// NTR/TWL
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x204012, 1 << 18, 65536, 256, 256, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0x621600, 1 << 18, 65536, 256, 65536, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x204013, 1 << 19, 65536, 256, 256, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x621100, 1 << 19, 65536, 256, 256, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x204014, 1 << 20, 65536, 256, 256, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	// Untested (but pretty safe bet), for Art Academy
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0x202017, 1 << 23, 65536, 32, 65536, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0x204017, 1 << 23, 65536, 32, 65536, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	// CTR
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22210, 1 << 16, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22211, 1 << 17, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22212, 1 << 18, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22213, 1 << 19, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22214, 1 << 20, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22215, 1 << 21, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22216, 1 << 22, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0xC22217, 1 << 23, 4096, 32, 4096, false, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+};
+
+const CardTypeData FLASH_INFRARED_DUMMY = { NULL, SPIReadSaveData_24bit, NULL, NULL, 0x0, 0, 0, 0, 0, true, 0, 0, 0 };
+const CardTypeData FlashInfraredTypes[] = {
+	// NTR/TWL
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x204012, 1 << 18, 65536, 256, 256, true, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_erase_program, SPIEraseSector_real, 0x621600, 1 << 18, 65536, 256, 65536, true, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x204013, 1 << 19, 65536, 256, 256, true, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+	{ SPIEnableWriting_regular, SPIReadSaveData_24bit, SPIWriteSaveData_24bit_write, SPIEraseSector_real, 0x621100, 1 << 19, 65536, 256, 256, true, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+};
+
+const CardType EEPROM_512B = &EEPROM_512B_;
+
+const CardType EEPROM_8KB = EEPROMTypes + 0;
+const CardType EEPROM_64KB = EEPROMTypes + 1;
+const CardType EEPROM_128KB = EEPROMTypes + 2;
+
+const CardType FLASH_256KB_1 = FlashStdTypes + 0;
+const CardType FLASH_256KB_2 = FlashStdTypes + 1;
+const CardType FLASH_512KB_1 = FlashStdTypes + 2;
+const CardType FLASH_512KB_2 = FlashStdTypes + 3;
+const CardType FLASH_1MB = FlashStdTypes + 4;
+const CardType FLASH_8MB_1 = FlashStdTypes + 5;
+const CardType FLASH_8MB_2 = FlashStdTypes + 6;
+
+const CardType FLASH_64KB_CTR = FlashStdTypes + 7;
+const CardType FLASH_128KB_CTR = FlashStdTypes + 8;
+const CardType FLASH_256KB_CTR = FlashStdTypes + 9;
+const CardType FLASH_512KB_CTR = FlashStdTypes + 10;
+const CardType FLASH_1MB_CTR = FlashStdTypes + 11;
+const CardType FLASH_2MB_CTR = FlashStdTypes + 12;
+const CardType FLASH_4MB_CTR = FlashStdTypes + 13;
+const CardType FLASH_8MB_CTR = FlashStdTypes + 14;
+
+const CardType FLASH_256KB_1_INFRARED = FlashInfraredTypes + 0;
+const CardType FLASH_256KB_2_INFRARED = FlashInfraredTypes + 1;
+const CardType FLASH_512KB_1_INFRARED = FlashInfraredTypes + 2;
+const CardType FLASH_512KB_2_INFRARED = FlashInfraredTypes + 3;
+
+int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize) {
 	const u32 headerFooterVal = 0;
-	bool b = type == FLASH_512KB_INFRARED || type == FLASH_256KB_INFRARED;
+	bool b = type->infrared;
 
 	SPICARD_init();
 
@@ -55,11 +134,16 @@ int SPIWaitWriteEnd(CardType type) {
 	return 0;
 }
 
-int SPIEnableWriting(CardType type) {
+int SPIEnableWriting_512B(CardType type) {
+	u8 cmd = SPI_CMD_WREN;
+	return SPIWriteRead(type, &cmd, 1, NULL, 0, 0, 0);
+}
+
+int SPIEnableWriting_regular(CardType type) {
 	u8 cmd = SPI_CMD_WREN, statusReg = 0;
 	int res = SPIWriteRead(type, &cmd, 1, NULL, 0, 0, 0);
 
-	if(res || type == EEPROM_512B) return res; // Weird, but works (otherwise we're getting an infinite loop for that chip type).
+	if(res) return res;
 	cmd = SPI_CMD_RDSR;
 	
 	do{
@@ -68,6 +152,18 @@ int SPIEnableWriting(CardType type) {
 	} while(statusReg & ~SPI_FLG_WEL);
 	
 	return 0;
+}
+
+int SPIEnableWriting(CardType type) {
+	if(type == NO_CHIP) return 1;
+	return type->enableWriting(type);
+}
+
+int _SPIWriteTransaction(CardType type, void* cmd, u32 cmdSize, const void* data, u32 dataSize) {
+	int res;
+	if( (res = SPIEnableWriting(type)) ) return res;
+	if( (res = SPIWriteRead(type, cmd, cmdSize, NULL, 0, (void*) ((u8*) data), dataSize)) ) return res;
+	return SPIWaitWriteEnd(type);
 }
 
 int SPIReadJEDECIDAndStatusReg(CardType type, u32* id, u8* statusReg) {
@@ -92,100 +188,105 @@ int SPIReadJEDECIDAndStatusReg(CardType type, u32* id, u8* statusReg) {
 }
 
 u32 SPIGetPageSize(CardType type) {
-	u32 EEPROMSizes[] = { 16, 32, 128, 256 };
-	if(type == NO_CHIP || type > CHIP_LAST) return 0;
-	else if(type < FLASH_256KB_1) return EEPROMSizes[(int) type];
-	else if(type < FLASH_64KB_CTR ) return 256;
-	else return 0; // TODO
+	if(type == NO_CHIP) return 0;
+	return type->pageSize;
+}
+
+u32 SPIGetEraseSize(CardType type) {
+	if(type == NO_CHIP) return 0;
+	return type->eraseSize;
 }
 
 u32 SPIGetCapacity(CardType type) {
-	u32 sz[] = { 9, 13, 16, 17, 18, 18, 19, 19, 20, 23, 16, 17, 18, 19, 20, 21, 22, 23, 19, 18 };
+	if(type == NO_CHIP) return 0;
+	return type->capacity;
+}
+
+int SPIWriteSaveData_9bit(CardType type, u32 offset, const void* data, u32 size) {
+	u8 cmd[2] = { (offset >= 0x100) ? SPI_512B_EEPROM_CMD_WRHI : SPI_512B_EEPROM_CMD_WRLO, (u8) offset };
 	
-	if(type == NO_CHIP || type > CHIP_LAST) return 0;
-	else return 1 << sz[(int) type];
+	return _SPIWriteTransaction(type, cmd, 2, (void*) ((u8*) data), size);
+}
+
+int SPIWriteSaveData_16bit(CardType type, u32 offset, const void* data, u32 size) {
+	u8 cmd[3] = { type->writeCommand, (u8)(offset >> 8), (u8) offset };
+	
+	return _SPIWriteTransaction(type, cmd, 3, (void*) ((u8*) data), size);
+}
+
+int SPIWriteSaveData_24bit_write(CardType type, u32 offset, const void* data, u32 size) {
+	u8 cmd[4] = { type->writeCommand, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
+	
+	return _SPIWriteTransaction(type, cmd, 4, (void*) ((u8*) data), size);
+}
+
+int SPIWriteSaveData_24bit_erase_program(CardType type, u32 offset, const void* data, u32 size) {
+	u8 cmd[4] = { type->programCommand };
+	const u32 pageSize = SPIGetPageSize(type);
+	const u32 eraseSize = SPIGetEraseSize(type);
+	int res;
+
+	u8 *newData = NULL;
+	if(offset % eraseSize || size < eraseSize) {
+		u32 sectorStart = (offset / eraseSize) * eraseSize;
+		newData = malloc(eraseSize);
+		if(!newData) return 1;
+		if( (res = SPIReadSaveData(type, sectorStart, newData, eraseSize)) ) {
+			free(newData);
+			return res;
+		}
+		memcpy(newData + (offset % eraseSize), data, size);
+		data = newData;
+		offset = sectorStart;
+	}
+
+	if( (res = SPIEraseSector(type, offset)) ) {
+		free(newData);
+		return res;
+	}
+
+	for(u32 pos = offset; pos < offset + eraseSize; pos += pageSize) {
+		cmd[1] = (u8)(pos >> 16);
+		cmd[2] = (u8)(pos >> 8);
+		cmd[3] = (u8) pos;
+		if( (res = _SPIWriteTransaction(type, cmd, 4, (void*) ((u8*) data - offset + pos), pageSize)) ) {
+			free(newData);
+			return res;
+		}
+	}
+
+	free(newData);
+	return 0;
 }
 
 int SPIWriteSaveData(CardType type, u32 offset, const void* data, u32 size) {
-	u8 cmd[4] = { 0 };
-	u32 cmdSize = 4;
+	if(type == NO_CHIP) return 1;
 	
+	if(size == 0) return 0;
+	size = min(size, SPIGetCapacity(type) - offset);
 	u32 end = offset + size;
 	u32 pos = offset;
-	if(size == 0) return 0;
-	u32 pageSize = SPIGetPageSize(type);
-	if(pageSize == 0) return 0xC8E13404;
+	u32 writeSize = type->writeSize;
+	if(writeSize == 0) return 0xC8E13404;
 	
 	int res = SPIWaitWriteEnd(type);
 	if(res) return res;
 	
-	size = (size <= SPIGetCapacity(type) - offset) ? size : SPIGetCapacity(type) - offset; 
-
 	while(pos < end) {
-		switch(type) {
-			case EEPROM_512B:
-				cmdSize = 2;
-				cmd[0] = (pos >= 0x100) ? SPI_512B_EEPROM_CMD_WRHI : SPI_512B_EEPROM_CMD_WRLO;
-				cmd[1] = (u8) pos;
-				break;
-			case EEPROM_8KB:
-			case EEPROM_64KB:
-				cmdSize = 3;
-				cmd[0] = SPI_EEPROM_CMD_WRITE;
-				cmd[1] = (u8)(pos >> 8);
-				cmd[2] = (u8) pos;
-				break;
-			case EEPROM_128KB:
-				cmdSize = 4;
-				cmd[0] = SPI_EEPROM_CMD_WRITE;
-				cmd[1] = (u8)(pos >> 16);
-				cmd[2] = (u8)(pos >> 8);
-				cmd[3] = (u8) pos;
-				break;
-			case FLASH_256KB_1:
-			/*	
-			This is what is done in the official implementation, but I think it's wrong
-				cmdSize = 4;
-				cmd[0] = SPI_CMD_PP;
-				cmd[1] = (u8)(pos >> 16);
-				cmd[2] = (u8)(pos >> 8);
-				cmd[3] = (u8) pos;
-				break;
-			*/
-			case FLASH_256KB_2:
-			case FLASH_512KB_1:
-			case FLASH_512KB_2:
-			case FLASH_1MB:
-			case FLASH_512KB_INFRARED:
-			case FLASH_256KB_INFRARED:
-				cmdSize = 4;
-				cmd[0] = SPI_FLASH_CMD_PW;
-				cmd[1] = (u8)(pos >> 16);
-				cmd[2] = (u8)(pos >> 8);
-				cmd[3] = (u8) pos;
-				break;
-			case FLASH_8MB:
-				return 0xC8E13404; // writing is unsupported (so is reading? need to test)
-			default:
-				return -1; // never happens
-		}
-		
 		u32 remaining = end - pos;
-		u32 nb = pageSize - (pos % pageSize);
+		u32 nb = writeSize - (pos % writeSize);
 		
 		u32 dataSize = (remaining < nb) ? remaining : nb;
 		
-		if( (res = SPIEnableWriting(type)) ) return res;
-		if( (res = SPIWriteRead(type, cmd, cmdSize, NULL, 0, (void*) ((u8*) data - offset + pos), dataSize)) ) return res;
-		if( (res = SPIWaitWriteEnd(type)) ) return res;
+		if( (res = type->writeSaveData(type, pos, (void*) ((u8*) data - offset + pos), dataSize)) ) return res;
 		
-		pos = ((pos / pageSize) + 1) * pageSize; // truncate
+		pos = ((pos / writeSize) + 1) * writeSize; // truncate
 	}
 	
 	return 0;
 }
 
-int _SPIReadSaveData_512B_impl(u32 pos, void* data, u32 size) { 
+int SPIReadSaveData_9bit(CardType type, u32 pos, void* data, u32 size) { 
 	u8 cmd[4];
 	u32 cmdSize = 2;
 	
@@ -197,7 +298,7 @@ int _SPIReadSaveData_512B_impl(u32 pos, void* data, u32 size) {
 		cmd[0] = SPI_512B_EEPROM_CMD_RDLO;
 		cmd[1] = (u8) pos;
 		
-		int res = SPIWriteRead(EEPROM_512B, cmd, cmdSize, data, len, NULL, 0);
+		int res = SPIWriteRead(type, cmd, cmdSize, data, len, NULL, 0);
 		if(res) return res;
 		
 		read += len;
@@ -209,7 +310,7 @@ int _SPIReadSaveData_512B_impl(u32 pos, void* data, u32 size) {
 		cmd[0] = SPI_512B_EEPROM_CMD_RDHI;
 		cmd[1] = (u8)(pos + read);
 		
-		int res = SPIWriteRead(EEPROM_512B, cmd, cmdSize, (void*)((u8*)data + read), len, NULL, 0);
+		int res = SPIWriteRead(type, cmd, cmdSize, (void*)((u8*)data + read), len, NULL, 0);
 
 		if(res) return res;
 	}
@@ -217,85 +318,57 @@ int _SPIReadSaveData_512B_impl(u32 pos, void* data, u32 size) {
 	return 0;
 }
 
-int SPIReadSaveData(CardType type, u32 offset, void* data, u32 size) {	
-	u8 cmd[4] = { SPI_CMD_READ };
-	u32 cmdSize = 4;
+int SPIReadSaveData_16bit(CardType type, u32 offset, void* data, u32 size) {	
+	u8 cmd[3] = { SPI_CMD_READ, (u8)(offset >> 8), (u8) offset };
+
+	return SPIWriteRead(type, cmd, 3, data, size, NULL, 0);
+}
+
+int SPIReadSaveData_24bit(CardType type, u32 offset, void* data, u32 size) {	
+	u8 cmd[4] = { SPI_CMD_READ, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
+	
+	return SPIWriteRead(type, cmd, 4, data, size, NULL, 0);
+}
+
+int SPIReadSaveData(CardType type, u32 offset, void* data, u32 size) {
+	if(type == NO_CHIP) return 1;
+
 	if(size == 0) return 0;
-	if(type == NO_CHIP) return 0xC8E13404;
 	
 	int res = SPIWaitWriteEnd(type);
 	if(res) return res;
 	
-	size = (size <= SPIGetCapacity(type) - offset) ? size : SPIGetCapacity(type) - offset; 
-	u32 pos = offset;
-	switch(type) {
-		case EEPROM_512B:
-			return _SPIReadSaveData_512B_impl(offset, data, size);
-			break;
-		case EEPROM_8KB:
-		case EEPROM_64KB:
-			cmdSize = 3;
-			cmd[1] = (u8)(pos >> 8);
-			cmd[2] = (u8) pos;
-			break;
-		case EEPROM_128KB:
-			cmdSize = 4;
-			cmd[1] = (u8)(pos >> 16);
-			cmd[2] = (u8)(pos >> 8);
-			cmd[3] = (u8) pos;
-			break;
-		case FLASH_256KB_1:
-		case FLASH_256KB_2:
-		case FLASH_512KB_1:
-		case FLASH_512KB_2:
-		case FLASH_1MB:
-		case FLASH_8MB:
-		case FLASH_512KB_INFRARED:
-		case FLASH_256KB_INFRARED:
-		case FLASH_64KB_CTR:
-		case FLASH_128KB_CTR:
-		case FLASH_256KB_CTR:
-		case FLASH_512KB_CTR:
-		case FLASH_1MB_CTR:
-		case FLASH_2MB_CTR:
-		case FLASH_4MB_CTR:
-		case FLASH_8MB_CTR:
-			cmdSize = 4;
-			cmd[1] = (u8)(pos >> 16);
-			cmd[2] = (u8)(pos >> 8);
-			cmd[3] = (u8) pos;
-			break;
-		default:
-			return 0; // never happens
-	}
-	
-	return SPIWriteRead(type, cmd, cmdSize, data, size, NULL, 0);
+	size = (size <= SPIGetCapacity(type) - offset) ? size : SPIGetCapacity(type) - offset;
+
+	return type->readSaveData(type, offset, data, size);
 }
 
-/* int SPIEraseSector(CardType type, u32 offset) {
-	u8 cmd[4] = {  SPI_FLASH_CMD_SE, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
-	if(type == NO_CHIP || type == FLASH_8MB) return 0xC8E13404;
+int SPIEraseSector_emulated(CardType type, u32 offset) {
+	u32 blockSize = SPIGetEraseSize(type);
+	u8 *fill_buf = malloc(SPIGetEraseSize(type));
+	if (!fill_buf) return 1;
+	memset(fill_buf, 0xff, blockSize);
+	offset = (offset / blockSize) * blockSize;
 	
-	if(type < FLASH_256KB_1 && fill_buf == NULL) { 
-			fill_buf = new u8[0x10000];
-			memset(fill_buf, 0xff, 0x10000);
-	}
+	int res = SPIWriteSaveData(type, offset, fill_buf, blockSize);
+	free(fill_buf);
+	return res;
+}
+
+int SPIEraseSector_real(CardType type, u32 offset) {
+	u8 cmd[4] = { type->eraseCommand, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
 	
 	int res = SPIWaitWriteEnd(type);
+	if(res) return res;
 	
-	if(type >= FLASH_256KB_1) {
-		if( (res = SPIEnableWriting(type)) ) return res;
-		if( (res = SPIWriteRead(type, cmd, 4, NULL, 0, NULL, 0)) ) return res;
-		if( (res = SPIWaitWriteEnd(type)) ) return res;
-	}
-	// Simulate the same behavior on EEPROM chips.
-	else {
-		u32 sz = SPIGetCapacity(type);
-		int res = SPIWriteSaveData(type, 0, fill_buf, (sz < 0x10000) ? sz : 0x10000);
-		return res;
-	}
-	return 0;
-} */
+	return _SPIWriteTransaction(type, cmd, 4, NULL, 0);
+}
+
+
+int SPIEraseSector(CardType type, u32 offset) {
+	if(type == NO_CHIP) return 1;
+	return type->eraseSector(type, offset);
+}
 
 
 // The following routine use code from savegame-manager:
@@ -353,9 +426,8 @@ int SPIGetCardType(CardType* type, int infrared) {
 	u8 sr = 0;
 	u32 jedec = 0;
 	u32 tries = 0;
-	CardType t = (infrared == 1) ? FLASH_INFRARED_DUMMY : FLASH_STD_DUMMY;
+	CardType t = (infrared == 1) ? &FLASH_INFRARED_DUMMY : &FLASH_STD_DUMMY;
 	int res; 
-	u32 jedecOrderedList[] = { 0x204012, 0x621600, 0x204013, 0x621100, 0x204014, 0x202017, 0xC22210, 0xC22211, 0xC22212, 0xC22213, 0xC22214, 0xC22215, 0xC22216, 0xC22217 };
 	
 	u32 maxTries = (infrared == -1) ? 2 : 1; // note: infrared = -1 fails 1/3 of the time
 	while(tries < maxTries){ 
@@ -364,45 +436,54 @@ int SPIGetCardType(CardType* type, int infrared) {
 		
 		if ((sr & 0xfd) == 0x00 && (jedec != 0x00ffffff)) { break; }		
 		if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { t = EEPROM_512B; break; }
-		if ((sr & 0xfd) == 0x00 && (jedec == 0x00ffffff)) { t = EEPROM_STD_DUMMY; break; }
+		if ((sr & 0xfd) == 0x00 && (jedec == 0x00ffffff)) { t = &EEPROM_STD_DUMMY; break; }
 		
 		++tries;
-		t = FLASH_INFRARED_DUMMY;
+		t = &FLASH_INFRARED_DUMMY;
 	}
 	
 	if(t == EEPROM_512B) { *type = t; return 0; }
-	else if(t == EEPROM_STD_DUMMY) {
+	else if(t == &EEPROM_STD_DUMMY) {
 		bool mirrored = false;
+		size_t i;
 		
-		if( (res = _SPIIsDataMirrored(t, 8192, &mirrored)) ) return res;
-		if(mirrored) t = EEPROM_8KB;
-		else{
-			if( (res = _SPIIsDataMirrored(t, 65536, &mirrored)) ) return res;
-			if(mirrored) t = EEPROM_64KB;
-			else t = EEPROM_128KB;
+		for(i = 0; i < sizeof(EEPROMTypes) / sizeof(CardTypeData) - 1; i++) {
+			if( (res = _SPIIsDataMirrored(t, SPIGetCapacity(EEPROMTypes + i), &mirrored)) ) return res;
+			if(mirrored) {
+				*type = EEPROMTypes + i;
+				return 0;
+			}
 		}
-		
-		*type = t;
+		*type = EEPROMTypes + i;
 		return 0;
 	}
 	
-	else if(t == FLASH_INFRARED_DUMMY) {
+	else if(t == &FLASH_INFRARED_DUMMY) {
+		size_t i;
+		
 		if(infrared == 0) *type = NO_CHIP; // did anything go wrong?
 		
-		if(jedec == jedecOrderedList[0] || jedec == jedecOrderedList[1]) *type = FLASH_256KB_INFRARED;
-		else *type = FLASH_512KB_INFRARED;
+		for(i = 0; i < sizeof(FlashInfraredTypes) / sizeof(CardTypeData); i++) {
+			if(FlashInfraredTypes[i].jedecId == jedec) {
+				*type = FlashInfraredTypes + i;
+				return 0;
+			}
+		}
 		
+		*type = NO_CHIP;
 		return 0;
 	}
 	
 	else {
-		if(infrared == 1) *type = NO_CHIP; // did anything go wrong?
-		if(jedec == 0x204017) { *type = FLASH_8MB; return 0; } // 8MB. savegame-manager: which one? (more work is required to unlock this save chip!)
-		
 		size_t i;
 		
-		for(i = 0; i < sizeof(jedecOrderedList) / sizeof(int); ++i) {
-			if(jedec == jedecOrderedList[i]) { *type = (CardType)((int) FLASH_256KB_1 + i); return 0; }  
+		if(infrared == 1) *type = NO_CHIP; // did anything go wrong?
+		
+		for(i = 0; i < sizeof(FlashStdTypes) / sizeof(CardTypeData); i++) {
+			if(FlashStdTypes[i].jedecId == jedec) {
+				*type = FlashStdTypes + i;
+				return 0;
+			}
 		}
 		
 		*type = NO_CHIP;
