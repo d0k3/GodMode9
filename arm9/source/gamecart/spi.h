@@ -1,5 +1,7 @@
 /*
- *  This file is part of TWLSaveTool.
+ *  This file is based on SPI.h from TWLSaveTool. Its copyright notice is
+ *  reproduced below.
+ * 
  *  Copyright (C) 2015-2016 TuxSH
  *
  *  TWLSaveTool is free software: you can redistribute it and/or modify
@@ -39,61 +41,76 @@ extern "C" {
 #define SPI_FLASH_CMD_PW 10
 #define SPI_FLASH_CMD_RDID 0x9f
 #define SPI_FLASH_CMD_SE 0xd8
-
+#define SPI_FLASH_CMD_PE 0xdb
+#define SPI_FLASH_CMD_MXIC_SE 0x20
 
 #define SPI_FLG_WIP 1
 #define SPI_FLG_WEL 2
 
-// extern u8* fill_buf; 
-typedef enum {
-	NO_CHIP = -1,
-	
-	EEPROM_512B = 0,
-	
-	EEPROM_8KB = 1,
-	EEPROM_64KB = 2,
-	EEPROM_128KB = 3,
-	EEPROM_STD_DUMMY = 1,
-	
-	FLASH_256KB_1 = 4,
-	FLASH_256KB_2 = 5,
-	FLASH_512KB_1 = 6,
-	FLASH_512KB_2 = 7,
-	FLASH_1MB = 8,
-	FLASH_8MB = 9, // <- can't restore savegames, and maybe not read them atm
-	FLASH_STD_DUMMY = 4,
-	
-	FLASH_64KB_CTR = 10, // I am extrapolating from the dataheets, only a few of these have been observed in the wild
-	FLASH_128KB_CTR = 11, // Most common, including Ocarina of time 3D
-	FLASH_256KB_CTR = 12,
-	FLASH_512KB_CTR = 13, // Also common, including Detective Pikachu
-	FLASH_1MB_CTR = 14, // For example Pokemon Ultra Sun
-	FLASH_2MB_CTR = 15,
-	FLASH_4MB_CTR = 16,
-	FLASH_8MB_CTR = 17,
-	// Animal crossing: New leaf???
-	// (What is that? 3dbrew states 10M, but Macronix only makes powers of 2)
+typedef struct CardTypeData CardTypeData;
 
-	FLASH_512KB_INFRARED = 18,
-	FLASH_256KB_INFRARED = 19, // AFAIK, only "Active Health with Carol Vorderman" has such a flash save memory
-	FLASH_INFRARED_DUMMY = 17,
-	
-	CHIP_LAST = 19,
-} CardType;
+typedef const CardTypeData * CardType;
 
-int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, void* data, u32 dataSize);
+struct CardTypeData {
+	int (*enableWriting) (CardType type);
+	int (*readSaveData) (CardType type, u32 offset, void* data, u32 size);
+	int (*writeSaveData) (CardType type, u32 offset, const void* data, u32 size);
+	int (*eraseSector) (CardType type, u32 offset);
+	u32 jedecId;
+	u32 capacity;
+	u32 eraseSize;
+	u32 pageSize;
+	u32 writeSize;
+	bool infrared;
+	u8 writeCommand;
+	u8 programCommand;
+	u8 eraseCommand;
+};
+
+#define NO_CHIP NULL
+
+const CardType EEPROM_512B;
+
+const CardType EEPROM_8KB;
+const CardType EEPROM_64KB;
+const CardType EEPROM_128KB;
+
+const CardType FLASH_256KB_1;
+const CardType FLASH_256KB_2;
+const CardType FLASH_512KB_1;
+const CardType FLASH_512KB_2;
+const CardType FLASH_1MB;
+const CardType FLASH_8MB_1; // <- can't restore savegames, and maybe not read them atm
+const CardType FLASH_8MB_2; // we are also unsure about the ID for this
+
+const CardType FLASH_64KB_CTR; // I am extrapolating from the dataheets, only a few of these have been observed in the wild
+const CardType FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
+const CardType FLASH_256KB_CTR;
+const CardType FLASH_512KB_CTR; // Also common, including Detective Pikachu
+const CardType FLASH_1MB_CTR; // For example Pokemon Ultra Sun
+const CardType FLASH_2MB_CTR;
+const CardType FLASH_4MB_CTR;
+const CardType FLASH_8MB_CTR;
+
+const CardType FLASH_256KB_1_INFRARED; // AFAIK, only "Active Health with Carol Vorderman" has such a flash save memory
+const CardType FLASH_256KB_2_INFRARED;
+const CardType FLASH_512KB_1_INFRARED;
+const CardType FLASH_512KB_2_INFRARED;
+
+int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
 int SPIWaitWriteEnd(CardType type);
 int SPIEnableWriting(CardType type);
 int SPIReadJEDECIDAndStatusReg(CardType type, u32* id, u8* statusReg);
 int SPIGetCardType(CardType* type, int infrared);
 u32 SPIGetPageSize(CardType type);
 u32 SPIGetCapacity(CardType type);
+u32 SPIGetEraseSize(CardType type);
 
 int SPIWriteSaveData(CardType type, u32 offset, const void* data, u32 size);
 int SPIReadSaveData(CardType type, u32 offset, void* data, u32 size);
 
-// int SPIEraseSector(CardType type, u32 offset);
-// int SPIErase(CardType type); 
+int SPIEraseSector(CardType type, u32 offset);
+int SPIErase(CardType type);
 
 #ifdef __cplusplus
 }
