@@ -30,19 +30,19 @@ typedef struct CardSPITypeData CardSPITypeData;
 typedef const CardSPITypeData * CardSPIType;
 
 struct CardSPITypeData {
-	int (*enableWriting) (CardSPIType type);
-	int (*readSaveData) (CardSPIType type, u32 offset, void* data, u32 size);
-	int (*writeSaveData) (CardSPIType type, u32 offset, const void* data, u32 size);
-	int (*eraseSector) (CardSPIType type, u32 offset);
-	u32 jedecId;
-	u32 capacity;
-	u32 eraseSize;
-	u32 pageSize;
-	u32 writeSize;
-	bool infrared;
-	u8 writeCommand;
-	u8 programCommand;
-	u8 eraseCommand;
+    int (*enableWriting) (CardSPIType type);
+    int (*readSaveData) (CardSPIType type, u32 offset, void* data, u32 size);
+    int (*writeSaveData) (CardSPIType type, u32 offset, const void* data, u32 size);
+    int (*eraseSector) (CardSPIType type, u32 offset);
+    u32 jedecId;
+    u32 capacity;
+    u32 eraseSize;
+    u32 pageSize;
+    u32 writeSize;
+    bool infrared;
+    u8 writeCommand;
+    u8 programCommand;
+    u8 eraseCommand;
 };
 
 #define NO_CHIP NULL
