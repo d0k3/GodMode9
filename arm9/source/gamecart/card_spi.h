@@ -27,7 +27,10 @@ extern "C" {
 
 typedef struct CardSPITypeData CardSPITypeData;
 
-typedef const CardSPITypeData * CardSPIType;
+typedef struct {
+    const CardSPITypeData *chip;
+    bool infrared;
+} CardSPIType;
 
 struct CardSPITypeData {
     int (*enableWriting) (CardSPIType type);
@@ -39,7 +42,6 @@ struct CardSPITypeData {
     u32 eraseSize;
     u32 pageSize;
     u32 writeSize;
-    bool infrared;
     u8 writeCommand;
     u8 programCommand;
     u8 eraseCommand;
@@ -47,33 +49,22 @@ struct CardSPITypeData {
 
 #define NO_CHIP NULL
 
-const CardSPIType EEPROM_512B;
+const CardSPITypeData * const EEPROM_512B;
 
-const CardSPIType EEPROM_8KB;
-const CardSPIType EEPROM_64KB;
-const CardSPIType EEPROM_128KB;
+const CardSPITypeData * const EEPROM_8KB;
+const CardSPITypeData * const EEPROM_64KB;
+const CardSPITypeData * const EEPROM_128KB;
 
-const CardSPIType FLASH_256KB_1;
-const CardSPIType FLASH_256KB_2;
-const CardSPIType FLASH_512KB_1;
-const CardSPIType FLASH_512KB_2;
-const CardSPIType FLASH_1MB;
-const CardSPIType FLASH_8MB_1; // <- can't restore savegames, and maybe not read them atm
-const CardSPIType FLASH_8MB_2; // we are also unsure about the ID for this
+const CardSPITypeData * const FLASH_256KB_1;
+const CardSPITypeData * const FLASH_256KB_2;
+const CardSPITypeData * const FLASH_512KB_1;
+const CardSPITypeData * const FLASH_512KB_2;
+const CardSPITypeData * const FLASH_1MB;
+const CardSPITypeData * const FLASH_8MB; // <- can't restore savegames, and maybe not read them atm
 
-const CardSPIType FLASH_64KB_CTR; // I am extrapolating from the dataheets, only a few of these have been observed in the wild
-const CardSPIType FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
-const CardSPIType FLASH_256KB_CTR;
-const CardSPIType FLASH_512KB_CTR; // Also common, including Detective Pikachu
-const CardSPIType FLASH_1MB_CTR; // For example Pokemon Ultra Sun
-const CardSPIType FLASH_2MB_CTR;
-const CardSPIType FLASH_4MB_CTR;
-const CardSPIType FLASH_8MB_CTR;
-
-const CardSPIType FLASH_256KB_1_INFRARED; // AFAIK, only "Active Health with Carol Vorderman" has such a flash save memory
-const CardSPIType FLASH_256KB_2_INFRARED;
-const CardSPIType FLASH_512KB_1_INFRARED;
-const CardSPIType FLASH_512KB_2_INFRARED;
+const CardSPITypeData * const FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
+const CardSPITypeData * const FLASH_512KB_CTR; // Also common, including Detective Pikachu
+const CardSPITypeData * const FLASH_1MB_CTR; // For example Pokemon Ultra Sun
 
 int CardSPIWriteRead(CardSPIType type, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
 int CardSPIWaitWriteEnd(CardSPIType type);
