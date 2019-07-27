@@ -97,7 +97,7 @@ const CardType FLASH_256KB_2_INFRARED;
 const CardType FLASH_512KB_1_INFRARED;
 const CardType FLASH_512KB_2_INFRARED;
 
-int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
+int SPIWriteRead(CardType type, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
 int SPIWaitWriteEnd(CardType type);
 int SPIEnableWriting(CardType type);
 int SPIReadJEDECIDAndStatusReg(CardType type, u32* id, u8* statusReg);

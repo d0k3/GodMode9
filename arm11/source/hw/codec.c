@@ -24,9 +24,7 @@
 #include <hid_map.h>
 
 #include "hw/codec.h"
-#include "hw/spi.h"
-
-#define CODEC_SPI_DEV	3
+#include <spi.h>
 
 #define CPAD_THRESH_X (750)
 #define CPAD_THRESH_Y (150)
@@ -44,7 +42,7 @@ static void CODEC_WriteRead(u32 *txb, u8 txl, u32 *rxb, u8 rxl)
 	xfers[1].len = rxl;
 	xfers[1].read = true;
 
-	SPI_DoXfer(CODEC_SPI_DEV, xfers, 2);
+	SPI_DoXfer(SPI_DEV_CODEC, xfers, 2, true);
 }
 
 static void CODEC_RegSelect(u8 reg)
@@ -58,7 +56,7 @@ static void CODEC_RegSelect(u8 reg)
 	xfer.len = 2;
 	xfer.read = false;
 
-	SPI_DoXfer(CODEC_SPI_DEV, &xfer, 1);
+	SPI_DoXfer(SPI_DEV_CODEC, &xfer, 1, true);
 }
 
 static u8 CODEC_RegRead(u8 reg)
@@ -86,7 +84,7 @@ static void CODEC_RegWrite(u8 reg, u8 val)
 	xfer.len = 2;
 	xfer.read = false;
 
-	SPI_DoXfer(CODEC_SPI_DEV, &xfer, 1);
+	SPI_DoXfer(SPI_DEV_CODEC, &xfer, 1, true);
 }
 
 static void CODEC_RegMask(u8 reg, u8 mask0, u8 mask1)
