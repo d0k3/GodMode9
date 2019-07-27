@@ -19,7 +19,7 @@
  */
 
 #include "spi.h"
-#include "spicard.h"
+#include <spi.h>
 #include "timer.h"
 
 // declarations for actual implementations
@@ -103,19 +103,27 @@ const CardType FLASH_256KB_2_INFRARED = FlashInfraredTypes + 1;
 const CardType FLASH_512KB_1_INFRARED = FlashInfraredTypes + 2;
 const CardType FLASH_512KB_2_INFRARED = FlashInfraredTypes + 3;
 
-int SPIWriteRead(CardType type, void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize) {
-	const u32 headerFooterVal = 0;
-	bool b = type->infrared;
+#define REG_CFG9_CARDCTL      *((vu16*)0x1000000C)
+#define CARDCTL_SPICARD       (1u<<8)
 
-	SPICARD_init();
+int SPIWriteRead(CardType type, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize) {
+	u32 headerFooterVal = 0;
 
-	if (b) {
-		SPICARD_writeRead(NSPI_CLK_1MHz, &headerFooterVal, NULL, 1, 0, false);
+	REG_CFG9_CARDCTL |= CARDCTL_SPICARD;
+
+	if (type->infrared) {
+		SPI_XferInfo irXfer = { &headerFooterVal, 1, false };
+		SPI_DoXfer(SPI_DEV_CART_IR, &irXfer, 1, false);
 	}
-	SPICARD_writeRead(NSPI_CLK_4MHz, cmd, answer, cmdSize, answerSize, false);
-	SPICARD_writeRead(NSPI_CLK_4MHz, data, NULL, dataSize, 0, true);
 
-	SPICARD_deinit();
+	SPI_XferInfo transfers[3] = {
+		{ (u8*) cmd, cmdSize, false },
+		{ answer, answerSize, true },
+		{ (u8*) data, dataSize, false },
+	};
+	SPI_DoXfer(SPI_DEV_CART_FLASH, transfers, 3, true);
+
+	REG_CFG9_CARDCTL &= ~CARDCTL_SPICARD;
 	
 	return 0;
 }

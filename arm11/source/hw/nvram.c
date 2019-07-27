@@ -18,10 +18,8 @@
 
 #include <types.h>
 
-#include "hw/spi.h"
+#include <spi.h>
 #include "hw/nvram.h"
-
-#define NVRAM_SPI_DEV	1
 
 // returns manuf id, memory type and size
 // size = (1 << id[2]) ?
@@ -51,7 +49,7 @@ static u32 NVRAM_SendStatusCommand(u32 cmd, u32 width)
 	xfer[1].read = true;
 
 	ret = 0;
-	SPI_DoXfer(NVRAM_SPI_DEV, xfer, 2);
+	SPI_DoXfer(SPI_DEV_NVRAM, xfer, 2, true);
 	return ret;
 }
 
@@ -91,5 +89,5 @@ void NVRAM_Read(u32 address, u32 *buffer, u32 len)
 	xfer[1].len = len;
 	xfer[1].read = true;
 
-	SPI_DoXfer(NVRAM_SPI_DEV, xfer, 2);
+	SPI_DoXfer(SPI_DEV_NVRAM, xfer, 2, true);
 }

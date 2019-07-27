@@ -30,7 +30,7 @@
 #include "hw/gpulcd.h"
 #include "hw/i2c.h"
 #include "hw/mcu.h"
-#include "hw/spi.h"
+#include <spi.h>
 
 #include "system/sections.h"
 
