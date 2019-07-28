@@ -2124,7 +2124,8 @@ u32 GodMode(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
-    CalibrateTouchFromFlash();
+    if (!CalibrateTouchFromSupportFile())
+        CalibrateTouchFromFlash();
 
     // brightness from file?
     s32 brightness = -1;
@@ -2666,7 +2667,8 @@ u32 ScriptRunner(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
-    CalibrateTouchFromFlash(); // !!! this may need some further checking
+    if (!CalibrateTouchFromSupportFile())
+        CalibrateTouchFromFlash();
 
     // brightness from file?
     s32 brightness = -1;

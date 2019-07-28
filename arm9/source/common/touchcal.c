@@ -3,6 +3,10 @@
 #include "hid.h"
 #include "crc16.h"
 #include "spiflash.h"
+#include "support.h"
+
+
+#define TOUCH_CALIB_FILENAME    "gm9calib.bin"
 
 
 static const HID_CalibrationData default_calib = {
@@ -74,6 +78,19 @@ bool ShowTouchCalibrationDialog(void)
     }
 
     is_calibrated = HID_SetCalibrationData(calibrations, countof(dot_positions), SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
+    if (is_calibrated) { // store calibration data in a file
+        SaveSupportFile(TOUCH_CALIB_FILENAME, calibrations, sizeof(calibrations));
+    }
+    return is_calibrated;
+}
+
+bool CalibrateTouchFromSupportFile(void) {
+    HID_CalibrationData calibrations[10];
+    size_t size = LoadSupportFile(TOUCH_CALIB_FILENAME, calibrations, sizeof(calibrations));
+    u32 n_dots = size / sizeof(HID_CalibrationData);
+
+    is_calibrated = (n_dots == 0) ? false : 
+        HID_SetCalibrationData(calibrations, n_dots, SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
     return is_calibrated;
 }
 
