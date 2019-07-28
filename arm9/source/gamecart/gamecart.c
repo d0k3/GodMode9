@@ -258,7 +258,8 @@ u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     u8 sReg;
     if (offset >= JEDECID_AND_SREG_SIZE) return 1;
     if (offset + count > JEDECID_AND_SREG_SIZE) count = JEDECID_AND_SREG_SIZE - offset;
-    CardSPIReadJEDECIDAndStatusReg(cdata->save_type, &id, &sReg);
+    int res = CardSPIReadJEDECIDAndStatusReg(cdata->save_type, &id, &sReg);
+    if (res) return res;
     ownBuf[0] = (id >> 16) & 0xff;
     ownBuf[1] = (id >> 8) & 0xff;
     ownBuf[2] = id & 0xff;
