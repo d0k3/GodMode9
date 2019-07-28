@@ -137,12 +137,14 @@ _start:
     ldreq pc, =main
 
     @ nandboot
-    @ if ([0x1FFFE010] | [0x1FFFE014]) == 0
+    @ if ([0x1FFFE010] | [0x1FFFE014]) != 0
     @ && ([0x1FFFE00C] & 0xFF) == 0
     ldrd r4, r5, [r3]
     orrs r4, r4, r5
-    ldreqb r4, [r3, #-4]
-    cmpeq r4, #0
+    ldreq pc, =main
+
+    ldrb r4, [r3, #-4]
+    cmp r4, #0
     ldreq r2, =ENTRY_NANDBOOT
 
     @ unconditionally branch into the main C function
