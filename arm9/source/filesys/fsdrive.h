@@ -29,6 +29,8 @@
 #define DRV_SEARCH      (1UL<<16)
 #define DRV_STDFAT      (1UL<<17) // standard FAT drive without limitations
 
+#define DRV_LABEL_LEN   (36)
+
 #define FS_DRVNAME \
         "SDCARD", \
         "SYSNAND CTRNAND", "SYSNAND TWLN", "SYSNAND TWLP", "SYSNAND SD", "SYSNAND VIRTUAL", \

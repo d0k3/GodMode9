@@ -83,9 +83,9 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     static const char* drvnum[] = { FS_DRVNUM };
     u32 n_entries = 0;
     
-    char sdlabel[16];
+    char sdlabel[DRV_LABEL_LEN];
     if (!GetFATVolumeLabel("0:", sdlabel) || !(*sdlabel))
-        snprintf(sdlabel, 16, "NOLABEL");
+        strcpy(sdlabel, "NOLABEL");
 
     char carttype[16];
     GetVCartTypeString(carttype);

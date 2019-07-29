@@ -421,7 +421,7 @@ u32 SdFormatMenu(const char* slabel) {
     u64 sysnand_min_size_mb = ((sysnand_min_size_sectors * 0x200) + 0xFFFFF) / 0x100000;
     u64 sysnand_multi_size_mb = (align(sysnand_min_size_sectors + 1, 0x2000) * 0x200) / 0x100000;
     u64 sysnand_size_mb = (((u64)GetNandSizeSectors(NAND_SYSNAND) * 0x200) + 0xFFFFF) / 0x100000;
-    char label[16];
+    char label[DRV_LABEL_LEN + 4];
     u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
     u64 emunand_size_mb = (u64) -1;
@@ -450,7 +450,7 @@ u32 SdFormatMenu(const char* slabel) {
     if (!user_select) return 1;
     else cluster_size = cluster_size_table[user_select];
     
-    snprintf(label, 16, "0:%s", (slabel && *slabel) ? slabel : "GM9SD");
+    snprintf(label, DRV_LABEL_LEN + 4, "0:%s", (slabel && *slabel) ? slabel : "GM9SD");
     if (!ShowKeyboardOrPrompt(label + 2, 11 + 1, "Format SD card (%lluMB)?\nEnter label:", sdcard_size_mb))
         return 1;
     
@@ -1949,7 +1949,7 @@ u32 HomeMoreMenu(char* current_path) {
     int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
     if (user_select == sdformat) { // format SD card
         bool sd_state = CheckSDMountState();
-        char slabel[16] = { '\0' };
+        char slabel[DRV_LABEL_LEN] = { '\0' };
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
             clipboard->n_entries = 0; // remove SD clipboard entries
         GetFATVolumeLabel("0:", slabel); // get SD volume label
