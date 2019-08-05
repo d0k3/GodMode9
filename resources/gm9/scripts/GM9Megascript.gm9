@@ -858,13 +858,18 @@ if	ask "Dump gbavc.sav in $[GM9OUT]?\nFor GodMode9 v.1.4.1 and below only."
 end
 goto MainMenu_Dump_Options
 
-###########Dump Boot9.bin and Boot11.bin##########
+###########Dump Boot9.bin, Boot11.bin and Essential.exefs##########
 
-@Dump_Options_Dump_Boot9.bin_&_Boot11.bin
+@Dump_Options_Dump_Boot9.bin_&_Boot11.bin_&_Essential.exefs
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump boot9.bin & boot11.bin"
 
 if	not find M:/boot*.bin NULL
 	echo "Boot9.bin and/or Boot11.bin not present.\nAborting!"
+	goto MainMenu_Dump_Options
+end
+
+if      not find "S:/essential.exefs" exefs
+	echo "Essential.exefs not present.\nAborting!"
 	goto MainMenu_Dump_Options
 end
 
@@ -877,7 +882,8 @@ findnot $[GM9OUT]/$[SERIAL]_boot11_??.bin OUTPATH11
 
 cp -w -n M:/boot9.bin $[OUTPATH9]
 cp -w -n M:/boot11.bin $[OUTPATH11]
-echo "Boot9 & Boot11 successfully dumped:\n$[OUTPATH9]\n$[OUTPATH11]"
+cp -w -n S:/essential.exefs $[OUTPATH]
+echo "Boot9, Boot11 & Essential.exefs successfully dumped:\n$[OUTPATH9]\n$[OUTPATH11]\n$[OUTPATH]"
 goto MainMenu_Dump_Options
 
 ###################Dump OTP.bin###################
