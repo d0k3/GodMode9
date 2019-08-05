@@ -1958,7 +1958,7 @@ goto Miscellaneous_Lazarus3DS
 @Miscellaneous_Credits
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits"
 
-echo "d0k3\nmvmiranda\n8bitwonder\nemillois\nTurdPooCharger\nPlailect\nAnalogMan\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nSome1CP\nfiggyc\nihaveamac"
+echo "d0k3\nmvmiranda\n8bitwonder\nemillois\nTurdPooCharger\nPlailect\nAnalogMan\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nSome1CP\nfiggyc\nihaveamac\nWin9x\nGlazed_Belmont"
 goto MainMenu_Miscellaneous
 
 #######################Wakas######################
