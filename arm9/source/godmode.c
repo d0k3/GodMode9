@@ -53,18 +53,18 @@ typedef struct {
 u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     char pathstr[32+1];
     TruncateString(pathstr, bootpath, 32, 8);
-    
+
     size_t firm_size = FileGetSize(bootpath);
     if (!firm_size) return 1;
     if (firm_size > FIRM_MAX_SIZE) {
         if (verbose) ShowPrompt(false, "%s\nFIRM too big, can't boot", pathstr); // unlikely
         return 1;
     }
-    
+
     if (verbose && !ShowPrompt(true, "%s (%dkB)\nWarning: Do not boot FIRMs\nfrom untrusted sources.\n \nBoot FIRM?",
         pathstr, firm_size / 1024))
         return 1;
-    
+
     void* firm = (void*) malloc(FIRM_MAX_SIZE);
     if (!firm) return 1;
     if ((FileGetData(bootpath, firm, firm_size, 0) != firm_size) ||
@@ -73,9 +73,11 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         free(firm);
         return 1;
     }
-    
+
     // encrypted firm handling
     FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
+    if (!arm9s) return 1;
+
     FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) firm + arm9s->offset);
     if (verbose && (ValidateFirmA9LHeader(a9l) == 0) &&
         ShowPrompt(true, "%s\nFIRM is encrypted.\n \nDecrypt before boot?", pathstr) &&
@@ -83,7 +85,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         free(firm);
         return 1;
     }
-        
+
     // unsupported location handling
     char fixpath[256] = { 0 };
     if (verbose && (*bootpath != '0') && (*bootpath != '1')) {
@@ -94,13 +96,13 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
             bootpath = OUTPUT_PATH "/temp.firm";
         } else if (!user_select) bootpath = "";
     }
-    
+
     // fix the boot path ("sdmc"/"nand" for Luma et al, hacky af)
     if ((*bootpath == '0') || (*bootpath == '1'))
         snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
     else strncpy(fixpath, bootpath, 256);
     fixpath[255] = '\0';
-    
+
     // boot the FIRM (if we got a proper fixpath)
     if (*fixpath) {
         if (delete) PathDelete(bootpath);
@@ -109,7 +111,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         BootFirm((FirmHeader*) firm, fixpath);
         while(1);
     }
-    
+
     // a return was not intended
     free(firm);
     return 1;
