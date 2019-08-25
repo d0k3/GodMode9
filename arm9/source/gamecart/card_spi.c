@@ -74,8 +74,7 @@ const CardSPITypeData flashTypes[] = {
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_write, CardSPIEraseSector_real, 0x204013, 1 << 19, 65536, 256, 256, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_write, CardSPIEraseSector_real, 0x621100, 1 << 19, 65536, 256, 256, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_write, CardSPIEraseSector_real, 0x204014, 1 << 20, 65536, 256, 256, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
-    // Untested (but pretty safe bet), for Art Academy
-    { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x202017, 1 << 23, 65536, 32, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+    { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x202017, 1 << 23, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
     // CTR
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0xC22211, 1 << 17, 4096, 32, 4096, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0xC22213, 1 << 19, 4096, 32, 4096, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
@@ -132,7 +131,7 @@ int CardSPIWaitWriteEnd(CardSPIType type) {
     do {
         res = CardSPIWriteRead(type, &cmd, 1, &statusReg, 1, 0, 0);
         if (res) return res;
-        if (timer_msec(time_start) > 1000) return 1;
+        if (timer_msec(time_start) > 10000) return 1;
     } while(statusReg & SPI_FLG_WIP);
 
     return 0;
@@ -253,7 +252,13 @@ int CardSPIWriteSaveData_24bit_erase_program(CardSPIType type, u32 offset, const
         cmd[1] = (u8)(pos >> 16);
         cmd[2] = (u8)(pos >> 8);
         cmd[3] = (u8) pos;
-        if ((res = _SPIWriteTransaction(type, cmd, 4, (void*) ((u8*) data - offset + pos), pageSize))) {
+        for(int i = 0; i < 10; i++) {
+            if (!(res = _SPIWriteTransaction(type, cmd, 4, (void*) ((u8*) data - offset + pos), pageSize))) {
+                break;
+            }
+            CardSPIWriteRead(type, "\x04", 1, NULL, 0, NULL, 0);
+        }
+        if(res) {
             free(newData);
             return res;
         }
@@ -374,6 +379,13 @@ int CardSPIEraseSector(CardSPIType type, u32 offset) {
     return type.chip->eraseSector(type, offset);
 }
 
+int CardSPIErase(CardSPIType type) {
+    for (u32 pos = 0; pos < CardSPIGetCapacity(type); pos += CardSPIGetEraseSize(type)) {
+        int res = CardSPIEraseSector(type, pos);
+        if(res) return res;
+    }
+    return 0;
+}
 
 // The following routine use code from savegame-manager:
 
