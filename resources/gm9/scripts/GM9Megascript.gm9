@@ -863,26 +863,37 @@ goto MainMenu_Dump_Options
 @Dump_Options_Dump_Boot9.bin_&_Boot11.bin_&_Essential.exefs
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump boot9.bin & boot11.bin"
 
-if	not find M:/boot*.bin NULL
-	echo "Boot9.bin and/or Boot11.bin not present.\nAborting!"
+if	not find -o -s M:/boot*.bin NULL
+	echo "Boot9.bin and/or Boot11.bin not present."
+	if	not ask "Do you still want to dump\nthe essential.exefs?"
+		goto MainMenu_Dump_Options
+	end
+	cp -w -n S:/essential.exefs $[OUTPATH]
+	echo "Essential.exefs successfully dumped:\n$[OUTPATH]"
 	goto MainMenu_Dump_Options
 end
 
-if      not find "S:/essential.exefs" exefs
-	echo "Essential.exefs not present.\nAborting!"
-	goto MainMenu_Dump_Options
+if      not find -o -s "S:/essential.exefs" exefs
+	echo "Essential.exefs not present."
+	if	not ask "Do you still want to dump the bootroms?"
+		goto MainMenu_Dump_Options
+	end
+	goto Bootroms_Dump
 end
+
 
 if	not ask "Create boot9 & boot11 dumps in $[GM9OUT]?"
 	goto MainMenu_Dump_Options
 end
 
+
 findnot $[GM9OUT]/$[SERIAL]_boot9_??.bin OUTPATH9
 findnot $[GM9OUT]/$[SERIAL]_boot11_??.bin OUTPATH11
 
+cp -w -n S:/essential.exefs $[OUTPATH]
+@Bootroms_Dump
 cp -w -n M:/boot9.bin $[OUTPATH9]
 cp -w -n M:/boot11.bin $[OUTPATH11]
-cp -w -n S:/essential.exefs $[OUTPATH]
 echo "Boot9, Boot11 & Essential.exefs successfully dumped:\n$[OUTPATH9]\n$[OUTPATH11]\n$[OUTPATH]"
 goto MainMenu_Dump_Options
 
