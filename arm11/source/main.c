@@ -31,6 +31,7 @@
 #include "hw/nvram.h"
 
 #include "system/sys.h"
+#include "system/xalloc.h"
 
 static GlobalSharedMemory SharedMemory_State;
 
@@ -57,7 +58,7 @@ void VBlank_Handler(u32 __attribute__((unused)) irqn)
 	#endif
 
 	// the state should probably be stored on its own
-	// setion without caching enabled, since it must
+	// section without caching enabled, since it must
 	// be readable by the ARM9 at all times anyway
 	SharedMemory_State.hid_state = HID_GetState();
 	ARM_WbDC_Range(&SharedMemory_State, sizeof(SharedMemory_State));
@@ -155,6 +156,12 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 				prev_bright_lvl = -1;
 				auto_brightness = true;
 			}
+			break;
+		}
+
+		case PXI_XALLOC:
+		{
+			ret = (u32)XAlloc(args[0]);
 			break;
 		}
 

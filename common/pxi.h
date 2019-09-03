@@ -40,6 +40,8 @@ enum {
 
 	PXI_NOTIFY_LED,
 	PXI_BRIGHTNESS,
+
+	PXI_XALLOC,
 };
 
 /*

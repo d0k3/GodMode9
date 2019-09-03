@@ -165,8 +165,9 @@ int ReadVMemNVRAM(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         wififlash_initialized = spiflash_get_status();
         if (!wififlash_initialized) return 1;
     }
-    
-    spiflash_read((u32) offset, (u32) count, buffer);
+
+    if (!spiflash_read((u32) offset, (u32) count, buffer))
+        return 1;
     return 0;
 }
 

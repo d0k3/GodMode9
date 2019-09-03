@@ -25,16 +25,6 @@
 #define NVRAM_SIZE  0x20000 // 1 Mbit (128kiB)
 
 // true if spiflash is installed, false otherwise
-static inline bool spiflash_get_status(void)
-{ // there should probably be a command for this...
-	return PXI_DoCMD(PXI_NVRAM_ONLINE, NULL, 0);
-}
+bool spiflash_get_status(void);
 
-static inline void spiflash_read(u32 offset, u32 size, u8 *buf)
-{
-	u32 args[] = {offset, (u32)buf, size};
-	ARM_WbDC_Range(buf, size);
-	ARM_DSB();
-	PXI_DoCMD(PXI_NVRAM_READ, args, 3);
-	ARM_InvDC_Range(buf, size);
-}
+bool spiflash_read(u32 offset, u32 size, u8 *buf);

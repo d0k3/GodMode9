@@ -106,7 +106,9 @@ bool CalibrateTouchFromFlash(void) {
  
     // check NVRAM console ID
     u32 console_id = 0;
-    spiflash_read(0x001C, 4, (u8*)&console_id);
+    if (!spiflash_read(0x001C, 4, (u8*)&console_id))
+        return false;
+
     if (((console_id >> 8) & 0xFF) != 0x57)
         return false; // not a 3DS
 
@@ -114,7 +116,9 @@ bool CalibrateTouchFromFlash(void) {
     // see: https://problemkaputt.de/gbatek.htm#dsfirmwareusersettings
     u32 fw_usercfg_buf[0x100 / 0x4];
     u8* fw_usercfg = (u8*) fw_usercfg_buf;
-    spiflash_read(0x1FE00, 0x100, fw_usercfg);
+    if (!spiflash_read(0x1FE00, 0x100, fw_usercfg))
+        return false;
+
     if (getle16(fw_usercfg + 0x72) != crc16_quick(fw_usercfg, 0x70))
         return false;
 
