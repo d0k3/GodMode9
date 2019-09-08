@@ -138,8 +138,11 @@ u64 InitVTickDbDrive(void) { // prerequisite: ticket.db mounted as image
     }
     
     ScanTickDb(false, true);
-    if (!tick_info->n_entries) DeinitVTickDbDrive();
-    return (tick_info->n_entries) ? SYS_TICKDB : 0;
+    
+    if (!tick_info->n_entries)
+        DeinitVTickDbDrive();
+    
+    return tick_info ? SYS_TICKDB : 0;
 }
 
 u64 CheckVTickDbDrive(void) {
