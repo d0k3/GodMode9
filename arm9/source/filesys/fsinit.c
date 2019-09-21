@@ -47,6 +47,8 @@ bool InitImgFS(const char* path) {
         snprintf(fsname, 7, "%lu:", drv_i);
         if (!(DriveType(fsname)&DRV_IMAGE)) break;
     }
+    // deinit virtual filesystem
+    DeinitVirtualImageDrive();
     // deinit image filesystem
     DismountDriveType(DRV_IMAGE);
     // (re)mount image, done if path == NULL
