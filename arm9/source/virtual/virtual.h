@@ -3,33 +3,34 @@
 #include "common.h"
 #include "nand.h"
 
-#define VRT_SYSNAND NAND_SYSNAND
-#define VRT_EMUNAND NAND_EMUNAND
-#define VRT_IMGNAND NAND_IMGNAND
-#define VRT_XORPAD  NAND_ZERONAND
-#define VRT_MEMORY  (1UL<<4)
-#define VRT_GAME    (1UL<<5)
-#define VRT_TICKDB  (1UL<<6)
-#define VRT_KEYDB   (1UL<<7)
-#define VRT_CART    (1UL<<8)
-#define VRT_VRAM    (1UL<<9)
+#define VRT_SYSNAND  NAND_SYSNAND
+#define VRT_EMUNAND  NAND_EMUNAND
+#define VRT_IMGNAND  NAND_IMGNAND
+#define VRT_XORPAD   NAND_ZERONAND
+#define VRT_MEMORY   (1UL<<4)
+#define VRT_GAME     (1UL<<5)
+#define VRT_TICKDB   (1UL<<6)
+#define VRT_KEYDB    (1UL<<7)
+#define VRT_CART     (1UL<<8)
+#define VRT_VRAM     (1UL<<9)
+#define VRT_DISADIFF (1UL<<10)
 
-#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_TICKDB|VRT_KEYDB|VRT_CART|VRT_VRAM)
+#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_TICKDB|VRT_KEYDB|VRT_CART|VRT_VRAM|VRT_DISADIFF)
 
-#define VFLAG_DIR       (1UL<<10)
-#define VFLAG_ROOT      (1UL<<11)
-#define VFLAG_READONLY  (1UL<<12)
-#define VFLAG_DELETABLE (1UL<<13)
-#define VFLAG_LV3       (1UL<<14)
+#define VFLAG_DIR       (1UL<<11)
+#define VFLAG_ROOT      (1UL<<12)
+#define VFLAG_READONLY  (1UL<<13)
+#define VFLAG_DELETABLE (1UL<<14)
+#define VFLAG_LV3       (1UL<<15)
 
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
-                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_TICKDB}, {'C', VRT_CART}, {'V', VRT_VRAM}
+                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_TICKDB}, {'C', VRT_CART}, {'V', VRT_VRAM}, {'D', VRT_DISADIFF}
 
 // virtual file flag (subject to change):
 // bits 0...3  : reserved for NAND virtual sources and info
-// bits 4...9  : reserved for other virtual sources
-// bits 10...15: reserved for external flags
+// bits 4...10  : reserved for other virtual sources
+// bits 11...15: reserved for external flags
 // bits 16...31: reserved for internal flags (different per source, see vgame.c)
 typedef struct {
     char name[32];
@@ -48,6 +49,7 @@ typedef struct {
 } VirtualDir;
 
 u32 GetVirtualSource(const char* path);
+void DeinitVirtualImageDrive(void);
 bool InitVirtualImageDrive(void);
 bool CheckVirtualDrive(const char* path);
 

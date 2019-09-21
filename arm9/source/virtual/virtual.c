@@ -6,6 +6,7 @@
 #include "vkeydb.h"
 #include "vcart.h"
 #include "vvram.h"
+#include "vdisadiff.h"
 
 typedef struct {
     char drv_letter;
@@ -24,11 +25,16 @@ u32 GetVirtualSource(const char* path) {
     return 0;
 }
 
-bool InitVirtualImageDrive(void) {
+void DeinitVirtualImageDrive(void) {
     DeinitVGameDrive();
     DeinitVTickDbDrive();
     DeinitVKeyDbDrive();
-    return InitVGameDrive() || InitVTickDbDrive() || InitVKeyDbDrive();
+    DeinitVDisaDiffDrive();
+}
+
+bool InitVirtualImageDrive(void) {
+    DeinitVirtualImageDrive();
+    return InitVGameDrive() || InitVDisaDiffDrive() || InitVKeyDbDrive();
 }
 
 bool CheckVirtualDrive(const char* path) {
@@ -43,6 +49,8 @@ bool CheckVirtualDrive(const char* path) {
         return CheckVTickDbDrive();
     else if (virtual_src & VRT_KEYDB)
         return CheckVKeyDbDrive();
+    else if (virtual_src & VRT_DISADIFF)
+        return CheckVDisaDiffDrive();
     return virtual_src; // this is safe for SysNAND & memory
 }
 
@@ -63,6 +71,8 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
         ret = ReadVCartDir(vfile, vdir);
     } else if (virtual_src & VRT_VRAM) {
         ret = ReadVVramDir(vfile, vdir);
+    } else if (virtual_src & VRT_DISADIFF) {
+        ret = ReadVDisaDiffDir(vfile, vdir);
     }
     vfile->flags |= virtual_src; // add source flag
     return ret;
@@ -171,6 +181,8 @@ int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 coun
         return ReadVCartFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_VRAM) {
         return ReadVVramFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_DISADIFF) {
+        return ReadVDisaDiffFile(vfile, buffer, offset, count);
     }
     
     return -1;
@@ -190,6 +202,8 @@ int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u
         return WriteVNandFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_MEMORY) {
         return WriteVMemFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_DISADIFF) {
+        return WriteVDisaDiffFile(vfile, buffer, offset, count);
     } // no write support for virtual game / tickdb / keydb / cart / vram files
     
     return -1;

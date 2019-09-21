@@ -46,7 +46,7 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_SYSNAND;
         } else if (vsrc == VRT_EMUNAND) {
             type = DRV_VIRTUAL | DRV_EMUNAND;
-        } else if (vsrc == VRT_IMGNAND) {
+        } else if ((vsrc == VRT_IMGNAND) || (vsrc == VRT_DISADIFF)) {
             type = DRV_VIRTUAL | DRV_IMAGE;
         } else if (vsrc == VRT_XORPAD) {
             type = DRV_VIRTUAL | DRV_XORPAD;

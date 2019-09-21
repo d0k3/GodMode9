@@ -13,7 +13,7 @@
 u64 IdentifyFileType(const char* path) {
     const u8 romfs_magic[] = { ROMFS_MAGIC };
     const u8 diff_magic[] = { DIFF_MAGIC };
-    // const u8 disa_magic[] = { DISA_MAGIC };
+    const u8 disa_magic[] = { DISA_MAGIC };
     const u8 tickdb_magic[] = { TICKDB_MAGIC };
     const u8 smdh_magic[] = { SMDH_MAGIC };
     const u8 threedsx_magic[] = { THREEDSX_EXT_MAGIC };
@@ -98,6 +98,8 @@ u64 IdentifyFileType(const char* path) {
             if (memcmp(header + 0x100, tickdb_magic, sizeof(tickdb_magic)) == 0) // ticket.db file
                 return SYS_DIFF | SYS_TICKDB; // ticket.db
             return SYS_DIFF;
+        } else if (memcmp(header + 0x100, disa_magic, sizeof(disa_magic)) == 0) { // DISA file
+            return SYS_DISA;
         } else if (memcmp(header, smdh_magic, sizeof(smdh_magic)) == 0) {
             return GAME_SMDH; // SMDH file
         } else if (ValidateTwlHeader((TwlHeader*) data) == 0) {

@@ -37,13 +37,13 @@
         "EMUNAND CTRNAND", "EMUNAND TWLN", "EMUNAND TWLP", "EMUNAND SD", "EMUNAND VIRTUAL", \
         "IMGNAND CTRNAND", "IMGNAND TWLN", "IMGNAND TWLP", "IMGNAND VIRTUAL", \
         "GAMECART", \
-        "GAME IMAGE", "AESKEYDB IMAGE", "TICKET.DB IMAGE", \
+        "GAME IMAGE", "AESKEYDB IMAGE", "TICKET.DB IMAGE", "DISA/DIFF IMAGE", \
         "MEMORY VIRTUAL", \
         "VRAM VIRTUAL", \
         "LAST SEARCH" \
         
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "M:", "V:", "Z:"
+    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "D:", "M:", "V:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);

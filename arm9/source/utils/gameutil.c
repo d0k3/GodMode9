@@ -1825,66 +1825,6 @@ u32 CompressCode(const char* path, const char* path_out) {
     return 0;
 }
 
-u32 ExtractDataFromDisaDiff(const char* path) {
-    char dest[256];
-    u32 ret = 0;
-    
-    // build output name
-    char* name = strrchr(path, '/');
-    if (!name) return 1;
-    snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
-    
-    // replace extension
-    char* dot = strrchr(dest, '.');
-    if (!dot || (dot < strrchr(dest, '/')))
-        dot = dest + strnlen(dest, 256);
-    snprintf(dot, 16, ".%s", "bin");
-        
-    if (!CheckWritePermissions(dest)) return 1;
-    
-    // prepare DISA / DIFF read
-    DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(path, &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(path, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        return 1;
-    }
-    
-    // prepare buffer
-    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
-    if (!buffer) {
-        free(lvl2_cache);
-        return 1;
-    }
-    
-    // open output file
-    FIL file;
-    if (fvx_open(&file, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-        free(buffer);
-        free(lvl2_cache);
-        return 1;
-    }
-    
-    // actually extract the partition
-    u32 total_size = 0;
-    for (u32 i = 0; ret == 0; i += STD_BUFFER_SIZE) {
-        UINT btr;
-        u32 add_size = ReadDisaDiffIvfcLvl4(path, &info, i, STD_BUFFER_SIZE, buffer);
-        if (!add_size) break;
-        if ((fvx_write(&file, buffer, add_size, &btr) != FR_OK) || (btr != add_size)) ret = 1;
-        total_size += add_size;
-    }
-    
-    // wrap it up
-    if (!total_size) ret = 1;
-    free(buffer);
-    free(lvl2_cache);
-    fvx_close(&file);
-    return ret;
-}
-
 u64 GetGameFileTrimmedSize(const char* path) {
     u64 filetype = IdentifyFileType(path);
     u64 trimsize = 0;
