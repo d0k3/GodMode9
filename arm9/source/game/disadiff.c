@@ -1,5 +1,6 @@
 #include "disadiff.h"
 #include "image.h"
+#include "vff.h"
 #include "sha.h"
 
 #define GET_DPFS_BIT(b, lvl) (((((u32*) (void*) lvl)[b >> 5]) >> (31 - (b % 32))) & 1)
@@ -9,7 +10,7 @@ static FIL ddfile;
 static FIL* ddfp = NULL;
 
 inline static u32 DisaDiffSize(const TCHAR* path) {
-    return ddfp ? fvx_size(ddfp) : (path ? fvx_qsize(path) : GetMountSize());
+    return path ? fvx_qsize(path) : GetMountSize();
 }
 
 inline static FRESULT DisaDiffOpen(const TCHAR* path) {
@@ -65,10 +66,6 @@ inline static FRESULT DisaDiffQWrite(const TCHAR* path, const void* buf, UINT of
     else return (WriteImageBytes(buf, (u64) ofs, (u64) btw) == 0) ? FR_OK : FR_DENIED;
 }
 
-void SetDisaDiffFile(FIL* fp) {
-    ddfp = fp;
-}
-
 u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
     const u8 disa_magic[] = { DISA_MAGIC };
     const u8 diff_magic[] = { DIFF_MAGIC };
@@ -76,15 +73,13 @@ u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
     const u8 dpfs_magic[] = { DPFS_MAGIC };
     const u8 difi_magic[] = { DIFI_MAGIC };
     
-    bool already_open = ddfp != NULL;
-    
     // reset reader info
     memset(info, 0x00, sizeof(DisaDiffRWInfo));
     
     // get file size, header at header offset
     u32 file_size = DisaDiffSize(path);
     u8 header[0x100];
-    if ((already_open ? DisaDiffRead(header, 0x100, 0x100) : DisaDiffQRead(path, header, 0x100, 0x100)) != FR_OK)
+    if (DisaDiffQRead(path, header, 0x100, 0x100) != FR_OK)
         return 1;
     
     // DISA/DIFF header: find partition offset & size and DIFI descriptor
@@ -93,7 +88,10 @@ u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
     u32 offset_difi = 0;
     if (memcmp(header, disa_magic, 8) == 0) { // DISA file
         DisaHeader* disa = (DisaHeader*) (void*) header;
-        offset_difi = (disa->active_table) ? disa->offset_table1 : disa->offset_table0;
+        info->offset_table = (disa->active_table) ? disa->offset_table1 : disa->offset_table0;
+        info->size_table = disa->size_table;
+        offset_difi = info->offset_table;
+        info->offset_partition_hash = 0x16C;
         if (!partitionB) {
             offset_partition = (u32) disa->offset_partitionA;
             size_partition = (u32) disa->size_partitionA;
@@ -104,14 +102,15 @@ u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
             size_partition = (u32) disa->size_partitionB;
             offset_difi += (u32) disa->offset_descB;
         }
-        info->offset_partition_hash = 0x16C;
     } else if (memcmp(header, diff_magic, 8) == 0) { // DIFF file
         if (partitionB)
             return 1;
         DiffHeader* diff = (DiffHeader*) (void*) header;
         offset_partition = (u32) diff->offset_partition;
         size_partition = (u32) diff->size_partition;
-        offset_difi = (diff->active_table) ? diff->offset_table1 : diff->offset_table0;
+        info->offset_table = (diff->active_table) ? diff->offset_table1 : diff->offset_table0;
+        info->size_table = diff->size_table;
+        offset_difi = info->offset_table;
         info->offset_partition_hash = 0x134;
     } else {
         return 1;
@@ -122,9 +121,9 @@ u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
         return 1;
         
     info->offset_difi = offset_difi;
-    // read DIFI struct from filr
+    // read DIFI struct from file
     const DifiStruct difis;
-    if ((already_open ? DisaDiffRead((DifiStruct*) &difis, sizeof(DifiStruct), offset_difi) : DisaDiffQRead(path, (DifiStruct*) &difis, offset_difi, sizeof(DifiStruct))) != FR_OK)
+    if (DisaDiffQRead(path, (DifiStruct*) &difis, offset_difi, sizeof(DifiStruct)) != FR_OK)
         return 1;
     
     if ((memcmp(difis.difi.magic, difi_magic, 8) != 0) ||
@@ -146,7 +145,6 @@ u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
     info->ivfc_use_extlvl4 = difi->ivfc_use_extlvl4;
     info->offset_ivfc_lvl4 = (u32) (offset_partition + difi->ivfc_offset_extlvl4);
     info->offset_master_hash = (u32) difi->offset_hash;
-    info->size_master_hash = (u32) difi->size_hash;
     
     // check & get data from DPFS descriptor
     const DpfsDescriptor* dpfs = &(difis.dpfs);
@@ -204,21 +202,19 @@ u32 BuildDisaDiffDpfsLvl2Cache(const char* path, const DisaDiffRWInfo* info, u8*
     const u32 min_cache_size = ((min_cache_bits + 31) >> (3 + 2)) << 2;
     const u32 offset_lvl1 = info->offset_dpfs_lvl1 + ((info->dpfs_lvl1_selector) ? info->size_dpfs_lvl1 : 0);
     
-    bool already_open = ddfp != NULL;
-    
     // safety (this still assumes all the checks from GetDisaDiffRWInfo())
-    if (info->ivfc_use_extlvl4 ||
-        (cache_size < min_cache_size) ||
+    if ((cache_size < min_cache_size) ||
         (min_cache_size > info->size_dpfs_lvl2) ||
-        (min_cache_size > (info->size_dpfs_lvl1 << (3 + info->log_dpfs_lvl2))))
+        (min_cache_size > (info->size_dpfs_lvl1 << (3 + info->log_dpfs_lvl2)))) {
         return 1;
+    }
     
     // allocate memory
     u8* lvl1 = (u8*) malloc(info->size_dpfs_lvl1);
     if (!lvl1) return 1; // this is never more than 8 byte in reality -___-
     
     // open file pointer
-    if (!already_open && (DisaDiffOpen(path) != FR_OK)) {
+    if (DisaDiffOpen(path) != FR_OK) {
         free(lvl1);
         return 1;
     }
@@ -245,8 +241,7 @@ u32 BuildDisaDiffDpfsLvl2Cache(const char* path, const DisaDiffRWInfo* info, u8*
     
     ((DisaDiffRWInfo*) info)->dpfs_lvl2_cache = cache;
     free(lvl1);
-    if (!already_open)
-        DisaDiffClose();
+    DisaDiffClose();
     return ret;
 }
 
@@ -323,180 +318,87 @@ static u32 WriteDisaDiffDpfsLvl3(const DisaDiffRWInfo* info, u32 offset, u32 siz
     
     return size;
 }
-
-u32 FixDisaDiffIvfcHashChain(const DisaDiffRWInfo* info, u32 offset, u32 size) { // offset relative to start of ivfc lvl4. assumes file is already open.
-    u32 lvl4_offset = (offset >> info->log_ivfc_lvl4) << info->log_ivfc_lvl4; // align starting offset
-    u32 lvl4_size = size + offset - lvl4_offset; // increase size by the amount starting offset decreased when aligned
-    const u32 lvl4_block_size = 1 << info->log_ivfc_lvl4;
-    u32 lvl4_read_size = lvl4_block_size;
-    u32 lvl3_offset = (((lvl4_offset >> info->log_ivfc_lvl4) * 0x20) >> info->log_ivfc_lvl3) << info->log_ivfc_lvl3;
-    u32 lvl3_size = ((lvl4_size >> info->log_ivfc_lvl4) + (((lvl4_size % lvl4_block_size) == 0) ? 0 : 1)) * 0x20;
-    const u32 lvl3_block_size = 1 << info->log_ivfc_lvl3;
-    u32 lvl3_read_size = lvl3_block_size;
-    u32 lvl2_offset = (((lvl3_offset >> info->log_ivfc_lvl3) * 0x20) >> info->log_ivfc_lvl2) << info->log_ivfc_lvl2;
-    u32 lvl2_size = ((lvl3_size >> info->log_ivfc_lvl3) + (((lvl3_size % lvl3_block_size) == 0) ? 0 : 1)) * 0x20;
-    const u32 lvl2_block_size = 1 << info->log_ivfc_lvl2;
-    u32 lvl2_read_size = lvl2_block_size;
-    u32 lvl1_offset = (((lvl2_offset >> info->log_ivfc_lvl2) * 0x20) >> info->log_ivfc_lvl1) << info->log_ivfc_lvl1;
-    u32 lvl1_size = ((lvl2_size >> info->log_ivfc_lvl2) + (((lvl2_size % lvl2_block_size) == 0) ? 0 : 1)) * 0x20;
-    const u32 lvl1_block_size = 1 << info->log_ivfc_lvl1;
-    u32 lvl1_read_size = lvl1_block_size;
     
+u32 FixDisaDiffPartitionHash(const DisaDiffRWInfo* info) {
+    const u32 size = info->size_table;
+    u8 sha_buf[0x20];
     u8* buf;
-    u8 shabuf[0x20];
     
-    if (!(buf = malloc(lvl4_block_size)))
+    if (!(buf = malloc(size)))
         return 1;
     
-    
-    while (lvl4_size > 0)
-    {
-        if (lvl4_offset + lvl4_block_size > info->size_ivfc_lvl4)
-        {
-            memset(buf, 0, lvl4_block_size);
-            lvl4_read_size -= (lvl4_offset + lvl4_block_size - info->size_ivfc_lvl4);
-        }
-        
-        if (info->ivfc_use_extlvl4 ? (DisaDiffRead(buf, lvl4_read_size, lvl4_offset + info->offset_ivfc_lvl4) != FR_OK) :
-            (ReadDisaDiffDpfsLvl3(info, lvl4_offset + info->offset_ivfc_lvl4, lvl4_read_size, buf) != lvl4_read_size))
-        {
-            free(buf);            
-            return 1;
-        }
-        
-        sha_quick(shabuf, buf, lvl4_block_size, SHA256_MODE);
-        
-        if (WriteDisaDiffDpfsLvl3(info, info->offset_ivfc_lvl3 + ((lvl4_offset >> info->log_ivfc_lvl4) * 0x20), 0x20, shabuf) != 0x20)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        lvl4_offset += lvl4_block_size;
-        lvl4_size = ((lvl4_size < lvl4_block_size) ? 0 : (lvl4_size - lvl4_block_size));
-    }
-    
-    free(buf);
-    
-    
-    if (!(buf = malloc(lvl3_block_size)))
-        return 1;
-    
-    while (lvl3_size > 0)
-    {
-        if (lvl3_offset + lvl3_block_size > info->size_ivfc_lvl3)
-        {
-            memset(buf, 0, lvl3_block_size);
-            lvl3_read_size -= (lvl3_offset + lvl3_block_size - info->size_ivfc_lvl3);
-        }
-        
-        if (ReadDisaDiffDpfsLvl3(info, lvl3_offset + info->offset_ivfc_lvl3, lvl3_read_size, buf) != lvl3_read_size)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        sha_quick(shabuf, buf, lvl3_block_size, SHA256_MODE);
-        
-        if (WriteDisaDiffDpfsLvl3(info, info->offset_ivfc_lvl2 + ((lvl3_offset >> info->log_ivfc_lvl3) * 0x20), 0x20, shabuf) != 0x20)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        lvl3_offset += lvl3_block_size;
-        lvl3_size = ((lvl3_size < lvl3_block_size) ? 0 : (lvl3_size - lvl3_block_size));
-    }
-    
-    free(buf);
-    
-    
-    if (!(buf = malloc(lvl2_block_size)))
-        return 1;
-    
-    while (lvl2_size > 0)
-    {
-        if (lvl2_offset + lvl2_block_size > info->size_ivfc_lvl2)
-        {
-            memset(buf, 0, lvl2_block_size);
-            lvl2_read_size -= (lvl2_offset + lvl2_block_size - info->size_ivfc_lvl2);
-        }
-        
-        if (ReadDisaDiffDpfsLvl3(info, lvl2_offset + info->offset_ivfc_lvl2, lvl2_read_size, buf) != lvl2_read_size)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        sha_quick(shabuf, buf, lvl2_block_size, SHA256_MODE);
-        
-        if (WriteDisaDiffDpfsLvl3(info, info->offset_ivfc_lvl1 + ((lvl2_offset >> info->log_ivfc_lvl2) * 0x20), 0x20, shabuf) != 0x20)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        lvl2_offset += lvl2_block_size;
-        lvl2_size = ((lvl2_size < lvl2_block_size) ? 0 : (lvl2_size - lvl2_block_size));
-    }
-    
-    free(buf);
-    
-    
-    if (!(buf = malloc(lvl1_block_size)))
-        return 1;
-    
-    while (lvl1_size > 0)
-    {
-        if (lvl1_offset + lvl1_block_size > info->size_ivfc_lvl1)
-        {
-            memset(buf, 0, lvl1_block_size);
-            lvl1_read_size -= (lvl1_offset + lvl1_block_size - info->size_ivfc_lvl1);
-        }
-        
-        if (ReadDisaDiffDpfsLvl3(info, lvl1_offset + info->offset_ivfc_lvl1, lvl1_read_size, buf) != lvl1_read_size)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        sha_quick(shabuf, buf, lvl1_block_size, SHA256_MODE);
-        
-        if (DisaDiffWrite(shabuf, 0x20, info->offset_difi + info->offset_master_hash + ((lvl1_offset >> info->log_ivfc_lvl1) * 0x20)) != FR_OK)
-        {
-            free(buf);
-            return 1;
-        }
-        
-        lvl1_offset += lvl1_block_size;
-        lvl1_size = ((lvl1_size < lvl1_block_size) ? 0 : (lvl1_size - lvl1_block_size));
-    }
-    
-    free(buf);
-    
-    
-    if (!(buf = malloc(info->offset_master_hash + info->size_master_hash)))
-        return 1;
-    
-    if (DisaDiffRead(buf, info->offset_master_hash + info->size_master_hash, info->offset_difi) != FR_OK)
-    {
+    if (DisaDiffRead(buf, size, info->offset_table) != FR_OK) {
         free(buf);
         return 1;
     }
     
-    sha_quick(shabuf, buf, info->offset_master_hash + info->size_master_hash, SHA256_MODE);
+    sha_quick(sha_buf, buf, size, SHA256_MODE);
     
     free(buf);
     
-    if (DisaDiffWrite(shabuf, 0x20, info->offset_partition_hash) != FR_OK)
+    if (DisaDiffWrite(sha_buf, 0x20, info->offset_partition_hash) != FR_OK)
         return 1;
+    
+    return 0;
+}
+
+u32 FixDisaDiffIvfcLevel(const DisaDiffRWInfo* info, u32 level, u32 offset, u32 size, u32* next_offset, u32* next_size) {
+    if (level == 0)
+        return FixDisaDiffPartitionHash(info);
+    
+    if (level > 4)
+        return 1;
+    
+    const u32 offset_ivfc_lvl = (&(info->offset_ivfc_lvl1))[level - 1];
+    const u32 size_ivfc_lvl = (&(info->size_ivfc_lvl1))[level - 1];
+    const u32 log_ivfc_lvl = (&(info->log_ivfc_lvl1))[level - 1];
+    const u32 block_size = 1 << log_ivfc_lvl;
+    u32 read_size = block_size;
+    u32 align_offset = (offset >> log_ivfc_lvl) << log_ivfc_lvl; // align starting offset
+    u32 align_size = size + offset - align_offset; // increase size by the amount starting offset decreased when aligned
+    
+    if (level != 1) {
+        if (next_offset) *next_offset = (align_offset >> log_ivfc_lvl) * 0x20;
+        if (next_size) *next_size = ((align_size >> log_ivfc_lvl) + (((align_size % block_size) == 0) ? 0 : 1)) * 0x20;
+    }
+    
+    u8 sha_buf[0x20];
+    u8* buf;
+    
+    if (!(buf = malloc(block_size)))
+        return 1;
+    
+    while (align_size > 0) {
+        if (align_offset + block_size > size_ivfc_lvl) {
+            memset(buf, 0, block_size);
+            read_size -= (align_offset + block_size - size_ivfc_lvl);
+        }
+        
+        if (((level == 4) && info->ivfc_use_extlvl4) ? (DisaDiffRead(buf, read_size, align_offset + offset_ivfc_lvl) != FR_OK) :
+            (ReadDisaDiffDpfsLvl3(info, align_offset + offset_ivfc_lvl, read_size, buf) != read_size)) {
+            free(buf);
+            return 1;
+        }
+        
+        sha_quick(sha_buf, buf, block_size, SHA256_MODE);
+        
+        
+        if ((level == 1) ? (DisaDiffWrite(sha_buf, 0x20, info->offset_difi + info->offset_master_hash + ((align_offset >> log_ivfc_lvl) * 0x20)) != FR_OK) : 
+            (WriteDisaDiffDpfsLvl3(info, (&(info->offset_ivfc_lvl1))[level - 2] + ((align_offset >> log_ivfc_lvl) * 0x20), 0x20, sha_buf) != 0x20)) {
+            free(buf);
+            return 1;
+        }
+        
+        align_offset += block_size;
+        align_size = ((align_size < block_size) ? 0 : (align_size - block_size));
+    }
+    
+    free(buf);
     
     return 0;
 }
     
 u32 ReadDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offset, u32 size, void* buffer) { // offset: offset inside IVFC lvl4
-    bool already_open = ddfp != NULL;
-    
     // DisaDiffRWInfo not provided?
     DisaDiffRWInfo info_l;
     u8* cache = NULL;
@@ -512,7 +414,7 @@ u32 ReadDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offse
     }
     
     // open file pointer
-    if (!already_open && (DisaDiffOpen(path) != FR_OK))
+    if (DisaDiffOpen(path) != FR_OK)
         size = 0;
     
     // sanity checks - offset & size
@@ -526,14 +428,12 @@ u32 ReadDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offse
         size = ReadDisaDiffDpfsLvl3(info, info->offset_ivfc_lvl4 + offset, size, buffer);
     }
 
-    if (!already_open) DisaDiffClose();
+    DisaDiffClose();
     if (cache) free(cache);
     return size;
 }
 
 u32 WriteDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offset, u32 size, const void* buffer) { // offset: offset inside IVFC lvl4. cmac still needs fixed after calling this.
-    bool already_open = ddfp != NULL;
-    
     // DisaDiffRWInfo not provided?
     DisaDiffRWInfo info_l;
     u8* cache = NULL;
@@ -542,7 +442,8 @@ u32 WriteDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offs
         if (GetDisaDiffRWInfo(path, (DisaDiffRWInfo*) info, false) != 0)
             return 0;
         cache = malloc(info->size_dpfs_lvl2);
-        if (!cache) return 0;
+        if (!cache)
+            return 0;
         if (BuildDisaDiffDpfsLvl2Cache(path, info, cache, info->size_dpfs_lvl2) != 0) {
             free(cache);
             return 0;
@@ -554,7 +455,7 @@ u32 WriteDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offs
         return 0;
     
     // open file pointer
-    if (!already_open && (DisaDiffOpen(path) != FR_OK))
+    if (DisaDiffOpen(path) != FR_OK)
         size = 0;
     
     if (info->ivfc_use_extlvl4) {
@@ -564,10 +465,17 @@ u32 WriteDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offs
         size = WriteDisaDiffDpfsLvl3(info, info->offset_ivfc_lvl4 + offset, size, buffer);
     }
     
-    if ((size != 0) && (FixDisaDiffIvfcHashChain(info, offset, size) != 0))
-        size = 0;
+    if ((size != 0) && ddfp) { // if we're writing to a mounted image, the hash chain will be handled later by vdisadiff
+        u32 hashfix_offset = offset, hashfix_size = size;
+        for (int i = 4; i >= 0; i--) {
+            if (FixDisaDiffIvfcLevel(info, i, hashfix_offset, hashfix_size, &hashfix_offset, &hashfix_size) != 0) {
+                size = 0;
+                break;
+            }
+        }
+    }
     
-    if (!already_open) DisaDiffClose();
+    DisaDiffClose();
     if (cache) free(cache);
     return size;
 }
