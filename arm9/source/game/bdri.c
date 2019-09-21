@@ -1,15 +1,39 @@
 #include "bdri.h"
-#include "disadiff.h"
-#include "ui.h"
+#include "vff.h"
 
 #define FAT_ENTRY_SIZE 2 * sizeof(u32)
 
-static inline bool getflag (u32 uv) { return (uv & 0x80000000UL) != 0; }
-static inline u32 getindex(u32 uv) { return uv & 0x7FFFFFFFUL; }
-static inline u32 builduv(u32 index, bool flag) { return index | (flag ? 0x80000000UL : 0); }
+#define getfatflag(uv) (((uv) & 0x80000000UL) != 0)
+#define getfatindex(uv) ((uv) & 0x7FFFFFFFUL)
+#define buildfatuv(index, flag) ((index) | ((flag) ? 0x80000000UL : 0))
 
-bool CheckDBMagic(const u8* pre_header, bool tickdb)
-{
+static FIL* bdrifp;
+
+static FRESULT BDRIRead(UINT ofs, UINT btr, void* buf) {
+    if (bdrifp) {
+        FRESULT res;
+        UINT br;
+        if ((fvx_tell(bdrifp) != ofs) &&
+            (fvx_lseek(bdrifp, ofs) != FR_OK)) return FR_DENIED;
+        res = fvx_read(bdrifp, buf, btr, &br);
+        if ((res == FR_OK) && (br != btr)) res = FR_DENIED;
+        return res;
+    } else return FR_DENIED;
+}
+
+static FRESULT BDRIWrite(UINT ofs, UINT btw, const void* buf) {
+    if (bdrifp) {
+        FRESULT res;
+        UINT bw;
+        if ((fvx_tell(bdrifp) != ofs) &&
+            (fvx_lseek(bdrifp, ofs) != FR_OK)) return FR_DENIED;
+        res = fvx_write(bdrifp, buf, btw, &bw);
+        if ((res == FR_OK) && (bw != btw)) res = FR_DENIED;
+        return res;
+    } else return FR_DENIED;
+}
+
+bool CheckDBMagic(const u8* pre_header, bool tickdb) {
     const TitleDBPreHeader* title = (TitleDBPreHeader*) pre_header;
     const TickDBPreHeader* tick = (TickDBPreHeader*) pre_header;
     
@@ -21,8 +45,7 @@ bool CheckDBMagic(const u8* pre_header, bool tickdb)
 }
 
 // This function was taken, with slight modification, from https://3dbrew.org/wiki/Inner_FAT
-static u32 GetHashBucket(const u8* tid, u32 parent_dir_index, u32 bucket_count)
-{
+static u32 GetHashBucket(const u8* tid, u32 parent_dir_index, u32 bucket_count) {
     u32 hash = parent_dir_index ^ 0x091A2B3C;
     for (u8 i = 0; i < 2; ++i) {
         hash = (hash >> 1) | (hash << 31);
@@ -34,10 +57,8 @@ static u32 GetHashBucket(const u8* tid, u32 parent_dir_index, u32 bucket_count)
     return hash % bucket_count;
 }
 
-static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id, u8* entry, const u32 expected_size)
-{
-    if ((fs_header->image_size != info->size_ivfc_lvl4 / fs_header->image_block_size) || 
-        (fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count))
+static u32 ReadBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id, u8* entry, const u32 expected_size) {
+    if ((fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count)) // Could be more thorough
         return 1;
     
     const u32 data_offset = fs_header_offset + fs_header->data_offset;
@@ -52,7 +73,7 @@ static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_head
     u8* title_id_be = (u8*) &tid_be;
     
     // Read the index of the first file entry from the directory entry table
-    if (ReadDisaDiffIvfcLvl4(NULL, info, det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != sizeof(u32))
+    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
         return 1;
     
     // Find the file entry for the tid specified, fail if it doesn't exist
@@ -62,7 +83,7 @@ static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_head
         
         index = file_entry.next_sibling_index;
         
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != sizeof(TdbFileEntry))
+        if (BDRIRead(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
     } while (memcmp(title_id_be, file_entry.title_id, 8) != 0);
     
@@ -72,7 +93,7 @@ static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_head
     const u32 hash_bucket = GetHashBucket(file_entry.title_id, file_entry.parent_index, fs_header->fht_bucket_count); 
     u32 index_hash = 0;
     
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != sizeof(u32))
+    if (BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != FR_OK)
         return 1;
     
     if (index != index_hash)
@@ -87,22 +108,22 @@ static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_head
         u32 read_start = index - 1; // Data region block index
         u32 read_count = 0;
     
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIRead(fat_offset + index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
         
-        if ((bytes_read == 0) && !getflag(fat_entry[0]))
+        if ((bytes_read == 0) && !getfatflag(fat_entry[0]))
             return 1;
         
-        u32 next_index = getindex(fat_entry[1]);
+        u32 next_index = getfatindex(fat_entry[1]);
         
-        if (getflag(fat_entry[1])) { // Multi-entry node
-            if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + (index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (getfatflag(fat_entry[1])) { // Multi-entry node
+            if (BDRIRead(fat_offset + (index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
                 return 1;
             
-            if (!getflag(fat_entry[0]) || getflag(fat_entry[1]) || (getindex(fat_entry[0]) != index) || (getindex(fat_entry[0]) >= getindex(fat_entry[1])))
+            if (!getfatflag(fat_entry[0]) || getfatflag(fat_entry[1]) || (getfatindex(fat_entry[0]) != index) || (getfatindex(fat_entry[0]) >= getfatindex(fat_entry[1])))
                 return 1;
             
-            read_count = getindex(fat_entry[1]) + 1 - index;
+            read_count = getfatindex(fat_entry[1]) + 1 - index;
         } else { // Single-entry node
             read_count = 1;
         }
@@ -110,7 +131,7 @@ static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_head
         index = next_index;
         
         u32 btr = min(file_entry.size - bytes_read, read_count * fs_header->data_block_size);
-        if (entry && (ReadDisaDiffIvfcLvl4(NULL, info, data_offset + read_start * fs_header->data_block_size, btr, entry + bytes_read) != btr))
+        if (entry && (BDRIRead(data_offset + read_start * fs_header->data_block_size, btr, entry + bytes_read) != FR_OK))
             return 1;
             
         bytes_read += btr;
@@ -119,10 +140,8 @@ static u32 ReadBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_head
     return 0;
 }
 
-static u32 RemoveBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id)
-{
-    if ((fs_header->image_size != info->size_ivfc_lvl4 / fs_header->image_block_size) || 
-        (fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count))
+static u32 RemoveBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id) {
+    if ((fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count)) // Could be more thorough
         return 1;
     
     const u32 data_offset = fs_header_offset + fs_header->data_offset;
@@ -137,7 +156,7 @@ static u32 RemoveBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_he
     u8* title_id_be = (u8*) &tid_be;
     
     // Read the index of the first file entry from the directory entry table
-    if (ReadDisaDiffIvfcLvl4(NULL, info, det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != sizeof(u32))
+    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
         return 1;
     
     // Find the file entry for the tid specified, fail if it doesn't exist
@@ -148,87 +167,84 @@ static u32 RemoveBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_he
         if (index == 0)
             return 1;
         
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != sizeof(TdbFileEntry))
+        if (BDRIRead(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
     } while (memcmp(title_id_be, file_entry.title_id, 8) != 0);
     
     DummyFileEntry dummy_entry;
     
     // Read the 0th entry in the FET, which is always a dummy entry
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fet_offset, sizeof(DummyFileEntry), &dummy_entry) != sizeof(DummyFileEntry))
+    if (BDRIRead(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK)
         return 1;
     
     if (dummy_entry.max_entry_count != fs_header->max_file_count + 1)
         return 1;
     
-    if ((WriteDisaDiffIvfcLvl4(NULL, info, fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &dummy_entry) != sizeof(DummyFileEntry)) ||
-        (WriteDisaDiffIvfcLvl4(NULL, info, fet_offset + 0x28, sizeof(u32), &index) != sizeof(u32)) ||
-        (WriteDisaDiffIvfcLvl4(NULL, info, (previous_index == 0) ? det_offset + 0x2C : fet_offset + previous_index * sizeof(TdbFileEntry) + 0xC,
-            sizeof(u32), &(file_entry.next_sibling_index)) != sizeof(u32)))
+    if ((BDRIWrite(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &dummy_entry) != FR_OK) ||
+        (BDRIWrite(fet_offset + 0x28, sizeof(u32), &index) != FR_OK) ||
+        (BDRIWrite((previous_index == 0) ? det_offset + 0x2C : fet_offset + previous_index * sizeof(TdbFileEntry) + 0xC, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK))
         return 1;
     
     const u32 hash_bucket = GetHashBucket(file_entry.title_id, file_entry.parent_index, fs_header->fht_bucket_count);
     u32 index_hash = 0;
     
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != sizeof(u32))
+    if (BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != FR_OK)
         return 1;
     
     if (index_hash == index) {
-        if (WriteDisaDiffIvfcLvl4(NULL, info, fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &(file_entry.hash_bucket_next_index)) != sizeof(u32))
+        if (BDRIWrite(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
             return 1;
     } else {
         do {
             if (index_hash == 0) // This shouldn't happen if the entry was properly added
                 break;
             
-            if (ReadDisaDiffIvfcLvl4(NULL, info, fet_offset + index_hash * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &index_hash) != sizeof(u32))
+            if (BDRIRead(fet_offset + index_hash * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &index_hash) != FR_OK)
                 return 1;
         } while (index_hash != index);
         
-        if ((index_hash != 0) && WriteDisaDiffIvfcLvl4(NULL, info, fet_offset + index_hash * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &(file_entry.hash_bucket_next_index)) != sizeof(u32))
+        if ((index_hash != 0) && BDRIWrite(fet_offset + index_hash * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
             return 1;
     }
     
     u32 fat_entry[2];
     
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIRead(fat_offset, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
-    if (getflag(fat_entry[1]) || (fat_entry[0] != 0))
+    if (getfatflag(fat_entry[1]) || (fat_entry[0] != 0))
         return 1;
     
-    u32 next_free_index = getindex(fat_entry[1]), fat_index = file_entry.start_block_index + 1;
+    u32 next_free_index = getfatindex(fat_entry[1]), fat_index = file_entry.start_block_index + 1;
     
-    if (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + sizeof(u32), sizeof(u32), &fat_index) != sizeof(u32))
+    if (BDRIWrite(fat_offset + sizeof(u32), sizeof(u32), &fat_index) != FR_OK)
         return 1;
     
     fat_entry[1] = fat_index;
     
     do {
-        fat_index = getindex(fat_entry[1]);
+        fat_index = getfatindex(fat_entry[1]);
         
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + FAT_ENTRY_SIZE * fat_index, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIRead(fat_offset + FAT_ENTRY_SIZE * fat_index, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
-    } while (getindex(fat_entry[1]) != 0);
+    } while (getfatindex(fat_entry[1]) != 0);
         
     fat_entry[1] |= next_free_index;
     
-    if ((WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE) ||
-        (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE))
+    if ((BDRIWrite(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
+        (BDRIRead(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
         return 1;
         
-    fat_entry[0] = builduv(fat_index, false);
+    fat_entry[0] = buildfatuv(fat_index, false);
     
-    if (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIWrite(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
     return 0;
 }
 
-static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id, const u8* entry, const u32 size)
-{
-    if ((fs_header->image_size != info->size_ivfc_lvl4 / fs_header->image_block_size) || 
-        (fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count))
+static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id, const u8* entry, const u32 size) {
+    if ((fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count)) // Could be more thorough
         return 1;
     
     if (!entry || !size)
@@ -247,7 +263,7 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
     u8* title_id_be = (u8*) &tid_be;
     
     // Read the index of the first file entry from the directory entry table
-    if (ReadDisaDiffIvfcLvl4(NULL, info, det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != sizeof(u32))   
+    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)   
         return 1;
     
     // Try to find the file entry for the tid specified, fail if it already exists
@@ -258,19 +274,19 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
         if (memcmp(title_id_be, file_entry.title_id, 8) == 0)
             return 1;
         
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != sizeof(TdbFileEntry))
+        if (BDRIRead(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
     }
     
     u32 fat_entry[2];
     
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIRead(fat_offset, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
-    if (getflag(fat_entry[1]) || (fat_entry[0] != 0))
+    if (getfatflag(fat_entry[1]) || (fat_entry[0] != 0))
         return 1;
     
-    u32 next_fat_index = getindex(fat_entry[1]), node_size = 0, fat_index = 0;
+    u32 next_fat_index = getfatindex(fat_entry[1]), node_size = 0, fat_index = 0;
     
     // Find contiguous free space in the FAT for the entry. Technically there could be a case of enough space existing, but not in a contiguous fasion, but this would never realistically happen
     do {
@@ -279,19 +295,19 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
         
         fat_index = next_fat_index;
         
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
         
-        next_fat_index = getindex(fat_entry[1]);
+        next_fat_index = getfatindex(fat_entry[1]);
         
-        if (getflag(fat_entry[1])) { // Multi-entry node
-            if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (getfatflag(fat_entry[1])) { // Multi-entry node
+            if (BDRIRead(fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
                 return 1;
             
-            if (!getflag(fat_entry[0]) || getflag(fat_entry[1]) || (getindex(fat_entry[0]) != fat_index) || (getindex(fat_entry[0]) >= getindex(fat_entry[1])))
+            if (!getfatflag(fat_entry[0]) || getfatflag(fat_entry[1]) || (getfatindex(fat_entry[0]) != fat_index) || (getfatindex(fat_entry[0]) >= getfatindex(fat_entry[1])))
                 return 1;
             
-            node_size = getindex(fat_entry[1]) + 1 - fat_index;
+            node_size = getfatindex(fat_entry[1]) + 1 - fat_index;
         } else { // Single-entry node
             node_size = 1;
         }
@@ -300,73 +316,73 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
     const bool shrink_free_node = node_size > size_blocks;
     
     if (shrink_free_node) {
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
         
         if (node_size - size_blocks == 1)
-            fat_entry[1] = builduv(getindex(fat_entry[1]), false);
+            fat_entry[1] = buildfatuv(getfatindex(fat_entry[1]), false);
         
-        if (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + size_blocks) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIWrite(fat_offset + (fat_index + size_blocks) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
         
         if (node_size - size_blocks > 1) {
-            if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+            if (BDRIRead(fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
                 return 1;
             
-            fat_entry[0] = builduv(fat_index + size_blocks, true);
+            fat_entry[0] = buildfatuv(fat_index + size_blocks, true);
             
-            if ((WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE) ||
-                (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + size_blocks + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE))
+            if ((BDRIWrite(fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
+                (BDRIWrite(fat_offset + (fat_index + size_blocks + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
                 return 1;
         }
     }
     
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
-    const u32 previous_free_index = getindex(fat_entry[0]), next_free_index = getindex(fat_entry[1]);
+    const u32 previous_free_index = getfatindex(fat_entry[0]), next_free_index = getfatindex(fat_entry[1]);
     
-    fat_entry[0] = builduv(0, true);
-    fat_entry[1] = builduv(0, size_blocks > 1);
+    fat_entry[0] = buildfatuv(0, true);
+    fat_entry[1] = buildfatuv(0, size_blocks > 1);
     
-    if (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIWrite(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
     if (size_blocks > 1) {
-        fat_entry[0] = builduv(fat_index, true);
-        fat_entry[1] = builduv(fat_index + size_blocks - 1, false);
+        fat_entry[0] = buildfatuv(fat_index, true);
+        fat_entry[1] = buildfatuv(fat_index + size_blocks - 1, false);
         
-        if ((WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + size_blocks - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE) ||
-            (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE))
+        if ((BDRIWrite(fat_offset + (fat_index + size_blocks - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
+            (BDRIWrite(fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
             return 1;
     }
     
     if (next_free_index != 0) {
-        if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIRead(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
         
-        fat_entry[0] = builduv(shrink_free_node ? fat_index + size_blocks : previous_free_index, (!shrink_free_node && (previous_free_index == 0)));
+        fat_entry[0] = buildfatuv(shrink_free_node ? fat_index + size_blocks : previous_free_index, (!shrink_free_node && (previous_free_index == 0)));
         
-        if (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+        if (BDRIWrite(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
     }
     
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIRead(fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
-    fat_entry[1] = builduv(shrink_free_node ? fat_index + size_blocks : next_free_index, getflag(fat_entry[1]));
+    fat_entry[1] = buildfatuv(shrink_free_node ? fat_index + size_blocks : next_free_index, getfatflag(fat_entry[1]));
     
-    if (WriteDisaDiffIvfcLvl4(NULL, info, fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FAT_ENTRY_SIZE)
+    if (BDRIWrite(fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
     
     // Actual writing of the entry data
-    if (WriteDisaDiffIvfcLvl4(NULL, info, data_offset + (fat_index - 1) * fs_header->data_block_size, size, entry) != size)
+    if (BDRIWrite(data_offset + (fat_index - 1) * fs_header->data_block_size, size, entry) != FR_OK)
         return 1;
     
     DummyFileEntry dummy_entry;
     
     // Read the 0th entry in the FET, which is always a dummy entry
-    if (ReadDisaDiffIvfcLvl4(NULL, info, fet_offset, sizeof(DummyFileEntry), &dummy_entry) != sizeof(DummyFileEntry)) 
+    if (BDRIRead(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK) 
         return 1;
     
     if (dummy_entry.max_entry_count != fs_header->max_file_count + 1)
@@ -376,17 +392,17 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
         file_entry.next_sibling_index = max_index + 1;
         
         dummy_entry.total_entry_count++;
-        if (WriteDisaDiffIvfcLvl4(NULL, info, fet_offset, sizeof(u32), &(dummy_entry.total_entry_count)) != sizeof(u32))
+        if (BDRIWrite(fet_offset, sizeof(u32), &(dummy_entry.total_entry_count)) != FR_OK)
             return 1;
     } else { // If there's at least one extraneous dummy entry, replace it
         file_entry.next_sibling_index = dummy_entry.next_dummy_index;
     
-        if ((ReadDisaDiffIvfcLvl4(NULL, info, fet_offset + dummy_entry.next_dummy_index * sizeof(DummyFileEntry), sizeof(DummyFileEntry), &dummy_entry) != sizeof(DummyFileEntry)) ||
-            (WriteDisaDiffIvfcLvl4(NULL, info, fet_offset, sizeof(DummyFileEntry), &dummy_entry) != sizeof(DummyFileEntry)))
+        if ((BDRIRead(fet_offset + dummy_entry.next_dummy_index * sizeof(DummyFileEntry), sizeof(DummyFileEntry), &dummy_entry) != FR_OK) ||
+            (BDRIWrite(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK))
             return 1;
     }
     
-    if (WriteDisaDiffIvfcLvl4(NULL, info, (index == 0) ? det_offset + 0x2C : fet_offset + index * sizeof(TdbFileEntry) + 0xC, sizeof(u32), &(file_entry.next_sibling_index)) != sizeof(u32))
+    if (BDRIWrite((index == 0) ? det_offset + 0x2C : fet_offset + index * sizeof(TdbFileEntry) + 0xC, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
         return 1;
     
     index = file_entry.next_sibling_index;
@@ -394,8 +410,8 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
     const u32 hash_bucket = GetHashBucket(title_id_be, 1, fs_header->fht_bucket_count);
     u32 index_hash = 0;
     
-    if ((ReadDisaDiffIvfcLvl4(NULL, info, fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != sizeof(u32)) ||
-        (WriteDisaDiffIvfcLvl4(NULL, info, fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index) != sizeof(u32)))
+    if ((BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != FR_OK) ||
+        (BDRIWrite(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index) != FR_OK))
         return 1;
     
     memset(&file_entry, 0, sizeof(TdbFileEntry));
@@ -405,317 +421,153 @@ static u32 AddBDRIEntry(const DisaDiffRWInfo* info, const BDRIFsHeader* fs_heade
     file_entry.size = (u64) size;
     file_entry.hash_bucket_next_index = index_hash;
     
-    if (WriteDisaDiffIvfcLvl4(NULL, info, fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != sizeof(TdbFileEntry))
+    if (BDRIWrite(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
         return 1;
     
     return 0;
 }
 
-u32 ReadTitleInfoEntryFromDB(const char* path, const u8* title_id, TitleInfoEntry* tie)
-{
+u32 ReadTitleInfoEntryFromDB(const char* path, const u8* title_id, TitleInfoEntry* tie) {
     FIL file;
+    TitleDBPreHeader pre_header;
     
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
-    SetDisaDiffFile(&file);
+    bdrifp = &file;
     
-    const DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(NULL, (DisaDiffRWInfo*) &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
+    if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, false) ||
+        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) tie, sizeof(TitleInfoEntry)) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
         return 1;
     }
     
-    TitleDBPreHeader pre_header;
-    
-    if (ReadDisaDiffIvfcLvl4(NULL, &info, 0, sizeof(TitleDBPreHeader), &pre_header) != sizeof(TitleDBPreHeader)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (!CheckDBMagic((u8*) &pre_header, false)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (ReadBDRIEntry(&info, &(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) tie, sizeof(TitleInfoEntry)) != 0) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    SetDisaDiffFile(NULL);
-    fvx_close(&file);
-    free(lvl2_cache);
+    fvx_close(bdrifp);
+    bdrifp = NULL;
     return 0;
 }
 
 u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket* ticket)
 {
     FIL file;
+    TickDBPreHeader pre_header;
+    TicketEntry te;
     
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
-    SetDisaDiffFile(&file);
+    bdrifp = &file;
     
-    const DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(NULL, (DisaDiffRWInfo*) &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
+    if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, true) ||
+        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) &te, sizeof(TicketEntry)) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
         return 1;
     }
     
-    TicketEntry te;
-    TickDBPreHeader pre_header;
-    
-    if (ReadDisaDiffIvfcLvl4(NULL, &info, 0, sizeof(TickDBPreHeader), &pre_header) != sizeof(TickDBPreHeader)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (!CheckDBMagic((u8*) &pre_header, true)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (ReadBDRIEntry(&info, &(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) &te, sizeof(TicketEntry)) != 0) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    SetDisaDiffFile(NULL);
-    fvx_close(&file);
-    free(lvl2_cache);
-    
-    if (te.unknown != 1)
-        ShowPrompt(false, "Warning: ticket entry unknown u32 was 0x%X", te.unknown);
+    fvx_close(bdrifp);
+    bdrifp = NULL;
     
     if (te.ticket_size != sizeof(Ticket))
         return 1;
     
-    *ticket = te.ticket;
+    if (ticket) *ticket = te.ticket;
     
     return 0;
 }
 
-u32 RemoveTitleInfoEntryFromDB(const char* path, const u8* title_id)
-{
+u32 RemoveTitleInfoEntryFromDB(const char* path, const u8* title_id) {
     FIL file;
-    
-    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
-    
-    SetDisaDiffFile(&file);
-    
-    const DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(NULL, (DisaDiffRWInfo*) &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    const TitleDBPreHeader pre_header;
-    
-    if (ReadDisaDiffIvfcLvl4(NULL, &info, 0, sizeof(TitleDBPreHeader), (TitleDBPreHeader*) &pre_header) != sizeof(TitleDBPreHeader)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (!CheckDBMagic((const u8*) &pre_header, false)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (RemoveBDRIEntry(&info, &(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id) != 0) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    SetDisaDiffFile(NULL);
-    fvx_close(&file);
-    free(lvl2_cache);
-    return 0;
-}
-
-u32 RemoveTicketFromDB(const char* path, const u8* title_id)
-{
-    FIL file;
-    
-    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
-    
-    SetDisaDiffFile(&file);
-    
-    const DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(NULL, (DisaDiffRWInfo*) &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    TickDBPreHeader pre_header;
-    
-    if (ReadDisaDiffIvfcLvl4(NULL, &info, 0, sizeof(TickDBPreHeader), &pre_header) != sizeof(TickDBPreHeader)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (!CheckDBMagic((u8*) &pre_header, true)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (RemoveBDRIEntry(&info, &(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id) != 0) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    SetDisaDiffFile(NULL);
-    fvx_close(&file);
-    free(lvl2_cache);
-    return 0;
-}
-
-u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoEntry* tie)
-{
-    FIL file;
-    
-    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
-        return 1;
-    
-    SetDisaDiffFile(&file);
-    
-    const DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(NULL, (DisaDiffRWInfo*) &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
     TitleDBPreHeader pre_header;
     
-    if (ReadDisaDiffIvfcLvl4(NULL, &info, 0, sizeof(TitleDBPreHeader), &pre_header) != sizeof(TitleDBPreHeader)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
+    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    
+    bdrifp = &file;
+    
+    if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, false) ||
+        (RemoveBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
         return 1;
     }
     
-    if (!CheckDBMagic((u8*) &pre_header, false)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (AddBDRIEntry(&info, &(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (const u8*) tie, sizeof(TitleInfoEntry)) != 0) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    SetDisaDiffFile(NULL);
-    fvx_close(&file);
-    free(lvl2_cache);
+    fvx_close(bdrifp);
+    bdrifp = NULL;
     return 0;
 }
 
-u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket)
-{
+u32 RemoveTicketFromDB(const char* path, const u8* title_id) {
     FIL file;
+    TickDBPreHeader pre_header;
     
     if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
-    SetDisaDiffFile(&file);
+    bdrifp = &file;
     
-    const DisaDiffRWInfo info;
-    u8* lvl2_cache = NULL;
-    if ((GetDisaDiffRWInfo(NULL, (DisaDiffRWInfo*) &info, false) != 0) ||
-        !(lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, lvl2_cache, info.size_dpfs_lvl2) != 0)) {
-        if (lvl2_cache) free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
+    if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, true) ||
+        (RemoveBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
         return 1;
     }
+    
+    fvx_close(&file);
+    bdrifp = NULL;
+    return 0;
+}
+
+u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoEntry* tie) {
+    FIL file;
+    TitleDBPreHeader pre_header;
+    
+    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    
+    bdrifp = &file;
+    
+    if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) || 
+        !CheckDBMagic((u8*) &pre_header, false) ||
+        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (const u8*) tie, sizeof(TitleInfoEntry)) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
+        return 1;
+    }
+    
+    fvx_close(bdrifp);
+    bdrifp = NULL;
+    return 0;
+}
+
+u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket) {
+    FIL file;
+    TickDBPreHeader pre_header;
     
     TicketEntry te;
     te.unknown = 1;
     te.ticket_size = sizeof(Ticket);
     te.ticket = *ticket;
     
-    TickDBPreHeader pre_header;
+    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
     
-    if (ReadDisaDiffIvfcLvl4(NULL, &info, 0, sizeof(TickDBPreHeader), &pre_header) != sizeof(TickDBPreHeader)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
+    bdrifp = &file;
+    
+    if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, true) ||
+        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (const u8*) &te, sizeof(TicketEntry)) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
         return 1;
     }
     
-    if (!CheckDBMagic((u8*) &pre_header, true)) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    if (AddBDRIEntry(&info, &(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (const u8*) &te, sizeof(TicketEntry)) != 0) {
-        free(lvl2_cache);
-        SetDisaDiffFile(NULL);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    SetDisaDiffFile(NULL);
-    fvx_close(&file);
-    free(lvl2_cache);
+    fvx_close(bdrifp);
+    bdrifp = NULL;
     return 0;
 }
