@@ -166,6 +166,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **SciresM** for helping me figure out RomFS and for boot9strap
 * **SciresM**, **Myria**, **Normmatt**, **TuxSH** and **hedgeberg** for figuring out sighax and giving us access to bootrom
 * **ihaveamac** for first developing the simple CIA generation method and for being of great help in porting it
+* **wwylele** and **aspargas2** for documenting and implementing the DISA, DIFF, and BDRI formats
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
