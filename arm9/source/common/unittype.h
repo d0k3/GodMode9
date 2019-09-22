@@ -3,7 +3,7 @@
 #include "common.h"
 
 // see: https://3dbrew.org/wiki/CONFIG11_Registers
-#define IS_O3DS     ((*(vu32*) 0x10140FFC) != 0x7)
+#define IS_O3DS     (((*(vu16*) 0x10140FFC) & 2) == 0)
 
 // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
 // see: https://www.3dbrew.org/wiki/OTP_Registers#Plaintext_OTP

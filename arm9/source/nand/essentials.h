@@ -37,7 +37,7 @@ typedef struct {
     u8 region;
     u8 unknown;
     char serial[0xF];
-} PACKED_STRUCT SecureInfo;
+} PACKED_ALIGN(1) SecureInfo;
 
 // includes all essential system files
 // (this is of our own making)
