@@ -4,7 +4,7 @@
 
 #define SPIFLASH_CHUNK_SIZE	(0x1000)
 
-static char *spiflash_xalloc_buf = NULL;
+static char *spiflash_xfer_buf = NULL;
 
 bool spiflash_get_status(void)
 {
@@ -15,29 +15,29 @@ bool spiflash_read(u32 offset, u32 size, u8 *buf)
 {
 	u32 args[3];
 
-	if (!spiflash_xalloc_buf) {
+	if (!spiflash_xfer_buf) {
 		u32 xbuf = PXI_DoCMD(PXI_XALLOC, (u32[]){SPIFLASH_CHUNK_SIZE}, 1);
 		if (xbuf == 0 || xbuf == 0xFFFFFFFF)
 			return false;
-		spiflash_xalloc_buf = (char*)xbuf;
+		spiflash_xfer_buf = (char*)xbuf;
 	}
 
-	args[1] = (u32)spiflash_xalloc_buf;
+	args[1] = (u32)spiflash_xfer_buf;
 
 	while(size > 0) {
-		u32 rem = min(size, SPIFLASH_CHUNK_SIZE);
+		u32 blksz = min(size, SPIFLASH_CHUNK_SIZE);
 
 		args[0] = offset;
-		args[2] = rem;
+		args[2] = blksz;
 
 		ARM_DSB();
 		PXI_DoCMD(PXI_NVRAM_READ, args, 3);
-		ARM_InvDC_Range(spiflash_xalloc_buf, rem); 
-		memcpy(buf, spiflash_xalloc_buf, rem);
+		ARM_InvDC_Range(spiflash_xfer_buf, blksz); 
+		memcpy(buf, spiflash_xfer_buf, blksz);
 
-		buf += rem;
-		size -= rem;
-		offset += rem;
+		buf += blksz;
+		size -= blksz;
+		offset += blksz;
 	}
 
 	return true;

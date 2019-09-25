@@ -10,8 +10,8 @@ INCDIRS := source
 INCLUDE := $(foreach dir,$(INCDIRS),-I"$(shell pwd)/$(dir)")
 
 ASFLAGS += $(SUBARCH) $(INCLUDE)
-CFLAGS  += $(SUBARCH) $(INCLUDE)
-LDFLAGS += $(SUBARCH) -Wl,-Map,$(TARGET).map
+CFLAGS  += $(SUBARCH) $(INCLUDE) -flto
+LDFLAGS += $(SUBARCH) -Wl,-Map,$(TARGET).map -flto
 
 include ../Makefile.common
 include ../Makefile.build

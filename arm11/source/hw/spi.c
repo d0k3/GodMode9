@@ -122,8 +122,7 @@ int SPI_DoXfer(u32 dev, const SPI_XferInfo *xfers, u32 xfer_cnt)
 
 void SPI_Init(void)
 {
-	// This cuts off access from the old SPI
-	// interface used during the NDS days
+	// This cuts off access to the old NDS SPI interface
 	*REG_CFG_SPI_CNT = 7;
 }
 

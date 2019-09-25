@@ -21,7 +21,7 @@
 
 #include <arm.h>
 
-#define STACK_SZ    (16384)
+#define STACK_SZ    (8192)
 
 .global __boot
 __boot:
@@ -95,9 +95,11 @@ corezero_start:
 
 coresmp_start:
     bl SYS_CoreInit
-    b MainLoop
+    ldr lr, =MainLoop
+    bx lr
 
 .section .bss.stack
-.align 3
+.align 12 @ make sure stack is aligned to a page boundary
+.global _stack_base
 _stack_base:
     .space (MAX_CPU * STACK_SZ)

@@ -10,7 +10,7 @@
 #define SR_ABT_MODE	(0x17)
 #define SR_UND_MODE	(0x1B)
 #define SR_SYS_MODE	(0x1F)
-#define SR_PMODE_MASK	(0x1F)
+#define SR_PMODE_MASK	(0x0F)
 
 #define SR_THUMB	BIT(5)
 #define SR_NOFIQ	BIT(6)

@@ -15,6 +15,7 @@ static bool I2C_AllocBuffer(void)
 			return false;
 		i2c_xfer_buf = (char*)xbuf;
 	}
+
 	return true;
 }
 
@@ -41,11 +42,12 @@ bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
 bool I2C_writeRegBuf(I2cDevice devId, u8 regAddr, const u8 *in, u32 size)
 {
 	int ret;
+	u32 *args;
 
 	if (!I2C_AllocBuffer())
 		return false;
 
-	u32 args[] = {devId, regAddr, (u32)i2c_xfer_buf, size};
+	args = (u32[]){devId, regAddr, (u32)i2c_xfer_buf, size};
 
 	memcpy(i2c_xfer_buf, in, size);
 	ARM_WbDC_Range(i2c_xfer_buf, size);

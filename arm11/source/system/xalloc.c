@@ -21,7 +21,7 @@
 
 #include "system/xalloc.h"
 
-static char xalloc_buf[XALLOC_BUF_SIZE];
+static char ALIGN(4096) xalloc_buf[XALLOC_BUF_SIZE];
 static size_t mark = 0;
 
 void *XAlloc(size_t size)

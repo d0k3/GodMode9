@@ -56,7 +56,11 @@
     (sizeof(x) / sizeof(*(x)))
 
 #define bkpt \
-    asm volatile("bkpt\n\t")
+    __builtin_trap()
+
+#define assert(x) \
+    (!!(x) ? (void)0 : __builtin_trap())
+
 
 #define STATIC_ASSERT(...) \
     _Static_assert((__VA_ARGS__), #__VA_ARGS__)
