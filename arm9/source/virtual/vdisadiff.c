@@ -23,8 +23,9 @@ static VDisaDiffPartitionInfo* partitionA_info = NULL;
 static VDisaDiffPartitionInfo* partitionB_info = NULL;
 
 static void AlignDisaDiffIvfcRange(DisaDiffIvfcRange* range, u32 log_block_size) {
+    u32 end_offset = align(range->offset + range->size, 1 << log_block_size);
     range->offset = (range->offset >> log_block_size) << log_block_size;
-    range->size = align(range->size, 1 << log_block_size);
+    range->size = end_offset - range->offset;
 }
 
 static u32 MergeDisaDiffIvfcRange(DisaDiffIvfcRange new_range, DisaDiffIvfcRange* ranges, u32* n_ranges) {
@@ -88,21 +89,21 @@ static u32 FixVDisaDiffIvfcHashChain(bool partitionB) {
     if (info->n_ivfc_ranges == 0)
         return 0;
     
-    DisaDiffIvfcRange* ivfc_range_buffer = malloc(sizeof(DisaDiffIvfcRange) * 4 * MAX_IVFC_RANGES);
+    DisaDiffIvfcRange* ivfc_range_buffer = malloc(sizeof(DisaDiffIvfcRange) * MAX_IVFC_RANGES);
     if (!ivfc_range_buffer)
         return 1;
     
     u32 n_ivfc_ranges = 0;
     
     for (u32 i = 0; i < info->n_ivfc_ranges; i++) {
-        if (MergeDisaDiffIvfcRange(info->ivfc_lvl4_ranges[i], &(ivfc_range_buffer[3 * MAX_IVFC_RANGES]), &n_ivfc_ranges) != 0)
+        if (MergeDisaDiffIvfcRange(info->ivfc_lvl4_ranges[i], ivfc_range_buffer, &n_ivfc_ranges) != 0)
             return 1;
     }
     
     for (u32 level = 4; level > 0; level--) {
         u32 next_n_ivfc_ranges = 0;
-        DisaDiffIvfcRange* ivfc_ranges = &(ivfc_range_buffer[(level - 1) * MAX_IVFC_RANGES]);
-        DisaDiffIvfcRange* next_ivfc_ranges = ((level == 1) ? NULL : ivfc_ranges - MAX_IVFC_RANGES);
+        DisaDiffIvfcRange* ivfc_ranges = (level % 2) ? info->ivfc_lvl4_ranges : ivfc_range_buffer;
+        DisaDiffIvfcRange* next_ivfc_ranges = (level % 2) ? ivfc_range_buffer : info->ivfc_lvl4_ranges;
         
         for (u32 j = 0; j < n_ivfc_ranges; j++) {
             DisaDiffIvfcRange next_range;
