@@ -104,7 +104,7 @@ static u32 ReadBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offs
     u32 bytes_read = 0;
     u32 fat_entry[2];
     
-    while (bytes_read < file_entry.size) { // Read the full file, walking the FAT node chain
+    while (bytes_read < file_entry.size) { // Read the full entry, walking the FAT node chain
         u32 read_start = index - 1; // Data region block index
         u32 read_count = 0;
     
@@ -243,7 +243,7 @@ static u32 RemoveBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_of
     return 0;
 }
 
-static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id, const u8* entry, const u32 size) {
+static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offset, const u8* title_id, const u8* entry, const u32 size, bool replace) {
     if ((fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count)) // Could be more thorough
         return 1;
     
@@ -261,169 +261,355 @@ static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offse
     TdbFileEntry file_entry;
     u64 tid_be = getbe64(title_id);
     u8* title_id_be = (u8*) &tid_be;
+    bool do_replace = false;
     
     // Read the index of the first file entry from the directory entry table
     if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)   
         return 1;
     
-    // Try to find the file entry for the tid specified, fail if it already exists
+    // Try to find the file entry for the tid specified
     while (file_entry.next_sibling_index != 0) {
         index = file_entry.next_sibling_index;
-        max_index = max(index, max_index);
-        
-        if (memcmp(title_id_be, file_entry.title_id, 8) == 0)
-            return 1;
+        max_index = max(index, max_index); 
         
         if (BDRIRead(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
+        
+        // If an entry for the tid already existed that is already the specified size and replace was specified, just replace the existing entry
+        if (memcmp(title_id_be, file_entry.title_id, 8) == 0) {
+            if (!replace || (file_entry.size != size)) return 1;
+            else {
+                do_replace = true;
+                break;
+            }
+        }
     }
     
     u32 fat_entry[2];
+    u32 fat_index = 0;
     
-    if (BDRIRead(fat_offset, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-        return 1;
-    
-    if (getfatflag(fat_entry[1]) || (fat_entry[0] != 0))
-        return 1;
-    
-    u32 next_fat_index = getfatindex(fat_entry[1]), node_size = 0, fat_index = 0;
-    
-    // Find contiguous free space in the FAT for the entry. Technically there could be a case of enough space existing, but not in a contiguous fasion, but this would never realistically happen
-    do {
-        if (next_fat_index == 0)
-            return 1; // Reached the end of the free node chain without finding enough contiguous free space - this should never realistically happen
-        
-        fat_index = next_fat_index;
-        
+    if (!do_replace) {
+        if (BDRIRead(fat_offset, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
+
+        if (getfatflag(fat_entry[1]) || (fat_entry[0] != 0))
+            return 1;
+
+        u32 next_fat_index = getfatindex(fat_entry[1]), node_size = 0;
+
+        // Find contiguous free space in the FAT for the entry. Technically there could be a case of enough space existing, but not in a contiguous fasion, but this would never realistically happen
+        do {
+            if (next_fat_index == 0)
+                return 1; // Reached the end of the free node chain without finding enough contiguous free space - this should never realistically happen
+
+            fat_index = next_fat_index;
+
+            if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                return 1;
+
+            next_fat_index = getfatindex(fat_entry[1]);
+
+            if (getfatflag(fat_entry[1])) { // Multi-entry node
+                if (BDRIRead(fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                    return 1;
+
+                if (!getfatflag(fat_entry[0]) || getfatflag(fat_entry[1]) || (getfatindex(fat_entry[0]) != fat_index) || (getfatindex(fat_entry[0]) >= getfatindex(fat_entry[1])))
+                    return 1;
+
+                node_size = getfatindex(fat_entry[1]) + 1 - fat_index;
+            } else { // Single-entry node
+                node_size = 1;
+            }
+        } while (node_size < size_blocks);
+
+        const bool shrink_free_node = node_size > size_blocks;
+
+        if (shrink_free_node) {
+            if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                return 1;
+
+            if (node_size - size_blocks == 1)
+                fat_entry[1] = buildfatuv(getfatindex(fat_entry[1]), false);
+
+            if (BDRIWrite(fat_offset + (fat_index + size_blocks) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                return 1;
+
+            if (node_size - size_blocks > 1) {
+                if (BDRIRead(fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                    return 1;
+
+                fat_entry[0] = buildfatuv(fat_index + size_blocks, true);
+
+                if ((BDRIWrite(fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
+                    (BDRIWrite(fat_offset + (fat_index + size_blocks + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
+                    return 1;
+            }
+        }
+
         if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
             return 1;
+
+        const u32 previous_free_index = getfatindex(fat_entry[0]), next_free_index = getfatindex(fat_entry[1]);
+
+        fat_entry[0] = buildfatuv(0, true);
+        fat_entry[1] = buildfatuv(0, size_blocks > 1);
+
+        if (BDRIWrite(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
+
+        if (size_blocks > 1) {
+            fat_entry[0] = buildfatuv(fat_index, true);
+            fat_entry[1] = buildfatuv(fat_index + size_blocks - 1, false);
+
+            if ((BDRIWrite(fat_offset + (fat_index + size_blocks - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
+                (BDRIWrite(fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
+                return 1;
+        }
+
+        if (next_free_index != 0) {
+            if (BDRIRead(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                return 1;
+
+            fat_entry[0] = buildfatuv(shrink_free_node ? fat_index + size_blocks : previous_free_index, (!shrink_free_node && (previous_free_index == 0)));
+
+            if (BDRIWrite(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+                return 1;
+        }
+
+        if (BDRIRead(fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
+
+        fat_entry[1] = buildfatuv(shrink_free_node ? fat_index + size_blocks : next_free_index, getfatflag(fat_entry[1]));
+
+        if (BDRIWrite(fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
+    } else fat_index = file_entry.start_block_index + 1;
+    
+    u32 bytes_written = 0, fat_index_write = fat_index;
+    
+    while (bytes_written < file_entry.size) { // Write the full entry, walking the FAT node chain
+                                              // Can't assume contiguity here, because we might be replacing an existing entry
+        u32 write_start = fat_index_write - 1; // Data region block index
+        u32 write_count = 0;
+    
+        if (BDRIRead(fat_offset + fat_index_write * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
         
-        next_fat_index = getfatindex(fat_entry[1]);
+        if ((bytes_written == 0) && !getfatflag(fat_entry[0]))
+            return 1;
+        
+        u32 next_index = getfatindex(fat_entry[1]);
         
         if (getfatflag(fat_entry[1])) { // Multi-entry node
-            if (BDRIRead(fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            if (BDRIRead(fat_offset + (fat_index_write + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
                 return 1;
             
-            if (!getfatflag(fat_entry[0]) || getfatflag(fat_entry[1]) || (getfatindex(fat_entry[0]) != fat_index) || (getfatindex(fat_entry[0]) >= getfatindex(fat_entry[1])))
+            if (!getfatflag(fat_entry[0]) || getfatflag(fat_entry[1]) || (getfatindex(fat_entry[0]) != fat_index_write) || (getfatindex(fat_entry[0]) >= getfatindex(fat_entry[1])))
                 return 1;
             
-            node_size = getfatindex(fat_entry[1]) + 1 - fat_index;
+            write_count = getfatindex(fat_entry[1]) + 1 - fat_index_write;
         } else { // Single-entry node
-            node_size = 1;
+            write_count = 1;
         }
-    } while (node_size < size_blocks);
-    
-    const bool shrink_free_node = node_size > size_blocks;
-    
-    if (shrink_free_node) {
-        if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+        
+        fat_index_write = next_index;
+        
+        u32 btw = min(file_entry.size - bytes_written, write_count * fs_header->data_block_size);
+        if (BDRIWrite(data_offset + write_start * fs_header->data_block_size, btw, entry + bytes_written) != FR_OK)
             return 1;
-        
-        if (node_size - size_blocks == 1)
-            fat_entry[1] = buildfatuv(getfatindex(fat_entry[1]), false);
-        
-        if (BDRIWrite(fat_offset + (fat_index + size_blocks) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            
+        bytes_written += btw;
+    }
+    
+    if (!do_replace) {
+        DummyFileEntry dummy_entry;
+
+        // Read the 0th entry in the FET, which is always a dummy entry
+        if (BDRIRead(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK) 
             return 1;
-        
-        if (node_size - size_blocks > 1) {
-            if (BDRIRead(fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+
+        if (dummy_entry.max_entry_count != fs_header->max_file_count + 1)
+            return 1;
+
+        if (dummy_entry.next_dummy_index == 0) { // If the 0th entry is the only dummy entry, make a new entry
+            file_entry.next_sibling_index = max_index + 1;
+
+            dummy_entry.total_entry_count++;
+            if (BDRIWrite(fet_offset, sizeof(u32), &(dummy_entry.total_entry_count)) != FR_OK)
                 return 1;
-            
-            fat_entry[0] = buildfatuv(fat_index + size_blocks, true);
-            
-            if ((BDRIWrite(fat_offset + (fat_index + node_size - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
-                (BDRIWrite(fat_offset + (fat_index + size_blocks + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
+        } else { // If there's at least one extraneous dummy entry, replace it
+            file_entry.next_sibling_index = dummy_entry.next_dummy_index;
+
+            if ((BDRIRead(fet_offset + dummy_entry.next_dummy_index * sizeof(DummyFileEntry), sizeof(DummyFileEntry), &dummy_entry) != FR_OK) ||
+                (BDRIWrite(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK))
                 return 1;
         }
-    }
-    
-    if (BDRIRead(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-        return 1;
-    
-    const u32 previous_free_index = getfatindex(fat_entry[0]), next_free_index = getfatindex(fat_entry[1]);
-    
-    fat_entry[0] = buildfatuv(0, true);
-    fat_entry[1] = buildfatuv(0, size_blocks > 1);
-    
-    if (BDRIWrite(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-        return 1;
-    
-    if (size_blocks > 1) {
-        fat_entry[0] = buildfatuv(fat_index, true);
-        fat_entry[1] = buildfatuv(fat_index + size_blocks - 1, false);
-        
-        if ((BDRIWrite(fat_offset + (fat_index + size_blocks - 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
-            (BDRIWrite(fat_offset + (fat_index + 1) * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
+
+        if (BDRIWrite((index == 0) ? det_offset + 0x2C : fet_offset + index * sizeof(TdbFileEntry) + 0xC, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
+            return 1;
+
+        index = file_entry.next_sibling_index;
+
+        const u32 hash_bucket = GetHashBucket(title_id_be, 1, fs_header->fht_bucket_count);
+        u32 index_hash = 0;
+
+        if ((BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != FR_OK) ||
+            (BDRIWrite(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index) != FR_OK))
+            return 1;
+
+        memset(&file_entry, 0, sizeof(TdbFileEntry));
+        file_entry.parent_index = 1;
+        memcpy(file_entry.title_id, title_id_be, 8);
+        file_entry.start_block_index = fat_index - 1;
+        file_entry.size = (u64) size;
+        file_entry.hash_bucket_next_index = index_hash;
+
+        if (BDRIWrite(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
     }
+        
+    return 0;
+}
+
+static u32 GetNumBDRIEntries(const BDRIFsHeader* fs_header, const u32 fs_header_offset) {
+    if ((fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count)) // Could be more thorough
+        return 0;    
     
-    if (next_free_index != 0) {
-        if (BDRIRead(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-            return 1;
-        
-        fat_entry[0] = buildfatuv(shrink_free_node ? fat_index + size_blocks : previous_free_index, (!shrink_free_node && (previous_free_index == 0)));
-        
-        if (BDRIWrite(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-            return 1;
+    const u32 data_offset = fs_header_offset + fs_header->data_offset;
+    const u32 det_offset = data_offset + fs_header->det_start_block * fs_header->data_block_size;
+    const u32 fet_offset = data_offset + fs_header->fet_start_block * fs_header->data_block_size;
+    
+    u32 num_entries = 0;
+    TdbFileEntry file_entry;
+    
+    // Read the index of the first file entry from the directory entry table
+    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
+        return 0;
+    
+    while (file_entry.next_sibling_index != 0) {
+        num_entries++;
+        if (BDRIRead(fet_offset + file_entry.next_sibling_index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
+            return 0;
     }
     
-    if (BDRIRead(fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+    return num_entries;
+}
+
+static u32 ListBDRIEntryTitleIDs(const BDRIFsHeader* fs_header, const u32 fs_header_offset, u8* title_ids, u32 max_title_ids) {
+    if ((fs_header->info_offset != 0x20) || (fs_header->fat_entry_count != fs_header->data_block_count))
+        return 0;
+    
+    const u32 data_offset = fs_header_offset + fs_header->data_offset;
+    const u32 det_offset = data_offset + fs_header->det_start_block * fs_header->data_block_size;
+    const u32 fet_offset = data_offset + fs_header->fet_start_block * fs_header->data_block_size;
+    
+    u32 num_entries = 0;
+    TdbFileEntry file_entry;
+    
+    for (u32 i = 0; i < max_title_ids; i++)
+        memset(title_ids, 0, max_title_ids * 8);
+    
+    // Read the index of the first file entry from the directory entry table
+    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
         return 1;
     
-    fat_entry[1] = buildfatuv(shrink_free_node ? fat_index + size_blocks : next_free_index, getfatflag(fat_entry[1]));
-    
-    if (BDRIWrite(fat_offset + previous_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-        return 1;
-    
-    // Actual writing of the entry data
-    if (BDRIWrite(data_offset + (fat_index - 1) * fs_header->data_block_size, size, entry) != FR_OK)
-        return 1;
-    
-    DummyFileEntry dummy_entry;
-    
-    // Read the 0th entry in the FET, which is always a dummy entry
-    if (BDRIRead(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK) 
-        return 1;
-    
-    if (dummy_entry.max_entry_count != fs_header->max_file_count + 1)
-        return 1;
-    
-    if (dummy_entry.next_dummy_index == 0) { // If the 0th entry is the only dummy entry, make a new entry
-        file_entry.next_sibling_index = max_index + 1;
-        
-        dummy_entry.total_entry_count++;
-        if (BDRIWrite(fet_offset, sizeof(u32), &(dummy_entry.total_entry_count)) != FR_OK)
+    while ((file_entry.next_sibling_index != 0) && (num_entries < max_title_ids)) {
+        if (BDRIRead(fet_offset + file_entry.next_sibling_index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
-    } else { // If there's at least one extraneous dummy entry, replace it
-        file_entry.next_sibling_index = dummy_entry.next_dummy_index;
-    
-        if ((BDRIRead(fet_offset + dummy_entry.next_dummy_index * sizeof(DummyFileEntry), sizeof(DummyFileEntry), &dummy_entry) != FR_OK) ||
-            (BDRIWrite(fet_offset, sizeof(DummyFileEntry), &dummy_entry) != FR_OK))
-            return 1;
+        memcpy(title_ids + num_entries * 8, file_entry.title_id, 8);
+        num_entries++;
     }
     
-    if (BDRIWrite((index == 0) ? det_offset + 0x2C : fet_offset + index * sizeof(TdbFileEntry) + 0xC, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
+    return 0;
+}
+
+u32 GetNumTitleInfoEntries(const char* path) {
+    FIL file;
+    TitleDBPreHeader pre_header;
+    
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 0;
+    
+    bdrifp = &file;
+    
+    if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, false)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
+        return 0;
+    }
+    
+    u32 num = GetNumBDRIEntries(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader));
+    
+    fvx_close(bdrifp);
+    bdrifp = NULL;
+    return num;
+}
+
+u32 GetNumTickets(const char* path) {
+    FIL file;
+    TickDBPreHeader pre_header;
+    
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 0;
+    
+    bdrifp = &file;
+    
+    if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, true)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
+        return 0;
+    }
+
+    u32 num = GetNumBDRIEntries(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader));
+    
+    fvx_close(bdrifp);
+    bdrifp = NULL;
+    return num;
+}
+
+u32 ListTitleInfoEntryTitleIDs(const char* path, u8* title_ids, u32 max_title_ids) {
+    FIL file;
+    TitleDBPreHeader pre_header;
+    
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
-    index = file_entry.next_sibling_index;
+    bdrifp = &file;
     
-    const u32 hash_bucket = GetHashBucket(title_id_be, 1, fs_header->fht_bucket_count);
-    u32 index_hash = 0;
+    if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, false) ||
+        (ListBDRIEntryTitleIDs(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_ids, max_title_ids) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
+        return 1;
+    }
     
-    if ((BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != FR_OK) ||
-        (BDRIWrite(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index) != FR_OK))
+    fvx_close(bdrifp);
+    bdrifp = NULL;
+    return 0;
+}
+
+u32 ListTicketTitleIDs(const char* path, u8* title_ids, u32 max_title_ids) {
+    FIL file;
+    TickDBPreHeader pre_header;
+    
+    if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
-    memset(&file_entry, 0, sizeof(TdbFileEntry));
-    file_entry.parent_index = 1;
-    memcpy(file_entry.title_id, title_id_be, 8);
-    file_entry.start_block_index = fat_index - 1;
-    file_entry.size = (u64) size;
-    file_entry.hash_bucket_next_index = index_hash;
+    bdrifp = &file;
     
-    if (BDRIWrite(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
+    if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
+        !CheckDBMagic((u8*) &pre_header, true) ||
+        (ListBDRIEntryTitleIDs(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_ids, max_title_ids) != 0)) {
+        fvx_close(bdrifp);
+        bdrifp = NULL;
         return 1;
+    }
     
+    fvx_close(bdrifp);
+    bdrifp = NULL;
     return 0;
 }
 
@@ -438,7 +624,8 @@ u32 ReadTitleInfoEntryFromDB(const char* path, const u8* title_id, TitleInfoEntr
     
     if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) ||
         !CheckDBMagic((u8*) &pre_header, false) ||
-        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) tie, sizeof(TitleInfoEntry)) != 0)) {
+        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) tie,
+            sizeof(TitleInfoEntry)) != 0)) {
         fvx_close(bdrifp);
         bdrifp = NULL;
         return 1;
@@ -462,7 +649,8 @@ u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket* ticket)
     
     if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
         !CheckDBMagic((u8*) &pre_header, true) ||
-        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) &te, sizeof(TicketEntry)) != 0)) {
+        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) &te,
+            sizeof(TicketEntry)) != 0)) {
         fvx_close(bdrifp);
         bdrifp = NULL;
         return 1;
@@ -523,7 +711,7 @@ u32 RemoveTicketFromDB(const char* path, const u8* title_id) {
     return 0;
 }
 
-u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoEntry* tie) {
+u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoEntry* tie, bool replace) {
     FIL file;
     TitleDBPreHeader pre_header;
     
@@ -534,7 +722,8 @@ u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoE
     
     if ((BDRIRead(0, sizeof(TitleDBPreHeader), &pre_header) != FR_OK) || 
         !CheckDBMagic((u8*) &pre_header, false) ||
-        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id, (const u8*) tie, sizeof(TitleInfoEntry)) != 0)) {
+        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TitleDBPreHeader) - sizeof(BDRIFsHeader), title_id,
+            (const u8*) tie, sizeof(TitleInfoEntry), replace) != 0)) {
         fvx_close(bdrifp);
         bdrifp = NULL;
         return 1;
@@ -545,7 +734,7 @@ u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoE
     return 0;
 }
 
-u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket) {
+u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bool replace) {
     FIL file;
     TickDBPreHeader pre_header;
     
@@ -561,7 +750,8 @@ u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket) {
     
     if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
         !CheckDBMagic((u8*) &pre_header, true) ||
-        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (const u8*) &te, sizeof(TicketEntry)) != 0)) {
+        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id,
+            (const u8*) &te, sizeof(TicketEntry), replace) != 0)) {
         fvx_close(bdrifp);
         bdrifp = NULL;
         return 1;
