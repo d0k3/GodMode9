@@ -6,7 +6,7 @@
 
 #define VFLAG_PARTITION_B (1 << 31)
 
-#define MAX_IVFC_RANGES 32
+#define MAX_IVFC_RANGES 1024
 
 typedef struct {
     u32 offset;
