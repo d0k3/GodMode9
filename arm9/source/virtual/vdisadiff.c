@@ -11,13 +11,13 @@
 typedef struct {
     u32 offset;
     u32 size;
-} __attribute__((packed)) DisaDiffIvfcRange;
+} PACKED_STRUCT DisaDiffIvfcRange;
 
 typedef struct {
     u32 n_ivfc_ranges;
     DisaDiffIvfcRange ivfc_lvl4_ranges[MAX_IVFC_RANGES];
     DisaDiffRWInfo rw_info;
-} __attribute__((packed)) VDisaDiffPartitionInfo;
+} PACKED_STRUCT VDisaDiffPartitionInfo;
 
 static VDisaDiffPartitionInfo* partitionA_info = NULL;
 static VDisaDiffPartitionInfo* partitionB_info = NULL;
