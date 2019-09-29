@@ -920,7 +920,9 @@ bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
     bool ret = false;
     va_list va;
 
-    if (*size > 64) *size = 64;
+    if (*size == 0) *inputstr = 0;
+    else if (*size > 64) *size = 64;
+
     for (u32 i = 0; i < *size; i++)
         snprintf(inputstr + (2*i), 128 + 1 - (2*i), "%02X", (unsigned int) data[i]);
 
