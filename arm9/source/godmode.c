@@ -755,7 +755,7 @@ u32 FileHexViewer(const char* path) {
                     if (new_offset != (u64) -1) offset = new_offset;
                 } else if (user_select == 2) {
                     if (!found_size) *found_data = 0;
-                    if (ShowKeyboardOrPrompt((char*) found_data, 64 + 1, "Enter search string below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                    if (ShowKeyboardOrPrompt((char*) found_data, 64 + 1, "Enter search string below.\n(R+X to repeat search)")) {
                         found_size = strnlen((char*) found_data, 64);
                         found_offset = FileFindData(path, found_data, found_size, offset);
                         if (found_offset == (u32) -1) {
@@ -765,7 +765,7 @@ u32 FileHexViewer(const char* path) {
                     }
                 } else if (user_select == 3) {
                     u32 size = found_size;
-                    if (ShowDataPrompt(found_data, &size, "Enter search data below.\n(R+X to repeat search)", (unsigned int) offset)) {
+                    if (ShowDataPrompt(found_data, &size, "Enter search data below.\n(R+X to repeat search)")) {
                         found_size = size;
                         found_offset = FileFindData(path, found_data, size, offset);
                         if (found_offset == (u32) -1) {
