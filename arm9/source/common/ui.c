@@ -814,7 +814,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
             memset(inputstr, alphabet[0], inputstr_size);
             if (resize) {
                 cursor_s = 0;
-                inputstr[1] = '\0';
+                inputstr[resize] = '\0';
             }
         } else if (pad_state & BUTTON_X) {
             if (resize && (inputstr_size > resize)) {
