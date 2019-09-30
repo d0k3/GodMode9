@@ -1,13 +1,13 @@
 language: c
 
 before_install:
-  - wget http://sourceforge.net/projects/devkitpro/files/Automated%20Installer/devkitARMupdate.pl
+  - wget https://github.com/devkitPro/pacman/releases/latest/download/devkitpro-pacman.deb
   - export DEVKITPRO=/home/travis/devkitPro
   - export DEVKITARM=${DEVKITPRO}/devkitARM
 
 install:
-  - sudo perl devkitARMupdate.pl
-  - sudo apt-get -qq install python p7zip-full
+  - sudo dpkg -i devkitpro-pacman.deb
+  - sudo apt-get -qq install python3 p7zip-full
   - sudo pip install --upgrade pip setuptools
   - sudo pip install cryptography
   - sudo pip install git+https://github.com/TuxSH/firmtool.git
