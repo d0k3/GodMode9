@@ -134,7 +134,7 @@ u32 InitCartRead(CartData* cdata) {
         if (cdata->data_size > cdata->cart_size) return 1;
         
         // save data
-        u32 infrared = (*(nds_header->game_code) == 'I') ? 1 : 0;
+        bool infrared = *(nds_header->game_code) == 'I';
         if (CardSPIGetCardSPIType(&(cdata->save_type), infrared) != 0) {
             cdata->save_type = (CardSPIType) { NO_CHIP, false };
         }
