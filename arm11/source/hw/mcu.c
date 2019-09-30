@@ -196,8 +196,12 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 
 void MCU_Init(void)
 {
-	const u32 mask = 0xFFBF0800;
+	u32 clrpend, mask = 0xFFBF0800;
+
+	/* set register mask and clear any pending registers */
 	MCU_WriteRegBuf(REG_INT_EN, (const u8*)&mask, sizeof(mask));
+	MCU_ReadRegBuf(REG_INT_MASK, (u8*)&clrpend, sizeof(clrpend));
+
 	MCU_ResetLED();
 
 	MCU_UpdateVolumeSlider();
