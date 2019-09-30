@@ -1858,7 +1858,7 @@ bool ExecuteGM9Script(const char* path_script) {
                     if (bitmap) {
                         DrawBitmap(TOP_SCREEN, -1, -1, bitmap_width, bitmap_height, bitmap);
                         free(bitmap);
-                    } else {
+                    } else if (ShowGameFileTitleInfoF(preview_str, TOP_SCREEN, false) != 0) {
                         if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = "(preview disabled)";
                         DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", preview_str);
                     }

@@ -376,8 +376,9 @@ void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just 
     }
 }
 
-void ShowString(const char *format, ...)
+void ShowStringF(u16* screen, const char *format, ...)
 {
+    ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
     if (format && *format) { // only if there is something in there
         char str[STRBUF_SIZE];
         va_list va;
@@ -385,18 +386,31 @@ void ShowString(const char *format, ...)
         vsnprintf(str, STRBUF_SIZE, format, va);
         va_end(va);
 
-        ClearScreenF(true, false, COLOR_STD_BG);
-        DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
-    } else ClearScreenF(true, false, COLOR_STD_BG);
+        DrawStringCenter(screen, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+    }
 }
 
-void ShowIconString(u16* icon, int w, int h, const char *format, ...)
+void ShowString(const char *format, ...)
+{
+    ClearScreenF(true, false, COLOR_STD_BG);
+    if (format && *format) { // only if there is something in there
+        char str[STRBUF_SIZE];
+        va_list va;
+        va_start(va, format);
+        vsnprintf(str, STRBUF_SIZE, format, va);
+        va_end(va);
+
+        DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+    }
+}
+
+void ShowIconStringF(u16* screen, u16* icon, int w, int h, const char *format, ...)
 {
     static const u32 icon_offset = 10;
     u32 str_width, str_height, tot_height;
     u32 x_str, y_str, x_bmp, y_bmp;
 
-    ClearScreenF(true, false, COLOR_STD_BG);
+    ClearScreen(screen, COLOR_STD_BG);
     if (!format || !*format) return; // only if there is something in there
 
     char str[STRBUF_SIZE];
@@ -408,13 +422,24 @@ void ShowIconString(u16* icon, int w, int h, const char *format, ...)
     str_width = GetDrawStringWidth(str);
     str_height = GetDrawStringHeight(str);
     tot_height = h + icon_offset + str_height;
-    x_str = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
+    x_str = (str_width >= SCREEN_WIDTH(screen)) ? 0 : (SCREEN_WIDTH(screen) - str_width) / 2;
     y_str = (str_height >= SCREEN_HEIGHT) ? 0 : h + icon_offset + (SCREEN_HEIGHT - tot_height) / 2;
-    x_bmp = (w >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - w) / 2;
+    x_bmp = (w >= SCREEN_WIDTH(screen)) ? 0 : (SCREEN_WIDTH(screen) - w) / 2;
     y_bmp = (tot_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - tot_height) / 2;
 
-    DrawBitmap(MAIN_SCREEN, x_bmp, y_bmp, w, h, icon);
-    DrawStringF(MAIN_SCREEN, x_str, y_str, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+    DrawBitmap(screen, x_bmp, y_bmp, w, h, icon);
+    DrawStringF(screen, x_str, y_str, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
+}
+
+void ShowIconString(u16* icon, int w, int h, const char *format, ...)
+{
+    char str[STRBUF_SIZE];
+    va_list va;
+    va_start(va, format);
+    vsnprintf(str, STRBUF_SIZE, format, va);
+    va_end(va);
+
+    ShowIconStringF(MAIN_SCREEN, icon, w, h, str);
 }
 
 bool ShowPrompt(bool ask, const char *format, ...)

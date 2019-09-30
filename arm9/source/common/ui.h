@@ -74,7 +74,9 @@ void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 
 void ShowString(const char *format, ...);
+void ShowStringF(u16* screen, const char *format, ...);
 void ShowIconString(u16* icon, int w, int h, const char *format, ...);
+void ShowIconStringF(u16* screen, u16* icon, int w, int h, const char *format, ...);
 bool ShowPrompt(bool ask, const char *format, ...);
 u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
 u32 ShowFileScrollPrompt(u32 n, const DirEntry** entries, bool hide_ext, const char *format, ...);

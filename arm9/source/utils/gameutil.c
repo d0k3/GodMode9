@@ -1908,7 +1908,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     return 1;
 }
 
-u32 ShowSmdhTitleInfo(Smdh* smdh) {
+u32 ShowSmdhTitleInfo(Smdh* smdh, u16* screen) {
     const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
     u16 icon[SMDH_SIZE_ICON_BIG / sizeof(u16)];
@@ -1924,13 +1924,11 @@ u32 ShowSmdhTitleInfo(Smdh* smdh) {
     WordWrapString(desc_l, lwrap);
     WordWrapString(desc_s, lwrap);
     WordWrapString(pub, lwrap);
-    ShowIconString(icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s\n%s\n%s", desc_l, desc_s, pub);
-    while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
-    ClearScreenF(true, false, COLOR_STD_BG);
+    ShowIconStringF(screen, icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s\n%s\n%s", desc_l, desc_s, pub);
     return 0;
 }
 
-u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon) {
+u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon, u16* screen) {
     const u32 lwrap = 24;
     u16 icon[TWLICON_SIZE_ICON / sizeof(u16)];
     char desc[TWLICON_SIZE_DESC+1];
@@ -1938,24 +1936,19 @@ u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon) {
         (GetTwlTitle(desc, twl_icon) != 0))
         return 1;
     WordWrapString(desc, lwrap);
-    ShowIconString(icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
-    while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
-    ClearScreenF(true, false, COLOR_STD_BG);
+    ShowIconStringF(screen, icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
     return 0;
 }
 
-u32 ShowGbaFileTitleInfo(const char* path) {
+u32 ShowGbaFileTitleInfo(const char* path, u16* screen) {
     AgbHeader agb;
     if ((fvx_qread(path, &agb, 0, sizeof(AgbHeader), NULL) != FR_OK) ||
         (ValidateAgbHeader(&agb) != 0)) return 1;
-    ShowString("%.12s (AGB-%.4s)\n%s", agb.game_title, agb.game_code, AGB_DESTSTR(agb.game_code));
-    while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
-    ClearScreenF(true, false, COLOR_STD_BG);
+    ShowStringF(screen, "%.12s (AGB-%.4s)\n%s", agb.game_title, agb.game_code, AGB_DESTSTR(agb.game_code));
     return 0;
-    
 }
 
-u32 ShowGameFileTitleInfo(const char* path) {
+u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     char path_content[256];
     u64 itype = IdentifyFileType(path); // initial type
     if (itype & GAME_TMD) {
@@ -1970,14 +1963,23 @@ u32 ShowGameFileTitleInfo(const char* path) {
     // try loading SMDH, then try NDS / GBA
     u32 ret = 1;
     if (LoadSmdhFromGameFile(path, smdh) == 0)
-        ret = ShowSmdhTitleInfo(smdh);
+        ret = ShowSmdhTitleInfo(smdh, screen);
     else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
         ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
-        ret = ShowTwlIconTitleInfo(twl_icon);
-    else ret = ShowGbaFileTitleInfo(path);
+        ret = ShowTwlIconTitleInfo(twl_icon, screen);
+    else ret = ShowGbaFileTitleInfo(path, screen);
     
+    if (clear) {
+        while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
+        ClearScreen(screen, COLOR_STD_BG);
+    }
+
     free(buffer);
     return ret;
+}
+
+u32 ShowGameFileTitleInfo(const char* path) {
+    return ShowGameFileTitleInfoF(path, MAIN_SCREEN, true);
 }
 
 u32 ShowCiaCheckerInfo(const char* path) {
