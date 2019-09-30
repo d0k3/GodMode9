@@ -60,7 +60,7 @@ const CardSPITypeData * const FLASH_256KB_2;
 const CardSPITypeData * const FLASH_512KB_1;
 const CardSPITypeData * const FLASH_512KB_2;
 const CardSPITypeData * const FLASH_1MB;
-const CardSPITypeData * const FLASH_8MB; // <- can't restore savegames, and maybe not read them atm
+const CardSPITypeData * const FLASH_8MB;
 
 const CardSPITypeData * const FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
 const CardSPITypeData * const FLASH_512KB_CTR; // Also common, including Detective Pikachu
@@ -70,7 +70,7 @@ int CardSPIWriteRead(CardSPIType type, const void* cmd, u32 cmdSize, void* answe
 int CardSPIWaitWriteEnd(CardSPIType type);
 int CardSPIEnableWriting(CardSPIType type);
 int CardSPIReadJEDECIDAndStatusReg(CardSPIType type, u32* id, u8* statusReg);
-int CardSPIGetCardSPIType(CardSPIType* type, int infrared);
+int CardSPIGetCardSPIType(CardSPIType* type, bool infrared);
 u32 CardSPIGetPageSize(CardSPIType type);
 u32 CardSPIGetCapacity(CardSPIType type);
 u32 CardSPIGetEraseSize(CardSPIType type);

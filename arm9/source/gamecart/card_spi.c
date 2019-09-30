@@ -438,24 +438,28 @@ int _SPIIsDataMirrored(CardSPIType type, int size, bool* mirrored) {
     return 0;
 }
 
-int CardSPIGetCardSPIType(CardSPIType* type, int infrared) {
+int CardSPIGetCardSPIType(CardSPIType* type, bool infrared) {
     u8 sr = 0;
     u32 jedec = 0;
-    u32 tries = 0;
-    CardSPIType t = { &FLASH_DUMMY, infrared == 1 };
+    CardSPIType t = {NO_CHIP, infrared};
     int res; 
     
-    u32 maxTries = (infrared == -1) ? 2 : 1; // note: infrared = -1 fails 1/3 of the time
-    while(tries < maxTries){ 
-        res = CardSPIReadJEDECIDAndStatusReg(t, &jedec, &sr); // dummy
-        if (res) return res;
-        
-        if ((sr & 0xfd) == 0x00 && (jedec != 0x00ffffff)) { break; }		
-        if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { *type = (CardSPIType) { EEPROM_512B, false }; return 0; }
-        if ((sr & 0xfd) == 0x00 && (jedec == 0x00ffffff)) { t = (CardSPIType) { &EEPROM_DUMMY, false }; break; }
-        
-        ++tries;
-        t.infrared = true;
+    if(infrared) {
+        // Infrared carts currently not supported, need additional handling!
+        *type = (CardSPIType) {NO_CHIP, true};
+        return 0;
+    }
+
+    res = CardSPIReadJEDECIDAndStatusReg(t, &jedec, &sr);
+    if (res) return res;
+    
+    if ((sr & 0xfd) == 0x00 && (jedec != 0x00ffffff)) { t.chip = &FLASH_DUMMY; }
+    if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { *type = (CardSPIType) { EEPROM_512B, false }; return 0; }
+    if ((sr & 0xfd) == 0x00 && (jedec == 0x00ffffff)) { t = (CardSPIType) { &EEPROM_DUMMY, false }; }
+    
+    if(t.chip == NO_CHIP) {
+        *type = (CardSPIType) {NO_CHIP, false};
+        return 0;
     }
     
     if (t.chip == &EEPROM_DUMMY) {
@@ -473,17 +477,14 @@ int CardSPIGetCardSPIType(CardSPIType* type, int infrared) {
         return 0;
     }
     
-    if (infrared == 0 && t.infrared) *type = (CardSPIType) { NO_CHIP, false }; // did anything go wrong?
-    if (infrared == 1 && !t.infrared) *type = (CardSPIType) { NO_CHIP, true };
-    
     for(size_t i = 0; i < sizeof(flashTypes) / sizeof(CardSPITypeData); i++) {
         if (flashTypes[i].jedecId == jedec) {
-            *type = (CardSPIType) { flashTypes + i, t.infrared };
+            *type = (CardSPIType) { flashTypes + i, infrared };
             return 0;
         }
     }
     
-    *type = (CardSPIType) { NO_CHIP, t.infrared };
+    *type = (CardSPIType) { NO_CHIP, infrared };
     return 0;
     
 }
