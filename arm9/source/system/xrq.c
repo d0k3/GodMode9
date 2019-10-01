@@ -15,8 +15,8 @@
 
 #include <arm.h>
 
-#define PC_DUMPRAD (0x40)
-#define SP_DUMPLEN (0x30)
+#define PC_DUMPRAD (0x10)
+#define SP_DUMPLEN (0x80)
 extern u32 __text_s, __text_e;
 
 static bool sp_dumpable(u32 sp, u32 *sp_lower, u32 *sp_upper)
