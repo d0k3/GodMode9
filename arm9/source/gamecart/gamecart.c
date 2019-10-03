@@ -264,6 +264,6 @@ u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     ownBuf[1] = (id >> 8) & 0xff;
     ownBuf[2] = id & 0xff;
     ownBuf[JEDECID_AND_SREG_SIZE - 1] = sReg;
-    memcpy(buffer, ownBuf, count);
+    memcpy(buffer, ownBuf + offset, count);
     return 0;
 }
