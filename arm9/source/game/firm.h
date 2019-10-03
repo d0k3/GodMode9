@@ -51,7 +51,7 @@ typedef struct {
     u8  control[0x10];
     u8  k9l[0x10];
     u8  keyX0x16[0x10]; // this is encrypted
-    u8  padding[0x1A0];
+    u8  padding[0x190];
 } __attribute__((packed, aligned(16))) FirmA9LHeader;
 
 u32 ValidateFirmHeader(FirmHeader* header, u32 data_size);
