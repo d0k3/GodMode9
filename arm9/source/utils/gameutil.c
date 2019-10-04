@@ -637,7 +637,7 @@ u32 VerifyFirmFile(const char* path) {
     // hash verify all available sections
     FirmHeader header;
     memcpy(&header, firm_buffer, sizeof(FirmHeader));
-   for (u32 i = 0; i < 4; i++) {
+    for (u32 i = 0; i < 4; i++) {
         FirmSectionHeader* sct = header.sections + i; 
         void* section = ((u8*) firm_buffer) + sct->offset;
         if (!(sct->size)) continue;

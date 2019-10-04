@@ -106,8 +106,8 @@ u32 ValidateFirm(void* firm, u32 firm_size, bool installable) {
         if (resv[0x2D] == 'B' && resv[0x2E] == '9' && resv[0x2F] == 'S')
             skipchk_mask |= BIT(3);
 
-        if ((header->sections[1].size = 0x200) &&
-            (header->sections[1].address = 0x07FFFE8C))
+        if ((header->sections[1].size == 0x200) &&
+            (header->sections[1].address == 0x07FFFE8C))
             skipchk_mask |= BIT(1);
     }
 
