@@ -12,11 +12,13 @@
 #define HID_TOUCH_MIDPOINT  (HID_TOUCH_MAXPOINT / 2)
 
 
-static void SetNotificationLED(u32 period_ms, u32 bgr_color)
+static void SetNotificationLED(u32 period_ms, u32 rgb565_color)
 {
-    u32 rgb_color =
-        ((bgr_color >> 16) & 0xFF) | (bgr_color & 0xFF00) | ((bgr_color & 0xFF) << 16);
-    u32 args[] = {period_ms, rgb_color};
+    u32 rgb888_color =
+        ((rgb565_color >> 11) << (16+3) |
+        (rgb565_color >> 5) << (8+2) |
+        (rgb565_color << 3));
+    u32 args[] = {period_ms, rgb888_color};
     PXI_DoCMD(PXI_NOTIFY_LED, args, 2);
 }
 
