@@ -167,6 +167,7 @@ This tool would not have been possible without the help of numerous people. Than
 * SirNapkin1334 for testing, bug reports and for hosting the official GodMode9 Discord channel
 * Project Nayuki for qrcodegen
 * Amazingmax fonts for the Amazdoom font
+* dratini0 for savefile management, based on TWLSaveTool
 * The fine folks on freenode #Cakey
 * All 3dbrew.org editors
 * Everyone I possibly forgot, if you think you deserve to be mentioned, just contact me!
