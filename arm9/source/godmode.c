@@ -1925,6 +1925,7 @@ u32 HomeMoreMenu(char* current_path) {
     int hsrestore = ((CheckHealthAndSafetyInject("1:") == 0) || (CheckHealthAndSafetyInject("4:") == 0)) ? (int) ++n_opt : -1;
     int clock = ++n_opt;
     int bright = ++n_opt;
+    int calib = ++n_opt;
     int sysinfo = ++n_opt;
     int readme = (FindVTarFileInfo(VRAM0_README_MD, NULL)) ? (int) ++n_opt : -1;
     
@@ -1935,6 +1936,7 @@ u32 HomeMoreMenu(char* current_path) {
     if (hsrestore > 0) optionstr[hsrestore - 1] = "Restore H&S";
     if (clock > 0) optionstr[clock - 1] = "Set RTC date&time";
     if (bright > 0) optionstr[bright - 1] = "Configure brightness";
+    if (calib > 0) optionstr[calib - 1] = "Calibrate touchscreen";
     if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
     if (readme > 0) optionstr[readme - 1] = "Show ReadMe";
     
@@ -2043,6 +2045,11 @@ u32 HomeMoreMenu(char* current_path) {
         new_brightness = ShowBrightnessConfig(old_brightness);
         if (old_brightness != new_brightness)
             SaveSupportFile("gm9bright.cfg", &new_brightness, 4);
+        return 0;
+    }
+    else if (user_select == calib) { // touchscreen calibration
+        ShowPrompt(false, "Touchscreen calibration %s!",
+            (ShowTouchCalibrationDialog()) ? "success" : "failed");
         return 0;
     }
     else if (user_select == sysinfo) { // Myria's system info
@@ -2558,15 +2565,15 @@ u32 GodMode(int entrypoint) {
             u32 n_opt = 0;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
+            int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : -1;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
-            int test = ++n_opt;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
+            if (brick > 0) optionstr[brick - 1] = "Brick my 3DS";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
             if (payloads > 0) optionstr[payloads - 1] = "Payloads...";
-            if (test > 0) optionstr[test - 1] = "Testing...";
             if (more > 0) optionstr[more - 1] = "More...";
             
             int user_select = 0;
@@ -2574,24 +2581,7 @@ u32 GodMode(int entrypoint) {
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
-                else if (user_select == test) {
-                    const char* testopts[3] = { "Calibrate touchscreen", "Touchscreen playground", "Software keyboard" };
-                    u32 testsel = ShowSelectPrompt(3, testopts, "Testing menu.\nSelect action:", buttonstr);
-                    if (testsel == 1) {
-                        ShowPrompt(false, "Touchscreen calibration %s!",
-                            (ShowTouchCalibrationDialog()) ? "success" : "failed");
-                        break;
-                    } else if (testsel == 2) {
-                        // ShowTouchPlayground();
-                        Paint9();
-                        break;
-                    } else if (testsel == 3) {
-                        char inputstr[64] = { 0 };
-                        if (ShowKeyboard(inputstr, 64, "Want to test the swkbd?\nEnter anything you want below:"))
-                            ShowPrompt(false, "You entered: %s", inputstr);
-                        break;
-                    }
-                } else if (user_select == scripts) {
+                else if (user_select == scripts) {
                     if (!CheckSupportDir(SCRIPTS_DIR)) {
                         ShowPrompt(false, "Scripts directory not found.\n(default path: 0:/gm9/" SCRIPTS_DIR ")");
                     } else if (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9")) {
@@ -2604,6 +2594,10 @@ u32 GodMode(int entrypoint) {
                     if (!CheckSupportDir(PAYLOADS_DIR)) ShowPrompt(false, "Payloads directory not found.\n(default path: 0:/gm9/" PAYLOADS_DIR ")");
                     else if (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))
                         BootFirmHandler(loadpath, false, false);
+                } else if (user_select == brick) {
+                    Paint9(); // hiding a secret here
+                    ClearScreenF(true, true, COLOR_STD_BG);
+                    break;
                 }
             }
             
