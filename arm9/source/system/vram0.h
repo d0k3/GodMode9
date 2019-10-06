@@ -15,6 +15,7 @@
 #define VRAM0_SCRIPTS          "scripts"
 #define VRAM0_README_MD        "README_internal.md"
 #define VRAM0_SPLASH_PNG       FLAVOR "_splash.png"
+#define VRAM0_EASTER_BIN       "easter.bin"
 
 
 #define VRAM0_OFFSET    0x18000000

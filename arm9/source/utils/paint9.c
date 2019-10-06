@@ -1,4 +1,6 @@
 #include "paint9.h"
+#include "vram0.h"
+#include "png.h"
 #include "hid.h"
 #include "ui.h"
 
@@ -100,10 +102,21 @@ u32 Paint9(void) {
     u16 color = *color_picker_tmp;
     u32 brush_id = 0;
 
-    // clear screens, draw title
+    // clear screens, draw logo
+    const char* snapstr = "(use L+R to save)";
+    u64 logo_size;
+    u8* logo = FindVTarFileInfo(VRAM0_EASTER_BIN, &logo_size);
     ClearScreenF(true, true, COLOR_STD_BG);
-    DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_TRANSPARENT,
-        "Paint9\n \nYou may save your creation at\nany time via the screenshot\nfunction (L+R).\n \nHave fun!");
+    if (logo) {
+        u32 logo_width, logo_height;
+        u16* bitmap = PNG_Decompress(logo, logo_size, &logo_width, &logo_height);
+        if (bitmap) {
+            DrawBitmap(TOP_SCREEN, -1, -1, logo_width, logo_height, bitmap);
+            free(bitmap);
+        }
+    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_EASTER_BIN " not found)");
+    DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(snapstr),
+        SCREEN_HEIGHT - 10 - GetDrawStringHeight(snapstr), COLOR_STD_FONT, COLOR_TRANSPARENT, snapstr);
 
     // outline canvas
     DrawRectangle(BOT_SCREEN, 0, 0, 30, SCREEN_HEIGHT, outline_bg);
@@ -129,8 +142,6 @@ u32 Paint9(void) {
 
     // Paint9 main loop
     while (1) {
-        DrawStringF(TOP_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
-            "Touchscreen coordinates (0/0)    ");
         Paint9_DrawBrush(x_cb, y_cb, color, brush_bg, brush_id);
         if (InputWait(0) & BUTTON_B) break;
 
@@ -140,8 +151,6 @@ u32 Paint9(void) {
         u16 ty_prev = 0;
         u32 tb_id_prev = 0;
         while (HID_ReadTouchState(&tx, &ty)) {
-            DrawStringF(TOP_SCREEN, 16, 16, COLOR_STD_FONT, COLOR_STD_BG,
-                "Touchscreen coordinates (%d/%d)    ", tx, ty);
             TouchBoxGet(&tb_id, tx, ty, paint9_boxes, 8);
             if (tb_id == P9BOX_CANVAS) {
                 if (tb_id_prev == P9BOX_CANVAS)
