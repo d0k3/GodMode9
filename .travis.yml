@@ -1,4 +1,6 @@
 language: c
+sudo: true
+dist: bionic
 
 before_install:
   - wget "https://github.com/devkitPro/pacman/releases/latest/download/devkitpro-pacman.deb" -O dkp-pacman.deb
