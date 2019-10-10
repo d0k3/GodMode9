@@ -2565,7 +2565,7 @@ u32 GodMode(int entrypoint) {
             u32 n_opt = 0;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
-            int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : -1;
+            int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : 0;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
