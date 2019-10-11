@@ -14,7 +14,7 @@ __As always, be smart, keep backups, just to be safe__.
 The recommended bootloader for use with GodMode9 is [fastboot3DS](https://github.com/derrekr/fastboot3DS). There are [known issues for some users](https://github.com/d0k3/GodMode9/issues/466) when using the standard setup based on [boot9strap](https://github.com/SciresM/boot9strap) and [Luma3DS](https://github.com/AuroraWright/Luma3DS). If you insist on using that setup follow the instructions found in a [certain guide](https://3ds.hacks.guide). Here's how to set up GodMode9 (and fastboot3DS) up quickly:
 * Download [OpenFirmInstaller](https://github.com/d0k3/OpenFirmInstaller/releases/tag/v0.0.9) and follow the quick setup instructions found there.
 * Copy the `gm9` folder from the release archive to your SD card. Then, get good versions of `seeddb.bin` and `encTitleKeys.bin` from somewhere (don't ask me!) and put these two files into `sd:/gm9/support` (optional but recommended for full functionality).
-* It is also recommended you setup the RTC clock if you're running GodMode9 for the first time. Find the option via HOME button -> `More...`. Also keep in mind that you should fix your system OS clock afterwards.
+* It is also recommended you setup the RTC clock if you're running GodMode9 for the first time. Find the option via HOME button -> `More...`. Also keep in mind that you should fix your system OS clock afterwards. While you're in the `More...` menu, you may also set screen brightness to a fixed value of your choosing and manually calibrate the touch screen (*not recommended* - try the automatic configuration first).
 * Helpful hint #1: Go [here](https://3ds.hacks.guide/godmode9-usage) for step by steps on doing some common tasks in GodMode9. Especially users coming from Decrypt9WIP or Hourglass9 may find this to be helpful.
 * Helpful hint #2: __Never unlock the red write permission level unless you know exactly what you're doing__. You will notice that prompt when it comes up, it features a completely red screen. It is recommended you stay on the yellow permission level or below at all times to be completely safe. Also read more on the write permissions system below.
 
@@ -41,7 +41,7 @@ Build `GodMode9.firm` via `make firm`. This requires [firmtool](https://github.c
 
 You may run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make FLAVOR=SafeMode9`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font by replacing `font_default.pbm` inside the `data` directory. You may also hardcode the brightness via `make FIXED_BRIGHTNESS=x`, whereas `x` is a value between 0...15.
 
-Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the `data` folder when compiling). All files put into the `data` folder will turn up in the `V:` drive, but keep in mind there's a hard 3MB limit for all files inside, including overhead. A standalone script runner is compiled by providing `autorun.gm9` (again, in the `data` folder) and building with `make SCRIPT_RUNNER=1`.
+Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the `data` folder when compiling). All files put into the `data` folder will turn up in the `V:` drive, but keep in mind there's a hard 3MB limit for all files inside, including overhead. A standalone script runner is compiled by providing `autorun.gm9` (again, in the `data` folder) and building with `make SCRIPT_RUNNER=1`. There's more possibility for customization, read the Makefiles to learn more.
 
 To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make NTRBOOT=1`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some features such as boot9 / boot11 access are not currently available from the ntrboot environment.
 
@@ -128,7 +128,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Access any file inside NCCH / NCSD / CIA / FIRM / NDS images__: Just mount the file via the A button menu and browse to the file you want. For CDN / NUS content, prior decryption is required for full access.
 * __Rename your NCCH / NCSD / CIA / NDS / GBA files to proper names__: Find this feature inside the A button menu. Proper names include title id, game name, product code and region.
 * __Trim NCCH / NCSD / NDS / FIRM / NAND images__: This feature is found inside the A button menu. It allows you to trim excess data from supported file types. *Warning: Excess data may not be empty, bonus drives are stored there for NAND images, NCSD card2 images store savedata there, for FIRMs parts of the A9LH exploit may be stored there*.
-* __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges.
+* __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges. The `C:` drive also gives you read/write access to the saves on the cartridges.
 
 ### NAND handling
 * __Directly mount and access NAND dumps or standard FAT images__: Just press the A button on these files to get the option. You can only mount NAND dumps from the same console.
@@ -167,6 +167,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **SciresM**, **Myria**, **Normmatt**, **TuxSH** and **hedgeberg** for figuring out sighax and giving us access to bootrom
 * **ihaveamac** for first developing the simple CIA generation method and for being of great help in porting it
 * **wwylele** and **aspargas2** for documenting and implementing the DISA, DIFF, and BDRI formats
+* **dratini0** for savefile management, based on [TWLSaveTool](https://github.com/TuxSH/TWLSaveTool/)
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
