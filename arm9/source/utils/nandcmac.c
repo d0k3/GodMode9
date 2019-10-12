@@ -387,7 +387,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
         }
     }
 
-    // if fixing is enable, write back cmd file
+    // if fixing is enabled, write back cmd file
     if (fix && fixed && CheckWritePermissions(path) &&
         (fvx_qwrite(path, cmd_data, 0, cmd_size, NULL) != FR_OK)) {
         free(cmd_data);
@@ -432,7 +432,20 @@ u32 RecursiveFixFileCmacWorker(char* path) {
 }
 
 u32 RecursiveFixFileCmac(const char* path) {
-    char lpath[256] = { 0 };
-    strncpy(lpath, path, 255);
+    // create a fixed up local path
+    // (this is highly path sensitive)
+    char lpath[256]; 
+    char* p = (char*) path;
+    lpath[255] = '\0'; 
+    for (u32 i = 0; i < 255; i++) {
+        lpath[i] = *(p++);
+        while ((lpath[i] == '/') && (*p == '/')) p++;
+        if (!lpath[i]) {
+            if (i && (lpath[i-1] == '/'))
+                lpath[i-1] = '\0';
+            break;
+        }
+    }
+
     return RecursiveFixFileCmacWorker(lpath);
 }
