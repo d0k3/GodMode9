@@ -947,122 +947,119 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
 }
 
 u32 DirFileAttrMenu(const char* path, const char *name) {
-    bool drive;
+    bool drv = (path[2] == '\0');
+    bool vrt = (!drv); // will be checked below
+    char namestr[32], datestr[32], attrstr[128], sizestr[192];
     FILINFO fno;
     u8 new_attrib;
-    char namestr[32], datestr[32], attrstr[128], sizestr[64];
 
-    drive = (path[2] == '\0');
+    // create truncated name string
     TruncateString(namestr, name, 31, 8);
 
-    if (drive) {
-        char freestr[32], drvsstr[32], usedstr[32];
-        datestr[0] = attrstr[0] = '\0';
-
-        FormatBytes(freestr, GetFreeSpace(path));
-        FormatBytes(drvsstr, GetTotalSpace(path));
-        FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path));
-
-        snprintf(sizestr, 64, "space free: %s\nspace used: %s\nspace total: %s",
-            freestr, usedstr, drvsstr);
-    } else {
-        char bytestr[32];
-
-        if (fvx_stat(path, &fno) != FR_OK)
-            return 1;
-
-        snprintf(datestr, 64, "%s: %04d-%02d-%02d %02d:%02d:%02d",
+    // preparations: create file info, date string
+    if (!drv) { 
+        if (fvx_stat(path, &fno) != FR_OK) return 1;
+        vrt = (fno.fattrib & AM_VRT);
+        new_attrib = fno.fattrib;
+        snprintf(datestr, 64, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
             (fno.fattrib & AM_DIR) ? "created" : "modified",
             1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0xF, fno.fdate & 0x1F,
-            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, (fno.ftime & 0x1F) << 1
-        );
+            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, (fno.ftime & 0x1F) << 1);
+    } else {
+        *datestr = '\0';
+        *attrstr = '\0';
+        new_attrib = 0;
+    }
 
-        new_attrib = fno.fattrib;
+    // create size string
+    if (drv || (fno.fattrib & AM_DIR)) { // for dirs and drives
+        char bytestr[32];
+        u64 tsize = 0;
+        u32 tdirs = 0;
+        u32 tfiles = 0;
 
-        if (fno.fattrib & AM_DIR) {
-            u64 tsize = 0;
-            u32 tdirs = 0;
-            u32 tfiles = 0;
+        // this may take a while...
+        ShowString("Analyzing %s, please wait...", drv ? "drive" : "dir");
+        if (!DirInfo(path, &tsize, &tdirs, &tfiles))
+            return 1;
+        FormatBytes(bytestr, tsize);
 
-            if (!DirInfo(path, &tsize, &tdirs, &tfiles))
-                return 1;
-
-            FormatBytes(bytestr, tsize);
-            snprintf(sizestr, 64, "%lu files & %lu subdirs\n%s total space",
+        if (drv) { // drive specific
+            char freestr[32], drvsstr[32], usedstr[32];
+            FormatBytes(freestr, GetFreeSpace(path));
+            FormatBytes(drvsstr, GetTotalSpace(path));
+            FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path));
+            snprintf(sizestr, 192, "%lu files & %lu subdirs\n%s total size\n \nspace free: %s\nspace used: %s\nspace total: %s",
+                tfiles, tdirs, bytestr, freestr, usedstr, drvsstr);
+        } else { // dir specific
+            snprintf(sizestr, 192, "%lu files & %lu subdirs\n%s total size",
                 tfiles, tdirs, bytestr);
-        } else {
-            FormatBytes(bytestr, fno.fsize);
-            snprintf(sizestr, 64, "filesize: %s byte", bytestr);
         }
+    } else { // for files
+        char bytestr[32];
+        FormatBytes(bytestr, fno.fsize);
+        snprintf(sizestr, 64, "filesize: %s byte", bytestr);
     }
 
     while(true) {
-        const bool vrt = (!drive) && (fno.fattrib & AM_VRT);
-
-        if (!drive) {
+        if (!drv) {
             snprintf(attrstr, 128,
+                " \n"
                 "[%c] %sread-only  [%c] %shidden\n"
                 "[%c] %ssystem     [%c] %sarchive\n"
                 "[%c] %svirtual\n"
-                "\n"
                 "%s",
                 (new_attrib & AM_RDO) ? 'X' : ' ', vrt ? "" : "\x18 ",
                 (new_attrib & AM_HID) ? 'X' : ' ', vrt ? "" : "\x19 ",
                 (new_attrib & AM_SYS) ? 'X' : ' ', vrt ? "" : "\x1A ",
                 (new_attrib & AM_ARC) ? 'X' : ' ', vrt ? "" : "\x1B ",
                 vrt ? 'X' : ' ', vrt ? "" : "  ",
-                vrt ? "" : "(\x18\x19\x1A\x1B to change attributes)"
+                vrt ? "" : " \n(\x18\x19\x1A\x1B to change attributes)\n"
             );
         }
 
         ShowString(
-            "%s\n" // name
-            " \n"
-            "%s\n" // size
-            "%s\n" // date
-            " \n"
-            "%s\n" // attr
-            " \n"
-            "%s\n", // options
-            namestr, sizestr, datestr, attrstr,
-            (drive || vrt || (new_attrib == fno.fattrib)) ? "(<A> to continue)" : "(<A> to apply, <B> to cancel)"
+            "%s\n \n"   // name
+            "%s"        // date (not for drives)
+            "%s\n"      // size
+            "%s \n"     // attr (not for drives)
+            "%s\n",     // options
+            namestr, datestr, sizestr, attrstr,
+            (drv || vrt || (new_attrib == fno.fattrib)) ? "(<A> to continue)" : "(<A> to apply, <B> to cancel)"
         );
 
         while(true) {
             u32 pad_state = InputWait(0);
 
-            if (drive && (pad_state & BUTTON_A)) {
-                ClearScreenF(true, false, COLOR_STD_BG);
-                return 0;
-            }
-
             if (pad_state & (BUTTON_A | BUTTON_B)) {
-                bool apply = !vrt && (new_attrib != fno.fattrib) && (pad_state & BUTTON_A);
-                const u8 mask = (AM_RDO | AM_HID | AM_SYS | AM_ARC);
-                if (apply && !PathAttr(path, new_attrib & mask, mask)) {
-                    ShowPrompt(false, "%s\nFailed to set attributes!", namestr);
+                if (!drv && !vrt) {
+                    const u8 mask = (AM_RDO | AM_HID | AM_SYS | AM_ARC);
+                    bool apply = (new_attrib != fno.fattrib) && (pad_state & BUTTON_A);
+                    if (apply && !PathAttr(path, new_attrib & mask, mask)) {
+                        ShowPrompt(false, "%s\nFailed to set attributes!", namestr);
+                    }
                 }
                 ClearScreenF(true, false, COLOR_STD_BG);
                 return 0;
-            } else if (vrt) continue;
-
-            switch (pad_state & BUTTON_ARROW) {
-                case BUTTON_UP:
-                    new_attrib ^= AM_RDO;
-                    break;
-                case BUTTON_DOWN:
-                    new_attrib ^= AM_HID;
-                    break;
-                case BUTTON_RIGHT:
-                    new_attrib ^= AM_SYS;
-                    break;
-                case BUTTON_LEFT:
-                    new_attrib ^= AM_ARC;
-                    break;
-                default:
-                    continue;
             }
-            break;
+
+            if (!drv && !vrt && (pad_state & BUTTON_ARROW)) {
+                switch (pad_state & BUTTON_ARROW) {
+                    case BUTTON_UP:
+                        new_attrib ^= AM_RDO;
+                        break;
+                    case BUTTON_DOWN:
+                        new_attrib ^= AM_HID;
+                        break;
+                    case BUTTON_RIGHT:
+                        new_attrib ^= AM_SYS;
+                        break;
+                    case BUTTON_LEFT:
+                        new_attrib ^= AM_ARC;
+                        break;
+                }
+                break;
+            }
         }
     }
 }
