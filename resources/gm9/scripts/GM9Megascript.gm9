@@ -894,6 +894,20 @@ cp -w -n M:/otp.mem $[OUTPATH]
 echo "Dump created successfully:\n$[OUTPATH]"
 goto MainMenu_Dump_Options
 
+###################Dump essential.exefs###################
+
+@Dump_Options_Dump_essential.exefs
+set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nDump Options\n>Dump essential.exefs"
+
+if	not ask "Dump essential.exefs in $[GM9OUT]?"
+	goto MainMenu_Dump_Options
+end
+
+findnot $[GM9OUT]/$[SERIAL]_essential_??.exefs OUTPATH
+cp -w -n S:/essential.exefs $[OUTPATH]
+echo "Dump created successfully:\n$[OUTPATH]"
+goto MainMenu_Dump_Options
+
 #################Dump CITRA Files#################
 
 @Dump_Options_Dump_CITRA_Files
