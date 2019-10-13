@@ -44,6 +44,9 @@ desktop.ini
 /output
 /release
 
+# Build leftovers
+/data/README_internal.md
+
 # User additions
 /data/aeskeydb.bin
 /data/aeskeydb_.bin

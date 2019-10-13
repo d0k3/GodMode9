@@ -46,7 +46,10 @@ clean:
 	done
 	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_OUT)
 
-release: clean
+unmarked_readme: .FORCE
+	@$(PY3) utils/unmark.py -f README.md data/README_internal.md
+
+release: clean unmarked_readme
 	@$(MAKE) --no-print-directory firm
 	@$(MAKE) --no-print-directory firm NTRBOOT=1
 
