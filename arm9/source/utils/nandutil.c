@@ -510,8 +510,6 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     
     // check install slots
     for (u32 s = 0; s < 8; s++) {
-        u8 firm_magic[] = { FIRM_MAGIC };
-        u8 lmagic[sizeof(firm_magic)];
         NandPartitionInfo info;
         if (!((slots>>s)&0x1)) continue;
         if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
