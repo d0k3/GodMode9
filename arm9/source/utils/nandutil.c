@@ -519,11 +519,6 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
             ShowPrompt(false, "%s\nFIRM%lu not found or too small.", pathstr, s);
             return 1;
         }
-        if ((ReadNandBytes(lmagic, info.sector*0x200, sizeof(firm_magic), info.keyslot, NAND_SYSNAND) != 0) ||
-            (memcmp(lmagic, firm_magic, sizeof(firm_magic)) != 0)) {
-            ShowPrompt(false, "%s\nFIRM%lu crypto fail.", pathstr, s);
-            return 1;
-        }
     }
     
     // check sector 0x96 on N3DS, offer fix if required
