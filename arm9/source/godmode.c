@@ -2606,7 +2606,8 @@ u32 GodMode(int entrypoint) {
                 break;
             }
         } else if (pad_state & (CART_INSERT|CART_EJECT)) {
-            if (!InitVCartDrive() && (pad_state & CART_INSERT)) // reinit virtual cart drive
+            if (!InitVCartDrive() && (pad_state & CART_INSERT) &&
+                (curr_drvtype & DRV_CART)) // reinit virtual cart drive
                 ShowPrompt(false, "Cart init failed!");
             if (!(*current_path) || (curr_drvtype & DRV_CART))
                 GetDirContents(current_dir, current_path); // refresh dir contents
