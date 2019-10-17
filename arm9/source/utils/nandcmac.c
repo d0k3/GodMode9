@@ -67,15 +67,48 @@ u32 SetupSlot0x30(char drv) {
     return 0;
 }
 
-/*u32 CheckAgbSaveHeader(const char* path) {
+u32 FindAgbSaveSlotOffset(const char* path, u32 cmac_type) {
+    u32 counter[2]; // counter[0] = magic_check , counter[0] = upper_counter , counter[1] = lower_counter
+    u32 slot_offset[6] = {0, 0x400, 0x2200, 0x8200, 0x10200, 0x20200};
+    u32 i;
+
+    if (cmac_type == CMAC_AGBSAVE) return slot_offset[0]; // Does not apply for 'agbsave.bin'.
+    
+    for (i = 1; i <= 5; i++) { // Look for the `.SAV` magic header at the expected bottom slots.
+        if (fvx_qread(path, &counter[0], slot_offset[i], 0x4, NULL) != FR_OK) return 0;
+        if (counter[0] == 0x5641532E) break; // Magic header '.SAV' found.
+    }
+
+    if (i == 6) return 0; // Bottom slot not found.
+	
+    // Compare top and bottom slots' counter values to determine which is newer.
+    if (fvx_qread(path, &counter[0], 0x34, 0x4, NULL) != FR_OK) return 0;
+    if (fvx_qread(path, &counter[1], slot_offset[i]+0x034, 0x4, NULL) != FR_OK) return 0;
+
+    if (counter[0] == 0xFFFFFFFF);            // Scenario #1: First save is initialized. Bottom slot is newer.
+    else if (counter[0] > counter[1]) i = 0;  // Scenario #2: Top slot is newer.
+    // else;                                  // Scenario #3: Bottom slot is newer -or- both are the same. 
+
+    return slot_offset[i];
+}
+
+u32 CheckAgbSaveHeader(const char* path) {
     AgbSaveHeader agbsave;
+    u32 magic_check[1];
+    u32 slot_offset[6] = {0, 0x400, 0x2200, 0x8200, 0x10200, 0x20200};
+    u32 i;
     UINT br;
-    
-    if ((fvx_qread(path, &agbsave, 0, 0x200, &br) != FR_OK) || (br != 0x200))
-        return 1;
-    
+
+    for (i = 0; i <= 5; i++) { // Look for the '.SAV' magic header at top and bottom slots.
+        if (fvx_qread(path, magic_check, slot_offset[i], 0x4, NULL) != FR_OK) return 1;
+        if (*magic_check == 0x5641532E) break; // Magic header '.SAV' found.
+    }
+
+    if (i == 6) return 1; // No slot found.
+    if ((fvx_qread(path, &agbsave, slot_offset[i], 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+	
     return ValidateAgbSaveHeader(&agbsave);
-}*/
+}
 
 u32 CheckCmacHeader(const char* path) {
     u8 cmac_hdr[0x100];
@@ -99,7 +132,7 @@ u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
     
     if (!cmac_type) return 1;
     else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
-    else if ((cmac_type == CMAC_AGBSAVE) ||  (cmac_type == CMAC_AGBSAVE_SD)) offset = 0x010;
+    else if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) offset = FindAgbSaveSlotOffset(path, cmac_type) + 0x010;
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1; // can't do that here
     else offset = 0x000;
     
@@ -130,8 +163,8 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             cmac_type = CMAC_EXTDATA_SD;
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/data/%08lx.sav", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "sav", 4) == 0)) {
-            // cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : (CheckAgbSaveHeader(path) == 0) ? CMAC_AGBSAVE_SD : 0;
-            cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : 0;
+            if (CheckCmacHeader(path) == 0) cmac_type = CMAC_SAVEDATA_SD; // Check for 3DS save data first.
+            else if (CheckAgbSaveHeader(path) == 0) cmac_type = CMAC_AGBSAVE_SD;
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/content/cmd/%08lx.cmd", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "cmd", 4) == 0)) {
             cmac_type = CMAC_CMD_SD; // this needs special handling, it's in here just for detection
@@ -187,7 +220,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         UINT br;
         
         if (!agbsave) return 1;
-        if ((fvx_qread(path, agbsave, 0, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+        if ((fvx_qread(path, agbsave, FindAgbSaveSlotOffset(path, cmac_type), AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
             (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
             free(agbsave);
             return 1;
