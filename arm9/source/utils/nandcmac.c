@@ -11,19 +11,24 @@
 // https://3dbrew.org/wiki/Savegames#AES_CMAC_header
 // https://3dbrew.org/wiki/Nand/private/movable.sed
 // https://3dbrew.org/wiki/3DS_Virtual_Console#NAND_Savegame
-#define CMAC_EXTDATA_SD     1
-#define CMAC_EXTDATA_SYS    2
-#define CMAC_SAVEDATA_SYS   3
-#define CMAC_SAVE_GAMECARD  4
-#define CMAC_SAVEGAME       5 // this is not calculated into a CMAC
-#define CMAC_SAVEDATA_SD    6
-#define CMAC_TITLEDB_SYS    7
-#define CMAC_TITLEDB_SD     8
-#define CMAC_MOVABLE        9
-#define CMAC_AGBSAVE       10
-#define CMAC_AGBSAVE_SD    11
-#define CMAC_CMD_SD        12
-#define CMAC_CMD_TWLN      13 // unsupported
+#define CMAC_EXTDATA_SD           1
+#define CMAC_EXTDATA_SYS          2
+#define CMAC_SAVEDATA_SYS         3
+#define CMAC_SAVE_GAMECARD        4
+#define CMAC_SAVEGAME             5 // this is not calculated into a CMAC
+#define CMAC_SAVEDATA_SD          6
+#define CMAC_TITLEDB_SYS          7
+#define CMAC_TITLEDB_SD           8
+#define CMAC_MOVABLE              9
+#define CMAC_AGBSAVE             10
+#define CMAC_AGBSAVE_SD          11
+#define CMAC_CMD_SD              12
+#define CMAC_CMD_TWLN            13 // unsupported
+#define CMAC_AGBSAVE_EEPROM_512  14
+#define CMAC_AGBSAVE_EEPROM_64K  15
+#define CMAC_AGBSAVE_SRAM_256K   16
+#define CMAC_AGBSAVE_FLASH_512K  17
+#define CMAC_AGBSAVE_FLASH_1M    18
 
 // see: https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
 #define CMAC_SAVETYPE NULL, "CTR-EXT0", "CTR-EXT0", "CTR-SYS0", "CTR-NOR0", "CTR-SAV0", "CTR-SIGN", "CTR-9DB0", "CTR-9DB0", NULL, NULL, NULL
@@ -67,7 +72,97 @@ u32 SetupSlot0x30(char drv) {
     return 0;
 }
 
-/*u32 CheckAgbSaveHeader(const char* path) {
+u32 CheckAgbSaveHeaderEeprom512(const char* path) {
+    AgbSaveHeader agbsave;
+    u8 upper_counter[0x1];
+    u8 lower_counter[0x1];
+    UINT br;
+    
+	if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 1;
+	if (fvx_qread(path, lower_counter, 0x434, 0x1, NULL) != FR_OK) return 1;
+	
+	if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)); // First save initialized. Bottom slot is newer.
+	else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) return 1; // Top slot is newer.
+	else if (*upper_counter > *lower_counter) return 1; // Compare top and bottom slots.
+	
+    if ((fvx_qread(path, &agbsave, 0x400, 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+	
+	return ValidateAgbSaveHeader(&agbsave);
+}
+
+u32 CheckAgbSaveHeaderEeprom64k(const char* path) {
+    AgbSaveHeader agbsave;
+    u8 upper_counter[0x1];
+    u8 lower_counter[0x1];
+    UINT br;
+    
+	if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 1;
+	if (fvx_qread(path, lower_counter, 0x2234, 0x1, NULL) != FR_OK) return 1;
+	
+	if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)); // First save initialized. Bottom slot is newer.
+	else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) return 1; // Top slot is newer.
+	else if (*upper_counter > *lower_counter) return 1; // Compare top and bottom slots.
+	
+    if ((fvx_qread(path, &agbsave, 0x2200, 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+	
+	return ValidateAgbSaveHeader(&agbsave);
+}
+
+u32 CheckAgbSaveHeaderSram256k(const char* path) {
+    AgbSaveHeader agbsave;
+    u8 upper_counter[0x1];
+    u8 lower_counter[0x1];
+    UINT br;
+    
+	if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 1;
+	if (fvx_qread(path, lower_counter, 0x8234, 0x1, NULL) != FR_OK) return 1;
+	
+	if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)); // First save initialized. Bottom slot is newer.
+	else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) return 1; // Top slot is newer.
+	else if (*upper_counter > *lower_counter) return 1; // Compare top and bottom slots.
+	
+    if ((fvx_qread(path, &agbsave, 0x8200, 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+	
+	return ValidateAgbSaveHeader(&agbsave);
+}
+
+u32 CheckAgbSaveHeaderFlash512k(const char* path) {
+    AgbSaveHeader agbsave;
+    u8 upper_counter[0x1];
+    u8 lower_counter[0x1];
+    UINT br;
+    
+	if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 1;
+	if (fvx_qread(path, lower_counter, 0x10234, 0x1, NULL) != FR_OK) return 1;
+	
+	if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)); // First save initialized. Bottom slot is newer.
+	else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) return 1; // Top slot is newer.
+	else if (*upper_counter > *lower_counter) return 1; // Compare top and bottom slots.
+	
+    if ((fvx_qread(path, &agbsave, 0x10200, 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+	
+	return ValidateAgbSaveHeader(&agbsave);
+}
+
+u32 CheckAgbSaveHeaderFlash1M(const char* path) {
+    AgbSaveHeader agbsave;
+    u8 upper_counter[0x1];
+    u8 lower_counter[0x1];
+    UINT br;
+
+	if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 1;
+	if (fvx_qread(path, lower_counter, 0x20234, 0x1, NULL) != FR_OK) return 1;
+    
+	if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)); // First save initialized. Bottom slot is newer.
+	else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) return 1; // Top slot is newer.
+	else if (*upper_counter > *lower_counter) return 1; // Compare top and bottom slots.
+	
+    if ((fvx_qread(path, &agbsave, 0x20200, 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+	
+	return ValidateAgbSaveHeader(&agbsave);
+}
+
+u32 CheckAgbSaveHeader(const char* path) {
     AgbSaveHeader agbsave;
     UINT br;
     
@@ -75,7 +170,7 @@ u32 SetupSlot0x30(char drv) {
         return 1;
     
     return ValidateAgbSaveHeader(&agbsave);
-}*/
+}
 
 u32 CheckCmacHeader(const char* path) {
     u8 cmac_hdr[0x100];
@@ -99,7 +194,12 @@ u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
     
     if (!cmac_type) return 1;
     else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
-    else if ((cmac_type == CMAC_AGBSAVE) ||  (cmac_type == CMAC_AGBSAVE_SD)) offset = 0x010;
+    else if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) offset = 0x010;
+    else if (cmac_type == CMAC_AGBSAVE_EEPROM_512) offset = 0x410;
+    else if (cmac_type == CMAC_AGBSAVE_EEPROM_64K) offset = 0x2210;
+    else if (cmac_type == CMAC_AGBSAVE_SRAM_256K) offset = 0x8210;
+    else if (cmac_type == CMAC_AGBSAVE_FLASH_512K) offset = 0x10210;
+    else if (cmac_type == CMAC_AGBSAVE_FLASH_1M) offset = 0x20210;
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1; // can't do that here
     else offset = 0x000;
     
@@ -130,8 +230,14 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             cmac_type = CMAC_EXTDATA_SD;
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/data/%08lx.sav", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "sav", 4) == 0)) {
-            // cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : (CheckAgbSaveHeader(path) == 0) ? CMAC_AGBSAVE_SD : 0;
-            cmac_type = (CheckCmacHeader(path) == 0) ? CMAC_SAVEDATA_SD : 0;
+            if (CheckCmacHeader(path) == 0) cmac_type = CMAC_SAVEDATA_SD; // Check for 3DS save data first.
+            else if (CheckAgbSaveHeaderEeprom512(path) == 0) cmac_type = CMAC_AGBSAVE_EEPROM_512; // GBA VC from smallest to largest save sizes.
+            else if (CheckAgbSaveHeaderEeprom64k(path) == 0) cmac_type = CMAC_AGBSAVE_EEPROM_64K;
+            else if (CheckAgbSaveHeaderSram256k(path) == 0) cmac_type = CMAC_AGBSAVE_SRAM_256K;
+            else if (CheckAgbSaveHeaderFlash512k(path) == 0) cmac_type = CMAC_AGBSAVE_FLASH_512K;
+            else if (CheckAgbSaveHeaderFlash1M(path) == 0) cmac_type = CMAC_AGBSAVE_FLASH_1M;
+            else if (CheckAgbSaveHeader(path) == 0) cmac_type = CMAC_AGBSAVE_SD;
+            else cmac_type = 0;
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/content/cmd/%08lx.cmd", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "cmd", 4) == 0)) {
             cmac_type = CMAC_CMD_SD; // this needs special handling, it's in here just for detection
@@ -196,6 +302,76 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         u32 ret = FixAgbSaveCmac(agbsave, cmac, (cmac_type == CMAC_AGBSAVE) ? NULL : path);
         free(agbsave);
         return ret;
+    } else if (cmac_type == CMAC_AGBSAVE_EEPROM_512) {
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        UINT br;
+        
+        if (!agbsave) return 1;
+        if ((fvx_qread(path, agbsave, 0x400, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+            (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
+            free(agbsave);
+            return 1;
+        }
+        
+        u32 ret = FixAgbSaveCmac(agbsave, cmac, path);
+        free(agbsave);
+        return ret;
+    } else if (cmac_type == CMAC_AGBSAVE_EEPROM_64K) {
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        UINT br;
+        
+        if (!agbsave) return 1;
+        if ((fvx_qread(path, agbsave, 0x2200, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+            (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
+            free(agbsave);
+            return 1;
+        }
+        
+        u32 ret = FixAgbSaveCmac(agbsave, cmac, path);
+        free(agbsave);
+        return ret;
+    } else if (cmac_type == CMAC_AGBSAVE_SRAM_256K) {
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        UINT br;
+        
+        if (!agbsave) return 1;
+        if ((fvx_qread(path, agbsave, 0x8200, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+            (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
+            free(agbsave);
+            return 1;
+        }
+        
+        u32 ret = FixAgbSaveCmac(agbsave, cmac, path);
+        free(agbsave);
+        return ret;
+    } else if (cmac_type == CMAC_AGBSAVE_FLASH_512K) {
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        UINT br;
+        
+        if (!agbsave) return 1;
+        if ((fvx_qread(path, agbsave, 0x10200, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+            (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
+            free(agbsave);
+            return 1;
+        }
+        
+        u32 ret = FixAgbSaveCmac(agbsave, cmac, path);
+        free(agbsave);
+        return ret;
+    } else if (cmac_type == CMAC_AGBSAVE_FLASH_1M) {
+        AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        UINT br;
+        
+        if (!agbsave) return 1;
+        if ((fvx_qread(path, agbsave, 0x20200, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+            (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
+            free(agbsave);
+            return 1;
+        }
+        
+        u32 ret = FixAgbSaveCmac(agbsave, cmac, path);
+        free(agbsave);
+        return ret;
     } else if (cmac_type == CMAC_MOVABLE) { // movable.sed
         // see: https://3dbrew.org/wiki/Nand/private/movable.sed
         if (fvx_qread(path, hashdata, 0, 0x140, NULL) != FR_OK)
@@ -255,8 +431,7 @@ u32 CheckFileCmac(const char* path) {
         u8 ccmac[16];
         return ((ReadFileCmac(path, fcmac) == 0) && (CalculateFileCmac(path, ccmac) == 0) &&
             (memcmp(fcmac, ccmac, 16) == 0)) ? 0 : 1;
-    } else return 1;
-    
+    } else return 1;   
 }
 
 u32 FixFileCmac(const char* path) {
@@ -340,7 +515,6 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
         return 1;
     }
 
-
     // now, check the CMAC@0x10
     use_aeskey(keyslot);
     aes_cmac(cmd_data, cmac, 1);
@@ -387,7 +561,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
         }
     }
 
-    // if fixing is enable, write back cmd file
+    // if fixing is enabled, write back cmd file
     if (fix && fixed && CheckWritePermissions(path) &&
         (fvx_qwrite(path, cmd_data, 0, cmd_size, NULL) != FR_OK)) {
         free(cmd_data);
@@ -432,7 +606,20 @@ u32 RecursiveFixFileCmacWorker(char* path) {
 }
 
 u32 RecursiveFixFileCmac(const char* path) {
-    char lpath[256] = { 0 };
-    strncpy(lpath, path, 255);
+    // create a fixed up local path
+    // (this is highly path sensitive)
+    char lpath[256]; 
+    char* p = (char*) path;
+    lpath[255] = '\0'; 
+    for (u32 i = 0; i < 255; i++) {
+        lpath[i] = *(p++);
+        while ((lpath[i] == '/') && (*p == '/')) p++;
+        if (!lpath[i]) {
+            if (i && (lpath[i-1] == '/'))
+                lpath[i-1] = '\0';
+            break;
+        }
+    }
+
     return RecursiveFixFileCmacWorker(lpath);
 }
