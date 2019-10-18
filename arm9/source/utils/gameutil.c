@@ -1955,11 +1955,11 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
         path = path_content;
     }
-    
+
     void* buffer = (void*) malloc(max(sizeof(Smdh), sizeof(TwlIconData)));
     Smdh* smdh = (Smdh*) buffer;
     TwlIconData* twl_icon = (TwlIconData*) buffer;
-    
+
     // try loading SMDH, then try NDS / GBA
     u32 ret = 1;
     if (LoadSmdhFromGameFile(path, smdh) == 0)
@@ -1968,8 +1968,8 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
         ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
         ret = ShowTwlIconTitleInfo(twl_icon, screen);
     else ret = ShowGbaFileTitleInfo(path, screen);
-    
-    if (clear) {
+
+    if (!ret && clear) {
         while(!(InputWait(0) & (BUTTON_A | BUTTON_B)));
         ClearScreen(screen, COLOR_STD_BG);
     }
