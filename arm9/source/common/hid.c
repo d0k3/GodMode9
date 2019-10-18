@@ -147,7 +147,14 @@ u32 InputWait(u32 timeout_sec) {
     do {
         u32 newpad = HID_ReadState();
 
-        if (!(newpad & ~(SHELL_OPEN|SHELL_CLOSED))) { // no buttons pressed, check for I/O changes instead
+        // handle closed shell (wait for open)
+        if (newpad & SHELL_CLOSED) {
+            while (HID_ReadState() & SHELL_CLOSED);
+            continue;
+        }
+
+        // no buttons pressed, check for I/O changes instead
+        if (!(newpad & ~(SHELL_OPEN|SHELL_CLOSED))) {
             u32 state = CART_STATE;
             if (state != oldcart)
                 return state ? CART_INSERT : CART_EJECT;
@@ -169,12 +176,6 @@ u32 InputWait(u32 timeout_sec) {
             (!(newpad & BUTTON_ARROW) ||
             (delay && (timer_msec(timer) < delay))))
             continue;
-
-        // handle closed shell (wait for open)
-        if (newpad & SHELL_CLOSED) {
-            while (HID_ReadState() & SHELL_CLOSED);
-            continue;
-        }
 
         // screenshot handling
         if ((newpad & BUTTON_ANY) == (BUTTON_R1 | BUTTON_L1))
