@@ -68,68 +68,48 @@ u32 SetupSlot0x30(char drv) {
 }
 
 u32 FindAgbSaveSlotOffset(const char* path, u32 cmac_type) {
-    u8 upper_counter[0x1];
-    u8 lower_counter[0x1];
-    u32 magic_check[0x4];
+    u8 upper_counter[1];
+    u8 lower_counter[1];
+    u32 magic_check[1];
     u32 slot_offset = 0;
-	
+    u32 bottom_offset[5] = {0x400, 0x2200, 0x8200, 0x10200, 0x20200};
+    u32 i;
+
     if (cmac_type == CMAC_AGBSAVE) return (slot_offset); // Does not apply for 'agbsave.bin'.
-	
-    // Look for the `.SAV` magic header at expected bottom offsets.
-    if (fvx_qread(path, magic_check, 0x400, 0x4, NULL) != FR_OK) return 1;
-    if (*magic_check == 0x5641532E) slot_offset = 0x400;
+    
+    for (i = 0; i <= 4; i++) { // Look for the `.SAV` magic header at the expected bottom slots.
+        if (fvx_qread(path, magic_check, bottom_offset[i], 0x4, NULL) != FR_OK) return 0;
+        if (*magic_check == 0x5641532E) break; // Magic header '.SAV' found.
+    }
 
-    if (fvx_qread(path, magic_check, 0x2200, 0x4, NULL) != FR_OK) return 1;
-    if (*magic_check == 0x5641532E) slot_offset = 0x2200;
-
-    if (fvx_qread(path, magic_check, 0x8200, 0x4, NULL) != FR_OK) return 1;
-    if (*magic_check == 0x5641532E) slot_offset = 0x8200;
-
-    if (fvx_qread(path, magic_check, 0x10200, 0x4, NULL) != FR_OK) return 1;
-    if (*magic_check == 0x5641532E) slot_offset = 0x10200;
-
-    if (fvx_qread(path, magic_check, 0x20200, 0x4, NULL) != FR_OK) return 1;
-    if (*magic_check == 0x5641532E) slot_offset = 0x20200;
+    if (i == 5) return 0; // Bottom slot not found.
 	
     // Compare top and bottom slots' counter values to determine which is newer.
-    if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 1;
-    if (fvx_qread(path, lower_counter, slot_offset+0x034, 0x1, NULL) != FR_OK) return 1;
+    if (fvx_qread(path, upper_counter, 0x34, 0x1, NULL) != FR_OK) return 0;
+    if (fvx_qread(path, lower_counter, bottom_offset[i]+0x034, 0x1, NULL) != FR_OK) return 0;
 
-    if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)); // Scenario #1: First save is initialized. Bottom slot is newer.
-    else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) slot_offset = 0; // Scenario #2: (ie, 0x100 > 0xFF). Top slot is newer.
-    else if (*upper_counter > *lower_counter) slot_offset = 0; // Scenario #3: Top slot is newer.
+    if ((*upper_counter == 0xFF) && (*lower_counter == 0x00)) slot_offset = bottom_offset[i]; // Scenario #1: First save is initialized. Bottom slot is newer.
+    else if ((*upper_counter == 0x00) && (*lower_counter == 0xFF)) slot_offset = 0;           // Scenario #2: (ie, 0x100 > 0xFF). Top slot is newer.
+    else if (*upper_counter > *lower_counter) slot_offset = 0;                                // Scenario #3: Top slot is newer.
+    else slot_offset = bottom_offset[i];                                                      // Scenario #4: Bottom slot is newer -or- both are the same. 
 
     return (slot_offset);
 }
 
 u32 CheckAgbSaveHeader(const char* path) {
     AgbSaveHeader agbsave;
-    u32 magic_check[0x4];
-    u32 slot_offset = 0;
+    u32 magic_check[1];
+    u32 slot_offset[6] = {0, 0x400, 0x2200, 0x8200, 0x10200, 0x20200};
+    u32 i;
     UINT br;
-	
-    // Look for the '.SAV' magic header at the top slot offset.
-    if (fvx_qread(path, magic_check, 0, 0x4, NULL) != FR_OK) return 1;
 
-    // Look for the `.SAV` magic header at expected bottom slot offsets if top is not found.
-    if (*magic_check != 0x5641532E) {
-        if (fvx_qread(path, magic_check, 0x400, 0x4, NULL) != FR_OK) return 1;
-        if (*magic_check == 0x5641532E) slot_offset = 0x400;
-
-        if (fvx_qread(path, magic_check, 0x2200, 0x4, NULL) != FR_OK) return 1;
-        if (*magic_check == 0x5641532E) slot_offset = 0x2200;
-
-        if (fvx_qread(path, magic_check, 0x8200, 0x4, NULL) != FR_OK) return 1;
-        if (*magic_check == 0x5641532E) slot_offset = 0x8200;
-
-        if (fvx_qread(path, magic_check, 0x10200, 0x4, NULL) != FR_OK) return 1;
-        if (*magic_check == 0x5641532E) slot_offset = 0x10200;
-
-        if (fvx_qread(path, magic_check, 0x20200, 0x4, NULL) != FR_OK) return 1;
-        if (*magic_check == 0x5641532E) slot_offset = 0x20200;
+    for (i = 0; i <= 5; i++) { // Look for the '.SAV' magic header at top and bottom slots.
+        if (fvx_qread(path, magic_check, slot_offset[i], 0x4, NULL) != FR_OK) return 1;
+        if (*magic_check == 0x5641532E) break; // Magic header '.SAV' found.
     }
-	
-    if ((fvx_qread(path, &agbsave, slot_offset, 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
+
+    if (i == 6) return 1; // No slot found.
+    if ((fvx_qread(path, &agbsave, slot_offset[i], 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
 	
     return ValidateAgbSaveHeader(&agbsave);
 }
