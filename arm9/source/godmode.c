@@ -2175,7 +2175,7 @@ u32 GodMode(int entrypoint) {
     bootmenu = bootmenu || (bootloader && CheckButton(BOOTMENU_KEY)); // second check for boot menu keys
     #endif
     while (CheckButton(BOOTPAUSE_KEY)); // don't continue while these keys are held
-    if (show_splash) while (timer_msec( timer ) < 500); // show splash for at least 0.5 sec
+    if (show_splash) while (timer_msec( timer ) < 1000); // show splash for at least 1 sec
 
     // bootmenu handler
     if (bootmenu) {
