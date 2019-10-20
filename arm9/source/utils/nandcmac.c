@@ -66,29 +66,28 @@ u32 SetupSlot0x30(char drv) {
     
     return 0;
 }
+
 u32 FindAgbSaveSlotOffset(const char* path, u32 cmac_type) {
-    u32 upper_counter[1];
-    u32 lower_counter[1];
-    u32 magic_check[1];
+    u32 counter[2]; // counter[0] = magic_check , counter[0] = upper_counter , counter[1] = lower_counter
     u32 slot_offset[6] = {0, 0x400, 0x2200, 0x8200, 0x10200, 0x20200};
     u32 i;
 
     if (cmac_type == CMAC_AGBSAVE) return slot_offset[0]; // Does not apply for 'agbsave.bin'.
     
     for (i = 1; i <= 5; i++) { // Look for the `.SAV` magic header at the expected bottom slots.
-        if (fvx_qread(path, magic_check, slot_offset[i], 0x4, NULL) != FR_OK) return 0;
-        if (*magic_check == 0x5641532E) break; // Magic header '.SAV' found.
+        if (fvx_qread(path, &counter[0], slot_offset[i], 0x4, NULL) != FR_OK) return 0;
+        if (counter[0] == 0x5641532E) break; // Magic header '.SAV' found.
     }
 
     if (i == 6) return 0; // Bottom slot not found.
 	
     // Compare top and bottom slots' counter values to determine which is newer.
-    if (fvx_qread(path, upper_counter, 0x34, 0x4, NULL) != FR_OK) return 0;
-    if (fvx_qread(path, lower_counter, slot_offset[i]+0x034, 0x4, NULL) != FR_OK) return 0;
+    if (fvx_qread(path, &counter[0], 0x34, 0x4, NULL) != FR_OK) return 0;
+    if (fvx_qread(path, &counter[1], slot_offset[i]+0x034, 0x4, NULL) != FR_OK) return 0;
 
-    if (*upper_counter == 0xFFFFFFFF);                // Scenario #1: First save is initialized. Bottom slot is newer.
-    else if (*upper_counter > *lower_counter) i = 0;  // Scenario #2: Top slot is newer.
-    // else;                                          // Scenario #3: Bottom slot is newer -or- both are the same. 
+    if (counter[0] == 0xFFFFFFFF);            // Scenario #1: First save is initialized. Bottom slot is newer.
+    else if (counter[0] > counter[1]) i = 0;  // Scenario #2: Top slot is newer.
+    // else;                                  // Scenario #3: Bottom slot is newer -or- both are the same. 
 
     return slot_offset[i];
 }
