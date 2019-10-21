@@ -5,7 +5,7 @@
 
 #define NORM_FS  10
 #define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  12
+#define VIRT_FS  13
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
