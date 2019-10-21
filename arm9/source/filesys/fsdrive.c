@@ -91,7 +91,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     GetVCartTypeString(carttype);
     
     // virtual root objects hacked in
-    for (u32 i = 0; (i < NORM_FS+VIRT_FS) && (n_entries < MAX_DIR_ENTRIES); i++) {
+    for (u32 i = 0; (i < countof(drvnum)) && (n_entries < MAX_DIR_ENTRIES); i++) {
         DirEntry* entry = &(contents->entry[n_entries]);
         if (!DriveType(drvnum[i])) continue; // drive not available
         entry->p_name = 4;

@@ -4,8 +4,7 @@
 #include "fsdir.h"
 
 #define NORM_FS  10
-#define IMGN_FS  3 // image normal filesystems 
-#define VIRT_FS  13
+#define IMGN_FS  3 // image normal filesystems
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
