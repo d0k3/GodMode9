@@ -197,21 +197,27 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
     
     // fix CMAC for NAND partition, rewrite AGBSAVE file
     u32 data_size = sizeof(AgbSaveHeader) + agbsave->save_size;
+    agbsave->times_saved++; // (for compatibility with dual SD save injection)
     if (FixAgbSaveCmac(agbsave, NULL, NULL) != 0) return 1;
     if (fvx_qwrite(path, agbsave, 0, data_size, NULL) != FR_OK) return 1; // write fail
     
     // fix CMAC for SD partition, take it over to SD
     if (strncasecmp(path, "S:/agbsave.bin", 256) == 0) {
         char path_sd[64];
+        u32 slot;
+        // get the SD save path, check SD save size
         snprintf(path_sd, 64, "A:/title/%08lx/%08lx/data/00000001.sav",
             getle32((u8*) &(agbsave->title_id) + 4), getle32((u8*) &(agbsave->title_id)));
-        if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
-        
-        // check SD save size, then write both partitions
         if ((fvx_stat(path_sd, &fno) != FR_OK) || (fno.fsize != max(AGBSAVE_MAX_SIZE, 2 * data_size)))
             return 1; // invalid / non-existant SD save
-        if (fvx_qwrite(path_sd, agbsave, 0, data_size, NULL) != FR_OK) return 1; // write fail (#0)
-        if (fvx_qwrite(path_sd, agbsave, data_size, data_size, NULL) != FR_OK) return 1; // write fail (#1)
+        // inject current slot
+        slot = (agbsave->times_saved % 2) ? 0 : data_size;
+        if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
+        if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail (#0)
+        // inject backup (previous) slot
+        slot = ((--(agbsave->times_saved)) % 2) ? 0 : data_size;
+        if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
+        if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail (#1)
     }
     
     // set CFG_BOOTENV to 0x7 so the save is taken over (not needed anymore)
