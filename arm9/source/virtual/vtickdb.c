@@ -113,8 +113,8 @@ void ScanTickDb(bool raw_mode, bool replace) {
 }
 
 void DeinitVTickDbDrive(void) {
-    if (tick_info) free(tick_info);
-    if (lvl2_cache) free(lvl2_cache);
+    free(tick_info);
+    free(lvl2_cache);
     tick_info = NULL;
     lvl2_cache = NULL;
     scanned_raw = false;
@@ -152,6 +152,9 @@ u64 CheckVTickDbDrive(void) {
 }
 
 bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
+    if (!tick_info)
+        return false;
+
     if (vdir->flags & VFLAG_TICKDIR) { // ticket dir
         // raw scan required?
         if ((vdir->flags & VFLAG_HIDDEN) && !scanned_raw) {
