@@ -123,7 +123,7 @@ int CardSPIWriteRead(CardSPIType type, const void* cmd, u32 cmdSize, void* answe
     return 0;
 }
 
-int CardSPIWaitWriteEnd(CardSPIType type) {
+int CardSPIWaitWriteEnd(CardSPIType type, u32 timeout) {
     u8 cmd = SPI_CMD_RDSR, statusReg = 0;
     int res = 0;
     u64 time_start = timer_start();
@@ -131,7 +131,7 @@ int CardSPIWaitWriteEnd(CardSPIType type) {
     do {
         res = CardSPIWriteRead(type, &cmd, 1, &statusReg, 1, 0, 0);
         if (res) return res;
-        if (timer_msec(time_start) > 10000) return 1;
+        if (timer_msec(time_start) > timeout) return 1;
     } while(statusReg & SPI_FLG_WIP);
 
     return 0;
@@ -166,7 +166,7 @@ int _SPIWriteTransaction(CardSPIType type, void* cmd, u32 cmdSize, const void* d
     int res;
     if ((res = CardSPIEnableWriting(type))) return res;
     if ((res = CardSPIWriteRead(type, cmd, cmdSize, NULL, 0, (void*) ((u8*) data), dataSize))) return res;
-    return CardSPIWaitWriteEnd(type);
+    return CardSPIWaitWriteEnd(type, 1000);
 }
 
 int CardSPIReadJEDECIDAndStatusReg(CardSPIType type, u32* id, u8* statusReg) {
@@ -174,7 +174,7 @@ int CardSPIReadJEDECIDAndStatusReg(CardSPIType type, u32* id, u8* statusReg) {
     u8 reg = 0;
     u8 idbuf[3] = { 0 };
     u32 id_ = 0;
-    int res = CardSPIWaitWriteEnd(type);
+    int res = CardSPIWaitWriteEnd(type, 0);
     if (res) return res;
     
     if ((res = CardSPIWriteRead(type, &cmd, 1, idbuf, 3, 0, 0))) return res;
@@ -278,7 +278,7 @@ int CardSPIWriteSaveData(CardSPIType type, u32 offset, const void* data, u32 siz
     u32 writeSize = type.chip->writeSize;
     if (writeSize == 0) return 0xC8E13404;
     
-    int res = CardSPIWaitWriteEnd(type);
+    int res = CardSPIWaitWriteEnd(type, 1000);
     if (res) return res;
     
     while(pos < end) {
@@ -344,7 +344,7 @@ int CardSPIReadSaveData(CardSPIType type, u32 offset, void* data, u32 size) {
 
     if (size == 0) return 0;
     
-    int res = CardSPIWaitWriteEnd(type);
+    int res = CardSPIWaitWriteEnd(type, 1000);
     if (res) return res;
     
     size = (size <= CardSPIGetCapacity(type) - offset) ? size : CardSPIGetCapacity(type) - offset;
@@ -367,7 +367,7 @@ int CardSPIEraseSector_emulated(CardSPIType type, u32 offset) {
 int CardSPIEraseSector_real(CardSPIType type, u32 offset) {
     u8 cmd[4] = { type.chip->eraseCommand, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
     
-    int res = CardSPIWaitWriteEnd(type);
+    int res = CardSPIWaitWriteEnd(type, 10000);
     if (res) return res;
     
     return _SPIWriteTransaction(type, cmd, 4, NULL, 0);
