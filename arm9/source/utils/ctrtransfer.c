@@ -3,6 +3,7 @@
 #include "fs.h"
 #include "essentials.h"
 #include "ui.h"
+#include "sha.h"
 
 
 /*static const u8 twl_mbr[0x42] = { // encrypted version inside the NCSD NAND header (@0x1BE)
@@ -81,6 +82,19 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     // make a backup of ticket.db
     PathDelete(path_tickdb_bak);
     PathRename(path_tickdb, "ticket.bak");
+
+    // disarm anti savegame restore (thanks @TurdPooCharger)
+    char path_movable[32];
+    char path_asr[96];
+    u8 sd_keyy[0x10] __attribute__((aligned(4)));
+    snprintf(path_movable, 32, "%s/private/movable.sed", drv);
+    if (FileGetData(path_movable, sd_keyy, 0x10, 0x110) == 0x10) {
+        u32 sha256sum[8];
+        sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
+        snprintf(path_asr, 96, "%s/data/%08lx%08lx%08lx%08lx/sysdata/00010011/00000000",
+            drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+        PathDelete(path_asr);
+    }
     
     // actual transfer - db files / titles
     const char* dbnames[] = { "ticket.db", "certs.db", "title.db", "import.db", "tmp_t.db", "tmp_i.db" };
