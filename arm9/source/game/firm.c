@@ -178,7 +178,7 @@ u32 SetupSecretKey(u32 keynum) {
         ReadNandSectors(sector, 0x96, 1, 0x11, NAND_SYSNAND);
         if (ValidateSecretSector(sector) == 0) {
             got_keys = 0xFFFFFFFF; // => got them all
-        } else if ((keynum < 2) && (LoadKeyFromFile(key, 0x11, 'N', (keynum == 0) ? "95" : "96"))) {
+        } else if ((keynum < 2) && (LoadKeyFromFile(key, 0x11, 'N', (keynum == 0) ? "95" : "96") == 0)) {
             got_keys |= (0x1<<keynum); // got at least this one
         }
     }

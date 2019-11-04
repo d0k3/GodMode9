@@ -1037,7 +1037,8 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     void* firm_buffer = (void*) malloc(FIRM_MAX_SIZE);
     if (!firm_buffer) return 1;
     
-    // load the whole FIRM into memory & decrypt it 
+    // load the whole FIRM into memory & decrypt it
+    ShowProgress(0, 2, dest);
     u32 firm_size = fvx_qsize(orig);
     if ((firm_size > FIRM_MAX_SIZE) || (fvx_qread(orig, firm_buffer, 0, firm_size, NULL) != FR_OK) ||
         (DecryptFirmFull(firm_buffer, firm_size) != 0)) {
@@ -1050,11 +1051,13 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
     memcpy(firm->dec_magic, dec_magic, sizeof(dec_magic));
     
     // write decrypted FIRM to the destination file
+    ShowProgress(1, 2, dest);
     if (fvx_qwrite(dest, firm_buffer, 0, firm_size, NULL) != FR_OK) {
         free(firm_buffer);
         return 1;
     }
     
+    ShowProgress(2, 2, dest);
     free(firm_buffer);
     return 0;
 }
