@@ -67,47 +67,51 @@ u32 SetupSlot0x30(char drv) {
     return 0;
 }
 
-u32 FindAgbSaveSlotOffset(const char* path, u32 cmac_type) {
-    u32 counter[2]; // counter[0] = magic_check , counter[0] = upper_counter , counter[1] = lower_counter
-    u32 slot_offset[6] = {0, 0x400, 0x2200, 0x8200, 0x10200, 0x20200};
-    u32 i;
+u32 LocateAgbSaveSdBottomSlot(const char* path, AgbSaveHeader* agbsave) {
+    const u32 save_sizes[] = {
+        GBASAVE_EEPROM_512,
+        GBASAVE_EEPROM_8K,
+        GBASAVE_SRAM_32K,
+        GBASAVE_FLASH_64K,
+        GBASAVE_FLASH_128K,
+        0 };
+    AgbSaveHeader hdr;
+    u32 offset;
 
-    if (cmac_type == CMAC_AGBSAVE) return slot_offset[0]; // Does not apply for 'agbsave.bin'.
-    
-    for (i = 1; i <= 5; i++) { // Look for the `.SAV` magic header at the expected bottom slots.
-        if (fvx_qread(path, &counter[0], slot_offset[i], 0x4, NULL) != FR_OK) return 0;
-        if (counter[0] == 0x5641532E) break; // Magic header '.SAV' found.
+    // search for AGBSAVE bottom slot
+    for (u32 i = 0; i < countof(save_sizes); i++) {
+        if (save_sizes[i] == 0) return 0; // offset == 0 means no bottom slot found
+        offset = sizeof(AgbSaveHeader) + save_sizes[i];
+        if (fvx_qread(path, &hdr, offset, sizeof(AgbSaveHeader), NULL) != FR_OK) return 1;
+        if (ValidateAgbSaveHeader(&hdr) == 0) break;
     }
 
-    if (i == 6) return 0; // Bottom slot not found.
-	
-    // Compare top and bottom slots' counter values to determine which is newer.
-    if (fvx_qread(path, &counter[0], 0x34, 0x4, NULL) != FR_OK) return 0;
-    if (fvx_qread(path, &counter[1], slot_offset[i]+0x034, 0x4, NULL) != FR_OK) return 0;
-
-    if (counter[0] == 0xFFFFFFFF);            // Scenario #1: First save is initialized. Bottom slot is newer.
-    else if (counter[0] > counter[1]) i = 0;  // Scenario #2: Top slot is newer.
-    // else;                                  // Scenario #3: Bottom slot is newer -or- both are the same. 
-
-    return slot_offset[i];
+    // if valid offset found and pointer given, copy the header
+    if (agbsave) memcpy(agbsave, &hdr, sizeof(AgbSaveHeader));
+    return offset;
 }
 
-u32 CheckAgbSaveHeader(const char* path) {
-    AgbSaveHeader agbsave;
-    u32 magic_check[1];
-    u32 slot_offset[6] = {0, 0x400, 0x2200, 0x8200, 0x10200, 0x20200};
-    u32 i;
-    UINT br;
+u32 LocateAgbSaveSdCurrentSlot(const char* path, AgbSaveHeader* agbsave) {
+    AgbSaveHeader hdr_top, hdr_bottom;
+    u32 offset_bottom;
 
-    for (i = 0; i <= 5; i++) { // Look for the '.SAV' magic header at top and bottom slots.
-        if (fvx_qread(path, magic_check, slot_offset[i], 0x4, NULL) != FR_OK) return 1;
-        if (*magic_check == 0x5641532E) break; // Magic header '.SAV' found.
+    // bottom slot
+    offset_bottom = LocateAgbSaveSdBottomSlot(path, &hdr_bottom);
+    if (!offset_bottom) return (u32) -1; // doesn't even have a bottom slot, no SD AGB save
+    if (agbsave) memcpy(agbsave, &hdr_bottom, sizeof(AgbSaveHeader));
+
+    // top slot
+    if ((fvx_qread(path, &hdr_top, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) ||
+        (ValidateAgbSaveHeader(&hdr_top) != 0)) return offset_bottom; // no top slot, bottom slot is newer
+
+    // compare slots
+    if (hdr_top.times_saved >= hdr_bottom.times_saved) { // top slot is newer or equal
+        if (agbsave) memcpy(agbsave, &hdr_top, sizeof(AgbSaveHeader));
+        return 0;
     }
 
-    if (i == 6) return 1; // No slot found.
-    if ((fvx_qread(path, &agbsave, slot_offset[i], 0x200, &br) != FR_OK) || (br != 0x200)) return 1;
-	
-    return ValidateAgbSaveHeader(&agbsave);
+    // slots are identical or bottom slot is newer
+    return offset_bottom;
 }
 
 u32 CheckCmacHeader(const char* path) {
@@ -132,7 +136,8 @@ u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
     
     if (!cmac_type) return 1;
     else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
-    else if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) offset = FindAgbSaveSlotOffset(path, cmac_type) + 0x010;
+    else if (cmac_type == CMAC_AGBSAVE) offset = 0x010;
+    else if (cmac_type == CMAC_AGBSAVE_SD) offset = LocateAgbSaveSdCurrentSlot(path, NULL) + 0x10;
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1; // can't do that here
     else offset = 0x000;
     
@@ -164,7 +169,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/data/%08lx.sav", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "sav", 4) == 0)) {
             if (CheckCmacHeader(path) == 0) cmac_type = CMAC_SAVEDATA_SD; // Check for 3DS save data first.
-            else if (CheckAgbSaveHeader(path) == 0) cmac_type = CMAC_AGBSAVE_SD;
+            else if (LocateAgbSaveSdBottomSlot(path, NULL) > 0) cmac_type = CMAC_AGBSAVE_SD;
         } else if ((sscanf(path, "%c:/title/%08lx/%08lx/content/cmd/%08lx.cmd", &drv, &tid_high, &tid_low, &sid) == 4) &&
             ext && (strncasecmp(ext, "cmd", 4) == 0)) {
             cmac_type = CMAC_CMD_SD; // this needs special handling, it's in here just for detection
@@ -217,10 +222,12 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     // build hash data block, get size
     if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) { // agbsaves
         AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
+        u32 offset = 0;
         UINT br;
         
         if (!agbsave) return 1;
-        if ((fvx_qread(path, agbsave, FindAgbSaveSlotOffset(path, cmac_type), AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
+        if (cmac_type == CMAC_AGBSAVE_SD) offset = LocateAgbSaveSdCurrentSlot(path, NULL);
+        if ((fvx_qread(path, agbsave, offset, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
             (ValidateAgbSaveHeader(agbsave) != 0) || (0x200 + agbsave->save_size > br)) {
             free(agbsave);
             return 1;
@@ -289,7 +296,6 @@ u32 CheckFileCmac(const char* path) {
         return ((ReadFileCmac(path, fcmac) == 0) && (CalculateFileCmac(path, ccmac) == 0) &&
             (memcmp(fcmac, ccmac, 16) == 0)) ? 0 : 1;
     } else return 1;
-    
 }
 
 u32 FixFileCmac(const char* path) {
