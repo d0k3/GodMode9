@@ -203,21 +203,28 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
     
     // fix CMAC for SD partition, take it over to SD
     if (strncasecmp(path, "S:/agbsave.bin", 256) == 0) {
+        AgbSaveHeader agbsave_sd;
         char path_sd[64];
-        u32 slot;
+        u32 slot = 0;
+
         // get the SD save path, check SD save size
         snprintf(path_sd, 64, "A:/title/%08lx/%08lx/data/00000001.sav",
             getle32((u8*) &(agbsave->title_id) + 4), getle32((u8*) &(agbsave->title_id)));
         if ((fvx_stat(path_sd, &fno) != FR_OK) || (fno.fsize != max(AGBSAVE_MAX_SIZE, 2 * data_size)))
             return 1; // invalid / non-existant SD save
-        // inject current slot
-        slot = (agbsave->times_saved % 2) ? 0 : data_size;
+
+        // find out which slot to inject to
+        if ((fvx_qread(path_sd, &agbsave_sd, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) ||
+            (ValidateAgbSaveHeader(&agbsave_sd) != 0) ||
+            (agbsave_sd.times_saved >= agbsave->times_saved)) {
+            slot = data_size; // proper slot is bottom slot (otherwise it's the top slot)
+            agbsave->times_saved = agbsave_sd.times_saved + 1; // just to be safe
+        } else agbsave->times_saved++; // increase # of times saved
+        // !! doesn't check the actual bottom counter, relies on no user manipulation
+        
+        // inject next slot
         if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
-        if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail (#0)
-        // inject backup (previous) slot
-        slot = ((--(agbsave->times_saved)) % 2) ? 0 : data_size;
-        if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
-        if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail (#1)
+        if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail
     }
     
     // set CFG_BOOTENV to 0x7 so the save is taken over (not needed anymore)
