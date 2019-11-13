@@ -173,14 +173,17 @@ u32 SetupSecretKey(u32 keynum) {
     if (keynum >= 0x200/0x10)
         return 1; // safety
     
-    // try to load full secret sector or key from file
-    if (!(got_keys & (0x1<<keynum))) {
+    // try to load full secret sector
+    if (!got_keys) {
         ReadNandSectors(sector, 0x96, 1, 0x11, NAND_SYSNAND);
-        if (ValidateSecretSector(sector) == 0) {
+        if (ValidateSecretSector(sector) == 0)
             got_keys = 0xFFFFFFFF; // => got them all
-        } else if ((keynum < 2) && (LoadKeyFromFile(key, 0x11, 'N', (keynum == 0) ? "95" : "96") == 0)) {
-            got_keys |= (0x1<<keynum); // got at least this one
-        }
+    }
+
+    // try to load key from file
+    if (!(got_keys & (0x1<<keynum)) && (keynum < 2)) {
+        if (LoadKeyFromFile(key, 0x11, 'N', (keynum == 0) ? "95" : "96") == 0)
+            got_keys |= (0x1<<keynum); // got at least this key
     }
     
     // setup the key
