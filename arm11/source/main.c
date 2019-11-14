@@ -43,9 +43,8 @@ static const u8 brightness_lvls[] = {
 	0x79, 0x8C, 0xA7, 0xD2
 };
 static int prev_bright_lvl = -1;
-#endif
-
 static bool auto_brightness = true;
+#endif
 
 void VBlank_Handler(u32 __attribute__((unused)) irqn)
 {
@@ -149,6 +148,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 		case PXI_BRIGHTNESS:
 		{
 			ret = LCD_GetBrightness();
+			#ifndef FIXED_BRIGHTNESS
 			if ((args[0] > 0) && (args[0] < 0x100)) {
 				LCD_SetBrightness(args[0]);
 				auto_brightness = false;
@@ -156,6 +156,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 				prev_bright_lvl = -1;
 				auto_brightness = true;
 			}
+			#endif
 			break;
 		}
 
