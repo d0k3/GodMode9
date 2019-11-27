@@ -157,9 +157,11 @@ u64 InitVDisaDiffDrive(void) {
         return 0;
     
     if ((GetDisaDiffRWInfo(NULL, &info, false) != 0) ||
-        (!((bool)info.ivfc_use_extlvl4) && (!(info.dpfs_lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
-        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, info.dpfs_lvl2_cache, info.size_dpfs_lvl2) != 0))))
+        (!(info.dpfs_lvl2_cache = (u8*) malloc(info.size_dpfs_lvl2)) ||
+        (BuildDisaDiffDpfsLvl2Cache(NULL, &info, info.dpfs_lvl2_cache, info.size_dpfs_lvl2) != 0))) {
+        free(info.dpfs_lvl2_cache);
         return 0;
+   }
     
     if (!(partitionA_info = malloc(sizeof(VDisaDiffPartitionInfo)))) {
         free(info.dpfs_lvl2_cache);
