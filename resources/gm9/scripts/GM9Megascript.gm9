@@ -443,7 +443,7 @@ if	allow -a S:
 		fget S:/nand.bin@57FFE00:1 PRE_STAGE2
 		fill S:/nand.bin@B7FFE00:89C00 $[PRE_STAGE2]
 	end
-	echo "CFW un-installed successfully"
+	echo "CFW uninstalled successfully"
 else
 	echo "Permissions denied. Aborting."
 end
@@ -462,8 +462,8 @@ set NATIVE_FIRM $[GM9OUT]/NATIVE_FIRM.firm
 cp -w G:/exefs/.firm $[NATIVE_FIRM]
 imgumount
 
-if	allow S:/nand.bin
-	allow 1:
+if	allow -a S:
+	allow -a 1:
 	rm -o -s 1:/boot.firm
 	rm -o -s 1:/rw/luma
 	cp -n $[NATIVE_FIRM] S:/firm0.bin
