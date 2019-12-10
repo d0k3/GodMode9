@@ -82,12 +82,18 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     // format the SD card
     VolToPart[0].pt = 1; // workaround to prevent FatFS rebuilding the MBR
     InitSDCardFS();
-    UINT c_size = cluster_size;
     
     u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
     if (!buffer) bkpt; // will not happen
-    bool ret = ((f_mkfs("0:", FM_FAT32, c_size, buffer, STD_BUFFER_SIZE) == FR_OK) || 
-        (f_mkfs("0:", FM_FAT32, 0, buffer, STD_BUFFER_SIZE) == FR_OK)) &&
+    MKFS_PARM opt0, opt1;
+    opt0.fmt = opt1.fmt = FM_FAT32;
+    opt0.au_size = cluster_size;
+    opt1.au_size = 0;
+    opt0.align = opt1.align = 0;
+    opt0.n_fat = opt1.n_fat = 1;
+    opt0.n_root = opt1.n_root = 0;
+    bool ret = ((f_mkfs("0:", &opt0, buffer, STD_BUFFER_SIZE) == FR_OK) || 
+        (f_mkfs("0:", &opt1, buffer, STD_BUFFER_SIZE) == FR_OK)) &&
         (f_setlabel((label) ? label : "0:GM9SD") == FR_OK);
     free(buffer);
     
@@ -105,7 +111,7 @@ bool SetupBonusDrive(void) {
     
     u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
     if (!buffer) bkpt;
-    bool ret = (f_mkfs("8:", FM_ANY, 0, buffer, STD_BUFFER_SIZE) == FR_OK);
+    bool ret = (f_mkfs("8:", NULL, buffer, STD_BUFFER_SIZE) == FR_OK);
     free(buffer);
     
     if (ret) {
@@ -786,7 +792,9 @@ bool PathRename(const char* path, const char* newname) {
     strncpy(npath + (oldname - path), newname, 255 - (oldname - path));
     
     if (fvx_rename(path, npath) != FR_OK) return false;
-    if ((fvx_stat(path, NULL) == FR_OK) || (fvx_stat(npath, NULL) != FR_OK)) return false; // safety check
+    if ((strncasecmp(path, npath, 256) != 0) &&
+        ((fvx_stat(path, NULL) == FR_OK) || (fvx_stat(npath, NULL) != FR_OK)))
+        return false; // safety check
     return true;
 }
 

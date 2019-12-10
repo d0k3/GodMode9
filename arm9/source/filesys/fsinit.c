@@ -27,7 +27,7 @@ bool InitExtFS() {
         if ((!fs_mounted[i] || !ramdrv_ready) && (i == NORM_FS - 1) && !(GetMountState() & IMG_NAND)) {
             u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
             if (!buffer) bkpt; // whatever, this won't go wrong anyways
-            f_mkfs(fsname, FM_ANY, 0, buffer, STD_BUFFER_SIZE); // format ramdrive if required
+            f_mkfs(fsname, NULL, buffer, STD_BUFFER_SIZE); // format ramdrive if required
             free(buffer);
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
