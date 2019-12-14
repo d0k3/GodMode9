@@ -109,8 +109,9 @@ bool checksumChunk(BeatFile *bf, u32 chunkNum) {
         u32 patchEnd = bf->size - 4;
         if (chunkEnd > patchEnd) trimLen = chunkEnd - patchEnd;
     } else if (bf->id == BEAT_TARGET) {
+        UINT bw; // necessary for FVX API
         fvx_lseek(&bf->file, chunkNum * chunkSize);
-        if (fvx_write(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, NULL) != FR_OK) return false;
+        if (fvx_write(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, &bw) != FR_OK) return false;
     }
     bf->checksum = crc32_calculate(bf->checksum, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size - trimLen);
     bf->checksumNeeded++;
@@ -141,6 +142,8 @@ bool freeOldestChunk() {
 }
 
 bool readChunk(BeatFile *bf, u32 chunkNum) {
+    UINT br; // necessary for FVX API
+
     if (bf->id == BEAT_PATCH) { // the patch is read linearly, so previous chunks can be freed immediately
         for (UINT n = 0; n < chunkNum; n++) {
             if (bf->dataChunks[n].data) freeChunk(bf, n);
@@ -153,7 +156,7 @@ bool readChunk(BeatFile *bf, u32 chunkNum) {
         bf->dataChunks[chunkNum].data = malloc(bf->dataChunks[chunkNum].size);
     }
     fvx_lseek(&bf->file, chunkNum * chunkSize);
-    if (fvx_read(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, NULL) != FR_OK) return false;
+    if (fvx_read(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, &br) != FR_OK) return false;
     if (bf->id == BEAT_SOURCE && chunkNum == bf->checksumNeeded && !checksumChunk(bf, chunkNum)) return false; // checksum source as soon as possible
     if (bf->id == BEAT_TARGET && chunkNum == bf->checksumNeeded + 1 && !checksumChunk(bf, chunkNum - 1)) return false; // write and checksum target as soon as possible
     bf->dataChunks[chunkNum].time = timer_ticks(timer);
