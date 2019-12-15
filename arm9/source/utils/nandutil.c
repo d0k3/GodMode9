@@ -197,7 +197,6 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
     
     // fix CMAC for NAND partition, rewrite AGBSAVE file
     u32 data_size = sizeof(AgbSaveHeader) + agbsave->save_size;
-    agbsave->times_saved++; // (for compatibility with dual SD save injection)
     if (FixAgbSaveCmac(agbsave, NULL, NULL) != 0) return 1;
     if (fvx_qwrite(path, agbsave, 0, data_size, NULL) != FR_OK) return 1; // write fail
     
