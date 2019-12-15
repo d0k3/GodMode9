@@ -254,19 +254,28 @@ static inline u32 hexntostr(const u8* hex, char* str, u32 len) {
     return len;
 }
 
-static inline u32 line_len(const char* text, u32 len, u32 ww, const char* line) {
-    char* line0 = (char*) line;
-    char* line1 = (char*) line;
+static inline u32 line_len(const char* text, u32 len, u32 ww, const char* line, char** eol) {
+    u32 last = ((text + len) - line);
     u32 llen = 0;
-    
-    // non wordwrapped length
-    while ((line1 < (text + len)) && (*line1 != '\n') && *line1) line1++;
-    while ((line1 > line0) && (*(line1-1) <= ' ')) line1--;
-    llen = line1 - line0;
-    if (ww && (llen > ww)) { // wordwrapped length
-        for (llen = ww; (llen > 0) && (line[llen] != ' '); llen--); 
-        if (!llen) llen = ww; // workaround for long strings
+    char* lf = NULL;
+    char* spc = NULL;
+
+    // search line feeds, spaces (only relevant for wordwrapped)
+    for (llen = 0; !ww || (llen < ww); llen++) {
+        if (ww && (line[llen] == ' ')) spc = (char*) (line + llen);
+        if (!line[llen] || (line[llen] == '\n') || (llen == last)) {
+            lf = (char*) (line + llen);
+            break;
+        }
     }
+
+    // line feed found, truncate trailing "empty" chars
+    // for wordwrapped, stop line after last space (if any)
+    if (lf) for (; (llen > 0) && (line[llen-1] <= ' '); llen--);
+    else if (ww && spc) llen = (spc - line) + 1;
+
+    // signal eol if required
+    if (eol) *eol = lf;
     return llen;
 }
 
@@ -294,32 +303,29 @@ static inline char* line_seek(const char* text, u32 len, u32 ww, const char* lin
         char* l0 = (char*) line;
         
         // handle forwards wordwrapped search
-        while ((add > 0) && (l0 < text + len)) {
-            u32 llen = line_len(text, len, 0, l0);
-            for (; (add > 0) && (llen > ww); add--) {
-                u32 llenww = line_len(text, len, ww, l0);
-                llen -= llenww;
-                l0 += llenww;
-            }
-            if (add > 0) {
-                l0 = line_seek(text, len, 0, l0, 1);
-                add--;
-            }
+        for (; (add > 0) && (l0 < text + len); add--) {
+            char* eol = NULL;
+            u32 llenww = line_len(text, len, ww, l0, &eol);
+            if (eol || !llenww) l0 = line_seek(text, len, 0, l0, 1);
+            else l0 += llenww;
         }
         
         // handle backwards wordwrapped search
         while ((add < 0) && (l0 > text)) {
             char* l1 = line_seek(text, len, 0, l0, -1);
-            int nlww = 0; // count wordwrapped lines in paragraph
-            for (char* ld = l1; ld < l0; ld = line_seek(text, len, ww, ld, 1), nlww++);
-            if (add + nlww < 0) {
+            char* ld_prev = l1;
+            int nlww = 0; // no of wordwrapped lines in paragraph
+            for (char* ld = l1; ld < l0; ld = line_seek(text, len, ww, ld, 1), nlww++)
+                ld_prev = ld;
+            if (add + nlww < 0) { // haven't reached the desired line yet
                 add += nlww;
                 l0 = l1;
-            } else {
-                l0 = line_seek(text, len, ww, l1, nlww + add);
+            } else { // reached the desired line
+                l0 = (add == -1) ? ld_prev : line_seek(text, len, ww, l1, nlww + add);
                 add = 0;
             }
         }
+
         
         return l0;
     }
@@ -1557,7 +1563,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
     u32 nln = lno;
     for (u32 y = TV_VPAD; y < SCREEN_HEIGHT; y += FONT_HEIGHT_EXT + (2*TV_VPAD)) {
         char* ptr_next = line_seek(text, len, ww, ptr, 1);
-        u32 llen = line_len(text, len, ww, ptr);
+        u32 llen = line_len(text, len, ww, ptr, NULL);
         u32 ncpy = ((int) llen < off_disp) ? 0 : (llen - off_disp);
         if (ncpy > TV_LLEN_DISP) ncpy = TV_LLEN_DISP;
         bool al = !ww && off_disp && (ptr != ptr_next);
@@ -1630,7 +1636,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
     // find maximum line len
     u32 llen_max = 0;
     for (char* ptr = (char*) text; ptr < (text + len); ptr = line_seek(text, len, 0, ptr, 1)) {
-        u32 llen = line_len(text, len, 0, ptr);
+        u32 llen = line_len(text, len, 0, ptr, NULL);
         if (llen > llen_max) llen_max = llen;
     }
     
