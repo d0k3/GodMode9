@@ -313,15 +313,15 @@ static inline char* line_seek(const char* text, u32 len, u32 ww, const char* lin
         // handle backwards wordwrapped search
         while ((add < 0) && (l0 > text)) {
             char* l1 = line_seek(text, len, 0, l0, -1);
-            char* ld_prev = l1;
+            char* l0_minus1 = l1;
             int nlww = 0; // no of wordwrapped lines in paragraph
             for (char* ld = l1; ld < l0; ld = line_seek(text, len, ww, ld, 1), nlww++)
-                ld_prev = ld;
+                l0_minus1 = ld;
             if (add + nlww < 0) { // haven't reached the desired line yet
                 add += nlww;
                 l0 = l1;
             } else { // reached the desired line
-                l0 = (add == -1) ? ld_prev : line_seek(text, len, ww, l1, nlww + add);
+                l0 = (add == -1) ? l0_minus1 : line_seek(text, len, ww, l1, nlww + add);
                 add = 0;
             }
         }
