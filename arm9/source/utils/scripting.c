@@ -260,10 +260,13 @@ static inline u32 line_len(const char* text, u32 len, u32 ww, const char* line, 
     char* lf = NULL;
     char* spc = NULL;
 
+    if (line >= (text + len))
+        return 0; // early exit
+
     // search line feeds, spaces (only relevant for wordwrapped)
     for (llen = 0; !ww || (llen < ww); llen++) {
         if (ww && (line[llen] == ' ')) spc = (char*) (line + llen);
-        if (!line[llen] || (line[llen] == '\n') || (llen == last)) {
+        if (!line[llen] || (line[llen] == '\n') || (llen >= last)) {
             lf = (char*) (line + llen);
             break;
         }
@@ -1556,7 +1559,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
     u32 p_ar = TV_LLEN_DISP - strnlen(ar_str, 16);
     u32 x_al = x_txt + (p_al * FONT_WIDTH_EXT);
     u32 x_ar = x_txt + (p_ar * FONT_WIDTH_EXT);
-    
+
     // display text on screen
     char txtstr[TV_LLEN_DISP + 1];
     char* ptr = line0;
@@ -1612,38 +1615,38 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
 
 bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
     u32 ww = TV_LLEN_DISP;
-    
+
     // check if this really is text
     if (!ValidateText(text, len)) {
         ShowPrompt(false, "Error: Invalid text data");
         return false;
     }
-    
+
     // clear screens
     ClearScreenF(true, true, COLOR_STD_BG);
-    
+
     // instructions
     static const char* instr = "Textviewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
     ShowString(instr);
-    
+
     // set script colors
     if (as_script) {
         script_color_active = COLOR_TVRUN;
         script_color_comment = COLOR_TVCMT;
         script_color_code = COLOR_TVCMD;
     }
-    
+
     // find maximum line len
     u32 llen_max = 0;
     for (char* ptr = (char*) text; ptr < (text + len); ptr = line_seek(text, len, 0, ptr, 1)) {
         u32 llen = line_len(text, len, 0, ptr, NULL);
         if (llen > llen_max) llen_max = llen;
     }
-    
+
     // find last allowed lines (ww and nonww)
     char* llast_nww = line_seek(text, len, 0, text + len, -TV_NLIN_DISP);
     char* llast_ww = line_seek(text, len, TV_LLEN_DISP, text + len, -TV_NLIN_DISP);
-    
+
     char* line0 = (char*) text;
     int lcurr = 1;
     int off_disp = 0;
@@ -1769,16 +1772,19 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
 bool FileTextViewer(const char* path, bool as_script) {
     // load text file (completely into memory)
     // text file needs to fit inside the STD_BUFFER_SIZE
-    char* text = (char*) malloc(STD_BUFFER_SIZE);
+    u32 flen, len;
+
+    char* text = malloc(STD_BUFFER_SIZE);
     if (!text) return false;
-    
-    u32 flen = FileGetData(path, text, STD_BUFFER_SIZE, 0);
-    u32 len = 0; // actual length may be shorter due to zero symbol
-    for (len = 0; (len < flen) && text[len]; len++);
-    
+
+    flen = FileGetData(path, text, STD_BUFFER_SIZE - 1, 0);
+
+    text[flen] = '\0';
+    len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
+
     // let MemTextViewer take over
     bool result = MemTextViewer(text, len, 1, as_script);
-    
+
     free(text);
     return result;
 }
