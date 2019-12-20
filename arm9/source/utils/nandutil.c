@@ -215,13 +215,11 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
         // find out which slot to inject to
         if ((fvx_qread(path_sd, &agbsave_sd, 0, sizeof(AgbSaveHeader), NULL) == FR_OK) &&
             (ValidateAgbSaveHeader(&agbsave_sd) == 0) &&
-            (agbsave->times_saved <= agbsave_sd.times_saved)) {
+            (agbsave->times_saved != agbsave_sd.times_saved))
             slot = data_size; // proper slot is bottom slot (otherwise it's the top slot)
-            agbsave->times_saved = agbsave_sd.times_saved + 1; // just to be safe
-        } else agbsave->times_saved++; // increase # of times saved, use top slot
-        // !! doesn't check the actual bottom counter, relies on no user manipulation
         
         // inject next slot
+        agbsave->times_saved++; // increase # of times saved
         if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
         if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail
     }
