@@ -215,7 +215,7 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
         // find out which slot to inject to
         if ((fvx_qread(path_sd, &agbsave_sd, 0, sizeof(AgbSaveHeader), NULL) == FR_OK) &&
             (ValidateAgbSaveHeader(&agbsave_sd) == 0) &&
-            (agbsave->times_saved != agbsave_sd.times_saved))
+            (agbsave->times_saved == agbsave_sd.times_saved))
             slot = data_size; // proper slot is bottom slot (otherwise it's the top slot)
         
         // inject next slot
