@@ -47,6 +47,7 @@ if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
             #verify I:/nand_minsize.bin
             set ERRORMSG "An error occurred during the transfer\nPlease try again."
             inject -n I:/nand_minsize.bin E:/nand.bin@0
+            rm -o -s 4:/data/$[EMUID0]/sysdata/00010011/00000000
             imgumount
         else
             echo "Not a valid NAND backup."
@@ -73,6 +74,7 @@ if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
         if verify I:/nand_minsize.bin
             set ERRORMSG "An error occurred during the transfer\nPlease try again."
             inject -n I:/nand_minsize.bin S:/nand.bin@0
+            rm -o -s 1:/data/$[SYSID0]/sysdata/00010011/00000000
             imgumount
         else
             echo "Not a valid NAND backup."
@@ -112,6 +114,7 @@ if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
                     cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
                     cp -w -n I:/twln.bin S:/twln.bin
                     cp -w -n I:/twlp.bin S:/twlp.bin
+                    rm -o -s 1:/data/$[SYSID0]/sysdata/00010011/00000000
                     imgumount
                 else
                     echo "Not a valid NAND backup."
@@ -137,6 +140,7 @@ if find E:/nand.bin NULL
             cp -w -n E:/ctrnand_full.bin S:/ctrnand_full.bin
             cp -w -n E:/twln.bin S:/twln.bin
             cp -w -n E:/twlp.bin S:/twlp.bin
+            rm -o -s 1:/data/$[SYSID0]/sysdata/00010011/00000000
         end
     else
         echo "No qualifying exploit found.\nAborting to avoid bricking the device."
@@ -153,6 +157,7 @@ if find E:/nand.bin NULL
     if ask "Please make sure you have a backup of your EmuNAND.\nAre you certain you want to continue?"
         allow E:/nand_minsize.bin
         inject -n S:/nand_minsize.bin E:/nand.bin@0
+        rm -o -s 4:/data/$[EMUID0]/sysdata/00010011/00000000
     end
 else
     echo "EmuNAND not found."
