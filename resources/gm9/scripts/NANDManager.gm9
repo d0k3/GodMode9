@@ -157,7 +157,7 @@ if find E:/nand.bin NULL
     if ask "Please make sure you have a backup of your EmuNAND.\nAre you certain you want to continue?"
         allow E:/nand_minsize.bin
         inject -n S:/nand_minsize.bin E:/nand.bin@0
-        rm -o -s 1:/data/$[EMUID0]/sysdata/00010011/00000000
+        rm -o -s 4:/data/$[EMUID0]/sysdata/00010011/00000000
     end
 else
     echo "EmuNAND not found."
