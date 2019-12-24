@@ -167,7 +167,7 @@ end
 imgmount $[NANDBAK]
 inject -n I:/nand_minsize.bin E:/nand.bin@0
 imgumount
-rm -o -s 1:/data/$[EMUID0]/sysdata/00010011/00000000
+rm -o -s 4:/data/$[EMUID0]/sysdata/00010011/00000000
 echo "$[NANDBAK] successfully restored to EmuNAND."
 goto MainMenu_Restore_Options
 
