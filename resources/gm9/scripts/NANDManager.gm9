@@ -47,7 +47,7 @@ if filesel "Select NAND Backup." $[GM9OUT]/*nand_???.bin NANDBAK
             #verify I:/nand_minsize.bin
             set ERRORMSG "An error occurred during the transfer\nPlease try again."
             inject -n I:/nand_minsize.bin E:/nand.bin@0
-            rm -o -s 1:/data/$[EMUID0]/sysdata/00010011/00000000
+            rm -o -s 4:/data/$[EMUID0]/sysdata/00010011/00000000
             imgumount
         else
             echo "Not a valid NAND backup."
