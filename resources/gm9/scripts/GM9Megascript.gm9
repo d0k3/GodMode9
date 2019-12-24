@@ -97,6 +97,7 @@ end
 
 if	inject -n I:/nand_minsize.bin S:/nand.bin@0
 	imgumount
+	rm -o -s 1:/data/$[SYSID0]/sysdata/00010011/00000000
 	echo "$[NANDBAK]\nsuccessfully restored to SysNAND."
 else
 	echo "An error occurred during the transfer\nPlease try again."
@@ -135,6 +136,7 @@ cp -w -n I:/ctrnand_full.bin S:/ctrnand_full.bin
 cp -w -n I:/twln.bin S:/twln.bin
 cp -w -n I:/twlp.bin S:/twlp.bin
 imgumount
+rm -o -s 1:/data/$[SYSID0]/sysdata/00010011/00000000
 echo "$[NANDBAK]\nsuccessfully restored to SysNAND."
 goto MainMenu_Restore_Options
 
@@ -165,6 +167,7 @@ end
 imgmount $[NANDBAK]
 inject -n I:/nand_minsize.bin E:/nand.bin@0
 imgumount
+rm -o -s 1:/data/$[EMUID0]/sysdata/00010011/00000000
 echo "$[NANDBAK] successfully restored to EmuNAND."
 goto MainMenu_Restore_Options
 
@@ -219,6 +222,7 @@ fixcmac 1:/title
 
 mv -n -w 1:/ticket.bak 1:/dbs/ticket.bak
 imgumount
+rm -o -s 1:/data/$[SYSID0]/sysdata/00010011/00000000
 echo "CTRNAND transfer successful."
 goto Start
 
