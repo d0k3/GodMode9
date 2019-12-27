@@ -1,496 +1,646 @@
-// C port of byuu's \nall\beat\patch.hpp and \multi.hpp, which were released under GPLv3
-// https://github.com/eai04191/beat/blob/master/nall/beat/patch.hpp
-// https://github.com/eai04191/beat/blob/master/nall/beat/multi.hpp
-// Ported by Hyarion for use with VirtualFatFS
+/*
+ *   This file is part of GodMode9
+ *   Copyright (C) 2019 Wolfvak
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-#include "bps.h"
 #include "common.h"
 #include "crc32.h"
-#include "fsperm.h"
+#include "bps.h"
+#include "fs.h"
 #include "ui.h"
-#include "vff.h"
-#include "timer.h"
 
-#define chunkSize STD_BUFFER_SIZE
+#define BEAT_VLIBUFSZ	(16)
+#define BEAT_MAXPATH	(256)
+#define BEAT_RANGESZ(c, i)	((c)->ranges[1][i] - (c)->ranges[0][i])
 
-typedef enum {
-    BEAT_SUCCESS = 0,
-    BEAT_PATCH_TOO_SMALL,
-    BEAT_PATCH_INVALID_HEADER,
-    BEAT_SOURCE_TOO_SMALL,
-    BEAT_TARGET_TOO_SMALL,
-    BEAT_SOURCE_CHECKSUM_INVALID,
-    BEAT_TARGET_CHECKSUM_INVALID,
-    BEAT_PATCH_CHECKSUM_INVALID,
-    BEAT_BPM_CHECKSUM_INVALID,
-    BEAT_INVALID_FILE_PATH,
-    BEAT_CANCELED,
-    BEAT_MEMORY
-} BPSRESULT;
+#define BEAT_READONLY	(FA_READ | FA_OPEN_EXISTING)
+#define BEAT_RWCREATE	(FA_READ | FA_WRITE | FA_CREATE_NEW)
 
-typedef enum {
-    BEAT_SOURCEREAD = 0,
-    BEAT_TARGETREAD,
-    BEAT_SOURCECOPY,
-    BEAT_TARGETCOPY
-} BPSMODE;
+static size_t fs_size(const char *path)
+{
+	FILINFO fno;
+	FRESULT res = fvx_stat(path, &fno);
+	if (res != FR_OK) return 0;
+	return fno.fsize;
+}
 
-typedef enum {
-    BEAT_CREATEPATH = 0,
-    BEAT_CREATEFILE,
-    BEAT_MODIFYFILE,
-    BEAT_MIRRORFILE
-} BPMACTION;
+/* Possible error codes */
+enum {
+	BEAT_OK = 0,
+	BEAT_EOAL,
+	BEAT_ABORTED,
+	BEAT_IO_ERROR,
+	BEAT_OVERFLOW,
+	BEAT_BADPATCH,
+	BEAT_BADINPUT,
+	BEAT_BADOUTPUT,
+	BEAT_BADCHKSUM,
+	BEAT_PATCH_EXPECT,
+	BEAT_OUT_OF_MEMORY,
+};
 
-typedef enum {
-    BEAT_PATCH = 1,
-    BEAT_SOURCE,
-    BEAT_TARGET
-} BEATFILEID;
+/* State machine actions */
+enum {
+	BPS_SOURCEREAD = 0,
+	BPS_TARGETREAD = 1,
+	BPS_SOURCECOPY = 2,
+	BPS_TARGETCOPY = 3
+};
 
+enum {
+	BPM_CREATEPATH = 0,
+	BPM_CREATEFILE = 1,
+	BPM_MODIFYFILE = 2,
+	BPM_MIRRORFILE = 3
+};
+
+/* File handles used within the Beat state */
+enum {
+	BEAT_PATCHFILE = 0,
+	BEAT_SRCFILE,
+	BEAT_DSTFILE,
+	BEAT_FILECOUNT,
+};
+
+static const u8 bps_signature[] = { 'B', 'P', 'S', '1' };
+static const u8 bps_chksumoffs[BEAT_FILECOUNT] = {
+	[BEAT_PATCHFILE] = 4, [BEAT_DSTFILE] = 8, [BEAT_SRCFILE] = 12,
+};
+static const u8 bpm_signature[] = { 'B', 'P', 'M', '1' };
+
+/** BEAT STATE STORAGE */
 typedef struct {
-    u8* data;
-    u32 size;
-    u64 time;
-} DataChunk;
+	u8 *copybuf;
+	ssize_t foffset[BEAT_FILECOUNT], eoal_offset;
+	size_t ranges[2][BEAT_FILECOUNT];
+	u32 ocrc; // Output crc
 
-typedef struct {
-    FIL file;
-    u8 id;
-    u32 size;
-    u32 checksum;
-    u32 checksumNeeded;
-    u32 currOffset;
-    u32 relOffset;
-    DataChunk dataChunks[];
-} BeatFile;
+	union {
+		struct { // BPS exclusive fields
+			u32 xocrc; // Expected output crc
+			size_t source_relative, target_relative;
+		};
+		struct { // BPM exclusive fields
+			const char *bpm_path, *source_dir, *target_dir;
+		};
+	};
+	FIL file[BEAT_FILECOUNT];
+} BEAT_Context;
 
-static BeatFile *patch;
-static BeatFile *source;
-static BeatFile *target;
+typedef int (*BEAT_Action)(BEAT_Context*, u64);
 
-static bool bpmIsActive;
-static u32 bpsSize;
-static u32 bpsChecksum;
-
-static u64 timer;
-static u64 timerLastCheck;
-
-static char progressText[256];
-
-BeatFile* initFile(const char *path, u8 id, u64 targetSize) {
-    u32 numChunks;
-    if (id != BEAT_TARGET) {
-        FIL f;
-        if (fvx_open(&f, path, FA_READ) != FR_OK) return NULL;
-        numChunks = fvx_size(&f) / chunkSize;
-        fvx_close(&f);
-    } else numChunks = targetSize / chunkSize;
-    BeatFile *bf = malloc(offsetof(BeatFile, dataChunks) + ((numChunks + 1) * sizeof(DataChunk)));
-    if (id == BEAT_TARGET) {
-        if (fvx_open(&bf->file, path, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK) return NULL;
-        fvx_lseek(&bf->file, targetSize); fvx_lseek(&bf->file, 0);
-    } else if (fvx_open(&bf->file, path, FA_READ) != FR_OK) return NULL;
-    bf->id = id; bf->size = fvx_size(&bf->file);
-    bf->checksum = ~0; bf->checksumNeeded = 0;
-    bf->currOffset = 0; bf->relOffset = 0;
-    for (UINT n = 0; n <= numChunks; n++) {
-        bf->dataChunks[n].data = NULL;
-        bf->dataChunks[n].size = ((n == numChunks) ? (bf->size % chunkSize) : chunkSize);
-        bf->dataChunks[n].time = timer;
-    }
-    return bf;
+static const char *BEAT_ErrString(int error)
+{ // Get an error description string
+	switch(error) {
+		case BEAT_OK: return "No error";
+		case BEAT_EOAL: return "End of action list";
+		case BEAT_ABORTED: return "Aborted by user";
+		case BEAT_IO_ERROR: return "Failed to read/write file";
+		case BEAT_OVERFLOW: return "Attempted to write beyond end of file";
+		case BEAT_BADPATCH: return "Invalid patch file";
+		case BEAT_BADINPUT: return "Invalid input file";
+		case BEAT_BADOUTPUT: return "Output file checksum mismatch";
+		case BEAT_BADCHKSUM: return "File checksum failed";
+		case BEAT_PATCH_EXPECT: return "Expected more patch data";
+		case BEAT_OUT_OF_MEMORY: return "Out of memory";
+		default: return "Unknown error";
+	}
 }
 
-bool checksumChunk(BeatFile *bf, u32 chunkNum) {
-    u32 trimLen = 0;
-    if (bf->id == BEAT_PATCH) {
-        u32 chunkEnd = (chunkNum * chunkSize) + bf->dataChunks[chunkNum].size;
-        u32 patchEnd = bf->size - 4;
-        if (chunkEnd > patchEnd) trimLen = chunkEnd - patchEnd;
-    } else if (bf->id == BEAT_TARGET) {
-        UINT bw; // necessary for FVX API
-        fvx_lseek(&bf->file, chunkNum * chunkSize);
-        if (fvx_write(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, &bw) != FR_OK) return false;
-    }
-    bf->checksum = crc32_calculate(bf->checksum, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size - trimLen);
-    bf->checksumNeeded++;
-    return true;
+static int BEAT_Read(BEAT_Context *ctx, int id, void *out, size_t len, bool advance)
+{ // Read up to `len` bytes from the context file `id` to the `out` buffer
+	FRESULT res;
+	UINT br;
+	len = min(len, BEAT_RANGESZ(ctx, id) - ctx->foffset[id]);
+	fvx_lseek(&ctx->file[id], ctx->ranges[0][id] + ctx->foffset[id]); // ALWAYS use the state offset + start range
+	if (advance) ctx->foffset[id] += len;
+	res = fvx_read(&ctx->file[id], out, len, &br);
+	return (res == FR_OK && br == len) ? BEAT_OK : BEAT_IO_ERROR;
 }
 
-bool freeChunk(BeatFile *bf, u32 chunkNum) {
-    if (chunkNum == bf->checksumNeeded && !checksumChunk(bf, chunkNum)) return false;
-    free(bf->dataChunks[chunkNum].data);
-    bf->dataChunks[chunkNum].data = NULL;
-    return true;
+static int BEAT_WriteOut(BEAT_Context *ctx, const u8 *in, size_t len, bool advance)
+{ // Write `len` bytes from `in` to BEAT_DSTFILE, updates the output CRC
+	FRESULT res;
+	UINT bw;
+	if ((len + ctx->foffset[BEAT_DSTFILE]) > BEAT_RANGESZ(ctx, BEAT_DSTFILE))
+		return BEAT_OVERFLOW;
+
+	// Blindly assume all writes will be done linearly
+	ctx->ocrc = ~crc32_calculate(~ctx->ocrc, in, len);
+	fvx_lseek(&ctx->file[BEAT_DSTFILE], ctx->ranges[0][BEAT_DSTFILE] + ctx->foffset[BEAT_DSTFILE]);
+	if (advance) ctx->foffset[BEAT_DSTFILE] += len;
+	res = fvx_write(&ctx->file[BEAT_DSTFILE], in, len, &bw);
+	return (res == FR_OK && bw == len) ? BEAT_OK : BEAT_IO_ERROR;
 }
 
-bool freeOldestChunk() {
-    BeatFile *fid; u32 chunkNum; u64 chunkTime = UINT64_MAX;
-    for (UINT n = 0; n <= source->size / chunkSize; n++) {
-        if (source->dataChunks[n].data && source->dataChunks[n].time < chunkTime) {
-            fid = source; chunkNum = n; chunkTime = source->dataChunks[n].time;
-        }
-    }
-    for (UINT n = 0; n <= target->size / chunkSize; n++) {
-        if (target->dataChunks[n].data && target->dataChunks[n].time < chunkTime && n != (target->currOffset / chunkSize)) {
-            fid = target; chunkNum = n; chunkTime = target->dataChunks[n].time;
-        }
-    }
-    if (chunkTime != UINT64_MAX) return freeChunk(fid, chunkNum);
-    else return false;
+static void BEAT_SeekOff(BEAT_Context *ctx, int id, ssize_t offset)
+{ ctx->foffset[id] += offset; } // Seek `offset` bytes forward
+static void BEAT_SeekAbs(BEAT_Context *ctx, int id, size_t pos)
+{ ctx->foffset[id] = pos; } // Seek to absolute position `pos`
+
+static int BEAT_NextVLI(BEAT_Context *ctx, u64 *vli)
+{ // Read the next VLI in the file, update the seek position
+	u8 vli_rdbuf[BEAT_VLIBUFSZ], *scan = vli_rdbuf;
+	u32 iter = 0;
+	u64 ret = 0;
+	int res;
+
+	res = BEAT_Read(ctx, BEAT_PATCHFILE, vli_rdbuf, sizeof(vli_rdbuf), false);
+	if (res != BEAT_OK) return res;
+
+	while(scan < &vli_rdbuf[sizeof(vli_rdbuf)]) {
+		u64 val = *(scan++);
+		ret += (val & 0x7F) << iter;
+		if (val & 0x80) break;
+		iter += 7;
+		ret += (u64)(1ULL << iter);
+	}
+
+	// Seek forward only by the amount of used bytes
+	BEAT_SeekOff(ctx, BEAT_PATCHFILE, scan - vli_rdbuf);
+	*vli = ret;
+	return res;
 }
 
-bool readChunk(BeatFile *bf, u32 chunkNum) {
-    UINT br; // necessary for FVX API
+static s64 BEAT_DecodeSigned(u64 val) // Extract the signed number
+{ if (val&1) return -(val>>1); else return (val>>1); }
 
-    if (bf->id == BEAT_PATCH) { // the patch is read linearly, so previous chunks can be freed immediately
-        for (UINT n = 0; n < chunkNum; n++) {
-            if (bf->dataChunks[n].data) freeChunk(bf, n);
-        }
-    }
-    if (bf->dataChunks[chunkNum].size == 0) return true;
-    bf->dataChunks[chunkNum].data = malloc(bf->dataChunks[chunkNum].size);
-    while (!bf->dataChunks[chunkNum].data) { // free chunks in order from least recently accessed to most recently accessed until we are no longer out of memory
-        if (!freeOldestChunk()) return false;
-        bf->dataChunks[chunkNum].data = malloc(bf->dataChunks[chunkNum].size);
-    }
-    fvx_lseek(&bf->file, chunkNum * chunkSize);
-    if (fvx_read(&bf->file, bf->dataChunks[chunkNum].data, bf->dataChunks[chunkNum].size, &br) != FR_OK) return false;
-    if (bf->id == BEAT_SOURCE && chunkNum == bf->checksumNeeded && !checksumChunk(bf, chunkNum)) return false; // checksum source as soon as possible
-    if (bf->id == BEAT_TARGET && chunkNum == bf->checksumNeeded + 1 && !checksumChunk(bf, chunkNum - 1)) return false; // write and checksum target as soon as possible
-    bf->dataChunks[chunkNum].time = timer_ticks(timer);
-    return true;
+static int BEAT_NextAction(int *act, u64 *len, BEAT_Context *ctx)
+{ // Decode next action word, retrieves state and length parameters
+	int res;
+	ssize_t end;
+	u64 val;
+
+	end = BEAT_RANGESZ(ctx, BEAT_PATCHFILE) - ctx->foffset[BEAT_PATCHFILE];
+
+	if (end == ctx->eoal_offset) return BEAT_EOAL;
+	if (end < ctx->eoal_offset) return BEAT_PATCH_EXPECT;
+
+	res = BEAT_NextVLI(ctx, &val);
+	*act = val & 3;
+	*len = (val >> 2) + 1;
+	return res;
 }
 
-u32 closeFile(BeatFile *bf) {
-    for (UINT n = 0; n <= bf->size / chunkSize; n++) {
-        if (bf->dataChunks[n].data) freeChunk(bf, n);
-    }
-    fvx_close(&bf->file);
-    u32 checksum = ~bf->checksum;
-    free(bf);
-    return checksum;
+static int BEAT_RunActions(BEAT_Context *ctx, const BEAT_Action *acts)
+{ // Parses an action list and runs commands specified in `acts`
+	int cmd;
+	u64 len;
+
+	while(1) {
+		int res = BEAT_NextAction(&cmd, &len, ctx);
+		if (res == BEAT_EOAL) return BEAT_EOAL; // End of patch
+		if (res != BEAT_OK) return res; // Failed to get next action
+
+		res = (acts[cmd])(ctx, len); // Execute next action
+		if (res == BEAT_ABORTED) return BEAT_ABORTED; // Return on user abort
+		if (res != BEAT_OK) return res; // Break on error
+	}
 }
 
-int fatalError(int errcode) {
-    switch(errcode) {
-        case BEAT_PATCH_TOO_SMALL:
-            ShowPrompt(false, "%s\nThe patch is too small to be a valid BPS file.", progressText); break;
-        case BEAT_PATCH_INVALID_HEADER:
-            ShowPrompt(false, "%s\nThe patch is not a valid BPS file.", progressText); break;
-        case BEAT_SOURCE_TOO_SMALL:
-            ShowPrompt(false, "%s\nThe file being patched is smaller than expected.", progressText); break;
-        case BEAT_TARGET_TOO_SMALL:
-            ShowPrompt(false, "%s\nThere is not enough space for the patched file.", progressText); break;
-        case BEAT_SOURCE_CHECKSUM_INVALID:
-            ShowPrompt(false, "%s\nThe file being patched does not match its checksum.", progressText); break;
-        case BEAT_TARGET_CHECKSUM_INVALID:
-            ShowPrompt(false, "%s\nThe patched file does not match its checksum.", progressText); break;
-        case BEAT_PATCH_CHECKSUM_INVALID:
-            ShowPrompt(false, "%s\nThe BPS patch file does not match its checksum.", progressText); break;
-        case BEAT_BPM_CHECKSUM_INVALID:
-            ShowPrompt(false, "%s\nThe BPM patch file does not match its checksum.", progressText); break;
-        case BEAT_INVALID_FILE_PATH:
-            ShowPrompt(false, "%s\nThe requested file path was invalid.", progressText); break;
-        case BEAT_CANCELED:
-            ShowPrompt(false, "%s\nPatching canceled.", progressText); break;
-        case BEAT_MEMORY:
-            ShowPrompt(false, "%s\nNot enough memory.", progressText); break;
-    }
-    if (patch) { closeFile(patch); patch = NULL; }
-    if (source) { closeFile(source); source = NULL; }
-    if (target) { closeFile(target); target = NULL; }
-    return errcode;
+static void BEAT_ReleaseCTX(BEAT_Context *ctx)
+{ // Release any resources associated to the context
+	free(ctx->copybuf);
+	for (int i = 0; i < BEAT_FILECOUNT; i++) {
+		if (fvx_opened(&ctx->file[i])) fvx_close(&ctx->file[i]);
+	}
 }
 
-bool beatCopy(const char* inName, const char* outName, u32 offset, u32 length) {
-    FIL inFile, outFile;
-    if (fvx_open(&inFile, inName, FA_READ) != FR_OK ||
-        fvx_open(&outFile, outName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK)
-        return false;
-    fvx_lseek(&inFile, offset);
-    if (length == 0) length = fvx_size(&inFile);
-    u32 bufsiz = min(STD_BUFFER_SIZE, length);
-    u8* buffer = malloc(bufsiz);
-    if (!buffer) return false;
-    
-    bool ret = true;
-    for (u64 pos = 0; (pos < length) && ret; pos += bufsiz) {
-        UINT read_bytes = min(bufsiz, length - pos);
-        UINT bytes_read = read_bytes;
-        if ((fvx_read(&inFile, buffer, read_bytes, &bytes_read) != FR_OK) || (read_bytes != bytes_read)) ret = false;
-        if (ret && fvx_write(&outFile, buffer, read_bytes, &bytes_read) != FR_OK) ret = false;
-    }
-    
-    fvx_close(&inFile);
-    fvx_close(&outFile);
-    free(buffer);
-    return ret;
+// BPS Specific functions
+/**
+ Initialize the Beat File Structure
+ - verifies checksums
+ - performs further sanity checks
+ - extracts initial info
+ - leaves the file ready to begin state machine execution
+ */
+static int BPS_InitCTX_Advanced(BEAT_Context *ctx, const char *bps_path, const char *in_path, const char *out_path, size_t start, size_t end)
+{
+	int res;
+	u8 read_magic[4];
+	u64 vli, in_sz, metaend_off;
+	u32 chksum[BEAT_FILECOUNT], expected_chksum[BEAT_FILECOUNT];
+
+	// Clear stackbuf
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->eoal_offset = 12;
+
+	if (end == 0) {
+		start = 0;
+		end = fs_size(bps_path);
+	}
+
+	// Get checksums of BPS and input files
+	chksum[BEAT_PATCHFILE] = crc32_calculate_from_file(bps_path, start, end - start - 4);
+	chksum[BEAT_SRCFILE] = crc32_calculate_from_file(in_path, 0, fs_size(in_path));
+
+	// open all files
+	fvx_open(&ctx->file[BEAT_PATCHFILE], bps_path, BEAT_READONLY);
+	ctx->ranges[0][BEAT_PATCHFILE] = start;
+	ctx->ranges[1][BEAT_PATCHFILE] = end;
+
+	fvx_open(&ctx->file[BEAT_SRCFILE], in_path, BEAT_READONLY);
+	ctx->ranges[0][BEAT_SRCFILE] = 0;
+	ctx->ranges[1][BEAT_SRCFILE] = fs_size(in_path);
+
+	res = fvx_open(&ctx->file[BEAT_DSTFILE], out_path, BEAT_RWCREATE);
+	if (res != FR_OK) return BEAT_IO_ERROR;
+
+	// Verify BPS1 header magic
+	res = BEAT_Read(ctx, BEAT_PATCHFILE, read_magic, sizeof(read_magic), true);
+	if (res != BEAT_OK) return BEAT_IO_ERROR;
+	res = memcmp(read_magic, bps_signature, sizeof(bps_signature));
+	if (res != 0) return BEAT_BADPATCH;
+
+	// Check input size
+	res = BEAT_NextVLI(ctx, &in_sz);
+	if (res != BEAT_OK) return res;
+	if (ctx->ranges[1][BEAT_SRCFILE] != in_sz) return BEAT_BADINPUT;
+
+	// Get expected output size
+	res = BEAT_NextVLI(ctx, &vli);
+	if (res != BEAT_OK) return res;
+	ctx->ranges[0][BEAT_DSTFILE] = 0;
+	ctx->ranges[1][BEAT_DSTFILE] = vli;
+
+	// Get end of metadata offset
+	res = BEAT_NextVLI(ctx, &metaend_off);
+	if (res != BEAT_OK) return res;
+	metaend_off += ctx->foffset[BEAT_PATCHFILE];
+
+	// Read checksums from BPS file
+	for (int i = 0; i < BEAT_FILECOUNT; i++) {
+		BEAT_SeekAbs(ctx, BEAT_PATCHFILE, ctx->ranges[1][BEAT_PATCHFILE] - ctx->ranges[0][BEAT_PATCHFILE] - bps_chksumoffs[i]);
+		BEAT_Read(ctx, BEAT_PATCHFILE, &expected_chksum[i], sizeof(u32), false);
+	}
+
+	// Verify patch and input checksums
+	if (chksum[BEAT_PATCHFILE] != expected_chksum[BEAT_PATCHFILE]) return BEAT_BADCHKSUM;
+	if (chksum[BEAT_SRCFILE] != expected_chksum[BEAT_SRCFILE]) return BEAT_BADCHKSUM;
+
+	// Initialize output checksums
+	ctx->ocrc = 0;
+	ctx->xocrc = expected_chksum[BEAT_DSTFILE];
+
+	// Allocate temporary block copy buffer
+	ctx->copybuf = malloc(STD_BUFFER_SIZE);
+	if (ctx->copybuf == NULL) return BEAT_OUT_OF_MEMORY;
+
+	// Seek back to the start of action stream / end of metadata
+	BEAT_SeekAbs(ctx, BEAT_PATCHFILE, metaend_off);
+	return BEAT_OK;
 }
 
-u8 beatRead() {
-    if (!patch->dataChunks[patch->currOffset / chunkSize].data) readChunk(patch, patch->currOffset / chunkSize);
-    u8 buf = patch->dataChunks[patch->currOffset / chunkSize].data[patch->currOffset % chunkSize];
-    bpsChecksum = crc32_adjust(bpsChecksum, buf);
-    patch->currOffset++; patch->relOffset++;
-    return buf;
+static int BPS_InitCTX(BEAT_Context *ctx, const char *bps_path, const char *in_path, const char *out_path)
+{
+	return BPS_InitCTX_Advanced(ctx, bps_path, in_path, out_path, 0, 0);
 }
 
-u64 beatReadNumber() {
-    u64 data = 0, shift = 1;
-    while(true) {
-        u8 x = beatRead();
-        data += (x & 0x7f) * shift;
-        if(x & 0x80) break;
-        shift <<= 7;
-        data += shift;
-    }
-    return data;
+/*
+ Generic helper function to copy from `src_id` to BEAT_DSTFILE
+ Used by SourceRead, TargetRead and CreateFile
+*/
+static int BEAT_BlkCopy(BEAT_Context *ctx, int src_id, u64 len)
+{
+	while(len > 0) {
+		ssize_t blksz = min(len, STD_BUFFER_SIZE);
+		int res = BEAT_Read(ctx, src_id, ctx->copybuf, blksz, true);
+		if (res != BEAT_OK) return res;
+
+		res = BEAT_WriteOut(ctx, ctx->copybuf, blksz, true);
+		if (res != BEAT_OK) return res;
+
+		len -= blksz;
+	}
+	return BEAT_OK;
 }
 
-u32 beatReadChecksum() {
-    u32 checksum = 0;
-    checksum |= beatRead() <<  0;
-    checksum |= beatRead() <<  8;
-    checksum |= beatRead() << 16;
-    checksum |= beatRead() << 24;
-    return checksum;
+static int BPS_SourceRead(BEAT_Context *ctx, u64 len)
+{ // This command copies bytes from the source file to the target file
+	BEAT_SeekAbs(ctx, BEAT_SRCFILE, ctx->foffset[BEAT_DSTFILE]);
+	return BEAT_BlkCopy(ctx, BEAT_SRCFILE, len);
 }
 
-bool beatReadString(u32 length, char text[]) {
-    char strBuf[256];
-    for(u32 i = 0; i < length; i++) { strBuf[min(i, 255)] = beatRead(); }
-    strBuf[min(length, 255)] = '\0';
-    snprintf(text, length+1, "%s", strBuf);
-    return true;
+/*
+ [...] the actual data is not available to the patch applier,
+ so it is stored directly inside the patch.
+*/
+static int BPS_TargetRead(BEAT_Context *ctx, u64 len)
+{
+	return BEAT_BlkCopy(ctx, BEAT_PATCHFILE, len);
 }
 
-void findNewOffset(BeatFile *bf) {
-    int offset = beatReadNumber();
-    bool negative = offset & 1;
-    offset >>= 1;
-    if (negative) offset = -offset;
-    bf->relOffset += offset;
+/*
+ An offset is supplied to seek the sourceRelativeOffset to the desired
+ location, and then data is copied from said offset to the target file
+*/
+static int BPS_SourceCopy(BEAT_Context *ctx, u64 len)
+{
+	int res;
+	u64 vli;
+	s64 offset;
+
+	res = BEAT_NextVLI(ctx, &vli);
+	if (res != BEAT_OK) return res;
+
+	offset = BEAT_DecodeSigned(vli);
+	BEAT_SeekAbs(ctx, BEAT_SRCFILE, ctx->source_relative + offset);
+	ctx->source_relative += offset + len;
+
+	return BEAT_BlkCopy(ctx, BEAT_SRCFILE, len);
 }
 
-int ApplyBeatPatch(const char* targetName) {
-    bpsChecksum = ~0;
-    patch->relOffset = 0;
-    if(bpsSize < 19) return fatalError(BEAT_PATCH_TOO_SMALL);
-    
-    char header[5];
-    beatReadString(4, header);
-    if (strcmp(header, "BPS1") != 0) return fatalError(BEAT_PATCH_INVALID_HEADER);
-    
-    u64 patchSourceSize = beatReadNumber(patch);
-    u64 patchTargetSize = beatReadNumber(patch);
-    u64 patchMetaSize = beatReadNumber(patch);
-    char metadata[256];
-    beatReadString(patchMetaSize, metadata);
+/* This command treats all of the data that has already been written to the target file as a dictionary */
+static int BPS_TargetCopy(BEAT_Context *ctx, u64 len)
+{ // the black sheep of the family, needs special care
+	int res;
+	s64 offset;
+	u64 out_off, rel_off, vli;
 
-    target = initFile(targetName, BEAT_TARGET, patchTargetSize);
-    if (!target) return fatalError(BEAT_INVALID_FILE_PATH);
-    if (patchSourceSize > source->size) return fatalError(BEAT_SOURCE_TOO_SMALL);
-    if (patchTargetSize > target->size) return fatalError(BEAT_TARGET_TOO_SMALL);
-    
-    bool chunkedPatch = chunkSize < patch->size;
-    bool chunkedSource = chunkSize < source->size;
-    bool chunkedTarget = chunkSize < target->size;
-    bool chunkedCopy = chunkedPatch || chunkedSource || chunkedTarget;
-    if ((!chunkedSource && !readChunk(source, 0)) ||
-        (!chunkedTarget && !readChunk(target, 0)))
-        return fatalError(BEAT_MEMORY);
-    
-    while(patch->relOffset < bpsSize - 12) {
-        if (!ShowProgress(patch->currOffset, patch->size, progressText)) {
-            if (ShowPrompt(true, "%s\nB button detected. Cancel?", progressText)) return fatalError(BEAT_CANCELED);
-            ShowProgress(0, patch->size, progressText);
-            ShowProgress(patch->currOffset, patch->size, progressText);
-        }
-            
-        UINT length = beatReadNumber(patch);
-        UINT mode = length & 3;
-        length = (length >> 2) + 1;
-        
-        if (mode == BEAT_SOURCECOPY) { findNewOffset(source); }
-        else if (mode == BEAT_TARGETCOPY) { findNewOffset(target); }
-        
-        if (!chunkedCopy) { // if all three files are smaller than 1 MB, no memory management is required
-            switch (mode) {
-                case BEAT_SOURCEREAD:
-                    memcpy(&target->dataChunks[0].data[target->currOffset], &source->dataChunks[0].data[target->currOffset], length);
-                    target->currOffset += length; source->currOffset += length;
-                    break;
-                case BEAT_TARGETREAD:
-                    memcpy(&target->dataChunks[0].data[target->currOffset], &patch->dataChunks[0].data[patch->currOffset], length);
-                    if (bpmIsActive) bpsChecksum = crc32_calculate(bpsChecksum, &patch->dataChunks[0].data[patch->currOffset], length);
-                    target->currOffset += length; patch->currOffset += length; patch->relOffset += length;
-                    break;
-                case BEAT_SOURCECOPY:
-                    memcpy(&target->dataChunks[0].data[target->currOffset], &source->dataChunks[0].data[source->relOffset], length);
-                    target->currOffset += length; source->relOffset += length;
-                    break;
-                case BEAT_TARGETCOPY: // memcpy is not used due to overlapping memory regions: we may need to read data that we have just written
-                    while (length--) { target->dataChunks[0].data[target->currOffset++] = target->dataChunks[0].data[target->relOffset++]; }
-                    break;
-            }
-        } else { // otherwise, we have to check before each read that the 1 MB chunk of data that we want is currently read into memory
-            u32 outChunk, outPos, inChunk, inPos;
-            UINT maxlen; // this variable stops reads at the end of chunks
-            while (length) { // and this one restarts them
-                if (chunkedTarget) { // we can still optimize portions if the related file is smaller than 1 MB
-                    outChunk = target->currOffset / chunkSize; outPos = target->currOffset % chunkSize;
-                    if (!target->dataChunks[outChunk].data && !readChunk(target, outChunk)) return fatalError(BEAT_MEMORY);
-                    target->dataChunks[outChunk].time = timer_ticks(timer);
-                    maxlen = min(target->dataChunks[outChunk].size - outPos, length);
-                } else { outChunk = 0; outPos = target->currOffset; maxlen = length; }
-                switch (mode) {
-                    case BEAT_SOURCEREAD:
-                        if (chunkedSource) {
-                            if (!source->dataChunks[outChunk].data && !readChunk(source, outChunk)) return fatalError(BEAT_MEMORY);
-                            source->dataChunks[outChunk].time = timer_ticks(timer);
-                            maxlen = min(source->dataChunks[outChunk].size - outPos, maxlen);
-                        }
-                        length -= maxlen; target->currOffset += maxlen; source->currOffset += maxlen;
-                        memcpy(&target->dataChunks[outChunk].data[outPos], &source->dataChunks[outChunk].data[outPos], maxlen);
-                        break;
-                    case BEAT_TARGETREAD:
-                        if (chunkedPatch) {
-                            inChunk = patch->currOffset / chunkSize; inPos = patch->currOffset % chunkSize;
-                            if (!patch->dataChunks[inChunk].data && !readChunk(patch, inChunk)) return fatalError(BEAT_MEMORY);
-                            maxlen = min(patch->dataChunks[inChunk].size - inPos, maxlen);
-                        } else { inChunk = 0; inPos = patch->currOffset; }
-                        length -= maxlen; target->currOffset += maxlen; patch->currOffset += maxlen; patch->relOffset += maxlen;
-                        memcpy(&target->dataChunks[outChunk].data[outPos], &patch->dataChunks[inChunk].data[inPos], maxlen);
-                        if (bpmIsActive) bpsChecksum = crc32_calculate(bpsChecksum, &patch->dataChunks[inChunk].data[inPos], maxlen);
-                        break;
-                    case BEAT_SOURCECOPY:
-                        if (chunkedSource) {
-                            inChunk = source->relOffset / chunkSize; inPos = source->relOffset % chunkSize;
-                            if (!source->dataChunks[inChunk].data && !readChunk(source, inChunk)) return fatalError(BEAT_MEMORY);
-                            source->dataChunks[inChunk].time = timer_ticks(timer);
-                            maxlen = min(source->dataChunks[inChunk].size - inPos, maxlen);
-                        } else { inChunk = 0; inPos = source->relOffset; }
-                        length -= maxlen; target->currOffset += maxlen; source->relOffset += maxlen;
-                        memcpy(&target->dataChunks[outChunk].data[outPos], &source->dataChunks[inChunk].data[inPos], maxlen);
-                        break;
-                    case BEAT_TARGETCOPY:
-                        if (chunkedTarget) {
-                            inChunk = target->relOffset / chunkSize; inPos = target->relOffset % chunkSize;
-                            if (!target->dataChunks[inChunk].data && !readChunk(target, inChunk)) return fatalError(BEAT_MEMORY);
-                            target->dataChunks[inChunk].time = timer_ticks(timer);
-                            maxlen = min(target->dataChunks[inChunk].size - inPos, maxlen);
-                        } else { inChunk = 0; inPos = target->relOffset; }
-                        length -= maxlen; target->currOffset += maxlen; target->relOffset += maxlen;
-                        if (inChunk == outChunk) { while (maxlen--) { target->dataChunks[outChunk].data[outPos++] = target->dataChunks[inChunk].data[inPos++]; } }
-                        else memcpy(&target->dataChunks[outChunk].data[outPos], &target->dataChunks[inChunk].data[inPos], maxlen);
-                        break;
-                }
-            }
-        }
-    }
-    
-    u32 patchSourceChecksum = beatReadChecksum();
-    u32 patchTargetChecksum = beatReadChecksum();
-    u32 finalPatchChecksum = ~bpsChecksum;
-    u32 patchPatchChecksum = beatReadChecksum();
-    
-    while (source->checksumNeeded <= source->size / chunkSize) { // not all source chunks are guaranteed to have been checksummed
-        if (!source->dataChunks[source->checksumNeeded].data) readChunk(source, source->checksumNeeded);
-        checksumChunk(source, source->checksumNeeded);
-    }
-    
-    if (!bpmIsActive) { finalPatchChecksum = closeFile(patch); patch = NULL; }
-    u32 finalSourceChecksum = closeFile(source); source = NULL;
-    u32 finalTargetChecksum = closeFile(target); target = NULL;
-    if(finalPatchChecksum != patchPatchChecksum) return fatalError(BEAT_PATCH_CHECKSUM_INVALID);
-    if(finalSourceChecksum != patchSourceChecksum) return fatalError(BEAT_SOURCE_CHECKSUM_INVALID);
-    if(finalTargetChecksum != patchTargetChecksum) return fatalError(BEAT_TARGET_CHECKSUM_INVALID);
-    
-    return BEAT_SUCCESS;
+	res = BEAT_NextVLI(ctx, &vli);
+	if (res != BEAT_OK) return res;
+
+	offset = BEAT_DecodeSigned(vli);
+	out_off = ctx->foffset[BEAT_DSTFILE];
+	rel_off = ctx->target_relative + offset;
+	if (rel_off > out_off) return BEAT_BADPATCH; // Illegal
+
+	while(len != 0) {
+		u8 *remfill;
+		ssize_t blksz, distance, remainder;
+
+		blksz = min(len, STD_BUFFER_SIZE);
+		distance = min((ssize_t)(out_off - rel_off), blksz);
+
+		BEAT_SeekAbs(ctx, BEAT_DSTFILE, rel_off);
+		res = BEAT_Read(ctx, BEAT_DSTFILE, ctx->copybuf, distance, false);
+		if (res != BEAT_OK) return res;
+
+		remfill = ctx->copybuf + distance;
+		remainder = blksz - distance;
+		while(remainder > 0) { // fill the buffer with repeats
+			ssize_t remblk = min(distance, remainder);
+			memcpy(remfill, ctx->copybuf, remblk);
+			remfill += remblk;
+			remainder -= remblk;
+		}
+
+		BEAT_SeekAbs(ctx, BEAT_DSTFILE, out_off);
+		res = BEAT_WriteOut(ctx, ctx->copybuf, blksz, false);
+		if (res != BEAT_OK) return res;
+
+		rel_off += blksz;
+		out_off += blksz;
+		len -= blksz;
+	}
+
+	BEAT_SeekAbs(ctx, BEAT_DSTFILE, out_off);
+	ctx->target_relative = rel_off;
+	return BEAT_OK;
 }
 
-int ApplyBPSPatch(const char* patchName, const char* sourceName, const char* targetName) {
-    bpmIsActive = false; timer = timer_start(); timerLastCheck = 0;
-    patch = initFile(patchName, BEAT_PATCH, 0); source = initFile(sourceName, BEAT_SOURCE, 0); target = NULL;
-    
-    if (!CheckWritePermissions(targetName) || !patch || !source) return fatalError(BEAT_INVALID_FILE_PATH);
-    
-    bpsSize = patch->size;
-    snprintf(progressText, 256, "%s", targetName);
-    return ApplyBeatPatch(targetName);
+static int BPS_RunActions(BEAT_Context *ctx)
+{
+	static const BEAT_Action BPS_Actions[] = { // BPS action handlers
+		[BPS_SOURCEREAD] = BPS_SourceRead,
+		[BPS_TARGETREAD] = BPS_TargetRead,
+		[BPS_SOURCECOPY] = BPS_SourceCopy,
+		[BPS_TARGETCOPY] = BPS_TargetCopy
+	};
+	int res = BEAT_RunActions(ctx, BPS_Actions);
+	if (res == BEAT_ABORTED) return BEAT_ABORTED;
+	if (res == BEAT_EOAL) // Verify hashes
+		return (ctx->ocrc == ctx->xocrc) ? BEAT_OK : BEAT_BADOUTPUT;
+	return res; // some kind of error
 }
 
-int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* targetPath) {
-    bpmIsActive = true; timer = timer_start(); timerLastCheck = 0;
-    patch = initFile(patchName, BEAT_PATCH, 0); source = NULL; target = NULL;
-    
-    if ((!CheckWritePermissions(targetPath)) || !patch ||
-        ((fvx_stat(targetPath, NULL) != FR_OK) && (fvx_mkdir(targetPath) != FR_OK)))
-        return fatalError(BEAT_INVALID_FILE_PATH);
-    
-    char header[5];
-    beatReadString(4, header);
-    if (strcmp(header, "BPM1") != 0) return fatalError(BEAT_PATCH_INVALID_HEADER);
-    u64 metadataLength = beatReadNumber();
-    char metadata[256];
-    beatReadString(metadataLength, metadata);
+/***********************
+ BPM Specific functions
+***********************/
+static int BPM_OpenFile(BEAT_Context *ctx, int id, const char *path, size_t max_sz)
+{
+	FRESULT res;
+	if (fvx_opened(&ctx->file[id])) fvx_close(&ctx->file[id]);
 
-    while(patch->currOffset < patch->size - 4) {
-        u64 encoding = beatReadNumber(patch);
-        unsigned int action = encoding & 3;
-        unsigned int targetLength = (encoding >> 2) + 1;
-        char targetName[256];
-        beatReadString(targetLength, targetName);
-        snprintf(progressText, 256, "%s", targetName);
-        
-        if (!ShowProgress(patch->currOffset, patch->size, progressText)) {
-            if (ShowPrompt(true, "%s\nB button detected. Cancel?", progressText)) return fatalError(BEAT_CANCELED);
-            ShowProgress(0, patch->size, progressText);
-            ShowProgress(patch->currOffset, patch->size, progressText);
-        }
+	res = fvx_open(&ctx->file[id], path, max_sz ? BEAT_RWCREATE : BEAT_READONLY);
+	if (res == FR_OK) return BEAT_IO_ERROR;
 
-        if(action == BEAT_CREATEPATH) {
-            char newPath[256];
-            snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            if ((fvx_stat(newPath, NULL) != FR_OK) && (fvx_mkdir(newPath) != FR_OK)) return fatalError(BEAT_INVALID_FILE_PATH);
-        } else if(action == BEAT_CREATEFILE) {
-            char newPath[256];
-            snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            u64 fileSize = beatReadNumber();
-            if (!beatCopy(patchName, newPath, patch->currOffset, fileSize)) return fatalError(BEAT_INVALID_FILE_PATH);
-            patch->currOffset += fileSize;
-            while (patch->checksumNeeded <= patch->currOffset / chunkSize) {
-                if (!patch->dataChunks[patch->checksumNeeded].data) readChunk(patch, patch->checksumNeeded);
-                checksumChunk(patch, patch->checksumNeeded);
-            }
-            beatReadChecksum();
-        } else {
-            encoding = beatReadNumber();
-            char originPath[256], sourceName[256], oldPath[256], newPath[256];
-            if (encoding & 1) snprintf(originPath, 256, "%s", targetPath);
-            else snprintf(originPath, 256, "%s", sourcePath);
-            if ((encoding >> 1) == 0) snprintf(sourceName, 256, "%s", targetName);
-            else beatReadString((encoding >> 1), sourceName);
-            snprintf(oldPath, 256, "%s/%s", originPath, sourceName);
-            snprintf(newPath, 256, "%s/%s", targetPath, targetName);
-            if(action == BEAT_MODIFYFILE) {
-                source = initFile(oldPath, BEAT_SOURCE, 0);
-                if (!source) return fatalError(BEAT_INVALID_FILE_PATH);
-                bpsSize = beatReadNumber();
-                int result = ApplyBeatPatch(newPath);
-                if (result != BEAT_SUCCESS) return result;
-            } else if(action == BEAT_MIRRORFILE) {
-                if (!beatCopy(oldPath, newPath, 0, 0)) return fatalError(BEAT_INVALID_FILE_PATH);
-                beatReadChecksum();
-            }
-        }
-    }
+	ctx->ranges[0][id] = 0;
+	if (max_sz > 0) {
+		ctx->ranges[1][id] = max_sz;
+	} else {
+		ctx->ranges[1][id] = f_size(&ctx->file[id]);
+	}
 
-    u32 cksum = beatReadChecksum();
-    u32 patchChecksum = closeFile(patch); patch = NULL;
-    if (patchChecksum != cksum) return fatalError(BEAT_BPM_CHECKSUM_INVALID);
-
-    return BEAT_SUCCESS;
+	// if a new file is opened it makes no sense to keep the old CRC
+	// a single outfile wont be created from more than one infile (& patch)
+	ctx->ocrc = 0;
+	ctx->foffset[id] = 0;
+	return BEAT_OK;
 }
+
+static int BPM_InitCTX(BEAT_Context *ctx, const char *bpm_path, const char *src_dir, const char *dst_dir)
+{
+	int res;
+	u64 metaend_off;
+	u8 read_magic[4];
+	u32 chksum, expected_chksum;
+
+	memset(ctx, 0, sizeof(*ctx));
+
+	ctx->bpm_path = bpm_path;
+	ctx->source_dir = src_dir;
+	ctx->target_dir = dst_dir;
+	ctx->eoal_offset = 4;
+
+	chksum = crc32_calculate_from_file(bpm_path, 0, fs_size(bpm_path) - 4);
+	res = BPM_OpenFile(ctx, BEAT_PATCHFILE, bpm_path, 0);
+	res = BEAT_Read(ctx, BEAT_PATCHFILE, read_magic, sizeof(read_magic), true);
+	if (res != BEAT_OK) return res;
+	res = memcmp(read_magic, bpm_signature, sizeof(bpm_signature));
+	if (res != 0) return BEAT_BADPATCH;
+
+	// Get end of metadata offset
+	res = BEAT_NextVLI(ctx, &metaend_off);
+	if (res != BEAT_OK) return res;
+	metaend_off += ctx->foffset[BEAT_PATCHFILE];
+
+	// Read checksums from BPS file
+	BEAT_SeekAbs(ctx, BEAT_PATCHFILE, BEAT_RANGESZ(ctx, BEAT_PATCHFILE) - 4);
+	res = BEAT_Read(ctx, BEAT_PATCHFILE, &expected_chksum, sizeof(u32), false);
+	if (res != BEAT_OK) return res;
+	if (expected_chksum != chksum) return BEAT_BADCHKSUM;
+
+	// Allocate temporary block copy buffer
+	ctx->copybuf = malloc(STD_BUFFER_SIZE);
+	if (ctx->copybuf == NULL) return BEAT_OUT_OF_MEMORY;
+
+	// Seek back to the start of action stream / end of metadata
+	BEAT_SeekAbs(ctx, BEAT_PATCHFILE, metaend_off);
+	return BEAT_OK;
+}
+
+static int BPM_NextPath(BEAT_Context *ctx, char *out, int name_len)
+{
+	if (name_len >= BEAT_MAXPATH) return BEAT_BADPATCH;
+	int res = BEAT_Read(ctx, BEAT_PATCHFILE, out, name_len, true);
+	out[name_len] = '\0'; // make sure the buffer ends with a zero char
+	return res;
+}
+
+static int BPM_MakeRelativePaths(BEAT_Context *ctx, char *src, char *dst, int name_len)
+{
+	char name[BEAT_MAXPATH];
+	int res = BPM_NextPath(ctx, name, name_len);
+	if (res != BEAT_OK) return res;
+	if (src != NULL)
+		if (snprintf(src, BEAT_MAXPATH, "%s/%s", ctx->source_dir, name) < 0) return BEAT_BADPATCH;
+	if (dst != NULL)
+		if (snprintf(dst, BEAT_MAXPATH, "%s/%s", ctx->target_dir, name) < 0) return BEAT_BADPATCH;
+	return res;
+}
+
+static int BPM_CreatePath(BEAT_Context *ctx, u64 name_len)
+{ // Create a directory
+	char path[BEAT_MAXPATH];
+	int res = BPM_MakeRelativePaths(ctx, NULL, path, name_len);
+	if (res != BEAT_OK) return res;
+
+	res = fvx_mkdir(path);
+	if (res != FR_OK && res != FR_EXIST) return BEAT_IO_ERROR;
+	return BEAT_OK;
+}
+
+static int BPM_CreateFile(BEAT_Context *ctx, u64 name_len)
+{ // Create a file and fill it with data provided in the BPM
+	u64 file_sz;
+	u32 checksum;
+	char path[BEAT_MAXPATH];
+
+	int res = BPM_MakeRelativePaths(ctx, NULL, path, name_len);
+	if (res != BEAT_OK) return res;
+
+	res = BEAT_NextVLI(ctx, &file_sz); // get new file size
+	if (res != BEAT_OK) return res;
+	res = BPM_OpenFile(ctx, BEAT_DSTFILE, path, file_sz); // open file as RW
+	if (res != BEAT_OK) return res;
+	res = BEAT_BlkCopy(ctx, BEAT_PATCHFILE, file_sz); // copy data to new file
+	if (res != BEAT_OK) return res;
+
+	res = BEAT_Read(ctx, BEAT_PATCHFILE, &checksum, sizeof(u32), true);
+	if (res != BEAT_OK) return res;
+	if (ctx->ocrc != checksum) return BEAT_BADOUTPUT; // get and check CRC32
+	return BEAT_OK;
+}
+
+static int BPM_ModifyFile(BEAT_Context *ctx, u64 name_len)
+{ // Apply a BPS patch
+	u64 origin, bps_sz;
+	BEAT_Context bps_context;
+	char src[BEAT_MAXPATH], dst[BEAT_MAXPATH];
+
+	int res = BPM_MakeRelativePaths(ctx, src, dst, name_len);
+	if (res != BEAT_OK) return res;
+
+	res = BEAT_NextVLI(ctx, &origin); // get dummy(?) origin value
+	if (res != BEAT_OK) return res;
+	res = BEAT_NextVLI(ctx, &bps_sz); // get embedded BPS size
+	if (res != BEAT_OK) return res;
+
+	res = BPS_InitCTX_Advanced(
+		&bps_context, ctx->bpm_path, src, dst,
+		ctx->foffset[BEAT_PATCHFILE], ctx->foffset[BEAT_PATCHFILE] + bps_sz
+	); // create a BPS context using the current ranges
+	if (res == BEAT_OK) res = BPS_RunActions(&bps_context); // run if OK
+	BEAT_ReleaseCTX(&bps_context);
+	if (res != BEAT_OK) return res; // break off if there was an error
+
+	BEAT_SeekOff(ctx, BEAT_PATCHFILE, bps_sz); // advance beyond the BPS
+	return BEAT_OK;
+}
+
+static int BPM_MirrorFile(BEAT_Context *ctx, u64 name_len)
+{ // Copy a file from source to target without any modifications
+	u64 origin;
+	u32 checksum;
+	char src[BEAT_MAXPATH], dst[BEAT_MAXPATH];
+
+	int res = BPM_MakeRelativePaths(ctx, src, dst, name_len);
+	if (res != BEAT_OK) return res;
+
+	// open source and destination files, read the origin dummy
+	res = BPM_OpenFile(ctx, BEAT_SRCFILE, src, 0);
+	if (res != BEAT_OK) return res;
+	res = BPM_OpenFile(ctx, BEAT_DSTFILE, dst, ctx->ranges[1][BEAT_SRCFILE]);
+	if (res != BEAT_OK) return res;
+	res = BEAT_NextVLI(ctx, &origin);
+	if (res != BEAT_OK) return res;
+
+	// copy straight from source to destination
+	res = BEAT_BlkCopy(ctx, BEAT_SRCFILE, ctx->ranges[1][BEAT_SRCFILE]);
+	if (res != BEAT_OK) return res;
+
+	res = BEAT_Read(ctx, BEAT_PATCHFILE, &checksum, sizeof(u32), true);
+	if (res != BEAT_OK) return res;
+	if (ctx->ocrc != checksum) return BEAT_BADOUTPUT; // verify checksum
+	return BEAT_OK;
+}
+
+static int BPM_RunActions(BEAT_Context *ctx)
+{
+	static const BEAT_Action BPM_Actions[] = { // BPM Action handlers
+		[BPM_CREATEPATH] = BPM_CreatePath,
+		[BPM_CREATEFILE] = BPM_CreateFile,
+		[BPM_MODIFYFILE] = BPM_ModifyFile,
+		[BPM_MIRRORFILE] = BPM_MirrorFile
+	};
+	int res = BEAT_RunActions(ctx, BPM_Actions);
+	if (res == BEAT_ABORTED) return BEAT_ABORTED;
+	if (res == BEAT_EOAL) return BEAT_OK;
+	return res;
+}
+
+static int BEAT_Run(const char *p, const char *s, const char *d, bool bpm)
+{
+	int res;
+	BEAT_Context ctx;
+	res = (bpm ? BPM_InitCTX : BPS_InitCTX)(&ctx, p, s, d);
+	if (res != BEAT_OK) {
+		ShowPrompt(false, "Failed to initialize %s file:\n%s",
+			bpm ? "BPM" : "BPS", BEAT_ErrString(res));
+	} else {
+		res = (bpm ? BPM_RunActions : BPS_RunActions)(&ctx);
+		switch(res) {
+			case BEAT_OK:
+				ShowPrompt(false, "Successfully patched");
+				break;
+			case BEAT_ABORTED:
+				ShowPrompt(false, "Patching aborted by user");
+				break;
+			default:
+				ShowPrompt(false, "Failed to run patch:\n%s", BEAT_ErrString(res));
+				break;
+		}
+	}
+	BEAT_ReleaseCTX(&ctx);
+	return (res == BEAT_OK) ? 0 : 1;
+}
+
+int ApplyBPSPatch(const char* modifyName, const char* sourceName, const char* targetName)
+{ return BEAT_Run(modifyName, sourceName, targetName, false); }
+
+int ApplyBPMPatch(const char* patchName, const char* sourcePath, const char* targetPath)
+{ return BEAT_Run(patchName, sourcePath, targetPath, true); }

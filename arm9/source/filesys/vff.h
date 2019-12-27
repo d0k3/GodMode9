@@ -46,3 +46,6 @@ FRESULT fvx_match_name(const TCHAR* path, const TCHAR* pattern);
 FRESULT fvx_preaddir (DIR* dp, FILINFO* fno, const TCHAR* pattern);
 FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode);
 FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern);
+
+// additional state function
+bool fvx_opened(const FIL* fp);

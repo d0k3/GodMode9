@@ -7,7 +7,7 @@
 #else
 #define _MAX_FN_LEN (8+3)
 #endif
-    
+
 #define _VFIL_ENABLED    (!_FS_TINY)
 #define _VDIR_ENABLED    ((sizeof(DIR) - sizeof(FFOBJID) >= sizeof(VirtualDir)) && (FF_USE_LFN != 0))
 
@@ -376,4 +376,8 @@ FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
     }
     
     return FR_OK;
+}
+
+bool fvx_opened(const FIL* fp) {
+    return (fp->obj.fs != NULL);
 }
