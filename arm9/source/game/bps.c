@@ -504,7 +504,6 @@ static int BPM_InitCTX(BEAT_Context *ctx, const char *bpm_path, const char *src_
 	res = BEAT_Read(ctx, BEAT_PF, read_magic, sizeof(read_magic), 1);
 	if (res != BEAT_OK) return res;
 	res = memcmp(read_magic, bpm_signature, sizeof(bpm_signature));
-	ShowPrompt(false, "%.4s %.4s", bpm_signature, read_magic);
 	if (res != 0) return BEAT_BADPATCH;
 
 	// Get end of metadata offset
@@ -546,9 +545,9 @@ static int BPM_MakeRelativePaths(BEAT_Context *ctx, char *src, char *dst, int na
 	int res = BPM_NextPath(ctx, name, name_len);
 	if (res != BEAT_OK) return res;
 	if (src != NULL)
-		if (snprintf(src, BEAT_MAXPATH, "%s/%s", ctx->source_dir, name) < 0) return BEAT_BADPATCH;
+		if (snprintf(src, BEAT_MAXPATH, "%s/%s", ctx->source_dir, name) >= BEAT_MAXPATH) return BEAT_BADPATCH;
 	if (dst != NULL)
-		if (snprintf(dst, BEAT_MAXPATH, "%s/%s", ctx->target_dir, name) < 0) return BEAT_BADPATCH;
+		if (snprintf(dst, BEAT_MAXPATH, "%s/%s", ctx->target_dir, name) >= BEAT_MAXPATH) return BEAT_BADPATCH;
 	return res;
 }
 
