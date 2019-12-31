@@ -1114,7 +1114,7 @@ set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nScripts from P
 if	not ask "This will copy Luma3DS to your CTRNAND,\nallowing for the system to work without\nan SD card.\n \nContinue?"
 	goto MainMenu_Scripts_from_Plailect's_Guide
 end
-if	allow -a 1:
+if	allow 1:
 	cp -w -o -s 0:/boot.firm 1:/boot.firm
 	if	not find 1:/rw/luma NULL
 		mkdir 1:/rw/luma
@@ -1123,6 +1123,7 @@ if	allow -a 1:
 	cp -w -o -s 0:/luma/customversion_sys.txt 1:/rw/luma/customversion_sys.txt
 	cp -w -o -s 0:/luma/splash.bin 1:/rw/luma/splash.bin
 	cp -w -o -s 0:/luma/splashbottom.bin 1:/rw/luma/splashbottom.bin
+	cp -w -o -s 0:/luma/payloads 1:/rw/luma/payloads
 	echo "Luma3DS copied successfully."
 else
 	echo "Permissions denied. Aborting."
