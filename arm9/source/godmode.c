@@ -1524,12 +1524,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             else ShowPrompt(false, "%lu/%lu %ss built ok", n_success, n_marked, type);
             if (n_success) ShowPrompt(false, "%lu files written to %s", n_success, OUTPUT_PATH);
             if (n_success && in_output_path) GetDirContents(current_dir, current_path);
+            if (n_success != (n_marked - n_other)) {
+                ShowPrompt(false, "%lu file(s) failed conversion.\nVerification is recommended.",
+                    n_marked - (n_success + n_other));
+            }
         } else {
             if (((user_select != cxi_dump) && (BuildCiaFromGameFile(file_path, force_legit) == 0)) ||
                 ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(file_path) == 0))) {
                 ShowPrompt(false, "%s\n%s built to %s", pathstr, type, OUTPUT_PATH);
                 if (in_output_path) GetDirContents(current_dir, current_path);
-            } else ShowPrompt(false, "%s\n%s build failed", pathstr, type);
+            } else {
+                ShowPrompt(false, "%s\n%s build failed", pathstr, type);
+                if ((filetype & (GAME_NCCH|GAME_NCSD)) &&
+                    ShowPrompt(true, "%s\nfile failed conversion.\n \nVerify now?", pathstr)) {
+                    ShowPrompt(false, "%s\nVerification %s", pathstr,
+                        (VerifyGameFile(file_path) == 0) ? "success" : "failed");
+                }
+            }
         }
         return 0;
     }

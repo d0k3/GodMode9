@@ -13,13 +13,16 @@
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
 #define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
 
-u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file) {
+u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file, bool nocrypto) {
     u32 offset_ncch = fvx_tell(file);
     UINT btr;
-    
-    if ((fvx_read(file, ncch, sizeof(NcchHeader), &btr) != FR_OK) ||
-        (ValidateNcchHeader(ncch) != 0))
-        return 1;
+
+    if (fvx_read(file, ncch, sizeof(NcchHeader), &btr) != FR_OK) return 1;
+    if (nocrypto) {
+        ncch->flags[3] = 0x00;
+        ncch->flags[7] = (ncch->flags[7] & ~0x21) | 0x04;
+    }
+    if (ValidateNcchHeader(ncch) != 0) return 1;
     
     if (exthdr) {
         if (!ncch->size_exthdr) return 1;
@@ -71,7 +74,7 @@ u32 LoadNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs,
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     fvx_lseek(&file, offset);
-    if (GetNcchHeaders(ncch, exthdr, exefs, &file) != 0) {
+    if (GetNcchHeaders(ncch, exthdr, exefs, &file, false) != 0) {
         fvx_close(&file);
         return 1;
     }
@@ -137,7 +140,7 @@ u32 LoadExeFsFile(void* data, const char* path, u32 offset, const char* name, u3
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     fvx_lseek(&file, offset);
-    if ((GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0) ||
+    if ((GetNcchHeaders(&ncch, NULL, &exefs, &file, false) != 0) ||
         (!ncch.size_exefs)) {
         fvx_close(&file);
         return 1;
@@ -304,6 +307,7 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
 }
 
 u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
+    bool cryptofix = false;
     NcchHeader ncch;
     NcchExtHeader exthdr;
     ExeFsHeader exefs;
@@ -316,28 +320,15 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
+    // fetch and check NCCH header
     fvx_lseek(&file, offset);
-    if (GetNcchHeaders(&ncch, NULL, NULL, &file) != 0) {
+    if (GetNcchHeaders(&ncch, NULL, NULL, &file, cryptofix) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
         fvx_close(&file);
         return 1;
     }
-
-    fvx_lseek(&file, offset);
-    if (ncch.size_exthdr && (GetNcchHeaders(&ncch, &exthdr, NULL, &file) != 0)) {
-        if (!offset) ShowPrompt(false, "%s\nError: Missing ExtHeader", pathstr);
-        fvx_close(&file);
-        return 1;
-    }
     
-    fvx_lseek(&file, offset);
-    if (ncch.size_exefs && (GetNcchHeaders(&ncch, NULL, &exefs, &file) != 0)) {
-        if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
-        fvx_close(&file);
-        return 1;
-    }
-    
-    // size checks
+    // check NCCH size
     if (!size) size = fvx_size(&file) - offset;
     if ((fvx_size(&file) < offset) || (size < ncch.size * NCCH_MEDIA_UNIT)) {
         if (!offset) ShowPrompt(false, "%s\nError: File is too small", pathstr);
@@ -345,6 +336,33 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
         return 1;
     }
     
+    // fetch and check ExeFS header
+    fvx_lseek(&file, offset);
+    if (ncch.size_exefs && (GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) != 0)) {
+        bool borkedflags = false;
+        if (ncch.size_exefs && NCCH_ENCRYPTED(&ncch)) {
+            // disable crypto, try again
+            cryptofix = true;
+            fvx_lseek(&file, offset);
+            if ((GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) == 0) && 
+                ShowPrompt(true, "%s\nError: Bad crypto flags\n \nAttempt to fix?", pathstr))
+                borkedflags = true;
+        }
+        if (!borkedflags) {
+            if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
+            fvx_close(&file);
+            return 1;
+        }
+    }
+
+    // fetch and check ExtHeader
+    fvx_lseek(&file, offset);
+    if (ncch.size_exthdr && (GetNcchHeaders(&ncch, &exthdr, NULL, &file, cryptofix) != 0)) {
+        if (!offset) ShowPrompt(false, "%s\nError: Missing ExtHeader", pathstr);
+        fvx_close(&file);
+        return 1;
+    }
+
     // check / setup crypto
     if (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0) {
         if (!offset) ShowPrompt(false, "%s\nError: Crypto not set up", pathstr);
@@ -481,6 +499,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     }
     
     fvx_close(&file);
+    if (cryptofix) fvx_qwrite(path, &ncch, offset, sizeof(NcchHeader), NULL);
     return ver_exthdr|ver_exefs|ver_romfs;
 }
 
