@@ -7,6 +7,75 @@
 #define getfatindex(uv) ((uv) & 0x7FFFFFFFUL)
 #define buildfatuv(index, flag) ((index) | ((flag) ? 0x80000000UL : 0))
 
+typedef struct {
+    char magic[4]; // "BDRI"
+    u32 version; // == 0x30000
+    u64 info_offset; // == 0x20
+    u64 image_size; // in blocks; and including the pre-header
+    u32 image_block_size;
+    u8 padding1[4];
+    u8 unknown[4];
+    u32 data_block_size;
+    u64 dht_offset;
+    u32 dht_bucket_count;
+    u8 padding2[4];
+    u64 fht_offset;
+    u32 fht_bucket_count;
+    u8 padding3[4];
+    u64 fat_offset;
+    u32 fat_entry_count; // exculdes 0th entry
+    u8 padding4[4];
+    u64 data_offset;
+    u32 data_block_count; // == fat_entry_count
+    u8 padding5[4];
+    u32 det_start_block;
+    u32 det_block_count;
+    u32 max_dir_count;
+    u8 padding6[4];
+    u32 fet_start_block;
+    u32 fet_block_count;
+    u32 max_file_count;
+    u8 padding7[4];
+} __attribute__((packed)) BDRIFsHeader;
+
+typedef struct {
+    char magic[8]; // varies based on media type and importdb vs titledb
+    u8 reserved[0x78];
+    BDRIFsHeader fs_header;
+} __attribute__((packed)) TitleDBPreHeader;
+
+typedef struct {
+    char magic[4]; // "TICK"
+    u32 unknown1; // usually (assuming always) == 1
+    u32 unknown2;
+    u32 unknown3;
+    BDRIFsHeader fs_header;
+} __attribute__((packed)) TickDBPreHeader;
+
+typedef struct {
+    u32 parent_index;
+    u8 title_id[8];
+    u32 next_sibling_index;
+    u8 padding1[4];
+    u32 start_block_index;
+    u64 size; // in bytes
+    u8 padding2[8];
+    u32 hash_bucket_next_index;
+} __attribute__((packed)) TdbFileEntry;
+
+typedef struct {
+    u32 total_entry_count;
+    u32 max_entry_count; // == max_file_count + 1
+    u8 padding[32];
+    u32 next_dummy_index;
+} __attribute__((packed)) DummyFileEntry;
+
+typedef struct {
+    u32 unknown; // usually (assuming always) == 1
+    u32 ticket_size; // == 0x350 == sizeof(Ticket)
+    Ticket ticket;
+} __attribute__((packed, aligned(4))) TicketEntry;
+
 static FIL* bdrifp;
 
 static FRESULT BDRIRead(UINT ofs, UINT btr, void* buf) {
