@@ -2069,6 +2069,7 @@ u32 ShowCiaCheckerInfo(const char* path) {
 		state_verify = VerifyCiaFile(path);
 	}
 
+    free(cia);
 	return (state_ticket && state_tmd) ? 0 : 1; 
 }
 
