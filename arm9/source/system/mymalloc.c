@@ -4,6 +4,7 @@
 static size_t total_allocated = 0;
 
 void* my_malloc(size_t size) {
+    if (!size) return NULL; // nothing, return nothing
     void* ptr = (void*) malloc(sizeof(size_t) + size);
     if (ptr) total_allocated += size;
     if (ptr) (*(size_t*) ptr) = size;
@@ -14,7 +15,7 @@ void *my_realloc(void *ptr, size_t new_size) {
     if (!ptr)
         return my_malloc(new_size);
 
-    if (ptr && !new_size) {
+    if (!new_size) {
         my_free(ptr);
         return NULL;
     }
@@ -22,11 +23,12 @@ void *my_realloc(void *ptr, size_t new_size) {
     void *real_ptr = (char*)ptr - sizeof(size_t);
     size_t old_size = *(size_t*)real_ptr;
 
-    total_allocated -= old_size;
-    total_allocated += new_size;
-
     void *new_ptr = realloc(real_ptr, new_size + sizeof(size_t));
     if (new_ptr) {
+        total_allocated -= old_size;
+        total_allocated += new_size;
+
+        *(size_t*)new_ptr = new_size;
         return (char*)new_ptr + sizeof(size_t);
     }
 
@@ -34,6 +36,7 @@ void *my_realloc(void *ptr, size_t new_size) {
 }
 
 void my_free(void* ptr) {
+    if (!ptr) return; // just like real free, dont do anything here
     void* ptr_fix = (char*) ptr - sizeof(size_t);
     total_allocated -= *(size_t*) ptr_fix;
     free(ptr_fix);
