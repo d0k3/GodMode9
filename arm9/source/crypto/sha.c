@@ -3,7 +3,7 @@
 
 typedef struct
 {
-	u32 data[16];
+    u32 data[16];
 } _sha_block;
 
 void sha_init(u32 mode)

@@ -2049,7 +2049,7 @@ u32 ShowGameFileTitleInfo(const char* path) {
 }
 
 u32 ShowCiaCheckerInfo(const char* path) {
-	CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+    CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
     if (!cia) return 1;
     
      // path string
@@ -2075,11 +2075,11 @@ u32 ShowCiaCheckerInfo(const char* path) {
 
     // check ticket
     if (ValidateTicket((Ticket*)&(cia->ticket)) == 0)
-    	state_ticket = (ValidateTicketSignature((Ticket*)&(cia->ticket)) == 0) ? 2 : 1;
+        state_ticket = (ValidateTicketSignature((Ticket*)&(cia->ticket)) == 0) ? 2 : 1;
 
     // check tmd
     if (ValidateTmd(&(cia->tmd)) == 0)
-    	state_tmd = (ValidateTmdSignature(&(cia->tmd)) == 0) ? 2 : 1;
+        state_tmd = (ValidateTmdSignature(&(cia->tmd)) == 0) ? 2 : 1;
 
     // check for available contents
     u8* cnt_index = cia->header.content_index;
@@ -2093,28 +2093,28 @@ u32 ShowCiaCheckerInfo(const char* path) {
     // CIA type string
     char typestr[32];
     if (!state_ticket || !state_tmd || missing_first || (!is_dlc && (content_found != content_count)))
-    	snprintf(typestr, 32, "Possibly Broken");
+        snprintf(typestr, 32, "Possibly Broken");
     else snprintf(typestr, 32, "%s %s%s",
-    	console_id ? "Personal" : "Universal",
-    	((state_ticket == 2) && (state_tmd == 2)) ? "Legit" :
+        console_id ? "Personal" : "Universal",
+        ((state_ticket == 2) && (state_tmd == 2)) ? "Legit" :
          (state_tmd == 2) ? "Pirate Legit" : "Custom",
-    	is_dlc ? " DLC" : "");
+        is_dlc ? " DLC" : "");
 
     // output results
     s32 state_verify = -1;
-	while (true) {
-		if (!ShowPrompt(state_verify < 0, "%s\n%s CIA File\n \nTitle ID: %016llX\nConsole ID: %08lX\nContents in CIA: %lu/%lu\nTicket/TMD: %s/%s\nVerification: %s",
-			pathstr, typestr, title_id, console_id,
-			content_found, content_count,
-			(state_ticket == 0) ? "invalid" : (state_ticket == 2) ? "legit" : "illegit",
-			(state_tmd == 0) ? "invalid" : (state_tmd == 2) ? "legit" : "illegit",
-			(state_verify < 0) ? "pending\n \nProceed with verification?" : (state_verify == 0) ? "passed" : "failed") ||
-			(state_verify >= 0)) break;
-		state_verify = VerifyCiaFile(path);
-	}
+    while (true) {
+        if (!ShowPrompt(state_verify < 0, "%s\n%s CIA File\n \nTitle ID: %016llX\nConsole ID: %08lX\nContents in CIA: %lu/%lu\nTicket/TMD: %s/%s\nVerification: %s",
+            pathstr, typestr, title_id, console_id,
+            content_found, content_count,
+            (state_ticket == 0) ? "invalid" : (state_ticket == 2) ? "legit" : "illegit",
+            (state_tmd == 0) ? "invalid" : (state_tmd == 2) ? "legit" : "illegit",
+            (state_verify < 0) ? "pending\n \nProceed with verification?" : (state_verify == 0) ? "passed" : "failed") ||
+            (state_verify >= 0)) break;
+        state_verify = VerifyCiaFile(path);
+    }
 
     free(cia);
-	return (state_ticket && state_tmd) ? 0 : 1; 
+    return (state_ticket && state_tmd) ? 0 : 1; 
 }
 
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {

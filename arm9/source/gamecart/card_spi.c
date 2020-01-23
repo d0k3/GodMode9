@@ -327,13 +327,13 @@ int CardSPIReadSaveData_9bit(CardSPIType type, u32 pos, void* data, u32 size) {
     return 0;
 }
 
-int CardSPIReadSaveData_16bit(CardSPIType type, u32 offset, void* data, u32 size) {	
+int CardSPIReadSaveData_16bit(CardSPIType type, u32 offset, void* data, u32 size) {
     u8 cmd[3] = { SPI_CMD_READ, (u8)(offset >> 8), (u8) offset };
 
     return CardSPIWriteRead(type, cmd, 3, data, size, NULL, 0);
 }
 
-int CardSPIReadSaveData_24bit(CardSPIType type, u32 offset, void* data, u32 size) {	
+int CardSPIReadSaveData_24bit(CardSPIType type, u32 offset, void* data, u32 size) {
     u8 cmd[4] = { SPI_CMD_READ, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
     
     return CardSPIWriteRead(type, cmd, 4, data, size, NULL, 0);
