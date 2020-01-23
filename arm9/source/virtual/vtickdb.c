@@ -19,6 +19,7 @@
 typedef struct {
     u32 commonkey_idx;
     u32 offset;
+    u32 size;
     u8  title_id[8];
     u8  titlekey[16];
     u8  ticket_id[8];
@@ -54,6 +55,7 @@ u32 AddTickDbInfo(TickDbInfo* info, Ticket* ticket, u32 offset, bool replace) {
     TickDbEntry* entry = info->entries + info->n_entries;
     entry->commonkey_idx = ticket->commonkey_idx;
     entry->offset = offset;
+    entry->size = GetTicketSize(ticket);
     memcpy(entry->title_id, ticket->title_id, 8);
     memcpy(entry->titlekey, ticket->titlekey, 16);
     memcpy(entry->ticket_id, ticket->ticket_id, 8);
@@ -178,7 +180,7 @@ bool ReadVTickDbDir(VirtualFile* vfile, VirtualDir* vdir) {
             memset(vfile, 0, sizeof(VirtualFile));
             snprintf(vfile->name, 32, NAME_TIK, getbe64(tick_entry->title_id), getbe32(tick_entry->console_id));
             vfile->offset = tick_entry->offset & ~OFLAG_RAW;
-            vfile->size = sizeof(Ticket);
+            vfile->size = tick_entry->size;
             vfile->keyslot = 0xFF;
             vfile->flags = (vdir->flags | VFLAG_READONLY) & ~VFLAG_DIR;
             

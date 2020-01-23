@@ -199,7 +199,8 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     return 0;
 }
 
-u32 LoadCdnTicketFile(Ticket* ticket, const char* path_cnt) {
+u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
+    if(!ticket) return 1;
     // path points to CDN content file
     char path_cetk[256];
     strncpy(path_cetk, path_cnt, 256);
@@ -211,10 +212,22 @@ u32 LoadCdnTicketFile(Ticket* ticket, const char* path_cnt) {
     snprintf(ext_cetk, 256 - (ext_cetk - path_cetk), "cetk");
     
     // load and check ticket
+    TicketMinimum tmp;
     UINT br;
-    if ((fvx_qread(path_cetk, ticket, 0, TICKET_SIZE, &br) != FR_OK) || (br != TICKET_SIZE) ||
-        (ValidateTicket(ticket) != 0)) return 1;
-        
+    if ((fvx_qread(path_cetk, &tmp, 0, TICKET_MINIMUM_SIZE, &br) != FR_OK) || (br != TICKET_MINIMUM_SIZE) ||
+        ValidateTicket((Ticket*)&tmp) != 0) return 1;
+
+    u32 tik_size = GetTicketSize((Ticket*)&tmp);
+
+    Ticket* tik = (Ticket*)malloc(tik_size);
+    if (!tik) return 1;
+
+    if ((fvx_qread(path_cetk, tik, 0, tik_size, &br) != FR_OK) || (br != tik_size)) {
+        free(tik);
+        return 1;
+    }
+
+    *ticket = tik;
     return 0;
 }
 
@@ -546,7 +559,7 @@ u32 VerifyCiaFile(const char* path) {
     // load CIA stub
     if ((LoadCiaStub(cia, path) != 0) ||
         (GetCiaInfo(&info, &(cia->header)) != 0) ||
-        (GetTitleKey(titlekey, &(cia->ticket)) != 0)) {
+        (GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0)) {
         ShowPrompt(false, "%s\nError: Probably not a CIA file", pathstr);
         free(cia);
         return 1;
@@ -607,15 +620,18 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     
     u8 titlekey[0x10] = { 0xFF };
     if (cdn) { // load / build ticket (for titlekey / CDN only)
-        Ticket ticket;
+        Ticket* ticket = NULL;
         if (!((LoadCdnTicketFile(&ticket, path) == 0) ||
-             ((BuildFakeTicket(&ticket, tmd->title_id) == 0) &&
-             (FindTitleKey(&ticket, tmd->title_id) == 0))) ||
-            (GetTitleKey(titlekey, &ticket) != 0)) {
+             ((ticket = (Ticket*)malloc(TICKET_COMMON_SIZE), ticket != NULL) &&
+             (BuildFakeTicket(ticket, tmd->title_id) == 0) &&
+             (FindTitleKey(ticket, tmd->title_id) == 0))) ||
+            (GetTitleKey(titlekey, ticket) != 0)) {
             ShowPrompt(false, "%s\nError: CDN titlekey not found", pathstr);
+            free(ticket);
             free(tmd);
             return 1;
         }
+        free(ticket);
     }
     
     // verify contents
@@ -1010,7 +1026,7 @@ u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
     if (!cia) return 1;
     if ((LoadCiaStub(cia, orig) != 0) ||
         (GetCiaInfo(&info, &(cia->header)) != 0) ||
-        (GetTitleKey(titlekey, &(cia->ticket)) != 0)) {
+        (GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0)) {
         free(cia);
         return 1;
     }
@@ -1106,16 +1122,27 @@ u32 CryptCdnFileBuffered(const char* orig, const char* dest, u16 crypto, void* b
     } else tmd = NULL;
     
     // load or build ticket
-    Ticket ticket;
+    Ticket* ticket = NULL;
     if (LoadCdnTicketFile(&ticket, orig) != 0) {
-        if (!tmd || (BuildFakeTicket(&ticket, tmd->title_id) != 0)) return 1;
-        if (FindTitleKey(&ticket, tmd->title_id) != 0) return 1;
+        if (!tmd || (ticket = (Ticket*)malloc(TICKET_COMMON_SIZE), !ticket)) return 1;
+        if ((BuildFakeTicket(ticket, tmd->title_id) != 0)) {
+            free(ticket);
+            return 1;
+        }
+        if (FindTitleKey(ticket, tmd->title_id) != 0) {
+            free(ticket);
+            return 1;
+        }
     }
     
     // get titlekey
     u8 titlekey[0x10] = { 0xFF };
-    if (GetTitleKey(titlekey, &ticket) != 0)
+    if (GetTitleKey(titlekey, ticket) != 0) {
+        free(ticket);
         return 1;
+    }
+
+    free(ticket);
     
     // find (build fake) content chunk
     TmdContentChunk* chunk = NULL;
@@ -1311,11 +1338,11 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     
     // build the CIA stub
     memset(cia, 0, sizeof(CiaStub));
-    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+    if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (LoadTmdFile(&(cia->tmd), path_tmd) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
-        (BuildFakeTicket(&(cia->ticket), cia->tmd.title_id) != 0)) {
+        (BuildFakeTicket((Ticket*)&(cia->ticket), cia->tmd.title_id) != 0)) {
         return 1;
     }
     
@@ -1328,17 +1355,25 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     if (!content_count) return 1;
     
     // get (legit) ticket
-    Ticket* ticket = &(cia->ticket);
+    Ticket* ticket = (Ticket*)&(cia->ticket);
     bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
     if (force_legit) {
-        Ticket ticket_fake; // backup of the fake ticket
-        memcpy(&ticket_fake, ticket, sizeof(Ticket));
-        if ((cdn && (LoadCdnTicketFile(ticket, path_tmd) != 0)) ||
-            (!cdn && (FindTicket(ticket, title_id, true, src_emunand) != 0))) {
+        Ticket* ticket_tmp = NULL;
+        if ((cdn && (LoadCdnTicketFile(&ticket_tmp, path_tmd) != 0)) ||
+            (!cdn && (FindTicket(&ticket_tmp, title_id, true, src_emunand) != 0))) {
             ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
+            free(ticket_tmp);
             return 1;
         }
-        if (getbe32(ticket->console_id)) {
+        // either, it's a ticket without ways to check ownership data, smaller sized
+        // or, it's title ticket with > 1024 contents, of which can't make it work with current CiaStub
+        if (GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE) {
+            ShowPrompt(false, "ID %016llX\nLegit ticket of unsupported size.", getbe64(title_id));
+            free(ticket_tmp);
+            return 1;
+        }
+        bool copy = true;
+        if (getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
             const char* optionstr[2] =
                 {"Use personalized ticket (legit)", "Use generic ticket (not legit)"};
@@ -1347,27 +1382,36 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
                     "ID %016llX\nLegit ticket is personalized.\nCIA may not be installable.\nChoose default action:", getbe64(title_id));
                 ShowProgress(0, 0, path_tmd);
             }
-            if (!default_action) return 1;
+            if (!default_action) {
+                free(ticket_tmp);
+                return 1;
+            }
             else if (default_action == 2) {
-                memcpy(ticket_fake.titlekey, ticket->titlekey, 0x10);
-                ticket_fake.commonkey_idx = ticket->commonkey_idx; 
-                memcpy(ticket, &ticket_fake, sizeof(Ticket));
+                memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+                ticket->commonkey_idx = ticket_tmp->commonkey_idx; 
+                copy = false;
             }
         }
+        if (copy) memcpy(ticket, ticket_tmp, TICKET_COMMON_SIZE);
+        free(ticket_tmp);
     } else if (cdn) {
-        if ((LoadCdnTicketFile(ticket, path_tmd) != 0) &&
-            (FindTitleKey(ticket, title_id) != 0)) {
+        Ticket* ticket_tmp = NULL;
+        if ((LoadCdnTicketFile(&ticket_tmp, path_tmd) != 0) &&
+            (FindTitleKey(ticket_tmp, title_id) != 0)) {
             ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
+            free(ticket_tmp);
             return 1;
         }
+        free(ticket_tmp);
     } else {
-        Ticket ticket_tmp;
+        Ticket* ticket_tmp;
         if ((FindTitleKey(ticket, title_id) != 0) && 
             (FindTicket(&ticket_tmp, title_id, false, src_emunand) == 0)) {
             // we just copy the titlekey from a valid ticket (if we can)
-            memcpy(ticket->titlekey, ticket_tmp.titlekey, 0x10);
-            ticket->commonkey_idx = ticket_tmp.commonkey_idx;
+            memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+            ticket->commonkey_idx = ticket_tmp->commonkey_idx;
         }
+        free(ticket_tmp);
     }
     
     // content path string
@@ -1399,7 +1443,7 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     
     // insert contents
     u8 titlekey[16] = { 0xFF };
-    if ((GetTitleKey(titlekey, &(cia->ticket)) != 0) && force_legit) return 1;
+    if ((GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0) && force_legit) return 1;
     if (WriteCiaStub(cia, path_cia) != 0) return 1;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
@@ -1472,9 +1516,9 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
     if (!cia) return 1;
     memset(cia, 0, sizeof(CiaStub));
-    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+    if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
-        (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
+        (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
         (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -1499,7 +1543,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     free(meta);
     
     // write the CIA stub (take #2)
-    FindTitleKey((&cia->ticket), title_id);
+    FindTitleKey((Ticket*)(&cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -1538,9 +1582,9 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
     if (!cia) return 1;
     memset(cia, 0, sizeof(CiaStub));
-    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+    if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
-        (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
+        (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
         (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -1572,7 +1616,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     if (meta) free(meta);
     
     // write the CIA stub (take #2)
-    FindTitleKey(&(cia->ticket), title_id);
+    FindTitleKey((Ticket*)&(cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -1616,9 +1660,9 @@ u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
     CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
     if (!cia) return 1;
     memset(cia, 0, sizeof(CiaStub));
-    if ((BuildCiaHeader(&(cia->header)) != 0) ||
+    if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
-        (BuildFakeTicket(&(cia->ticket), title_id) != 0) ||
+        (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
         (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, privsave_size)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -1635,7 +1679,7 @@ u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
     }
     
     // write the CIA stub (take #2)
-    FindTitleKey((&cia->ticket), title_id);
+    FindTitleKey((Ticket*)(&cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_cia) != 0)) {
@@ -2030,8 +2074,8 @@ u32 ShowCiaCheckerInfo(const char* path) {
     bool is_dlc = ((title_id >> 32) == 0x0004008C);
 
     // check ticket
-    if (ValidateTicket(&(cia->ticket)) == 0)
-    	state_ticket = (ValidateTicketSignature(&(cia->ticket)) == 0) ? 2 : 1;
+    if (ValidateTicket((Ticket*)&(cia->ticket)) == 0)
+    	state_ticket = (ValidateTicketSignature((Ticket*)&(cia->ticket)) == 0) ? 2 : 1;
 
     // check tmd
     if (ValidateTmd(&(cia->tmd)) == 0)
@@ -2275,10 +2319,10 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
     
     u64 filetype = path_in ? IdentifyFileType(path_in) : 0;
     if (filetype & GAME_TICKET) {
-        Ticket ticket;
-        if ((fvx_qread(path_in, &ticket, 0, TICKET_SIZE, NULL) != FR_OK) ||
+        TicketCommon ticket;
+        if ((fvx_qread(path_in, &ticket, 0, TICKET_COMMON_SIZE, NULL) != FR_OK) ||
             (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) ||
-            (AddTicketToInfo(tik_info, &ticket, dec) != 0)) {
+            (AddTicketToInfo(tik_info, (Ticket*)&ticket, dec) != 0)) {
             return 1;
         }
     } else if (filetype & SYS_TICKDB) {
@@ -2476,7 +2520,7 @@ u32 LoadNcchFromGameFile(const char* path, NcchHeader* ncch) {
                 u8 titlekey[16];
                 u8 ctr[16];
                 GetTmdCtr(ctr, chunk);
-                if (GetTitleKey(titlekey, &(cia->ticket)) != 0) {
+                if (GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0) {
                     free(cia);
                     return 1;
                 }

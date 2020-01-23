@@ -91,7 +91,7 @@ typedef struct {
 
 typedef struct {
     u32 unknown; // usually (assuming always) == 1
-    u32 ticket_size; // == 0x350 == sizeof(Ticket)
+    u32 ticket_size; // commonly == 0x350
     Ticket ticket;
 } __attribute__((packed, aligned(4))) TicketEntry;
 
@@ -100,7 +100,7 @@ u32 GetNumTickets(const char* path);
 u32 ListTitleInfoEntryTitleIDs(const char* path, u8* title_ids, u32 max_title_ids);
 u32 ListTicketTitleIDs(const char* path, u8* title_ids, u32 max_title_ids);
 u32 ReadTitleInfoEntryFromDB(const char* path, const u8* title_id, TitleInfoEntry* tie);
-u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket* ticket);
+u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket** ticket);
 u32 RemoveTitleInfoEntryFromDB(const char* path, const u8* title_id);
 u32 RemoveTicketFromDB(const char* path, const u8* title_id);
 u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoEntry* tie, bool replace);

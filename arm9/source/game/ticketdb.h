@@ -36,7 +36,7 @@ typedef struct {
 
 u32 GetTitleKey(u8* titlekey, Ticket* ticket);
 Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls);
-u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand);
+u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand);
 u32 FindTitleKey(Ticket* ticket, u8* title_id);
 u32 AddTitleKeyToInfo(TitleKeysInfo* tik_info, TitleKeyEntry* tik_entry, bool decrypted_in, bool decrypted_out, bool devkit);
 u32 AddTicketToInfo(TitleKeysInfo* tik_info, Ticket* ticket, bool decrypt);

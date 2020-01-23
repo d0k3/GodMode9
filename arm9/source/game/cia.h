@@ -34,8 +34,8 @@ typedef struct {
     u8 header_padding[0x40 - (CIA_HEADER_SIZE % 0x40)];
     u8 cert[CIA_CERT_SIZE];
     // cert is aligned and needs no padding
-    Ticket ticket;
-    u8 ticket_padding[0x40 - (TICKET_SIZE % 0x40)];
+    TicketCommon ticket;
+    u8 ticket_padding[0x40 - (TICKET_COMMON_SIZE % 0x40)];
     TitleMetaData tmd;
     TmdContentChunk content_list[TMD_MAX_CONTENTS];
 } PACKED_ALIGN(16) CiaStub;
@@ -66,7 +66,7 @@ u32 FixCiaHeaderForTmd(CiaHeader* header, TitleMetaData* tmd);
 
 u32 BuildCiaCert(u8* ciacert);
 u32 BuildCiaMeta(CiaMeta* meta, void* exthdr, void* smdh);
-u32 BuildCiaHeader(CiaHeader* header);
+u32 BuildCiaHeader(CiaHeader* header, u32 ticket_size);
 
 u32 DecryptCiaContentSequential(void* data, u32 size, u8* ctr, const u8* titlekey);
 u32 EncryptCiaContentSequential(void* data, u32 size, u8* ctr, const u8* titlekey);
