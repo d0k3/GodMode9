@@ -669,12 +669,13 @@ u32 ReadTitleInfoEntryFromDB(const char* path, const u8* title_id, TitleInfoEntr
     return 0;
 }
 
-u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket* ticket)
+u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket** ticket)
 {
     FIL file;
     TickDBPreHeader pre_header;
-    TicketEntry te;
-    
+    TicketEntry* te = NULL;
+    u32 entry_size;
+
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     
@@ -682,8 +683,12 @@ u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket* ticket)
     
     if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
         !CheckDBMagic((u8*) &pre_header, true) ||
-        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) &te,
+        (GetBDRIEntrySize(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, &entry_size) != 0) ||
+        entry_size < sizeof(TicketEntry) + 0x14 || 
+        (te = (TicketEntry*)malloc(entry_size), te == NULL) ||
+        (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) te,
             sizeof(TicketEntry)) != 0)) {
+        free(te); // if allocated
         fvx_close(bdrifp);
         bdrifp = NULL;
         return 1;
@@ -692,11 +697,21 @@ u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket* ticket)
     fvx_close(bdrifp);
     bdrifp = NULL;
     
-    if (te.ticket_size != sizeof(Ticket))
+    if (te->ticket_size != GetTicketSize(&te->ticket)) {
+        free(te);
         return 1;
+    }
     
-    if (ticket) *ticket = te.ticket;
+    if (ticket) {
+        u32 size = te->ticket_size;
+        memmove(te, &te->ticket, size); // recycle this memory, instead of allocating another
+        Ticket* tik = realloc(te, size);
+        if(!tik) tik = (Ticket*)te;
+        *ticket = tik;
+        return 0;
+    }
     
+    free(te);
     return 0;
 }
 
@@ -770,26 +785,35 @@ u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoE
 u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bool replace) {
     FIL file;
     TickDBPreHeader pre_header;
+    u32 entry_size = sizeof(TicketEntry) + GetTicketContentIndexSize(ticket);
     
-    TicketEntry te;
-    te.unknown = 1;
-    te.ticket_size = sizeof(Ticket);
-    te.ticket = *ticket;
-    
-    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK)
+    TicketEntry* te = (TicketEntry*)malloc(entry_size);
+    if (!te) {
         return 1;
+    }
+
+    te->unknown = 1;
+    te->ticket_size = GetTicketSize(ticket);
+    memcpy(&te->ticket, ticket, te->ticket_size);
+    
+    if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK) {
+        free(te);
+        return 1;
+    }
     
     bdrifp = &file;
     
     if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
         !CheckDBMagic((u8*) &pre_header, true) ||
         (AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id,
-            (const u8*) &te, sizeof(TicketEntry), replace) != 0)) {
+            (const u8*) te, entry_size, replace) != 0)) {
+        free(te);
         fvx_close(bdrifp);
         bdrifp = NULL;
         return 1;
     }
     
+    free(te);
     fvx_close(bdrifp);
     bdrifp = NULL;
     return 0;

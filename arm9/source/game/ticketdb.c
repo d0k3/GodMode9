@@ -55,7 +55,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
 Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls) {
     // chunk must be aligned to 0x200 byte in file and at least 0x400 byte big
     Ticket* tick = (Ticket*) (void*) (chunk + 0x18);
-    if ((getle32(chunk + 0x10) == 0) || (getle32(chunk + 0x14) != sizeof(Ticket))) return NULL;
+    if ((getle32(chunk + 0x10) == 0) || (getle32(chunk + 0x14) != GetTicketSize(tick))) return NULL;
     if (ValidateTicket(tick) != 0) return NULL; // ticket not validated
     if (title_id && (memcmp(title_id, tick->title_id, 8) != 0)) return NULL; // title id not matching
     if (legit_pls && (ValidateTicketSignature(tick) != 0)) return NULL; // legit check using RSA sig
@@ -63,7 +63,7 @@ Ticket* TicketFromTickDbChunk(u8* chunk, u8* title_id, bool legit_pls) {
     return tick;
 }
 
-u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
+u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
     const char* path_db = TICKDB_PATH(emunand); // EmuNAND / SysNAND
     u8* data = (u8*) malloc(TICKDB_AREA_SIZE);
     if (!data) return 1;
@@ -79,7 +79,11 @@ u32 FindTicket(Ticket* ticket, u8* title_id, bool force_legit, bool emunand) {
     for (u32 i = 0; !found && (i <= TICKDB_AREA_SIZE - 0x400); i += 0x200) {
         Ticket* tick = TicketFromTickDbChunk(data + i, title_id, force_legit);
         if (!tick) continue;
-        memcpy(ticket, tick, sizeof(Ticket));
+        u32 size = GetTicketSize(tick);
+        Ticket* newtick = (Ticket*)malloc(size);
+        if (!newtick) break;
+        memcpy(newtick, tick, size);
+        *ticket = newtick;
         found = true;
     }
     

@@ -10,7 +10,11 @@ u32 ValidateTicket(Ticket* ticket) {
     if ((memcmp(ticket->sig_type, magic, sizeof(magic)) != 0) ||
         ((strncmp((char*) ticket->issuer, TICKET_ISSUER, 0x40) != 0) &&
         (strncmp((char*) ticket->issuer, TICKET_ISSUER_DEV, 0x40) != 0)) ||
-        (ticket->commonkey_idx >= 6))
+        (ticket->commonkey_idx >= 6) ||
+        (getbe32(&ticket->content_index[0]) != 0x10014) ||
+        (getbe32(&ticket->content_index[4]) < 0x14) ||
+        (getbe32(&ticket->content_index[12]) != 0x10014) ||
+        (getbe32(&ticket->content_index[16]) != 0))
         return 1;
     return 0;
 }
@@ -28,7 +32,7 @@ u32 ValidateTicketSignature(Ticket* ticket) {
     }
     
     if (!RSA_setKey2048(3, mod, exp) ||
-        !RSA_verify2048((void*) &(ticket->signature), (void*) &(ticket->issuer), 0x210))
+        !RSA_verify2048((void*) &(ticket->signature), (void*) &(ticket->issuer), GetTicketSize(ticket) - 0x140))
         return 1;
         
     return 0;
@@ -44,7 +48,7 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
     };
     // set ticket all zero for a clean start
-    memset(ticket, 0x00, sizeof(Ticket));
+    memset(ticket, 0x00, TICKET_COMMON_SIZE); // 0xAC being size of this fake ticket's content index
     // fill ticket values
     memcpy(ticket->sig_type, sig_type, 4);
     memset(ticket->signature, 0xFF, 0x100);
@@ -58,6 +62,14 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
     
     return 0;
+}
+
+u32 GetTicketContentIndexSize(const Ticket* ticket) {
+    return getbe32(&ticket->content_index[4]);
+}
+
+u32 GetTicketSize(const Ticket* ticket) {
+    return sizeof(Ticket) + GetTicketContentIndexSize(ticket);
 }
 
 u32 BuildTicketCert(u8* tickcert) {

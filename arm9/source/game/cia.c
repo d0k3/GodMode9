@@ -8,7 +8,7 @@
 u32 ValidateCiaHeader(CiaHeader* header) {
     if ((header->size_header != CIA_HEADER_SIZE) ||
         (header->size_cert != CIA_CERT_SIZE) ||
-        (header->size_ticket != TICKET_SIZE) ||
+        (header->size_ticket != TICKET_COMMON_SIZE) ||
         (header->size_tmd < TMD_SIZE_MIN) ||
         (header->size_tmd > TMD_SIZE_MAX) ||
         (header->size_content == 0))
@@ -95,12 +95,12 @@ u32 BuildCiaMeta(CiaMeta* meta, void* exthdr, void* smdh) {
     return 0;
 }
 
-u32 BuildCiaHeader(CiaHeader* header) {
+u32 BuildCiaHeader(CiaHeader* header, u32 ticket_size) {
     memset(header, 0, sizeof(CiaHeader));
     // sizes in header - fill only known sizes, others zero
     header->size_header = sizeof(CiaHeader);
     header->size_cert = CIA_CERT_SIZE;
-    header->size_ticket = sizeof(Ticket);
+    header->size_ticket = ticket_size;
     header->size_tmd = 0;
     header->size_meta = 0;
     header->size_content = 0;

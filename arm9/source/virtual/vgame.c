@@ -848,7 +848,7 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
             (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
             return false;
         offset_cia = vdir->offset; // always zero(!)
-        GetTitleKey(cia_titlekey, &(cia->ticket));
+        GetTitleKey(cia_titlekey, (Ticket*)&(cia->ticket));
         if (!BuildVGameCiaDir()) return false;
     } else if ((vdir->flags & VFLAG_NCSD) && (offset_ncsd != vdir->offset)) {
         if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
