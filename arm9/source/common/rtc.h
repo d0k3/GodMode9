@@ -16,7 +16,7 @@ typedef struct {
     u8 bcd_D;
     u8 bcd_M;
     u8 bcd_Y;
-	u8 leap_count;
+    u8 leap_count;
 } PACKED_STRUCT DsTime;
 
 bool is_valid_dstime(DsTime* dstime);

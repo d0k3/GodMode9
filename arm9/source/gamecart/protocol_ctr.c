@@ -76,8 +76,8 @@ void CTR_SendCommand(const u32 command[4], u32 pageSize, u32 blocks, u32 latency
             transferLength = 4096;
             pageParam = CTRCARD_PAGESIZE_4K;
             break;
-	default:
-	    break; //Defaults already set
+        default:
+            break; //Defaults already set
     }
 
     REG_CTRCARDBLKCNT = blocks - 1;

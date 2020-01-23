@@ -9,8 +9,8 @@
 #define CART_STATE (~(*(volatile u8*)0x10000010) & 0x1)
 #define SD_STATE ((*(volatile u16*)0x1000601C) & (0x1<<5))
 
-#define HID_RAW_TX(t)	((s32)(((t) / (1 << 16)) & 0xFFF))
-#define HID_RAW_TY(t)	((s32)((t) & 0xFFF))
+#define HID_RAW_TX(t)   ((s32)(((t) / (1 << 16)) & 0xFFF))
+#define HID_RAW_TY(t)   ((s32)((t) & 0xFFF))
 
 u32 HID_ReadState(void);
 
@@ -18,8 +18,8 @@ u32 HID_ReadState(void);
 // the touchscreen at the screen coordinates [screen_x, screen_y]
 // note: no point can be at the center
 typedef struct {
-	u32 ts_raw;
-	int screen_x, screen_y;
+    u32 ts_raw;
+    int screen_x, screen_y;
 } HID_CalibrationData;
 
 u32 HID_ReadRawTouchState(void);

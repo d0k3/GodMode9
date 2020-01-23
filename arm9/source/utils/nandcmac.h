@@ -4,8 +4,8 @@
 
 #define ReadFileCmac(path, cmac)    ReadWriteFileCmac(path, cmac, false)
 #define WriteFileCmac(path, cmac)   ReadWriteFileCmac(path, cmac, true)
-#define CheckCmdCmac(path)			CheckFixCmdCmac(path, false)
-#define FixCmdCmac(path)			CheckFixCmdCmac(path, true)
+#define CheckCmdCmac(path)          CheckFixCmdCmac(path, false)
+#define FixCmdCmac(path)            CheckFixCmdCmac(path, true)
 
 u32 CheckCmacPath(const char* path);
 u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write);

@@ -101,7 +101,7 @@ void add_ctr(void* ctr, uint32_t carry)
     int32_t i;
 
     for(i = 0; i < 4; i++) {
-		//FIXME this assumes alignment...
+        //FIXME this assumes alignment...
         counter[i] = ((uint32_t)outctr[i*4+0]<<24) | ((uint32_t)outctr[i*4+1]<<16) | ((uint32_t)outctr[i*4+2]<<8) | ((uint32_t)outctr[i*4+3]<<0);
     }
 
@@ -307,7 +307,7 @@ void aes_cmac(void* inbuf, void* outbuf, size_t size)
     char* xorpadb = (void*) xorpad;
     char finalxor = (xorpadb[0] & 0x80) ? 0x87 : 0x00;
     for (uint32_t i = 0; i < 15; i++) {
-		xorpadb[i] <<= 1;
+        xorpadb[i] <<= 1;
         xorpadb[i] |= xorpadb[i+1] >> 7;
     }
     xorpadb[15] <<= 1;
@@ -318,7 +318,7 @@ void aes_cmac(void* inbuf, void* outbuf, size_t size)
         out[i] = 0;
     while (size-- > 0) {
         for (uint32_t i = 0; i < 4; i++)
-			out[i] ^= *(in++);
+            out[i] ^= *(in++);
         if (!size) { // last block
             for (uint32_t i = 0; i < 4; i++)
                 out[i] ^= xorpad[i];
