@@ -1423,8 +1423,8 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     if (!name_content) return 1; // will not happen
     name_content++;
     
-    u8 present[TMD_MAX_CONTENTS];
-    memset(present, 1, sizeof(present));
+    u8 present[(TMD_MAX_CONTENTS + 7) / 8];
+    memset(present, 0xFF, sizeof(present));
 
     // DLC? Check for missing contents first!
     if (dlc) for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
@@ -1433,7 +1433,7 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
         snprintf(name_content, 256 - (name_content - path_content),
             (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         if ((fvx_stat(path_content, &fno) != FR_OK) || (fno.fsize != (u32) getbe64(chunk->size))) {
-            present[i] = 0;
+            present[i / 8] ^= 1 << (i % 8);
 
             u16 index = getbe16(chunk->index);
             cia->header.size_content -= getbe64(chunk->size);
@@ -1447,7 +1447,7 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     if (WriteCiaStub(cia, path_cia) != 0) return 1;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
-        if (present[i]) {
+        if (present[i / 8] & (1 << (i % 8))) {
             snprintf(name_content, 256 - (name_content - path_content),
                 (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
             if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false, cdn) != 0) {
