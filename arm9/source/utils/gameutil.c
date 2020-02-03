@@ -1430,9 +1430,12 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     if (dlc) for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         FILINFO fno;
         TmdContentChunk* chunk = &(content_list[i]);
+        TicketRightsCheck rights_ctx;
+        TicketRightsCheck_InitContext(&rights_ctx, (Ticket*)&(cia->ticket));
         snprintf(name_content, 256 - (name_content - path_content),
             (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-        if ((fvx_stat(path_content, &fno) != FR_OK) || (fno.fsize != (u32) getbe64(chunk->size))) {
+        if ((fvx_stat(path_content, &fno) != FR_OK) || (fno.fsize != (u32) getbe64(chunk->size)) ||
+            !TicketRightsCheck_CheckIndex(&rights_ctx, getbe16(chunk->index))) {
             present[i / 8] ^= 1 << (i % 8);
 
             u16 index = getbe16(chunk->index);
