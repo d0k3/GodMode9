@@ -104,3 +104,56 @@ u32 BuildTicketCert(u8* tickcert) {
     
     return 0;
 }
+
+u32 TicketRightsCheck_InitContext(TicketRightsCheck* ctx, Ticket* ticket) {
+    if (!ticket || ValidateTicket(ticket)) return 1;
+
+    const TicketContentIndexMainHeader* mheader = (const TicketContentIndexMainHeader*)&ticket->content_index[0];
+    u32 dheader_pos = getbe32(&mheader->data_header_relative_offset[0]);
+    u32 cindex_size = getbe32(&mheader->content_index_size[0]);
+
+    // data header is not inbounds, so it's not valid for use
+    if (cindex_size < dheader_pos || dheader_pos + sizeof(TicketContentIndexDataHeader) > cindex_size) return 1;
+
+    const TicketContentIndexDataHeader* dheader = (const TicketContentIndexDataHeader*)&ticket->content_index[dheader_pos];
+    u32 data_pos = getbe32(&dheader->data_relative_offset[0]);
+    u32 count = getbe32(&dheader->max_entry_count[0]);
+    u32 data_max_size = cindex_size - data_pos;
+
+    count = min(data_max_size / sizeof(TicketRightsField), count);
+
+    // if no entries or data type isn't what we want or not enough space for at least one entry,
+    // it still is valid, but it will just follow other rules
+    if (count == 0 || getbe16(&dheader->data_type[0]) != 3) {
+        ctx->count = 0;
+        ctx->rights = NULL;
+    } else {
+        ctx->count = count;
+        ctx->rights = (const TicketRightsField*)&ticket->content_index[data_pos];
+    }
+
+    return 0;
+}
+
+bool TicketRightsCheck_CheckIndex(TicketRightsCheck* ctx, u16 index) {
+    if (ctx->count == 0) return index < 256; // when no fields, true if below 256
+
+    bool hasright = false;
+
+    // it loops until one of these happens:
+    // - we run out of bit fields
+    // - at the first encounter of an index offset field that's bigger than index
+    // - at the first encounter of a positive indicator of content rights
+    for (u32 i = 0; i < ctx->count; i++) {
+        u16 indexoffset = getbe16(&ctx->rights[i].indexoffset[0]);
+        if (index < indexoffset) break;
+        u16 bitpos = index - indexoffset;
+        if (bitpos >= 1024) continue; // not in this field
+        if (ctx->rights[i].rightsbitfield[bitpos / 8] & (1 << (bitpos % 8))) {
+            hasright = true;
+            break;
+        }
+    }
+
+    return hasright;
+}
