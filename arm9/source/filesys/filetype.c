@@ -20,7 +20,7 @@ u64 IdentifyFileType(const char* path) {
     const u8 png_magic[] = { PNG_MAGIC };
 
     if (!path) return 0; // safety
-    u8 ALIGN(32) header[0x2B8]; // minimum required size
+    u8 ALIGN(32) header[0x2C0]; // minimum required size
     void* data = (void*) header;
     size_t fsize = FileGetSize(path);
     char* fname = strrchr(path, '/');
@@ -36,7 +36,7 @@ u64 IdentifyFileType(const char* path) {
     } else {
         ext = "";
     }
-    if (FileGetData(path, header, 0x2B8, 0) < min(0x2B8, fsize)) return 0;
+    if (FileGetData(path, header, 0x2C0, 0) < min(0x2C0, fsize)) return 0;
     if (!fsize) return 0;
 
     if (fsize >= 0x200) {
