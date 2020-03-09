@@ -441,6 +441,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
 u32 RecursiveFixFileCmacWorker(char* path) {
     FILINFO fno;
     DIR pdir;
+    u32 err = 0;
     
     if (fvx_opendir(&pdir, path) == FR_OK) { // process folder contents
         char pathstr[32 + 1];
@@ -456,9 +457,9 @@ u32 RecursiveFixFileCmacWorker(char* path) {
             if (fno.fname[0] == 0) {
                 break;
             } else if (fno.fattrib & AM_DIR) { // directory, recurse through it
-                if (RecursiveFixFileCmacWorker(path) != 0) return 1;
+                if (RecursiveFixFileCmacWorker(path) != 0) err = 1;
             } else if (CheckCmacPath(path) == 0) { // file, try to fix the CMAC
-                if (FixFileCmac(path) != 0) return 1;
+                if (FixFileCmac(path) != 0) err = 1;
                 ShowString("%s\nFixing CMACs, please wait...", pathstr);
             }
         }
@@ -467,7 +468,7 @@ u32 RecursiveFixFileCmacWorker(char* path) {
     } else if (CheckCmacPath(path) == 0) // fix single file CMAC
         return FixFileCmac(path);
     
-    return 0;
+    return err;
 }
 
 u32 RecursiveFixFileCmac(const char* path) {
