@@ -188,12 +188,13 @@ u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
 }
 
 u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
-    UINT br;
-    
-    // full TMD file
-    if ((fvx_qread(path, tmd, 0, TMD_SIZE_MAX, &br) != FR_OK) ||
-        (br < TMD_SIZE_MIN) || (ValidateTmd(tmd) != 0) || 
-        (br < TMD_SIZE_N(getbe16(tmd->content_count))))
+    // first part (TMD only) (we need to read the content count first)
+    if ((fvx_qread(path, tmd, 0, TMD_SIZE_MIN, NULL) != FR_OK) ||
+        (ValidateTmd(tmd) != 0))
+        return 1;
+
+    // second part (read full size)
+    if (fvx_qread(path, tmd, 0, TMD_SIZE_N(getbe16(tmd->content_count)), NULL) != FR_OK)
         return 1;
     
     return 0;
