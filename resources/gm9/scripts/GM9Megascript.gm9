@@ -1175,6 +1175,9 @@ end
 if	not allow -a 0:/
  	goto MainMenu_Scripts_from_Plailect's_Guide
 end
+if      not allow -a A:/
+        goto MainMenu_Scripts_from_Plailect's_Guide
+end
 
 rm -o -s 0:/arm9.bin
 rm -o -s 0:/arm11.bin
@@ -1228,6 +1231,8 @@ rm -o -s 0:/frogcert.bin
 rm -o -s 0:/private/ds/app/4B47554A/001/T00031_1038C2A757B77_000.ppm
 rm -o -s 0:/3ds/Frogtool.3dsx
 rm -o -s 0:/3ds/squirrelboot.3dsx
+rm -o -s 0:/usm.bin
+rm -o -s "A:/Nintendo DSiWare/F00D43D5.bin"
  
 echo "SD card now squeaky clean from setup files."
 goto MainMenu_Scripts_from_Plailect's_Guide
