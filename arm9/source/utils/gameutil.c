@@ -1618,6 +1618,16 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
         (InsertCiaMeta(path_cia, meta) == 0))
         cia->header.size_meta = CIA_META_SIZE;
     if (meta) free(meta);
+
+    // update title version from cart header (yeah, that's a bit hacky)
+    u16 title_version;
+    if (fvx_qread(path_ncsd, &title_version, 0x310, 2, NULL) == FR_OK) {
+        u8 title_version_le[2];
+        title_version_le[0] = (title_version >> 8) & 0xFF;
+        title_version_le[1] = title_version & 0xFF;
+        memcpy((cia->tmd).title_version, title_version_le, 2);
+        memcpy((cia->ticket).ticket_version, title_version_le, 2);
+    }
     
     // write the CIA stub (take #2)
     FindTitleKey((Ticket*)&(cia->ticket), title_id);
