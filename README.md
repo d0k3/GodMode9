@@ -128,7 +128,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Access any file inside NCCH / NCSD / CIA / FIRM / NDS images__: Just mount the file via the A button menu and browse to the file you want. For CDN / NUS content, prior decryption is required for full access.
 * __Rename your NCCH / NCSD / CIA / NDS / GBA files to proper names__: Find this feature inside the A button menu. Proper names include title id, game name, product code and region.
 * __Trim NCCH / NCSD / NDS / FIRM / NAND images__: This feature is found inside the A button menu. It allows you to trim excess data from supported file types. *Warning: Excess data may not be empty, bonus drives are stored there for NAND images, NCSD card2 images store savedata there, for FIRMs parts of the A9LH exploit may be stored there*.
-* __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges. The `C:` drive also gives you read/write access to the saves on the cartridges.
+* __Dump 3DS / NDS / DSi type retail game cartridges__: Insert the cartridge and take a look inside the `C:` drive. You may also dump private headers from 3DS game cartridges. The `C:` drive also gives you read/write access to the saves on the cartridges. Note: For 4GiB cartridges, the last byte is not included in the .3ds file dump. This is due to restrictrions of the FAT32 file system.
 
 ### NAND handling
 * __Directly mount and access NAND dumps or standard FAT images__: Just press the A button on these files to get the option. You can only mount NAND dumps from the same console.
