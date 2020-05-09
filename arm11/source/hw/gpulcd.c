@@ -39,8 +39,10 @@ u8 LCD_GetBrightness(void)
 
 void LCD_Initialize(u8 brightness)
 {
-	*REG_LCD(0x014) = 0x00000001;
-	*REG_LCD(0x00C) &= 0xFFFEFFFE;
+	*REG_LCD(0x014) = 1;
+	*REG_LCD(0x00C) = 0;
+	TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
+
 	*REG_LCD(0x240) = brightness;
 	*REG_LCD(0xA40) = brightness;
 	*REG_LCD(0x244) = 0x1023E;
@@ -150,13 +152,7 @@ void GPU_SetFramebufferMode(u32 screen, u8 mode)
 
 void GPU_Init(void)
 {
-	if (*REG_GPU_CNT == 0x1007F) {
-		MCU_PushToLCD(false);
-
-		LCD_Deinitialize();
-		*REG_GPU_CNT = 0x10001;
-		TIMER_WaitTicks(CLK_MS_TO_TICKS(40));
-	}
+	MCU_PushToLCD(true);
 
 	LCD_Initialize(0x20);
 

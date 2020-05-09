@@ -138,6 +138,7 @@ void MCU_ResetLED(void)
 void MCU_PushToLCD(bool enable)
 {
 	MCU_WriteReg(REG_LCD_STATE, enable ? 0x2A : 0x01);
+	TIMER_WaitTicks(CLK_MS_TO_TICKS(160));
 }
 
 void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
@@ -172,14 +173,12 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 			case MCU_SHELL_OPEN:
 				MCU_PushToLCD(true);
 				MCU_UpdateShellState(true);
-				TIMER_WaitTicks(CLK_MS_TO_TICKS(5));
 				MCU_ResetLED();
 				break;
 
 			case MCU_SHELL_CLOSE:
 				MCU_PushToLCD(false);
 				MCU_UpdateShellState(false);
-				TIMER_WaitTicks(CLK_MS_TO_TICKS(5));
 				break;
 
 			case MCU_VOL_SLIDER:

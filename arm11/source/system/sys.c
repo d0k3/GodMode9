@@ -118,7 +118,6 @@ void SYS_CoreZeroInit(void)
 	GPU_SetFramebufferMode(1, PDC_RGB24);
 
 	MCU_PushToLCD(true);
-	TIMER_WaitTicks(CLK_MS_TO_TICKS(5));
 }
 
 void SYS_CoreInit(void)
