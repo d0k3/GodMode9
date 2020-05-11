@@ -1360,21 +1360,32 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
     bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
     if (force_legit) {
         Ticket* ticket_tmp = NULL;
+        bool copy = true;
         if ((cdn && (LoadCdnTicketFile(&ticket_tmp, path_tmd) != 0)) ||
             (!cdn && (FindTicket(&ticket_tmp, title_id, true, src_emunand) != 0))) {
-            ShowPrompt(false, "ID %016llX\nLegit ticket not found.", getbe64(title_id));
-            free(ticket_tmp);
-            return 1;
+            static bool use_generic = false;
+            if (!use_generic) {
+                use_generic = ShowPrompt(true, "ID %016llX\nLegit ticket not found.\n \nFallback to generic as default?", getbe64(title_id));
+                if (!use_generic) {
+                    free(ticket_tmp);
+                    return 1;
+                }
+                ShowProgress(0, 0, path_tmd);
+            }
+            if (use_generic) {
+                FindTitleKey(ticket, title_id);
+                copy = false;
+            }
         }
         // either, it's a ticket without ways to check ownership data, smaller sized
         // or, it's title ticket with > 1024 contents, of which can't make it work with current CiaStub
-        if (GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE) {
+        if (copy && GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE) {
             ShowPrompt(false, "ID %016llX\nLegit ticket of unsupported size.", getbe64(title_id));
             free(ticket_tmp);
             return 1;
         }
-        bool copy = true;
-        if (getbe32(ticket_tmp->console_id)) {
+        // check the tickets' console id, warn if it isn't zero
+        if (copy && getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
             const char* optionstr[2] =
                 {"Use personalized ticket (legit)", "Use generic ticket (not legit)"};
