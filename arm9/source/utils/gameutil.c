@@ -1388,17 +1388,17 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
         if (copy && getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
             const char* optionstr[2] =
-                {"Use personalized ticket (legit)", "Use generic ticket (not legit)"};
+                {"Use generic ticket (not legit)", "Use personalized ticket (legit)"};
             if (!default_action) {
                 default_action = ShowSelectPrompt(2, optionstr,
-                    "ID %016llX\nLegit ticket is personalized.\nCIA may not be installable.\nChoose default action:", getbe64(title_id));
+                    "ID %016llX\nLegit ticket is personalized.\nUsing this is not recommended.\nChoose default action:", getbe64(title_id));
                 ShowProgress(0, 0, path_tmd);
             }
             if (!default_action) {
                 free(ticket_tmp);
                 return 1;
             }
-            else if (default_action == 2) {
+            else if (default_action == 1) {
                 memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
                 ticket->commonkey_idx = ticket_tmp->commonkey_idx; 
                 copy = false;
