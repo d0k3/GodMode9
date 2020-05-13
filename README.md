@@ -92,6 +92,15 @@ GodMode9 provides access to system data via drives, a listing of what each drive
 * __`Z: LAST SEARCH`__: After a search operation, search results are found inside this drive. The drive can be accessed at a later point to return to the former search results.
 
 
+## Digital preservation
+GodMode9 is one of the most important tools for digital preservation of 3DS content data. Here's some stuff you should know:
+* __Dumping game cartridges (size < 4GiB)__: Game cartridges turn up inside the `C:` drive (see above). For most carts all you need to do is copy the `.3DS` game image to some place of your choice. Game images dumped by GodMode9 contain no identifying info such as private headers or savegames. Private headers can be dumped in a separate image.
+* __Dumping game cartridges (size = 4GiB)__: Everything written above applies here as well. However, the FAT32 file system (which is what the 3DS uses) is limited to _4GiB - 1byte_. Take note that the `.3DS` game image, as provided by GodMode9 actually misses the last byte in these cases. That byte is 0x00 and unused in all known cases. It is not required for playing the image. If you need to check, we also provide split files (`.000`, `.001)`, which contain all the data. If you need a valid checksum for the `.3DS` game image, append a zero byte before checking.
+* __Building CIAs (all types)__: You may convert compatible file types (game images, installed content) to the CIA installable format using the A button menu. To get a list of installed content, press R+A on one of the compatible drives (`1:`, `2:`, `A:`, ...) and select `Search for titles`. Take note that `standard` built CIAs are decrypted by default (decryption allows better compression by ZIP and 7Z). If you should need an encrypted CIA for some reason, apply the encryption to the CIA afterwards.
+* __Building CIAs (legit type)__: Installed content can be built as `legit` or `standard` CIA. Legit CIAs preserve more of the original data and are thus recommended for preservation purposes. When building legit CIAs, GodMode9 keeps the original crypto and tries to find a genuine, signature-valid ticket. If it doesn't find one on your system or if it only finds a personalized one, it offers to use a generic ticket instead. It is not recommended to use personalized tickets - only choose this if you know what you're doing.
+* __Checking CIAs__: You may also check your CIA files with the builtin `CIA checker tool`. Legit CIAs with generic tickets are identified as `Universal Pirate Legit`, which is the recommended preservation format where `Universal Legit` is not available. Note: apart from system titles, `Universal Legit` is only available for a handful of preinstalled games from special edition 3DS consoles.
+
+
 ## What you can do with GodMode9
 With the possibilites GodMode9 provides, not everything may be obvious at first glance. In short, __GodMode9 includes improved versions of basically everything that Decrypt9 has, and more__. Any kind of dumps and injections are handled via standard copy operations and more specific operations are found inside the A button menu. The A button menu also works for batch operations when multiple files are selected. For your convenience a (incomplete!) list of what GodMode9 can do follows below.
 
@@ -100,7 +109,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Make screenshots__: Press R+L anywhere. Screenshots are stored in PNG format.
 * __Use multiple panes__: Press R+left|right. This enables you to stay in one location in the first pane and open another in the second pane.
 * __Search drives and folders__: Just press R+A on the drive / folder you want to search.
-* __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write a SHA file, so you can check for any modifications at a later point.
+* __Compare and verify files__: Press the A button on the first file, select `Calculate SHA-256`. Do the same for the second file. If the two files are identical, you will get a message about them being identical. On the SDCARD drive (`0:`) you can also write an SHA file, so you can check for any modifications at a later point.
 * __Hexview and hexedit any file__: Press the A button on a file and select `Show in Hexeditor`. A button again enables edit mode, hold the A button and press arrow buttons to edit bytes. You will get an additional confirmation prompt to take over changes. Take note that for certain files, write permissions can't be enabled.
 * __View text files in a text viewer__: Press the A button on a file and select `Show in Textviewer` (only shows up for actual text files). You can enable wordwrapped mode via R+Y, and navigate around the file via R+X and the dpad.
 * __Chainload FIRM payloads__: Press the A button on a FIRM file, select `FIRM options` -> `Boot FIRM`. Keep in mind you should not run FIRMs from dubious sources and that the write permissions system is no longer in place after booting a payload.
@@ -138,7 +147,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Embed an essential backup right into a NAND dump__: This is available in the A button menu for NAND dumps. Essential backups contain NAND header, `movable.sed`, `LocalFriendCodeSeed_B`, `SecureInfo_A`, NAND CID and OTP. If your local SysNAND does not contain an embedded backup, you will be asked to do one at startup. To update the essential SysNAND backup at a later point in time, press A on `S:/nand.bin` and select `NAND image options...` -> `Update embedded backup`.
 * __Install an AES key database to your NAND__: For `aeskeydb.bin` files the option is found in `aeskeydb.bin options` -> `Install aeskeydb.bin`. Only the recommended key database can be installed (see above). With an installed key database, it is possible to run the GodMode9 bootloader completely from NAND.
 * __Install FIRM files to your NAND__: Found inside the A button menu for FIRM files, select `FIRM options` -> `Install FIRM`. __Use this with caution__ - installing an incompatible FIRM file will lead to a __brick__. The FIRMs signature will automagically be replaced with a sighax signature to ensure compatibility.
-* __Actually use that extra NAND space__: You can setup a __bonus drive__ via the HOME menu, which will be available via drive letter `8:`. (Only available on systems that have the extra space.)
+* __Actually use that extra NAND space__: You can set up a __bonus drive__ via the HOME menu, which will be available via drive letter `8:`. (Only available on systems that have the extra space.)
 * __Fix certain problems on your NANDs__: You can fix CMACs for a whole drive (works on `A:`, `B:`, `S:` and `E:`) via an entry in the R+A button menu, or even restore borked NAND headers back to a functional state (inside the A button menu of borked NANDs and available for `S:/nand_hdr.bin`). Recommended only for advanced users!
 
 ### System file handling
@@ -180,8 +189,10 @@ This tool would not have been possible without the help of numerous people. Than
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
 * **SirNapkin1334** for testing, bug reports and for hosting the official [GodMode9 Discord channel](https://discord.gg/EGu6Qxw)
+* **Lilith Valentine** for testing and helpful advice
 * **Project Nayuki** for [qrcodegen](https://github.com/nayuki/QR-Code-generator)
 * **Amazingmax fonts** for the Amazdoom font
+* The fine folks on **the official GodMode9 Discord**
 * The fine folks on **freenode #Cakey**
 * All **[3dbrew.org](https://www.3dbrew.org/wiki/Main_Page) editors**
 * Everyone I possibly forgot, if you think you deserve to be mentioned, just contact me!
