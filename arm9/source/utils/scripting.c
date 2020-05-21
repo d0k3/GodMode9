@@ -1417,6 +1417,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                     snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
                 else strncpy(fixpath, argv[0], 256);
                 fixpath[255] = '\0';
+                DeinitExtFS();
+                DeinitSDCardFS();
                 PXI_DoCMD(PXI_SET_VMODE, (u32[]){1}, 1);
                 PXI_DoCMD(PXI_LEGACY_MODE, NULL, 0);
                 BootFirm((FirmHeader*)(void*)firm, fixpath);
