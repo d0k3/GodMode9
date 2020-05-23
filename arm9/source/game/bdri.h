@@ -10,7 +10,7 @@
 // https://www.3dbrew.org/wiki/Title_Database
 
 typedef struct {
-    u64 title_size; // in bytes
+    u64 title_size;
     u32 title_type; // usually == 0x40
     u32 title_version;
     u8 flags_0[4];
