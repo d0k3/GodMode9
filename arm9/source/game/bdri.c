@@ -131,24 +131,24 @@ static u32 GetBDRIEntrySize(const BDRIFsHeader* fs_header, const u32 fs_header_o
         return 1;
 
     const u32 data_offset = fs_header_offset + fs_header->data_offset;
-    const u32 det_offset = data_offset + fs_header->det_start_block * fs_header->data_block_size;
     const u32 fet_offset = data_offset + fs_header->fet_start_block * fs_header->data_block_size;
+    const u32 fht_offset = fs_header_offset + fs_header->fht_offset;
     
     u32 index = 0;
     TdbFileEntry file_entry;
     u64 tid_be = getbe64(title_id);
     u8* title_id_be = (u8*) &tid_be;
+    const u32 hash_bucket = GetHashBucket(title_id_be, 1, fs_header->fht_bucket_count);
     
-    // Read the index of the first file entry from the directory entry table
-    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
+    if (BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
         return 1;
-    
+
     // Find the file entry for the tid specified, fail if it doesn't exist
     do {
-        if (file_entry.next_sibling_index == 0)
+        if (file_entry.hash_bucket_next_index == 0)
             return 1;
         
-        index = file_entry.next_sibling_index;
+        index = file_entry.hash_bucket_next_index;
         
         if (BDRIRead(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
@@ -164,7 +164,6 @@ static u32 ReadBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offs
         return 1;
     
     const u32 data_offset = fs_header_offset + fs_header->data_offset;
-    const u32 det_offset = data_offset + fs_header->det_start_block * fs_header->data_block_size;
     const u32 fet_offset = data_offset + fs_header->fet_start_block * fs_header->data_block_size;
     const u32 fht_offset = fs_header_offset + fs_header->fht_offset;
     const u32 fat_offset = fs_header_offset + fs_header->fat_offset;
@@ -173,32 +172,23 @@ static u32 ReadBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offs
     TdbFileEntry file_entry;
     u64 tid_be = getbe64(title_id);
     u8* title_id_be = (u8*) &tid_be;
+    const u32 hash_bucket = GetHashBucket(title_id_be, 1, fs_header->fht_bucket_count);
     
-    // Read the index of the first file entry from the directory entry table
-    if (BDRIRead(det_offset + 0x2C, sizeof(u32), &(file_entry.next_sibling_index)) != FR_OK)
+    if (BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
         return 1;
-    
+
     // Find the file entry for the tid specified, fail if it doesn't exist
     do {
-        if (file_entry.next_sibling_index == 0)
+        if (file_entry.hash_bucket_next_index == 0)
             return 1;
         
-        index = file_entry.next_sibling_index;
+        index = file_entry.hash_bucket_next_index;
         
         if (BDRIRead(fet_offset + index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
     } while (memcmp(title_id_be, file_entry.title_id, 8) != 0);
     
     if (expected_size && (file_entry.size != expected_size))
-        return 1;
-    
-    const u32 hash_bucket = GetHashBucket(file_entry.title_id, file_entry.parent_index, fs_header->fht_bucket_count); 
-    u32 index_hash = 0;
-    
-    if (BDRIRead(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &index_hash) != FR_OK)
-        return 1;
-    
-    if (index != index_hash)
         return 1;
     
     index = file_entry.start_block_index + 1; // FAT entry index
@@ -618,7 +608,10 @@ static u32 ListBDRIEntryTitleIDs(const BDRIFsHeader* fs_header, const u32 fs_hea
     while ((file_entry.next_sibling_index != 0) && (num_entries < max_title_ids)) {
         if (BDRIRead(fet_offset + file_entry.next_sibling_index * sizeof(TdbFileEntry), sizeof(TdbFileEntry), &file_entry) != FR_OK)
             return 1;
-        memcpy(title_ids + num_entries * 8, file_entry.title_id, 8);
+            
+        u64 tid_be = getbe64(file_entry.title_id);
+        memcpy(title_ids + num_entries * 8, (u8*) &tid_be, 8);
+        
         num_entries++;
     }
     
@@ -738,8 +731,7 @@ u32 ReadTitleInfoEntryFromDB(const char* path, const u8* title_id, TitleInfoEntr
     return 0;
 }
 
-u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket** ticket)
-{
+u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket** ticket) {
     FIL file;
     TickDBPreHeader pre_header;
     TicketEntry* te = NULL;
@@ -756,7 +748,7 @@ u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket** ticket)
         entry_size < sizeof(TicketEntry) + 0x14 || 
         (te = (TicketEntry*)malloc(entry_size), te == NULL) ||
         (ReadBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id, (u8*) te,
-            sizeof(TicketEntry)) != 0)) {
+            entry_size) != 0)) {
         free(te); // if allocated
         fvx_close(bdrifp);
         bdrifp = NULL;
@@ -864,7 +856,6 @@ u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bo
     te->unknown = 1;
     te->ticket_size = GetTicketSize(ticket);
     memcpy(&te->ticket, ticket, te->ticket_size);
-    
     if (fvx_open(&file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK) {
         free(te);
         return 1;
@@ -881,7 +872,7 @@ u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bo
         bdrifp = NULL;
         return 1;
     }
-    
+
     free(te);
     fvx_close(bdrifp);
     bdrifp = NULL;
