@@ -9,13 +9,13 @@
 #define VRT_XORPAD   NAND_ZERONAND
 #define VRT_MEMORY   (1UL<<4)
 #define VRT_GAME     (1UL<<5)
-#define VRT_TICKDB   (1UL<<6)
+#define VRT_BDRI     (1UL<<6)
 #define VRT_KEYDB    (1UL<<7)
 #define VRT_CART     (1UL<<8)
 #define VRT_VRAM     (1UL<<9)
 #define VRT_DISADIFF (1UL<<10)
 
-#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_TICKDB|VRT_KEYDB|VRT_CART|VRT_VRAM|VRT_DISADIFF)
+#define VRT_SOURCE  (VRT_SYSNAND|VRT_EMUNAND|VRT_IMGNAND|VRT_XORPAD|VRT_MEMORY|VRT_GAME|VRT_BDRI|VRT_KEYDB|VRT_CART|VRT_VRAM|VRT_DISADIFF)
 
 #define VFLAG_DIR       (1UL<<11)
 #define VFLAG_ROOT      (1UL<<12)
@@ -25,7 +25,7 @@
 
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
-                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_TICKDB}, {'C', VRT_CART}, {'V', VRT_VRAM}, {'D', VRT_DISADIFF}
+                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_BDRI}, {'C', VRT_CART}, {'V', VRT_VRAM}, {'D', VRT_DISADIFF}
 
 // virtual file flag (subject to change):
 // bits 0...3  : reserved for NAND virtual sources and info
@@ -62,7 +62,7 @@ bool GetVirtualDir(VirtualDir* vdir, const char* path);
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars);
 
 int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count, u32* bytes_read);
-int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written);
+int WriteVirtualFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written);
 int DeleteVirtualFile(const VirtualFile* vfile);
 
 u64 GetVirtualDriveSize(const char* path);

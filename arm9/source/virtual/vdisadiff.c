@@ -2,7 +2,7 @@
 #include "disadiff.h"
 #include "common.h"
 #include "image.h"
-#include "vtickdb.h" // So we can mount a file as vdisadiff and vtickdb simeltaneously
+#include "vbdri.h" // So we can mount a file as vdisadiff and vbdri simeltaneously
 
 #define VFLAG_PARTITION_B (1 << 31)
 
@@ -194,15 +194,15 @@ u64 InitVDisaDiffDrive(void) {
         partitionB_info->rw_info = info;
     }
     
-    InitVTickDbDrive();
+    InitVBDRIDrive();
     
     return type;
 }
 
 u64 CheckVDisaDiffDrive(void) {
-    u64 type = GetMountState() & (SYS_DISA | SYS_DIFF);
+    u64 type = GetMountState();
     
-    return (type && partitionA_info) ? type : 0;
+    return ((type & (SYS_DISA | SYS_DIFF)) && partitionA_info) ? type : 0;
 }
 
 // Can be very lazy here because there are only two files that can appear
