@@ -2,7 +2,7 @@
 #include "vnand.h"
 #include "vmem.h"
 #include "vgame.h"
-#include "vtickdb.h"
+#include "vbdri.h"
 #include "vkeydb.h"
 #include "vcart.h"
 #include "vvram.h"
@@ -27,7 +27,7 @@ u32 GetVirtualSource(const char* path) {
 
 void DeinitVirtualImageDrive(void) {
     DeinitVGameDrive();
-    DeinitVTickDbDrive();
+    DeinitVBDRIDrive();
     DeinitVKeyDbDrive();
     DeinitVDisaDiffDrive();
 }
@@ -45,8 +45,8 @@ bool CheckVirtualDrive(const char* path) {
         return CheckVVramDrive();
     else if (virtual_src & VRT_GAME)
         return CheckVGameDrive();
-    else if (virtual_src & VRT_TICKDB)
-        return CheckVTickDbDrive();
+    else if (virtual_src & VRT_BDRI)
+        return CheckVBDRIDrive();
     else if (virtual_src & VRT_KEYDB)
         return CheckVKeyDbDrive();
     else if (virtual_src & VRT_DISADIFF)
@@ -63,8 +63,8 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
         ret = ReadVMemDir(vfile, vdir);
     } else if (virtual_src & VRT_GAME) {
         ret = ReadVGameDir(vfile, vdir);
-    } else if (virtual_src & VRT_TICKDB) {
-        ret = ReadVTickDbDir(vfile, vdir);
+    } else if (virtual_src & VRT_BDRI) {
+        ret = ReadVBDRIDir(vfile, vdir);
     } else if (virtual_src & VRT_KEYDB) {
         ret = ReadVKeyDbDir(vfile, vdir);
     } else if (virtual_src & VRT_CART) {
@@ -129,7 +129,7 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     for (name = strtok(lpath + 3, "/"); name && vdir.flags; name = strtok(NULL, "/")) {
         if (!(vdir.flags & VFLAG_LV3)) { // standard method
             while (true) {
-                if (!ReadVirtualDir(vfile, &vdir)) return false;
+                if (!ReadVirtualDir(vfile, &vdir)) return ((vdir.flags & VRT_BDRI) && GetNewVBDRIFile(vfile, &vdir, path));
                 if ((!(vfile->flags & (VRT_GAME|VRT_VRAM)) && (strncasecmp(name, vfile->name, 32) == 0)) ||
                     ((vfile->flags & VRT_GAME) && MatchVGameFilename(name, vfile, 256)) ||
                     ((vfile->flags & VRT_VRAM) && MatchVVramFilename(name, vfile)))
@@ -173,8 +173,8 @@ int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 coun
         return ReadVMemFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_GAME) {
         return ReadVGameFile(vfile, buffer, offset, count);
-    } else if (vfile->flags & VRT_TICKDB) {
-        return ReadVTickDbFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_BDRI) {
+        return ReadVBDRIFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_KEYDB) {
         return ReadVKeyDbFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_CART) {
@@ -188,11 +188,11 @@ int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 coun
     return -1;
 }
 
-int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written) {
+int WriteVirtualFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count, u32* bytes_written) {
     // basic check of offset / count
     if (offset >= vfile->size)
         return 0;
-    else if ((offset + count) > vfile->size)
+    else if (!(vfile->flags & VRT_BDRI) && ((offset + count) > vfile->size))
         count = vfile->size - offset;
     if (bytes_written) *bytes_written = count;
     
@@ -206,7 +206,9 @@ int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u
         return WriteVDisaDiffFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_CART) {
         return WriteVCartFile(vfile, buffer, offset, count);
-    } // no write support for virtual game / tickdb / keydb / vram files
+    } else if (vfile->flags & VRT_BDRI) {
+        return WriteVBDRIFile(vfile, buffer, offset, count);
+    } // no write support for virtual game / keydb / vram files
     
     return -1;
 }
@@ -214,6 +216,11 @@ int WriteVirtualFile(const VirtualFile* vfile, const void* buffer, u64 offset, u
 int DeleteVirtualFile(const VirtualFile* vfile) {
     if (!(vfile->flags & VFLAG_DELETABLE)) return -1;
     
+    // Special handling for deleting BDRI entries
+    if (vfile->flags & VRT_BDRI)
+        return DeleteVBDRIFile(vfile);
+    
+    // For anything else, "deleting" is just filling with 0s
     u32 zeroes_size = STD_BUFFER_SIZE;
     u8* zeroes = (u8*) malloc(zeroes_size);
     if (!zeroes) return -1;
@@ -222,7 +229,7 @@ int DeleteVirtualFile(const VirtualFile* vfile) {
     int result = 0;
     for (u64 pos = 0; pos < vfile->size; pos += zeroes_size) {
         u64 wipe_bytes = min(zeroes_size, vfile->size - pos);
-        result = WriteVirtualFile(vfile, zeroes, pos, wipe_bytes, NULL);
+        result = WriteVirtualFile((VirtualFile*)vfile, zeroes, pos, wipe_bytes, NULL);
         if (result != 0) break;
     }
     
@@ -236,8 +243,8 @@ u64 GetVirtualDriveSize(const char* path) {
         return GetVNandDriveSize(virtual_src);
     else if (virtual_src & VRT_GAME)
         return GetVGameDriveSize();
-    else if (virtual_src & VRT_TICKDB)
-        return GetVTickDbDriveSize();
+    else if (virtual_src & VRT_BDRI)
+        return GetVBDRIDriveSize();
     else if (virtual_src & VRT_KEYDB)
         return GetVKeyDbDriveSize();
     else if (virtual_src & VRT_CART)

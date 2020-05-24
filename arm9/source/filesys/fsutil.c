@@ -689,7 +689,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
         bool force_unmount = false;
         
         // handle NAND image unmounts
-        if (ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) {
+        if ((ddrvtype & (DRV_SYSNAND|DRV_EMUNAND|DRV_IMAGE)) && !(GetVirtualSource(dest) & (VRT_DISADIFF | VRT_BDRI))) {
             FILINFO fno;
             // virtual NAND files over 4 MB require unmount, totally arbitrary limit (hacky!)
             if ((fvx_stat(ldest, &fno) == FR_OK) && (fno.fsize > 4 * 1024 * 1024))
@@ -733,7 +733,7 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     snprintf(dest, 255, "%s/%s", destdir, (++oname));
     
     // virtual destination special handling
-    if (GetVirtualSource(destdir)) {
+    if (GetVirtualSource(destdir) & ~VRT_BDRI) {
         u64 osize = FileGetSize(orig);
         VirtualFile dvfile;
         if (!osize) return false;
