@@ -49,22 +49,22 @@ struct CardSPITypeData {
 
 #define NO_CHIP NULL
 
-const CardSPITypeData * const EEPROM_512B;
+extern const CardSPITypeData * const EEPROM_512B;
 
-const CardSPITypeData * const EEPROM_8KB;
-const CardSPITypeData * const EEPROM_64KB;
-const CardSPITypeData * const EEPROM_128KB;
+extern const CardSPITypeData * const EEPROM_8KB;
+extern const CardSPITypeData * const EEPROM_64KB;
+extern const CardSPITypeData * const EEPROM_128KB;
 
-const CardSPITypeData * const FLASH_256KB_1;
-const CardSPITypeData * const FLASH_256KB_2;
-const CardSPITypeData * const FLASH_512KB_1;
-const CardSPITypeData * const FLASH_512KB_2;
-const CardSPITypeData * const FLASH_1MB;
-const CardSPITypeData * const FLASH_8MB;
+extern const CardSPITypeData * const FLASH_256KB_1;
+extern const CardSPITypeData * const FLASH_256KB_2;
+extern const CardSPITypeData * const FLASH_512KB_1;
+extern const CardSPITypeData * const FLASH_512KB_2;
+extern const CardSPITypeData * const FLASH_1MB;
+extern const CardSPITypeData * const FLASH_8MB;
 
-const CardSPITypeData * const FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
-const CardSPITypeData * const FLASH_512KB_CTR; // Also common, including Detective Pikachu
-const CardSPITypeData * const FLASH_1MB_CTR; // For example Pokemon Ultra Sun
+extern const CardSPITypeData * const FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
+extern const CardSPITypeData * const FLASH_512KB_CTR; // Also common, including Detective Pikachu
+extern const CardSPITypeData * const FLASH_1MB_CTR; // For example Pokemon Ultra Sun
 
 int CardSPIWriteRead(CardSPIType type, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
 int CardSPIWaitWriteEnd(CardSPIType type, u32 timeout);
