@@ -59,7 +59,7 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
     
     DeinitVBDRIDrive();
     
-    num_entries = min(is_tickdb ? GetNumTickets(PART_PATH) : GetNumTitleInfoEntries(PART_PATH), VBDRI_MAX_ENTRIES);
+    num_entries = min((is_tickdb ? GetNumTickets(PART_PATH) : GetNumTitleInfoEntries(PART_PATH)) + 1, VBDRI_MAX_ENTRIES);
     title_ids = (u8*) malloc(num_entries * 8);
     if (!title_ids ||
         ((is_tickdb ? ListTicketTitleIDs(PART_PATH, title_ids, num_entries) : ListTitleInfoEntryTitleIDs(PART_PATH, title_ids, num_entries)) != 0)) {
@@ -74,7 +74,7 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
             return 0;
         }
         
-        for (u32 i = 0; i < num_entries; i++) {
+        for (u32 i = 0; i < num_entries - 1; i++) {
             Ticket* ticket;
             if (ReadTicketFromDB(PART_PATH, title_ids + (i * 8), &ticket) != 0) {
                 DeinitVBDRIDrive();
