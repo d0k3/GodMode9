@@ -479,8 +479,8 @@ static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offse
     
     u32 bytes_written = 0, fat_index_write = fat_index;
     
-    while (bytes_written < file_entry.size) { // Write the full entry, walking the FAT node chain
-                                              // Can't assume contiguity here, because we might be replacing an existing entry
+    while (bytes_written < size) { // Write the full entry, walking the FAT node chain
+                                   // Can't assume contiguity here, because we might be replacing an existing entry
         u32 write_start = fat_index_write - 1; // Data region block index
         u32 write_count = 0;
     
@@ -506,7 +506,7 @@ static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offse
         
         fat_index_write = next_index;
         
-        u32 btw = min(file_entry.size - bytes_written, write_count * fs_header->data_block_size);
+        u32 btw = min(size - bytes_written, write_count * fs_header->data_block_size);
         if (BDRIWrite(data_offset + write_start * fs_header->data_block_size, btw, entry + bytes_written) != FR_OK)
             return 1;
             
