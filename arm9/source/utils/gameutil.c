@@ -2351,24 +2351,46 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
             return 1;
         }
     } else if (filetype & SYS_TICKDB) {
-        u8* data = (u8*) malloc(TICKDB_AREA_SIZE);
-        if (!data) return 1;
+        if (!InitImgFS(path_in))
+            return 1;
+
+        DIR dir;
+        FILINFO fno;
+        TicketCommon ticket;
+        char tik_path[64];
         
-        // read and decode ticket.db DIFF partition
-        if (ReadDisaDiffIvfcLvl4(path_in, NULL, TICKDB_AREA_OFFSET, TICKDB_AREA_SIZE, data) != TICKDB_AREA_SIZE) {
-            free(data);
+        if (fvx_opendir(&dir, "T:/eshop") != FR_OK) {
+            InitImgFS(NULL);
             return 1;
         }
         
-        // parse the decoded data for valid tickets
-        for (u32 i = 0; i <= TICKDB_AREA_SIZE - 0x400; i += 0x200) {
-            Ticket* ticket = TicketFromTickDbChunk(data + i, NULL, true);
-            if (!ticket || (ticket->commonkey_idx >= 2) || !getbe64(ticket->ticket_id)) continue;
+        while ((fvx_readdir(&dir, &fno) == FR_OK) && *(fno.fname)) {
+            snprintf(tik_path, 64, "T:/eshop/%s", fno.fname);
+            if (fvx_qread(tik_path, &ticket, 0, TICKET_COMMON_SIZE, NULL) != FR_OK)
+                continue;
             if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
-            AddTicketToInfo(tik_info, ticket, dec); // ignore result
+            AddTicketToInfo(tik_info, (Ticket*) &ticket, dec); // ignore result
         }
         
-        free(data);
+        fvx_closedir(&dir);
+        
+        if (fvx_opendir(&dir, "T:/system") != FR_OK) {
+            InitImgFS(NULL);
+            return 1;
+        }
+        
+        while ((fvx_readdir(&dir, &fno) == FR_OK) && *(fno.fname)) {
+            snprintf(tik_path, 64, "T:/system/%s", fno.fname);
+            if ((fvx_qread(tik_path, &ticket, 0, TICKET_COMMON_SIZE, NULL) != FR_OK) ||
+                (ValidateTicketSignature((Ticket*) &ticket) != 0))
+                continue;
+            if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
+            AddTicketToInfo(tik_info, (Ticket*) &ticket, dec); // ignore result
+        }
+        
+        fvx_closedir(&dir);
+        
+        InitImgFS(NULL);
     } else if (filetype & BIN_TIKDB) {
         TitleKeysInfo* tik_info_merge = (TitleKeysInfo*) malloc(STD_BUFFER_SIZE);
         if (!tik_info_merge) return 1;
