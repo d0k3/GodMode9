@@ -2438,7 +2438,7 @@ u32 GodMode(int entrypoint) {
                 ClearScreenF(false, true, COLOR_STD_BG);
             }
         } else if (!switched) { // standard unswitched command set
-            if ((curr_drvtype & DRV_VIRTUAL) && (pad_state & BUTTON_X)) {
+            if ((curr_drvtype & DRV_VIRTUAL) && (pad_state & BUTTON_X) && (*current_path != 'T')) {
                 ShowPrompt(false, "Not allowed in virtual path");
             } else if (pad_state & BUTTON_X) { // delete a file 
                 u32 n_marked = 0;
