@@ -2408,10 +2408,10 @@ u32 GodMode(int entrypoint) {
             cursor += quick_stp;
         } else if ((pad_state & BUTTON_LEFT) && !(pad_state & BUTTON_L1)) { // cursor up (quick)
             cursor = (cursor >= quick_stp) ? cursor - quick_stp : 0;
-        } else if (pad_state & BUTTON_RIGHT) { // mark all entries
+        } else if ((pad_state & BUTTON_RIGHT) && *current_path) { // mark all entries
             for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 1;
             mark_next = 1;
-        } else if (pad_state & BUTTON_LEFT) { // unmark all entries
+        } else if ((pad_state & BUTTON_LEFT) && *current_path) { // unmark all entries
             for (u32 c = 1; c < current_dir->n_entries; c++) current_dir->entry[c].marked = 0;
             mark_next = 0;
         } else if (switched && (pad_state & BUTTON_L1)) { // switched L -> screenshot
