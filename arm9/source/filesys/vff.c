@@ -18,7 +18,7 @@ FRESULT fvx_open (FIL* fp, const TCHAR* path, BYTE mode) {
     #if _VFIL_ENABLED
     VirtualFile* vfile = VFIL(fp);
     memset(fp, 0, sizeof(FIL));
-    if (GetVirtualFile(vfile, path)) {
+    if (GetVirtualFile(vfile, path, mode)) {
         fp->obj.fs = NULL;
         fp->obj.objsize = vfile->size;
         fp->fptr = 0;
@@ -81,7 +81,7 @@ FRESULT fvx_sync (FIL* fp) {
 FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
     if (GetVirtualSource(path)) {
         VirtualFile vfile;
-        if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
+        if (!GetVirtualFile(&vfile, path, FA_READ)) return FR_NO_PATH;
         if (fno) {
             fno->fsize = vfile.size;
             fno->fdate = (1<<5)|(1<<0); // 1 for month / day
@@ -102,7 +102,7 @@ FRESULT fvx_rename (const TCHAR* path_old, const TCHAR* path_new) {
 FRESULT fvx_unlink (const TCHAR* path) {
     if (GetVirtualSource(path)) {
         VirtualFile vfile;
-        if (!GetVirtualFile(&vfile, path)) return FR_NO_PATH;
+        if (!GetVirtualFile(&vfile, path, FA_READ)) return FR_NO_PATH;
         if (DeleteVirtualFile(&vfile) != 0) return FR_DENIED;
         return FR_OK;
     } else return fa_unlink( path );

@@ -57,7 +57,7 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir);
 bool OpenVirtualRoot(VirtualDir* vdir, u32 virtual_src);
 bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry);
 
-bool GetVirtualFile(VirtualFile* vfile, const char* path);
+bool GetVirtualFile(VirtualFile* vfile, const char* path, u8 mode);
 bool GetVirtualDir(VirtualDir* vdir, const char* path);
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars);
 

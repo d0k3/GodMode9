@@ -737,7 +737,7 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
         u64 osize = FileGetSize(orig);
         VirtualFile dvfile;
         if (!osize) return false;
-        if (!GetVirtualFile(&dvfile, dest)) {
+        if (!GetVirtualFile(&dvfile, dest, FA_WRITE)) {
             VirtualDir vdir;
             if (!GetVirtualDir(&vdir, destdir)) return false;
             while (true) { // search by size should be a last resort solution
