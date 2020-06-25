@@ -285,6 +285,11 @@ int WriteVBDRIFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count
     if ((is_tickdb ? AddTicketToDB(PART_PATH, title_ids + vfile->offset * 8, (Ticket*)(void*)cached_entry, true) : 
         AddTitleInfoEntryToDB(PART_PATH, title_ids + vfile->offset * 8, (TitleInfoEntry*)(void*)cached_entry, true)) != 0) {
         if (resize) vfile->size = tick_info[vfile->offset].size;
+        if (is_tickdb) {
+            free(cached_entry);
+            cached_entry = NULL;
+        }
+        cache_index = -1;
         return 1;
     }
     
