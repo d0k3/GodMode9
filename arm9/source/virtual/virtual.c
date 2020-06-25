@@ -7,6 +7,7 @@
 #include "vcart.h"
 #include "vvram.h"
 #include "vdisadiff.h"
+#include "ff.h"
 
 typedef struct {
     char drv_letter;
@@ -107,7 +108,7 @@ bool OpenVirtualDir(VirtualDir* vdir, VirtualFile* ventry) {
     return true;
 }
 
-bool GetVirtualFile(VirtualFile* vfile, const char* path) {
+bool GetVirtualFile(VirtualFile* vfile, const char* path, u8 mode) {
     char lpath[256];
     strncpy(lpath, path, 256);
     lpath[255] = '\0';
@@ -129,7 +130,8 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
     for (name = strtok(lpath + 3, "/"); name && vdir.flags; name = strtok(NULL, "/")) {
         if (!(vdir.flags & VFLAG_LV3)) { // standard method
             while (true) {
-                if (!ReadVirtualDir(vfile, &vdir)) return ((vdir.flags & VRT_BDRI) && GetNewVBDRIFile(vfile, &vdir, path));
+                if (!ReadVirtualDir(vfile, &vdir)) 
+                    return ((mode & FA_WRITE) && (vdir.flags & VRT_BDRI) && GetNewVBDRIFile(vfile, &vdir, path));
                 if ((!(vfile->flags & (VRT_GAME|VRT_VRAM)) && (strncasecmp(name, vfile->name, 32) == 0)) ||
                     ((vfile->flags & VRT_GAME) && MatchVGameFilename(name, vfile, 256)) ||
                     ((vfile->flags & VRT_VRAM) && MatchVVramFilename(name, vfile)))
@@ -148,7 +150,7 @@ bool GetVirtualFile(VirtualFile* vfile, const char* path) {
 
 bool GetVirtualDir(VirtualDir* vdir, const char* path) {
     VirtualFile vfile;
-    return GetVirtualFile(&vfile, path) && OpenVirtualDir(vdir, &vfile);
+    return GetVirtualFile(&vfile, path, 0) && OpenVirtualDir(vdir, &vfile);
 }
 
 bool GetVirtualFilename(char* name, const VirtualFile* vfile, u32 n_chars) {
