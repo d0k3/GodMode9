@@ -80,7 +80,8 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
                 DeinitVBDRIDrive();
                 return 0;
             }
-            tick_info[i].type = (ticket->commonkey_idx == 0) ? ((ValidateTicketSignature(ticket) == 0) ? 0 : 1) : ((ticket->commonkey_idx == 1) ? 2 : 3);
+            tick_info[i].type = (ticket->commonkey_idx > 1) ? 3 : 
+                ((ValidateTicketSignature(ticket) != 0) ? 1 : ((ticket->commonkey_idx == 1) ? 2 : 0));
             tick_info[i].size = GetTicketSize(ticket);
             memcpy(tick_info[i].console_id, ticket->console_id, 4);
             free(ticket);
@@ -290,7 +291,8 @@ int WriteVBDRIFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count
     if (resize) tick_info[vfile->offset].size = vfile->size;
     
     if (is_tickdb && ((offset <= 0x1F1 && offset + count > 0x1F1) || (cached_entry[0x1F1] == 0 && offset <= 0x104 && offset + count > 4)))
-        tick_info[vfile->offset].type = (cached_entry[0x1F1] == 0) ? ((ValidateTicketSignature((Ticket*)(void*)cached_entry) == 0) ? 0 : 1) : ((cached_entry[0x1F1] == 1) ? 2 : 3);
+        tick_info[vfile->offset].type = (cached_entry[0x1F1] > 1) ? 3 : 
+            ((ValidateTicketSignature((Ticket*)(void*)cached_entry) != 0) ? 1 : ((cached_entry[0x1F1] == 1) ? 2 : 0));
     
     return 0;
 }
