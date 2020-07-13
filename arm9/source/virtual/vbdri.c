@@ -13,7 +13,7 @@
 #define VFLAG_SYSTEM        (1UL<<31)
 #define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_HOMEBREW|VFLAG_ESHOP|VFLAG_SYSTEM)
 
-#define NAME_TIE            "%016llX.tie"
+#define NAME_TIE            "%016llX"
 #define NAME_TIK            "%016llX.%08lX.tik" // title id / console id
 
 #define PART_PATH           "D:/partitionA.bin"
