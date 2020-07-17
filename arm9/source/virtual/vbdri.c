@@ -14,7 +14,9 @@
 #define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_HOMEBREW|VFLAG_ESHOP|VFLAG_SYSTEM)
 
 #define NAME_TIE            "%016llX"
+#define NAME_TIE_LEN        16
 #define NAME_TIK            "%016llX.%08lX.tik" // title id / console id
+#define NAME_TIK_LEN        (16 + 1 + 8 + 4)
 
 #define PART_PATH           "D:/partitionA.bin"
 
@@ -86,8 +88,10 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
             memcpy(tick_info[i].console_id, ticket->console_id, 4);
             free(ticket);
         }
-    } else if ((cached_entry = malloc(sizeof(TitleInfoEntry))) == NULL)
+    } else if ((cached_entry = malloc(sizeof(TitleInfoEntry))) == NULL) {
+        DeinitVBDRIDrive();
         return 0;
+    }
     
     return mount_state;
 }
@@ -156,22 +160,22 @@ bool ReadVBDRIDir(VirtualFile* vfile, VirtualDir* vdir) {
 }
 
 bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
-    size_t len = strlen(path);
-    char buf[31];
     
-    strcpy(buf, path + len - (is_tickdb ? 30 : 17));
-    if (is_tickdb && ((strcmp(buf + 26, ".tik") != 0) || buf[17] != '.')) 
-        return false;
-    
-    for (char* ptr = buf + 1; ptr < buf + 17; ptr++)
-        *ptr = toupper(*ptr);
-    
+    size_t path_len = strlen(path), buf_len = (is_tickdb ? NAME_TIK_LEN : NAME_TIE_LEN) + 2;
     u64 tid;
-    if (sscanf(buf, "/%016llX", &tid) != 1) return false;
-    if (tid == 0)
+    u32 console_id;
+    char c;
+
+    char buf[buf_len];
+    strcpy(buf, path + path_len - buf_len + 1);
+    
+    
+    if (( is_tickdb && (sscanf(buf, "/" NAME_TIK "%c", &tid, &console_id, &c) != 2)) ||
+        (!is_tickdb && (sscanf(buf, "/" NAME_TIE "%c", &tid, &c) != 1)) ||
+        (tid == 0))
         return false;
     tid = getbe64((u8*)&tid);
-    
+
     int entry_index = -1;
     for (u32 i = 0; i < num_entries; i++) {
         if ((entry_index == -1) && (*((u64*)(void*)(title_ids + 8 * i)) == 0))
