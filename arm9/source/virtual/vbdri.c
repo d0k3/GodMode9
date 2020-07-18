@@ -4,6 +4,7 @@
 #include "vdisadiff.h"
 #include "bdri.h"
 #include "vff.h"
+#include "ui.h"
 
 #define VBDRI_MAX_ENTRIES   8192 // Completely arbitrary
 
@@ -41,7 +42,6 @@ static u8* title_ids = NULL;
 static TickInfoEntry* tick_info = NULL;
 static u8* cached_entry = NULL;
 static int cache_index;
-//static u32 cache_size;
 
 void DeinitVBDRIDrive(void) {
     free(title_ids);
@@ -52,6 +52,38 @@ void DeinitVBDRIDrive(void) {
     cached_entry = NULL;
     num_entries = 0;
     cache_index = -1;
+}
+
+bool SortVBDRITickets() {
+    if (!CheckVBDRIDrive() || !is_tickdb)
+        return false;
+
+    if (tick_info)
+        return true;
+
+    tick_info = (TickInfoEntry*) malloc(num_entries * sizeof(TickInfoEntry));
+    if (!tick_info)
+        return false;
+
+    ShowString("Sorting tickets, please wait ...");
+
+    for (u32 i = 0; i < num_entries - 1; i++) {
+        Ticket* ticket;
+        if (ReadTicketFromDB(PART_PATH, title_ids + (i * 8), &ticket) != 0) {
+            free(tick_info);
+            tick_info = NULL;
+            return false;
+        }
+        tick_info[i].type = (ticket->commonkey_idx > 1) ? 3 :
+            ((ValidateTicketSignature(ticket) != 0) ? 1 : ((ticket->commonkey_idx == 1) ? 2 : 0));
+        tick_info[i].size = GetTicketSize(ticket);
+        memcpy(tick_info[i].console_id, ticket->console_id, 4);
+        free(ticket);
+    }
+
+    ClearScreenF(true, false, COLOR_STD_BG);
+
+    return true;
 }
 
 u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff image
@@ -69,26 +101,7 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
         return 0;
     }
     
-    if (is_tickdb) {
-        tick_info = (TickInfoEntry*) malloc(num_entries * sizeof(TickInfoEntry));
-        if (!tick_info) {
-            DeinitVBDRIDrive();
-            return 0;
-        }
-        
-        for (u32 i = 0; i < num_entries - 1; i++) {
-            Ticket* ticket;
-            if (ReadTicketFromDB(PART_PATH, title_ids + (i * 8), &ticket) != 0) {
-                DeinitVBDRIDrive();
-                return 0;
-            }
-            tick_info[i].type = (ticket->commonkey_idx > 1) ? 3 : 
-                ((ValidateTicketSignature(ticket) != 0) ? 1 : ((ticket->commonkey_idx == 1) ? 2 : 0));
-            tick_info[i].size = GetTicketSize(ticket);
-            memcpy(tick_info[i].console_id, ticket->console_id, 4);
-            free(ticket);
-        }
-    } else if ((cached_entry = malloc(sizeof(TitleInfoEntry))) == NULL) {
+    if (!is_tickdb && ((cached_entry = malloc(sizeof(TitleInfoEntry))) == NULL)) {
         DeinitVBDRIDrive();
         return 0;
     }
@@ -98,7 +111,7 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
 
 u64 CheckVBDRIDrive(void) {
     u64 mount_state = CheckVDisaDiffDrive();
-    return (title_ids && (mount_state & SYS_DIFF) && (!is_tickdb || ((mount_state & SYS_TICKDB) && tick_info))) ? 
+    return (title_ids && (mount_state & SYS_DIFF) && (!is_tickdb || (mount_state & SYS_TICKDB))) ?
         mount_state : 0;
 }
 
@@ -107,7 +120,7 @@ bool ReadVBDRIDir(VirtualFile* vfile, VirtualDir* vdir) {
         return false;
 
     if (vdir->flags & VFLAG_TICKDIR) { // ticket dir
-        if (!is_tickdb)
+        if (!is_tickdb || (!tick_info && !SortVBDRITickets()))
             return false;
         
         while (++vdir->index < (int) num_entries) {
@@ -193,7 +206,7 @@ bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
         u8* new_title_ids = realloc(title_ids, new_num_entries * 8);
         if (!new_title_ids)
             return false;
-        if (is_tickdb) {
+        if (tick_info) {
             TickInfoEntry* new_tick_info = realloc(tick_info, new_num_entries * sizeof(TickInfoEntry));
             if (!new_tick_info)
                 return false;
@@ -217,7 +230,7 @@ bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
      
     memcpy(title_ids + entry_index * 8, &tid, 8);
     
-    if (is_tickdb) {
+    if (tick_info) {
         tick_info[entry_index].type = 3;
         tick_info[entry_index].size = TICKET_COMMON_SIZE;
         memset(tick_info[entry_index].console_id, 0, 4);
@@ -254,7 +267,7 @@ int WriteVBDRIFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count
     bool resize = false;
 
     if (offset + count > vfile->size) {
-        if (!is_tickdb)
+        if (!is_tickdb || (!tick_info && !SortVBDRITickets()))
             return false;
         vfile->size = offset + count;
         resize = true;
@@ -299,7 +312,7 @@ int WriteVBDRIFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count
     
     if (resize) tick_info[vfile->offset].size = vfile->size;
     
-    if (is_tickdb && ((offset <= 0x1F1 && offset + count > 0x1F1) || (cached_entry[0x1F1] == 0 && offset <= 0x104 && offset + count > 4)))
+    if (tick_info && ((offset <= 0x1F1 && offset + count > 0x1F1) || (cached_entry[0x1F1] == 0 && offset <= 0x104 && offset + count > 4)))
         tick_info[vfile->offset].type = (cached_entry[0x1F1] > 1) ? 3 : 
             ((ValidateTicketSignature((Ticket*)(void*)cached_entry) != 0) ? 1 : ((cached_entry[0x1F1] == 1) ? 2 : 0));
     
