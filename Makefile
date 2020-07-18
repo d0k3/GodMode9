@@ -83,14 +83,14 @@ vram0:
 	@$(MAKE) --no-print-directory -C $(@D)
 
 firm: $(ELF) vram0
-	@test `wc -c <$(VRAM_OUT)` -le 3145728
+	@test `wc -c <$(VRAM_OUT)` -le 262144
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
-	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT) -C NDMA XDMA memcpy
+	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -A 0x80C0000 -D $(ELF) $(VRAM_OUT) -C NDMA XDMA memcpy
 	@echo "[FIRM] $(FIRMD)"
-	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -A 0x18000000 -D $(ELF) $(VRAM_OUT)  -C NDMA XDMA memcpy
+	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -A 0x80C0000 -D $(ELF) $(VRAM_OUT)  -C NDMA XDMA memcpy
 
 .FORCE:

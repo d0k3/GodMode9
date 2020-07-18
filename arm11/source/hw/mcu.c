@@ -135,12 +135,6 @@ void MCU_ResetLED(void)
 	MCU_SetNotificationLED(0, 0);
 }
 
-void MCU_PushToLCD(bool enable)
-{
-	MCU_WriteReg(REG_LCD_STATE, enable ? 0x2A : 0x01);
-	TIMER_WaitTicks(CLK_MS_TO_TICKS(160));
-}
-
 void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 {
 	u32 ints;
@@ -171,13 +165,11 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 				break;
 
 			case MCU_SHELL_OPEN:
-				MCU_PushToLCD(true);
 				MCU_UpdateShellState(true);
 				MCU_ResetLED();
 				break;
 
 			case MCU_SHELL_CLOSE:
-				MCU_PushToLCD(false);
 				MCU_UpdateShellState(false);
 				break;
 
@@ -195,7 +187,7 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 
 void MCU_Init(void)
 {
-	u32 clrpend, mask = 0xFFBF0800;
+	u32 clrpend, mask = 0;
 
 	/* set register mask and clear any pending registers */
 	MCU_WriteRegBuf(REG_INT_EN, (const u8*)&mask, sizeof(mask));

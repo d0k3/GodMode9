@@ -61,10 +61,12 @@
 #define assert(x) \
     (!!(x) ? (void)0 : __builtin_trap())
 
+static inline void waitClks(unsigned clk) {
+    asm_v("1: subs %0, %0, #2\n\tbne 1b\n\t":"=r"(clk)::"memory","cc");
+}
 
 #define STATIC_ASSERT(...) \
     _Static_assert((__VA_ARGS__), #__VA_ARGS__)
-
 
 // standard output path (support file paths are in support.h)
 #define OUTPUT_PATH     "0:/gm9/out"

@@ -31,6 +31,9 @@
 #define I2C_IRQ_ENABLE    (1u<<6)
 #define I2C_ENABLE        (1u<<7)
 
+#define I2C_DEV_LCD0	5
+#define I2C_DEV_LCD1	6
+
 #define I2C_GET_ACK(reg)  ((bool)((reg)>>4 & 1u))
 
 
@@ -62,3 +65,13 @@ bool I2C_readRegBuf(int devId, u8 regAddr, u8 *out, u32 size);
  * @return     Returns true on success and false on failure.
  */
 bool I2C_writeRegBuf(int devId, u8 regAddr, const u8 *in, u32 size);
+
+static inline u8 I2C_readReg(int devId, u8 regAddr) {
+	u8 v;
+	I2C_readRegBuf(devId, regAddr, &v, 1);
+	return v;
+}
+
+static inline void I2C_writeReg(int devId, u8 regAddr, u8 v) {
+	I2C_writeRegBuf(devId, regAddr, &v, 1);
+}

@@ -108,16 +108,7 @@ void SYS_CoreZeroInit(void)
 	SPI_Init();
 	CODEC_Init();
 
-	GPU_Init();
-	GPU_PSCFill(VRAM_START, VRAM_END, 0);
-	GPU_SetFramebuffers((u32[]){VRAM_TOP_LA, VRAM_TOP_LB,
-								VRAM_TOP_RA, VRAM_TOP_RB,
-								VRAM_BOT_A,  VRAM_BOT_B});
-
-	GPU_SetFramebufferMode(0, PDC_RGB24);
-	GPU_SetFramebufferMode(1, PDC_RGB24);
-
-	MCU_PushToLCD(true);
+	GFX_init(GFX_RGB565);
 }
 
 void SYS_CoreInit(void)

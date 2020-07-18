@@ -20,6 +20,7 @@
 
 #include <types.h>
 
+#include "arm/timer.h"
 #include "hw/i2c.h"
 
 #define MCU_INTERRUPT	(0x71)
@@ -30,8 +31,6 @@ u32 MCU_GetSpecialHID(void);
 
 void MCU_SetNotificationLED(u32 period_ms, u32 color);
 void MCU_ResetLED(void);
-
-void MCU_PushToLCD(bool enable);
 
 void MCU_HandleInterrupts(u32 irqn);
 
@@ -57,4 +56,21 @@ static inline bool MCU_WriteReg(u8 addr, u8 val)
 static inline bool MCU_WriteRegBuf(u8 addr, const u8 *buf, u32 size)
 {
 	return I2C_writeRegBuf(I2C_MCU_DEVICE, addr, buf, size);
+}
+
+static inline u32 MCU_waitEvents(u32 mask) {
+	u32 v;
+	while(1) {
+		TIMER_WaitMS(10);
+		MCU_ReadRegBuf(0x10, (u8*)&v, 4);
+		v &= mask;
+		if (v)
+			break;
+	}
+	return v;
+}
+
+static inline void MCU_controlLCDPower(u8 bits)
+{
+	MCU_WriteReg(0x22u, bits);
 }

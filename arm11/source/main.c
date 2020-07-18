@@ -52,7 +52,8 @@ void VBlank_Handler(u32 __attribute__((unused)) irqn)
 	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2) % countof(brightness_lvls);
 	if ((cur_bright_lvl != prev_bright_lvl) && auto_brightness) {
 		prev_bright_lvl = cur_bright_lvl;
-		LCD_SetBrightness(brightness_lvls[cur_bright_lvl]);
+		u8 br = brightness_lvls[cur_bright_lvl];
+		GFX_setBrightness(br, br);
 	}
 	#endif
 
@@ -98,9 +99,8 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_SET_VMODE:
 		{
-			int mode = args[0] ? PDC_RGB24 : PDC_RGB565;
-			GPU_SetFramebufferMode(0, mode);
-			GPU_SetFramebufferMode(1, mode);
+			int mode = args[0] ? GFX_BGR8 : GFX_RGB565;
+			GFX_init(mode);
 			ret = 0;
 			break;
 		}
@@ -147,10 +147,11 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_BRIGHTNESS:
 		{
-			ret = LCD_GetBrightness();
+			s32 newbrightness = (s32)args[0];
+			ret = GFX_getBrightness();
 			#ifndef FIXED_BRIGHTNESS
-			if ((args[0] > 0) && (args[0] < 0x100)) {
-				LCD_SetBrightness(args[0]);
+			if ((newbrightness > 0) && (newbrightness < 0x100)) {
+				GFX_setBrightness(newbrightness, newbrightness);
 				auto_brightness = false;
 			} else {
 				prev_bright_lvl = -1;
@@ -183,6 +184,8 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 	PXI_Send(ret);
 }
+
+extern u32 pdcerr;
 
 void __attribute__((noreturn)) MainLoop(void)
 {

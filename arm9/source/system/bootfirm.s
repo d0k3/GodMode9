@@ -123,13 +123,9 @@ BootFirm:
     @ Setup the framebuffer struct
     ldr r0, =FBPTR_LOC
     ldr r1, =VRAM_TOP_LA
-    ldr r2, =VRAM_TOP_RA
+    ldr r2, =VRAM_TOP_LA
     ldr r3, =VRAM_BOT_A
     stmia r0!, {r1,r2,r3}
-
-    ldr r1, =VRAM_TOP_LB
-    ldr r2, =VRAM_TOP_RB
-    ldr r3, =VRAM_BOT_B
     stmia r0!, {r1,r2,r3}
 
     @ Copy the FIRM path somewhere safe

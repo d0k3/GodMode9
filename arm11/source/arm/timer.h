@@ -30,3 +30,7 @@
 #define CLK_MS_TO_TICKS(m)	(((BASE_CLKRATE / 1000) * (m)) - 1)
 
 void TIMER_WaitTicks(u32 ticks);
+
+static inline void TIMER_WaitMS(u32 ms) {
+	TIMER_WaitTicks(CLK_MS_TO_TICKS(ms));
+}

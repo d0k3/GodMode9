@@ -16,212 +16,284 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <common.h>
 #include <types.h>
 #include <vram.h>
 
 #include "arm/timer.h"
 
+#include "hw/i2c.h"
 #include "hw/mcu.h"
 #include "hw/gpulcd.h"
 
-/* LCD Configuration Registers */
-#define REG_LCD(x)	((vu32*)(0x10202000 + (x)))
-void LCD_SetBrightness(u8 brightness)
+static struct
 {
-	*REG_LCD(0x240) = brightness;
-	*REG_LCD(0xA40) = brightness;
+	u16 lcdIds;            // Bits 0-7 top screen, 8-15 bottom screen.
+	bool lcdIdsRead;
+	u8 lcdPower;           // 1 = on. Bit 4 top light, bit 2 bottom light, bit 0 LCDs.
+	u8 lcdLights[2];       // LCD backlight brightness. Top, bottom.
+	u32 framebufs[2];      // For each screen
+	u8 doubleBuf[2];       // Top, bottom, 1 = enable.
+	u16 strides[2];        // Top, bottom
+	u32 formats[2];        // Top, bottom
+} g_gfxState = {0};
+
+static void setupDisplayController(u8 lcd);
+static void resetLcdsMaybe(void);
+static void waitLcdsReady(void);
+
+static u32 gxModeWidth(unsigned c) {
+	switch(c) {
+		case 0: return 4;
+		case 1: return 3;
+		default: return 2;
+	}
 }
 
-u8 LCD_GetBrightness(void)
+unsigned GFX_init(GfxFbFmt mode)
 {
-	return *REG_LCD(0x240);
+	unsigned err = 0;
+
+	REG_CFG11_GPUPROT = 0;
+
+	// Reset
+	REG_PDN_GPU_CNT = PDN_GPU_CNT_CLK_E;
+	waitClks(12);
+	REG_PDN_GPU_CNT = PDN_GPU_CNT_CLK_E | PDN_GPU_CNT_RST_ALL;
+	REG_GX_GPU_CLK = 0x100;
+	REG_GX_PSC_VRAM = 0;
+	REG_GX_PSC_FILL0_CNT = 0;
+	REG_GX_PSC_FILL1_CNT = 0;
+	REG_GX_PPF_CNT = 0;
+
+	// LCD framebuffer setup.
+
+	g_gfxState.strides[0] = 240 * gxModeWidth(mode);
+	g_gfxState.strides[1] = 240 * gxModeWidth(mode);
+
+	g_gfxState.framebufs[0] = VRAM_TOP_LA;
+	g_gfxState.framebufs[1] = VRAM_BOT_A;
+
+	g_gfxState.formats[0] = mode | BIT(6) | BIT(9);
+	g_gfxState.formats[1] = mode | BIT(9);
+
+	setupDisplayController(0);
+	setupDisplayController(1);
+	REG_LCD_PDC0_SWAP = 0; // Select framebuf 0.
+	REG_LCD_PDC1_SWAP = 0;
+	REG_LCD_PDC0_CNT = PDC_CNT_OUT_E | PDC_CNT_I_MASK_ERR | PDC_CNT_I_MASK_H | PDC_CNT_E; // Start
+	REG_LCD_PDC1_CNT = PDC_CNT_OUT_E | PDC_CNT_I_MASK_ERR | PDC_CNT_I_MASK_H | PDC_CNT_E;
+
+	// LCD reg setup.
+	REG_LCD_ABL0_FILL = 1u<<24; // Force blackscreen
+	REG_LCD_ABL1_FILL = 1u<<24; // Force blackscreen
+	REG_LCD_PARALLAX_CNT = 0;
+	REG_LCD_PARALLAX_PWM = 0xA390A39;
+	REG_LCD_RST = 0;
+	REG_LCD_UNK00C = 0x10001;
+
+	// Clear used VRAM
+	REG_GX_PSC_FILL0_S_ADDR = VRAM_TOP_LA >> 3;
+	REG_GX_PSC_FILL0_E_ADDR = VRAM_END >> 3;
+	REG_GX_PSC_FILL0_VAL = 0;
+	REG_GX_PSC_FILL0_CNT = BIT(9) | BIT(0);
+
+	// Backlight and other stuff.
+	REG_LCD_ABL0_LIGHT = 0;
+	REG_LCD_ABL0_CNT = 0;
+	REG_LCD_ABL0_LIGHT_PWM = 0;
+	REG_LCD_ABL1_LIGHT = 0;
+	REG_LCD_ABL1_CNT = 0;
+	REG_LCD_ABL1_LIGHT_PWM = 0;
+
+	REG_LCD_RST = 1;
+	REG_LCD_UNK00C = 0;
+	TIMER_WaitMS(10);
+	resetLcdsMaybe();
+	MCU_controlLCDPower(2u); // Power on LCDs.
+	if(MCU_waitEvents(0x3Fu<<24) != 2u<<24) __builtin_trap();
+
+	waitLcdsReady();
+	REG_LCD_ABL0_LIGHT_PWM = 0x1023E;
+	REG_LCD_ABL1_LIGHT_PWM = 0x1023E;
+	MCU_controlLCDPower(0x28u); // Power on backlights.
+	if(MCU_waitEvents(0x3Fu<<24) != 0x28u<<24) __builtin_trap();
+	g_gfxState.lcdPower = 0x15; // All on.
+
+	// Make sure the fills finished.
+	REG_LCD_ABL0_FILL = 0;
+	REG_LCD_ABL1_FILL = 0;
+
+	// GPU stuff.
+	REG_GX_GPU_CLK = 0x70100;
+	*((vu32*)0x10400050) = 0x22221200;
+	*((vu32*)0x10400054) = 0xFF2;
+
+	GFX_setBrightness(0x80, 0x80);
+
+	return err;
 }
 
-void LCD_Initialize(u8 brightness)
+static u16 getLcdIds(void)
 {
-	*REG_LCD(0x014) = 1;
-	*REG_LCD(0x00C) = 0;
-	TIMER_WaitTicks(CLK_MS_TO_TICKS(10));
+	u16 ids;
 
-	*REG_LCD(0x240) = brightness;
-	*REG_LCD(0xA40) = brightness;
-	*REG_LCD(0x244) = 0x1023E;
-	*REG_LCD(0xA44) = 0x1023E;
+	if(!g_gfxState.lcdIdsRead)
+	{
+		g_gfxState.lcdIdsRead = true;
+
+		u16 top, bot;
+		I2C_writeReg(I2C_DEV_LCD0, 0x40, 0xFF);
+		I2C_readRegBuf(I2C_DEV_LCD0, 0x40, (u8*)&top, 2);
+		I2C_writeReg(I2C_DEV_LCD1, 0x40, 0xFF);
+		I2C_readRegBuf(I2C_DEV_LCD1, 0x40, (u8*)&bot, 2);
+
+		ids = top>>8;
+		ids |= bot & 0xFF00u;
+		g_gfxState.lcdIds = ids;
+	}
+	else ids = g_gfxState.lcdIds;
+
+	return ids;
 }
 
-void LCD_Deinitialize(void)
+static void resetLcdsMaybe(void)
 {
-	*REG_LCD(0x244) = 0;
-	*REG_LCD(0xA44) = 0;
-	*REG_LCD(0x00C) = 0x10001;
-	*REG_LCD(0x014) = 0;
-}
+	const u16 ids = getLcdIds();
 
-/* GPU Control Registers */
-#define REG_GPU_CNT	((vu32*)(0x10141200))
-
-
-/* GPU DMA */
-#define REG_GPU_PSC(n, x)	((vu32*)(0x10400010 + ((n) * 0x10) + (x)))
-#define GPU_PSC_START	(0x00)
-#define GPU_PSC_END	(0x04)
-#define GPU_PSC_FILLVAL	(0x08)
-#define GPU_PSC_CNT	(0x0C)
-
-#define GPUDMA_ADDR(x)	((x) >> 3)
-#define PSC_START	(BIT(0))
-#define PSC_DONE	(BIT(1))
-#define PSC_32BIT	(2 << 8)
-#define PSC_24BIT	(1 << 8)
-#define PSC_16BIT	(0 << 8)
-
-void GPU_PSCFill(u32 start, u32 end, u32 fv)
-{
-	u32 mp;
-	if (start > end)
-		return;
-
-	start = GPUDMA_ADDR(start);
-	end   = GPUDMA_ADDR(end);
-	mp    = (start + end) / 2;
-
-	*REG_GPU_PSC(0, GPU_PSC_START) = start;
-	*REG_GPU_PSC(0, GPU_PSC_END) = mp;
-	*REG_GPU_PSC(0, GPU_PSC_FILLVAL) = fv;
-	*REG_GPU_PSC(0, GPU_PSC_CNT) = PSC_START | PSC_32BIT;
-
-	*REG_GPU_PSC(1, GPU_PSC_START) = mp;
-	*REG_GPU_PSC(1, GPU_PSC_END) = end;
-	*REG_GPU_PSC(1, GPU_PSC_FILLVAL) = fv;
-	*REG_GPU_PSC(1, GPU_PSC_CNT) = PSC_START | PSC_32BIT;
-
-	while(!((*REG_GPU_PSC(0, GPU_PSC_CNT) | *REG_GPU_PSC(1, GPU_PSC_CNT)) & PSC_DONE));
-}
-
-/* GPU Display Registers */
-#define GPU_PDC(n, x)	((vu32*)(0x10400400 + ((n) * 0x100) + x))
-#define PDC_PARALLAX	(BIT(5))
-#define PDC_MAINSCREEN	(BIT(6))
-#define PDC_FIXSTRIP	(BIT(7))
-
-void GPU_SetFramebuffers(const u32 *framebuffers)
-{
-	*GPU_PDC(0, 0x68) = framebuffers[0];
-	*GPU_PDC(0, 0x6C) = framebuffers[1];
-	*GPU_PDC(0, 0x94) = framebuffers[2];
-	*GPU_PDC(0, 0x98) = framebuffers[3];
-	*GPU_PDC(1, 0x68) = framebuffers[4];
-	*GPU_PDC(1, 0x6C) = framebuffers[5];
-	*GPU_PDC(0, 0x78) = 0;
-	*GPU_PDC(1, 0x78) = 0;
-}
-
-void GPU_SetFramebufferMode(u32 screen, u8 mode)
-{
-	u32 stride, cfg;
-	vu32 *fbcfg_reg, *fbstr_reg;
-
-	mode &= 7;
-	screen &= 1;
-	cfg = PDC_FIXSTRIP | mode;
-	if (screen) {
-		fbcfg_reg = GPU_PDC(1, 0x70);
-		fbstr_reg = GPU_PDC(1, 0x90);
-	} else {
-		fbcfg_reg = GPU_PDC(0, 0x70);
-		fbstr_reg = GPU_PDC(0, 0x90);
-		cfg |= PDC_MAINSCREEN;
+	// Top screen
+	if(ids & 0xFFu) I2C_writeReg(I2C_DEV_LCD0, 0xFE, 0xAA);
+	else
+	{
+		I2C_writeReg(I2C_DEV_LCD0, 0x11, 0x10);
+		I2C_writeReg(I2C_DEV_LCD0, 0x50, 1);
 	}
 
-	stride = 240;
-	switch(mode) {
-	case PDC_RGBA8:
-		stride *= 4;
-		break;
-	case PDC_RGB24:
-		stride *= 3;
-		break;
-	default:
-		stride *= 2;
-		break;
-	}
+	// Bottom screen
+	if(ids>>8) I2C_writeReg(I2C_DEV_LCD1, 0xFE, 0xAA);
+	else       I2C_writeReg(I2C_DEV_LCD1, 0x11, 0x10);
 
-	*fbcfg_reg = cfg;
-	*fbstr_reg = stride;
+	I2C_writeReg(I2C_DEV_LCD0, 0x60, 0);
+	I2C_writeReg(I2C_DEV_LCD1, 0x60, 0);
+	I2C_writeReg(I2C_DEV_LCD0, 1, 0x10);
+	I2C_writeReg(I2C_DEV_LCD1, 1, 0x10);
 }
 
-void GPU_Init(void)
+static void waitLcdsReady(void)
 {
-	MCU_PushToLCD(true);
+	const u16 ids = getLcdIds();
 
-	LCD_Initialize(0x20);
+	if((ids & 0xFFu) == 0 || (ids>>8) == 0) // Unknown LCD?
+	{
+		TIMER_WaitMS(150);
+	}
+	else
+	{
+		u32 i = 0;
+		do
+		{
+			u16 top, bot;
+			I2C_writeReg(I2C_DEV_LCD0, 0x40, 0x62);
+			I2C_readRegBuf(I2C_DEV_LCD0, 0x40, (u8*)&top, 2);
+			I2C_writeReg(I2C_DEV_LCD1, 0x40, 0x62);
+			I2C_readRegBuf(I2C_DEV_LCD1, 0x40, (u8*)&bot, 2);
 
-	*REG_GPU_CNT = 0x1007F;
-	*GPU_PDC(0, 0x00) = 0x000001C2;
-	*GPU_PDC(0, 0x04) = 0x000000D1;
-	*GPU_PDC(0, 0x08) = 0x000001C1;
-	*GPU_PDC(0, 0x0C) = 0x000001C1;
-	*GPU_PDC(0, 0x10) = 0x00000000;
-	*GPU_PDC(0, 0x14) = 0x000000CF;
-	*GPU_PDC(0, 0x18) = 0x000000D1;
-	*GPU_PDC(0, 0x1C) = 0x01C501C1;
-	*GPU_PDC(0, 0x20) = 0x00010000;
-	*GPU_PDC(0, 0x24) = 0x0000019D;
-	*GPU_PDC(0, 0x28) = 0x00000002;
-	*GPU_PDC(0, 0x2C) = 0x00000192;
-	*GPU_PDC(0, 0x30) = 0x00000192;
-	*GPU_PDC(0, 0x34) = 0x00000192;
-	*GPU_PDC(0, 0x38) = 0x00000001;
-	*GPU_PDC(0, 0x3C) = 0x00000002;
-	*GPU_PDC(0, 0x40) = 0x01960192;
-	*GPU_PDC(0, 0x44) = 0x00000000;
-	*GPU_PDC(0, 0x48) = 0x00000000;
-	*GPU_PDC(0, 0x5C) = 0x00F00190;
-	*GPU_PDC(0, 0x60) = 0x01C100D1;
-	*GPU_PDC(0, 0x64) = 0x01920002;
-	*GPU_PDC(0, 0x68) = VRAM_START;
-	*GPU_PDC(0, 0x6C) = VRAM_START;
-	*GPU_PDC(0, 0x70) = 0x00080340;
-	*GPU_PDC(0, 0x74) = 0x00010501;
-	*GPU_PDC(0, 0x78) = 0x00000000;
-	*GPU_PDC(0, 0x90) = 0x000003C0;
-	*GPU_PDC(0, 0x94) = VRAM_START;
-	*GPU_PDC(0, 0x98) = VRAM_START;
-	*GPU_PDC(0, 0x9C) = 0x00000000;
+			if((top>>8) == 1 && (bot>>8) == 1) break;
 
-	for (u32 i = 0; i < 256; i++)
-		*GPU_PDC(0, 0x84) = 0x10101 * i;
+			TIMER_WaitMS(33);
+		} while(i++ < 10);
+	}
+}
 
-	*GPU_PDC(1, 0x00) = 0x000001C2;
-	*GPU_PDC(1, 0x04) = 0x000000D1;
-	*GPU_PDC(1, 0x08) = 0x000001C1;
-	*GPU_PDC(1, 0x0C) = 0x000001C1;
-	*GPU_PDC(1, 0x10) = 0x000000CD;
-	*GPU_PDC(1, 0x14) = 0x000000CF;
-	*GPU_PDC(1, 0x18) = 0x000000D1;
-	*GPU_PDC(1, 0x1C) = 0x01C501C1;
-	*GPU_PDC(1, 0x20) = 0x00010000;
-	*GPU_PDC(1, 0x24) = 0x0000019D;
-	*GPU_PDC(1, 0x28) = 0x00000052;
-	*GPU_PDC(1, 0x2C) = 0x00000192;
-	*GPU_PDC(1, 0x30) = 0x00000192;
-	*GPU_PDC(1, 0x34) = 0x0000004F;
-	*GPU_PDC(1, 0x38) = 0x00000050;
-	*GPU_PDC(1, 0x3C) = 0x00000052;
-	*GPU_PDC(1, 0x40) = 0x01980194;
-	*GPU_PDC(1, 0x44) = 0x00000000;
-	*GPU_PDC(1, 0x48) = 0x00000011;
-	*GPU_PDC(1, 0x5C) = 0x00F00140;
-	*GPU_PDC(1, 0x60) = 0x01C100d1;
-	*GPU_PDC(1, 0x64) = 0x01920052;
-	*GPU_PDC(1, 0x68) = VRAM_START;
-	*GPU_PDC(1, 0x6C) = VRAM_START;
-	*GPU_PDC(1, 0x70) = 0x00080300;
-	*GPU_PDC(1, 0x74) = 0x00010501;
-	*GPU_PDC(1, 0x78) = 0x00000000;
-	*GPU_PDC(1, 0x90) = 0x000003C0;
-	*GPU_PDC(1, 0x9C) = 0x00000000;
+void GFX_powerOnBacklights(GfxBlight mask)
+{
+	g_gfxState.lcdPower |= mask;
 
-	for (u32 i = 0; i < 256; i++)
-		*GPU_PDC(1, 0x84) = 0x10101 * i;
+	mask <<= 1;
+	MCU_controlLCDPower(mask); // Power on backlights.
+	if(MCU_waitEvents(0x3Fu<<24) != (u32)mask<<24)
+		__builtin_trap();
+}
+
+void GFX_powerOffBacklights(GfxBlight mask)
+{
+	g_gfxState.lcdPower &= ~mask;
+
+	MCU_controlLCDPower(mask); // Power off backlights.
+	if(MCU_waitEvents(0x3Fu<<24) != (u32)mask<<24)
+		__builtin_trap();
+}
+
+u8 GFX_getBrightness(void)
+{
+	return REG_LCD_ABL0_LIGHT;
+}
+
+void GFX_setBrightness(u8 top, u8 bot)
+{
+	g_gfxState.lcdLights[0] = top;
+	g_gfxState.lcdLights[1] = bot;
+	REG_LCD_ABL0_LIGHT = top;
+	REG_LCD_ABL1_LIGHT = bot;
+}
+
+void GFX_setForceBlack(bool top, bool bot)
+{
+	REG_LCD_ABL0_FILL = (u32)top<<24; // Force blackscreen
+	REG_LCD_ABL1_FILL = (u32)bot<<24; // Force blackscreen
+}
+
+static void setupDisplayController(u8 lcd)
+{
+	if(lcd > 1) return;
+
+	static const u32 displayCfgs[2][24] =
+	{
+		{
+			// PDC0 regs 0-0x4C.
+			450, 209, 449, 449, 0, 207, 209, 453<<16 | 449,
+			1<<16 | 0, 413, 2, 402, 402, 402, 1, 2,
+			406<<16 | 402, 0, 0<<4 | 0, 0<<16 | 0xFF<<8 | 0,
+			// PDC0 regs 0x5C-0x64.
+			400<<16 | 240, // Width and height.
+			449<<16 | 209,
+			402<<16 | 2,
+			// PDC0 reg 0x9C.
+			0<<16 | 0
+		},
+		{
+			// PDC1 regs 0-0x4C.
+			450, 209, 449, 449, 205, 207, 209, 453<<16 | 449,
+			1<<16 | 0, 413, 82, 402, 402, 79, 80, 82,
+			408<<16 | 404, 0, 1<<4 | 1, 0<<16 | 0<<8 | 0xFF,
+			// PDC1 regs 0x5C-0x64.
+			320<<16 | 240, // Width and height.
+			449<<16 | 209,
+			402<<16 | 82,
+			// PDC1 reg 0x9C.
+			0<<16 | 0
+		}
+	};
+
+	const u32 *const cfg = displayCfgs[lcd];
+	vu32 *const regs = (vu32*)(GX_REGS_BASE + 0x400 + (0x100u * lcd));
+
+	for (unsigned i = 0; i < 0x50/4; i++)
+		regs[i] = cfg[i];
+
+	for (unsigned i = 0; i < 0xC/4; i++)
+		regs[23 + i] = cfg[20 + i];
+
+	regs[36] = g_gfxState.strides[lcd]; // PDC reg 0x90 stride.
+	regs[39] = cfg[23];                 // PDC reg 0x9C.
+
+	// PDC regs 0x68, 0x6C, 0x94, 0x98 and 0x70.
+	regs[26] = g_gfxState.framebufs[lcd]; // Framebuffer A first address.
+	regs[27] = g_gfxState.framebufs[lcd]; // Framebuffer A second address.
+	regs[37] = g_gfxState.framebufs[lcd]; // Framebuffer B first address.
+	regs[38] = g_gfxState.framebufs[lcd]; // Framebuffer B second address.
+	regs[28] = g_gfxState.formats[lcd];   // Format
+
+	regs[32] = 0; // Gamma table index 0.
+	for(u32 i = 0; i < 256; i++) regs[33] = 0x10101u * i;
 }
