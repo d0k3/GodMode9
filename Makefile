@@ -18,13 +18,17 @@ export COMMON_DIR := ../common
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
-VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 3145728
+VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 262144
 
-#ifeq ($(OS),Windows_NT)
-#    PY3 := py -3
-#else
-    PY3 := python3
-#endif
+ifeq ($(OS),Windows_NT)
+	ifeq ($(TERM),)
+		PY3 := py -3 # Windows / CMD/PowerShell
+	else
+		PY3 := python3 # Windows / MSYS2
+	endif
+else
+	PY3 := python3 # Unix-like
+endif
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"
