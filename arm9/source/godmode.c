@@ -1000,7 +1000,7 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
     } else { // for files
         char bytestr[32];
         FormatBytes(bytestr, fno.fsize);
-        snprintf(sizestr, 64, "filesize: %s byte", bytestr);
+        snprintf(sizestr, 64, "filesize: %s", bytestr);
     }
 
     while(true) {
