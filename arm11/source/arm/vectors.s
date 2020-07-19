@@ -109,7 +109,7 @@ XRQ_IRQ:
     sub sp, sp, r4
 
     mov lr, pc
-    ldr pc, =GIC_MainHandler
+    ldr pc, =gicTopHandler
 
     add sp, sp, r4
 

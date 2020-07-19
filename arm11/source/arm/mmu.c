@@ -54,7 +54,7 @@
 
 #define DESCRIPTOR_TYPE_MASK	(3)
 
-enum DescriptorType {
+enum {
 	L1_UNMAPPED,
 	L1_COARSE,
 	L1_SECTION,
@@ -67,76 +67,61 @@ enum DescriptorType {
 
 typedef struct {
 	u32 desc[4096];
-} __attribute__((aligned(16384))) MMU_Lvl1_Table;
+} __attribute__((aligned(16384))) mmuLevel1Table;
 
 typedef struct {
 	u32 desc[256];
-} __attribute__((aligned(1024))) MMU_Lvl2_Table;
+} __attribute__((aligned(1024))) mmuLevel2Table;
 
-static MMU_Lvl1_Table MMU_Lvl1_TT;
+static mmuLevel1Table mmuGlobalTT;
 
-/* function to allocate 2nd level page tables */
+// simple watermark allocator for 2nd level page tables
 #define MAX_SECOND_LEVEL	(4)
-static MMU_Lvl2_Table Lvl2_Tables[MAX_SECOND_LEVEL];
-static u32 Lvl2_Allocated = 0;
-static MMU_Lvl2_Table *Alloc_Lvl2(void)
+static mmuLevel2Table mmuCoarseTables[MAX_SECOND_LEVEL];
+static u32 mmuCoarseAllocated = 0;
+static mmuLevel2Table *mmuAllocateLevel2Table(void)
 {
-	if (Lvl2_Allocated == MAX_SECOND_LEVEL)
-		return NULL;
-	return &Lvl2_Tables[Lvl2_Allocated++];
+	return &mmuCoarseTables[mmuCoarseAllocated++];
 }
 
 
-/* functions to convert from internal page flag format to ARM */
+// functions to convert from internal page flag format to ARM
 
-/* {TEX, CB} */
-static const u8 MMU_TypeLUT[MEMORY_TYPES][2] = {
-	[STRONGLY_ORDERED] = {0, 0},
-	[NON_CACHEABLE] = {1, 0},
-	[DEVICE_SHARED] = {0, 1},
-	[DEVICE_NONSHARED] = {2, 0},
-	[CACHED_WT] = {0, 2},
-	[CACHED_WB] = {1, 3},
-	[CACHED_WB_ALLOC] = {1, 3},
+// {TEX, CB} pairs
+static const u8 mmuTypeLUT[MMU_MEMORY_TYPES][2] = {
+	[MMU_STRONG_ORDER] = {0, 0},
+	[MMU_UNCACHEABLE] = {1, 0},
+	[MMU_DEV_SHARED] = {0, 1},
+	[MMU_DEV_NONSHARED] = {2, 0},
+	[MMU_CACHE_WT] = {0, 2},
+	[MMU_CACHE_WB] = {1, 3},
+	[MMU_CACHE_WBA] = {1, 3},
 };
 
-static u32 MMU_GetTEX(u32 f)
-{
-	return MMU_TypeLUT[MMU_FLAGS_TYPE(f)][0];
-}
+static u32 mmuGetTEX(u32 f)
+{ return mmuTypeLUT[MMU_FLAGS_TYPE(f)][0]; }
+static u32 mmuGetCB(u32 f)
+{ return mmuTypeLUT[MMU_FLAGS_TYPE(f)][1]; }
+static u32 mmuGetNX(u32 f)
+{ return MMU_FLAGS_NOEXEC(f) ? 1 : 0; }
+static u32 mmuGetShared(u32 f)
+{ return MMU_FLAGS_SHARED(f) ? 1 : 0; }
 
-static u32 MMU_GetCB(u32 f)
-{
-	return MMU_TypeLUT[MMU_FLAGS_TYPE(f)][1];
-}
+// access permissions
+static const u8 mmuAccessLUT[MMU_ACCESS_TYPES] = {
+	[MMU_NO_ACCESS] = 0,
+	[MMU_READ_ONLY] = 0x21,
+	[MMU_READ_WRITE] = 0x01,
+};
 
-static u32 MMU_GetAP(u32 f)
-{
-	switch(MMU_FLAGS_ACCESS(f)) {
-		default:
-		case NO_ACCESS:
-			return 0;
-		case READ_ONLY:
-			return 0x21;
-		case READ_WRITE:
-			return 0x01;
-	}
-}
+static u32 mmuGetAP(u32 f)
+{ return mmuAccessLUT[MMU_FLAGS_ACCESS(f)]; }
 
-static u32 MMU_GetNX(u32 f)
+// other misc helper functions
+static unsigned mmuWalkTT(u32 va)
 {
-	return MMU_FLAGS_NOEXEC(f) ? 1 : 0;
-}
-
-static u32 MMU_GetShared(u32 f)
-{
-	return MMU_FLAGS_SHARED(f) ? 1 : 0;
-}
-
-static enum DescriptorType MMU_WalkTT(u32 va)
-{
-	MMU_Lvl2_Table *coarsepd;
-	u32 desc = MMU_Lvl1_TT.desc[L1_VA_IDX(va)];
+	mmuLevel2Table *coarsepd;
+	u32 desc = mmuGlobalTT.desc[L1_VA_IDX(va)];
 
 	switch(desc & DESCRIPTOR_TYPE_MASK) {
 		case DESCRIPTOR_L1_UNMAPPED:
@@ -152,7 +137,7 @@ static enum DescriptorType MMU_WalkTT(u32 va)
 			return L1_RESERVED;
 	}
 
-	coarsepd = (MMU_Lvl2_Table*)(desc & COARSE_MASK);
+	coarsepd = (mmuLevel2Table*)(desc & COARSE_MASK);
 	desc = coarsepd->desc[L2_VA_IDX(va)];
 
 	switch(desc & DESCRIPTOR_TYPE_MASK) {
@@ -169,21 +154,20 @@ static enum DescriptorType MMU_WalkTT(u32 va)
 	}
 }
 
-static MMU_Lvl2_Table *MMU_CoarseFix(u32 va)
+static mmuLevel2Table *mmuCoarseFix(u32 va)
 {
-	enum DescriptorType type;
-	MMU_Lvl2_Table *coarsepd;
+	u32 type;
+	mmuLevel2Table *coarsepd;
 
-	type = MMU_WalkTT(va);
+	type = mmuWalkTT(va);
 	switch(type) {
 		case L1_UNMAPPED:
-			coarsepd = Alloc_Lvl2();
-			if (coarsepd != NULL)
-				MMU_Lvl1_TT.desc[L1_VA_IDX(va)] = (u32)coarsepd | DESCRIPTOR_L1_COARSE;
+			coarsepd = mmuAllocateLevel2Table();
+			mmuGlobalTT.desc[L1_VA_IDX(va)] = (u32)coarsepd | DESCRIPTOR_L1_COARSE;
 			break;
 
 		case L2_UNMAPPED:
-			coarsepd = (MMU_Lvl2_Table*)(MMU_Lvl1_TT.desc[L1_VA_IDX(va)] & COARSE_MASK);
+			coarsepd = (mmuLevel2Table*)(mmuGlobalTT.desc[L1_VA_IDX(va)] & COARSE_MASK);
 			break;
 
 		default:
@@ -196,122 +180,91 @@ static MMU_Lvl2_Table *MMU_CoarseFix(u32 va)
 
 
 /* Sections */
-static u32 MMU_SectionFlags(u32 f)
-{
-	return (MMU_GetShared(f) << 16) | (MMU_GetTEX(f) << 12) |
-		(MMU_GetAP(f) << 10) | (MMU_GetNX(f) << 4) |
-		(MMU_GetCB(f) << 2) | DESCRIPTOR_L1_SECTION;
+static u32 mmuSectionFlags(u32 f)
+{ // converts the internal format to the hardware L1 section format
+	return (mmuGetShared(f) << 16) | (mmuGetTEX(f) << 12) |
+		(mmuGetAP(f) << 10) | (mmuGetNX(f) << 4) |
+		(mmuGetCB(f) << 2) | DESCRIPTOR_L1_SECTION;
 }
 
-static bool MMU_MapSection(u32 va, u32 pa, u32 flags)
+static void mmuMapSection(u32 va, u32 pa, u32 flags)
 {
-	enum DescriptorType type = MMU_WalkTT(va);
-	if (type == L1_UNMAPPED) {
-		MMU_Lvl1_TT.desc[L1_VA_IDX(va)] = pa | MMU_SectionFlags(flags);
-		return true;
-	}
-
-	return false;
-}
-
-
-/* Large Pages */
-static u32 MMU_LargePageFlags(u32 f)
-{
-	return (MMU_GetNX(f) << 15) | (MMU_GetTEX(f) << 12) |
-		(MMU_GetShared(f) << 10) | (MMU_GetAP(f) << 4) |
-		(MMU_GetCB(f) << 2) | DESCRIPTOR_L2_LARGEPAGE;
-}
-
-static bool MMU_MapLargePage(u32 va, u32 pa, u32 flags)
-{
-	MMU_Lvl2_Table *l2 = MMU_CoarseFix(va);
-
-	if (l2 == NULL)
-		return false;
-
-	for (u32 i = va; i < (va + 0x10000); i += 0x1000)
-		l2->desc[L2_VA_IDX(i)] = pa | MMU_LargePageFlags(flags);
-
-	return true;
+	mmuGlobalTT.desc[L1_VA_IDX(va)] = pa | mmuSectionFlags(flags);
 }
 
 
 /* Pages */
-static u32 MMU_PageFlags(u32 f)
+static u32 mmuPageFlags(u32 f)
 {
-	return (MMU_GetShared(f) << 10) | (MMU_GetTEX(f) << 6) |
-		(MMU_GetAP(f) << 4) | (MMU_GetCB(f) << 2) |
-		(MMU_GetNX(f) ? DESCRIPTOR_L2_PAGE_NX : DESCRIPTOR_L2_PAGE_EXEC);
+	return (mmuGetShared(f) << 10) | (mmuGetTEX(f) << 6) |
+		(mmuGetAP(f) << 4) | (mmuGetCB(f) << 2) |
+		(mmuGetNX(f) ? DESCRIPTOR_L2_PAGE_NX : DESCRIPTOR_L2_PAGE_EXEC);
 }
 
-static bool MMU_MapPage(u32 va, u32 pa, u32 flags)
+static void mmuMapPage(u32 va, u32 pa, u32 flags)
 {
-	MMU_Lvl2_Table *l2 = MMU_CoarseFix(va);
-
-	if (l2 == NULL)
-		return false;
-
-	l2->desc[L2_VA_IDX(va)] = pa | MMU_PageFlags(flags);
-	return true;
+	mmuLevel2Table *l2 = mmuCoarseFix(va);
+	l2->desc[L2_VA_IDX(va)] = pa | mmuPageFlags(flags);
 }
 
 
-static bool MMU_MappingFits(u32 va, u32 pa, u32 len, u32 abits)
+static bool mmuMappingFits(u32 va, u32 pa, u32 sz, u32 alignment)
 {
-	return !((va | pa | len) & (BIT(abits) - 1));
+	return !((va | pa | sz) & (alignment));
 }
 
-u32 MMU_Map(u32 va, u32 pa, u32 size, u32 flags)
+u32 mmuMapArea(u32 va, u32 pa, u32 size, u32 flags)
 {
 	static const struct {
-		u32 bits;
-		bool (*mapfn)(u32,u32,u32);
+		u32 size;
+		void (*mapfn)(u32,u32,u32);
 	} VMappers[] = {
 		{
-			.bits = SECT_ADDR_SHIFT,
-			.mapfn = MMU_MapSection,
+			.size = BIT(SECT_ADDR_SHIFT),
+			.mapfn = mmuMapSection,
 		},
 		{
-			.bits = LPAGE_ADDR_SHIFT,
-			.mapfn = MMU_MapLargePage,
-		},
-		{
-			.bits = PAGE_ADDR_SHIFT,
-			.mapfn = MMU_MapPage,
+			.size = BIT(PAGE_ADDR_SHIFT),
+			.mapfn = mmuMapPage,
 		},
 	};
 
 	while(size > 0) {
 		size_t i = 0;
 		for (i = 0; i < countof(VMappers); i++) {
-			u32 abits = VMappers[i].bits;
+			u32 pgsize = VMappers[i].size;
 
-			if (MMU_MappingFits(va, pa, size, abits)) {
-				bool mapped = (VMappers[i].mapfn)(va, pa, flags);
-				u32 offset = BIT(abits);
+			if (mmuMappingFits(va, pa, size, pgsize-1)) {
+				(VMappers[i].mapfn)(va, pa, flags);
 
-				// no fun allowed
-				if (!mapped)
-					return size;
-
-				va += offset;
-				pa += offset;
-				size -= offset;
+				va += pgsize;
+				pa += pgsize;
+				size -= pgsize;
 				break;
 			}
 		}
-
+		/* alternatively return the unmapped remaining size:
 		if (i == countof(VMappers))
 			return size;
+		*/
 	}
 
 	return 0;
 }
 
-void MMU_Init(void)
+void mmuInvalidate(void)
 {
-	u32 ttbr0 = (u32)(&MMU_Lvl1_TT) | 0x12;
+	ARM_MCR(p15, 0, 0, c8, c7, 0);
+}
+
+void mmuInvalidateVA(u32 addr)
+{
+	ARM_MCR(p15, 0, addr, c8, c7, 2);
+}
+
+void mmuInitRegisters(void)
+{
+	u32 ttbr0 = (u32)(&mmuGlobalTT) | 0x12;
 
 	// Set up TTBR0/1 and the TTCR
 	ARM_MCR(p15, 0, ttbr0, c2, c0, 0);

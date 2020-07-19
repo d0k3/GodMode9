@@ -185,14 +185,15 @@ void __attribute__((noreturn)) MainLoop(void)
 	// clear up the shared memory section
 	memset(&SharedMemoryState, 0, sizeof(SharedMemoryState));
 
-	// enable PXI RX interrupt
-	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 2, PXI_RX_Handler);
+	// configure interrupts
+	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, GIC_RISINGEDGE_1N, PXI_RX_Handler);
+	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO1, GIC_RISINGEDGE_1N, MCU_HandleInterrupts);
+	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, GIC_RISINGEDGE_1N, VBlank_Handler);
 
-	// enable MCU interrupts
-	GIC_Enable(MCU_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 1, MCU_HandleInterrupts);
-
-	// set up VBlank interrupt to always have the highest priority
-	GIC_Enable(VBLANK_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO, VBlank_Handler);
+	// enable interrupts
+	gicEnableInterrupt(PXI_RX_INTERRUPT);
+	gicEnableInterrupt(MCU_INTERRUPT);
+	gicEnableInterrupt(VBLANK_INTERRUPT);
 
 	// ARM9 won't try anything funny until this point
 	PXI_Barrier(ARM11_READY_BARRIER);

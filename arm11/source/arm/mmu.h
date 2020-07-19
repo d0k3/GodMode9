@@ -20,21 +20,22 @@
 
 #include <types.h>
 
-enum MMU_MemoryType {
-	STRONGLY_ORDERED = 0,
-	NON_CACHEABLE,
-	DEVICE_SHARED,
-	DEVICE_NONSHARED,
-	CACHED_WT,
-	CACHED_WB,
-	CACHED_WB_ALLOC,
-	MEMORY_TYPES,
+enum {
+	MMU_STRONG_ORDER = 0,
+	MMU_UNCACHEABLE,
+	MMU_DEV_SHARED,
+	MMU_DEV_NONSHARED,
+	MMU_CACHE_WT,
+	MMU_CACHE_WB,
+	MMU_CACHE_WBA,
+	MMU_MEMORY_TYPES,
 };
 
-enum MMU_MemoryAccess {
-	NO_ACCESS = 0,
-	READ_ONLY,
-	READ_WRITE,
+enum {
+	MMU_NO_ACCESS = 0,
+	MMU_READ_ONLY,
+	MMU_READ_WRITE,
+	MMU_ACCESS_TYPES,
 };
 
 #define MMU_FLAGS(t, ap, nx, s)	((s) << 25 | (nx) << 24 | (ap) << 8 | (t))
@@ -45,5 +46,9 @@ enum MMU_MemoryAccess {
 #define MMU_FLAGS_NOEXEC(f)	((f) & BIT(24))
 #define MMU_FLAGS_SHARED(f)	((f) & BIT(25))
 
-u32 MMU_Map(u32 va, u32 pa, u32 size, u32 flags);
-void MMU_Init(void);
+u32 mmuMapArea(u32 va, u32 pa, u32 size, u32 flags);
+
+void mmuInvalidate(void);
+void mmuInvalidateVA(u32 addr); // DO NOT USE
+
+void mmuInitRegisters(void);

@@ -57,18 +57,20 @@ static void SYS_EnableClkMult(void)
 	// state might get a bit messed up so it has to be done
 	// as early as possible in the initialization chain
 	if (SYS_IsNewConsole() && !SYS_ClkMultEnabled()) {
-		GIC_Enable(88, BIT(0), GIC_HIGHEST_PRIO, NULL);
+		gicSetInterruptConfig(88, BIT(0), GIC_PRIO_HIGHEST, GIC_RISINGEDGE_1N, NULL);
+		gicEnableInterrupt(88);
 		*CFG11_MPCORE_CLKCNT = 0x8001;
 		do {
 			ARM_WFI();
 		} while(!(*CFG11_MPCORE_CLKCNT & 0x8000));
-		GIC_Disable(88, BIT(0));
+		gicDisableInterrupt(88);
+		gicClearInterruptConfig(88);
 	}
 }
 
 void SYS_CoreZeroInit(void)
 {
-	GIC_GlobalReset();
+	gicGlobalReset();
 
 	*LEGACY_BOOT_ENTRYPOINT = 0;
 
@@ -77,27 +79,27 @@ void SYS_CoreZeroInit(void)
 	SCU_Init();
 
 	// Map all sections here
-	MMU_Map(SECTION_TRI(vector), MMU_FLAGS(CACHED_WT, READ_ONLY, 0, 0));
-	MMU_Map(SECTION_TRI(text), MMU_FLAGS(CACHED_WT, READ_ONLY, 0, 1));
-	MMU_Map(SECTION_TRI(data), MMU_FLAGS(CACHED_WB_ALLOC, READ_WRITE, 1, 1));
-	MMU_Map(SECTION_TRI(rodata), MMU_FLAGS(CACHED_WT, READ_ONLY, 1, 1));
-	MMU_Map(SECTION_TRI(bss), MMU_FLAGS(CACHED_WB_ALLOC, READ_WRITE, 1, 1));
-	MMU_Map(SECTION_TRI(shared), MMU_FLAGS(STRONGLY_ORDERED, READ_WRITE, 1, 1));
+	mmuMapArea(SECTION_TRI(vector), MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 0, 0));
+	mmuMapArea(SECTION_TRI(text), MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 0, 1));
+	mmuMapArea(SECTION_TRI(data), MMU_FLAGS(MMU_CACHE_WBA, MMU_READ_WRITE, 1, 1));
+	mmuMapArea(SECTION_TRI(rodata), MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 1, 1));
+	mmuMapArea(SECTION_TRI(bss), MMU_FLAGS(MMU_CACHE_WBA, MMU_READ_WRITE, 1, 1));
+	mmuMapArea(SECTION_TRI(shared), MMU_FLAGS(MMU_STRONG_ORDER, MMU_READ_WRITE, 1, 1));
 
 	// IO Registers
-	MMU_Map(0x10100000, 0x10100000, 4UL << 20, MMU_FLAGS(DEVICE_SHARED, READ_WRITE, 1, 1));
+	mmuMapArea(0x10100000, 0x10100000, 4UL << 20, MMU_FLAGS(MMU_DEV_SHARED, MMU_READ_WRITE, 1, 1));
 
 	// MPCore Private Memory Region
-	MMU_Map(0x17E00000, 0x17E00000, 8UL << 10, MMU_FLAGS(DEVICE_SHARED, READ_WRITE, 1, 1));
+	mmuMapArea(0x17E00000, 0x17E00000, 8UL << 10, MMU_FLAGS(MMU_DEV_SHARED, MMU_READ_WRITE, 1, 1));
 
 	// VRAM
-	MMU_Map(0x18000000, 0x18000000, 6UL << 20, MMU_FLAGS(CACHED_WT, READ_WRITE, 1, 1));
+	mmuMapArea(0x18000000, 0x18000000, 6UL << 20, MMU_FLAGS(MMU_CACHE_WT, MMU_READ_WRITE, 1, 1));
 
 	// FCRAM
 	if (SYS_IsNewConsole()) {
-		MMU_Map(0x20000000, 0x20000000, 256UL << 20, MMU_FLAGS(CACHED_WB, READ_WRITE, 1, 1));
+		mmuMapArea(0x20000000, 0x20000000, 256UL << 20, MMU_FLAGS(MMU_CACHE_WB, MMU_READ_WRITE, 1, 1));
 	} else {
-		MMU_Map(0x20000000, 0x20000000, 128UL << 20, MMU_FLAGS(CACHED_WB, READ_WRITE, 1, 1));
+		mmuMapArea(0x20000000, 0x20000000, 128UL << 20, MMU_FLAGS(MMU_CACHE_WB, MMU_READ_WRITE, 1, 1));
 	}
 
 	// Initialize peripherals
@@ -115,10 +117,10 @@ void SYS_CoreZeroInit(void)
 void SYS_CoreInit(void)
 {
 	// Reset local GIC registers
-	GIC_LocalReset();
+	gicLocalReset();
 
 	// Set up MMU registers
-	MMU_Init();
+	mmuInitRegisters();
 
 	// Enable fancy ARM11 features
 	ARM_SetACR(ARM_GetACR() |
@@ -135,7 +137,7 @@ void SYS_CoreInit(void)
 void SYS_CoreZeroShutdown(void)
 {
 	ARM_DisableInterrupts();
-	GIC_GlobalReset();
+	gicGlobalReset();
 }
 
 void __attribute__((noreturn)) SYS_CoreShutdown(void)
@@ -144,7 +146,7 @@ void __attribute__((noreturn)) SYS_CoreShutdown(void)
 
 	ARM_DisableInterrupts();
 
-	GIC_LocalReset();
+	gicLocalReset();
 
 	ARM_WbInvDC();
 	ARM_InvIC();
