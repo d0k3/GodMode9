@@ -46,6 +46,15 @@ SECTIONS
         __rodata_len = . - __rodata_va;
     } >AXIWRAM
 
+    .shared (NOLOAD) : ALIGN(4K)
+    {
+        __shared_pa = LOADADDR(.shared);
+        __shared_va = ABSOLUTE(.);
+        *(.shared*)
+        . = ALIGN(4K);
+        __shared_len = . - __shared_va;
+    } >AXIWRAM
+
     .bss (NOLOAD) : ALIGN(4K)
     {
         __bss_pa = LOADADDR(.bss);

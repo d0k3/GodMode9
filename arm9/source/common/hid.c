@@ -27,12 +27,12 @@ static void SetNotificationLED(u32 period_ms, u32 rgb565_color)
 // separate things - hopefully LTO won't get in the way
 u32 HID_ReadState(void)
 {
-    return ARM_GetSHMEM()->hid_state;
+    return ARM_GetSHMEM()->hidState.keys;
 }
 
 u32 HID_ReadRawTouchState(void)
 {
-    return ARM_GetSHMEM()->hid_state >> 32;
+    return ARM_GetSHMEM()->hidState.touch;
 }
 
 // ts_mult indicates a scalar for each axis

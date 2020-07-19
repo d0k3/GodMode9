@@ -31,9 +31,6 @@
 #include "hw/nvram.h"
 
 #include "system/sys.h"
-#include "system/xalloc.h"
-
-static GlobalSharedMemory SharedMemory_State;
 
 #ifndef FIXED_BRIGHTNESS
 static const u8 brightness_lvls[] = {
@@ -46,6 +43,8 @@ static int prev_bright_lvl = -1;
 static bool auto_brightness = true;
 #endif
 
+static SystemSHMEM __attribute__((section(".shared"))) SharedMemoryState;
+
 void VBlank_Handler(u32 __attribute__((unused)) irqn)
 {
 	#ifndef FIXED_BRIGHTNESS
@@ -57,12 +56,7 @@ void VBlank_Handler(u32 __attribute__((unused)) irqn)
 	}
 	#endif
 
-	// the state should probably be stored on its own
-	// section without caching enabled, since it must
-	// be readable by the ARM9 at all times anyway
-	SharedMemory_State.hid_state = HID_GetState();
-	ARM_WbDC_Range(&SharedMemory_State, sizeof(SharedMemory_State));
-	ARM_DMB();
+	SharedMemoryState.hidState.full = HID_GetState();
 }
 
 static bool legacy_boot = false;
@@ -93,32 +87,38 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_GET_SHMEM:
 		{
-			ret = (u32)&SharedMemory_State;
+			ret = (u32)&SharedMemoryState;
 			break;
 		}
 
 		case PXI_SET_VMODE:
 		{
-			int mode = args[0] ? GFX_BGR8 : GFX_RGB565;
-			GFX_init(mode);
+			GFX_init(args[0] ? GFX_BGR8 : GFX_RGB565);
 			ret = 0;
 			break;
 		}
 
 		case PXI_I2C_READ:
 		{
-			ARM_InvDC_Range((void*)args[2], args[3]);
-			ret = I2C_readRegBuf(args[0], args[1], (u8*)args[2], args[3]);
-			ARM_WbDC_Range((void*)args[2], args[3]);
-			ARM_DMB();
+			u32 devId, regAddr, size;
+
+			devId = (args[0] & 0xff);
+			regAddr = (args[0] >> 8) & 0xff;
+			size = (args[0] >> 16) % I2C_SHARED_BUFSZ;
+
+			ret = I2C_readRegBuf(devId, regAddr, SharedMemoryState.i2cBuffer, size);
 			break;
 		}
 
 		case PXI_I2C_WRITE:
 		{
-			ARM_InvDC_Range((void*)args[2], args[3]);
-			ARM_DMB();
-			ret = I2C_writeRegBuf(args[0], args[1], (u8*)args[2], args[3]);
+			u32 devId, regAddr, size;
+
+			devId = (args[0] & 0xff);
+			regAddr = (args[0] >> 8) & 0xff;
+			size = (args[0] >> 16) % I2C_SHARED_BUFSZ;
+
+			ret = I2C_writeRegBuf(devId, regAddr, SharedMemoryState.i2cBuffer, size);
 			break;
 		}
 
@@ -130,10 +130,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_NVRAM_READ:
 		{
-			ARM_InvDC_Range((void*)args[1], args[2]);
-			NVRAM_Read(args[0], (u32*)args[1], args[2]);
-			ARM_WbDC_Range((void*)args[1], args[2]);
-			ARM_DMB();
+			NVRAM_Read(args[0], (u32*)SharedMemoryState.spiBuffer, args[1]);
 			ret = 0;
 			break;
 		}
@@ -161,12 +158,6 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 			break;
 		}
 
-		case PXI_XALLOC:
-		{
-			ret = (u32)XAlloc(args[0]);
-			break;
-		}
-
 		/* New CMD template:
 		case CMD_ID:
 		{
@@ -185,13 +176,14 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 	PXI_Send(ret);
 }
 
-extern u32 pdcerr;
-
 void __attribute__((noreturn)) MainLoop(void)
 {
 	#ifdef FIXED_BRIGHTNESS
 	LCD_SetBrightness(FIXED_BRIGHTNESS);
 	#endif
+
+	// clear up the shared memory section
+	memset(&SharedMemoryState, 0, sizeof(SharedMemoryState));
 
 	// enable PXI RX interrupt
 	GIC_Enable(PXI_RX_INTERRUPT, BIT(0), GIC_HIGHEST_PRIO + 2, PXI_RX_Handler);

@@ -1,10 +1,7 @@
 #include "common.h"
 #include "arm.h"
 #include "pxi.h"
-
-#define SPIFLASH_CHUNK_SIZE	(0x1000)
-
-static char *spiflash_xfer_buf = NULL;
+#include "shmem.h"
 
 bool spiflash_get_status(void)
 {
@@ -13,27 +10,19 @@ bool spiflash_get_status(void)
 
 bool spiflash_read(u32 offset, u32 size, u8 *buf)
 {
-	u32 args[3];
-
-	if (!spiflash_xfer_buf) {
-		u32 xbuf = PXI_DoCMD(PXI_XALLOC, (u32[]){SPIFLASH_CHUNK_SIZE}, 1);
-		if (xbuf == 0 || xbuf == 0xFFFFFFFF)
-			return false;
-		spiflash_xfer_buf = (char*)xbuf;
-	}
-
-	args[1] = (u32)spiflash_xfer_buf;
+	u32 args[2];
 
 	while(size > 0) {
-		u32 blksz = min(size, SPIFLASH_CHUNK_SIZE);
+		u32 blksz = min(size, SPI_SHARED_BUFSZ);
 
 		args[0] = offset;
-		args[2] = blksz;
+		args[1] = blksz;
 
+		ARM_WbDC_Range(ARM_GetSHMEM()->spiBuffer, blksz);
+		PXI_DoCMD(PXI_NVRAM_READ, args, 2);
+		ARM_InvDC_Range(ARM_GetSHMEM()->spiBuffer, blksz); 
 		ARM_DSB();
-		PXI_DoCMD(PXI_NVRAM_READ, args, 3);
-		ARM_InvDC_Range(spiflash_xfer_buf, blksz); 
-		memcpy(buf, spiflash_xfer_buf, blksz);
+		memcpy(buf, ARM_GetSHMEM()->spiBuffer, blksz);
 
 		buf += blksz;
 		size -= blksz;

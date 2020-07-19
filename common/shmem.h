@@ -20,19 +20,28 @@
 
 #include <arm.h>
 
+#define I2C_SHARED_BUFSZ 1024
+#define SPI_SHARED_BUFSZ 1024
+
 typedef struct {
-	u64 hid_state;
-} GlobalSharedMemory;
+	union {
+		struct { u32 keys, touch; };
+		u64 full;
+	} hidState;
+
+	u8 i2cBuffer[I2C_SHARED_BUFSZ];
+	u32 spiBuffer[SPI_SHARED_BUFSZ/4];
+} __attribute__((packed, aligned(8))) SystemSHMEM;
 
 #ifdef ARM9
 #include <pxi.h>
 
-static inline const GlobalSharedMemory *ARM_GetSHMEM(void)
+static inline SystemSHMEM *ARM_GetSHMEM(void)
 {
-	return (const GlobalSharedMemory*)ARM_GetTID();
+	return (SystemSHMEM*)ARM_GetTID();
 }
 
-static void ARM_InitSHMEM(void)
+static inline void ARM_InitSHMEM(void)
 {
 	ARM_SetTID(PXI_DoCMD(PXI_GET_SHMEM, NULL, 0));
 }

@@ -20,11 +20,11 @@ VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
 VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 3145728
 
-ifeq ($(OS),Windows_NT)
-    PY3 := py -3
-else
+#ifeq ($(OS),Windows_NT)
+#    PY3 := py -3
+#else
     PY3 := python3
-endif
+#endif
 
 # Definitions for ARM binaries
 export INCLUDE := -I"$(shell pwd)/common"

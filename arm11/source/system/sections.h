@@ -26,6 +26,7 @@ DEF_SECT_(text)
 DEF_SECT_(data)
 DEF_SECT_(rodata)
 DEF_SECT_(bss)
+DEF_SECT_(shared)
 #undef DEF_SECT_
 
 #define SECTION_VA(n)	((u32)&__##n##_va)
