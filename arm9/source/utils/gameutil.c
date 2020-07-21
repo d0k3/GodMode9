@@ -1403,9 +1403,6 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     }
     free(cmd); // we don't need this anymore
 
-    // fix CMD CMACs if required
-    if (!syscmd) FixFileCmac(path_cmd);
-
     // progress update
     if (!ShowProgress(1, 2, "finishing...")) return 1;
     
@@ -1466,6 +1463,11 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
 
     // restore old mount path
     InitImgFS(path_bak);
+
+    // fix CMACs where required
+    if (!syscmd) FixFileCmac(path_cmd);
+    FixFileCmac(path_ticketdb);
+    FixFileCmac(path_titledb);
 
     // progress update
     ShowProgress(2, 2, "done");
