@@ -1091,9 +1091,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
+    bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
+        !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS);
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
-    bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path &&
+        !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool ciacheckable = (FTYPE_CIACHECK(filetype)); 
     bool renamable = (FTYPE_RENAMABLE(filetype));
@@ -1308,6 +1311,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int cia_build = (cia_buildable) ? ++n_opt : -1;
     int cia_build_legit = (cia_buildable_legit) ? ++n_opt : -1;
     int cxi_dump = (cxi_dumpable) ? ++n_opt : -1;
+    int cia_install = (cia_installable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
     int key_build = (key_buildable) ? ++n_opt : -1;
@@ -1340,6 +1344,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (cia_build_legit > 0) optionstr[cia_build_legit-1] = "Build CIA (legit)";
     if (cxi_dump > 0) optionstr[cxi_dump-1] = "Dump CXI/NDS file";
+    if (cia_install > 0) optionstr[cia_install-1] = "Install game file";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
     if (key_build > 0) optionstr[key_build-1] = "Build " KEYDB_NAME;
@@ -1542,6 +1547,53 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     ShowPrompt(false, "%s\nVerification %s", pathstr,
                         (VerifyGameFile(file_path) == 0) ? "success" : "failed");
                 }
+            }
+        }
+        return 0;
+    }
+    else if (user_select == cia_install) { // -> install game file
+        bool to_emunand = false;
+        if (CheckVirtualDrive("E:")) {
+            optionstr[0] = "Install to SysNAND";
+            optionstr[1] = "Install to EmuNAND";
+            user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
+                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+            if (!user_select) return 0;
+            else to_emunand = (user_select == 2);
+        }
+        if ((n_marked > 1) && ShowPrompt(true, "Try to install all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0;
+            ShowString("Trying to install %lu files...", n_marked);
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
+                    n_other++;
+                    continue;
+                }
+                DrawDirContents(current_dir, (*cursor = i), scroll);
+                if (InstallGameFile(path, to_emunand, false)) n_success++;
+                else { // on failure: show error, continue
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nInstall failed\n \nContinue?", lpathstr)) continue;
+                    else break;
+                }
+                current_dir->entry[i].marked = false;
+            }
+            if (n_other) {
+                ShowPrompt(false, "%lu/%lu files installed ok\n%lu/%lu not of same type",
+                    n_success, n_marked, n_other, n_marked);
+            } else ShowPrompt(false, "%lu/%lu files installed ok", n_success, n_marked);
+        } else {
+            u32 ret = InstallGameFile(file_path, to_emunand, false);
+            ShowPrompt(false, "%s\nInstall %s", pathstr, (ret == 0) ? "success" : "failed");
+            if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
+                ShowPrompt(true, "%s\nfile failed install.\n \nVerify now?", pathstr)) {
+                ShowPrompt(false, "%s\nVerification %s", pathstr,
+                    (VerifyGameFile(file_path) == 0) ? "success" : "failed");
             }
         }
         return 0;
