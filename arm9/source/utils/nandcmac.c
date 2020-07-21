@@ -380,6 +380,14 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
     }
 
 
+    // we abuse the unknown u32 to mark custom, unfinished CMDs
+    bool fix_missing = false;
+    if (cmd->unknown == 0xFFFFFFFE) {
+        fixed = true;
+        cmd->unknown = 0x1;
+        fix_missing = true;
+    }
+
     // now, check the CMAC@0x10
     use_aeskey(keyslot);
     aes_cmac(cmd_data, cmac, 1);
@@ -394,7 +402,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
     }
 
     // further checking will be more complicated
-    // set up pointers to cmd data (pointer arithemtic is hard)
+    // set up pointers to cmd data (pointer arithmetic is hard)
     u32 n_entries = cmd->n_entries;
     u32* cnt_id = (u32*) (cmd + 1);
     u8* cnt_cmac = (u8*) (cnt_id + cmd->n_entries + cmd->n_cmacs);
@@ -406,8 +414,13 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
         if (*cnt_id == 0xFFFFFFFF) continue; // unavailable content
         snprintf(name_content, 32, "%s%08lX.app", (is_dlc) ? "00000000/" : "", *cnt_id);
         if (fvx_qread(path_content, hashdata, 0x100, 0x100, NULL) != FR_OK) {
-            free(cmd_data);
-            return 1; // failed to read content
+            if (fix_missing) {
+                *cnt_id = 0xFFFFFFFF;
+                continue;
+            } else {
+                free(cmd_data);
+                return 1; // failed to read content
+            }
         }
         memcpy(hashdata + 0x100, &cnt_idx, 4);
         memcpy(hashdata + 0x104, cnt_id, 4);

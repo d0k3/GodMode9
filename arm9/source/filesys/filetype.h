@@ -50,6 +50,7 @@
 #define FTYPE_ENCRYPTABLE(tp)   (tp&(GAME_CIA|GAME_NCSD|GAME_NCCH|GAME_BOSS|BIN_KEYDB))
 #define FTYPE_CIABUILD(tp)      ((tp&(GAME_NCSD|GAME_NCCH|GAME_TMD)) || ((tp&GAME_NDS)&&(tp&(FLAG_DSIW))))
 #define FTYPE_CIABUILD_L(tp)    (FTYPE_CIABUILD(tp) && (tp&(GAME_TMD)))
+#define FTYPE_CIAINSTALL(tp)    ((tp&(GAME_NCSD|GAME_NCCH|GAME_CIA)) || ((tp&GAME_NDS)&&(tp&(FLAG_DSIW))) || (tp&(GAME_TMD)&&(tp&(FLAG_NUSCDN))))
 #define FTYPE_CXIDUMP(tp)       (tp&(GAME_TMD))
 #define FTYPE_TIKBUILD(tp)      (tp&(GAME_TICKET|SYS_TICKDB|BIN_TIKDB))
 #define FTYPE_KEYBUILD(tp)      (tp&(BIN_KEYDB|BIN_LEGKEY))
