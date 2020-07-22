@@ -1232,14 +1232,16 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
 u32 GetInstallAppPath(char* path, const char* drv, const u8* title_id, const u8* content_id) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     bool dlc = (memcmp(title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
-    u64 tid64 = getbe64(title_id);
+    u32 tid_high = getbe32(title_id);
+    u32 tid_low = getbe32(title_id + 4);
 
     if ((*drv == '2') || (*drv == '5')) // TWL titles need TWL title ID
         tid_high = 0x00030000 | (tid_high&0xFF);
 
     if (!content_id) { // just the base title path in that case
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx",
+            drv, tid_high, tid_low);
     } else { // full app path
-        snprintf(path, 256, "%2.2s/title/%08llx/%08llx/content/%s%08lx.app",
         snprintf(path, 256, "%2.2s/title/%08lx/%08lx/content/%s%08lx.app",
             drv, tid_high, tid_low, dlc ? "00000000/" : "", getbe32(content_id));
     }
@@ -2146,8 +2148,8 @@ u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
     else
         drv = (to_emunand ? "B:" : "A:");
     
-    // check permissions for drive
-    if (!CheckWritePermissions(drv)) return 1;
+    // check permissions for SysNAND
+    if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
     
     // install game file
     if (filetype & GAME_CIA)
