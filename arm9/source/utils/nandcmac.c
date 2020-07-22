@@ -380,6 +380,14 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
     }
 
 
+    // we abuse the unknown u32 to mark custom, unfinished CMDs
+    bool fix_missing = false;
+    if (cmd->unknown == 0xFFFFFFFE) {
+        fixed = true;
+        cmd->unknown = 0x1;
+        fix_missing = true;
+    }
+
     // now, check the CMAC@0x10
     use_aeskey(keyslot);
     aes_cmac(cmd_data, cmac, 1);
@@ -398,14 +406,6 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
     u32 n_entries = cmd->n_entries;
     u32* cnt_id = (u32*) (cmd + 1);
     u8* cnt_cmac = (u8*) (cnt_id + cmd->n_entries + cmd->n_cmacs);
-
-    // we abuse the unknown u32 to mark custom, unfinished CMDs
-    bool fix_missing = false;
-    if (cmd->unknown == 0xFFFFFFFE) {
-        fixed = true;
-        cmd->unknown = 0x1;
-        fix_missing = true;
-    }
 
     // check all ids and cmacs
     for (u32 cnt_idx = 0; cnt_idx < n_entries; cnt_idx++, cnt_id++, cnt_cmac += 0x10) {
