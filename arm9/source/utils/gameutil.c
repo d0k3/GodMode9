@@ -1234,13 +1234,14 @@ u32 GetInstallAppPath(char* path, const char* drv, const u8* title_id, const u8*
     bool dlc = (memcmp(title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     u64 tid64 = getbe64(title_id);
 
+    if ((*drv == '2') || (*drv == '5')) // TWL titles need TWL title ID
+        tid_high = 0x00030000 | (tid_high&0xFF);
+
     if (!content_id) { // just the base title path in that case
-        snprintf(path, 256, "%2.2s/title/%08llx/%08llx",
-            drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF);
     } else { // full app path
         snprintf(path, 256, "%2.2s/title/%08llx/%08llx/content/%s%08lx.app",
-            drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF,
-            dlc ? "00000000/" : "", getbe32(content_id));
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx/content/%s%08lx.app",
+            drv, tid_high, tid_low, dlc ? "00000000/" : "", getbe32(content_id));
     }
 
     return 0;
@@ -1337,7 +1338,8 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     bool sdtie = ((*drv == 'A') || (*drv == 'B'));
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = ticket->title_id;
-    u64 tid64 = getbe64(title_id);
+    u32 tid_high = getbe32(title_id);
+    u32 tid_low = getbe32(title_id + 4);
     
     char path_titledb[32];
     char path_ticketdb[32];
@@ -1350,6 +1352,10 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     if ((*drv != '1') && (*drv != '2') && (*drv != 'A') &&
         (*drv != '4') && (*drv != '5') && (*drv != 'B'))
         return 1;
+
+    // TWL titles need TWL title ID high
+    if ((*drv == '2') || (*drv == '5'))
+        tid_high = 0x00030000 | (tid_high&0xFF);
     
     // progress update
     if (!ShowProgress(0, 0, "TMD/CMD/TiE/Ticket/Save")) return 1;
@@ -1387,12 +1393,10 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
         ((*drv == 'A') || (*drv == '2')) ? "1:" :
         ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
-    snprintf(path_tmd, 64, "%2.2s/title/%08llx/%08llx/content/00000000.tmd",
-        drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF);
-    snprintf(path_cmd, 64, "%2.2s/title/%08llx/%08llx/content/cmd/00000001.cmd",
-        drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF);
-    ShowPrompt(false, "paths:\n%s\n%s\n%s\n%s\n%s", drv,
-        path_tmd, path_cmd, path_titledb, path_ticketdb);
+    snprintf(path_tmd, 64, "%2.2s/title/%08lx/%08lx/content/00000000.tmd",
+        drv, tid_high, tid_low);
+    snprintf(path_cmd, 64, "%2.2s/title/%08lx/%08lx/content/cmd/00000001.cmd",
+        drv, tid_high, tid_low);
 
     // progress update
     if (!ShowProgress(1, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
@@ -1422,12 +1426,12 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
             if (fvx_qread(path_movable, sd_keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
             memset(sd_keyy, 0x00, 16);
             sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
-            snprintf(path_save, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08llx/00000000",
+            snprintf(path_save, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx/00000000",
                 drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3],
-                (tid64 & 0xFFFFFFFF) | 0x00020000);
+                tid_low | 0x00020000);
         } else { // SD save, simple
-            snprintf(path_save, 128, "%2.2s/title/%08llx/%08llx/data/00000001.sav",
-                drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF);
+            snprintf(path_save, 128, "%2.2s/title/%08lx/%08lx/data/00000001.sav",
+                drv, tid_high, tid_low);
         }
 
         // generate the save file
