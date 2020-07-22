@@ -1352,7 +1352,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         return 1;
     
     // progress update
-    if (!ShowProgress(0, 0, "finishing...")) return 1;
+    if (!ShowProgress(0, 0, "TMD/CMD/TiE/Ticket/Save")) return 1;
 
     // collect data for title info entry
     char path_cnt0[256];
@@ -1391,7 +1391,12 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF);
     snprintf(path_cmd, 64, "%2.2s/title/%08llx/%08llx/content/cmd/00000001.cmd",
         drv, (tid64 >> 32) & 0xFFFFFFFF, tid64 & 0xFFFFFFFF);
-    
+    ShowPrompt(false, "paths:\n%s\n%s\n%s\n%s\n%s", drv,
+        path_tmd, path_cmd, path_titledb, path_ticketdb);
+
+    // progress update
+    if (!ShowProgress(1, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
+
     // copy tmd & cmd
     fvx_rmkpath(path_tmd);
     fvx_rmkpath(path_cmd);
@@ -1404,7 +1409,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     free(cmd); // we don't need this anymore
 
     // progress update
-    if (!ShowProgress(1, 2, "finishing...")) return 1;
+    if (!ShowProgress(2, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
     
     // generate savedata
     if (exthdr && (exthdr->savedata_size)) {
@@ -1440,19 +1445,25 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         if (bw != 0x20) return 1;
     }
 
+    // progress update
+    if (!ShowProgress(3, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
+
     // write ticket and title databases
     // ensure remounting the old mount path
     char path_store[256] = { 0 };
     char* path_bak = NULL;
     strncpy(path_store, GetMountPath(), 256);
     if (*path_store) path_bak = path_store;
-
+    
     // ticket database
     if (!InitImgFS(path_ticketdb) ||
         ((AddTicketToDB("D:/partitionA.bin", title_id, (Ticket*) ticket, true)) != 0)) {
         InitImgFS(path_bak);
         return 1;
     }
+    
+    // progress update
+    if (!ShowProgress(4, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
 
     // title database
     if (!InitImgFS(path_titledb) ||
@@ -1460,6 +1471,9 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         InitImgFS(path_bak);
         return 1;
     }
+   
+    // progress update
+    if (!ShowProgress(5, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
 
     // restore old mount path
     InitImgFS(path_bak);
@@ -1468,9 +1482,6 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     if (!syscmd) FixFileCmac(path_cmd);
     FixFileCmac(path_ticketdb);
     FixFileCmac(path_titledb);
-
-    // progress update
-    ShowProgress(2, 2, "done");
 
     return 0;
 }
