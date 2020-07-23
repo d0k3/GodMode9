@@ -235,7 +235,7 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
 
 u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     // get path to TMD first content
-    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     
     // content path string
     char* name_content;
@@ -596,7 +596,7 @@ u32 VerifyCiaFile(const char* path) {
 }
 
 u32 VerifyTmdFile(const char* path, bool cdn) {
-    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     
     // path string
     char pathstr[32 + 1];
@@ -1070,7 +1070,7 @@ u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
 }
 
 u32 DecryptFirmFile(const char* orig, const char* dest) {
-    const u8 dec_magic[] = { 'D', 'E', 'C', '\0' }; // insert to decrypted firms
+    static const u8 dec_magic[] = { 'D', 'E', 'C', '\0' }; // insert to decrypted firms
     void* firm_buffer = (void*) malloc(FIRM_MAX_SIZE);
     if (!firm_buffer) return 1;
     
@@ -1230,7 +1230,7 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
 }
 
 u32 GetInstallAppPath(char* path, const char* drv, const u8* title_id, const u8* content_id) {
-    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     bool dlc = (memcmp(title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     u32 tid_high = getbe32(title_id);
     u32 tid_low = getbe32(title_id + 4);
@@ -1437,7 +1437,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         }
 
         // generate the save file
-        u8 zeroes[0x20] = { 0x00 };
+        static const u8 zeroes[0x20] = { 0x00 };
         UINT bw;
         FIL save;
         fvx_rmkpath(path_save);
@@ -1697,7 +1697,7 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         // check the tickets' console id, warn if it isn't zero
         if (copy && getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
-            const char* optionstr[2] =
+            static const char* optionstr[2] =
                 {"Use generic ticket (not legit)", "Use personalized ticket (legit)"};
             if (!default_action) {
                 default_action = ShowSelectPrompt(2, optionstr,
@@ -2014,12 +2014,12 @@ u32 BuildInstallFromNdsFile(const char* path_nds, const char* path_dest, bool in
     // some basic sanity checks
     // see: https://problemkaputt.de/gbatek.htm#dsicartridgeheader
     // (gamecart dumps are not allowed)
-    u8 tidhigh_dsiware[4] = { 0x00, 0x03, 0x00, 0x04 };
+    static const u8 tidhigh_dsiware[4] = { 0x00, 0x03, 0x00, 0x04 };
     if ((memcmp(title_id, tidhigh_dsiware, 3) != 0) || !title_id[3])
         return 1;
 
     // convert DSi title ID to 3DS title ID
-    u8 tidhigh_3ds[4] = { 0x00, 0x04, 0x80, 0x04 };
+    static const u8 tidhigh_3ds[4] = { 0x00, 0x04, 0x80, 0x04 };
     memcpy(title_id, tidhigh_3ds, 3); 
     
     // build the CIA stub
@@ -2410,7 +2410,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
 }
 
 u32 ShowSmdhTitleInfo(Smdh* smdh, u16* screen) {
-    const u8 smdh_magic[] = { SMDH_MAGIC };
+    static const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
     u16 icon[SMDH_SIZE_ICON_BIG / sizeof(u16)];
     char desc_l[SMDH_SIZE_DESC_LONG+1];
@@ -2608,8 +2608,8 @@ u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
 }
 
 u32 GetHealthAndSafetyPaths(const char* drv, char* path_cxi, char* path_bak) {
-    const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
-    const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x20027300, 0 };
+    static const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
+    static const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x20027300, 0 };
     
     // get H&S title id low
     u32 tidlow_hs = 0;
