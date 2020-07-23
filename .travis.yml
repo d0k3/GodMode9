@@ -8,9 +8,9 @@ before_install:
   - export DEVKITARM=${DEVKITPRO}/devkitARM
 
 install:
+  - sudo apt-get -y install python3 python3-pip p7zip-full libarchive
   - sudo dpkg -i dkp-pacman.deb
   - sudo dkp-pacman -S --noconfirm devkitARM
-  - sudo apt-get -y install python3 python3-pip p7zip-full
   - sudo pip3 install --upgrade pip setuptools
   - sudo pip3 install cryptography
   - sudo pip3 install git+https://github.com/TuxSH/firmtool.git
