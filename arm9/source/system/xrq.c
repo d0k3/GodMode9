@@ -60,7 +60,7 @@ XRQ_DUMPDATAFUNC(u16, 4)
 XRQ_DUMPDATAFUNC(u32, 8)
 
 
-const char *XRQ_Name[] = {
+static const char *XRQ_Name[] = {
     "Reset", "Undefined", "SWI", "Prefetch Abort",
     "Data Abort", "Reserved", "IRQ", "FIQ"
 };
@@ -80,10 +80,9 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     wstr += sprintf(wstr, "20%02lX-%02lX-%02lX %02lX:%02lX:%02lX\n \n",
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D,
         (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
-    for (int i = 0; i < 8; i++) {
-        int i_ = i*2;
+    for (int i = 0; i < 16; i += 2) {
         wstr += sprintf(wstr,
-        "R%02d: %08lX | R%02d: %08lX\n", i_, regs[i_], i_+1, regs[i_+1]);
+        "R%02d: %08lX | R%02d: %08lX\n", i, regs[i], i+1, regs[i+1]);
     }
     wstr += sprintf(wstr, "CPSR: %08lX\n\n", regs[16]);
 
@@ -93,7 +92,7 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     u32 draw_x = (SCREEN_WIDTH_MAIN - draw_width) / 2;
     u32 draw_y = (SCREEN_HEIGHT - draw_height) / 2;
     u32 draw_y_upd = draw_y + draw_height - 10;
-    
+
     ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, draw_x, draw_y, COLOR_STD_FONT, COLOR_STD_BG, dumpstr);
 
@@ -110,11 +109,11 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     if (pc_dumpable(pc, &pc_lower, &pc_upper)) {
         wstr += sprintf(wstr, "Code:\n");
         wstr += XRQ_DumpData_u32(wstr, pc_lower, pc_upper);
-        /*if (regs[16] & SR_THUMB) { // no need to take Thumb code into account
+        if (regs[16] & SR_THUMB) { // need to take Thumb code into account
             wstr += XRQ_DumpData_u16(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
         } else {
             wstr += XRQ_DumpData_u32(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
-        }*/
+        }
     }
 
     /* Draw QR Code */
@@ -127,7 +126,6 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
         DrawQrCode(ALT_SCREEN, qrcode);
     }
 
-    
     /* Reinitialize SD */
     DrawStringF(MAIN_SCREEN, draw_x, draw_y_upd, COLOR_STD_FONT, COLOR_STD_BG,
         "%-29.29s", "Reinitializing SD card...");
@@ -145,18 +143,16 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     DrawStringF(MAIN_SCREEN, draw_x, draw_y_upd, COLOR_STD_FONT, COLOR_STD_BG,
         "%-29.29s", "Dumping state to SD card...");
     FileSetData(path, dumpstr, wstr - dumpstr, 0, true);
-    
-    
+
     /* Deinit SD */
     DeinitSDCardFS();
-    
+
     /* Done, wait for user power off */
     DrawStringF(MAIN_SCREEN, draw_x, draw_y_upd, COLOR_STD_FONT, COLOR_STD_BG,
         "%-29.29s", "Press POWER to turn off");
     while (!(InputWait(0) & BUTTON_POWER));
     PowerOff();
 
-    
     /* We will not return */
     return;
 }

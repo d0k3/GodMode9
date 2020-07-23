@@ -59,7 +59,10 @@
     (!!(x) ? (void)0 : __builtin_trap())
 
 static inline void waitClks(unsigned clk) {
-    asm_v("1: subs %0, %0, #2\n\tbne 1b\n\t":"=r"(clk)::"memory","cc");
+    clk >>= 1;
+    while(clk--) {
+        asm_v("nop":::"memory", "cc");
+    }
 }
 
 #define STATIC_ASSERT(...) \

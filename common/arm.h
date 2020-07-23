@@ -69,12 +69,7 @@
 
 #ifndef __ASSEMBLER__
 
-/* ARM Private Memory Region */
-#ifdef ARM11
-	#define REG_ARM_PMR(off, type)	((volatile type*)(0x17E00000 + (off)))
-#endif
-
-
+// only accessible from ARM mode
 #define ARM_MCR(cp, op1, reg, crn, crm, op2)	asm_v( \
 	"MCR " #cp ", " #op1 ", %[R], " #crn ", " #crm ", " #op2 "\n\t" \
 	:: [R] "r"(reg) : "memory","cc")
@@ -91,232 +86,52 @@
 	"MRS %[R], " #cp "\n\t" \
 	: [R] "=r"(reg) :: "memory","cc")
 
+
+/* ARM Private Memory Region */
 #ifdef ARM11
-	#define ARM_CPS(m)	asm_v("CPS " #m)
-	#define ARM_CPSID(m)	asm_v("CPSID " #m)
-	#define ARM_CPSIE(m)	asm_v("CPSIE " #m)
+	#define REG_ARM_PMR(off, type)	((volatile type*)(0x17E00000 + (off)))
 
-	/*
-	 * An Instruction Synchronization Barrier (ISB) flushes the pipeline in the processor
-	 * so that all instructions following the ISB are fetched from cache or memory
-	 * after the ISB has been completed.
-	 */
-	static inline void ARM_ISB(void) {
-		ARM_MCR(p15, 0, 0, c7, c5, 4);
-	}
-
-	/*
-	 * A Data Memory Barrier (DMB) ensures that all explicit memory accesses before
-	 * the DMB instruction complete before any explicit memory accesses after the DMB instruction start.
-	 */
-	static inline void ARM_DMB(void) {
-		ARM_MCR(p15, 0, 0, c7, c10, 5);
-	}
-
-	/* Wait For Interrupt */
-	static inline void ARM_WFI(void) {
-		asm_v("wfi\n\t");
-	}
-
-	/* Wait For Event */
-	static inline void ARM_WFE(void) {
-		asm_v("wfe\n\t");
-	}
-
-	/* Send Event */
-	static inline void ARM_SEV(void) {
-		asm_v("sev\n\t");
-	}
-
-	/* Auxiliary Control Registers */
-	static inline u32 ARM_GetACR(void) {
-		u32 acr;
-		ARM_MRC(p15, 0, acr, c1, c0, 1);
-		return acr;
-	}
-
-	static inline void ARM_SetACR(u32 acr) {
-		ARM_MCR(p15, 0, acr, c1, c0, 1);
-	}
+	void ARM_ISB(void);
+	void ARM_DMB(void);
+	void ARM_WFI(void);
+	void ARM_WFE(void);
+	void ARM_SEV(void);
+	u32 ARM_GetACR(void);
+	void ARM_SetACR(u32 acr);
 #endif
 
+// Data Synchronization Barrier
+void ARM_DSB(void);
 
-/*
- * A Data Synchronization Barrier (DSB) completes when all
- * instructions before this instruction complete.
- */
-static inline void ARM_DSB(void) {
-	ARM_MCR(p15, 0, 0, c7, c10, 4);
-}
+// Get and set Control Register
+u32 ARM_GetCR(void);
+void ARM_SetCR(u32 cr);
 
+// Get and set Thread ID
+u32 ARM_GetTID(void);
+void ARM_SetTID(u32 tid);
 
-/* Control Registers */
-static inline u32 ARM_GetCR(void) {
-	u32 cr;
-	ARM_MRC(p15, 0, cr, c1, c0, 0);
-	return cr;
-}
+// Core ID (not CPU ID)
+u32 ARM_CoreID(void);
 
-static inline void ARM_SetCR(u32 cr) {
-	ARM_MCR(p15, 0, cr, c1, c0, 0);
-}
+// Get and set CPSR
+u32 ARM_GetCPSR(void);
+void ARM_SetCPSR_c(u32 sr);
 
-/* Thread ID Registers */
-static inline u32 ARM_GetTID(void) {
-	u32 pid;
-	#ifdef ARM9
-	ARM_MRC(p15, 0, pid, c13, c0, 1);
-	#else
-	ARM_MRC(p15, 0, pid, c13, c0, 4);
-	#endif
-	return pid;
-}
+// Manage interrupts
+void ARM_DisableInterrupts(void);
+void ARM_EnableInterrupts(void);
+u32 ARM_EnterCritical(void);
+void ARM_LeaveCritical(u32 stat);
 
-static inline void ARM_SetTID(u32 pid) {
-	#ifdef ARM9
-	ARM_MCR(p15, 0, pid, c13, c0, 1);
-	#else
-	ARM_MCR(p15, 0, pid, c13, c0, 4);
-	#endif
-}
-
-/* CPU ID */
-static inline u32 ARM_CoreID(void) {
-	u32 id;
-	#ifdef ARM9
-	id = 0;
-	#else
-	ARM_MRC(p15, 0, id, c0, c0, 5);
-	#endif
-	return id & 3;
-}
-
-/* Status Register */
-static inline u32 ARM_GetCPSR(void) {
-	u32 sr;
-	ARM_MRS(sr, cpsr);
-	return sr;
-}
-
-static inline void ARM_SetCPSR_c(u32 sr) {
-	ARM_MSR(cpsr_c, sr);
-}
-
-static inline void ARM_DisableInterrupts(void) {
-	#ifdef ARM9
-	ARM_SetCPSR_c(ARM_GetCPSR() | SR_NOINT);
-	#else
-	ARM_CPSID(if);
-	#endif
-}
-
-static inline void ARM_EnableInterrupts(void) {
-	#ifdef ARM9
-	ARM_SetCPSR_c(ARM_GetCPSR() & ~SR_NOINT);
-	#else
-	ARM_CPSIE(if);
-	#endif
-}
-
-static inline u32 ARM_EnterCritical(void) {
-	u32 stat = ARM_GetCPSR();
-	ARM_DisableInterrupts();
-	return stat & SR_NOINT;
-}
-
-static inline void ARM_LeaveCritical(u32 stat) {
-	ARM_SetCPSR_c((ARM_GetCPSR() & ~SR_NOINT) | stat);
-}
-
-
-/* Cache functions */
-static inline void ARM_InvIC(void) {
-	#ifdef ARM9
-	ARM_MCR(p15, 0, 0, c7, c5, 0);
-	#else
-	ARM_MCR(p15, 0, 0, c7, c7, 0);
-	#endif
-}
-
-static inline void ARM_InvIC_Range(void *base, u32 len) {
-	u32 addr = (u32)base & ~0x1F;
-	len >>= 5;
-
-	do {
-		#ifdef ARM9
-		ARM_MCR(p15, 0, addr, c7, c5, 1);
-		#else
-		ARM_MCR(p15, 0, addr, c7, c7, 1);
-		#endif
-		addr += 0x20;
-	} while(len--);
-}
-
-static inline void ARM_InvDC(void) {
-	ARM_MCR(p15, 0, 0, c7, c6, 0);
-}
-
-static inline void ARM_InvDC_Range(void *base, u32 len) {
-	u32 addr = (u32)base & ~0x1F;
-	len >>= 5;
-
-	do {
-		ARM_MCR(p15, 0, addr, c7, c6, 1);
-		addr += 0x20;
-	} while(len--);
-}
-
-static inline void ARM_WbDC(void) {
-	#ifdef ARM9
-	u32 seg = 0, ind;
-	do {
-		ind = 0;
-		do {
-			ARM_MCR(p15, 0, seg | ind, c7, c10, 2);
-			ind += 0x20;
-		} while(ind < 0x400);
-		seg += 0x40000000;
-	} while(seg != 0);
-	#else
-	ARM_MCR(p15, 0, 0, c7, c10, 0);
-	#endif
-}
-
-static inline void ARM_WbDC_Range(void *base, u32 len) {
-	u32 addr = (u32)base & ~0x1F;
-	len >>= 5;
-
-	do {
-		ARM_MCR(p15, 0, addr, c7, c10, 1);
-		addr += 0x20;
-	} while(len--);
-}
-
-static inline void ARM_WbInvDC(void) {
-	#ifdef ARM9
-	u32 seg = 0, ind;
-	do {
-		ind = 0;
-		do {
-			ARM_MCR(p15, 0, seg | ind, c7, c14, 2);
-			ind += 0x20;
-		} while(ind < 0x400);
-		seg += 0x40000000;
-	} while(seg != 0);
-	#else
-	ARM_MCR(p15, 0, 0, c7, c14, 0);
-	#endif
-}
-
-static inline void ARM_WbInvDC_Range(void *base, u32 len) {
-	u32 addr = (u32)base & ~0x1F;
-	len >>= 5;
-
-	do {
-		ARM_MCR(p15, 0, addr, c7, c14, 1);
-		addr += 0x20;
-	} while(len--);
-}
+void ARM_InvIC(void);
+void ARM_InvIC_Range(void *base, u32 len);
+void ARM_InvDC(void);
+void ARM_InvDC_Range(void *base, u32 len);
+void ARM_WbDC(void);
+void ARM_WbDC_Range(void *base, u32 len);
+void ARM_WbInvDC(void);
+void ARM_WbInvDC_Range(void *base, u32 len);
 
 static inline void ARM_BKPT(void) {
 	__builtin_trap();
