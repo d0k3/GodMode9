@@ -97,7 +97,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     }
     
     // actual transfer - db files / titles
-    const char* dbnames[] = { "ticket.db", "certs.db", "title.db", "import.db", "tmp_t.db", "tmp_i.db" };
+    static const char* dbnames[] = { "ticket.db", "certs.db", "title.db", "import.db", "tmp_t.db", "tmp_i.db" };
     char path_to[32];
     char path_from[32];
     char path_dbs[32];

@@ -15,10 +15,10 @@ typedef struct {
 
 static FilCryptInfo filcrypt[NUM_FILCRYPTINFO] = { 0 };
 
-char alias_drv[NUM_ALIAS_DRV]; // 1 char ASCII drive number of the alias drive / 0x00 if unused
-char alias_path[NUM_ALIAS_DRV][128]; // full path to resolve the alias into
+static char alias_drv[NUM_ALIAS_DRV]; // 1 char ASCII drive number of the alias drive / 0x00 if unused
+static char alias_path[NUM_ALIAS_DRV][128]; // full path to resolve the alias into
 
-u8 sd_keyy[NUM_ALIAS_DRV][16] __attribute__((aligned(4))); // key Y belonging to alias drive
+static u8 sd_keyy[NUM_ALIAS_DRV][16] __attribute__((aligned(4))); // key Y belonging to alias drive
 
 int alias_num (const TCHAR* path) {
     int num = -1;

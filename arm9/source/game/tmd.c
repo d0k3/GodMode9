@@ -6,7 +6,7 @@
 #include "ff.h"
 
 u32 ValidateTmd(TitleMetaData* tmd) {
-    const u8 magic[] = { TMD_SIG_TYPE };
+    static const u8 magic[] = { TMD_SIG_TYPE };
     if ((memcmp(tmd->sig_type, magic, sizeof(magic)) != 0) ||
         ((strncmp((char*) tmd->issuer, TMD_ISSUER, 0x40) != 0) &&
         (strncmp((char*) tmd->issuer, TMD_ISSUER_DEV, 0x40) != 0)))
@@ -77,7 +77,7 @@ u32 FixTmdHashes(TitleMetaData* tmd) {
 }
 
 u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size, u32 twl_privsave_size) {
-    const u8 sig_type[4] =  { TMD_SIG_TYPE };
+    static const u8 sig_type[4] =  { TMD_SIG_TYPE };
     // safety check: number of contents
     if (n_contents > TMD_MAX_CONTENTS) return 1; // potential incompatibility here (!)
     // set TMD all zero for a clean start
@@ -102,11 +102,11 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size
 }
 
 u32 BuildTmdCert(u8* tmdcert) {
-    const u8 cert_hash_expected[0x20] = {
+    static const u8 cert_hash_expected[0x20] = {
         0x91, 0x5F, 0x77, 0x3A, 0x07, 0x82, 0xD4, 0x27, 0xC4, 0xCE, 0xF5, 0x49, 0x25, 0x33, 0xE8, 0xEC, 
         0xF6, 0xFE, 0xA1, 0xEB, 0x8C, 0xCF, 0x59, 0x6E, 0x69, 0xBA, 0x2A, 0x38, 0x8D, 0x73, 0x8A, 0xE1
     };
-    const u8 cert_hash_expected_dev[0x20] = {
+    static const u8 cert_hash_expected_dev[0x20] = {
         0x49, 0xC9, 0x41, 0x56, 0xCA, 0x86, 0xBD, 0x1F, 0x36, 0x51, 0x51, 0x6A, 0x4A, 0x9F, 0x54, 0xA1,
         0xC2, 0xE9, 0xCA, 0x93, 0x94, 0xF4, 0x29, 0xA0, 0x38, 0x54, 0x75, 0xFF, 0xAB, 0x6E, 0x8E, 0x71
     };

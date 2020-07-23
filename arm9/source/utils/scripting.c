@@ -139,7 +139,7 @@ typedef struct {
     char content[_VAR_CNT_LEN];
 } Gm9ScriptVar;
 
-Gm9ScriptCmd cmd_list[] = {
+static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_NONE    , "#"       , 0, 0 }, // dummy entry
     { CMD_ID_NOT     , _CMD_NOT  , 0, 0 }, // inverts the output of the following command
     { CMD_ID_IF      , _CMD_IF   , 1, 0 }, // control flow commands at the top of the list
@@ -532,7 +532,7 @@ bool expand_arg(char* argex, const char* arg, u32 len) {
 }
 
 cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
-    Gm9ScriptCmd* cmd_entry = NULL;
+    const Gm9ScriptCmd* cmd_entry = NULL;
     
     for (u32 i = 0; i < (sizeof(cmd_list)/sizeof(Gm9ScriptCmd)); i++) {
         if (strncmp(cmd_list[i].cmd, cmd, len) == 0) {

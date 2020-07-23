@@ -19,7 +19,7 @@ u64 GetRomFsLvOffset(RomFsIvfcHeader* ivfc, u32 lvl) {
 
 // validate IVFC header by checking offsets and hash sizes
 u32 ValidateRomFsHeader(RomFsIvfcHeader* ivfc, u32 max_size) {
-    u8 magic[] = { ROMFS_MAGIC };
+    static const u8 magic[] = { ROMFS_MAGIC };
 
     // check magic number
     if (memcmp(magic, ivfc->magic, sizeof(magic)) != 0)

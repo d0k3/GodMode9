@@ -417,10 +417,10 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 }
 
 u32 SdFormatMenu(const char* slabel) {
-    const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
-    const char* option_emunand_size[7] = { "No EmuNAND", "RedNAND size (min)", "GW EmuNAND size (full)",
+    static const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
+    static const char* option_emunand_size[7] = { "No EmuNAND", "RedNAND size (min)", "GW EmuNAND size (full)",
         "MultiNAND size (2x)", "MultiNAND size (3x)", "MultiNAND size (4x)", "User input..." };
-    const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
+    static const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
     u32 sysnand_min_size_sectors = GetNandMinSizeSectors(NAND_SYSNAND);
     u64 sysnand_min_size_mb = ((sysnand_min_size_sectors * 0x200) + 0xFFFFF) / 0x100000;
     u64 sysnand_multi_size_mb = (align(sysnand_min_size_sectors + 1, 0x2000) * 0x200) / 0x100000;
@@ -467,13 +467,13 @@ u32 SdFormatMenu(const char* slabel) {
         u32 emunand_offset = 1;
         u32 n_emunands = 1;
         if (emunand_size_mb >= 2 * sysnand_size_mb) {
-            const char* option_emunand_type[4] = { "RedNAND type (multi)", "RedNAND type (single)", "GW EmuNAND type", "Don't set up" };
+            static const char* option_emunand_type[4] = { "RedNAND type (multi)", "RedNAND type (single)", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(4, option_emunand_type, "Choose EmuNAND type to set up:");
             if (user_select > 3) return 0;
             emunand_offset = (user_select == 3) ? 0 : 1;
             if (user_select == 1) n_emunands = 4;
         } else if (emunand_size_mb >= sysnand_size_mb) {
-            const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
+            static const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(3, option_emunand_type, "Choose EmuNAND type to set up:");
             if (user_select > 2) return 0;
             emunand_offset = (user_select == 2) ? 0 : 1; // 0 -> GW EmuNAND
@@ -748,7 +748,7 @@ u32 FileHexViewer(const char* path) {
                 else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
                 else memcpy(BOT_SCREEN, bottom_cpy, SCREEN_SIZE_BOT);
             } else if (pad_state & BUTTON_X) {
-                const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
+                static const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
                 u32 user_select = ShowSelectPrompt(3, optionstr, "Current offset: %08X\nSelect action:", 
                     (unsigned int) offset);
                 if (user_select == 1) { // -> goto offset
@@ -2329,7 +2329,7 @@ u32 GodMode(int entrypoint) {
             } else { // one level up
                 u32 user_select = 1;
                 if (curr_drvtype & DRV_SEARCH) { // special menu for search drive
-                    const char* optionstr[2] = { "Open this folder", "Open containing folder" };
+                    static const char* optionstr[2] = { "Open this folder", "Open containing folder" };
                     char pathstr[32 + 1];
                     TruncateString(pathstr, curr_entry->path, 32, 8);
                     user_select = ShowSelectPrompt(2, optionstr, "%s", pathstr);
@@ -2490,7 +2490,7 @@ u32 GodMode(int entrypoint) {
             } else if ((curr_drvtype & DRV_CART) && (pad_state & BUTTON_Y)) {
                 ShowPrompt(false, "Not allowed in gamecart drive");
             } else if (pad_state & BUTTON_Y) { // paste files
-                const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
+                static const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
                 u32 flags = 0;
                 u32 user_select;
@@ -2542,7 +2542,7 @@ u32 GodMode(int entrypoint) {
                     }
                 }
             } else if (pad_state & BUTTON_Y) { // create an entry
-                const char* optionstr[] = { "Create a folder", "Create a dummy file" };
+                static const char* optionstr[] = { "Create a folder", "Create a dummy file" };
                 u32 type = ShowSelectPrompt(2, optionstr, "Create a new entry here?\nSelect type.");
                 if (type) {
                     const char* typestr = (type == 1) ? "folder" : (type == 2) ? "file" : NULL;

@@ -7,7 +7,7 @@
     0x84, 0x9D, 0xA0, 0xD5, 0x6F, 0x5A, 0x34, 0xC4, 0x81, 0x06, 0x0C, 0x9F, 0xF2, 0xFA, 0xD8, 0x18
 
 u32 ValidateAgbSaveHeader(AgbSaveHeader* header) {
-    u8 magic[] = { AGBSAVE_MAGIC };
+    static u8 magic[] = { AGBSAVE_MAGIC };
     
     // basic checks
     if ((memcmp(header->magic, magic, sizeof(magic)) != 0) ||
@@ -28,7 +28,7 @@ u32 ValidateAgbSaveHeader(AgbSaveHeader* header) {
 
 // http://problemkaputt.de/gbatek.htm#gbacartridgeheader
 u32 ValidateAgbHeader(AgbHeader* agb) {
-    const u8 logo_sha[0x20] = { AGBLOGO_SHA256 };
+    static const u8 logo_sha[0x20] = { AGBLOGO_SHA256 };
     u8 logo[0x9C] __attribute__((aligned(4)));
     
     // check fixed value

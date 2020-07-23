@@ -607,7 +607,7 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
 }
 
 u32 SafeInstallKeyDb(const char* path) {
-    const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
+    static const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
     u8 keydb[KEYDB_PERFECT_SIZE] __attribute__((aligned(4)));
     
     char pathstr[32 + 1]; // truncated path string

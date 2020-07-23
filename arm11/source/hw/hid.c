@@ -30,24 +30,16 @@ static u32 HID_ConvertCPAD(s16 cpad_x, s16 cpad_y)
 {
 	u32 ret = 0;
 
-	switch(int_sign(cpad_x)) {
-		default:
-			break;
-		case 1:
-			ret |= BUTTON_RIGHT;
-			break;
-		case -1:
-			ret |= BUTTON_LEFT;
+	if (cpad_x > 0) {
+		ret |= BUTTON_RIGHT;
+	} else if (cpad_x < 0) {
+		ret |= BUTTON_LEFT;
 	}
 
-	switch(int_sign(cpad_y)) {
-		default:
-			break;
-		case 1:
-			ret |= BUTTON_UP;
-			break;
-		case -1:
-			ret |= BUTTON_DOWN;
+	if (cpad_y > 0) {
+		ret |= BUTTON_UP;
+	} else if (cpad_y < 0) {
+		ret |= BUTTON_DOWN;
 	}
 
 	return ret;

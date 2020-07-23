@@ -672,7 +672,7 @@ bool BuildVGameFirmDir(void) {
 }
 
 bool BuildVGameTadDir(void) {
-    const char* name_type[] = { NAME_TAD_TYPES };
+    static const char* name_type[] = { NAME_TAD_TYPES };
     VirtualFile* templates = templates_tad;
     u32 content_offset = 0;
     u32 n = 0;

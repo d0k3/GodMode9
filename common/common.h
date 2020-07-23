@@ -29,9 +29,6 @@
 #define abs(x) \
     (((x) >= 0) ? (x) : -(x))
 
-#define int_sign(x) \
-    (((x) > 0) - ((x) < 0))
-
 #define clamp(x, min, max) \
     ((x) < (max) ? ((x) > (min) ? (x) : (min)) : (max))
 

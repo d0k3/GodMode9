@@ -68,7 +68,7 @@ u32 SetupSlot0x30(char drv) {
 }
 
 u32 LocateAgbSaveSdBottomSlot(const char* path, AgbSaveHeader* agbsave) {
-    const u32 save_sizes[] = {
+    static const u32 save_sizes[] = {
         GBASAVE_EEPROM_512,
         GBASAVE_EEPROM_8K,
         GBASAVE_SRAM_32K,
@@ -210,7 +210,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1;
     else if (!cmac_type) return 1;
     
-    const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
+    static const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
     u8 hashdata[0x200] __attribute__((aligned(4))); 
     u32 keyslot = cmac_keyslot[cmac_type];
     u32 hashsize = 0;

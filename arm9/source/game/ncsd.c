@@ -2,7 +2,7 @@
 #include "ncch.h"
 
 u32 ValidateNcsdHeader(NcsdHeader* header) {
-    u8 zeroes[16] = { 0 };
+    static const u8 zeroes[16] = { 0 };
     if ((memcmp(header->magic, "NCSD", 4) != 0) || // check magic number
         (memcmp(header->partitions_fs_type, zeroes, 8) != 0) || !header->mediaId) // prevent detection of NAND images
         return 1;
