@@ -19,6 +19,7 @@
 #include <common.h>
 #include <types.h>
 #include <vram.h>
+#include <arm.h>
 
 #include "arm/timer.h"
 
@@ -58,7 +59,7 @@ unsigned GFX_init(GfxFbFmt mode)
 
 	// Reset
 	REG_PDN_GPU_CNT = PDN_GPU_CNT_CLK_E;
-	waitClks(12);
+	ARM_WaitCycles(12);
 	REG_PDN_GPU_CNT = PDN_GPU_CNT_CLK_E | PDN_GPU_CNT_RST_ALL;
 	REG_GX_GPU_CLK = 0x100;
 	REG_GX_PSC_VRAM = 0;

@@ -58,13 +58,6 @@
 #define assert(x) \
     (!!(x) ? (void)0 : __builtin_trap())
 
-static inline void waitClks(unsigned clk) {
-    clk >>= 1;
-    while(clk--) {
-        asm_v("nop":::"memory", "cc");
-    }
-}
-
 #define STATIC_ASSERT(...) \
     _Static_assert((__VA_ARGS__), #__VA_ARGS__)
 

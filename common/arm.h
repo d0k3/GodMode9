@@ -2,6 +2,8 @@
 
 #include "types.h"
 
+#include <bfn.h>
+
 /* Status Register flags */
 #define SR_USR_MODE	(0x10)
 #define SR_FIQ_MODE	(0x11)
@@ -91,47 +93,126 @@
 #ifdef ARM11
 	#define REG_ARM_PMR(off, type)	((volatile type*)(0x17E00000 + (off)))
 
-	void ARM_ISB(void);
-	void ARM_DMB(void);
-	void ARM_WFI(void);
-	void ARM_WFE(void);
-	void ARM_SEV(void);
-	u32 ARM_GetACR(void);
-	void ARM_SetACR(u32 acr);
+	static inline void ARM_ISB(void) {
+		((void (*)(void))(BFN_INSTSYNCBARRIER))();
+	}
+
+	static inline void ARM_DMB(void) {
+		((void (*)(void))(BFN_DATAMEMBARRIER))();
+	}
+
+	static inline void ARM_WFI(void) {
+		// replace with a bootrom call if
+		// switching to thumb is necessary
+		asm_v("wfi\n\t":::"memory");
+	}
+
+	static inline void ARM_WFE(void) {
+		asm_v("wfe\n\t":::"memory"); // same as above
+	}
+
+	static inline void ARM_SEV(void) {
+		asm_v("sev\n\t":::"memory"); // same as above
+	}
+
+	/* Control Registers */
+	static inline u32 ARM_GetCR(void) {
+		u32 cr;
+		ARM_MRC(p15, 0, cr, c1, c0, 0);
+		return cr;
+	}
+
+	static inline void ARM_SetCR(u32 cr) {
+		ARM_MCR(p15, 0, cr, c1, c0, 0);
+	}
+
+	static inline u32 ARM_GetACR(void) {
+		u32 acr;
+		ARM_MRC(p15, 0, acr, c1, c0, 1);
+		return acr;
+	}
+
+	static inline void ARM_SetACR(u32 acr) {
+		ARM_MCR(p15, 0, acr, c1, c0, 1);
+	}
+
 #endif
 
-// Data Synchronization Barrier
-void ARM_DSB(void);
+/*
+ * A Data Synchronization Barrier (DSB) completes when all
+ * instructions before this instruction complete.
+ */
+static inline void ARM_DSB(void) {
+	((void (*)(void))(BFN_DATASYNCBARRIER))();
+}
 
-// Get and set Control Register
-u32 ARM_GetCR(void);
-void ARM_SetCR(u32 cr);
+/* CPU ID */
+static inline u32 ARM_CoreID(void) {
+	u32 id;
+	#ifdef ARM9
+	id = 0;
+	#else
+	ARM_MRC(p15, 0, id, c0, c0, 5);
+	#endif
+	return id & 3;
+}
 
-// Get and set Thread ID
-u32 ARM_GetTID(void);
-void ARM_SetTID(u32 tid);
+/* Status register management */
+static inline u32 ARM_EnterCritical(void) {
+	return ((u32 (*)(void))(BFN_ENTERCRITICALSECTION))();
+}
 
-// Core ID (not CPU ID)
-u32 ARM_CoreID(void);
+static inline void ARM_LeaveCritical(u32 stat) {
+	((void (*)(u32))(BFN_LEAVECRITICALSECTION))(stat);
+}
 
-// Get and set CPSR
-u32 ARM_GetCPSR(void);
-void ARM_SetCPSR_c(u32 sr);
+static inline void ARM_DisableInterrupts(void) {
+	ARM_LeaveCritical(SR_NOINT);
+}
 
-// Manage interrupts
-void ARM_DisableInterrupts(void);
-void ARM_EnableInterrupts(void);
-u32 ARM_EnterCritical(void);
-void ARM_LeaveCritical(u32 stat);
+static inline void ARM_EnableInterrupts(void) {
+	ARM_LeaveCritical(0x00);
+}
 
-void ARM_InvIC(void);
-void ARM_InvIC_Range(void *base, u32 len);
-void ARM_InvDC(void);
-void ARM_InvDC_Range(void *base, u32 len);
-void ARM_WbDC(void);
-void ARM_WbDC_Range(void *base, u32 len);
-void ARM_WbInvDC(void);
-void ARM_WbInvDC_Range(void *base, u32 len);
+/* Cache functions */
+static inline void ARM_InvIC(void) {
+	((void (*)(void))(BFN_INVALIDATE_ICACHE))();
+}
+
+static inline void ARM_InvIC_Range(void *base, u32 len) {
+	((void (*)(u32, u32))(BFN_INVALIDATE_ICACHE_RANGE))((u32)base, len);
+	#ifdef ARM11 // make sure to also invalidate the branch target cache
+	((void (*)(u32, u32))(BFN_INVALIDATE_BT_CACHE_RANGE))((u32)base, len);
+	#endif
+}
+
+static inline void ARM_InvDC(void) {
+	((void (*)(void))(BFN_INVALIDATE_DCACHE))();
+}
+
+static inline void ARM_InvDC_Range(void *base, u32 len) {
+	((void (*)(u32, u32))(BFN_INVALIDATE_DCACHE_RANGE))((u32)base, len);
+}
+
+static inline void ARM_WbDC(void) {
+	((void (*)(void))(BFN_WRITEBACK_DCACHE))();
+}
+
+static inline void ARM_WbDC_Range(void *base, u32 len) {
+	((void (*)(u32, u32))(BFN_WRITEBACK_DCACHE_RANGE))((u32)base, len);
+}
+
+static inline void ARM_WbInvDC(void) {
+	((void (*)(void))(BFN_WRITEBACK_INVALIDATE_DCACHE))();
+}
+
+static inline void ARM_WbInvDC_Range(void *base, u32 len) {
+	((void (*)(u32, u32))(BFN_WRITEBACK_INVALIDATE_DCACHE_RANGE))((u32)base, len);
+}
+
+static inline void ARM_WaitCycles(u32 cycles) {
+	((void (*)(u32))(BFN_WAITCYCLES))(cycles);
+}
 
 static inline void ARM_BKPT(void) {
 	__builtin_trap();

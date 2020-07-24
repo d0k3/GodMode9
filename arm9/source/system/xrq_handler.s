@@ -6,7 +6,6 @@
 .arm
 
 #include <arm.h>
-#include <brf.h>
 #include "memmap.h"
 
 .macro TRAP_ENTRY xrq_id
