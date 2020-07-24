@@ -1229,7 +1229,7 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     return ret;
 }
 
-u32 GetInstallAppPath(char* path, const char* drv, const u8* title_id, const u8* content_id) {
+u32 GetInstallPath(char* path, const char* drv, const u8* title_id, const u8* content_id, const char* str) {
     static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     bool dlc = (memcmp(title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     u32 tid_high = getbe32(title_id);
@@ -1238,15 +1238,40 @@ u32 GetInstallAppPath(char* path, const char* drv, const u8* title_id, const u8*
     if ((*drv == '2') || (*drv == '5')) // TWL titles need TWL title ID
         tid_high = 0x00030000 | (tid_high&0xFF);
 
-    if (!content_id) { // just the base title path in that case
-        snprintf(path, 256, "%2.2s/title/%08lx/%08lx",
-            drv, tid_high, tid_low);
-    } else { // full app path
+    if (content_id) { // app path
         snprintf(path, 256, "%2.2s/title/%08lx/%08lx/content/%s%08lx.app",
             drv, tid_high, tid_low, dlc ? "00000000/" : "", getbe32(content_id));
+    } else if (str) { // other paths (TMD/CMD/Save)
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx/%s",
+            drv, tid_high, tid_low, str);
+    } else { // base path (useful for uninstall)
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx",
+            drv, tid_high, tid_low);
     }
 
     return 0;
+}
+
+u32 GetInstallSavePath(char* path, const char* drv, const u8* title_id) {
+    // generate the save path (thanks ihaveamac for system path)
+    if ((*drv == '1') || (*drv == '4')) { // ooof, system save
+        // get the id0
+        u8 sd_keyy[16] __attribute__((aligned(4)));
+        char path_movable[32];
+        u32 sha256sum[8];
+        snprintf(path_movable, 32, "%2.2s/private/movable.sed", drv);
+        if (fvx_qread(path_movable, sd_keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
+        memset(sd_keyy, 0x00, 16);
+        sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
+        // build path
+        u32 tid_low = getbe32(title_id + 4);
+        snprintf(path, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx/00000000",
+            drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3],
+            tid_low | 0x00020000);
+        return 0;
+    } else { // SD save, simple
+        return GetInstallPath(path, drv, title_id, NULL, "data/00000001.sav");
+    }
 }
 
 u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32 size,
@@ -1254,7 +1279,7 @@ u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32
     char dest[256];
 
     // create destination path and ensure it exists
-    GetInstallAppPath(dest, drv, title_id, chunk->id);
+    GetInstallPath(dest, drv, title_id, chunk->id, NULL);
     fvx_rmkpath(dest);
 
     // open file(s)
@@ -1340,24 +1365,17 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     bool sdtie = ((*drv == 'A') || (*drv == 'B'));
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = ticket->title_id;
-    u32 tid_high = getbe32(title_id);
-    u32 tid_low = getbe32(title_id + 4);
     
     char path_titledb[32];
     char path_ticketdb[32];
     char path_tmd[64];
     char path_cmd[64];
-    char path_save[128];
 
     // sanity checks
     if (content_count == 0) return 1;
     if ((*drv != '1') && (*drv != '2') && (*drv != 'A') &&
         (*drv != '4') && (*drv != '5') && (*drv != 'B'))
         return 1;
-
-    // TWL titles need TWL title ID high
-    if ((*drv == '2') || (*drv == '5'))
-        tid_high = 0x00030000 | (tid_high&0xFF);
     
     // progress update
     if (!ShowProgress(0, 0, "TMD/CMD/TiE/Ticket/Save")) return 1;
@@ -1367,7 +1385,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     u8 hdr_cnt0[0x600]; // we don't need more
     NcchHeader* ncch = NULL;
     NcchExtHeader* exthdr = NULL;
-    GetInstallAppPath(path_cnt0, drv, title_id, content_list->id);
+    GetInstallPath(path_cnt0, drv, title_id, content_list->id, NULL);
     if (fvx_qread(path_cnt0, hdr_cnt0, 0, 0x600, NULL) != FR_OK)
         return 1;
     if (ValidateNcchHeader((void*) hdr_cnt0) == 0) {
@@ -1395,10 +1413,8 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
         ((*drv == 'A') || (*drv == '2')) ? "1:" :
         ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
-    snprintf(path_tmd, 64, "%2.2s/title/%08lx/%08lx/content/00000000.tmd",
-        drv, tid_high, tid_low);
-    snprintf(path_cmd, 64, "%2.2s/title/%08lx/%08lx/content/cmd/00000001.cmd",
-        drv, tid_high, tid_low);
+    GetInstallPath(path_tmd, drv, title_id, NULL, "content/00000000.tmd");
+    GetInstallPath(path_cmd, drv, title_id, NULL, "content/cmd/00000001.cmd");
 
     // progress update
     if (!ShowProgress(1, 5, "TMD/CMD")) return 1;
@@ -1413,28 +1429,16 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         return 1;
     }
     free(cmd); // we don't need this anymore
-
-    // progress update
-    if (!ShowProgress(2, 5, "Savegame")) return 1;
     
     // generate savedata
     if (exthdr && (exthdr->savedata_size)) {
-        // generate the save path (thanks ihaveamac for system path)
-        if ((*drv == '1') || (*drv == '4')) { // ooof, system save
-            u8 sd_keyy[16] __attribute__((aligned(4)));
-            char path_movable[32];
-            u32 sha256sum[8];
-            snprintf(path_movable, 32, "%2.2s/private/movable.sed", drv);
-            if (fvx_qread(path_movable, sd_keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
-            memset(sd_keyy, 0x00, 16);
-            sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
-            snprintf(path_save, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx/00000000",
-                drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3],
-                tid_low | 0x00020000);
-        } else { // SD save, simple
-            snprintf(path_save, 128, "%2.2s/title/%08lx/%08lx/data/00000001.sav",
-                drv, tid_high, tid_low);
-        }
+        char path_save[128];
+
+        // progress update
+        if (!ShowProgress(2, 5, "Savegame")) return 1;
+
+        // generate the path
+        GetInstallSavePath(path_save, drv, title_id);
 
         // generate the save file, first check if it already exists
         if (fvx_qsize(path_save) != exthdr->savedata_size) {
@@ -2105,52 +2109,55 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     return ret;
 }
 
+u64 GetGameFileTitleId(const char* path) {
+    u64 filetype = IdentifyFileType(path);
+    u64 tid64 = 0;
+
+    if (filetype & GAME_CIA) {
+        CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+        if (!cia) return 0;
+        if (LoadCiaStub(cia, path) == 0)
+            tid64 = getbe64(cia->tmd.title_id);
+        free(cia);
+    } else if (filetype & GAME_TMD) {
+        TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
+        if (!tmd) return 0;
+        if (LoadTmdFile(tmd, path) == 0)
+            tid64 = getbe64(tmd->title_id);
+        free(tmd);
+    } else if (filetype & GAME_NCCH) {
+        NcchHeader ncch;
+        if (LoadNcchHeaders(&ncch, NULL, NULL, path, 0) == 0)
+            tid64 = ncch.partitionId;
+    } else if (filetype & GAME_NCSD) {
+        NcsdHeader ncsd;
+        if (LoadNcsdHeader(&ncsd, path) == 0)
+            tid64 = ncsd.mediaId;
+    } else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW)) {
+        TwlHeader twl;
+        if (fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK)
+            tid64 = 0x0004800000000000ull | (twl.title_id & 0xFFFFFFFFFFull);
+    }
+
+    return tid64;
+}
+
 u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
     const char* drv;
     u64 filetype = IdentifyFileType(path);
     u32 ret = 0;
 
-    // we need to figure out the drive based on title id
-    u64 title_id = 0;
-    if (filetype & GAME_CIA) {
-        CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
-        if (!cia) return 1;
-        if (LoadCiaStub(cia, path) != 0) {
-            free(cia);
-            return 1;
-        }
-        title_id = getbe64(cia->tmd.title_id);
-        free(cia);
-    } else if (filetype & GAME_TMD) {
-        TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
-        if (!tmd) return 1;
-        if (LoadTmdFile(tmd, path) != 0) {
-            free(tmd);
-            return 1;
-        }
-        title_id = getbe64(tmd->title_id);
-        free(tmd);
-    } else if (filetype & GAME_NCCH) {
-        NcchHeader ncch;
-        if (LoadNcchHeaders(&ncch, NULL, NULL, path, 0) != 0)
-            return 1;
-        title_id = ncch.partitionId;
-    } else if (filetype & GAME_NCSD) {
-        NcsdHeader ncsd;
-        if (LoadNcsdHeader(&ncsd, path) != 0)
-            return 1;
-        title_id = ncsd.mediaId;
-    }
-
     // decide the drive
-    if (((title_id >> 32) & 0x8000) || (filetype & GAME_NDS))
+    u64 tid64 = GetGameFileTitleId(path);
+    if (!tid64) return 1;
+    if (((tid64 >> 32) & 0x8000) || (filetype & GAME_NDS))
         drv = (to_emunand ? "5:" : "2:");
-    else if (((title_id >> 32) & 0x10) || force_nand)
+    else if (((tid64 >> 32) & 0x10) || force_nand)
         drv = (to_emunand ? "4:" : "1:");
     else
         drv = (to_emunand ? "B:" : "A:");
     
-    // check permissions for SysNAND
+    // check permissions for SysNAND (this includes everything we need)
     if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
     
     // install game file
@@ -2168,6 +2175,7 @@ u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
     
     // we have no clue what to do on failure
     // if (ret != 0) ...
+    // maybe just uninstall?
     
     return ret;
 }
