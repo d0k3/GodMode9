@@ -5,18 +5,18 @@
 // modifyed by osilloscopion (2 Jul 2016)
 //
 
+#include <arm.h>
+
 #include "command_ntr.h"
 #include "protocol_ntr.h"
 #include "card_ntr.h"
-#include "delay.h"
-
 
 u32 ReadDataFlags = 0;
 
 void NTR_CmdReset(void)
 {
     cardReset ();
-    ioDelay2(0xF000);
+    ARM_WaitCycles(0xF000 * 4);
 }
 
 u32 NTR_CmdGetCartId(void)
@@ -34,7 +34,7 @@ void NTR_CmdReadHeader (u8* buffer)
 {
     REG_NTRCARDROMCNT=0;
     REG_NTRCARDMCNT=0;
-    ioDelay2(167550);
+    ARM_WaitCycles(167550 * 4);
     REG_NTRCARDMCNT=NTRCARD_CR1_ENABLE|NTRCARD_CR1_IRQ;
     REG_NTRCARDROMCNT=NTRCARD_nRESET|NTRCARD_SEC_SEED;
     while(REG_NTRCARDROMCNT&NTRCARD_BUSY) ;

@@ -38,7 +38,7 @@ export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSIO
                   -g -Os -Wall -Wextra -Wcast-align -Wformat=2 -Wno-main \
                   -fomit-frame-pointer -ffast-math -std=gnu11 -MMD -MP \
                   -Wno-unused-function -Wno-format-truncation $(INCLUDE) -ffunction-sections -fdata-sections
-export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=512
+export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=4096
 ELF := arm9/arm9.elf arm11/arm11.elf
 
 .PHONY: all firm vram0 elf release clean

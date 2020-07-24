@@ -2,10 +2,11 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <arm.h>
+
 #include "protocol_ctr.h"
 
 #include "protocol.h"
-#include "delay.h"
 #ifdef VERBOSE_COMMANDS
 #include "draw.h"
 #endif
@@ -143,7 +144,7 @@ void CTR_SendCommand(const u32 command[4], u32 pageSize, u32 blocks, u32 latency
         // so we have to wait next data ready
         do { cardCtrl = REG_CTRCARDCNT; } while(!(cardCtrl & CTRCARD_DATA_READY));
         // and this tiny delay is necessary
-        ioDelay(33);
+        ARM_WaitCycles(33 * 8);
         // pull ROM CS high
         REG_CTRCARDCNT = 0x10000000;
         REG_CTRCARDCNT = CTRKEY_PARAM | CTRCARD_ACTIVATE | CTRCARD_nRESET;

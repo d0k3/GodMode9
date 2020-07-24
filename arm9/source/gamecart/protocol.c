@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <arm.h>
+
 #include "protocol.h"
 #include "timer.h"
 
@@ -14,7 +16,6 @@
 #include "protocol_ntr.h"
 #include "command_ctr.h"
 #include "command_ntr.h"
-#include "delay.h"
 
 // could have been done better, but meh...
 #define REG_AESCNT      (*(vu32*)0x10009000)
@@ -177,7 +178,7 @@ void Cart_Secure_Init(u32 *buf, u32 *out)
 //    if (!mac_valid)
 //        ClearScreen(bottomScreen, RGB(255, 0, 0));
 
-    ioDelay(0xF0000);
+    ARM_WaitCycles(0xF0000 * 8);
 
     CTR_SetSecKey(A0_Response);
     CTR_SetSecSeed(out, true);
@@ -207,7 +208,7 @@ void Cart_Secure_Init(u32 *buf, u32 *out)
 
     for (int i = 0; i < 5; ++i) {
         CTR_SendCommand(A2_cmd, 4, 1, 0x701002C, &test);
-        ioDelay(0xF0000);
+        ARM_WaitCycles(0xF0000 * 8);
     }
 }
 
