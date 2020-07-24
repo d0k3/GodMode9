@@ -1401,7 +1401,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         drv, tid_high, tid_low);
 
     // progress update
-    if (!ShowProgress(1, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
+    if (!ShowProgress(1, 5, "TMD/CMD")) return 1;
 
     // copy tmd & cmd
     fvx_rmkpath(path_tmd);
@@ -1415,7 +1415,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     free(cmd); // we don't need this anymore
 
     // progress update
-    if (!ShowProgress(2, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
+    if (!ShowProgress(2, 5, "Savegame")) return 1;
     
     // generate savedata
     if (exthdr && (exthdr->savedata_size)) {
@@ -1454,7 +1454,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     }
 
     // progress update
-    if (!ShowProgress(3, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
+    if (!ShowProgress(3, 5, "TitleDB update")) return 1;
 
     // write ticket and title databases
     // ensure remounting the old mount path
@@ -1462,16 +1462,6 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     char* path_bak = NULL;
     strncpy(path_store, GetMountPath(), 256);
     if (*path_store) path_bak = path_store;
-    
-    // ticket database
-    if (!InitImgFS(path_ticketdb) ||
-        ((AddTicketToDB("D:/partitionA.bin", title_id, (Ticket*) ticket, true)) != 0)) {
-        InitImgFS(path_bak);
-        return 1;
-    }
-    
-    // progress update
-    if (!ShowProgress(4, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
 
     // title database
     if (!InitImgFS(path_titledb) ||
@@ -1480,6 +1470,16 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         return 1;
     }
    
+    // progress update
+    if (!ShowProgress(4, 5, "TicketDB update")) return 1;
+    
+    // ticket database
+    if (!InitImgFS(path_ticketdb) ||
+        ((AddTicketToDB("D:/partitionA.bin", title_id, (Ticket*) ticket, true)) != 0)) {
+        InitImgFS(path_bak);
+        return 1;
+    }
+    
     // progress update
     if (!ShowProgress(5, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
 
