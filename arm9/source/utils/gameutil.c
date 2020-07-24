@@ -1819,8 +1819,8 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
     
     // write the CIA stub (take #2)
     if ((FixTmdHashes(tmd) != 0) ||
-        (install && (WriteCiaStub(cia, path_dest) != 0)) ||
-        (!install && (InstallCiaSystemData(cia, path_dest) != 0)))
+        (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
+        (install && (InstallCiaSystemData(cia, path_dest) != 0)))
         return 1;
     
     return 0;
