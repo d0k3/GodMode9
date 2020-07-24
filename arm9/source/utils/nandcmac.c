@@ -374,7 +374,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
 
     // read the full file to memory and check it (we may write it back later)
     if ((fvx_qread(path, cmd_data, 0, cmd_size, NULL) != FR_OK) ||
-        (CheckCmdSize(cmd, cmd_size) != 0)) {
+        (CMD_SIZE(cmd) != cmd_size)) {
         free(cmd_data);
         return 1;
     }

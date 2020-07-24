@@ -25,7 +25,7 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
 	tie->title_size =
 		(align_size * 3) + // base folder + 'content' + 'cmd'
 		align(TMD_SIZE_N(content_count), align_size) + // TMD
-		align(CMD_SIZE_N(content_count), align_size);  // CMD
+		align_size; // CMD, placeholder
 	for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
     	if (getbe32(chunk->id) == 1) has_id1 = true; // will be useful later
     	tie->title_size += align(getbe64(chunk->size), align_size);

@@ -1402,10 +1402,9 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         return 1;
     
     // build the cmd
-    cmd = (CmdHeader*) malloc(CMD_SIZE_N(content_count));
+    cmd = BuildAllocCmdData(tmd);
     if (!cmd) return 1;
-    BuildCmdData(cmd, tmd);
-    if (!syscmd) cmd->unknown = 0xFFFFFFFE; // mark this as custom built
+    cmd->unknown = 0xFFFFFFFE; // mark this as custom built
     
     // generate all the paths
     snprintf(path_titledb, 32, "%2.2s/dbs/title.db",
@@ -1423,8 +1422,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     fvx_rmkpath(path_tmd);
     fvx_rmkpath(path_cmd);
     if ((fvx_qwrite(path_tmd, tmd, 0, TMD_SIZE_N(content_count), NULL) != FR_OK) ||
-        (fvx_qwrite(path_cmd, cmd, 0,
-            syscmd ? CMD_SIZE_NS(content_count) : CMD_SIZE_N(content_count), NULL) != FR_OK)) {
+        (fvx_qwrite(path_cmd, cmd, 0, CMD_SIZE(cmd), NULL) != FR_OK)) {
         free(cmd);
         return 1;
     }
@@ -1963,7 +1961,7 @@ u32 BuildInstallFromNcsdFile(const char* path_ncsd, const char* path_dest, bool 
         if ((!install && (InsertCiaContent(path_dest, path_ncsd,
                 offset, size, chunk++, NULL, false, (i == 0), false) != 0)) ||
             (install && (InstallCiaContent(path_dest, path_ncsd,
-                offset, size, chunk, title_id, NULL, (i == 0)) != 0))) {
+                offset, size, chunk++, title_id, NULL, (i == 0)) != 0))) {
             free(cia);
             return 1;
         }
@@ -2161,9 +2159,8 @@ u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
         to_sd = true;
 
     // does the title.db exist?
-    if (to_sd && !fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db"))
-        to_sd = false;
-    if (!to_sd && !fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db"))
+    if ((to_sd && !fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db")) ||
+        (!to_sd && !fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db")))
         return 1;
 
     // now we know the correct drive
@@ -2401,7 +2398,7 @@ u32 TrimGameFile(const char* path) {
 
 u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     u64 filetype = IdentifyFileType(path);
-    
+
     if (filetype & GAME_SMDH) { // SMDH file
         UINT btr;
         if ((fvx_qread(path, smdh, 0, sizeof(Smdh), &btr) == FR_OK) || (btr == sizeof(Smdh))) return 0;
@@ -2410,8 +2407,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     } else if (filetype & GAME_NCSD) { // NCSD file
         if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_CIA) { // CIA file
-        CiaInfo info;
-        
+        CiaInfo info;       
         if ((fvx_qread(path, &info, 0, 0x20, NULL) != FR_OK) ||
             (GetCiaInfo(&info, (CiaHeader*) &info) != 0)) return 1;
         if ((info.offset_meta) && (fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), NULL) == FR_OK)) return 0;
@@ -2479,7 +2475,7 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
         path = path_content;
     }
-
+    
     void* buffer = (void*) malloc(max(sizeof(Smdh), sizeof(TwlIconData)));
     Smdh* smdh = (Smdh*) buffer;
     TwlIconData* twl_icon = (TwlIconData*) buffer;

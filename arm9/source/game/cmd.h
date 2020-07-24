@@ -3,9 +3,10 @@
 #include "common.h"
 #include "tmd.h"
 
-#define CMD_SIZE_N(n)	(sizeof(CmdHeader) + ((n)*(sizeof(u32)+sizeof(u32)+0x10)))
-#define CMD_SIZE_NS(n)	(sizeof(CmdHeader) + ((n)*(sizeof(u32)+sizeof(u32))))
-
+#define CMD_SIZE(cmd)	(sizeof(CmdHeader) + \
+							(((cmd)->n_entries) * sizeof(u32)) + \
+							(((cmd)->n_cmacs) * sizeof(u32)) + \
+							(((cmd)->unknown) ? (((cmd)->n_entries) * 0x10) : 0))
 
 // from: http://3dbrew.org/wiki/Titles#Data_Structure
 typedef struct {
@@ -19,5 +20,4 @@ typedef struct {
 	// followed by <n_entries> CMACs (may contain garbage)
 } __attribute__((packed, aligned(4))) CmdHeader;
 
-u32 CheckCmdSize(CmdHeader* cmd, u64 fsize);
-u32 BuildCmdData(CmdHeader* cmd, TitleMetaData* tmd);
+CmdHeader* BuildAllocCmdData(TitleMetaData* tmd);

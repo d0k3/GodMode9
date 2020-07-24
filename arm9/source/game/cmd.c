@@ -1,50 +1,62 @@
 #include "cmd.h"
 
 
-u32 CheckCmdSize(CmdHeader* cmd, u64 fsize) {
-	u64 cmdsize = sizeof(CmdHeader) +
-		(cmd->n_entries * sizeof(u32)) +
-		(cmd->n_cmacs   * sizeof(u32)) +
-		(cmd->n_entries * 0x10);
-
-	return (fsize == cmdsize) ? 0 : 1;
-}
-
-u32 BuildCmdData(CmdHeader* cmd, TitleMetaData* tmd) {
+CmdHeader* BuildAllocCmdData(TitleMetaData* tmd) {
+    CmdHeader proto;
+    CmdHeader* cmd = NULL;
     u32 content_count = getbe16(tmd->content_count);
+    u32 max_cnt_id = 0;
 
-    // header basic info
-    cmd->cmd_id = 0x1;
-    cmd->n_entries = content_count;
-    cmd->n_cmacs = content_count;
+    // sanity check
+    if (!content_count)
+        return NULL;
+
+    // find max content id
+    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++)
+        if (getbe32(chunk->id) > max_cnt_id) max_cnt_id = getbe32(chunk->id);
+
+    // allocate memory for CMD / basic setup
+    proto.cmd_id = 1;
+    proto.n_entries = max_cnt_id + 1;
+    proto.n_cmacs = content_count;
+    proto.unknown = 1;
+    cmd = (CmdHeader*) malloc(CMD_SIZE(&proto));
+    if (!cmd) return NULL;
+    memcpy(cmd, &proto, sizeof(CmdHeader));
     cmd->unknown = 0x0; // this means no CMACs, only valid for NAND
 
     // copy content ids
     u32* cnt_id = (u32*) (cmd + 1);
-    u32* cnt_id_cpy = cnt_id + content_count;
-	TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+    u32* cnt_id_2nd = cnt_id + cmd->n_entries;
+    chunk = (TmdContentChunk*) (tmd + 1);
+    memset(cnt_id, 0xFF, cmd->n_entries * sizeof(u32));
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
-    	cnt_id[i] = getbe32(chunk->id);
-    	cnt_id_cpy[i] = cnt_id[i];
+        u32 chunk_id = getbe32(chunk->id);
+        cnt_id[chunk_id] = chunk_id;
+        *(cnt_id_2nd++) = chunk_id;
     }
 
     // bubble sort the second content id list
-    u32 b = 0;
-    while ((b < content_count) && (b < TMD_MAX_CONTENTS)) {
-        for (b = 1; (b < content_count) && (b < TMD_MAX_CONTENTS); b++) {
-            if (cnt_id_cpy[b] < cnt_id_cpy[b-1]) {
-                u32 swp = cnt_id_cpy[b];
-                cnt_id_cpy[b] = cnt_id_cpy[b-1];
-                cnt_id_cpy[b-1] = swp;
+    bool bs_finished = false;
+    cnt_id_2nd = cnt_id + cmd->n_entries;
+    while (!bs_finished) {
+        bs_finished = true;
+        for (u32 b = 1; b < cmd->n_cmacs; b++) {
+            if (cnt_id_2nd[b] < cnt_id_2nd[b-1]) {
+                u32 swp = cnt_id_2nd[b];
+                cnt_id_2nd[b] = cnt_id_2nd[b-1];
+                cnt_id_2nd[b-1] = swp;
+                bs_finished = false;
             }
         }
     }
 
     // set CMACs to 0xFF
-    u8* cnt_cmac = (u8*) (cnt_id + (2*cmd->n_entries));
+    u8* cnt_cmac = (u8*) (cnt_id_2nd + cmd->n_cmacs);
     memset(cmd->cmac, 0xFF, 0x10);
-    memset(cnt_cmac, 0xFF, 0x10 * content_count);
+    memset(cnt_cmac, 0xFF, 0x10 * cmd->n_entries);
 
     // we still need to fix / set the CMACs inside the CMD file!
-    return 0;
+    return cmd;
 }
