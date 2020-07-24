@@ -1574,7 +1574,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (InstallGameFile(path, to_emunand, false)) n_success++;
+                if (InstallGameFile(path, to_emunand, false) == 0) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[32+1];
                     TruncateString(lpathstr, path, 32, 8);
