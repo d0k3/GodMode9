@@ -1634,6 +1634,9 @@ u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
         }
         next_offset += size;
     }
+
+    // proactive fix for CIA console ID
+    cia->ticket.console_id = 0;
     
     // fix TMD hashes, install CIA system data
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
