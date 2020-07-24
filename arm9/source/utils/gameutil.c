@@ -2150,15 +2150,25 @@ u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
     u64 filetype = IdentifyFileType(path);
     u32 ret = 0;
 
-    // decide the drive
+    // find out the destination
+    bool to_sd = false;
+    bool to_twl = false;
     u64 tid64 = GetGameFileTitleId(path);
     if (!tid64) return 1;
     if (((tid64 >> 32) & 0x8000) || (filetype & GAME_NDS))
-        drv = (to_emunand ? "5:" : "2:");
-    else if (((tid64 >> 32) & 0x10) || force_nand)
-        drv = (to_emunand ? "4:" : "1:");
-    else
-        drv = (to_emunand ? "B:" : "A:");
+        to_twl = true;
+    else if (!((tid64 >> 32) & 0x10) || !force_nand)
+        to_sd = true;
+
+    // does the title.db exist?
+    if (to_sd && !fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db"))
+        to_sd = false;
+    if (!to_sd && !fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db"))
+        return 1;
+
+    // now we know the correct drive
+    drv = to_emunand ? (to_sd ? "B:" : to_twl ? "5:" : "4:") :
+                       (to_sd ? "A:" : to_twl ? "2:" : "1:");
     
     // check permissions for SysNAND (this includes everything we need)
     if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
