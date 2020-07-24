@@ -1436,19 +1436,21 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
                 drv, tid_high, tid_low);
         }
 
-        // generate the save file
-        static const u8 zeroes[0x20] = { 0x00 };
-        UINT bw;
-        FIL save;
-        fvx_rmkpath(path_save);
-        if (fvx_open(&save, path_save, FA_WRITE | FA_CREATE_NEW) != FR_OK)
-            return 1;
-        if ((fvx_write(&save, zeroes, 0x20, &bw) != FR_OK) || (bw != 0x20))
-            bw = 0;
-        fvx_lseek(&save, exthdr->savedata_size);
-        fvx_sync(&save);
-        fvx_close(&save);
-        if (bw != 0x20) return 1;
+        // generate the save file, first check if it already exists
+        if (fvx_qsize(path_save) != exthdr->savedata_size) {
+            static const u8 zeroes[0x20] = { 0x00 };
+            UINT bw;
+            FIL save;
+            fvx_rmkpath(path_save);
+            if (fvx_open(&save, path_save, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+                return 1;
+            if ((fvx_write(&save, zeroes, 0x20, &bw) != FR_OK) || (bw != 0x20))
+                bw = 0;
+            fvx_lseek(&save, exthdr->savedata_size);
+            fvx_sync(&save);
+            fvx_close(&save);
+            if (bw != 0x20) return 1;
+        }
     }
 
     // progress update
