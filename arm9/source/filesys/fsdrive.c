@@ -151,6 +151,10 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
             break;
         } else if (!pattern || (fvx_match_name(fname, pattern) == FR_OK)) {
             DirEntry* entry = &(contents->entry[contents->n_entries]);
+            if (contents->n_entries >= MAX_DIR_ENTRIES) {
+                ret = true; // Too many entries, still okay if we stop here
+                break;
+            }
             strncpy(entry->path, fpath, 256);
             entry->path[255] = '\0';
             entry->p_name = fname - fpath;
@@ -163,12 +167,8 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
                 entry->size = fno.fsize;
             }
             entry->marked = 0;
-            if (!recursive || (entry->type != T_DIR)) {
-                if (++(contents->n_entries) >= MAX_DIR_ENTRIES) {
-                    ret = true; // Too many entries, still okay if we stop here
-                    break;
-                }
-            }
+            if (!recursive || (entry->type != T_DIR))
+                ++(contents->n_entries);
         }
         if (recursive && (fno.fattrib & AM_DIR)) {
             if (!GetDirContentsWorker(contents, fpath, fnsize, pattern, recursive))
