@@ -49,15 +49,15 @@
 // writes back and invalidates all data cache entries
 #define BFN_WRITEBACK_INVALIDATE_DCACHE	(0xFFFF0830)
 
-// void invalidateDCacheRange(u32 start, u32 end)
+// void invalidateDCacheRange(u32 start, u32 len)
 // invalidates data cache entries
 #define BFN_INVALIDATE_DCACHE_RANGE	(0xFFFF0868)
 
-// void writebackDCacheRange(u32 start, u32 end)
+// void writebackDCacheRange(u32 start, u32 len)
 // writes back data cache entries
 #define BFN_WRITEBACK_DCACHE_RANGE	(0xFFFF0884)
 
-// void writebackInvalidateDCacheRange(u32 start, u32 end)
+// void writebackInvalidateDCacheRange(u32 start, u32 len)
 #define BFN_WRITEBACK_INVALIDATE_DCACHE_RANGE	(0xFFFF08A8)
 
 // void dataSynchronizationBarrier()
@@ -75,7 +75,7 @@
 // void invalidateICache()
 #define BFN_INVALIDATE_ICACHE	(0xFFFF0AB4)
 
-// void invalidateICacheRange(u32 start, u32 end)
+// void invalidateICacheRange(u32 start, u32 len)
 #define BFN_INVALIDATE_ICACHE_RANGE	(0xFFFF0AC0)
 
 // void enableMPU()
