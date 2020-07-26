@@ -108,11 +108,10 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     pc = regs[15] & ~0xF;
     if (pc_dumpable(pc, &pc_lower, &pc_upper)) {
         wstr += sprintf(wstr, "Code:\n");
-        wstr += XRQ_DumpData_u32(wstr, pc_lower, pc_upper);
         if (regs[16] & SR_THUMB) { // need to take Thumb code into account
-            wstr += XRQ_DumpData_u16(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
+            wstr += XRQ_DumpData_u16(wstr, pc_lower, pc_upper);
         } else {
-            wstr += XRQ_DumpData_u32(wstr, pc-PC_DUMPRAD, pc+PC_DUMPRAD);
+            wstr += XRQ_DumpData_u32(wstr, pc_lower, pc_upper);
         }
     }
 

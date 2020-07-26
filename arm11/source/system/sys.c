@@ -24,7 +24,7 @@
 #include "arm/gic.h"
 #include "arm/mmu.h"
 #include "arm/scu.h"
-#include "arm/timer.h"
+#include "arm/xrq.h"
 
 #include "hw/codec.h"
 #include "hw/gpulcd.h"
@@ -79,12 +79,14 @@ void SYS_CoreZeroInit(void)
 	SCU_Init();
 
 	// Map all sections here
-	mmuMapArea(SECTION_TRI(vector), MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 0, 0));
 	mmuMapArea(SECTION_TRI(text), MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 0, 1));
 	mmuMapArea(SECTION_TRI(data), MMU_FLAGS(MMU_CACHE_WBA, MMU_READ_WRITE, 1, 1));
 	mmuMapArea(SECTION_TRI(rodata), MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 1, 1));
 	mmuMapArea(SECTION_TRI(bss), MMU_FLAGS(MMU_CACHE_WBA, MMU_READ_WRITE, 1, 1));
 	mmuMapArea(SECTION_TRI(shared), MMU_FLAGS(MMU_STRONG_ORDER, MMU_READ_WRITE, 1, 1));
+
+	// High exception vectors
+	mmuMapArea(0xFFFF0000, xrqInstallVectorTable(), 4UL << 10, MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 0, 0));
 
 	// BootROM
 	mmuMapArea(0x00010000, 0x00010000, 32UL << 10, MMU_FLAGS(MMU_CACHE_WT, MMU_READ_ONLY, 0, 1));

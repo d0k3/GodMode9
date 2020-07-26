@@ -16,6 +16,8 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// kinda hardcoded and all over the place, but it needs to stay simple
+
 #include <types.h>
 #include <arm.h>
 

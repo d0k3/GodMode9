@@ -1,6 +1,6 @@
 /*
  *   This file is part of GodMode9
- *   Copyright (C) 2019 Wolfvak
+ *   Copyright (C) 2020 Wolfvak
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,18 +18,4 @@
 
 #pragma once
 
-#include <types.h>
-
-#define DEF_SECT_(n)	extern u32 __##n##_pa, __##n##_va, __##n##_len;
-DEF_SECT_(text)
-DEF_SECT_(data)
-DEF_SECT_(rodata)
-DEF_SECT_(bss)
-DEF_SECT_(shared)
-#undef DEF_SECT_
-
-#define SECTION_VA(n)	((u32)&__##n##_va)
-#define SECTION_PA(n)	((u32)&__##n##_pa)
-#define SECTION_LEN(n)	((u32)&__##n##_len)
-
-#define SECTION_TRI(n)	SECTION_VA(n), SECTION_PA(n), SECTION_LEN(n)
+u32 xrqInstallVectorTable(void);
