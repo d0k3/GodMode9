@@ -2155,7 +2155,7 @@ u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
     if (!tid64) return 1;
     if (((tid64 >> 32) & 0x8000) || (filetype & GAME_NDS))
         to_twl = true;
-    else if (!((tid64 >> 32) & 0x10) || !force_nand)
+    else if (!((tid64 >> 32) & 0x10) && !force_nand)
         to_sd = true;
 
     // does the title.db exist?
