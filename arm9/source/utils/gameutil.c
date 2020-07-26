@@ -1950,14 +1950,14 @@ u32 BuildInstallFromNcsdFile(const char* path_ncsd, const char* path_dest, bool 
     
     // insert / install NCSD content
     TmdContentChunk* chunk = cia->content_list;
-    for (u32 i = 0, idx = 0; i < 3; i++) {
+    for (u32 i = 0; i < 3; i++) {
         NcchPartition* partition = ncsd.partitions + i;
         u32 offset = partition->offset * NCSD_MEDIA_UNIT;
         u32 size = partition->size * NCSD_MEDIA_UNIT;
         if (!size) continue;
         memset(chunk, 0, sizeof(TmdContentChunk));
         chunk->id[3] = i;
-        chunk->index[1] = idx++;
+        chunk->index[1] = i;
         if ((!install && (InsertCiaContent(path_dest, path_ncsd,
                 offset, size, chunk++, NULL, false, (i == 0), false) != 0)) ||
             (install && (InstallCiaContent(path_dest, path_ncsd,
