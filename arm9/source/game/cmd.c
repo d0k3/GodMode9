@@ -5,7 +5,7 @@ CmdHeader* BuildAllocCmdData(TitleMetaData* tmd) {
     CmdHeader proto;
     CmdHeader* cmd = NULL;
     u32 content_count = getbe16(tmd->content_count);
-    u32 max_cnt_id = 0;
+    u16 max_cnt_idx = 0;
 
     // sanity check
     if (!content_count)
@@ -14,11 +14,11 @@ CmdHeader* BuildAllocCmdData(TitleMetaData* tmd) {
     // find max content id
     TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++)
-        if (getbe32(chunk->id) > max_cnt_id) max_cnt_id = getbe32(chunk->id);
+        if (getbe16(chunk->index) > max_cnt_idx) max_cnt_idx = getbe16(chunk->index);
 
     // allocate memory for CMD / basic setup
     proto.cmd_id = 1;
-    proto.n_entries = max_cnt_id + 1;
+    proto.n_entries = max_cnt_idx + 1;
     proto.n_cmacs = content_count;
     proto.unknown = 1;
     cmd = (CmdHeader*) malloc(CMD_SIZE(&proto));
@@ -33,7 +33,7 @@ CmdHeader* BuildAllocCmdData(TitleMetaData* tmd) {
     memset(cnt_id, 0xFF, cmd->n_entries * sizeof(u32));
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
         u32 chunk_id = getbe32(chunk->id);
-        cnt_id[chunk_id] = chunk_id;
+        cnt_id[getbe16(chunk->index)] = chunk_id;
         *(cnt_id_2nd++) = chunk_id;
     }
 
