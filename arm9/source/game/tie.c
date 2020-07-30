@@ -46,7 +46,7 @@ u32 BuildTitleInfoEntryTwl(TitleInfoEntry* tie, TitleMetaData* tmd, TwlHeader* t
 	if (BuildTitleInfoEntryTmd(tie, tmd, false) != 0) return 1;
 
 	// product code
-	memcpy(tie->product_code, twl->game_title, 0x0A);
+	memcpy(tie->product_code, twl->game_title, 12);
 
 	// specific flags
 	// see: http://3dbrew.org/wiki/Titles
