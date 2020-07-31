@@ -322,6 +322,7 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
 }
 
 u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
+    static bool cryptofix_always = false;
     bool cryptofix = false;
     NcchHeader ncch;
     NcchExtHeader exthdr;
@@ -359,9 +360,15 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
             // disable crypto, try again
             cryptofix = true;
             fvx_lseek(&file, offset);
-            if ((GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) == 0) && 
-                ShowPrompt(true, "%s\nError: Bad crypto flags\n \nAttempt to fix?", pathstr))
-                borkedflags = true;
+            if (GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) == 0) {
+                if (cryptofix_always) borkedflags = true;
+                else {
+                    const char* optionstr[3] = { "Attempt fix this time", "Attempt fix always", "Abort verification" };
+                    u32 user_select = ShowSelectPrompt(3, optionstr, "%s\nError: Bad crypto flags", pathstr);
+                    if ((user_select == 1) || (user_select == 2)) borkedflags = true;
+                    if (user_select == 2) cryptofix_always = true;
+                }
+            }
         }
         if (!borkedflags) {
             if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
