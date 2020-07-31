@@ -6,7 +6,7 @@
 
 u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     u64 title_id = getbe64(tmd->title_id);
-    u32 has_id1 = false;
+    u32 has_idx1 = false;
     
     // set basic values
     memset(tie, 0x00, sizeof(TitleInfoEntry));
@@ -25,14 +25,14 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     tie->title_size =
         (align_size * 3) + // base folder + 'content' + 'cmd'
         align(TMD_SIZE_N(content_count), align_size) + // TMD
-        align_size; // CMD, placeholder
+        align_size; // CMD, placeholder (!!!)
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
-        if (getbe32(chunk->id) == 1) has_id1 = true; // will be useful later
+        if (getbe16(chunk->index) == 1) has_idx1 = true; // will be useful later
         tie->title_size += align(getbe64(chunk->size), align_size);
     }
 
     // manual? (we need to properly check this later)
-    if (has_id1 && (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010))) {
+    if (has_idx1 && (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010))) {
         tie->flags_0[0] = 0x1; // this may have a manual
     }
 
