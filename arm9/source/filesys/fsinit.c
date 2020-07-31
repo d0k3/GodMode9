@@ -65,9 +65,9 @@ bool InitImgFS(const char* path) {
 }
 
 void DeinitExtFS() {
+    InitImgFS(NULL);
     SetupNandSdDrive(NULL, NULL, NULL, 0);
     SetupNandSdDrive(NULL, NULL, NULL, 1);
-    InitImgFS(NULL);
     for (u32 i = NORM_FS - 1; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
