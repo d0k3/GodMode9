@@ -1574,7 +1574,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (InstallGameFile(path, to_emunand, false) == 0) n_success++;
+                if (InstallGameFile(path, to_emunand) == 0) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[32+1];
                     TruncateString(lpathstr, path, 32, 8);
@@ -1588,7 +1588,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     n_success, n_marked, n_other, n_marked);
             } else ShowPrompt(false, "%lu/%lu files installed ok", n_success, n_marked);
         } else {
-            u32 ret = InstallGameFile(file_path, to_emunand, false);
+            u32 ret = InstallGameFile(file_path, to_emunand);
             ShowPrompt(false, "%s\nInstall %s", pathstr, (ret == 0) ? "success" : "failed");
             if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
                 ShowPrompt(true, "%s\nfile failed install.\n \nVerify now?", pathstr)) {
