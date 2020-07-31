@@ -2152,7 +2152,7 @@ u64 GetGameFileTitleId(const char* path) {
     return tid64;
 }
 
-u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
+u32 InstallGameFile(const char* path, bool to_emunand) {
     const char* drv;
     u64 filetype = IdentifyFileType(path);
     u32 ret = 0;
@@ -2164,7 +2164,7 @@ u32 InstallGameFile(const char* path, bool to_emunand, bool force_nand) {
     if (!tid64) return 1;
     if (((tid64 >> 32) & 0x8000) || (filetype & GAME_NDS))
         to_twl = true;
-    else if (!((tid64 >> 32) & 0x10) && !force_nand)
+    else if (!((tid64 >> 32) & 0x10))
         to_sd = true;
 
     // does the title.db exist?
