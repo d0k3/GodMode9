@@ -1361,10 +1361,12 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     TicketCommon* ticket = &(cia->ticket);
     TitleMetaData* tmd = &(cia->tmd);
     TmdContentChunk* content_list = cia->content_list;
-    bool syscmd = ((*drv == '1') || (*drv == '4'));
-    bool sdtie = ((*drv == 'A') || (*drv == 'B'));
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = ticket->title_id;
+
+    bool sdtie = ((*drv == 'A') || (*drv == 'B'));
+    bool syscmd = (((*drv == '1') || (*drv == '4')) ||
+        (((*drv == '2') || (*drv == '5')) && (title_id[3] != 0x04)));
     
     char path_titledb[32];
     char path_ticketdb[32];
@@ -1404,7 +1406,6 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     // build the cmd
     cmd = BuildAllocCmdData(tmd);
     if (!cmd) return 1;
-    cmd->unknown = 0xFFFFFFFE; // mark this as custom built
     
     // generate all the paths
     snprintf(path_titledb, 32, "%2.2s/dbs/title.db",
@@ -1489,7 +1490,10 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     InitImgFS(path_bak);
 
     // fix CMACs where required
-    if (!syscmd) FixFileCmac(path_cmd, true);
+    if (!syscmd) {
+        cmd->unknown = 0xFFFFFFFE; // mark this as custom built
+        FixFileCmac(path_cmd, true);
+    }
 
     return 0;
 }
