@@ -1,10 +1,13 @@
 #include "image.h"
 #include "vff.h"
+#include "nandcmac.h"
 
 static FIL mount_file;
 static u64 mount_state = 0;
 
 static char mount_path[256] = { 0 };
+
+static bool fix_cmac = false;
 
 
 int ReadImageBytes(void* buffer, u64 offset, u64 count) {
@@ -28,6 +31,7 @@ int WriteImageBytes(const void* buffer, u64 offset, u64 count) {
     if (fvx_tell(&mount_file) != offset)
         fvx_lseek(&mount_file, offset);
     ret = fvx_write(&mount_file, buffer, count, &bytes_written);
+    if (ret == 0) fix_cmac = true;
     return (ret != 0) ? (int) ret : (bytes_written != count) ? -1 : 0;
 }
 
@@ -59,6 +63,8 @@ u64 MountImage(const char* path) {
     u64 type = (path) ? IdentifyFileType(path) : 0;
     if (mount_state) {
         fvx_close(&mount_file);
+        if (fix_cmac) FixFileCmac(mount_path, false);
+        fix_cmac = false;
         mount_state = 0;
         *mount_path = 0;
     }
