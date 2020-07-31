@@ -892,7 +892,7 @@ u32 CmacCalculator(const char* path) {
                 pathstr, getbe64(cmac + 0), getbe64(cmac + 8),
                 "CMAC verification: ", (identical) ? "passed!" : "failed!",
                 (!identical) ? "\n \nFix CMAC in file?" : "") &&
-                !identical && (WriteFileCmac(path, cmac) != 0)) {
+                !identical && (WriteFileCmac(path, cmac, true) != 0)) {
                 ShowPrompt(false, "Fixing CMAC: failed!");
             }
         }
@@ -901,7 +901,7 @@ u32 CmacCalculator(const char* path) {
         if (ShowPrompt(!correct, "%s\nXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n%s%s%s",
             pathstr, "CMAC verification: ", (correct) ? "passed!" : "failed!",
             (!correct) ? "\n \nFix CMAC in file?" : "") &&
-            !correct && (FixCmdCmac(path) != 0)) {
+            !correct && (FixCmdCmac(path, true) != 0)) {
             ShowPrompt(false, "Fixing CMAC: failed!");
         }
     }
@@ -1233,7 +1233,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 if (CheckFileCmac(path) == 0) n_success++;
-                else if (fix && (FixFileCmac(path) == 0)) n_fixed++;
+                else if (fix && (FixFileCmac(path, true) == 0)) n_fixed++;
                 else { // on failure: set cursor on failed file
                     *cursor = i;
                     continue;

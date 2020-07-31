@@ -108,7 +108,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
         snprintf(path_from, 32, "7:/dbs/%s", dbnames[i]);
         PathDelete(path_to);
         PathCopy(path_dbs, path_from, &flags);
-        FixFileCmac(path_to);
+        FixFileCmac(path_to, true);
     }
     ShowString("Cleaning up titles, please wait...");
     snprintf(path_to, 32, "%s/title", drv);
