@@ -21,8 +21,10 @@ CmdHeader* BuildAllocCmdData(TitleMetaData* tmd) {
     proto.n_entries = max_cnt_idx + 1;
     proto.n_cmacs = content_count;
     proto.unknown = 1;
+    memset(proto.cmac, 0x00, 0x10);
     cmd = (CmdHeader*) malloc(CMD_SIZE(&proto));
     if (!cmd) return NULL;
+    memset(cmd, 0x00, CMD_SIZE(&proto));
     memcpy(cmd, &proto, sizeof(CmdHeader));
     cmd->unknown = 0x0; // this means no CMACs, only valid for NAND
 
@@ -52,10 +54,9 @@ CmdHeader* BuildAllocCmdData(TitleMetaData* tmd) {
         }
     }
 
-    // set CMACs to 0xFF
+    // set CMACs to 0x00
     u8* cnt_cmac = (u8*) (cnt_id_2nd + cmd->n_cmacs);
-    memset(cmd->cmac, 0xFF, 0x10);
-    memset(cnt_cmac, 0xFF, 0x10 * cmd->n_entries);
+    memset(cnt_cmac, 0x00, 0x10 * cmd->n_entries);
 
     // we still need to fix / set the CMACs inside the CMD file!
     return cmd;
