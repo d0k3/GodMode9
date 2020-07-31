@@ -379,7 +379,6 @@ u32 CheckFixCmdCmac(const char* path, bool fix, bool check_perms) {
         return 1;
     }
 
-
     // we abuse the unknown u32 to mark custom, unfinished CMDs
     bool fix_missing = false;
     if (cmd->unknown == 0xFFFFFFFE) {
