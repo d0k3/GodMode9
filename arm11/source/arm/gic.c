@@ -76,11 +76,39 @@ static gicIrqHandler gicIrqHandlers[DIC_MAX_IRQ];
 static struct {
     u8 tgt;
     u8 prio;
-    u8 mode;
 }  gicIrqConfig[DIC_MAX_IRQ];
 
 // gets used whenever a NULL pointer is passed to gicEnableInterrupt
 static void gicDummyHandler(u32 irqn) { (void)irqn; return; }
+
+static const struct {
+    u8 low, high, mode;
+} gicDefaultIrqCfg[] = {
+    { .low = 0x00, .high = 0x1F, .mode = GIC_RISINGEDGE_NN },
+    { .low = 0x20, .high = 0x23, .mode = GIC_LEVELHIGH_1N },
+    { .low = 0x24, .high = 0x24, .mode = GIC_RISINGEDGE_1N },
+    { .low = 0x25, .high = 0x27, .mode = GIC_LEVELHIGH_1N },
+    { .low = 0x28, .high = 0x2D, .mode = GIC_RISINGEDGE_1N },
+    { .low = 0x30, .high = 0x3B, .mode = GIC_LEVELHIGH_1N },
+    { .low = 0x40, .high = 0x4E, .mode = GIC_RISINGEDGE_1N },
+    { .low = 0x4F, .high = 0x4F, .mode = GIC_LEVELHIGH_1N },
+    { .low = 0x50, .high = 0x57, .mode = GIC_RISINGEDGE_1N },
+    { .low = 0x58, .high = 0x58, .mode = GIC_LEVELHIGH_1N },
+    { .low = 0x59, .high = 0x75, .mode = GIC_RISINGEDGE_1N },
+    { .low = 0x76, .high = 0x77, .mode = GIC_LEVELHIGH_1N },
+    { .low = 0x78, .high = 0x78, .mode = GIC_RISINGEDGE_1N },
+    { .low = 0x79, .high = 0x7d, .mode = GIC_LEVELHIGH_1N },
+};
+
+static u8 gicGetDefaultIrqCfg(u32 irqn) {
+    for (unsigned i = 0; i < countof(gicDefaultIrqCfg); i++) {
+        if ((irqn >= gicDefaultIrqCfg[i].low) && (irqn <= gicDefaultIrqCfg[i].high))
+            return gicDefaultIrqCfg[i].mode;
+    }
+    // TODO: would it be considerably faster to use bsearch?
+
+    return GIC_RISINGEDGE_1N;
+}
 
 void gicTopHandler(void)
 {
@@ -189,24 +217,23 @@ void gicLocalReset(void)
     } while(irq_s != GIC_IRQ_SPURIOUS);
 }
 
-static void gicSetIrqCfg(u32 irqn, u32 mode) {
+static void gicSetIrqCfg(u32 irqn) {
     u32 smt, cfg;
 
     smt = irqn & 15;
     cfg = REG_DIC_CFGREG[irqn / 16];
     cfg &= ~(3 << smt);
-    cfg |= mode << smt;
+    cfg |= gicGetDefaultIrqCfg(irqn) << smt;
     REG_DIC_CFGREG[irqn / 16] = cfg;
 }
 
-void gicSetInterruptConfig(u32 irqn, u32 coremask, u32 prio, u32 mode, gicIrqHandler handler)
+void gicSetInterruptConfig(u32 irqn, u32 coremask, u32 prio, gicIrqHandler handler)
 {
     if (handler == NULL) // maybe add runtime ptr checks here too?
         handler = gicDummyHandler;
 
     gicIrqConfig[irqn].tgt = coremask;
     gicIrqConfig[irqn].prio = prio;
-    gicIrqConfig[irqn].mode = mode;
     gicIrqHandlers[irqn] = handler;
 }
 
@@ -220,7 +247,7 @@ void gicEnableInterrupt(u32 irqn)
 {
     REG_DIC_PRIORITY[irqn] = gicIrqConfig[irqn].prio;
     REG_DIC_TARGETCPU[irqn] = gicIrqConfig[irqn].tgt;
-    gicSetIrqCfg(irqn, gicIrqConfig[irqn].mode);
+    gicSetIrqCfg(irqn);
 
     REG_DIC_CLRPENDING[irqn / 32] |= BIT(irqn & 0x1F);
     REG_DIC_SETENABLE[irqn / 32] |= BIT(irqn & 0x1F);

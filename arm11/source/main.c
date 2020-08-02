@@ -186,9 +186,9 @@ void __attribute__((noreturn)) MainLoop(void)
 	#endif
 
 	// configure interrupts
-	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, GIC_RISINGEDGE_1N, PXI_RX_Handler);
-	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO1, GIC_RISINGEDGE_1N, MCU_HandleInterrupts);
-	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, GIC_RISINGEDGE_1N, VBlank_Handler);
+	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, PXI_RX_Handler);
+	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO1, MCU_HandleInterrupts);
+	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, VBlank_Handler);
 
 	// enable interrupts
 	gicEnableInterrupt(PXI_RX_INTERRUPT);

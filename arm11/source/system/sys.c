@@ -57,7 +57,7 @@ static void SYS_EnableClkMult(void)
 	// state might get a bit messed up so it has to be done
 	// as early as possible in the initialization chain
 	if (SYS_IsNewConsole() && !SYS_ClkMultEnabled()) {
-		gicSetInterruptConfig(88, BIT(0), GIC_PRIO_HIGHEST, GIC_RISINGEDGE_1N, NULL);
+		gicSetInterruptConfig(88, BIT(0), GIC_PRIO_HIGHEST, NULL);
 		gicEnableInterrupt(88);
 		*CFG11_MPCORE_CLKCNT = 0x8001;
 		do {

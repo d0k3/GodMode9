@@ -87,7 +87,7 @@ void gicLocalReset(void);
 
 #define COREMASK_ALL	(BIT(MAX_CPU) - 1)
 
-void gicSetInterruptConfig(u32 irqn, u32 coremask, u32 prio, u32 mode, gicIrqHandler handler);
+void gicSetInterruptConfig(u32 irqn, u32 coremask, u32 prio, gicIrqHandler handler);
 void gicClearInterruptConfig(u32 irqn);
 
 void gicEnableInterrupt(u32 irqn);
