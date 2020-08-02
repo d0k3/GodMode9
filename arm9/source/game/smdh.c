@@ -9,7 +9,7 @@
                      36, 37, 44, 45, 38, 39, 46, 47, 52, 53, 60, 61, 54, 55, 62, 63
 
 u32 ConvertSmdhIcon(u16* icon, const u16* smdh_icon, u32 w, u32 h) {
-    const u32 lut[8*8] = { SMDH_LUT };
+    static const u32 lut[8*8] = { SMDH_LUT };
     u16* pix565 = (u16*) smdh_icon;
     for (u32 y = 0; y < h; y += 8) {
         for (u32 x = 0; x < w; x += 8) {

@@ -417,10 +417,10 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
 }
 
 u32 SdFormatMenu(const char* slabel) {
-    const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
-    const char* option_emunand_size[7] = { "No EmuNAND", "RedNAND size (min)", "GW EmuNAND size (full)",
+    static const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
+    static const char* option_emunand_size[7] = { "No EmuNAND", "RedNAND size (min)", "GW EmuNAND size (full)",
         "MultiNAND size (2x)", "MultiNAND size (3x)", "MultiNAND size (4x)", "User input..." };
-    const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
+    static const char* option_cluster_size[4] = { "Auto", "16KB Clusters", "32KB Clusters", "64KB Clusters" };
     u32 sysnand_min_size_sectors = GetNandMinSizeSectors(NAND_SYSNAND);
     u64 sysnand_min_size_mb = ((sysnand_min_size_sectors * 0x200) + 0xFFFFF) / 0x100000;
     u64 sysnand_multi_size_mb = (align(sysnand_min_size_sectors + 1, 0x2000) * 0x200) / 0x100000;
@@ -467,13 +467,13 @@ u32 SdFormatMenu(const char* slabel) {
         u32 emunand_offset = 1;
         u32 n_emunands = 1;
         if (emunand_size_mb >= 2 * sysnand_size_mb) {
-            const char* option_emunand_type[4] = { "RedNAND type (multi)", "RedNAND type (single)", "GW EmuNAND type", "Don't set up" };
+            static const char* option_emunand_type[4] = { "RedNAND type (multi)", "RedNAND type (single)", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(4, option_emunand_type, "Choose EmuNAND type to set up:");
             if (user_select > 3) return 0;
             emunand_offset = (user_select == 3) ? 0 : 1;
             if (user_select == 1) n_emunands = 4;
         } else if (emunand_size_mb >= sysnand_size_mb) {
-            const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
+            static const char* option_emunand_type[3] = { "RedNAND type", "GW EmuNAND type", "Don't set up" };
             user_select = ShowSelectPrompt(3, option_emunand_type, "Choose EmuNAND type to set up:");
             if (user_select > 2) return 0;
             emunand_offset = (user_select == 2) ? 0 : 1; // 0 -> GW EmuNAND
@@ -748,7 +748,7 @@ u32 FileHexViewer(const char* path) {
                 else if (dual_screen) ClearScreen(BOT_SCREEN, COLOR_STD_BG);
                 else memcpy(BOT_SCREEN, bottom_cpy, SCREEN_SIZE_BOT);
             } else if (pad_state & BUTTON_X) {
-                const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
+                static const char* optionstr[3] = { "Go to offset", "Search for string", "Search for data" };
                 u32 user_select = ShowSelectPrompt(3, optionstr, "Current offset: %08X\nSelect action:", 
                     (unsigned int) offset);
                 if (user_select == 1) { // -> goto offset
@@ -892,7 +892,7 @@ u32 CmacCalculator(const char* path) {
                 pathstr, getbe64(cmac + 0), getbe64(cmac + 8),
                 "CMAC verification: ", (identical) ? "passed!" : "failed!",
                 (!identical) ? "\n \nFix CMAC in file?" : "") &&
-                !identical && (WriteFileCmac(path, cmac) != 0)) {
+                !identical && (WriteFileCmac(path, cmac, true) != 0)) {
                 ShowPrompt(false, "Fixing CMAC: failed!");
             }
         }
@@ -901,7 +901,7 @@ u32 CmacCalculator(const char* path) {
         if (ShowPrompt(!correct, "%s\nXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n%s%s%s",
             pathstr, "CMAC verification: ", (correct) ? "passed!" : "failed!",
             (!correct) ? "\n \nFix CMAC in file?" : "") &&
-            !correct && (FixCmdCmac(path) != 0)) {
+            !correct && (FixCmdCmac(path, true) != 0)) {
             ShowPrompt(false, "Fixing CMAC: failed!");
         }
     }
@@ -1091,12 +1091,16 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
+    bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
+        !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS);
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
-    bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path &&
+        !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool titleinfo = (FTYPE_TITLEINFO(filetype));
     bool ciacheckable = (FTYPE_CIACHECK(filetype)); 
-    bool renamable = (FTYPE_RENAMABLE(filetype));
+    bool renamable = (FTYPE_RENAMABLE(filetype)) && !(drvtype & DRV_VIRTUAL) && !(drvtype & DRV_ALIAS) &&
+        !(drvtype & DRV_CTRNAND) && !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_IMAGE);
     bool trimable = (FTYPE_TRIMABLE(filetype)) && !(drvtype & DRV_VIRTUAL) && !(drvtype & DRV_ALIAS) &&
         !(drvtype & DRV_CTRNAND) && !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_IMAGE);
     bool transferable = (FTYPE_TRANSFERABLE(filetype) && IS_UNLOCKED && (drvtype & DRV_FAT));
@@ -1230,7 +1234,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 if (CheckFileCmac(path) == 0) n_success++;
-                else if (fix && (FixFileCmac(path) == 0)) n_fixed++;
+                else if (fix && (FixFileCmac(path, true) == 0)) n_fixed++;
                 else { // on failure: set cursor on failed file
                     *cursor = i;
                     continue;
@@ -1308,6 +1312,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int cia_build = (cia_buildable) ? ++n_opt : -1;
     int cia_build_legit = (cia_buildable_legit) ? ++n_opt : -1;
     int cxi_dump = (cxi_dumpable) ? ++n_opt : -1;
+    int cia_install = (cia_installable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
     int key_build = (key_buildable) ? ++n_opt : -1;
@@ -1340,6 +1345,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (cia_build_legit > 0) optionstr[cia_build_legit-1] = "Build CIA (legit)";
     if (cxi_dump > 0) optionstr[cxi_dump-1] = "Dump CXI/NDS file";
+    if (cia_install > 0) optionstr[cia_install-1] = "Install game file";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
     if (key_build > 0) optionstr[key_build-1] = "Build " KEYDB_NAME;
@@ -1542,6 +1548,53 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     ShowPrompt(false, "%s\nVerification %s", pathstr,
                         (VerifyGameFile(file_path) == 0) ? "success" : "failed");
                 }
+            }
+        }
+        return 0;
+    }
+    else if (user_select == cia_install) { // -> install game file
+        bool to_emunand = false;
+        if (CheckVirtualDrive("E:")) {
+            optionstr[0] = "Install to SysNAND";
+            optionstr[1] = "Install to EmuNAND";
+            user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
+                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+            if (!user_select) return 0;
+            else to_emunand = (user_select == 2);
+        }
+        if ((n_marked > 1) && ShowPrompt(true, "Try to install all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_other = 0;
+            ShowString("Trying to install %lu files...", n_marked);
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) 
+                    continue;
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) {
+                    n_other++;
+                    continue;
+                }
+                DrawDirContents(current_dir, (*cursor = i), scroll);
+                if (InstallGameFile(path, to_emunand) == 0) n_success++;
+                else { // on failure: show error, continue
+                    char lpathstr[32+1];
+                    TruncateString(lpathstr, path, 32, 8);
+                    if (ShowPrompt(true, "%s\nInstall failed\n \nContinue?", lpathstr)) continue;
+                    else break;
+                }
+                current_dir->entry[i].marked = false;
+            }
+            if (n_other) {
+                ShowPrompt(false, "%lu/%lu files installed ok\n%lu/%lu not of same type",
+                    n_success, n_marked, n_other, n_marked);
+            } else ShowPrompt(false, "%lu/%lu files installed ok", n_success, n_marked);
+        } else {
+            u32 ret = InstallGameFile(file_path, to_emunand);
+            ShowPrompt(false, "%s\nInstall %s", pathstr, (ret == 0) ? "success" : "failed");
+            if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
+                ShowPrompt(true, "%s\nfile failed install.\n \nVerify now?", pathstr)) {
+                ShowPrompt(false, "%s\nVerification %s", pathstr,
+                    (VerifyGameFile(file_path) == 0) ? "success" : "failed");
             }
         }
         return 0;
@@ -2329,7 +2382,7 @@ u32 GodMode(int entrypoint) {
             } else { // one level up
                 u32 user_select = 1;
                 if (curr_drvtype & DRV_SEARCH) { // special menu for search drive
-                    const char* optionstr[2] = { "Open this folder", "Open containing folder" };
+                    static const char* optionstr[2] = { "Open this folder", "Open containing folder" };
                     char pathstr[32 + 1];
                     TruncateString(pathstr, curr_entry->path, 32, 8);
                     user_select = ShowSelectPrompt(2, optionstr, "%s", pathstr);
@@ -2490,7 +2543,7 @@ u32 GodMode(int entrypoint) {
             } else if ((curr_drvtype & DRV_CART) && (pad_state & BUTTON_Y)) {
                 ShowPrompt(false, "Not allowed in gamecart drive");
             } else if (pad_state & BUTTON_Y) { // paste files
-                const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
+                static const char* optionstr[2] = { "Copy path(s)", "Move path(s)" };
                 char promptstr[64];
                 u32 flags = 0;
                 u32 user_select;
@@ -2542,7 +2595,7 @@ u32 GodMode(int entrypoint) {
                     }
                 }
             } else if (pad_state & BUTTON_Y) { // create an entry
-                const char* optionstr[] = { "Create a folder", "Create a dummy file" };
+                static const char* optionstr[] = { "Create a folder", "Create a dummy file" };
                 u32 type = ShowSelectPrompt(2, optionstr, "Create a new entry here?\nSelect type.");
                 if (type) {
                     const char* typestr = (type == 1) ? "folder" : (type == 2) ? "file" : NULL;

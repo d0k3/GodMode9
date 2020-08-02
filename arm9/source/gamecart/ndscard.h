@@ -7,8 +7,8 @@
 //
 
 #pragma once
+#include <arm.h>
 #include <inttypes.h>
-#include "delay.h"
 
 #define u8 uint8_t
 #define u16 uint16_t
@@ -85,7 +85,7 @@
 #define CARD_SPICNTH_ENABLE  (1<<7)  // in byte 1, i.e. 0x8000
 #define CARD_SPICNTH_IRQ     (1<<6)  // in byte 1, i.e. 0x4000
 
-#define swiDelay(n) ioDelay(n)
+#define swiDelay(n) ARM_WaitCycles((n) * 8)
 
 #define DMA_SRC(n)      (*(vu32*)(0x10002004 + (n * 0x1c)))
 #define DMA_DEST(n)     (*(vu32*)(0x10002008 + (n * 0x1c)))

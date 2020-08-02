@@ -36,13 +36,15 @@ typedef struct {
 #ifdef ARM9
 #include <pxi.h>
 
+extern SystemSHMEM *shmemGlobalBase;
+
 static inline SystemSHMEM *ARM_GetSHMEM(void)
 {
-	return (SystemSHMEM*)ARM_GetTID();
+	return shmemGlobalBase;
 }
 
 static inline void ARM_InitSHMEM(void)
 {
-	ARM_SetTID(PXI_DoCMD(PXI_GET_SHMEM, NULL, 0));
+	shmemGlobalBase = (SystemSHMEM*)PXI_DoCMD(PXI_GET_SHMEM, NULL, 0);
 }
 #endif

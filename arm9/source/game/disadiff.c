@@ -159,11 +159,11 @@ inline static FRESULT DisaDiffQWrite(const TCHAR* path, const void* buf, UINT of
 }
 
 u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
-    const u8 disa_magic[] = { DISA_MAGIC };
-    const u8 diff_magic[] = { DIFF_MAGIC };
-    const u8 ivfc_magic[] = { IVFC_MAGIC };
-    const u8 dpfs_magic[] = { DPFS_MAGIC };
-    const u8 difi_magic[] = { DIFI_MAGIC };
+    static const u8 disa_magic[] = { DISA_MAGIC };
+    static const u8 diff_magic[] = { DIFF_MAGIC };
+    static const u8 ivfc_magic[] = { IVFC_MAGIC };
+    static const u8 dpfs_magic[] = { DPFS_MAGIC };
+    static const u8 difi_magic[] = { DIFI_MAGIC };
     
     // reset reader info
     memset(info, 0x00, sizeof(DisaDiffRWInfo));

@@ -386,7 +386,7 @@ u32 ValidateSecretSector(u8* sector)
 // see: https://github.com/d0k3/GodMode9/blob/master/source/game/ncsd.c#L4
 u32 ValidateNandNcsdHeader(NandNcsdHeader* header)
 {
-    u8 zeroes[16] = { 0 };
+    static const u8 zeroes[16] = { 0 };
     if ((memcmp(header->magic, "NCSD", 4) != 0) || // check magic number
         (memcmp(header->partitions_fs_type, zeroes, 8) == 0) || header->mediaId) // prevent detection of cart NCSD images
         return 1;

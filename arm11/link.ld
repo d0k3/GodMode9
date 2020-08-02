@@ -4,21 +4,12 @@ ENTRY(__boot)
 
 MEMORY
 {
-    AXIWRAM (RWX) : ORIGIN = 0x1FF80000, LENGTH = 128K
+    AXIWRAM (RWX) : ORIGIN = 0x1FF80000, LENGTH = 96K
     HIGHRAM (RWX) : ORIGIN = 0xFFFF0000, LENGTH = 4K
 }
 
 SECTIONS
 {
-    .vector : ALIGN(4K)
-    {
-        __vector_pa = LOADADDR(.vector);
-        __vector_va = ABSOLUTE(.);
-        KEEP(*(.vector))
-        . = ALIGN(4K);
-        __vector_len = . - __vector_va;
-    } >HIGHRAM AT>AXIWRAM
-
     .text : ALIGN(4K)
     {
         __text_pa = LOADADDR(.text);

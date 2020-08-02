@@ -67,7 +67,7 @@ typedef struct {
 } PACKED_STRUCT MCU_NotificationLED;
 
 static u8 cached_volume_slider = 0;
-static u32 spec_hid = 0, shell_state = SHELL_OPEN;
+static u32 spec_hid = 0, shell_state = 0;
 
 static void MCU_UpdateVolumeSlider(void)
 {
@@ -188,6 +188,8 @@ void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
 void MCU_Init(void)
 {
 	u32 clrpend, mask = 0;
+
+	shell_state = SHELL_OPEN;
 
 	/* set register mask and clear any pending registers */
 	MCU_WriteRegBuf(REG_INT_EN, (const u8*)&mask, sizeof(mask));

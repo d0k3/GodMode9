@@ -7,6 +7,7 @@
 
 #include "hid.h"
 
+SystemSHMEM *shmemGlobalBase;
 
 void main(int argc, char** argv, int entrypoint)
 {

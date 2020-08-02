@@ -46,7 +46,7 @@ bool CheckWritePermissions(const char* path) {
     
     // check drive type, get permission type
     if (drvtype & DRV_SYSNAND) {
-        u32 perms[] = { PERM_SYS_LVL0, PERM_SYS_LVL1, PERM_SYS_LVL2, PERM_SYS_LVL3 };
+        static const u32 perms[] = { PERM_SYS_LVL0, PERM_SYS_LVL1, PERM_SYS_LVL2, PERM_SYS_LVL3 };
         u32 lvl = (drvtype & (DRV_TWLNAND|DRV_ALIAS|DRV_CTRNAND)) ? 1 : 0;
         if (drvtype & (DRV_CTRNAND|DRV_VIRTUAL)) { // check for paths
             const char* path_lvl3[] = { PATH_SYS_LVL3 };
@@ -65,7 +65,7 @@ bool CheckWritePermissions(const char* path) {
         perm = perms[lvl];
         snprintf(area_name, 16, "SysNAND (lvl%lu)", lvl);
     } else if (drvtype & DRV_EMUNAND) {
-        u32 perms[] = { PERM_EMU_LVL0, PERM_EMU_LVL1 };
+        static const u32 perms[] = { PERM_EMU_LVL0, PERM_EMU_LVL1 };
         u32 lvl = (drvtype & (DRV_ALIAS|DRV_CTRNAND)) ? 1 : 0;
         if (drvtype & DRV_VIRTUAL) { // check for paths
             const char* path_lvl1[] = { PATH_EMU_LVL1 };
@@ -124,7 +124,7 @@ bool CheckWritePermissions(const char* path) {
 }
 
 bool CheckDirWritePermissions(const char* path) {
-    const char* path_chk[] = { PATH_SYS_LVL3, PATH_SYS_LVL2, PATH_SYS_LVL1, PATH_EMU_LVL1 };
+    static const char* path_chk[] = { PATH_SYS_LVL3, PATH_SYS_LVL2, PATH_SYS_LVL1, PATH_EMU_LVL1 };
     for (u32 i = 0; i < sizeof(path_chk) / sizeof(char*); i++) {
         const char* path_cmp = path_chk[i];
         u32 p = 0;

@@ -39,8 +39,8 @@ static const u8 brightness_lvls[] = {
 	0x4D, 0x56, 0x60, 0x6B,
 	0x79, 0x8C, 0xA7, 0xD2
 };
-static int prev_bright_lvl = -1;
-static bool auto_brightness = true;
+static int prev_bright_lvl;
+static bool auto_brightness;
 #endif
 
 static SystemSHMEM __attribute__((section(".shared"))) SharedMemoryState;
@@ -180,10 +180,10 @@ void __attribute__((noreturn)) MainLoop(void)
 {
 	#ifdef FIXED_BRIGHTNESS
 	LCD_SetBrightness(FIXED_BRIGHTNESS);
+	#else
+	prev_bright_lvl = -1;
+	auto_brightness = true;
 	#endif
-
-	// clear up the shared memory section
-	memset(&SharedMemoryState, 0, sizeof(SharedMemoryState));
 
 	// configure interrupts
 	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, GIC_RISINGEDGE_1N, PXI_RX_Handler);

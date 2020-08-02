@@ -1,4 +1,5 @@
 #include "gameutil.h"
+#include "nandcmac.h"
 #include "disadiff.h"
 #include "game.h"
 #include "nand.h" // so that we can trim NAND images
@@ -234,7 +235,7 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
 
 u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     // get path to TMD first content
-    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     
     // content path string
     char* name_content;
@@ -321,6 +322,7 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
 }
 
 u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
+    static bool cryptofix_always = false;
     bool cryptofix = false;
     NcchHeader ncch;
     NcchExtHeader exthdr;
@@ -358,9 +360,15 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
             // disable crypto, try again
             cryptofix = true;
             fvx_lseek(&file, offset);
-            if ((GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) == 0) && 
-                ShowPrompt(true, "%s\nError: Bad crypto flags\n \nAttempt to fix?", pathstr))
-                borkedflags = true;
+            if (GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) == 0) {
+                if (cryptofix_always) borkedflags = true;
+                else {
+                    const char* optionstr[3] = { "Attempt fix this time", "Attempt fix always", "Abort verification" };
+                    u32 user_select = ShowSelectPrompt(3, optionstr, "%s\nError: Bad crypto flags", pathstr);
+                    if ((user_select == 1) || (user_select == 2)) borkedflags = true;
+                    if (user_select == 2) cryptofix_always = true;
+                }
+            }
         }
         if (!borkedflags) {
             if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
@@ -595,7 +603,7 @@ u32 VerifyCiaFile(const char* path) {
 }
 
 u32 VerifyTmdFile(const char* path, bool cdn) {
-    const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     
     // path string
     char pathstr[32 + 1];
@@ -1069,7 +1077,7 @@ u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
 }
 
 u32 DecryptFirmFile(const char* orig, const char* dest) {
-    const u8 dec_magic[] = { 'D', 'E', 'C', '\0' }; // insert to decrypted firms
+    static const u8 dec_magic[] = { 'D', 'E', 'C', '\0' }; // insert to decrypted firms
     void* firm_buffer = (void*) malloc(FIRM_MAX_SIZE);
     if (!firm_buffer) return 1;
     
@@ -1228,6 +1236,275 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     return ret;
 }
 
+u32 GetInstallPath(char* path, const char* drv, const u8* title_id, const u8* content_id, const char* str) {
+    static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    bool dlc = (memcmp(title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
+    u32 tid_high = getbe32(title_id);
+    u32 tid_low = getbe32(title_id + 4);
+
+    if ((*drv == '2') || (*drv == '5')) // TWL titles need TWL title ID
+        tid_high = 0x00030000 | (tid_high&0xFF);
+
+    if (content_id) { // app path
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx/content/%s%08lx.app",
+            drv, tid_high, tid_low, dlc ? "00000000/" : "", getbe32(content_id));
+    } else if (str) { // other paths (TMD/CMD/Save)
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx/%s",
+            drv, tid_high, tid_low, str);
+    } else { // base path (useful for uninstall)
+        snprintf(path, 256, "%2.2s/title/%08lx/%08lx",
+            drv, tid_high, tid_low);
+    }
+
+    return 0;
+}
+
+u32 GetInstallSavePath(char* path, const char* drv, const u8* title_id) {
+    // generate the save path (thanks ihaveamac for system path)
+    if ((*drv == '1') || (*drv == '4')) { // ooof, system save
+        // get the id0
+        u8 sd_keyy[16] __attribute__((aligned(4)));
+        char path_movable[32];
+        u32 sha256sum[8];
+        snprintf(path_movable, 32, "%2.2s/private/movable.sed", drv);
+        if (fvx_qread(path_movable, sd_keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
+        memset(sd_keyy, 0x00, 16);
+        sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
+        // build path
+        u32 tid_low = getbe32(title_id + 4);
+        snprintf(path, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx/00000000",
+            drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3],
+            tid_low | 0x00020000);
+        return 0;
+    } else { // SD save, simple
+        return GetInstallPath(path, drv, title_id, NULL, "data/00000001.sav");
+    }
+}
+
+u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32 size,
+    TmdContentChunk* chunk, const u8* title_id, const u8* titlekey, bool cxi_fix) {
+    char dest[256];
+
+    // create destination path and ensure it exists
+    GetInstallPath(dest, drv, title_id, chunk->id, NULL);
+    fvx_rmkpath(dest);
+
+    // open file(s)
+    FIL ofile;
+    FIL dfile;
+    FSIZE_t fsize;
+    UINT bytes_read, bytes_written;
+    if (fvx_open(&ofile, path_content, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 1;
+    fvx_lseek(&ofile, offset);
+    fsize = fvx_size(&ofile);
+    if (offset > fsize) return 1;
+    if (!size) size = fsize - offset;
+    if (fvx_open(&dfile, dest, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        fvx_close(&ofile);
+        return 1;
+    }
+    
+    // ensure free space for destination file
+    if ((fvx_lseek(&dfile, size) != FR_OK) ||
+        (fvx_tell(&dfile) != size) ||
+        (fvx_lseek(&dfile, 0) != FR_OK)) {
+        fvx_close(&ofile);
+        fvx_close(&dfile);
+        fvx_unlink(dest);
+        return 1;
+    }
+    
+    // allocate buffer
+    u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buffer) {
+        fvx_close(&ofile);
+        fvx_close(&dfile);
+        fvx_unlink(dest);
+        return 1;
+    }
+    
+    // main loop starts here
+    u8 ctr_in[16];
+    u8 ctr_out[16];
+    u32 ret = 0;
+    bool cia_crypto = getbe16(chunk->type) & 0x1;
+    GetTmdCtr(ctr_in, chunk);
+    GetTmdCtr(ctr_out, chunk);
+    if (!ShowProgress(0, 0, path_content)) ret = 1;
+    for (u32 i = 0; (i < size) && (ret == 0); i += STD_BUFFER_SIZE) {
+        u32 read_bytes = min(STD_BUFFER_SIZE, (size - i));
+        if (fvx_read(&ofile, buffer, read_bytes, &bytes_read) != FR_OK) ret = 1;
+        if (cia_crypto && (DecryptCiaContentSequential(buffer, read_bytes, ctr_in, titlekey) != 0)) ret = 1;
+        if ((i == 0) && cxi_fix && (SetNcchSdFlag(buffer) != 0)) ret = 1;
+        if (i == 0) sha_init(SHA256_MODE);
+        sha_update(buffer, read_bytes);
+        if (fvx_write(&dfile, buffer, read_bytes, &bytes_written) != FR_OK) ret = 1;
+        if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
+        if (!ShowProgress(offset + i + read_bytes, fsize, path_content)) ret = 1;
+    }
+    u8 hash[0x20];
+    sha_get(hash);
+    
+    free(buffer);
+    fvx_close(&ofile);
+    fvx_close(&dfile);
+
+    // did something go wrong?
+    if (ret != 0) fvx_unlink(dest);
+    
+    // chunk size / chunk hash
+    for (u32 i = 0; i < 8; i++) chunk->size[i] = (u8) (size >> (8*(7-i)));
+    memcpy(chunk->hash, hash, 0x20);
+       
+    return ret;
+}
+
+u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
+    // this assumes contents already installed(!)
+    // we use hardcoded IDs for CMD (0x1), TMD (0x0), save (0x1/0x0)
+    TitleInfoEntry tie;
+    CmdHeader* cmd;
+    TicketCommon* ticket = &(cia->ticket);
+    TitleMetaData* tmd = &(cia->tmd);
+    TmdContentChunk* content_list = cia->content_list;
+    u32 content_count = getbe16(tmd->content_count);
+    u8* title_id = ticket->title_id;
+
+    bool sdtie = ((*drv == 'A') || (*drv == 'B'));
+    bool syscmd = (((*drv == '1') || (*drv == '4')) ||
+        (((*drv == '2') || (*drv == '5')) && (title_id[3] != 0x04)));
+    
+    char path_titledb[32];
+    char path_ticketdb[32];
+    char path_tmd[64];
+    char path_cmd[64];
+
+    // sanity checks
+    if (content_count == 0) return 1;
+    if ((*drv != '1') && (*drv != '2') && (*drv != 'A') &&
+        (*drv != '4') && (*drv != '5') && (*drv != 'B'))
+        return 1;
+    
+    // progress update
+    if (!ShowProgress(0, 0, "TMD/CMD/TiE/Ticket/Save")) return 1;
+
+    // collect data for title info entry
+    char path_cnt0[256];
+    u8 hdr_cnt0[0x600]; // we don't need more
+    NcchHeader* ncch = NULL;
+    NcchExtHeader* exthdr = NULL;
+    GetInstallPath(path_cnt0, drv, title_id, content_list->id, NULL);
+    if (fvx_qread(path_cnt0, hdr_cnt0, 0, 0x600, NULL) != FR_OK)
+        return 1;
+    if (ValidateNcchHeader((void*) hdr_cnt0) == 0) {
+        ncch = (void*) hdr_cnt0;
+        exthdr = (void*) (hdr_cnt0 + sizeof(NcchHeader));
+        if (!(ncch->size_exthdr) ||
+            (DecryptNcch((u8*) exthdr, NCCH_EXTHDR_OFFSET, 0x400, ncch, NULL) != 0))
+            exthdr = NULL;
+    }
+    
+    // build title info entry
+    if ((ncch && (BuildTitleInfoEntryNcch(&tie, tmd, ncch, exthdr, sdtie) != 0)) ||
+        (!ncch && (BuildTitleInfoEntryTwl(&tie, tmd, (TwlHeader*) (void*) hdr_cnt0) != 0)))
+        return 1;
+    
+    // build the cmd
+    cmd = BuildAllocCmdData(tmd);
+    if (!cmd) return 1;
+    
+    // generate all the paths
+    snprintf(path_titledb, 32, "%2.2s/dbs/title.db",
+        (*drv == '2') ? "1:" : *drv == '5' ? "4:" : drv);
+    snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
+        ((*drv == 'A') || (*drv == '2')) ? "1:" :
+        ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
+    GetInstallPath(path_tmd, drv, title_id, NULL, "content/00000000.tmd");
+    GetInstallPath(path_cmd, drv, title_id, NULL, "content/cmd/00000001.cmd");
+
+    // progress update
+    if (!ShowProgress(1, 5, "TMD/CMD")) return 1;
+
+    // copy tmd & cmd
+    fvx_rmkpath(path_tmd);
+    fvx_rmkpath(path_cmd);
+    if ((fvx_qwrite(path_tmd, tmd, 0, TMD_SIZE_N(content_count), NULL) != FR_OK) ||
+        (fvx_qwrite(path_cmd, cmd, 0, CMD_SIZE(cmd), NULL) != FR_OK)) {
+        free(cmd);
+        return 1;
+    }
+    free(cmd); // we don't need this anymore
+    
+    // generate savedata
+    if (exthdr && (exthdr->savedata_size)) {
+        char path_save[128];
+
+        // progress update
+        if (!ShowProgress(2, 5, "Savegame")) return 1;
+
+        // generate the path
+        GetInstallSavePath(path_save, drv, title_id);
+
+        // generate the save file, first check if it already exists
+        if (fvx_qsize(path_save) != exthdr->savedata_size) {
+            static const u8 zeroes[0x20] = { 0x00 };
+            UINT bw;
+            FIL save;
+            fvx_rmkpath(path_save);
+            if (fvx_open(&save, path_save, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+                return 1;
+            if ((fvx_write(&save, zeroes, 0x20, &bw) != FR_OK) || (bw != 0x20))
+                bw = 0;
+            fvx_lseek(&save, exthdr->savedata_size);
+            fvx_sync(&save);
+            fvx_close(&save);
+            if (bw != 0x20) return 1;
+        }
+    }
+
+    // progress update
+    if (!ShowProgress(3, 5, "TitleDB update")) return 1;
+
+    // write ticket and title databases
+    // ensure remounting the old mount path
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
+
+    // title database
+    if (!InitImgFS(path_titledb) ||
+        ((AddTitleInfoEntryToDB("D:/partitionA.bin", title_id, &tie, true)) != 0)) {
+        InitImgFS(path_bak);
+        return 1;
+    }
+   
+    // progress update
+    if (!ShowProgress(4, 5, "TicketDB update")) return 1;
+    
+    // ticket database
+    if (!InitImgFS(path_ticketdb) ||
+        ((AddTicketToDB("D:/partitionA.bin", title_id, (Ticket*) ticket, true)) != 0)) {
+        InitImgFS(path_bak);
+        return 1;
+    }
+    
+    // progress update
+    if (!ShowProgress(5, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
+
+    // restore old mount path
+    InitImgFS(path_bak);
+
+    // fix CMACs where required
+    if (!syscmd) {
+        cmd->unknown = 0xFFFFFFFE; // mark this as custom built
+        FixFileCmac(path_cmd, true);
+    }
+
+    return 0;
+}
+
 u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset, u32 size,
     TmdContentChunk* chunk, const u8* titlekey, bool force_legit, bool cxi_fix, bool cdn_decrypt) {
     // crypto types / ctr
@@ -1330,7 +1607,56 @@ u32 InsertCiaMeta(const char* path_cia, CiaMeta* meta) {
     return (res) ? 0 : 1;
 }
 
-u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool force_legit, bool cdn, void* buffer) {
+u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
+    CiaInfo info;
+    u8 titlekey[16];
+    
+    // start operation
+    if (!ShowProgress(0, 0, path_cia)) return 1;
+    
+    // load CIA stub from origin
+    CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+    if (!cia) return 1;
+    if ((LoadCiaStub(cia, path_cia) != 0) ||
+        (GetCiaInfo(&info, &(cia->header)) != 0) ||
+        (GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0)) {
+        free(cia);
+        return 1;
+    }
+    
+    // install CIA contents
+    u8* title_id = cia->tmd.title_id;
+    u32 content_count = getbe16(cia->tmd.content_count);
+    u64 next_offset = info.offset_content;
+    u8* cnt_index = cia->header.content_index;
+    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
+        TmdContentChunk* chunk = &(cia->content_list[i]);
+        u64 size = getbe64(chunk->size);
+        u16 index = getbe16(chunk->index);
+        if (!(cnt_index[index/8] & (1 << (7-(index%8))))) continue; // don't try to install missing contents
+        if (InstallCiaContent(path_dest, path_cia, next_offset, size,
+            chunk, title_id, titlekey, false) != 0) {
+            free(cia);
+            return 1;
+        }
+        next_offset += size;
+    }
+
+    // proactive fix for CIA console ID
+    memset(cia->ticket.console_id, 0x00, 4);
+    
+    // fix TMD hashes, install CIA system data
+    if ((FixTmdHashes(&(cia->tmd)) != 0) ||
+        (InstallCiaSystemData(cia, path_dest) != 0)) {
+        free(cia);
+        return 1;
+    }
+    
+    free(cia);
+    return 0;
+}
+
+u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest, bool force_legit, bool cdn, void* buffer, bool install) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     CiaStub* cia = (CiaStub*) buffer;
     
@@ -1387,7 +1713,7 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
         // check the tickets' console id, warn if it isn't zero
         if (copy && getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
-            const char* optionstr[2] =
+            static const char* optionstr[2] =
                 {"Use generic ticket (not legit)", "Use personalized ticket (legit)"};
             if (!default_action) {
                 default_action = ShowSelectPrompt(2, optionstr,
@@ -1456,58 +1782,78 @@ u32 BuildCiaFromTmdFileBuffered(const char* path_tmd, const char* path_cia, bool
         }
     }
     
-    // insert contents
+    // insert / install contents
     u8 titlekey[16] = { 0xFF };
     if ((GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0) && force_legit) return 1;
-    if (WriteCiaStub(cia, path_cia) != 0) return 1;
+    if (!install && (WriteCiaStub(cia, path_dest) != 0)) return 1;
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         if (present[i / 8] & (1 << (i % 8))) {
             snprintf(name_content, 256 - (name_content - path_content),
                 (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-            if (InsertCiaContent(path_cia, path_content, 0, (u32) getbe64(chunk->size), chunk, titlekey, force_legit, false, cdn) != 0) {
+            if (!install && (InsertCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
+                    chunk, titlekey, force_legit, false, cdn) != 0)) {
                 ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
+                return 1;
+            }
+            if (install && (InstallCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
+                    chunk, title_id, titlekey, false) != 0)) {
+                ShowPrompt(false, "ID %016llX.%08lX\nInstall content failed", getbe64(title_id), getbe32(chunk->id));
                 return 1;
             }
         }
     }
     
     // try to build & insert meta, but ignore result
-    CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
-    if (meta) {
-        if (content_count && cdn) {
-            if (!force_legit || !(getbe16(content_list->type) & 0x01)) {
-                CiaInfo info;
-                GetCiaInfo(&info, &(cia->header));
-                if ((LoadNcchMeta(meta, path_cia, info.offset_content) == 0) && (InsertCiaMeta(path_cia, meta) == 0))
+    if (!install) {
+        CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
+        if (meta) {
+            if (content_count && cdn) {
+                if (!force_legit || !(getbe16(content_list->type) & 0x01)) {
+                    CiaInfo info;
+                    GetCiaInfo(&info, &(cia->header));
+                    if ((LoadNcchMeta(meta, path_dest, info.offset_content) == 0) && (InsertCiaMeta(path_dest, meta) == 0))
+                        cia->header.size_meta = CIA_META_SIZE;
+                }
+            } else if (content_count) {
+                snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(content_list->id));
+                if ((LoadNcchMeta(meta, path_content, 0) == 0) && (InsertCiaMeta(path_dest, meta) == 0))
                     cia->header.size_meta = CIA_META_SIZE;
             }
-        } else if (content_count) {
-            snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(content_list->id));
-            if ((LoadNcchMeta(meta, path_content, 0) == 0) && (InsertCiaMeta(path_cia, meta) == 0))
-                cia->header.size_meta = CIA_META_SIZE;
+            free(meta);
         }
-        free(meta);
     }
     
     // write the CIA stub (take #2)
-    if ((FixTmdHashes(tmd) != 0) || (WriteCiaStub(cia, path_cia) != 0))
+    if ((FixTmdHashes(tmd) != 0) ||
+        (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
+        (install && (InstallCiaSystemData(cia, path_dest) != 0)))
         return 1;
     
     return 0;
 }
 
-u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_cia, bool force_legit, bool cdn) {
+u32 InstallFromTmdFile(const char* path_tmd, const char* path_dest) {
     void* buffer = (void*) malloc(sizeof(CiaStub));
     if (!buffer) return 1;
     
-    u32 ret = BuildCiaFromTmdFileBuffered(path_tmd, path_cia, force_legit, cdn, buffer);
+    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, false, true, buffer, true);
     
     free(buffer);
     return ret;
 }
 
-u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
+u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_dest, bool force_legit, bool cdn) {
+    void* buffer = (void*) malloc(sizeof(CiaStub));
+    if (!buffer) return 1;
+    
+    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, force_legit, cdn, buffer, true);
+    
+    free(buffer);
+    return ret;
+}
+
+u32 BuildInstallFromNcchFile(const char* path_ncch, const char* path_dest, bool install) {
     NcchExtHeader exthdr;
     NcchHeader ncch;
     u8 title_id[8];
@@ -1536,32 +1882,36 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
         (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
         (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
-        (WriteCiaStub(cia, path_cia) != 0)) {
+        (!install && (WriteCiaStub(cia, path_dest) != 0))) {
         free(cia);
         return 1;
     }
     
-    // insert NCCH content
+    // insert / install NCCH content
     TmdContentChunk* chunk = cia->content_list;
     memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
-    if (InsertCiaContent(path_cia, path_ncch, 0, 0, chunk, NULL, false, true, false) != 0) {
+    if ((!install && (InsertCiaContent(path_dest, path_ncch, 0, 0, chunk, NULL, false, true, false) != 0)) ||
+        (install && (InstallCiaContent(path_dest, path_ncch, 0, 0, chunk, title_id, NULL, true) != 0))) {
         free(cia);
         return 1;
     }
     
     // optional stuff (proper titlekey / meta data)
-    CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
-    if (meta && has_exthdr && (BuildCiaMeta(meta, &exthdr, NULL) == 0) &&
-        (LoadExeFsFile(meta->smdh, path_ncch, 0, "icon", sizeof(meta->smdh), NULL) == 0) &&
-        (InsertCiaMeta(path_cia, meta) == 0))
-        cia->header.size_meta = CIA_META_SIZE;
-    free(meta);
+    if (!install) {
+        CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
+        if (meta && has_exthdr && (BuildCiaMeta(meta, &exthdr, NULL) == 0) &&
+            (LoadExeFsFile(meta->smdh, path_ncch, 0, "icon", sizeof(meta->smdh), NULL) == 0) &&
+            (InsertCiaMeta(path_dest, meta) == 0))
+            cia->header.size_meta = CIA_META_SIZE;
+        free(meta);
+    }
     
     // write the CIA stub (take #2)
     FindTitleKey((Ticket*)(&cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
-        (WriteCiaStub(cia, path_cia) != 0)) {
+        (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
+        (install && (InstallCiaSystemData(cia, path_dest) != 0))) {
         free(cia);
         return 1;
     }
@@ -1570,7 +1920,7 @@ u32 BuildCiaFromNcchFile(const char* path_ncch, const char* path_cia) {
     return 0;
 }
 
-u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
+u32 BuildInstallFromNcsdFile(const char* path_ncsd, const char* path_dest, bool install) {
     NcchExtHeader exthdr;
     NcsdHeader ncsd;
     NcchHeader ncch;
@@ -1602,12 +1952,12 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
         (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
         (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
-        (WriteCiaStub(cia, path_cia) != 0)) {
+        (!install && (WriteCiaStub(cia, path_dest) != 0))) {
         free(cia);
         return 1;
     }
     
-    // insert NCSD content
+    // insert / install NCSD content
     TmdContentChunk* chunk = cia->content_list;
     for (u32 i = 0; i < 3; i++) {
         NcchPartition* partition = ncsd.partitions + i;
@@ -1615,20 +1965,26 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
         u32 size = partition->size * NCSD_MEDIA_UNIT;
         if (!size) continue;
         memset(chunk, 0, sizeof(TmdContentChunk));
-        chunk->id[3] = chunk->index[1] = i;
-        if (InsertCiaContent(path_cia, path_ncsd, offset, size, chunk++, NULL, false, (i == 0), false) != 0) {
+        chunk->id[3] = i;
+        chunk->index[1] = i;
+        if ((!install && (InsertCiaContent(path_dest, path_ncsd,
+                offset, size, chunk++, NULL, false, (i == 0), false) != 0)) ||
+            (install && (InstallCiaContent(path_dest, path_ncsd,
+                offset, size, chunk++, title_id, NULL, (i == 0)) != 0))) {
             free(cia);
             return 1;
         }
     }
     
     // optional stuff (proper titlekey / meta data)
-    CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
-    if (meta && (BuildCiaMeta(meta, &exthdr, NULL) == 0) &&
-        (LoadExeFsFile(meta->smdh, path_ncsd, NCSD_CNT0_OFFSET, "icon", sizeof(meta->smdh), NULL) == 0) &&
-        (InsertCiaMeta(path_cia, meta) == 0))
-        cia->header.size_meta = CIA_META_SIZE;
-    if (meta) free(meta);
+    if (!install) { 
+        CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
+        if (meta && (BuildCiaMeta(meta, &exthdr, NULL) == 0) &&
+            (LoadExeFsFile(meta->smdh, path_ncsd, NCSD_CNT0_OFFSET, "icon", sizeof(meta->smdh), NULL) == 0) &&
+            (InsertCiaMeta(path_dest, meta) == 0))
+            cia->header.size_meta = CIA_META_SIZE;
+        if (meta) free(meta);
+    }
 
     // update title version from cart header (yeah, that's a bit hacky)
     u16 title_version;
@@ -1644,7 +2000,8 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     FindTitleKey((Ticket*)&(cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
-        (WriteCiaStub(cia, path_cia) != 0)) {
+        (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
+        (install && (InstallCiaSystemData(cia, path_dest) != 0))) {
         free(cia);
         return 1;
     }
@@ -1653,7 +2010,7 @@ u32 BuildCiaFromNcsdFile(const char* path_ncsd, const char* path_cia) {
     return 0;
 }
 
-u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
+u32 BuildInstallFromNdsFile(const char* path_nds, const char* path_dest, bool install) {
     TwlHeader twl;
     u8 title_id[8];
     u32 save_size = 0;
@@ -1673,12 +2030,12 @@ u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
     // some basic sanity checks
     // see: https://problemkaputt.de/gbatek.htm#dsicartridgeheader
     // (gamecart dumps are not allowed)
-    u8 tidhigh_dsiware[4] = { 0x00, 0x03, 0x00, 0x04 };
+    static const u8 tidhigh_dsiware[4] = { 0x00, 0x03, 0x00, 0x04 };
     if ((memcmp(title_id, tidhigh_dsiware, 3) != 0) || !title_id[3])
         return 1;
 
     // convert DSi title ID to 3DS title ID
-    u8 tidhigh_3ds[4] = { 0x00, 0x04, 0x80, 0x04 };
+    static const u8 tidhigh_3ds[4] = { 0x00, 0x04, 0x80, 0x04 };
     memcpy(title_id, tidhigh_3ds, 3); 
     
     // build the CIA stub
@@ -1690,15 +2047,16 @@ u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
         (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
         (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, privsave_size)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
-        (WriteCiaStub(cia, path_cia) != 0)) {
+        (!install && (WriteCiaStub(cia, path_dest) != 0))) {
         free(cia);
         return 1;
     }
     
-    // insert NDS content
+    // insert / install NDS content
     TmdContentChunk* chunk = cia->content_list;
     memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
-    if (InsertCiaContent(path_cia, path_nds, 0, 0, chunk, NULL, false, false, false) != 0) {
+    if ((!install && (InsertCiaContent(path_dest, path_nds, 0, 0, chunk, NULL, false, false, false) != 0)) ||
+        (install && (InstallCiaContent(path_dest, path_nds, 0, 0, chunk, title_id, NULL, false) != 0))) {
         free(cia);
         return 1;
     }
@@ -1707,7 +2065,8 @@ u32 BuildCiaFromNdsFile(const char* path_nds, const char* path_cia) {
     FindTitleKey((Ticket*)(&cia->ticket), title_id);
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
-        (WriteCiaStub(cia, path_cia) != 0)) {
+        (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
+        (install && (InstallCiaSystemData(cia, path_dest) != 0))) {
         free(cia);
         return 1;
     }
@@ -1747,15 +2106,95 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     if (filetype & GAME_TMD)
         ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & FLAG_NUSCDN);
     else if (filetype & GAME_NCCH)
-        ret = BuildCiaFromNcchFile(path, dest);
+        ret = BuildInstallFromNcchFile(path, dest, false);
     else if (filetype & GAME_NCSD)
-        ret = BuildCiaFromNcsdFile(path, dest);
+        ret = BuildInstallFromNcsdFile(path, dest, false);
     else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW))
-        ret = BuildCiaFromNdsFile(path, dest); 
+        ret = BuildInstallFromNdsFile(path, dest, false); 
     else ret = 1;
     
     if (ret != 0) // try to get rid of the borked file
         f_unlink(dest);
+    
+    return ret;
+}
+
+u64 GetGameFileTitleId(const char* path) {
+    u64 filetype = IdentifyFileType(path);
+    u64 tid64 = 0;
+
+    if (filetype & GAME_CIA) {
+        CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+        if (!cia) return 0;
+        if (LoadCiaStub(cia, path) == 0)
+            tid64 = getbe64(cia->tmd.title_id);
+        free(cia);
+    } else if (filetype & GAME_TMD) {
+        TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
+        if (!tmd) return 0;
+        if (LoadTmdFile(tmd, path) == 0)
+            tid64 = getbe64(tmd->title_id);
+        free(tmd);
+    } else if (filetype & GAME_NCCH) {
+        NcchHeader ncch;
+        if (LoadNcchHeaders(&ncch, NULL, NULL, path, 0) == 0)
+            tid64 = ncch.partitionId;
+    } else if (filetype & GAME_NCSD) {
+        NcsdHeader ncsd;
+        if (LoadNcsdHeader(&ncsd, path) == 0)
+            tid64 = ncsd.mediaId;
+    } else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW)) {
+        TwlHeader twl;
+        if (fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK)
+            tid64 = 0x0004800000000000ull | (twl.title_id & 0xFFFFFFFFFFull);
+    }
+
+    return tid64;
+}
+
+u32 InstallGameFile(const char* path, bool to_emunand) {
+    const char* drv;
+    u64 filetype = IdentifyFileType(path);
+    u32 ret = 0;
+
+    // find out the destination
+    bool to_sd = false;
+    bool to_twl = false;
+    u64 tid64 = GetGameFileTitleId(path);
+    if (!tid64) return 1;
+    if (((tid64 >> 32) & 0x8000) || (filetype & GAME_NDS))
+        to_twl = true;
+    else if (!((tid64 >> 32) & 0x10))
+        to_sd = true;
+
+    // does the title.db exist?
+    if ((to_sd && !fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db")) ||
+        (!to_sd && !fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db")))
+        return 1;
+
+    // now we know the correct drive
+    drv = to_emunand ? (to_sd ? "B:" : to_twl ? "5:" : "4:") :
+                       (to_sd ? "A:" : to_twl ? "2:" : "1:");
+    
+    // check permissions for SysNAND (this includes everything we need)
+    if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
+    
+    // install game file
+    if (filetype & GAME_CIA)
+        ret = InstallFromCiaFile(path, drv);
+    else if ((filetype & GAME_TMD) && (filetype & FLAG_NUSCDN))
+        ret = InstallFromTmdFile(path, drv);
+    else if (filetype & GAME_NCCH)
+        ret = BuildInstallFromNcchFile(path, drv, true);
+    else if (filetype & GAME_NCSD)
+        ret = BuildInstallFromNcsdFile(path, drv, true);
+    else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW))
+        ret = BuildInstallFromNdsFile(path, drv, true); 
+    else ret = 1;
+    
+    // we have no clue what to do on failure
+    // if (ret != 0) ...
+    // maybe just uninstall?
     
     return ret;
 }
@@ -1968,7 +2407,7 @@ u32 TrimGameFile(const char* path) {
 
 u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     u64 filetype = IdentifyFileType(path);
-    
+
     if (filetype & GAME_SMDH) { // SMDH file
         UINT btr;
         if ((fvx_qread(path, smdh, 0, sizeof(Smdh), &btr) == FR_OK) || (btr == sizeof(Smdh))) return 0;
@@ -1977,8 +2416,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     } else if (filetype & GAME_NCSD) { // NCSD file
         if (LoadExeFsFile(smdh, path, NCSD_CNT0_OFFSET, "icon", sizeof(Smdh), NULL) == 0) return 0;
     } else if (filetype & GAME_CIA) { // CIA file
-        CiaInfo info;
-        
+        CiaInfo info;       
         if ((fvx_qread(path, &info, 0, 0x20, NULL) != FR_OK) ||
             (GetCiaInfo(&info, (CiaHeader*) &info) != 0)) return 1;
         if ((info.offset_meta) && (fvx_qread(path, smdh, info.offset_meta + 0x400, sizeof(Smdh), NULL) == FR_OK)) return 0;
@@ -2000,7 +2438,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
 }
 
 u32 ShowSmdhTitleInfo(Smdh* smdh, u16* screen) {
-    const u8 smdh_magic[] = { SMDH_MAGIC };
+    static const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
     u16 icon[SMDH_SIZE_ICON_BIG / sizeof(u16)];
     char desc_l[SMDH_SIZE_DESC_LONG+1];
@@ -2046,7 +2484,7 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
         path = path_content;
     }
-
+    
     void* buffer = (void*) malloc(max(sizeof(Smdh), sizeof(TwlIconData)));
     Smdh* smdh = (Smdh*) buffer;
     TwlIconData* twl_icon = (TwlIconData*) buffer;
@@ -2198,8 +2636,8 @@ u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
 }
 
 u32 GetHealthAndSafetyPaths(const char* drv, char* path_cxi, char* path_bak) {
-    const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
-    const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x20027300, 0 };
+    static const u32 tidlow_hs_o3ds[] = { 0x00020300, 0x00021300, 0x00022300, 0, 0x00026300, 0x00027300, 0x00028300 };
+    static const u32 tidlow_hs_n3ds[] = { 0x20020300, 0x20021300, 0x20022300, 0, 0, 0x20027300, 0 };
     
     // get H&S title id low
     u32 tidlow_hs = 0;

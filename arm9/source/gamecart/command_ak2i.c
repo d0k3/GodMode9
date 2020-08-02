@@ -9,7 +9,6 @@
 #include "command_ak2i.h"
 #include "protocol_ntr.h"
 #include "card_ntr.h"
-#include "delay.h"
 
 u32 AK2I_CmdGetHardwareVersion(void)
 {

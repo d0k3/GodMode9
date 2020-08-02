@@ -68,7 +68,7 @@ u32 SetupSlot0x30(char drv) {
 }
 
 u32 LocateAgbSaveSdBottomSlot(const char* path, AgbSaveHeader* agbsave) {
-    const u32 save_sizes[] = {
+    static const u32 save_sizes[] = {
         GBASAVE_EEPROM_512,
         GBASAVE_EEPROM_8K,
         GBASAVE_SRAM_32K,
@@ -130,7 +130,7 @@ u32 CheckCmacPath(const char* path) {
     return (CalculateFileCmac(path, NULL)) ? 0 : 1;
 }
 
-u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
+u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write, bool check_perms) {
     u32 cmac_type = CalculateFileCmac(path, NULL);
     u32 offset = 0;
     
@@ -141,7 +141,7 @@ u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write) {
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1; // can't do that here
     else offset = 0x000;
     
-    if (do_write && !CheckWritePermissions(path)) return 1;
+    if (do_write && check_perms && !CheckWritePermissions(path)) return 1;
     if (!do_write) return (fvx_qread(path, cmac, offset, 0x10, NULL) != FR_OK) ? 1 : 0;
     else return (fvx_qwrite(path, cmac, offset, 0x10, NULL) != FR_OK) ? 1 : 0;
 }
@@ -210,7 +210,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1;
     else if (!cmac_type) return 1;
     
-    const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
+    static const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
     u8 hashdata[0x200] __attribute__((aligned(4))); 
     u32 keyslot = cmac_keyslot[cmac_type];
     u32 hashsize = 0;
@@ -298,13 +298,13 @@ u32 CheckFileCmac(const char* path) {
     } else return 1;
 }
 
-u32 FixFileCmac(const char* path) {
+u32 FixFileCmac(const char* path, bool check_perms) {
     u32 cmac_type = CalculateFileCmac(path, NULL);
     if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) {
-        return FixCmdCmac(path);
+        return FixCmdCmac(path, check_perms);
     } else if (cmac_type) {
         u8 ccmac[16];
-        return ((CalculateFileCmac(path, ccmac) == 0) && (WriteFileCmac(path, ccmac) == 0)) ? 0 : 1;
+        return ((CalculateFileCmac(path, ccmac) == 0) && (WriteFileCmac(path, ccmac, check_perms) == 0)) ? 0 : 1;
     } else return 1;
 }
 
@@ -344,7 +344,7 @@ u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
     return 0;
 }
 
-u32 CheckFixCmdCmac(const char* path, bool fix) {
+u32 CheckFixCmdCmac(const char* path, bool fix, bool check_perms) {
     u8 cmac[16] __attribute__((aligned(4)));
     u32 keyslot = ((*path == 'A') || (*path == 'B')) ? 0x30 : 0x0B;
     bool fixed = false;
@@ -374,11 +374,18 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
 
     // read the full file to memory and check it (we may write it back later)
     if ((fvx_qread(path, cmd_data, 0, cmd_size, NULL) != FR_OK) ||
-        (CheckCmdSize(cmd, cmd_size) != 0)) {
+        (CMD_SIZE(cmd) != cmd_size)) {
         free(cmd_data);
         return 1;
     }
 
+    // we abuse the unknown u32 to mark custom, unfinished CMDs
+    bool fix_missing = false;
+    if (cmd->unknown == 0xFFFFFFFE) {
+        fixed = true;
+        cmd->unknown = 0x1;
+        fix_missing = true;
+    }
 
     // now, check the CMAC@0x10
     use_aeskey(keyslot);
@@ -394,7 +401,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
     }
 
     // further checking will be more complicated
-    // set up pointers to cmd data (pointer arithemtic is hard)
+    // set up pointers to cmd data (pointer arithmetic is hard)
     u32 n_entries = cmd->n_entries;
     u32* cnt_id = (u32*) (cmd + 1);
     u8* cnt_cmac = (u8*) (cnt_id + cmd->n_entries + cmd->n_cmacs);
@@ -406,8 +413,13 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
         if (*cnt_id == 0xFFFFFFFF) continue; // unavailable content
         snprintf(name_content, 32, "%s%08lX.app", (is_dlc) ? "00000000/" : "", *cnt_id);
         if (fvx_qread(path_content, hashdata, 0x100, 0x100, NULL) != FR_OK) {
-            free(cmd_data);
-            return 1; // failed to read content
+            if (fix_missing) {
+                *cnt_id = 0xFFFFFFFF;
+                continue;
+            } else {
+                free(cmd_data);
+                return 1; // failed to read content
+            }
         }
         memcpy(hashdata + 0x100, &cnt_idx, 4);
         memcpy(hashdata + 0x104, cnt_id, 4);
@@ -427,7 +439,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix) {
     }
 
     // if fixing is enabled, write back cmd file
-    if (fix && fixed && CheckWritePermissions(path) &&
+    if (fix && fixed && (!check_perms || CheckWritePermissions(path)) &&
         (fvx_qwrite(path, cmd_data, 0, cmd_size, NULL) != FR_OK)) {
         free(cmd_data);
         return 1;
@@ -459,14 +471,14 @@ u32 RecursiveFixFileCmacWorker(char* path) {
             } else if (fno.fattrib & AM_DIR) { // directory, recurse through it
                 if (RecursiveFixFileCmacWorker(path) != 0) err = 1;
             } else if (CheckCmacPath(path) == 0) { // file, try to fix the CMAC
-                if (FixFileCmac(path) != 0) err = 1;
+                if (FixFileCmac(path, true) != 0) err = 1;
                 ShowString("%s\nFixing CMACs, please wait...", pathstr);
             }
         }
         f_closedir(&pdir);
         *(--fname) = '\0';
     } else if (CheckCmacPath(path) == 0) // fix single file CMAC
-        return FixFileCmac(path);
+        return FixFileCmac(path, true);
     
     return err;
 }

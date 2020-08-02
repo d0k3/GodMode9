@@ -11,13 +11,13 @@
 #include "ui.h" // only for font file detection
 
 u64 IdentifyFileType(const char* path) {
-    const u8 romfs_magic[] = { ROMFS_MAGIC };
-    const u8 diff_magic[] = { DIFF_MAGIC };
-    const u8 disa_magic[] = { DISA_MAGIC };
-    const u8 tickdb_magic[] = { TICKDB_MAGIC };
-    const u8 smdh_magic[] = { SMDH_MAGIC };
-    const u8 threedsx_magic[] = { THREEDSX_EXT_MAGIC };
-    const u8 png_magic[] = { PNG_MAGIC };
+    static const u8 romfs_magic[] = { ROMFS_MAGIC };
+    static const u8 diff_magic[] = { DIFF_MAGIC };
+    static const u8 disa_magic[] = { DISA_MAGIC };
+    static const u8 tickdb_magic[] = { TICKDB_MAGIC };
+    static const u8 smdh_magic[] = { SMDH_MAGIC };
+    static const u8 threedsx_magic[] = { THREEDSX_EXT_MAGIC };
+    static const u8 png_magic[] = { PNG_MAGIC };
 
     if (!path) return 0; // safety
     u8 ALIGN(32) header[0x2C0]; // minimum required size
@@ -124,7 +124,7 @@ u64 IdentifyFileType(const char* path) {
         (memcmp(data, threedsx_magic, sizeof(threedsx_magic)) == 0)) {
         return GAME_3DSX; // 3DSX (executable) file
     } else if ((fsize > sizeof(CmdHeader)) &&
-        CheckCmdSize((CmdHeader*) data, fsize) == 0) {
+        (CMD_SIZE((CmdHeader*) data) == fsize)) {
         return GAME_CMD; // CMD file
     } else if ((fsize > sizeof(NcchInfoHeader)) &&
         (GetNcchInfoVersion((NcchInfoHeader*) data)) &&

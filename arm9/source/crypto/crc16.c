@@ -7,7 +7,7 @@
 
 // see: https://github.com/TASVideos/desmume/blob/master/desmume/src/bios.cpp#L1070tions
 u16 crc16_quick(const void* src, u32 len) {
-    const u16 tabval[] = { CRC16_TABVAL };
+    static const u16 tabval[] = { CRC16_TABVAL };
     u16* data = (u16*) src;
     u16 crc = 0xFFFF;
     

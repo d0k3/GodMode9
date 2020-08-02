@@ -23,7 +23,6 @@
 #include "card_ntr.h"
 // #include "draw.h"
 #include "timer.h"
-#include "delay.h"
 
 
 #define BSWAP32(val) ((((val >> 24) & 0xFF)) | (((val >> 16) & 0xFF) << 8) | (((val >> 8) & 0xFF) << 16) | ((val & 0xFF) << 24))

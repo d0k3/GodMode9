@@ -3,7 +3,7 @@
 .arm
 
 #include <arm.h>
-#include <brf.h>
+#include <bfn.h>
 #include <entrypoints.h>
 #include "memmap.h"
 
@@ -27,9 +27,9 @@ _start:
         strlo r2, [r0], #4
         blo .LBSS_Clear
 
-    ldr r0, =BRF_WB_INV_DCACHE
+    ldr r0, =BFN_WRITEBACK_INVALIDATE_DCACHE
     blx r0 @ Writeback & Invalidate Data Cache
-    ldr r0, =BRF_INVALIDATE_ICACHE
+    ldr r0, =BFN_INVALIDATE_ICACHE
     blx r0 @ Invalidate Instruction Cache
 
     @ Disable caches / TCMs / MPU

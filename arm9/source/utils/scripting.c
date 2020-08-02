@@ -110,6 +110,7 @@ typedef enum {
     CMD_ID_DECRYPT,
     CMD_ID_ENCRYPT,
     CMD_ID_BUILDCIA,
+    CMD_ID_INSTALL,
     CMD_ID_EXTRCODE,
     CMD_ID_CMPRCODE,
     CMD_ID_SDUMP,
@@ -139,7 +140,7 @@ typedef struct {
     char content[_VAR_CNT_LEN];
 } Gm9ScriptVar;
 
-Gm9ScriptCmd cmd_list[] = {
+static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_NONE    , "#"       , 0, 0 }, // dummy entry
     { CMD_ID_NOT     , _CMD_NOT  , 0, 0 }, // inverts the output of the following command
     { CMD_ID_IF      , _CMD_IF   , 1, 0 }, // control flow commands at the top of the list
@@ -183,9 +184,10 @@ Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_DECRYPT , "decrypt" , 1, 0 },
     { CMD_ID_ENCRYPT , "encrypt" , 1, 0 },
     { CMD_ID_BUILDCIA, "buildcia", 1, _FLG('l') },
+    { CMD_ID_INSTALL , "install" , 1, _FLG('e') },
     { CMD_ID_EXTRCODE, "extrcode", 2, 0 },
     { CMD_ID_CMPRCODE, "cmprcode", 2, 0 },
-    { CMD_ID_SDUMP   , "sdump",    1, _FLG('w') },
+    { CMD_ID_SDUMP   , "sdump"   , 1, _FLG('w') },
     { CMD_ID_APPLYIPS, "applyips", 3, 0 },
     { CMD_ID_APPLYBPS, "applybps", 3, 0 },
     { CMD_ID_APPLYBPM, "applybpm", 3, 0 },
@@ -532,7 +534,7 @@ bool expand_arg(char* argex, const char* arg, u32 len) {
 }
 
 cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
-    Gm9ScriptCmd* cmd_entry = NULL;
+    const Gm9ScriptCmd* cmd_entry = NULL;
     
     for (u32 i = 0; i < (sizeof(cmd_list)/sizeof(Gm9ScriptCmd)); i++) {
         if (strncmp(cmd_list[i].cmd, cmd, len) == 0) {
@@ -561,6 +563,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
     else if (strncmp(str, "--include_dirs", len) == 0) flag_char = 'd';
     else if (strncmp(str, "--flip_endian", len) == 0) flag_char = 'e';
+    else if (strncmp(str, "--to_emunand", len) == 0) flag_char = 'e';
     else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
     else if (strncmp(str, "--hash", len) == 0) flag_char = 'h';
     else if (strncmp(str, "--keysel", len) == 0) flag_char = 'k';
@@ -1325,6 +1328,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_BUILDCIA) {
         ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('l'))) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
+    }
+    else if (id == CMD_ID_INSTALL) {
+        ret = (InstallGameFile(argv[0], (flags & _FLG('e'))) == 0);
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "install game failed");
     }
     else if (id == CMD_ID_EXTRCODE) {
         u64 filetype = IdentifyFileType(argv[0]);

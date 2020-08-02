@@ -76,7 +76,7 @@ typedef struct {
 static mmuLevel1Table mmuGlobalTT;
 
 // simple watermark allocator for 2nd level page tables
-#define MAX_SECOND_LEVEL	(4)
+#define MAX_SECOND_LEVEL	(8)
 static mmuLevel2Table mmuCoarseTables[MAX_SECOND_LEVEL];
 static u32 mmuCoarseAllocated = 0;
 static mmuLevel2Table *mmuAllocateLevel2Table(void)

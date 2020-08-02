@@ -22,10 +22,10 @@
  * along with this program. If not, see http://www.gnu.org/licenses/.
  */
 
+#include <arm.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "timer.h"
-#include "wait.h"
 #include "sdmmc.h"
 
 #define DATA32_SUPPORT
@@ -469,7 +469,7 @@ int SD_Init()
 
 	// We need to send at least 74 clock pulses.
 	set_target(&handleSD);
-	wait(2 * 128 * 74);
+	ARM_WaitCycles(2 * 128 * 74);
 
 	sdmmc_send_command(&handleSD,0,0);
 	sdmmc_send_command(&handleSD,0x10408,0x1AA);
