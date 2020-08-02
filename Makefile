@@ -21,7 +21,7 @@ VRAM_DATA   := data
 VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 262144
 
 ifeq ($(OS),Windows_NT)
-	ifeq ($(TERM),)
+	ifeq ($(TERM),cygwin)
 		PY3 := py -3 # Windows / CMD/PowerShell
 	else
 		PY3 := python3 # Windows / MSYS2
