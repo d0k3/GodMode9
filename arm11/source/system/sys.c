@@ -107,6 +107,10 @@ void SYS_CoreZeroInit(void)
 		mmuMapArea(0x20000000, 0x20000000, 128UL << 20, MMU_FLAGS(MMU_CACHE_WB, MMU_READ_WRITE, 1, 1));
 	}
 
+	if (SYS_IsNewConsole()) {
+		TIMER_WaitMS(150);
+	}
+
 	// Initialize peripherals
 	PXI_Reset();
 
