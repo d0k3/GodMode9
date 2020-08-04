@@ -41,15 +41,20 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
 
 u32 BuildTitleInfoEntryTwl(TitleInfoEntry* tie, TitleMetaData* tmd, TwlHeader* twl) {
     u64 title_id = getbe64(tmd->title_id);
-
-    if (ValidateTwlHeader(twl) != 0) return 1;
+    
+    // build the basic titledb entry
     if (BuildTitleInfoEntryTmd(tie, tmd, false) != 0) return 1;
 
-    // product code
-    memcpy(tie->product_code, twl->game_title, 12);
+    // proper handling of system data archives - thanks @aspargas!
+    // see: http://3dbrew.org/wiki/Title_list#0004800F_-_System_Data_Archives
+    if ((title_id >> 32) != 0x0004800F) {
+        if (ValidateTwlHeader(twl) != 0) return 1;
+        memcpy(tie->product_code, twl->game_title, 12);
+    }
 
-    // specific flags
+    // specific flags for DSiWare ports
     // see: http://3dbrew.org/wiki/Titles
+    // see: http://3dbrew.org/wiki/Title_list#00048004_-_DSiWare_Ports
     if ((title_id >> 32) == 0x00048004) { // TWL app / game
         tie->flags_2[0] = 0x01;
         tie->flags_2[4] = 0x01;
