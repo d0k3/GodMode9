@@ -2165,11 +2165,17 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
     else if (!((tid64 >> 32) & 0x10))
         to_sd = true;
 
-    // does the title.db exist?
-    if ((to_sd && !fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db")) ||
-        (!to_sd && !fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db")))
-        return 1;
-
+    // does title.db & import.db exist?
+    if (to_sd) {
+        if (!fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db") ||
+            !fvx_qsize(to_emunand ? "B:/dbs/import.db" : "A:/dbs/import.db"))
+            return 1;
+    } else {
+        if (!fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db") ||
+            !fvx_qsize(to_emunand ? "4:/dbs/import.db" : "1:/dbs/import.db"))
+            return 1;
+    }
+    
     // now we know the correct drive
     drv = to_emunand ? (to_sd ? "B:" : to_twl ? "5:" : "4:") :
                        (to_sd ? "A:" : to_twl ? "2:" : "1:");
