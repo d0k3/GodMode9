@@ -1413,6 +1413,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     // build the cmd
     cmd = BuildAllocCmdData(tmd);
     if (!cmd) return 1;
+    if (!syscmd) cmd->unknown = 0xFFFFFFFE; // mark this as custom built
     
     // generate all the paths
     snprintf(path_titledb, 32, "%2.2s/dbs/title.db",
@@ -1497,10 +1498,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     InitImgFS(path_bak);
 
     // fix CMACs where required
-    if (!syscmd) {
-        cmd->unknown = 0xFFFFFFFE; // mark this as custom built
-        FixFileCmac(path_cmd, true);
-    }
+    if (!syscmd) FixFileCmac(path_cmd, true);
 
     return 0;
 }
