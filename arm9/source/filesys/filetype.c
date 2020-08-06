@@ -1,5 +1,6 @@
 #include "filetype.h"
 #include "fsutil.h"
+#include "image.h"
 #include "fatmbr.h"
 #include "nand.h"
 #include "game.h"
@@ -112,7 +113,16 @@ u64 IdentifyFileType(const char* path) {
         }
     }
     
-    if (GetFontFromPbm(data, fsize, NULL, NULL)) {
+    if (fsize == sizeof(TitleInfoEntry) && (strncasecmp(path, "T:/", 3) == 0)) {
+        const char* mntpath = GetMountPath();
+        if (mntpath && *mntpath) {
+            if ((strncasecmp(mntpath, "1:/dbs/title.db", 16) == 0) ||
+                (strncasecmp(mntpath, "4:/dbs/title.db", 16) == 0) ||
+                (strncasecmp(mntpath, "A:/dbs/title.db", 16) == 0) ||
+                (strncasecmp(mntpath, "B:/dbs/title.db", 16) == 0))
+                return GAME_TIE;
+        }
+    } else if (GetFontFromPbm(data, fsize, NULL, NULL)) {
         return FONT_PBM;
     } else if ((fsize > sizeof(AgbHeader)) &&
         (ValidateAgbHeader((AgbHeader*) data) == 0)) {

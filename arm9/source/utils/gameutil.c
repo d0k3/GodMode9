@@ -260,6 +260,40 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     return 0;
 }
 
+u32 GetTieContentPath(char* path_content, const char* path_tie) {
+    char path_tmd[64];
+    char* tid_str = path_tie + 3;
+    char drv[3] = { 0x00 };
+
+    // this relies on:
+    // 1: titleinfo entries are only loaded from mounted [1/4/A/B]:/dbs/title.db
+    // 2: filename starts with title id
+
+    // basic sanity check
+    if (*path_tie != 'T') return 1;
+
+    // load TitleDB entry file
+    TitleInfoEntry tie;
+    if (fvx_qread(path_tie, &tie, 0, sizeof(TitleInfoEntry), NULL) != FR_OK)
+        return 1;
+
+    // determine the drive
+    const char* mntpath = GetMountPath();
+    if (!mntpath || !*mntpath) return 1;
+    strncpy(drv, mntpath, 2);
+    if ((tid_str[3] == '4') && (tid_str[4] == '8')) {
+        if (*drv == '1') *drv = '2';
+        if (*drv == '4') *drv = '5';
+    }
+    
+    // build the path
+    snprintf(path_tmd, 64, "%2.2s/title/%8.8s/%8.8s/content/%08lx.tmd",
+        drv, tid_str, tid_str + 8, tie.tmd_content_id);
+    
+    // let the TMD content path function take over
+    return GetTmdContentPath(path_content, path_tmd);
+}
+
 u32 WriteCiaStub(CiaStub* stub, const char* path) {
     FIL file;
     UINT btw;
@@ -2175,7 +2209,7 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
             !fvx_qsize(to_emunand ? "4:/dbs/import.db" : "1:/dbs/import.db"))
             return 1;
     }
-    
+
     // now we know the correct drive
     drv = to_emunand ? (to_sd ? "B:" : to_twl ? "5:" : "4:") :
                        (to_sd ? "A:" : to_twl ? "2:" : "1:");
@@ -2429,6 +2463,10 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
         char path_content[256];
         if (GetTmdContentPath(path_content, path) != 0) return 1;
         return LoadSmdhFromGameFile(path_content, smdh);
+    } else if (filetype & GAME_TIE) {
+        char path_content[256];
+        if (GetTieContentPath(path_content, path) != 0) return 1;
+        return LoadSmdhFromGameFile(path_content, smdh);
     } else if (filetype & GAME_3DSX) {
         ThreedsxHeader threedsx;
         if ((fvx_qread(path, &threedsx, 0, sizeof(ThreedsxHeader), NULL) != FR_OK) ||
@@ -2486,6 +2524,9 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     u64 itype = IdentifyFileType(path); // initial type
     if (itype & GAME_TMD) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
+        path = path_content;
+    } else if (itype & GAME_TIE) {
+         if (GetTieContentPath(path_content, path) != 0) return 1;
         path = path_content;
     }
     

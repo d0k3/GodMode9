@@ -1164,6 +1164,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype & GAME_TMD  ) ? "TMD file options..."   :
+        (filetype & GAME_TIE  ) ? "Show title info"       :
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
