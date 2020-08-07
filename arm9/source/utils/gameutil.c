@@ -1353,6 +1353,83 @@ u32 GetInstallSavePath(char* path, const char* drv, u64 tid64) {
     }
 }
 
+u32 UninstallGameData(u64 tid64, bool remove_tie, bool remove_ticket, bool remove_save, bool from_emunand) {
+    char drv[3];
+
+    // check permissions for SysNAND (this includes everything we need)
+    if (!CheckWritePermissions(from_emunand ? "4:" : "1:")) return 1;
+
+    // determine the drive
+    if (GetInstallDataDrive(drv, tid64, from_emunand) != 0) return 1;
+
+    // remove data path
+    char path_data[256];
+    if (GetInstallPath(path_data, drv, tid64, NULL, remove_save ? NULL : "content") != 0) return 1;
+    fvx_runlink(path_data);
+    
+    // clear leftovers
+    if (GetInstallPath(path_data, drv, tid64, NULL, NULL) != 0)
+        fvx_unlink(path_data);
+    // system save is *not* cleared in any case (!!!)
+
+    // remove titledb entry / ticket
+    u32 ret = 0;
+    if (remove_tie || remove_ticket) {
+        // ensure remounting the old mount path
+        char path_store[256] = { 0 };
+        char* path_bak = NULL;
+        strncpy(path_store, GetMountPath(), 256);
+        if (*path_store) path_bak = path_store;
+
+        // we need the big endian title ID
+        u8 title_id[8];
+        for (u32 i = 0; i < 8; i++)
+            title_id[i] = (tid64 >> ((7-i)*8)) & 0xFF;
+
+        // ticket database
+        if (remove_ticket) {
+            char path_ticketdb[256];
+            if ((GetInstallDbsPath(path_ticketdb, drv, "ticket.db") != 0) || !InitImgFS(path_ticketdb) ||
+                ((RemoveTicketFromDB("D:/partitionA.bin", title_id)) != 0)) ret = 1;
+        }
+
+        // title database
+        if (remove_tie) {
+            char path_titledb[256];
+            if ((GetInstallDbsPath(path_titledb, drv, "title.db") != 0) || !InitImgFS(path_titledb) ||
+                ((RemoveTitleInfoEntryFromDB("D:/partitionA.bin", title_id)) != 0)) ret = 1;
+        }
+
+        // restore old mount path
+        InitImgFS(path_bak);
+    }
+
+    return ret;
+}
+
+u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, bool remove_save) {
+    // requirements for this to work:
+    // * title.db from standard path mounted to T:/
+    // * entry filename starts with title id
+    // * these two conditions need to be fulfilled for all ties
+    bool from_emunand = false;
+    u64 tid64;
+
+    const char* mntpath = GetMountPath();
+    if (!mntpath) return 1;
+
+    // title.db from emunand?
+    if ((strncasecmp(mntpath, "B:/dbs/title.db", 16) == 0) ||
+        (strncasecmp(mntpath, "4:/dbs/title.db", 16) == 0))
+        from_emunand = true;
+
+    // get title ID
+    if (sscanf(path, "T:/%016llx", &tid64) != 1)
+        return 1;
+
+    return UninstallGameData(tid64, remove_tie, remove_ticket, remove_save, from_emunand);
+}
+
 u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32 size,
     TmdContentChunk* chunk, const u8* title_id, const u8* titlekey, bool cxi_fix) {
     char dest[256];

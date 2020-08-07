@@ -15,6 +15,7 @@ u32 TrimGameFile(const char* path);
 u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear);
 u32 ShowGameFileTitleInfo(const char* path);
 u32 ShowCiaCheckerInfo(const char* path);
+u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, bool remove_save);
 u32 GetTmdContentPath(char* path_content, const char* path_tmd);
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path);
 u32 CheckHealthAndSafetyInject(const char* hsdrv);
