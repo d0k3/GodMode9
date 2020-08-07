@@ -262,8 +262,8 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
 
 u32 GetTieContentPath(char* path_content, const char* path_tie) {
     char path_tmd[64];
-    char* tid_str = path_tie + 3;
     char drv[3] = { 0x00 };
+    u64 tid64 = 0;
 
     // this relies on:
     // 1: titleinfo entries are only loaded from mounted [1/4/A/B]:/dbs/title.db
@@ -271,6 +271,11 @@ u32 GetTieContentPath(char* path_content, const char* path_tie) {
 
     // basic sanity check
     if (*path_tie != 'T') return 1;
+
+    // get title id
+    if (sscanf(path_tie, "T:/%016llx", &tid64) != 1) return 1;
+    u32 tid_high = (u32) ((tid64 >> 32) & 0xFFFFFFFF);
+    u32 tid_low = (u32) (tid64 & 0xFFFFFFFF);
 
     // load TitleDB entry file
     TitleInfoEntry tie;
@@ -281,14 +286,15 @@ u32 GetTieContentPath(char* path_content, const char* path_tie) {
     const char* mntpath = GetMountPath();
     if (!mntpath || !*mntpath) return 1;
     strncpy(drv, mntpath, 2);
-    if ((tid_str[3] == '4') && (tid_str[4] == '8')) {
+    if (tid_high & 0x8000) {
         if (*drv == '1') *drv = '2';
         if (*drv == '4') *drv = '5';
+        tid_high = 0x00030000 | (tid_high&0xFF); 
     }
     
     // build the path
-    snprintf(path_tmd, 64, "%2.2s/title/%8.8s/%8.8s/content/%08lx.tmd",
-        drv, tid_str, tid_str + 8, tie.tmd_content_id);
+    snprintf(path_tmd, 64, "%2.2s/title/%08lX/%08lX/content/%08lx.tmd",
+        drv, tid_high, tid_low, tie.tmd_content_id);
     
     // let the TMD content path function take over
     return GetTmdContentPath(path_content, path_tmd);
@@ -1270,11 +1276,43 @@ u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
     return ret;
 }
 
-u32 GetInstallPath(char* path, const char* drv, const u8* title_id, const u8* content_id, const char* str) {
+u32 GetInstallDataDrive(char* drv, u64 tid64, bool to_emunand) {
+    // check the title id
+    bool to_twl = ((tid64 >> 32) & 0x8000);
+    bool to_sd = (!to_twl && !((tid64 >> 32) & 0x10));
+
+    // determine the correct drive
+    drv[0] = to_emunand ?
+        (to_twl ? '5' : to_sd ? 'B' : '4') :
+        (to_twl ? '2' : to_sd ? 'A' : '1');
+    drv[1] = ':';
+    drv[2] = '\0';
+
+    return 0;
+}
+
+u32 GetInstallDbsPath(char* path, const char* drv, const char* str) {
+    bool is_ticketdb = (strncasecmp(str, "ticket.db", 10) == 0);
+
+    // fix the drive if required
+    if (*drv == '2') drv = "1:";
+    else if (*drv == '5') drv = "4:";
+    else if (is_ticketdb) {
+        if (*drv == 'A') drv = "1:";
+        else if (*drv == 'B') drv = "4:";
+    }
+
+    // build the path
+    snprintf(path, 256, "%2.2s/dbs/%s", drv, str);
+    
+    return 0;
+}
+
+u32 GetInstallPath(char* path, const char* drv, u64 tid64, const u8* content_id, const char* str) {
     static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
-    bool dlc = (memcmp(title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
-    u32 tid_high = getbe32(title_id);
-    u32 tid_low = getbe32(title_id + 4);
+    u32 tid_high = (u32) ((tid64 >> 32) & 0xFFFFFFFF);
+    u32 tid_low = (u32) (tid64 & 0xFFFFFFFF); 
+    bool dlc = (tid_high == getbe32(dlc_tid_high));
 
     if ((*drv == '2') || (*drv == '5')) // TWL titles need TWL title ID
         tid_high = 0x00030000 | (tid_high&0xFF);
@@ -1293,7 +1331,7 @@ u32 GetInstallPath(char* path, const char* drv, const u8* title_id, const u8* co
     return 0;
 }
 
-u32 GetInstallSavePath(char* path, const char* drv, const u8* title_id) {
+u32 GetInstallSavePath(char* path, const char* drv, u64 tid64) {
     // generate the save path (thanks ihaveamac for system path)
     if ((*drv == '1') || (*drv == '4')) { // ooof, system save
         // get the id0
@@ -1305,13 +1343,13 @@ u32 GetInstallSavePath(char* path, const char* drv, const u8* title_id) {
         memset(sd_keyy, 0x00, 16);
         sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
         // build path
-        u32 tid_low = getbe32(title_id + 4);
+        u32 tid_low = (u32) (tid64 & 0xFFFFFFFF);
         snprintf(path, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx/00000000",
             drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3],
             tid_low | 0x00020000);
         return 0;
     } else { // SD save, simple
-        return GetInstallPath(path, drv, title_id, NULL, "data/00000001.sav");
+        return GetInstallPath(path, drv, tid64, NULL, "data/00000001.sav");
     }
 }
 
@@ -1320,7 +1358,7 @@ u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32
     char dest[256];
 
     // create destination path and ensure it exists
-    GetInstallPath(dest, drv, title_id, chunk->id, NULL);
+    GetInstallPath(dest, drv, getbe64(title_id), chunk->id, NULL);
     fvx_rmkpath(dest);
 
     // open file(s)
@@ -1419,16 +1457,13 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     if ((*drv != '1') && (*drv != '2') && (*drv != 'A') &&
         (*drv != '4') && (*drv != '5') && (*drv != 'B'))
         return 1;
-    
-    // progress update
-    if (!ShowProgress(0, 0, "TMD/CMD/TiE/Ticket/Save")) return 1;
 
     // collect data for title info entry
     char path_cnt0[256];
     u8 hdr_cnt0[0x600]; // we don't need more
     NcchHeader* ncch = NULL;
     NcchExtHeader* exthdr = NULL;
-    GetInstallPath(path_cnt0, drv, title_id, content_list->id, NULL);
+    GetInstallPath(path_cnt0, drv, getbe64(title_id), content_list->id, NULL);
     if (fvx_qread(path_cnt0, hdr_cnt0, 0, 0x600, NULL) != FR_OK)
         return 1;
     if (ValidateNcchHeader((void*) hdr_cnt0) == 0) {
@@ -1455,11 +1490,8 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
         ((*drv == 'A') || (*drv == '2')) ? "1:" :
         ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
-    GetInstallPath(path_tmd, drv, title_id, NULL, "content/00000000.tmd");
-    GetInstallPath(path_cmd, drv, title_id, NULL, "content/cmd/00000001.cmd");
-
-    // progress update
-    if (!ShowProgress(1, 5, "TMD/CMD")) return 1;
+    GetInstallPath(path_tmd, drv, getbe64(title_id), NULL, "content/00000000.tmd");
+    GetInstallPath(path_cmd, drv, getbe64(title_id), NULL, "content/cmd/00000001.cmd");
 
     // copy tmd & cmd
     fvx_rmkpath(path_tmd);
@@ -1475,11 +1507,8 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     if (exthdr && (exthdr->savedata_size)) {
         char path_save[128];
 
-        // progress update
-        if (!ShowProgress(2, 5, "Savegame")) return 1;
-
         // generate the path
-        GetInstallSavePath(path_save, drv, title_id);
+        GetInstallSavePath(path_save, drv, getbe64(title_id));
 
         // generate the save file, first check if it already exists
         if (fvx_qsize(path_save) != exthdr->savedata_size) {
@@ -1498,9 +1527,6 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         }
     }
 
-    // progress update
-    if (!ShowProgress(3, 5, "TitleDB update")) return 1;
-
     // write ticket and title databases
     // ensure remounting the old mount path
     char path_store[256] = { 0 };
@@ -1514,10 +1540,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         InitImgFS(path_bak);
         return 1;
     }
-   
-    // progress update
-    if (!ShowProgress(4, 5, "TicketDB update")) return 1;
-    
+
     // ticket database
     if (!InitImgFS(path_ticketdb) ||
         ((AddTicketToDB("D:/partitionA.bin", title_id, (Ticket*) ticket, true)) != 0)) {
@@ -1525,9 +1548,6 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         return 1;
     }
     
-    // progress update
-    if (!ShowProgress(5, 5, "TMD/CMD/TiE/Ticket/Save")) return 1;
-
     // restore old mount path
     InitImgFS(path_bak);
 
@@ -2185,35 +2205,22 @@ u64 GetGameFileTitleId(const char* path) {
 }
 
 u32 InstallGameFile(const char* path, bool to_emunand) {
-    const char* drv;
+    char drv[3];
     u64 filetype = IdentifyFileType(path);
     u32 ret = 0;
 
     // find out the destination
-    bool to_sd = false;
-    bool to_twl = false;
     u64 tid64 = GetGameFileTitleId(path);
-    if (!tid64) return 1;
-    if (((tid64 >> 32) & 0x8000) || (filetype & GAME_NDS))
-        to_twl = true;
-    else if (!((tid64 >> 32) & 0x10))
-        to_sd = true;
+    if (GetInstallDataDrive(drv, tid64, to_emunand) != 0)
+        return 1;
 
-    // does title.db & import.db exist?
-    if (to_sd) {
-        if (!fvx_qsize(to_emunand ? "B:/dbs/title.db" : "A:/dbs/title.db") ||
-            !fvx_qsize(to_emunand ? "B:/dbs/import.db" : "A:/dbs/import.db"))
-            return 1;
-    } else {
-        if (!fvx_qsize(to_emunand ? "4:/dbs/title.db" : "1:/dbs/title.db") ||
-            !fvx_qsize(to_emunand ? "4:/dbs/import.db" : "1:/dbs/import.db"))
-            return 1;
-    }
+    // check dbs
+    char path_db[32];
+    if (((GetInstallDbsPath(path_db, drv, "title.db" ) != 0) || !fvx_qsize(path_db)) ||
+        ((GetInstallDbsPath(path_db, drv, "import.db") != 0) || !fvx_qsize(path_db)) ||
+        ((GetInstallDbsPath(path_db, drv, "ticket.db") != 0) || !fvx_qsize(path_db)))
+        return 1; // this needs an error prompt (!!!)
 
-    // now we know the correct drive
-    drv = to_emunand ? (to_sd ? "B:" : to_twl ? "5:" : "4:") :
-                       (to_sd ? "A:" : to_twl ? "2:" : "1:");
-    
     // check permissions for SysNAND (this includes everything we need)
     if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
     
