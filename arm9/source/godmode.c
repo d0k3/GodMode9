@@ -1093,6 +1093,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
     bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
         !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS);
+    bool uninstallable = (FTYPE_UNINSTALL(filetype));
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
     bool key_buildable = (FTYPE_KEYBUILD(filetype)) && !in_output_path &&
@@ -1164,7 +1165,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype & GAME_TMD  ) ? "TMD file options..."   :
-        (filetype & GAME_TIE  ) ? "Show title info"       :
+        (filetype & GAME_TIE  ) ? "Manage Title..."       :
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
         (filetype & GAME_SMDH)  ? "Show SMDH title info"  :
@@ -1314,6 +1315,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int cia_build_legit = (cia_buildable_legit) ? ++n_opt : -1;
     int cxi_dump = (cxi_dumpable) ? ++n_opt : -1;
     int cia_install = (cia_installable) ? ++n_opt : -1;
+    int uninstall = (uninstallable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
     int key_build = (key_buildable) ? ++n_opt : -1;
@@ -1346,7 +1348,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
     if (cia_build_legit > 0) optionstr[cia_build_legit-1] = "Build CIA (legit)";
     if (cxi_dump > 0) optionstr[cxi_dump-1] = "Dump CXI/NDS file";
-    if (cia_install > 0) optionstr[cia_install-1] = "Install game file";
+    if (cia_install > 0) optionstr[cia_install-1] = "Install game image";
+    if (uninstall > 0) optionstr[uninstall-1] = "Uninstall title";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
     if (key_build > 0) optionstr[key_build-1] = "Build " KEYDB_NAME;
@@ -1598,6 +1601,43 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     (VerifyGameFile(file_path) == 0) ? "success" : "failed");
             }
         }
+        return 0;
+    }
+    else if (user_select == uninstall) { // -> uninstall title
+        bool full_uninstall = false;
+
+        // safety confirmation
+        optionstr[0] = "Keep ticket & savegame";
+        optionstr[1] = "Uninstall everything";
+        optionstr[2] = "Abort uninstall";
+        user_select = (int) (n_marked > 1) ? 
+            ShowSelectPrompt(3, optionstr, "Uninstall %lu selected titles?", n_marked) :
+            ShowSelectPrompt(3, optionstr, "%s\nUninstall selected title?", pathstr);
+        full_uninstall = (user_select == 2);
+        if (!user_select || (user_select == 3))
+            return 0;
+
+        // batch uninstall
+        if (n_marked > 1) {
+            u32 n_success = 0;
+            u32 num = 0;
+            ShowProgress(0, 0, "batch uninstall");
+            for (u32 i = 0; i < current_dir->n_entries; i++) {
+                const char* path = current_dir->entry[i].path;
+                if (!current_dir->entry[i].marked) continue;
+                if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) continue;
+                if (!ShowProgress(++num, n_marked, path)) break;
+                if (UninstallGameDataTie(path, true, full_uninstall, full_uninstall) == 0)
+                    n_success++;
+            }
+            ShowPrompt(false, "%lu/%lu titles uninstalled", n_success, n_marked);
+        } else {
+            ShowString("%s\nUninstalling, please wait...", pathstr);
+            if (UninstallGameDataTie(file_path, true, full_uninstall, full_uninstall) != 0)
+                ShowPrompt(false, "%s\nUninstall failed!", pathstr);
+        }
+
+        GetDirContents(current_dir, current_path);
         return 0;
     }
     else if (user_select == verify) { // -> verify game / nand file
