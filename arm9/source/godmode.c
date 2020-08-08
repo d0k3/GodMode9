@@ -1636,6 +1636,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowString("%s\nUninstalling, please wait...", pathstr);
             if (UninstallGameDataTie(file_path, true, full_uninstall, full_uninstall) != 0)
                 ShowPrompt(false, "%s\nUninstall failed!", pathstr);
+            ClearScreenF(true, false, COLOR_STD_BG);
         }
 
         GetDirContents(current_dir, current_path);
