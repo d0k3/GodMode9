@@ -60,7 +60,6 @@ const char* GetMountPath(void) {
 }
 
 u64 MountImage(const char* path) {
-    u64 type = (path) ? IdentifyFileType(path) : 0;
     if (mount_state) {
         fvx_close(&mount_file);
         if (fix_cmac) FixFileCmac(mount_path, false);
@@ -68,6 +67,7 @@ u64 MountImage(const char* path) {
         mount_state = 0;
         *mount_path = 0;
     }
+    u64 type = (path) ? IdentifyFileType(path) : 0;
     if (!type) return 0;
     if ((fvx_open(&mount_file, path, FA_READ | FA_WRITE | FA_OPEN_EXISTING) != FR_OK) &&
         (fvx_open(&mount_file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK))
