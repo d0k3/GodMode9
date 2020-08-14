@@ -1871,14 +1871,14 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         }
         free(ticket_tmp);
     } else {
-        Ticket* ticket_tmp;
+        Ticket* ticket_tmp = NULL;
         if ((FindTitleKey(ticket, title_id) != 0) && 
             (FindTicket(&ticket_tmp, title_id, false, src_emunand) == 0)) {
             // we just copy the titlekey from a valid ticket (if we can)
             memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
             ticket->commonkey_idx = ticket_tmp->commonkey_idx;
         }
-        free(ticket_tmp);
+        if (ticket_tmp) free(ticket_tmp);
     }
     
     // content path string
@@ -1976,7 +1976,7 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_dest, bool force_
     void* buffer = (void*) malloc(sizeof(CiaStub));
     if (!buffer) return 1;
     
-    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, force_legit, cdn, buffer, true);
+    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, force_legit, cdn, buffer, false);
     
     free(buffer);
     return ret;
