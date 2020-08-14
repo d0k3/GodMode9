@@ -4,6 +4,7 @@
 #include "aes.h"
 #include "vff.h"
 #include "fsinit.h"
+#include "image.h"
 
 const char* virtual_tickdb_dirs[] = {
     "homebrew",
@@ -61,7 +62,11 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
 
 u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
     const char* path_db = TICKDB_PATH(emunand); // EmuNAND / SysNAND
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
     
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
     if (!InitImgFS(path_db))
         return 1;
 
@@ -78,7 +83,7 @@ u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
         snprintf(dir_path, 12, "T:/%s", virtual_tickdb_dirs[i]);
         
         if (fvx_opendir(&dir, dir_path) != FR_OK) {
-            InitImgFS(NULL);
+            InitImgFS(path_bak);
             return 1;
         }
         
@@ -88,18 +93,18 @@ u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
                 
                 u32 size = fvx_qsize(tik_path);
                 if (!(*ticket = malloc(size))) {
-                    InitImgFS(NULL);
+                    InitImgFS(path_bak);
                     return 1;
                 }
                 
                 if ((fvx_qread(tik_path, *ticket, 0, size, NULL) != FR_OK) ||
                     (force_legit && (ValidateTicketSignature(*ticket) != 0))) {
                     free(*ticket);
-                    InitImgFS(NULL);
+                    InitImgFS(path_bak);
                     return 1;
                 }
                 
-                InitImgFS(NULL);
+                InitImgFS(path_bak);
                 return 0;
             }
         }
@@ -107,7 +112,7 @@ u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
         fvx_closedir(&dir);
     }
     
-    InitImgFS(NULL);
+    InitImgFS(path_bak);
     return 1;
 }
 
