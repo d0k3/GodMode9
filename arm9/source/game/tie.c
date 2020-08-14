@@ -6,7 +6,8 @@
 
 u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     u64 title_id = getbe64(tmd->title_id);
-    u32 has_idx1 = false;
+    bool has_idx1 = false;
+    bool has_idx2 = false;
     
     // set basic values
     memset(tie, 0x00, sizeof(TitleInfoEntry));
@@ -28,12 +29,14 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
         align_size; // CMD, placeholder (!!!)
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
         if (getbe16(chunk->index) == 1) has_idx1 = true; // will be useful later
+        else if (getbe16(chunk->index) == 2) has_idx2 = true; // will be useful later
         tie->title_size += align(getbe64(chunk->size), align_size);
     }
 
-    // manual? (we need to properly check this later)
-    if (has_idx1 && (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010))) {
-        tie->flags_0[0] = 0x1; // this may have a manual
+    // manual? dlp? (we need to properly check this later)
+    if (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010)) {
+        if (has_idx1) tie->flags_0[0] = 0x1; // this may have a manual
+        if (has_idx2) tie->title_version |= (0xFFFF << 16); // this may have dlp
     }
 
     return 0;
@@ -72,7 +75,7 @@ u32 BuildTitleInfoEntryNcch(TitleInfoEntry* tie, TitleMetaData* tmd, NcchHeader*
 
     // product code, extended title version
     memcpy(tie->product_code, ncch->productcode, 0x10);
-    tie->title_version |= (ncch->version << 16);
+    tie->title_version &= ((ncch->version << 16) | 0xFFFF);
     
     // specific flags
     // see: http://3dbrew.org/wiki/Titles
@@ -91,7 +94,10 @@ u32 BuildTitleInfoEntryNcch(TitleInfoEntry* tie, TitleMetaData* tmd, NcchHeader*
         };
         // extdata ID low (hacky)
         tie->extdata_id_low = getle32(exthdr->aci_data + 0x30 - 0x0C + 0x04);
-    } else tie->flags_0[0] = 0x00; // no manual
+    } else {
+        tie->flags_0[0] = 0x00; // no manual
+        tie->title_version &= 0xFFFF; // no dlp
+    }
 
     return 0;
 }
