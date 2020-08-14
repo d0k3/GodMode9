@@ -3,6 +3,7 @@
 #include "disadiff.h"
 #include "game.h"
 #include "nand.h" // so that we can trim NAND images
+#include "itcm.h" // we need access to part of the OTP
 #include "hid.h"
 #include "ui.h"
 #include "fs.h"
@@ -1771,8 +1772,9 @@ u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
         next_offset += size;
     }
 
-    // proactive fix for CIA console ID
-    memset(cia->ticket.console_id, 0x00, 4);
+    // fix for CIA console ID (if device ID different)
+    if (getbe32(cia->ticket.console_id) != (&ARM9_ITCM->otp)->deviceId)
+        memset(cia->ticket.console_id, 0x00, 4);
     
     // fix TMD hashes, install CIA system data
     if ((FixTmdHashes(&(cia->tmd)) != 0) ||
