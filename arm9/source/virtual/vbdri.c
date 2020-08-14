@@ -135,7 +135,7 @@ bool ReadVBDRIDir(VirtualFile* vfile, VirtualDir* vdir) {
                 continue;
             
             memset(vfile, 0, sizeof(VirtualFile));
-            snprintf(vfile->name, 32, NAME_TIK, tid, getbe32(tick_info[vdir->index].console_id));
+            snprintf(vfile->name, 32, NAME_TIK, tid, getle32(tick_info[vdir->index].console_id));
             vfile->offset = vdir->index; // "offset" is the internal buffer index
             vfile->size = tick_info[vdir->index].size;
             vfile->keyslot = 0xFF;
