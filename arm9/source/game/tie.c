@@ -92,8 +92,8 @@ u32 BuildTitleInfoEntryNcch(TitleInfoEntry* tie, TitleMetaData* tmd, NcchHeader*
                 align(exthdr->savedata_size, align_size); // savegame
             tie->flags_1[0] = 0x01; // has SD save
         };
-        // extdata ID low (hacky)
-        tie->extdata_id_low = getle32(exthdr->aci_data + 0x30 - 0x0C + 0x04);
+        // extdata ID low (hacky, we navigate to storage info)
+        tie->extdata_id_low = getle32(exthdr->aci_data + (0x30 - 0x0C));
     } else {
         tie->flags_0[0] = 0x00; // no manual
         tie->title_version &= 0xFFFF; // no dlp
