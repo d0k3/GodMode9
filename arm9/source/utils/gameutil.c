@@ -2300,6 +2300,10 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
 
     // check permissions for SysNAND (this includes everything we need)
     if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
+
+    // cleanup content folder before starting install
+    ShowProgress(0, 0, path);
+    UninstallGameData(tid64, false, false, false, to_emunand);
     
     // install game file
     if (filetype & GAME_CIA)
@@ -2314,9 +2318,8 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
         ret = BuildInstallFromNdsFile(path, drv, true); 
     else ret = 1;
     
-    // we have no clue what to do on failure
-    // if (ret != 0) ...
-    // maybe just uninstall?
+    // cleanup on failed installs, but leave ticket and save untouched
+    if (ret != 0) UninstallGameData(tid64, true, false, false, to_emunand);
     
     return ret;
 }
