@@ -40,6 +40,10 @@ extern SystemSHMEM *shmemGlobalBase;
 
 static inline SystemSHMEM *ARM_GetSHMEM(void)
 {
+	// shared memory contents are extremely likely to change
+	// insert a compiler barrier to force the compiler not to assume
+	// memory values will remain constant in between calls to getSHMEM
+	asm_v("":::"memory", "cc");
 	return shmemGlobalBase;
 }
 
