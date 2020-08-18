@@ -102,28 +102,32 @@ typedef struct {
     // extended mode stuff (DSi only)
     u8  ignored0[0x30]; // ignored
     u32 region_flags;
-    u8  ignored1[0xC]; // ignored
+    u32 access_control;
+    u32 arm7_scfg_ext7;
+    u8  reserved2[3];
+    u8  srl_flag;
     u32 arm9i_rom_offset;
-    u32 reserved2;
+    u32 reserved3;
     u32 arm9i_load_adress;
     u32 arm9i_size;
     u32 arm7i_rom_offset;
     u32 unknown1;
     u32 arm7i_load_adress;
     u32 arm7i_size;
-    u8  ignored2[0x30]; // ignored
+    u8  ignored1[0x30]; // ignored
     u32 ntr_twl_rom_size;
     u8  unknown2[12];
-    u8  ignored3[0x10]; // ignored
+    u8  ignored2[0x10]; // ignored
     u64 title_id;
     u32 pubsav_size;
     u32 prvsav_size;
-    u8  reserved3[176];
+    u8  reserved4[176];
     u8  unknown3[0x10];
-    u8  ignored4[0xD00]; // ignored
+    u8  ignored3[0xD00]; // ignored
 } PACKED_STRUCT TwlHeader;
 
 u32 ValidateTwlHeader(TwlHeader* twl);
+u32 BuildTwlSaveHeader(void* sav, u32 size);
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon);
 u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon);
 u32 GetTwlIcon(u16* icon, const TwlIconData* twl_icon);

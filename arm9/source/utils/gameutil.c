@@ -2011,7 +2011,7 @@ u32 BuildInstallFromNcchFile(const char* path_ncch, const char* path_dest, bool 
     if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
         (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
-        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, 0)) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, 0, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (!install && (WriteCiaStub(cia, path_dest) != 0))) {
         free(cia);
@@ -2081,7 +2081,7 @@ u32 BuildInstallFromNcsdFile(const char* path_ncsd, const char* path_dest, bool 
     if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
         (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
-        (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size, 0)) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, content_count, save_size, 0, 0)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (!install && (WriteCiaStub(cia, path_dest) != 0))) {
         free(cia);
@@ -2146,17 +2146,19 @@ u32 BuildInstallFromNdsFile(const char* path_nds, const char* path_dest, bool in
     u8 title_id[8];
     u32 save_size = 0;
     u32 privsave_size = 0;
+    u8 twl_flag = 0;
     
     // Init progress bar
     if (!ShowProgress(0, 0, path_nds)) return 1;
     
-    // load TWL header, get save sizes && title id
+    // load TWL header, get save sizes, srl flag && title id
     if (fvx_qread(path_nds, &twl, 0, sizeof(TwlHeader), NULL) != FR_OK)
         return 1;
     for (u32 i = 0; i < 8; i++)
         title_id[i] = (twl.title_id >> ((7-i)*8)) & 0xFF;
     save_size = twl.pubsav_size;
     privsave_size = twl.prvsav_size;
+    twl_flag = twl.srl_flag;
 
     // some basic sanity checks
     // see: https://problemkaputt.de/gbatek.htm#dsicartridgeheader
@@ -2176,7 +2178,7 @@ u32 BuildInstallFromNdsFile(const char* path_nds, const char* path_dest, bool in
     if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
         (BuildFakeTicket((Ticket*)&(cia->ticket), title_id) != 0) ||
-        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, privsave_size)) ||
+        (BuildFakeTmd(&(cia->tmd), title_id, 1, save_size, privsave_size, twl_flag)) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (!install && (WriteCiaStub(cia, path_dest) != 0))) {
         free(cia);
