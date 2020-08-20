@@ -22,7 +22,8 @@ typedef struct {
     u8 reserved1[4];
     u8 flags_2[8];
     char product_code[16];
-    u8 reserved2[16];
+    u8 reserved2[12];
+    u32 content0_id; // only relevant for TWL?
     u8 unknown[4]; // appears to not matter what's here
     u8 reserved3[44];
 } __attribute__((packed)) TitleInfoEntry;

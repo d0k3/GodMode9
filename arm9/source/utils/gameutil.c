@@ -1332,8 +1332,12 @@ u32 GetInstallPath(char* path, const char* drv, u64 tid64, const u8* content_id,
     return 0;
 }
 
-u32 GetInstallSavePath(char* path, const char* drv, u64 tid64) {
+u32 CreateSaveData(const char* drv, u64 tid64, const char* name, u32 save_size, bool overwrite) {
+    bool is_twl = ((*drv == '2') || (*drv == '5'));
+    char path_save[128];
+
     // generate the save path (thanks ihaveamac for system path)
+    // we use hardcoded names / numbers for CTR saves
     if ((*drv == '1') || (*drv == '4')) { // ooof, system save
         // get the id0
         u8 sd_keyy[16] __attribute__((aligned(4)));
@@ -1345,13 +1349,48 @@ u32 GetInstallSavePath(char* path, const char* drv, u64 tid64) {
         sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
         // build path
         u32 tid_low = (u32) (tid64 & 0xFFFFFFFF);
-        snprintf(path, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx/00000000",
+        snprintf(path_save, 128, "%2.2s/data/%08lx%08lx%08lx%08lx/sysdata/%08lx%s",
             drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3],
-            tid_low | 0x00020000);
+            tid_low | 0x00020000, name ? "/00000000" : "");
         return 0;
-    } else { // SD save, simple
-        return GetInstallPath(path, drv, tid64, NULL, "data/00000001.sav");
+    } else if (!is_twl || !name) { // SD CTR save or no name, simple
+        GetInstallPath(path_save, drv, tid64, NULL, name ? "data/00000001.sav" : "data");
+    } else {
+        char substr[64];
+        snprintf(substr, 64, "data/%s", name);
+        GetInstallPath(path_save, drv, tid64, NULL, substr);
     }
+
+    // if name is NULL, we remove instead of create
+    if (!name) {
+        fvx_runlink(path_save);
+        return 0;
+    }
+
+    // generate the save file, first check if it already exists
+    if (overwrite || (fvx_qsize(path_save) != save_size)) {
+        fvx_rmkpath(path_save);
+        if (fvx_qcreate(path_save, save_size) != FR_OK) return 1;
+
+        if (!is_twl) { // CTR save, simple case
+            static const u8 zeroes[0x20] = { 0x00 };
+            if (fvx_qwrite(path_save, zeroes, 0, 0x20, NULL) != FR_OK)
+                return 1;
+        } else if ((strncmp(name, "public.sav", 11) == 0) || // fat12 image
+                   (strncmp(name, "private.sav", 12) == 0)) {
+            u8* fat16k = (u8*) malloc(0x4000); // 16kiB, that's enough
+            if (!fat16k) return 1;
+            memset(fat16k, 0x00, 0x4000);
+
+            if ((BuildTwlSaveHeader(fat16k, save_size) != 0) ||
+                (fvx_qwrite(path_save, fat16k, 0, min(save_size, 0x4000), NULL) != FR_OK)) {
+                free(fat16k);
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
 u32 UninstallGameData(u64 tid64, bool remove_tie, bool remove_ticket, bool remove_save, bool from_emunand) {
@@ -1520,6 +1559,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     TmdContentChunk* content_list = cia->content_list;
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = ticket->title_id;
+    u64 tid64 = getbe64(title_id);
 
     bool sdtie = ((*drv == 'A') || (*drv == 'B'));
     bool syscmd = (((*drv == '1') || (*drv == '4')) ||
@@ -1541,7 +1581,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     u8 hdr_cnt0[0x600]; // we don't need more
     NcchHeader* ncch = NULL;
     NcchExtHeader* exthdr = NULL;
-    GetInstallPath(path_cnt0, drv, getbe64(title_id), content_list->id, NULL);
+    GetInstallPath(path_cnt0, drv, tid64, content_list->id, NULL);
     if (fvx_qread(path_cnt0, hdr_cnt0, 0, 0x600, NULL) != FR_OK)
         return 1;
     if (ValidateNcchHeader((void*) hdr_cnt0) == 0) {
@@ -1568,8 +1608,8 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
         ((*drv == 'A') || (*drv == '2')) ? "1:" :
         ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
-    GetInstallPath(path_tmd, drv, getbe64(title_id), NULL, "content/00000000.tmd");
-    GetInstallPath(path_cmd, drv, getbe64(title_id), NULL, "content/cmd/00000001.cmd");
+    GetInstallPath(path_tmd, drv, tid64, NULL, "content/00000000.tmd");
+    GetInstallPath(path_cmd, drv, tid64, NULL, "content/cmd/00000001.cmd");
 
     // copy tmd & cmd
     fvx_rmkpath(path_tmd);
@@ -1582,28 +1622,20 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     free(cmd); // we don't need this anymore
     
     // generate savedata
-    if (exthdr && (exthdr->savedata_size)) {
-        char path_save[128];
-
-        // generate the path
-        GetInstallSavePath(path_save, drv, getbe64(title_id));
-
-        // generate the save file, first check if it already exists
-        if (fvx_qsize(path_save) != exthdr->savedata_size) {
-            static const u8 zeroes[0x20] = { 0x00 };
-            UINT bw;
-            FIL save;
-            fvx_rmkpath(path_save);
-            if (fvx_open(&save, path_save, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
-                return 1;
-            if ((fvx_write(&save, zeroes, 0x20, &bw) != FR_OK) || (bw != 0x20))
-                bw = 0;
-            fvx_lseek(&save, exthdr->savedata_size);
-            fvx_sync(&save);
-            fvx_close(&save);
-            if (bw != 0x20) return 1;
-        }
-    }
+    u32 save_size = getle32(tmd->save_size);
+    u32 twl_privsave_size = getle32(tmd->twl_privsave_size);
+    if (exthdr && save_size && // NCCH
+        (CreateSaveData(drv, tid64, "*", save_size, false) != 0))
+        return 1;
+    if (!ncch && save_size && // TWL public.sav
+        (CreateSaveData(drv, tid64, "public.sav", save_size, false) != 0))
+        return 1;
+    if (!ncch && twl_privsave_size && // TWL private.sav
+        (CreateSaveData(drv, tid64, "private.sav", twl_privsave_size, false) != 0))
+        return 1;
+    if ((tmd->twl_flag & 0x2) && // TWL banner.sav
+        (CreateSaveData(drv, tid64, "banner.sav", sizeof(TwlIconData), false) != 0))
+        return 1;
 
     // write ticket and title databases
     // ensure remounting the old mount path
