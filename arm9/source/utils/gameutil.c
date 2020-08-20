@@ -261,8 +261,7 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     return 0;
 }
 
-u32 GetTieContentPath(char* path_content, const char* path_tie) {
-    char path_tmd[64];
+u32 GetTieTmdPath(char* path_tmd, const char* path_tie) {
     char drv[3] = { 0x00 };
     u64 tid64 = 0;
 
@@ -297,6 +296,17 @@ u32 GetTieContentPath(char* path_content, const char* path_tie) {
     snprintf(path_tmd, 64, "%2.2s/title/%08lX/%08lX/content/%08lx.tmd",
         drv, tid_high, tid_low, tie.tmd_content_id);
     
+    // done
+    return 0;
+}
+
+u32 GetTieContentPath(char* path_content, const char* path_tie) {
+    char path_tmd[64];
+
+    // get the TMD path first
+    if (GetTieTmdPath(path_tmd, path_tie) != 0)
+        return 1;
+
     // let the TMD content path function take over
     return GetTmdContentPath(path_content, path_tmd);
 }
@@ -704,6 +714,17 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     return 0;
 }
 
+u32 VerifyTieFile(const char* path) {
+    char path_tmd[64];
+
+    // get the TMD path
+    if (GetTieTmdPath(path_tmd, path) != 0)
+        return 1;
+
+    // let the TMD verificator take over
+    return VerifyTmdFile(path_tmd, false);
+}
+
 u32 VerifyFirmFile(const char* path) {
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
@@ -830,6 +851,8 @@ u32 VerifyGameFile(const char* path) {
         return VerifyNcchFile(path, 0, 0);
     else if (filetype & GAME_TMD)
         return VerifyTmdFile(path, filetype & FLAG_NUSCDN);
+    else if (filetype & GAME_TIE)
+        return VerifyTieFile(path);
     else if (filetype & GAME_BOSS)
         return VerifyBossFile(path);
     else if (filetype & SYS_FIRM)
@@ -2016,6 +2039,17 @@ u32 BuildCiaFromTmdFile(const char* path_tmd, const char* path_dest, bool force_
     return ret;
 }
 
+u32 BuildCiaFromTieFile(const char* path_tie, const char* path_dest, bool force_legit) {
+    char path_tmd[64];
+
+    // get the TMD path
+    if (GetTieTmdPath(path_tmd, path_tie) != 0)
+        return 1;
+
+    // let the TMD builder function take over
+    return BuildCiaFromTmdFile(path_tmd, path_dest, force_legit, false);
+}
+
 u32 BuildInstallFromNcchFile(const char* path_ncch, const char* path_dest, bool install) {
     NcchExtHeader exthdr;
     NcchHeader ncch;
@@ -2248,7 +2282,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     // build output name
     snprintf(dest, 256, OUTPUT_PATH "/");
     char* dname = dest + strnlen(dest, 256);
-    if (!((filetype & GAME_TMD) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
+    if (!((filetype & (GAME_TMD|GAME_TIE)) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
         (GetGoodName(dname, path, false) != 0)) {
         char* name = strrchr(path, '/');
         if (!name) return 1;
@@ -2268,7 +2302,9 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
         return 1;
     
     // build CIA from game file
-    if (filetype & GAME_TMD)
+    if (filetype & GAME_TIE)
+        ret = BuildCiaFromTieFile(path, dest, force_legit);
+    else if (filetype & GAME_TMD)
         ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & FLAG_NUSCDN);
     else if (filetype & GAME_NCCH)
         ret = BuildInstallFromNcchFile(path, dest, false);
@@ -3209,7 +3245,8 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         (type_donor & GAME_NCCH) ? ((type_donor & FLAG_CXI) ? "cxi" : "cfa") :
         (type_donor & GAME_NDS)  ? "nds" :
         (type_donor & GAME_GBA)  ? "gba" :
-        (type_donor & GAME_TMD)  ? "tmd" : "";
+        (type_donor & GAME_TMD)  ? "tmd" :
+        (type_donor & GAME_TIE)  ? "tie" : "";
     if (!*ext) return 1;
     
     char appid_str[1 + 8 + 1] = { 0 }; // handling for NCCH / NDS in "?:/title" paths
@@ -3223,6 +3260,10 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
     char path_content[256];
     if (type_donor & GAME_TMD) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
+        path_donor = path_content;
+        type_donor = IdentifyFileType(path_donor);
+    } else if (type_donor & GAME_TIE) {
+        if (GetTieContentPath(path_content, path) != 0) return 1;
         path_donor = path_content;
         type_donor = IdentifyFileType(path_donor);
     }

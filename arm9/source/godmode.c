@@ -1157,6 +1157,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (strncmp(clipboard->entry[0].path, file_path, 256) != 0)) ?
         (int) ++n_opt : -1;
     int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
+    int titleman = (filetype & GAME_TIE) ? ++n_opt : -1;
     if (special > 0) optionstr[special-1] =
         (filetype & IMG_NAND  ) ? "NAND image options..." :
         (filetype & IMG_FAT   ) ? (transferable) ? "CTRNAND options..." : "Mount as FAT image" :
@@ -1197,6 +1198,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
     if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
+    if (titleman > 0) optionstr[titleman-1] = "Open title folder";
     
     int user_select = ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
         "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
@@ -1277,8 +1279,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         }
         return 0;
     }
-    else if (user_select == searchdrv) { // -> search drive, open containing path
-        char* last_slash = strrchr(file_path, '/');
+    else if ((user_select == searchdrv) || (user_select == titleman)) { // -> open containing path
+        char temp_path[256];
+        if (user_select == searchdrv) strncpy(temp_path, file_path, 256);
+        else if (GetTieContentPath(temp_path, file_path) != 0) return 0;
+
+        char* last_slash = strrchr(temp_path, '/');
         if (last_slash) {
             if (N_PANES) { // switch to next pane
                 memcpy((*pane)->path, current_path, 256);  // store current pane state
@@ -1286,12 +1292,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 (*pane)->scroll = *scroll;
                 if (++*pane >= panedata + N_PANES) *pane -= N_PANES;
             }
-            snprintf(current_path, last_slash - file_path + 1, "%s", file_path);
+            snprintf(current_path, last_slash - temp_path + 1, "%s", temp_path);
             GetDirContents(current_dir, current_path);
             *scroll = 0;
             for (*cursor = 1; *cursor < current_dir->n_entries; (*cursor)++) {
                 DirEntry* entry = &(current_dir->entry[*cursor]);
-                if (strncasecmp(entry->path, file_path, 256) == 0) break;
+                if (strncasecmp(entry->path, temp_path, 256) == 0) break;
             }
             if (*cursor >= current_dir->n_entries)
                 *cursor = 1;
