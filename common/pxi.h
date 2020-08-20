@@ -48,8 +48,8 @@ enum {
  * those used by any other software
  */
 enum {
-	PXI_BOOT_BARRIER = 19,
-	PXI_FIRMLAUNCH_BARRIER = 153,
+	PXI_BOOT_BARRIER = 21,
+	PXI_FIRMLAUNCH_BARRIER = 154,
 };
 
 #define PXI_FIFO_LEN	(16)
