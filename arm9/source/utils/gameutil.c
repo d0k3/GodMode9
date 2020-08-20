@@ -2331,8 +2331,10 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
     char path_db[32];
     if (((GetInstallDbsPath(path_db, drv, "title.db" ) != 0) || !fvx_qsize(path_db)) ||
         ((GetInstallDbsPath(path_db, drv, "import.db") != 0) || !fvx_qsize(path_db)) ||
-        ((GetInstallDbsPath(path_db, drv, "ticket.db") != 0) || !fvx_qsize(path_db)))
-        return 1; // this needs an error prompt (!!!)
+        ((GetInstallDbsPath(path_db, drv, "ticket.db") != 0) || !fvx_qsize(path_db))) {
+        ShowPrompt(false, "Install error:\nThis system is missing one or\nmore .db files.\n \nMaybe the SD card is missing\nor uninitialized?");
+        return 1;
+    }
 
     // check permissions for SysNAND (this includes everything we need)
     if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
