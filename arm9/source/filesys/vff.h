@@ -29,9 +29,10 @@ FRESULT fvx_opendir (DIR* dp, const TCHAR* path);
 FRESULT fvx_closedir (DIR* dp);
 FRESULT fvx_readdir (DIR* dp, FILINFO* fno);
 
-// additional quick read / write functions
+// additional quick read / write / create functions
 FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* br);
 FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, UINT* bw);
+FRESULT fvx_qcreate (const TCHAR* path, UINT btc);
 
 // additional quick file info functions
 FSIZE_t fvx_qsize (const TCHAR* path);

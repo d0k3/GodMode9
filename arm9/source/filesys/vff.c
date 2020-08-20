@@ -193,6 +193,44 @@ FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, 
     return res;
 }
 
+FRESULT fvx_qcreate (const TCHAR* path, UINT btc) {
+    FIL fp;
+    FRESULT res;
+    
+    res = fvx_open(&fp, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (res != FR_OK) return res;
+
+    res = fvx_lseek(&fp, btc);
+    fvx_close(&fp);
+
+    return res;
+}
+
+/* // untested / unused, might come in handy at a later point
+FRESULT fvx_qfill (const TCHAR* path, const void* buff, UINT btb) {
+    FIL fp;
+    FRESULT res;
+    UINT bwtt = 0;
+    UINT fsiz = 0;
+    
+    res = fvx_open(&fp, path, FA_WRITE | FA_OPEN_EXISTING);
+    if (res != FR_OK) return res;
+
+    fsiz = fvx_size(&fp);
+    while (bwtt < fsiz) {
+        UINT btw = ((fsiz - bwtt) >= btb) ? btb : (fsiz - bwtt);
+        UINT bwt;
+
+        res = fvx_write(&fp, buff, btw, &bwt);
+        if ((res == FR_OK) && (bwt != btw)) res = FR_DENIED;
+        if (res != FR_OK) break;
+        bwtt += bwt;
+    }
+    fvx_close(&fp);
+
+    return res;
+}*/
+
 FSIZE_t fvx_qsize (const TCHAR* path) {
     FILINFO fno;
     return (fvx_stat(path, &fno) == FR_OK) ? fno.fsize : 0;
