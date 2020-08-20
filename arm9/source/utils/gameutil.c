@@ -1494,7 +1494,7 @@ u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, 
 }
 
 u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32 size,
-    TmdContentChunk* chunk, const u8* title_id, const u8* titlekey, bool cxi_fix) {
+    TmdContentChunk* chunk, const u8* title_id, const u8* titlekey, bool cxi_fix, bool cdn_decrypt) {
     char dest[256];
 
     // create destination path and ensure it exists
@@ -1547,7 +1547,7 @@ u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32
     for (u32 i = 0; (i < size) && (ret == 0); i += STD_BUFFER_SIZE) {
         u32 read_bytes = min(STD_BUFFER_SIZE, (size - i));
         if (fvx_read(&ofile, buffer, read_bytes, &bytes_read) != FR_OK) ret = 1;
-        if (cia_crypto && (DecryptCiaContentSequential(buffer, read_bytes, ctr_in, titlekey) != 0)) ret = 1;
+        if ((cia_crypto || cdn_decrypt) && (DecryptCiaContentSequential(buffer, read_bytes, ctr_in, titlekey) != 0)) ret = 1;
         if ((i == 0) && cxi_fix && (SetNcchSdFlag(buffer) != 0)) ret = 1;
         if (i == 0) sha_init(SHA256_MODE);
         sha_update(buffer, read_bytes);
@@ -1820,7 +1820,7 @@ u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
         u16 index = getbe16(chunk->index);
         if (!(cnt_index[index/8] & (1 << (7-(index%8))))) continue; // don't try to install missing contents
         if (InstallCiaContent(path_dest, path_cia, next_offset, size,
-            chunk, title_id, titlekey, false) != 0) {
+            chunk, title_id, titlekey, false, false) != 0) {
             free(cia);
             return 1;
         }
@@ -1926,6 +1926,8 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
             free(ticket_tmp);
             return 1;
         }
+        memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+        ticket->commonkey_idx = ticket_tmp->commonkey_idx;
         free(ticket_tmp);
     } else {
         Ticket* ticket_tmp = NULL;
@@ -1983,7 +1985,7 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
                 return 1;
             }
             if (install && (InstallCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
-                    chunk, title_id, titlekey, false) != 0)) {
+                    chunk, title_id, titlekey, false, cdn) != 0)) {
                 ShowPrompt(false, "ID %016llX.%08lX\nInstall content failed", getbe64(title_id), getbe32(chunk->id));
                 return 1;
             }
@@ -2023,7 +2025,7 @@ u32 InstallFromTmdFile(const char* path_tmd, const char* path_dest) {
     void* buffer = (void*) malloc(sizeof(CiaStub));
     if (!buffer) return 1;
     
-    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, false, true, buffer, true);
+    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, true, true, buffer, true);
     
     free(buffer);
     return ret;
@@ -2088,7 +2090,7 @@ u32 BuildInstallFromNcchFile(const char* path_ncch, const char* path_dest, bool 
     TmdContentChunk* chunk = cia->content_list;
     memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
     if ((!install && (InsertCiaContent(path_dest, path_ncch, 0, 0, chunk, NULL, false, true, false) != 0)) ||
-        (install && (InstallCiaContent(path_dest, path_ncch, 0, 0, chunk, title_id, NULL, true) != 0))) {
+        (install && (InstallCiaContent(path_dest, path_ncch, 0, 0, chunk, title_id, NULL, true, false) != 0))) {
         free(cia);
         return 1;
     }
@@ -2167,7 +2169,7 @@ u32 BuildInstallFromNcsdFile(const char* path_ncsd, const char* path_dest, bool 
         if ((!install && (InsertCiaContent(path_dest, path_ncsd,
                 offset, size, chunk++, NULL, false, (i == 0), false) != 0)) ||
             (install && (InstallCiaContent(path_dest, path_ncsd,
-                offset, size, chunk++, title_id, NULL, (i == 0)) != 0))) {
+                offset, size, chunk++, title_id, NULL, (i == 0), false) != 0))) {
             free(cia);
             return 1;
         }
@@ -2255,7 +2257,7 @@ u32 BuildInstallFromNdsFile(const char* path_nds, const char* path_dest, bool in
     TmdContentChunk* chunk = cia->content_list;
     memset(chunk, 0, sizeof(TmdContentChunk)); // nothing else to do
     if ((!install && (InsertCiaContent(path_dest, path_nds, 0, 0, chunk, NULL, false, false, false) != 0)) ||
-        (install && (InstallCiaContent(path_dest, path_nds, 0, 0, chunk, title_id, NULL, false) != 0))) {
+        (install && (InstallCiaContent(path_dest, path_nds, 0, 0, chunk, title_id, NULL, false, false) != 0))) {
         free(cia);
         return 1;
     }
