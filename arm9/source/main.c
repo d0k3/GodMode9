@@ -18,7 +18,7 @@ void main(int argc, char** argv, int entrypoint)
 
     // Don't even try to send any messages until the
     // ARM11 says it's ready
-    PXI_Barrier(ARM11_READY_BARRIER);
+    PXI_Barrier(PXI_BOOT_BARRIER);
 
     // A pointer to the shared memory region is
     // stored in the thread ID register in the ARM9

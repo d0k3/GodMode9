@@ -196,12 +196,15 @@ void __attribute__((noreturn)) MainLoop(void)
 	gicEnableInterrupt(VBLANK_INTERRUPT);
 
 	// ARM9 won't try anything funny until this point
-	PXI_Barrier(ARM11_READY_BARRIER);
+	PXI_Barrier(PXI_BOOT_BARRIER);
 
 	// Process IRQs until the ARM9 tells us it's time to boot something else
 	do {
 		ARM_WFI();
 	} while(!legacy_boot);
+
+	// Wait for the ARM9 to do its firmlaunch setup
+	PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
 
 	SYS_CoreZeroShutdown();
 	SYS_CoreShutdown();
