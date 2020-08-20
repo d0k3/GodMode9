@@ -1433,7 +1433,9 @@ u32 UninstallGameData(u64 tid64, bool remove_tie, bool remove_ticket, bool remov
     // clear leftovers
     if (GetInstallPath(path_data, drv, tid64, NULL, NULL) != 0)
         fvx_unlink(path_data);
-    // system save is *not* cleared in any case (!!!)
+
+    // rmeove save (additional step required for system titles)
+    CreateSaveData(drv, tid64, NULL, 0, true);
 
     // remove titledb entry / ticket
     u32 ret = 0;
