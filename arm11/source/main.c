@@ -32,15 +32,16 @@
 
 #include "system/sys.h"
 
-#ifndef FIXED_BRIGHTNESS
-static const u8 brightness_lvls[] = {
+static const u8 brLvlTbl[] = {
 	0x10, 0x17, 0x1E, 0x25,
 	0x2C, 0x34, 0x3C, 0x44,
 	0x4D, 0x56, 0x60, 0x6B,
 	0x79, 0x8C, 0xA7, 0xD2
 };
-static int prev_bright_lvl;
-static bool auto_brightness;
+
+#ifndef FIXED_BRIGHTNESS
+static int oldBrLvl;
+static bool autoBr;
 #endif
 
 static SystemSHMEM __attribute__((section(".shared"))) SharedMemoryState;
@@ -48,10 +49,10 @@ static SystemSHMEM __attribute__((section(".shared"))) SharedMemoryState;
 void VBlank_Handler(u32 __attribute__((unused)) irqn)
 {
 	#ifndef FIXED_BRIGHTNESS
-	int cur_bright_lvl = (MCU_GetVolumeSlider() >> 2) % countof(brightness_lvls);
-	if ((cur_bright_lvl != prev_bright_lvl) && auto_brightness) {
-		prev_bright_lvl = cur_bright_lvl;
-		u8 br = brightness_lvls[cur_bright_lvl];
+	int newBrLvl = (MCU_GetVolumeSlider() >> 2) % countof(brLvlTbl);
+	if ((newBrLvl != oldBrLvl) && autoBr) {
+		oldBrLvl = newBrLvl;
+		u8 br = brLvlTbl[newBrLvl];
 		GFX_setBrightness(br, br);
 	}
 	#endif
@@ -144,15 +145,15 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_BRIGHTNESS:
 		{
-			s32 newbrightness = (s32)args[0];
 			ret = GFX_getBrightness();
 			#ifndef FIXED_BRIGHTNESS
+			s32 newbrightness = (s32)args[0];
 			if ((newbrightness > 0) && (newbrightness < 0x100)) {
 				GFX_setBrightness(newbrightness, newbrightness);
-				auto_brightness = false;
+				autoBr = false;
 			} else {
 				prev_bright_lvl = -1;
-				auto_brightness = true;
+				autoBr = true;
 			}
 			#endif
 			break;
@@ -179,10 +180,11 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 void __attribute__((noreturn)) MainLoop(void)
 {
 	#ifdef FIXED_BRIGHTNESS
-	LCD_SetBrightness(FIXED_BRIGHTNESS);
+	u8 fixBrLvl = brLvlTbl[clamp(FIXED_BRIGHTNESS, 0, countof(brLvlTbl)-1)];
+	GFX_setBrightness(fixBrLvl, fixBrLvl);
 	#else
-	prev_bright_lvl = -1;
-	auto_brightness = true;
+	oldBrLvl = -1;
+	autoBr = true;
 	#endif
 
 	// configure interrupts
