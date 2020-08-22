@@ -52,7 +52,7 @@ u64 HID_GetState(void)
 
 	CODEC_Get(&codec);
 
-	ret = REG_HID | MCU_GetSpecialHID();
+	ret = REG_HID | mcuGetSpecialHID();
 	if (!(ret & BUTTON_ARROW))
 		ret |= HID_ConvertCPAD(codec.cpad_x, codec.cpad_y);
 

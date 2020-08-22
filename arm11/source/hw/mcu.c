@@ -20,40 +20,35 @@
 #include <types.h>
 #include <arm.h>
 
+#include <stdatomic.h>
+
 #include "arm/timer.h"
 
 #include "hw/gpio.h"
 #include "hw/gpulcd.h"
 #include "hw/mcu.h"
 
-enum {
-	MCU_PWR_BTN = 0,
-	MCU_PWR_HOLD = 1,
-	MCU_HOME_BTN = 2,
-	MCU_HOME_LIFT = 3,
-	MCU_WIFI_SWITCH = 4,
-	MCU_SHELL_CLOSE = 5,
-	MCU_SHELL_OPEN = 6,
-	MCU_VOL_SLIDER = 22,
-};
+#define MCUEV_HID_MASK ( \
+	MCUEV_HID_PWR_DOWN | MCUEV_HID_PWR_HOLD | \
+	MCUEV_HID_HOME_DOWN | MCUEV_HID_HOME_UP | MCUEV_HID_WIFI_SWITCH)
 
 enum {
-	REG_VOL_SLIDER = 0x09,
+	MCUREG_VOLUME_SLIDER = 0x09,
 
-	REG_BATTERY_LEVEL = 0x0B,
-	REG_CONSOLE_STATE = 0x0F,
+	MCUREG_BATTERY_LEVEL = 0x0B,
+	MCUREG_CONSOLE_STATE = 0x0F,
 
-	REG_INT_MASK = 0x10,
-	REG_INT_EN = 0x18,
+	MCUREG_INT_MASK = 0x10,
+	MCUREG_INT_EN = 0x18,
 
-	REG_LCD_STATE = 0x22,
+	MCUREG_LCD_STATE = 0x22,
 
-	REG_LED_WIFI = 0x2A,
-	REG_LED_CAMERA = 0x2B,
-	REG_LED_SLIDER = 0x2C,
-	REG_LED_NOTIF = 0x2D,
+	MCUREG_LED_WIFI = 0x2A,
+	MCUREG_LED_CAMERA = 0x2B,
+	MCUREG_LED_SLIDER = 0x2C,
+	MCUREG_LED_STATUS = 0x2D,
 
-	REG_RTC = 0x30,
+	MCUREG_RTC = 0x30,
 };
 
 typedef struct {
@@ -64,47 +59,77 @@ typedef struct {
 	u32 red[8];
 	u32 green[8];
 	u32 blue[8];
-} PACKED_STRUCT MCU_NotificationLED;
+} PACKED_STRUCT mcuStatusLED;
 
-static u8 cached_volume_slider = 0;
-static u32 spec_hid = 0, shell_state = 0;
+static u8 volumeSliderValue;
+static u32 shellState;
+static _Atomic(u32) pendingEvents;
 
-static void MCU_UpdateVolumeSlider(void)
+static void mcuUpdateVolumeSlider(void)
 {
-	cached_volume_slider = MCU_ReadReg(REG_VOL_SLIDER);
+	volumeSliderValue = mcuReadReg(MCUREG_VOLUME_SLIDER);
 }
 
-static void MCU_UpdateShellState(bool open)
+static void mcuUpdateShellState(bool open)
 {
-	shell_state = open ? SHELL_OPEN : SHELL_CLOSED;
+	shellState = open ? SHELL_OPEN : SHELL_CLOSED;
 }
 
-u8 MCU_GetVolumeSlider(void)
+u32 mcuEventTest(u32 mask)
 {
-	return cached_volume_slider;
+	return atomic_load(&pendingEvents) & mask;
 }
 
-u32 MCU_GetSpecialHID(void)
+u32 mcuEventClear(u32 mask)
 {
-	u32 ret = spec_hid | shell_state;
-	spec_hid = 0;
+	return atomic_fetch_and(&pendingEvents, ~mask) & mask;
+}
+
+u32 mcuEventWait(u32 mask)
+{
+	do {
+		u32 x = mcuEventClear(mask);
+		if (x) return x;
+		ARM_WFE();
+	} while(1);
+}
+
+u8 mcuGetVolumeSlider(void)
+{
+	return volumeSliderValue;
+}
+
+u32 mcuGetSpecialHID(void)
+{
+	u32 ret = shellState, pend = mcuEventClear(MCUEV_HID_MASK);
+
+	// hopefully gets unrolled
+	if (pend & (MCUEV_HID_PWR_DOWN | MCUEV_HID_PWR_HOLD))
+		ret |= BUTTON_POWER;
+
+	if (pend & MCUEV_HID_HOME_DOWN)
+		ret |= BUTTON_HOME;
+
+	if (pend & MCUEV_HID_HOME_UP)
+		ret &= ~BUTTON_HOME;
+
 	return ret;
 }
 
-void MCU_SetNotificationLED(u32 period_ms, u32 color)
+void mcuSetStatusLED(u32 period_ms, u32 color)
 {
 	u32 r, g, b;
-	MCU_NotificationLED led_state;
+	mcuStatusLED ledState;
 
 	// handle proper non-zero periods
 	// so small the hardware can't handle it
 	if (period_ms != 0 && period_ms < 63)
 		period_ms = 63;
 
-	led_state.delay = (period_ms * 0x10) / 1000;
-	led_state.smoothing = 0x40;
-	led_state.loop_delay = 0x10;
-	led_state.unk = 0;
+	ledState.delay = (period_ms * 0x10) / 1000;
+	ledState.smoothing = 0x40;
+	ledState.loop_delay = 0x10;
+	ledState.unk = 0;
 
 	// all colors look like 0x00ZZ00ZZ
 	// in order to alternate between
@@ -112,93 +137,69 @@ void MCU_SetNotificationLED(u32 period_ms, u32 color)
 	r = (color >> 16) & 0xFF;
 	r |= r << 16;
 	for (int i = 0; i < 8; i++)
-		led_state.red[i] = r;
+		ledState.red[i] = r;
 
 	g = (color >> 8) & 0xFF;
 	g |= g << 16;
 	for (int i = 0; i < 8; i++)
-		led_state.green[i] = g;
+		ledState.green[i] = g;
 
 	b = color & 0xFF;
 	b |= b << 16;
 	for (int i = 0; i < 8; i++)
-		led_state.blue[i] = b;
+		ledState.blue[i] = b;
 
-	MCU_WriteRegBuf(REG_LED_NOTIF, (const u8*)&led_state, sizeof(led_state));
+	mcuWriteRegBuf(MCUREG_LED_STATUS, (const u8*)&ledState, sizeof(ledState));
 }
 
-void MCU_ResetLED(void)
+void mcuResetLEDs(void)
 {
-	MCU_WriteReg(REG_LED_WIFI, 0);
-	MCU_WriteReg(REG_LED_CAMERA, 0);
-	MCU_WriteReg(REG_LED_SLIDER, 0);
-	MCU_SetNotificationLED(0, 0);
+	mcuWriteReg(MCUREG_LED_WIFI, 0);
+	mcuWriteReg(MCUREG_LED_CAMERA, 0);
+	mcuWriteReg(MCUREG_LED_SLIDER, 0);
+	mcuSetStatusLED(0, 0);
 }
 
-void MCU_HandleInterrupts(u32 __attribute__((unused)) irqn)
+void mcuInterruptHandler(u32 __attribute__((unused)) irqn)
 {
-	u32 ints;
+	u32 mask;
 
-	// Reading the pending mask automagically acknowledges
+	// reading the pending mask automagically acknowledges
 	// the interrupts so all of them must be processed in one go
-	MCU_ReadRegBuf(REG_INT_MASK, (u8*)&ints, sizeof(ints));
+	mcuReadRegBuf(MCUREG_INT_MASK, (u8*)&mask, sizeof(mask));
 
-	while(ints != 0) {
-		u32 mcu_int_id = 31 - __builtin_clz(ints);
+	if (mask & MCUEV_HID_VOLUME_SLIDER)
+		mcuUpdateVolumeSlider();
 
-		switch(mcu_int_id) {
-			case MCU_PWR_BTN:
-			case MCU_PWR_HOLD:
-				spec_hid |= BUTTON_POWER;
-				break;
-
-			case MCU_HOME_BTN:
-				spec_hid |= BUTTON_HOME;
-				break;
-
-			case MCU_HOME_LIFT:
-				spec_hid &= ~BUTTON_HOME;
-				break;
-
-			case MCU_WIFI_SWITCH:
-				spec_hid |= BUTTON_WIFI;
-				break;
-
-			case MCU_SHELL_OPEN:
-				MCU_UpdateShellState(true);
-				MCU_ResetLED();
-				break;
-
-			case MCU_SHELL_CLOSE:
-				MCU_UpdateShellState(false);
-				break;
-
-			case MCU_VOL_SLIDER:
-				MCU_UpdateVolumeSlider();
-				break;
-
-			default:
-				break;
-		}
-
-		ints &= ~BIT(mcu_int_id);
+	if (mask & MCUEV_HID_SHELL_OPEN) {
+		mcuResetLEDs();
+		mcuUpdateShellState(true);
 	}
+
+	if (mask & MCUEV_HID_SHELL_CLOSE) {
+		mcuUpdateShellState(false);
+	}
+
+	atomic_fetch_or(&pendingEvents, mask);
 }
 
-void MCU_Init(void)
+void mcuReset(void)
 {
-	u32 clrpend, mask = 0;
+	u32 intmask = 0;
 
-	shell_state = SHELL_OPEN;
+	atomic_init(&pendingEvents, 0);
 
-	/* set register mask and clear any pending registers */
-	MCU_WriteRegBuf(REG_INT_EN, (const u8*)&mask, sizeof(mask));
-	MCU_ReadRegBuf(REG_INT_MASK, (u8*)&clrpend, sizeof(clrpend));
+	// set register mask and clear any pending registers
+	mcuWriteRegBuf(MCUREG_INT_EN, (const u8*)&intmask, sizeof(intmask));
+	mcuReadRegBuf(MCUREG_INT_MASK, (u8*)&intmask, sizeof(intmask));
 
-	MCU_ResetLED();
+	mcuResetLEDs();
 
-	MCU_UpdateVolumeSlider();
-	MCU_UpdateShellState(MCU_ReadReg(REG_CONSOLE_STATE) & BIT(1));
+	mcuUpdateVolumeSlider();
+	mcuUpdateShellState(true);
+	// assume the shell is always open on boot
+	// knowing the average 3DS user, there will be plenty
+	// of laughs when this comes back to bite us in the rear
 
 	GPIO_setBit(19, 9);
 }

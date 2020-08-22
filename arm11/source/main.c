@@ -32,7 +32,7 @@
 
 #include "system/sys.h"
 
-static const u8 brLvlTbl[] = {
+static const u8 brightness_lvls[] = {
 	0x10, 0x17, 0x1E, 0x25,
 	0x2C, 0x34, 0x3C, 0x44,
 	0x4D, 0x56, 0x60, 0x6B,
@@ -40,19 +40,19 @@ static const u8 brLvlTbl[] = {
 };
 
 #ifndef FIXED_BRIGHTNESS
-static int oldBrLvl;
-static bool autoBr;
+static int prev_bright_lvl;
+static bool auto_brightness;
 #endif
 
 static SystemSHMEM __attribute__((section(".shared"))) SharedMemoryState;
 
-void VBlank_Handler(u32 __attribute__((unused)) irqn)
+void vblankHandler(u32 __attribute__((unused)) irqn)
 {
 	#ifndef FIXED_BRIGHTNESS
-	int newBrLvl = (MCU_GetVolumeSlider() >> 2) % countof(brLvlTbl);
-	if ((newBrLvl != oldBrLvl) && autoBr) {
-		oldBrLvl = newBrLvl;
-		u8 br = brLvlTbl[newBrLvl];
+	int cur_bright_lvl = (mcuGetVolumeSlider() >> 2) % countof(brightness_lvls);
+	if ((cur_bright_lvl != prev_bright_lvl) && auto_brightness) {
+		prev_bright_lvl = cur_bright_lvl;
+		u8 br = brightness_lvls[cur_bright_lvl];
 		GFX_setBrightness(br, br);
 	}
 	#endif
@@ -62,7 +62,7 @@ void VBlank_Handler(u32 __attribute__((unused)) irqn)
 
 static bool legacy_boot = false;
 
-void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
+void pxiRxHandler(u32 __attribute__((unused)) irqn)
 {
 	u32 ret, msg, cmd, argc, args[PXI_MAX_ARGS];
 
@@ -138,7 +138,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 
 		case PXI_NOTIFY_LED:
 		{
-			MCU_SetNotificationLED(args[0], args[1]);
+			mcuSetStatusLED(args[0], args[1]);
 			ret = 0;
 			break;
 		}
@@ -180,21 +180,28 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 void __attribute__((noreturn)) MainLoop(void)
 {
 	#ifdef FIXED_BRIGHTNESS
-	u8 fixBrLvl = brLvlTbl[clamp(FIXED_BRIGHTNESS, 0, countof(brLvlTbl)-1)];
-	GFX_setBrightness(fixBrLvl, fixBrLvl);
+	u8 fixed_bright_lvl = brightness_lvls[clamp(FIXED_BRIGHTNESS, 0, countof(brightness_lvls)-1)];
+	GFX_setBrightness(fixed_bright_lvl, fixed_bright_lvl);
 	#else
-	oldBrLvl = -1;
-	autoBr = true;
+	prev_bright_lvl = -1;
+	auto_brightness = true;
 	#endif
 
+	memset(&SharedMemoryState, 0, sizeof(SharedMemoryState));
+
 	// configure interrupts
-	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, PXI_RX_Handler);
-	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO1, MCU_HandleInterrupts);
-	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, VBlank_Handler);
+	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, pxiRxHandler);
+	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO1, mcuInterruptHandler);
+	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, vblankHandler);
 
 	// enable interrupts
-	gicEnableInterrupt(PXI_RX_INTERRUPT);
 	gicEnableInterrupt(MCU_INTERRUPT);
+
+	// perform gpu init after initializing mcu but before
+	// enabling the pxi system and the vblank handler
+	GFX_init(GFX_RGB565);
+
+	gicEnableInterrupt(PXI_RX_INTERRUPT);
 	gicEnableInterrupt(VBLANK_INTERRUPT);
 
 	// ARM9 won't try anything funny until this point
@@ -203,6 +210,14 @@ void __attribute__((noreturn)) MainLoop(void)
 	// Process IRQs until the ARM9 tells us it's time to boot something else
 	do {
 		ARM_WFI();
+
+		// handle shell events
+		u32 shell = mcuEventClear(MCUEV_HID_SHELL_OPEN | MCUEV_HID_SHELL_CLOSE);
+		if (shell & MCUEV_HID_SHELL_CLOSE) {
+			GFX_powerOffBacklights(GFX_BLIGHT_BOTH);
+		} else if (shell & MCUEV_HID_SHELL_OPEN) {
+			GFX_powerOnBacklights(GFX_BLIGHT_BOTH);
+		}
 	} while(!legacy_boot);
 
 	// Wait for the ARM9 to do its firmlaunch setup

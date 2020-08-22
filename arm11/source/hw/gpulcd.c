@@ -112,13 +112,13 @@ unsigned GFX_init(GfxFbFmt mode)
 	TIMER_WaitMS(10);
 	resetLcdsMaybe();
 	MCU_controlLCDPower(2u); // Power on LCDs.
-	if(MCU_waitEvents(0x3Fu<<24) != 2u<<24) __builtin_trap();
+	if(mcuEventWait(0x3Fu<<24) != 2u<<24) __builtin_trap();
 
 	waitLcdsReady();
 	REG_LCD_ABL0_LIGHT_PWM = 0x1023E;
 	REG_LCD_ABL1_LIGHT_PWM = 0x1023E;
 	MCU_controlLCDPower(0x28u); // Power on backlights.
-	if(MCU_waitEvents(0x3Fu<<24) != 0x28u<<24) __builtin_trap();
+	if(mcuEventWait(0x3Fu<<24) != 0x28u<<24) __builtin_trap();
 	g_gfxState.lcdPower = 0x15; // All on.
 
 	// Make sure the fills finished.
@@ -212,8 +212,9 @@ void GFX_powerOnBacklights(GfxBlight mask)
 
 	mask <<= 1;
 	MCU_controlLCDPower(mask); // Power on backlights.
-	if(MCU_waitEvents(0x3Fu<<24) != (u32)mask<<24)
-		__builtin_trap();
+	mcuEventWait(0x3F<<24);
+	/*if(mcuEventWait(0x3Fu<<24) != (u32)mask<<24)
+		__builtin_trap();*/
 }
 
 void GFX_powerOffBacklights(GfxBlight mask)
@@ -221,8 +222,9 @@ void GFX_powerOffBacklights(GfxBlight mask)
 	g_gfxState.lcdPower &= ~mask;
 
 	MCU_controlLCDPower(mask); // Power off backlights.
-	if(MCU_waitEvents(0x3Fu<<24) != (u32)mask<<24)
-		__builtin_trap();
+	mcuEventWait(0x3F<<24);
+	/*if(mcuEventWait(0x3Fu<<24) != (u32)mask<<24)
+		__builtin_trap();*/
 }
 
 u8 GFX_getBrightness(void)

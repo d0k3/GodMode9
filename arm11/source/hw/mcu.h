@@ -26,51 +26,54 @@
 #define MCU_INTERRUPT	(0x71)
 #define I2C_MCU_DEVICE	(3)
 
-u8 MCU_GetVolumeSlider(void);
-u32 MCU_GetSpecialHID(void);
+enum {
+	MCUEV_HID_PWR_DOWN = BIT(0),
+	MCUEV_HID_PWR_HOLD = BIT(1),
+	MCUEV_HID_HOME_DOWN = BIT(2),
+	MCUEV_HID_HOME_UP = BIT(3),
+	MCUEV_HID_WIFI_SWITCH = BIT(4),
+	MCUEV_HID_SHELL_CLOSE = BIT(5),
+	MCUEV_HID_SHELL_OPEN = BIT(6),
+	MCUEV_HID_VOLUME_SLIDER = BIT(22),
+};
 
-void MCU_SetNotificationLED(u32 period_ms, u32 color);
-void MCU_ResetLED(void);
+u32 mcuEventTest(u32 mask);
+u32 mcuEventClear(u32 mask);
+u32 mcuEventWait(u32 mask);
 
-void MCU_HandleInterrupts(u32 irqn);
+u8 mcuGetVolumeSlider(void);
+u32 mcuGetSpecialHID(void);
 
-void MCU_Init(void);
+void mcuSetStatusLED(u32 period_ms, u32 color);
+void mcuResetLEDs(void);
 
-static inline u8 MCU_ReadReg(u8 addr)
+void mcuInterruptHandler(u32 irqn);
+
+void mcuReset(void);
+
+static inline u8 mcuReadReg(u8 addr)
 {
 	u8 val;
 	I2C_readRegBuf(I2C_MCU_DEVICE, addr, &val, 1);
 	return val;
 }
 
-static inline bool MCU_ReadRegBuf(u8 addr, u8 *buf, u32 size)
+static inline bool mcuReadRegBuf(u8 addr, u8 *buf, u32 size)
 {
 	return I2C_readRegBuf(I2C_MCU_DEVICE, addr, buf, size);
 }
 
-static inline bool MCU_WriteReg(u8 addr, u8 val)
+static inline bool mcuWriteReg(u8 addr, u8 val)
 {
 	return I2C_writeRegBuf(I2C_MCU_DEVICE, addr, &val, 1);
 }
 
-static inline bool MCU_WriteRegBuf(u8 addr, const u8 *buf, u32 size)
+static inline bool mcuWriteRegBuf(u8 addr, const u8 *buf, u32 size)
 {
 	return I2C_writeRegBuf(I2C_MCU_DEVICE, addr, buf, size);
 }
 
-static inline u32 MCU_waitEvents(u32 mask) {
-	u32 v;
-	while(1) {
-		TIMER_WaitMS(10);
-		MCU_ReadRegBuf(0x10, (u8*)&v, 4);
-		v &= mask;
-		if (v)
-			break;
-	}
-	return v;
-}
-
 static inline void MCU_controlLCDPower(u8 bits)
 {
-	MCU_WriteReg(0x22u, bits);
+	mcuWriteReg(0x22u, bits);
 }

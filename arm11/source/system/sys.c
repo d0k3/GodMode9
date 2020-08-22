@@ -115,12 +115,10 @@ void SYS_CoreZeroInit(void)
 	PXI_Reset();
 
 	I2C_init();
-	MCU_Init();
+	mcuReset();
 
 	SPI_Init();
 	CODEC_Init();
-
-	GFX_init(GFX_RGB565);
 }
 
 void SYS_CoreInit(void)
