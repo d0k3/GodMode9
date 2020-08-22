@@ -152,7 +152,7 @@ void PXI_RX_Handler(u32 __attribute__((unused)) irqn)
 				GFX_setBrightness(newbrightness, newbrightness);
 				autoBr = false;
 			} else {
-				prev_bright_lvl = -1;
+				oldBrLvl = -1;
 				autoBr = true;
 			}
 			#endif
