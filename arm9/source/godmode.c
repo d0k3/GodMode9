@@ -964,7 +964,7 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         if (fvx_stat(path, &fno) != FR_OK) return 1;
         vrt = (fno.fattrib & AM_VRT);
         new_attrib = fno.fattrib;
-        snprintf(datestr, 64, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
+        snprintf(datestr, 32, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
             (fno.fattrib & AM_DIR) ? "created" : "modified",
             1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0xF, fno.fdate & 0x1F,
             (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, (fno.ftime & 0x1F) << 1);
