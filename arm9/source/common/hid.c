@@ -19,7 +19,7 @@ static void SetNotificationLED(u32 period_ms, u32 rgb565_color)
         (rgb565_color >> 5) << (8+2) |
         (rgb565_color << 3));
     u32 args[] = {period_ms, rgb888_color};
-    PXI_DoCMD(PXI_NOTIFY_LED, args, 2);
+    PXI_DoCMD(PXICMD_SET_NOTIFY_LED, args, 2);
 }
 
 // there's some weird thing going on when reading this

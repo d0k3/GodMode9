@@ -5,7 +5,7 @@
 
 bool spiflash_get_status(void)
 {
-	return PXI_DoCMD(PXI_NVRAM_ONLINE, NULL, 0);
+	return PXI_DoCMD(PXICMD_NVRAM_ONLINE, NULL, 0);
 }
 
 bool spiflash_read(u32 offset, u32 size, u8 *buf)
@@ -19,7 +19,7 @@ bool spiflash_read(u32 offset, u32 size, u8 *buf)
 		args[1] = blksz;
 
 		ARM_WbDC_Range(ARM_GetSHMEM()->spiBuffer, blksz);
-		PXI_DoCMD(PXI_NVRAM_READ, args, 2);
+		PXI_DoCMD(PXICMD_NVRAM_READ, args, 2);
 		ARM_InvDC_Range(ARM_GetSHMEM()->spiBuffer, blksz);
 		ARM_DSB();
 		memcpy(buf, ARM_GetSHMEM()->spiBuffer, blksz);
