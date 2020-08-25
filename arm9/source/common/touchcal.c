@@ -89,7 +89,7 @@ bool CalibrateTouchFromSupportFile(void) {
     size_t size = LoadSupportFile(TOUCH_CALIB_FILENAME, calibrations, sizeof(calibrations));
     u32 n_dots = size / sizeof(HID_CalibrationData);
 
-    is_calibrated = (n_dots == 0) ? false : 
+    is_calibrated = (n_dots == 0) ? false :
         HID_SetCalibrationData(calibrations, n_dots, SCREEN_WIDTH_BOT, SCREEN_HEIGHT);
     return is_calibrated;
 }
@@ -99,11 +99,11 @@ bool CalibrateTouchFromFlash(void) {
 
     // set calibration defaults
     SetCalibrationDefaults();
- 
+
     // check SPIflash status
     if (!spiflash_get_status())
         return false;
- 
+
     // check NVRAM console ID
     u32 console_id = 0;
     if (!spiflash_read(0x001C, 4, (u8*)&console_id))

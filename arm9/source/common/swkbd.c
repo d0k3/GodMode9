@@ -73,7 +73,7 @@ static bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout) {
 
 static void DrawKey(const TouchBox* key, const bool pressed, const u32 uppercase) {
     const char* keystrs[] = { SWKBD_KEYSTR };
-    const u32 color = (pressed) ? COLOR_SWKBD_PRESSED : 
+    const u32 color = (pressed) ? COLOR_SWKBD_PRESSED :
         (key->id == KEY_ENTER) ? COLOR_SWKBD_ENTER :
         ((key->id == KEY_CAPS) && (uppercase > 1)) ? COLOR_SWKBD_CAPS :
         COLOR_SWKBD_NORMAL;
@@ -125,12 +125,12 @@ static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 
     const u32 input_shown = (txtbox->w / FONT_WIDTH_EXT) - 2;
     const u32 inputstr_size = strlen(inputstr); // we rely on a zero terminated string
     const u16 x = txtbox->x;
-    const u16 y = txtbox->y; 
-    
+    const u16 y = txtbox->y;
+
     // fix scroll
     if (cursor < *scroll) *scroll = cursor;
     else if (cursor - *scroll > input_shown) *scroll = cursor - input_shown;
-        
+
     // draw input string
     DrawStringF(BOT_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%-*.*s%c",
         (*scroll) ? '<' : '|',
@@ -142,7 +142,7 @@ static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 
         "",
         (inputstr_size - (s32) *scroll > input_shown) ? '>' : '|'
     );
-    
+
     // draw cursor
     DrawStringF(BOT_SCREEN, x-(FONT_WIDTH_EXT/2), y+10, COLOR_STD_FONT, COLOR_STD_BG, "%-*.*s^%-*.*s",
         1 + cursor - *scroll,

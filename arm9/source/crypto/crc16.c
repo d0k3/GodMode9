@@ -10,7 +10,7 @@ u16 crc16_quick(const void* src, u32 len) {
     static const u16 tabval[] = { CRC16_TABVAL };
     u16* data = (u16*) src;
     u16 crc = 0xFFFF;
-    
+
     for (len >>= 1; len; len--) {
         u16 curr = *(data++);
         for (u32 i = 0; i < 4; i++) {
@@ -21,6 +21,6 @@ u16 crc16_quick(const void* src, u32 len) {
             crc ^= tval;
         }
     }
-    
+
     return crc;
 }

@@ -90,9 +90,9 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
     u64 mount_state = CheckVDisaDiffDrive();
     if (!(mount_state & SYS_DIFF)) return 0;
     is_tickdb = (mount_state & SYS_TICKDB);
-    
+
     DeinitVBDRIDrive();
-    
+
     num_entries = min((is_tickdb ? GetNumTickets(PART_PATH) : GetNumTitleInfoEntries(PART_PATH)) + 1, VBDRI_MAX_ENTRIES);
     title_ids = (u8*) malloc(num_entries * 8);
     if (!title_ids ||
@@ -100,12 +100,12 @@ u64 InitVBDRIDrive(void) { // prerequisite: .db file mounted as virtual diff ima
         DeinitVBDRIDrive();
         return 0;
     }
-    
+
     if (!is_tickdb && ((cached_entry = malloc(sizeof(TitleInfoEntry))) == NULL)) {
         DeinitVBDRIDrive();
         return 0;
     }
-    
+
     return mount_state;
 }
 
@@ -122,25 +122,25 @@ bool ReadVBDRIDir(VirtualFile* vfile, VirtualDir* vdir) {
     if (vdir->flags & VFLAG_TICKDIR) { // ticket dir
         if (!is_tickdb || (!tick_info && !SortVBDRITickets()))
             return false;
-        
+
         while (++vdir->index < (int) num_entries) {
             u32 type = tick_info[vdir->index].type;
             u64 tid = getbe64(title_ids + (vdir->index * 8));
-            
-            if ((tid == 0) || !( 
+
+            if ((tid == 0) || !(
                 ((vdir->flags & VFLAG_ESHOP) && (type == 0)) ||
                 ((vdir->flags & VFLAG_HOMEBREW) && (type == 1)) ||
                 ((vdir->flags & VFLAG_SYSTEM) && (type == 2)) ||
                 ((vdir->flags & VFLAG_UNKNOWN) && (type == 3))))
                 continue;
-            
+
             memset(vfile, 0, sizeof(VirtualFile));
             snprintf(vfile->name, 32, NAME_TIK, tid, getle32(tick_info[vdir->index].console_id));
             vfile->offset = vdir->index; // "offset" is the internal buffer index
             vfile->size = tick_info[vdir->index].size;
             vfile->keyslot = 0xFF;
             vfile->flags = (vdir->flags | VFLAG_DELETABLE) & ~VFLAG_DIR;
-            
+
             return true; // found
         }
     } else { // root dir
@@ -163,17 +163,17 @@ bool ReadVBDRIDir(VirtualFile* vfile, VirtualDir* vdir) {
                 vfile->size = sizeof(TitleInfoEntry);
                 vfile->keyslot = 0xFF;
                 vfile->flags = (vdir->flags | VFLAG_DELETABLE) & ~VFLAG_DIR;
-                
+
                 return true;
             }
         }
     }
-    
+
     return false;
 }
 
 bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
-    
+
     size_t path_len = strlen(path), buf_len = (is_tickdb ? NAME_TIK_LEN : NAME_TIE_LEN) + 2;
     u64 tid;
     u32 console_id;
@@ -181,8 +181,8 @@ bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
 
     char buf[buf_len];
     strcpy(buf, path + path_len - buf_len + 1);
-    
-    
+
+
     if (( is_tickdb && (sscanf(buf, "/" NAME_TIK "%c", &tid, &console_id, &c) != 2)) ||
         (!is_tickdb && (sscanf(buf, "/" NAME_TIE "%c", &tid, &c) != 1)) ||
         (tid == 0))
@@ -193,15 +193,15 @@ bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
     for (u32 i = 0; i < num_entries; i++) {
         if ((entry_index == -1) && (*((u64*)(void*)(title_ids + 8 * i)) == 0))
             entry_index = i;
-            
+
         if (memcmp(&tid, title_ids + 8 * i, 8) == 0)
             return false;
     }
-    
+
     if (entry_index == -1) {
         if (num_entries == VBDRI_MAX_ENTRIES)
             return false;
-            
+
         u32 new_num_entries = min(num_entries + 128, VBDRI_MAX_ENTRIES);
         u8* new_title_ids = realloc(title_ids, new_num_entries * 8);
         if (!new_title_ids)
@@ -212,37 +212,37 @@ bool GetNewVBDRIFile(VirtualFile* vfile, VirtualDir* vdir, const char* path) {
                 return false;
             tick_info = new_tick_info;
         }
-        
+
         entry_index = num_entries;
         num_entries = new_num_entries;
         title_ids = new_title_ids;
-        
+
         memset(title_ids + entry_index * 8, 0, (num_entries - entry_index) * 8);
     }
-    
+
     u32 size = is_tickdb ? TICKET_COMMON_SIZE : sizeof(TitleInfoEntry);
     u8 entry[size];
     if (is_tickdb)
         *((u32*)(void*)(entry + 0x2A8)) = 0xAC000000;
-    if ((is_tickdb ? AddTicketToDB(PART_PATH, (u8*)&tid, (Ticket*)(void*)entry, false) : 
+    if ((is_tickdb ? AddTicketToDB(PART_PATH, (u8*)&tid, (Ticket*)(void*)entry, false) :
         AddTitleInfoEntryToDB(PART_PATH, (u8*)&tid, (TitleInfoEntry*)(void*)entry, false)) != 0)
         return false;
-     
+
     memcpy(title_ids + entry_index * 8, &tid, 8);
-    
+
     if (tick_info) {
         tick_info[entry_index].type = 3;
         tick_info[entry_index].size = TICKET_COMMON_SIZE;
         memset(tick_info[entry_index].console_id, 0, 4);
     }
-    
+
     memset(vfile, 0, sizeof(VirtualFile));
     strcpy(vfile->name, buf);
     vfile->offset = entry_index; // "offset" is the internal buffer index
     vfile->size = size;
     vfile->keyslot = 0xFF;
     vfile->flags = (vdir->flags | VFLAG_DELETABLE) & ~VFLAG_DIR;
-    
+
     return true;
 }
 
@@ -251,14 +251,14 @@ int ReadVBDRIFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         memcpy(buffer, cached_entry + offset, count);
         return 0;
     }
-    
+
     if (is_tickdb && (cache_index != -1))
         free(cached_entry);
     if ((is_tickdb ? ReadTicketFromDB(PART_PATH, title_ids + vfile->offset * 8, (Ticket**) &cached_entry) :
         ReadTitleInfoEntryFromDB(PART_PATH, title_ids + vfile->offset * 8, (TitleInfoEntry*) cached_entry)) != 0)
         return 1;
     cache_index = (int) vfile->offset;
-    
+
     memcpy(buffer, cached_entry + offset, count);
     return 0;
 }
@@ -281,25 +281,25 @@ int WriteVBDRIFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count
         return 1;
     }
     cache_index = (int) vfile->offset;
-        
+
     if (resize) {
         u8* new_cached_entry = realloc(cached_entry, vfile->size);
         if (!new_cached_entry) {
             vfile->size = tick_info[vfile->offset].size;
             return 1;
         }
-        
+
         cached_entry = new_cached_entry;
-        
+
         if (RemoveTicketFromDB(PART_PATH, title_ids + vfile->offset * 8) != 0) {
             vfile->size = tick_info[vfile->offset].size;
             return 1;
         }
     }
-    
+
     memcpy(cached_entry + offset, buffer, count);
-    
-    if ((is_tickdb ? AddTicketToDB(PART_PATH, title_ids + vfile->offset * 8, (Ticket*)(void*)cached_entry, true) : 
+
+    if ((is_tickdb ? AddTicketToDB(PART_PATH, title_ids + vfile->offset * 8, (Ticket*)(void*)cached_entry, true) :
         AddTitleInfoEntryToDB(PART_PATH, title_ids + vfile->offset * 8, (TitleInfoEntry*)(void*)cached_entry, true)) != 0) {
         if (resize) vfile->size = tick_info[vfile->offset].size;
         if (is_tickdb) {
@@ -309,13 +309,13 @@ int WriteVBDRIFile(VirtualFile* vfile, const void* buffer, u64 offset, u64 count
         cache_index = -1;
         return 1;
     }
-    
+
     if (resize) tick_info[vfile->offset].size = vfile->size;
-    
+
     if (tick_info && ((offset <= 0x1F1 && offset + count > 0x1F1) || (cached_entry[0x1F1] == 0 && offset <= 0x104 && offset + count > 4)))
-        tick_info[vfile->offset].type = (cached_entry[0x1F1] > 1) ? 3 : 
+        tick_info[vfile->offset].type = (cached_entry[0x1F1] > 1) ? 3 :
             ((ValidateTicketSignature((Ticket*)(void*)cached_entry) != 0) ? 1 : ((cached_entry[0x1F1] == 1) ? 2 : 0));
-    
+
     return 0;
 }
 
@@ -333,7 +333,7 @@ int DeleteVBDRIFile(const VirtualFile* vfile) {
 
         memset(title_ids + vfile->offset * 8, 0, 8);
     }
-    
+
     return ret;
 }
 

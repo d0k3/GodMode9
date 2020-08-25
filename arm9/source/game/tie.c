@@ -8,7 +8,7 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     u64 title_id = getbe64(tmd->title_id);
     bool has_idx1 = false;
     bool has_idx2 = false;
-    
+
     // set basic values
     memset(tie, 0x00, sizeof(TitleInfoEntry));
     tie->title_type = 0x40;
@@ -34,7 +34,7 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
             ((tmd->twl_flag & 0x2) ? align(sizeof(TwlIconData), align_size) : 0);
     }
 
-    // contents title size + some additional stuff 
+    // contents title size + some additional stuff
     TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
     tie->content0_id = getbe32(chunk->id);
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
@@ -55,7 +55,7 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
 
 u32 BuildTitleInfoEntryTwl(TitleInfoEntry* tie, TitleMetaData* tmd, TwlHeader* twl) {
     u64 title_id = getbe64(tmd->title_id);
-    
+
     // build the basic titledb entry
     if (BuildTitleInfoEntryTmd(tie, tmd, false) != 0) return 1;
 
@@ -90,7 +90,7 @@ u32 BuildTitleInfoEntryNcch(TitleInfoEntry* tie, TitleMetaData* tmd, NcchHeader*
 
     // NCCH titles need no content0 ID
     tie->content0_id = 0;
-    
+
     // specific flags
     // see: http://3dbrew.org/wiki/Titles
     if (!((title_id >> 32) & 0x10)) // not a system title

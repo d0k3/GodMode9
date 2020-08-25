@@ -81,7 +81,7 @@ void Paint9_DrawBrush(u16 px, u16 py, u32 color_fg, u32 color_bg, u32 id) {
 // https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
 void Paint9_DrawLine(u16 px0, u16 py0, u16 px1, u16 py1, u32 color_fg, u32 id) {
     const int dx = abs((s16) px1-px0), sx = (px0 < px1) ? 1 : -1;
-    const int dy = abs((s16) py1-py0), sy = (py0 < py1) ? 1 : -1; 
+    const int dy = abs((s16) py1-py0), sy = (py0 < py1) ? 1 : -1;
     int err = ((dx > dy) ? dx : -dy) / 2;
 
     while (true) {

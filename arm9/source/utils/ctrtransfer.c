@@ -42,7 +42,7 @@ u32 CheckTransferableMbr(void* data) { // strict checks, custom partitions not a
 
 u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     if (!CheckWritePermissions(drv)) return 1;
-    
+
     // backup current mount path, mount new path
     char path_store[256] = { 0 };
     char* path_bak = NULL;
@@ -53,7 +53,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
         InitImgFS(path_bak);
         return 1;
     }
-    
+
     // CTRNAND preparations
     SecureInfo secnfo_img;
     SecureInfo secnfo_loc;
@@ -62,19 +62,19 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     char path_secnfo_c[32];
     char path_tickdb[32];
     char path_tickdb_bak[32];
-    
+
     snprintf(path_secnfo_a, 32, "%s/rw/sys/SecureInfo_A", drv);
     snprintf(path_secnfo_b, 32, "%s/rw/sys/SecureInfo_B", drv);
     snprintf(path_secnfo_c, 32, "%s/rw/sys/SecureInfo_C", drv);
     snprintf(path_tickdb, 32, "%s/dbs/ticket.db", drv);
     snprintf(path_tickdb_bak, 32, "%s/dbs/ticket.bak", drv);
-    
+
     // special handling for out of region images (create SecureInfo_C)
     PathDelete(path_secnfo_c); // not required when transfering back to original region
-    if (((FileGetData("7:/rw/sys/SecureInfo_A", (u8*) &secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
+    if (((FileGetData("7:/rw/sys/SecureInfo_A", (u8*) &secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) ||
          (FileGetData("7:/rw/sys/SecureInfo_B", (u8*) &secnfo_img, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) &&
-        ((FileGetData(path_secnfo_a, (u8*) &secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) || 
-         (FileGetData(path_secnfo_b, (u8*) &secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) && 
+        ((FileGetData(path_secnfo_a, (u8*) &secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo)) ||
+         (FileGetData(path_secnfo_b, (u8*) &secnfo_loc, sizeof(SecureInfo), 0) == sizeof(SecureInfo))) &&
         (secnfo_img.region != secnfo_loc.region)) {
         secnfo_loc.region = secnfo_img.region;
         FileSetData(path_secnfo_c, (u8*) &secnfo_loc, sizeof(SecureInfo), 0, true);
@@ -95,7 +95,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
             drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
         PathDelete(path_asr);
     }
-    
+
     // actual transfer - db files / titles
     static const char* dbnames[] = { "ticket.db", "certs.db", "title.db", "import.db", "tmp_t.db", "tmp_i.db" };
     char path_to[32];
@@ -115,7 +115,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     snprintf(path_from, 32, "7:/title");
     PathDelete(path_to);
     PathCopy(drv, path_from, &flags);
-    
+
     InitImgFS(path_bak);
     return 0;
 }

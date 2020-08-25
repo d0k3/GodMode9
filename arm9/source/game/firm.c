@@ -169,10 +169,10 @@ u32 SetupSecretKey(u32 keynum) {
     static u8 __attribute__((aligned(32))) sector[0x200];
     static u32 got_keys = 0;
     u8* key = sector + (keynum*0x10);
-    
+
     if (keynum >= 0x200/0x10)
         return 1; // safety
-    
+
     // try to load full secret sector
     if (!got_keys) {
         ReadNandSectors(sector, 0x96, 1, 0x11, NAND_SYSNAND);
@@ -185,34 +185,34 @@ u32 SetupSecretKey(u32 keynum) {
         if (LoadKeyFromFile(key, 0x11, 'N', (keynum == 0) ? "95" : "96") == 0)
             got_keys |= (0x1<<keynum); // got at least this key
     }
-    
+
     // setup the key
     if (got_keys & (0x1<<keynum)) {
         setup_aeskey(0x11, key);
         use_aeskey(0x11);
         return 0;
     }
-    
+
     // out of options
     return 1;
 }
 
 u32 DecryptA9LHeader(FirmA9LHeader* header) {
     u32 type = A9L_CRYPTO_TYPE(header);
-    
+
     if (SetupSecretKey(0) != 0) return 1;
     aes_decrypt(header->keyX0x15, header->keyX0x15, 1, AES_CNT_ECB_DECRYPT_MODE);
     if (type) {
         if (SetupSecretKey((type == 1) ? 0 : 1) != 0) return 1;
         aes_decrypt(header->keyX0x16, header->keyX0x16, 1, AES_CNT_ECB_DECRYPT_MODE);
     }
-    
+
     return 0;
 }
 
 u32 SetupArm9BinaryCrypto(FirmA9LHeader* header) {
     u32 type = A9L_CRYPTO_TYPE(header);
-    
+
     if (type == 0) {
         u8 __attribute__((aligned(32))) keyX0x15[0x10];
         memcpy(keyX0x15, header->keyX0x15, 0x10);
@@ -230,24 +230,24 @@ u32 SetupArm9BinaryCrypto(FirmA9LHeader* header) {
         setup_aeskeyY(0x16, header->keyY0x150x16);
         use_aeskey(0x16);
     }
-    
+
     return 0;
 }
 
 u32 DecryptArm9Binary(void* data, u32 offset, u32 size, FirmA9LHeader* a9l) {
     // offset == offset inside ARM9 binary
     // ARM9 binary begins 0x800 byte after the ARM9 loader header
-    
+
     // only process actual ARM9 binary
     u32 size_bin = GetArm9BinarySize(a9l);
     if (offset >= size_bin) return 0;
     else if (size >= size_bin - offset)
         size = size_bin - offset;
-    
+
     // decrypt data
     if (SetupArm9BinaryCrypto(a9l) != 0) return 1;
     ctr_decrypt_byte(data, data, size, offset, AES_CNT_CTRNAND_MODE, a9l->ctr);
-    
+
     return 0;
 }
 
@@ -256,16 +256,16 @@ u32 DecryptFirm(void* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeade
     FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
     u32 offset_arm9bin = arm9s->offset + ARM9BIN_OFFSET;
     u32 size_arm9bin = GetArm9BinarySize(a9l);
-    
+
     // sanity checks
     if (!size_arm9bin || (size_arm9bin + ARM9BIN_OFFSET > arm9s->size))
         return 1; // bad header / data
-    
+
     // check if ARM9 binary in data
     if ((offset_arm9bin >= offset + size) ||
         (offset >= offset_arm9bin + size_arm9bin))
         return 0; // section not in data
-    
+
     // determine data / offset / size
     u8* data8 = (u8*)data;
     u8* data_i = data8;
@@ -277,7 +277,7 @@ u32 DecryptFirm(void* data, u32 offset, u32 size, FirmHeader* firm, FirmA9LHeade
     size_i = size_arm9bin - offset_i;
     if (size_i > size - (data_i - data8))
         size_i = size - (data_i - data8);
-    
+
     return DecryptArm9Binary(data_i, offset_i, size_i, a9l);
 }
 
@@ -290,7 +290,7 @@ u32 DecryptFirmSequential(void* data, u32 offset, u32 size) {
     static FirmHeader* firmptr = NULL;
     static FirmA9LHeader* a9lptr = NULL;
     static FirmSectionHeader* arm9s = NULL;
-    
+
     // fetch firm header from data
     if ((offset == 0) && (size >= sizeof(FirmHeader))) {
         memcpy(&firm, data, sizeof(FirmHeader));
@@ -298,17 +298,17 @@ u32 DecryptFirmSequential(void* data, u32 offset, u32 size) {
         arm9s = (firmptr) ? FindFirmArm9Section(firmptr) : NULL;
         a9lptr = NULL;
     }
-    
+
     // safety check, firm header pointer
     if (!firmptr) return 1;
-    
+
     // fetch ARM9 loader header from data
     if (arm9s && !a9lptr && (offset <= arm9s->offset) &&
         ((offset + size) >= arm9s->offset + sizeof(FirmA9LHeader))) {
         memcpy(&a9l, (u8*)data + arm9s->offset - offset, sizeof(FirmA9LHeader));
         a9lptr = (ValidateFirmA9LHeader(&a9l) == 0) ? &a9l : NULL;
     }
-    
+
     return (a9lptr) ? DecryptFirm(data, offset, size, firmptr, a9lptr) : 0;
 }
 
@@ -318,17 +318,17 @@ u32 DecryptFirmFull(void* data, u32 size) {
     FirmSectionHeader* arm9s = FindFirmArm9Section(firm);
     if (ValidateFirmHeader(firm, size) != 0) return 1; // not a proper firm
     if (!arm9s) return 0; // no ARM9 section -> not encrypted -> done
-    
+
     FirmA9LHeader* a9l = (FirmA9LHeader*)(void*) ((u8*) data + arm9s->offset);
     if (ValidateFirmA9LHeader(a9l) != 0) return 0; // no ARM9bin -> not encrypted -> done
-    
+
     // decrypt FIRM and ARM9loader header
     if ((DecryptFirm(data, 0, size, firm, a9l) != 0) || (DecryptA9LHeader(a9l) != 0))
         return 1;
-    
+
     // fix ARM9 section SHA and ARM9 entrypoint
     sha_quick(arm9s->hash, (u8*) data + arm9s->offset, arm9s->size, SHA256_MODE);
     firm->entry_arm9 = ARM9ENTRY_FIX(firm);
-    
+
     return 0;
 }

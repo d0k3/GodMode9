@@ -88,23 +88,23 @@ static const VirtualFile vMemFileTemplates[] = {
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
     int n_templates = sizeof(vMemFileTemplates) / sizeof(VirtualFile);
     const VirtualFile* templates = vMemFileTemplates;
-    
+
     while (++vdir->index < n_templates) {
         // copy current template to vfile
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
-        
+
         // process special flags
         if (((vfile->flags & VFLAG_N3DS_EXT) && (IS_O3DS))   || // this is not on O3DS consoles and locked by sighax
             ((vfile->flags & VFLAG_OTP) && !(IS_UNLOCKED))   || // OTP still locked
             ((vfile->flags & VFLAG_BOOT9) && !(HAS_BOOT9))   || // boot9 not found
             ((vfile->flags & VFLAG_BOOT11) && !(HAS_BOOT11)) || // boot11 not found
             ((vfile->flags & VFLAG_OTP_KEY) && !(HAS_OTP_KEY))) // OTP key not found
-            continue; 
-        
+            continue;
+
         // found if arriving here
         return true;
     }
-    
+
     return false;
 }
 
@@ -116,7 +116,7 @@ int ReadVMemOTPDecrypted(const VirtualFile* vfile, void* buffer, u64 offset, u64
     alignas(32) u8 otp_iv[0x10];
     alignas(32) u8 otp_key[0x10];
     u8* otp_mem = (u8*) __OTP_ADDR;
-    
+
     if (HAS_BOOT9) { // easy setup when boot9 available
         memcpy(otp_iv, OTP_IV, 0x10);
         memcpy(otp_key, OTP_KEY, 0x10);
@@ -125,7 +125,7 @@ int ReadVMemOTPDecrypted(const VirtualFile* vfile, void* buffer, u64 offset, u64
             (LoadKeyFromFile(otp_iv , 0x11, 'I', "OTP") != 0))
             return 1; // crypto not available
     }
-    
+
     setup_aeskey(0x11, otp_key);
     use_aeskey(0x11);
     cbc_decrypt(otp_mem, otp_local, __OTP_LEN / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, otp_iv);
@@ -149,7 +149,7 @@ int ReadVMemMCURegisters(const VirtualFile* vfile, void* buffer, u64 offset, u64
 int ReadVMemFlashCID(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     // NAND CID if keyslot field != 0.
     bool is_nand = (bool)vfile->keyslot;
-    
+
     u32 cid[4]; // CID is 16 byte in size
     sdmmc_get_cid(is_nand, (u32*) cid);
     memcpy(buffer, ((u8*) cid) + offset, count);
@@ -160,7 +160,7 @@ int ReadVMemFlashCID(const VirtualFile* vfile, void* buffer, u64 offset, u64 cou
 int ReadVMemNVRAM(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     static bool wififlash_initialized = false;
     (void) vfile;
-    
+
     if (!wififlash_initialized) {
         wififlash_initialized = spiflash_get_status();
         if (!wififlash_initialized) return 1;

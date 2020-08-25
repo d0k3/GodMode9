@@ -7,7 +7,7 @@ u64 timer_start( void ) {
     if (!(*TIMER_CNT0 & *TIMER_CNT1 & *TIMER_CNT2 & *TIMER_CNT3 & TIMER_ACTIVE) ||
         !(*TIMER_CNT1 & *TIMER_CNT2 & *TIMER_CNT3 & TIMER_COUNT_UP))
         timer_init = true;
-    
+
     if (timer_init) {
         // deactivate, then reset timers
         *TIMER_CNT0 = 0;
@@ -17,7 +17,7 @@ u64 timer_start( void ) {
         // start timers
         *TIMER_CNT0 = TIMER_ACTIVE;
         *TIMER_CNT1 = *TIMER_CNT2 = *TIMER_CNT3 = TIMER_ACTIVE | TIMER_COUNT_UP;
-        
+
         // timer initialized
         timer_init = false;
     }

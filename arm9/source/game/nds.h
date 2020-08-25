@@ -7,7 +7,7 @@
 // see: http://problemkaputt.de/gbatek.htm#dscartridgeicontitle
 // v0x0001 -> 0x0840 byte (contains JPN, USA, FRE, GER, ITA, ESP titles)
 // v0x0002 -> 0x0940 byte (adds CHN title)
-// v0x0003 -> 0x0A40 byte (adds KOR title) 
+// v0x0003 -> 0x0A40 byte (adds KOR title)
 // v0x0103 -> 0x23C0 byte (adds TWL animated icon data)
 #define TWLICON_SIZE_DATA(v) ((v == 0x0001) ? 0x0840 : (v == 0x0002) ? 0x0940 : \
                               (v == 0x0003) ? 0x1240 : (v == 0x0103) ? 0x23C0 : 0x0000)
