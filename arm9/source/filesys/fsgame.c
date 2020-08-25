@@ -25,7 +25,7 @@ bool GoodRenamer(DirEntry* entry, bool ask) {
     if ((GetGoodName(goodname, entry->path, false) != 0) ||
         (strncmp(goodname + strnlen(goodname, 256) - 4, ".tmd", 4) == 0)) // no TMD, please
         return false;
-    
+
     if (ask) { // ask for confirmatiom
         char oldname_tr[32+1];
         char newname_ww[256];
@@ -35,7 +35,7 @@ bool GoodRenamer(DirEntry* entry, bool ask) {
         if (!ShowPrompt(true, "%s\nRename to good name?\n \n%s", oldname_tr, newname_ww))
             return true; // call it a success because user choice
     }
-    
+
     char npath[256]; // get new path
     strncpy(npath, entry->path, 256);
     char* nname = strrchr(npath, '/');
@@ -47,6 +47,6 @@ bool GoodRenamer(DirEntry* entry, bool ask) {
     if (f_rename(entry->path, npath) != FR_OK) return false;
     strncpy(entry->path, npath, 256);
     entry->name = entry->path + (nname - npath);
-    
+
     return true;
 }

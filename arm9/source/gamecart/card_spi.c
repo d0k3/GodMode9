@@ -30,7 +30,7 @@
 #define SPI_512B_EEPROM_CMD_RDLO 3
 #define SPI_512B_EEPROM_CMD_RDHI 11
 
-#define SPI_EEPROM_CMD_WRITE 2 
+#define SPI_EEPROM_CMD_WRITE 2
 
 #define SPI_CMD_READ 3
 
@@ -119,7 +119,7 @@ int CardSPIWriteRead(CardSPIType type, const void* cmd, u32 cmdSize, void* answe
     SPI_DoXfer(SPI_DEV_CART_FLASH, transfers, 3, true);
 
     REG_CFG9_CARDCTL &= ~CARDCTL_SPICARD;
-    
+
     return 0;
 }
 
@@ -148,12 +148,12 @@ int CardSPIEnableWriting_regular(CardSPIType type) {
 
     if (res) return res;
     cmd = SPI_CMD_RDSR;
-    
+
     do {
         res = CardSPIWriteRead(type, &cmd, 1, &statusReg, 1, 0, 0);
         if (res) return res;
     } while(statusReg & ~SPI_FLG_WEL);
-    
+
     return 0;
 }
 
@@ -176,17 +176,17 @@ int CardSPIReadJEDECIDAndStatusReg(CardSPIType type, u32* id, u8* statusReg) {
     u32 id_ = 0;
     int res = CardSPIWaitWriteEnd(type, 0);
     if (res) return res;
-    
+
     if ((res = CardSPIWriteRead(type, &cmd, 1, idbuf, 3, 0, 0))) return res;
-    
+
     id_ = (idbuf[0] << 16) | (idbuf[1] << 8) | idbuf[2];
     cmd = SPI_CMD_RDSR;
-    
+
     if ((res = CardSPIWriteRead(type, &cmd, 1, &reg, 1, 0, 0))) return res;
-    
+
     if (id) *id = id_;
     if (statusReg) *statusReg = reg;
-    
+
     return 0;
 }
 
@@ -207,19 +207,19 @@ u32 CardSPIGetCapacity(CardSPIType type) {
 
 int CardSPIWriteSaveData_9bit(CardSPIType type, u32 offset, const void* data, u32 size) {
     u8 cmd[2] = { (offset >= 0x100) ? SPI_512B_EEPROM_CMD_WRHI : SPI_512B_EEPROM_CMD_WRLO, (u8) offset };
-    
+
     return _SPIWriteTransaction(type, cmd, 2, (void*) ((u8*) data), size);
 }
 
 int CardSPIWriteSaveData_16bit(CardSPIType type, u32 offset, const void* data, u32 size) {
     u8 cmd[3] = { type.chip->writeCommand, (u8)(offset >> 8), (u8) offset };
-    
+
     return _SPIWriteTransaction(type, cmd, 3, (void*) ((u8*) data), size);
 }
 
 int CardSPIWriteSaveData_24bit_write(CardSPIType type, u32 offset, const void* data, u32 size) {
     u8 cmd[4] = { type.chip->writeCommand, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
-    
+
     return _SPIWriteTransaction(type, cmd, 4, (void*) ((u8*) data), size);
 }
 
@@ -270,60 +270,60 @@ int CardSPIWriteSaveData_24bit_erase_program(CardSPIType type, u32 offset, const
 
 int CardSPIWriteSaveData(CardSPIType type, u32 offset, const void* data, u32 size) {
     if (type.chip == NO_CHIP) return 1;
-    
+
     if (size == 0) return 0;
     size = min(size, CardSPIGetCapacity(type) - offset);
     u32 end = offset + size;
     u32 pos = offset;
     u32 writeSize = type.chip->writeSize;
     if (writeSize == 0) return 0xC8E13404;
-    
+
     int res = CardSPIWaitWriteEnd(type, 1000);
     if (res) return res;
-    
+
     while(pos < end) {
         u32 remaining = end - pos;
         u32 nb = writeSize - (pos % writeSize);
-        
+
         u32 dataSize = (remaining < nb) ? remaining : nb;
-        
+
         if ((res = type.chip->writeSaveData(type, pos, (void*) ((u8*) data - offset + pos), dataSize))) return res;
-        
+
         pos = ((pos / writeSize) + 1) * writeSize; // truncate
     }
-    
+
     return 0;
 }
 
-int CardSPIReadSaveData_9bit(CardSPIType type, u32 pos, void* data, u32 size) { 
+int CardSPIReadSaveData_9bit(CardSPIType type, u32 pos, void* data, u32 size) {
     u8 cmd[4];
     u32 cmdSize = 2;
-    
+
     u32 end = pos + size;
-    
+
     u32 read = 0;
     if (pos < 0x100) {
         u32 len = 0x100 - pos;
         cmd[0] = SPI_512B_EEPROM_CMD_RDLO;
         cmd[1] = (u8) pos;
-        
+
         int res = CardSPIWriteRead(type, cmd, cmdSize, data, len, NULL, 0);
         if (res) return res;
-        
+
         read += len;
     }
-    
+
     if (end >= 0x100) {
         u32 len = end - 0x100;
 
         cmd[0] = SPI_512B_EEPROM_CMD_RDHI;
         cmd[1] = (u8)(pos + read);
-        
+
         int res = CardSPIWriteRead(type, cmd, cmdSize, (void*)((u8*)data + read), len, NULL, 0);
 
         if (res) return res;
     }
-    
+
     return 0;
 }
 
@@ -335,7 +335,7 @@ int CardSPIReadSaveData_16bit(CardSPIType type, u32 offset, void* data, u32 size
 
 int CardSPIReadSaveData_24bit(CardSPIType type, u32 offset, void* data, u32 size) {
     u8 cmd[4] = { SPI_CMD_READ, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
-    
+
     return CardSPIWriteRead(type, cmd, 4, data, size, NULL, 0);
 }
 
@@ -343,10 +343,10 @@ int CardSPIReadSaveData(CardSPIType type, u32 offset, void* data, u32 size) {
     if (type.chip == NO_CHIP) return 1;
 
     if (size == 0) return 0;
-    
+
     int res = CardSPIWaitWriteEnd(type, 1000);
     if (res) return res;
-    
+
     size = (size <= CardSPIGetCapacity(type) - offset) ? size : CardSPIGetCapacity(type) - offset;
 
     return type.chip->readSaveData(type, offset, data, size);
@@ -358,7 +358,7 @@ int CardSPIEraseSector_emulated(CardSPIType type, u32 offset) {
     if (!fill_buf) return 1;
     memset(fill_buf, 0xff, blockSize);
     offset = (offset / blockSize) * blockSize;
-    
+
     int res = CardSPIWriteSaveData(type, offset, fill_buf, blockSize);
     free(fill_buf);
     return res;
@@ -366,10 +366,10 @@ int CardSPIEraseSector_emulated(CardSPIType type, u32 offset) {
 
 int CardSPIEraseSector_real(CardSPIType type, u32 offset) {
     u8 cmd[4] = { type.chip->eraseCommand, (u8)(offset >> 16), (u8)(offset >> 8), (u8) offset };
-    
+
     int res = CardSPIWaitWriteEnd(type, 10000);
     if (res) return res;
-    
+
     return _SPIWriteTransaction(type, cmd, 4, NULL, 0);
 }
 
@@ -399,41 +399,41 @@ int CardSPIErase(CardSPIType type) {
  *
  * Copyright (C) Pokedoc (2010)
  */
-/* 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU General Public License as published by 
- * the Free Software Foundation; either version 2 of the License, or 
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License 
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
  * for more details.
- * 
- * You should have received a copy of the GNU General Public License along 
- * with this program; if not, write to the Free Software Foundation, Inc., 
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
- 
+
 int _SPIIsDataMirrored(CardSPIType type, int size, bool* mirrored) {
     u32 offset0 = (size-1);        //      n KB
     u32 offset1 = (2*size-1);      //     2n KB
-    
+
     u8 buf1;     //      +0k data        read -> write
     u8 buf2;     //      +n k data        read -> read
     u8 buf3;     //      +0k ~data          write
     u8 buf4;     //      +n k data new    comp buf2
-    
+
     int res;
-    
+
     if ((res = CardSPIReadSaveData(type, offset0, &buf1, 1))) return res;
     if ((res = CardSPIReadSaveData(type, offset1, &buf2, 1))) return res;
     buf3=~buf1;
     if ((res = CardSPIWriteSaveData(type, offset0, &buf3, 1))) return res;
     if ((res = CardSPIReadSaveData(type, offset1, &buf4, 1))) return res;
     if ((res = CardSPIWriteSaveData(type, offset0, &buf1, 1))) return res;
-    
+
     *mirrored = buf2 != buf4;
     return 0;
 }
@@ -442,8 +442,8 @@ int CardSPIGetCardSPIType(CardSPIType* type, bool infrared) {
     u8 sr = 0;
     u32 jedec = 0;
     CardSPIType t = {NO_CHIP, infrared};
-    int res; 
-    
+    int res;
+
     if(infrared) {
         // Infrared carts currently not supported, need additional handling!
         *type = (CardSPIType) {NO_CHIP, true};
@@ -452,20 +452,20 @@ int CardSPIGetCardSPIType(CardSPIType* type, bool infrared) {
 
     res = CardSPIReadJEDECIDAndStatusReg(t, &jedec, &sr);
     if (res) return res;
-    
+
     if ((sr & 0xfd) == 0x00 && (jedec != 0x00ffffff)) { t.chip = &FLASH_DUMMY; }
     if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { *type = (CardSPIType) { EEPROM_512B, false }; return 0; }
     if ((sr & 0xfd) == 0x00 && (jedec == 0x00ffffff)) { t = (CardSPIType) { &EEPROM_DUMMY, false }; }
-    
+
     if(t.chip == NO_CHIP) {
         *type = (CardSPIType) {NO_CHIP, false};
         return 0;
     }
-    
+
     if (t.chip == &EEPROM_DUMMY) {
         bool mirrored = false;
         size_t i;
-        
+
         for(i = 0; i < sizeof(EEPROMTypes) / sizeof(CardSPITypeData) - 1; i++) {
             if ((res = _SPIIsDataMirrored(t, CardSPIGetCapacity((CardSPIType) {EEPROMTypes + i, false}), &mirrored))) return res;
             if (mirrored) {
@@ -476,15 +476,15 @@ int CardSPIGetCardSPIType(CardSPIType* type, bool infrared) {
         *type = (CardSPIType) { EEPROMTypes + i, false };
         return 0;
     }
-    
+
     for(size_t i = 0; i < sizeof(flashTypes) / sizeof(CardSPITypeData); i++) {
         if (flashTypes[i].jedecId == jedec) {
             *type = (CardSPIType) { flashTypes + i, infrared };
             return 0;
         }
     }
-    
+
     *type = (CardSPIType) { NO_CHIP, infrared };
     return 0;
-    
+
 }

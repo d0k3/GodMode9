@@ -232,7 +232,7 @@ static inline bool isntrboot(void) {
 
 static inline u32 strntohex(const char* str, u8* hex, u32 len) {
     if (!len) {
-        len = strlen(str); 
+        len = strlen(str);
         if (len%1) return 0;
         else len >>= 1;
     } else if (len*2 != strnlen(str, (len*2)+1)) {
@@ -285,28 +285,28 @@ static inline u32 line_len(const char* text, u32 len, u32 ww, const char* line, 
 }
 
 static inline char* line_seek(const char* text, u32 len, u32 ww, const char* line, int add) {
-    // safety checks / 
+    // safety checks /
     if (line < text) return NULL;
     if ((line >= (text + len)) && (add >= 0)) return (char*) line;
-    
+
     if (!ww) { // non wordwrapped mode
         char* lf = ((char*) line - 1);
-    
+
         // ensure we are at the start of the line
         while ((lf > text) && (*lf != '\n')) lf--;
-        
+
         // handle backwards search
         for (; (add < 0) && (lf >= text); add++)
             for (lf--; (lf >= text) && (*lf != '\n'); lf--);
-        
+
         // handle forwards search
         for (; (add > 0) && (lf < text + len); add--)
             for (lf++; (lf < text + len) && (*lf != '\n'); lf++);
-        
+
         return lf + 1;
     } else { // wordwrapped mode
         char* l0 = (char*) line;
-        
+
         // handle forwards wordwrapped search
         for (; (add > 0) && (l0 < text + len); add--) {
             char* eol = NULL;
@@ -314,7 +314,7 @@ static inline char* line_seek(const char* text, u32 len, u32 ww, const char* lin
             if (eol || !llenww) l0 = line_seek(text, len, 0, l0, 1);
             else l0 += llenww;
         }
-        
+
         // handle backwards wordwrapped search
         while ((add < 0) && (l0 > text)) {
             char* l1 = line_seek(text, len, 0, l0, -1);
@@ -331,19 +331,19 @@ static inline char* line_seek(const char* text, u32 len, u32 ww, const char* lin
             }
         }
 
-        
+
         return l0;
     }
 }
 
 static inline u32 get_lno(const char* text, u32 len, const char* line) {
     u32 lno = 1;
-    
+
     for (u32 i = 0; i < len; i++) {
         if (line <= text + i) return lno;
         else if (text[i] == '\n') lno++;
     }
-    
+
     return 0;
 }
 
@@ -369,11 +369,11 @@ void set_preview(const char* name, const char* content) {
 
 char* set_var(const char* name, const char* content) {
     Gm9ScriptVar* vars = (Gm9ScriptVar*) var_buffer;
-    
+
     if ((strnlen(name, _VAR_NAME_LEN) > (_VAR_NAME_LEN-1)) || (strnlen(content, _VAR_CNT_LEN) > (_VAR_CNT_LEN-1)) ||
         (strchr(name, '[') || strchr(name, ']')))
         return NULL;
-    
+
     u32 n_var = 0;
     for (Gm9ScriptVar* var = vars; n_var < _VAR_MAX_BUFF; n_var++, var++)
         if (!*(var->name) || (strncmp(var->name, name, _VAR_NAME_LEN) == 0)) break;
@@ -383,10 +383,10 @@ char* set_var(const char* name, const char* content) {
     strncpy(vars[n_var].content, content, _VAR_CNT_LEN);
     vars[n_var].content[_VAR_CNT_LEN - 1] = '\0';
     if (!n_var) *(vars[n_var].content) = '\0'; // NULL var
-    
+
     // update preview stuff
     set_preview(name, content);
-    
+
     return vars[n_var].content;
 }
 
@@ -397,18 +397,18 @@ void upd_var(const char* name) {
         u8 secinfo_data[1 + 1 + 16] = { 0 };
         char* env_serial = (char*) secinfo_data + 2;
         char env_region[3 + 1] = { 0 };
-        
+
         snprintf(env_region, 0x4, "UNK");
         if ((FileGetData("1:/rw/sys/SecureInfo_A", secinfo_data, 0x11, 0x100) != 0x11) &&
             (FileGetData("1:/rw/sys/SecureInfo_B", secinfo_data, 0x11, 0x100) != 0x11))
             snprintf(env_serial, 0xF, "UNKNOWN");
         else if (*secinfo_data < SMDH_NUM_REGIONS)
             strncpy(env_region, g_regionNamesShort[*secinfo_data], countof(env_region) - 1);
-        
+
         set_var("SERIAL", env_serial);
         set_var("REGION", env_region);
     }
-    
+
     // device sysnand / emunand id0
     for (u32 emu = 0; emu <= 1; emu++) {
         const char* env_id0_name = (emu) ? "EMUID0" : "SYSID0";
@@ -425,7 +425,7 @@ void upd_var(const char* name) {
             set_var(env_id0_name, env_id0);
         }
     }
-    
+
     // datestamp & timestamp
     if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)  || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) {
         DsTime dstime;
@@ -449,7 +449,7 @@ void upd_var(const char* name) {
 
 char* get_var(const char* name, char** endptr) {
     Gm9ScriptVar* vars = (Gm9ScriptVar*) var_buffer;
-    
+
     u32 name_len = 0;
     char* pname = NULL;
     if (!endptr) { // no endptr, varname is verbatim
@@ -462,26 +462,26 @@ char* get_var(const char* name, char** endptr) {
             if ((name_len >= _VAR_NAME_LEN) || !pname[name_len]) return NULL;
         *endptr = pname + name_len + 1;
     }
-    
+
     char vname[_VAR_NAME_LEN];
     strncpy(vname, pname, name_len);
     vname[name_len] = '\0';
     upd_var(vname); // handle dynamic env vars
-    
+
     u32 n_var = 0;
     for (Gm9ScriptVar* var = vars; n_var < _VAR_MAX_BUFF; n_var++, var++) {
         if (!*(var->name) || (strncmp(var->name, vname, _VAR_NAME_LEN) == 0)) break;
     }
-    
+
     if (n_var >= _VAR_MAX_BUFF || !*(vars[n_var].name)) n_var = 0;
-    
+
     return vars[n_var].content;
 }
 
 bool init_vars(const char* path_script) {
     // reset var buffer
     memset(var_buffer, 0x00, sizeof(Gm9ScriptVar) * _VAR_MAX_BUFF);
-    
+
     // current path
     char curr_dir[_VAR_CNT_LEN];
     if (path_script) {
@@ -490,9 +490,9 @@ bool init_vars(const char* path_script) {
         char* slash = strrchr(curr_dir, '/');
         if (slash) *slash = '\0';
     } else strncpy(curr_dir, "(null)",  _VAR_CNT_LEN - 1);
-    
+
     // set env vars
-    set_var("NULL", ""); // this one is special and should not be changed later 
+    set_var("NULL", ""); // this one is special and should not be changed later
     set_var("CURRDIR", curr_dir); // script path, never changes
     set_var("GM9OUT", OUTPUT_PATH); // output path, never changes
     set_var("HAX", IS_UNLOCKED ? (isntrboot() ? "ntrboot" : "sighax") : ""); // type of hax running from
@@ -501,17 +501,17 @@ bool init_vars(const char* path_script) {
     char* ptr = set_var("GM9VER", VERSION); // GodMode9 version, truncated below
     while (*(ptr++) != '\0') if (*ptr == '-') *ptr = '\0';
     upd_var(NULL); // set all dynamic environment vars
-    
+
     return true;
 }
 
 bool expand_arg(char* argex, const char* arg, u32 len) {
     char* out = argex;
-    
+
     for (char* in = (char*) arg; in - arg < (int) len; in++) {
         u32 out_len = out - argex;
         if (out_len >= (_ARG_MAX_LEN-1)) return false; // maximum arglen reached
-        
+
         if (*in == '\\') { // escape line breaks
             if (*(++in) == 'n') *(out++) = '\n';
             else {
@@ -529,20 +529,20 @@ bool expand_arg(char* argex, const char* arg, u32 len) {
         } else *(out++) = *in;
     }
     *out = '\0';
-    
+
     return true;
 }
 
 cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
     const Gm9ScriptCmd* cmd_entry = NULL;
-    
+
     for (u32 i = 0; i < (sizeof(cmd_list)/sizeof(Gm9ScriptCmd)); i++) {
         if (strncmp(cmd_list[i].cmd, cmd, len) == 0) {
             cmd_entry = cmd_list + i;
             break;
         }
     }
-    
+
     if (!cmd_entry) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown cmd");
     } else if (cmd_entry->n_args != argc) {
@@ -550,13 +550,13 @@ cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
     } else if (~(cmd_entry->allowed_flags|_FLG('o')|_FLG('s')) & flags) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unrecognized flags");
     } else return cmd_entry->id;
-    
+
     return CMD_ID_NONE;
 }
 
 u32 get_flag(char* str, u32 len, char* err_str) {
     char flag_char = '\0';
-    
+
     if ((len < 2) || (*str != '-')) flag_char = '\0';
     else if (len == 2) flag_char = str[1];
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
@@ -577,23 +577,23 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--unequal", len) == 0) flag_char = 'u';
     else if (strncmp(str, "--overwrite", len) == 0) flag_char = 'w';
     else if (strncmp(str, "--explorer", len) == 0) flag_char = 'x';
-    
+
     if ((flag_char < 'a') && (flag_char > 'z')) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "illegal flag");
         return 0;
     }
-    
+
     return _FLG(flag_char);
 }
 
 char* get_string(char* ptr, const char* line_end, u32* len, char** next, char* err_str) {
     char* str = NULL;
     *len = 0;
-    
+
     // skip whitespaces
     for (; IS_WHITESPACE(*ptr) && (ptr < line_end); ptr++);
     if (ptr >= line_end) return (*next = (char*) line_end); // end reached, all whitespaces
-    
+
     // handle string
     if (*ptr == '\"') { // quotes
         str = ++ptr;
@@ -604,11 +604,11 @@ char* get_string(char* ptr, const char* line_end, u32* len, char** next, char* e
         }
         *next = ptr + 1;
     } else { // no quotes, no whitespace
-        str = ptr; 
+        str = ptr;
         for (; !IS_WHITESPACE(*ptr) && (ptr < line_end); ptr++, (*len)++);
         *next = ptr;
     }
-    
+
     return str;
 }
 
@@ -618,16 +618,16 @@ char* skip_block(char* ptr, bool ignore_else, bool stop_after_end) {
         char* line_start = ptr;
         char* line_end = strchr(ptr, '\n');
         if (!line_end) line_end = ptr + strlen(ptr);
-        
+
         // grab first string
         char* str = NULL;
         u32 str_len = 0;
         if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL)) || (str >= line_end)) {
             // string error or empty line
             ptr = line_end + 1;
-            continue; 
+            continue;
         }
-        
+
         // check string
         if (MATCH_STR(str, str_len, _CMD_END)) { // stop at end
             return line_start; // end of block found
@@ -638,19 +638,19 @@ char* skip_block(char* ptr, bool ignore_else, bool stop_after_end) {
         } else if (MATCH_STR(str, str_len, _CMD_IF)) {
             ptr = line_start = skip_block(line_end + 1, true, false);
             if (ptr == NULL) return NULL;
-            
+
             line_end = strchr(ptr, '\n');
             if (!line_end) line_end = ptr + strlen(ptr);
-            
+
             str = get_string(ptr, line_end, &str_len, &ptr, NULL);
             if (!(MATCH_STR(str, str_len, _CMD_END))) return NULL;
             if (stop_after_end) return line_end + 1;
         }
-        
+
         // move on to the next line
         ptr = line_end + 1;
     }
-    
+
     // end of block not found
     return NULL;
 }
@@ -661,16 +661,16 @@ char* find_next(char* ptr) {
         char* line_start = ptr;
         char* line_end = strchr(ptr, '\n');
         if (!line_end) line_end = ptr + strlen(ptr);
-        
+
         // grab first string
         char* str = NULL;
         u32 str_len = 0;
         if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL)) || (str >= line_end)) {
             // string error or empty line
             ptr = line_end + 1;
-            continue; 
+            continue;
         }
-        
+
         // check string
         if (MATCH_STR(str, str_len, _CMD_IF)) { // skip 'if' blocks
             ptr = skip_block(ptr, true, true);
@@ -679,11 +679,11 @@ char* find_next(char* ptr) {
         } else if (MATCH_STR(str, str_len, _CMD_NEXT)) {
             return line_start;
         }
-        
+
         // move on to the next line
         ptr = line_end + 1;
     }
-    
+
     // 'next' not found
     return NULL;
 }
@@ -692,13 +692,13 @@ char* find_label(const char* label, const char* last_found) {
     char* script = (char*) script_buffer;
     char* ptr = script;
     u32 label_len = strnlen(label, _ARG_MAX_LEN);
-    
+
     if (last_found) {
         ptr = strchr(last_found, '\n');
         if (!ptr) return NULL;
         ptr++;
     }
-    
+
     char* next = ptr;
     for (; next && *ptr; ptr = next) {
         // store line start / get line end
@@ -706,27 +706,27 @@ char* find_label(const char* label, const char* last_found) {
         char* line_end = strchr(ptr, '\n');
         if (!line_end) line_end = ptr + strlen(ptr);
         next = line_end + 1;
-        
+
         // search for label
         char* str = NULL;
         u32 str_len = 0;
         if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL))) continue; // string error, ignore line
         else if (str >= line_end) continue; // empty line
-        
+
         if (*str == '@') {
             // label found
             str++; str_len--;
-            
+
             // compare it manually (also check for '*' at end)
             u32 pdiff = 0;
             for (; (pdiff < str_len) && (label[pdiff] == str[pdiff]); pdiff++);
             if ((pdiff < label_len) && (label[pdiff] != '*')) continue; // no match
             // otherwise: potential regular or wildcard match
-            
+
             // may be a match, see if there are more strings after it
             if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL))) continue; // string error, ignore line
             else if ((str < line_end) && (*str != '#')) continue; // neither end of line nor comment
-            
+
             return line_start; // match found
         } else if (MATCH_STR(str, str_len, _CMD_IF)) {
             next = skip_block(line_start, true, true);
@@ -734,7 +734,7 @@ char* find_label(const char* label, const char* last_found) {
             next = find_next(line_start);
         } // otherwise: irrelevant line
     }
-    
+
     return NULL;
 }
 
@@ -744,13 +744,13 @@ bool for_handler(char* path, const char* dir, const char* pattern, bool recursiv
     static char ldir[256];
     static char lpattern[64];
     static bool rec = false;
-    
+
     if (!path && !dir && !pattern) { // close all dirs
         while (dp >= fdir) fvx_closedir(dp--);
         dp = NULL;
         return true;
     }
-    
+
     if (dir) { // open a dir
         snprintf(lpattern, 64, "%s", pattern);
         snprintf(ldir, 256, "%s", dir);
@@ -769,14 +769,14 @@ bool for_handler(char* path, const char* dir, const char* pattern, bool recursiv
             if (!slash) return false;
             *slash = '\0';
         }
-        
+
         snprintf(path, 256, "%s/%.254s", ldir, fno.fname);
         if (rec && (fno.fattrib & AM_DIR) && (dp - fdir < _MAX_FOR_DEPTH - 1)) {
             if (fvx_opendir(++dp, path) != FR_OK) dp--;
             else strncpy(ldir, path, 255);
         }
     } else return false;
-    
+
     return true;
 }
 
@@ -784,18 +784,18 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
     char* ptr = (char*) line_start;
     char* str;
     u32 len;
-    
+
     // set everything to initial values
     *cmdid = 0;
     *flags = 0;
     *argc = 0;
-    
+
     // search for cmd
     char* cmd = NULL;
     u32 cmd_len = 0;
     if (!(cmd = get_string(ptr, line_end, &cmd_len, &ptr, err_str))) return false; // string error
     if ((cmd >= line_end) || (*cmd == '#') || (*cmd == '@')) return true; // empty line or comment or label
-    
+
     // special handling for "if", "elif" and "not"
     if (MATCH_STR(cmd, cmd_len, _CMD_NOT)) {
         *cmdid = CMD_ID_NOT;
@@ -807,7 +807,7 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
         *cmdid = CMD_ID_ELIF;
         return true;
     }
-    
+
     // got cmd, now parse flags & args
     while ((str = get_string(ptr, line_end, &len, &ptr, err_str))) {
         bool in_quotes = ((ptr - str) != (int) len); // hacky
@@ -825,14 +825,14 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
             return false; // arg expand failed
         }
     }
-    
+
     // end reached with a failed get_string()
     return false;
 }
 
 bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     bool ret = true; // true unless some cmd messes up
-    
+
     // process arg0 @string
     u64 at_org = 0;
     u64 sz_org = 0;
@@ -846,7 +846,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             }
         }
     }
-    
+
     // perform command
     if (id == CMD_ID_NOT) {
         // check the argument
@@ -859,7 +859,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         // "if true" or "if false"
         skip_state = (strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) == 0) ? 0 : _SKIP_BLOCK;
         ifcnt++;
-        
+
         if (syntax_error && err_str)
             snprintf(err_str, _ERR_STR_LEN, "syntax error after 'if'");
         ret = !syntax_error;
@@ -871,12 +871,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             syntax_error = true;
             return false;
         }
-        
+
         // skip state handling, check the argument if required
         // "if true" or "if false"
         skip_state = !skip_state ? _SKIP_TILL_END :
             ((strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) == 0) ? 0 : _SKIP_BLOCK);
-        
+
         if (syntax_error && err_str)
             snprintf(err_str, _ERR_STR_LEN, "syntax error after 'elif'");
         ret = !syntax_error;
@@ -888,10 +888,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             syntax_error = true;
             return false;
         }
-        
+
         // turn the skip state
         skip_state = skip_state ? 0 : _SKIP_TILL_END;
-        
+
         ret = true;
     }
     else if (id == CMD_ID_END) {
@@ -901,11 +901,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             syntax_error = true;
             return false;
         }
-        
+
         // close last "if"
         skip_state = 0;
         ifcnt--;
-        
+
         ret = true;
     }
     else if (id == CMD_ID_FOR) {
@@ -959,16 +959,16 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char* options_jmp[_CHOICE_MAX_N] = { NULL };
         char options_str[_CHOICE_MAX_N][_CHOICE_STR_LEN+1];
         u32 options_keys[_CHOICE_MAX_N] = { 0 };
-        
+
         char* ast = strchr(argv[1], '*');
         char* ptr = NULL;
         u32 n_opt = 0;
         while ((ptr = find_label(argv[1], ptr))) {
             options_jmp[n_opt] = ptr;
-            
+
             while (*(ptr++) != '@');
             if (ast) ptr += (ast - argv[1]);
-            
+
             char* choice = options_str[n_opt];
             for (u32 i = 0; i < _CHOICE_STR_LEN; choice[++i] = '\0') {
                 if (IS_WHITESPACE(ptr[i])) break;
@@ -980,13 +980,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 for (; *choice != ' ' && *choice != '\0'; choice++);
                 if (*choice != '\0') *(choice++) = '\0';
                 options_keys[n_opt] = StringToButton(keystr);
-                if (!options_keys[n_opt]) continue; 
+                if (!options_keys[n_opt]) continue;
             }
 
             options[n_opt] = choice;
             if (++n_opt >= _CHOICE_MAX_N) break;
         }
-        
+
         u32 result = (flags & _FLG('k')) ? ShowHotkeyPrompt(n_opt, options, options_keys, "%s", argv[0]) :
             ShowSelectPrompt(n_opt, options, "%s", argv[0]);
 
@@ -1039,7 +1039,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char* var = get_var(argv[2], NULL);
         strncpy(choice, var, _VAR_CNT_LEN);
         choice[_VAR_CNT_LEN - 1] = '\0';
-        
+
         char path[_VAR_CNT_LEN];
         strncpy(path, argv[1], _VAR_CNT_LEN);
         path[_VAR_CNT_LEN - 1] = '\0';
@@ -1061,7 +1061,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ret = FileSelector(choice, argv[0], path, NULL, NO_FILES | SELECT_DIRS, (flags & _FLG('x')));
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "dirselect abort");
         }
-        
+
         if (ret) {
             ret = set_var(argv[2], choice);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
@@ -1075,14 +1075,14 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char str[_ARG_MAX_LEN];
         strncpy(str, argv[1], _ARG_MAX_LEN);
         str[_ARG_MAX_LEN - 1] = '\0';
-        
+
         ret = false;
         if (strlen(argv[2]) == 1) { // argv[2] must be one char
             char* found;
             if (flags & _FLG('f')) found = strchr(str, *argv[2]);
             else found = strrchr(str, *argv[2]);
             if (!found && err_str) snprintf(err_str, _ERR_STR_LEN, "char not found");
-            
+
             if (found) {
                 if (flags & _FLG('b')) {
                     *found = '\0';
@@ -1096,7 +1096,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char str[_ARG_MAX_LEN];
         strncpy(str, argv[1], _ARG_MAX_LEN);
         str[_ARG_MAX_LEN - 1] = '\0';
-        
+
         if (strnlen(argv[2], _ARG_MAX_LEN) != 2) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] must be 2 chars");
             ret = false;
@@ -1480,7 +1480,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ret = false;
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown error");
     }
-    
+
     if (ret && err_str) snprintf(err_str, _ERR_STR_LEN, "command success");
     return ret;
 }
@@ -1494,18 +1494,18 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     // set up argv array
     for (u32 i = 0; i < _MAX_ARGS; i++)
         argv[i] = args[i];
-    
+
     // flags handling (if no pointer given)
     u32 lflags;
     if (!flags) flags = &lflags;
     *flags = 0;
-    
+
     // parse current line, grab cmd / flags / args
     if (!parse_line(line_start, line_end, &cmdid, flags, &argc, argv, err_str)) {
         syntax_error = true;
         return false;
     }
-    
+
     // control flow command handling
     // block out of control flow commands
     if (if_cond && IS_CTRLFLOW_CMD(cmdid)) {
@@ -1513,36 +1513,36 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
         syntax_error = true;
         return false;
     }
-        
+
     // shortcuts for "elif" / "else"
     if (((cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_ELSE)) && !skip_state) {
         skip_state = _SKIP_TILL_END;
         cmdid = 0;
     }
-    
+
     // handle "if" / "elif" / "not"
     if ((cmdid == CMD_ID_IF) || (cmdid == CMD_ID_ELIF) || (cmdid == CMD_ID_NOT)) {
         // set defaults
         argc = 1;
         strncpy(argv[0], _ARG_FALSE, _ARG_MAX_LEN - 1);
-        
+
         // skip to behind the command
         char* line_start_next = (char*) line_start;
         for (; IS_WHITESPACE(*line_start_next); line_start_next++);
         for (; *line_start_next && !IS_WHITESPACE(*line_start_next); line_start_next++);
-        
+
         // run condition, take over result
         if (run_line(line_start_next, line_end, flags, err_str, true))
             strncpy(argv[0], _ARG_TRUE, _ARG_MAX_LEN - 1);
     }
-    
+
     // run the command (if available)
     if (cmdid && !run_cmd(cmdid, *flags, argv, err_str)) {
         char* msg_fail = get_var("ERRORMSG", NULL);
         if (msg_fail && *msg_fail) *err_str = '\0'; // use custom error message
         return false;
     }
-    
+
     // success if we arrive here
     return true;
 }
@@ -1581,7 +1581,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         if (ncpy > TV_LLEN_DISP) ncpy = TV_LLEN_DISP;
         bool al = !ww && off_disp && (ptr != ptr_next);
         bool ar = !ww && (llen > off_disp + TV_LLEN_DISP);
-        
+
         // set text color / find start of comment of scripts
         u32 color_text = (nln == mno) ? script_color_active : (is_script) ? script_color_code : (u32) COLOR_TVTEXT;
         int cmt_start = TV_LLEN_DISP; // start of comment in current displayed line (may be negative)
@@ -1591,14 +1591,14 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
             cmt_start = (hash - ptr) - off_disp;
         }
         if (cmt_start <= 0) color_text = script_color_comment;
-        
+
         // build text string
         snprintf(txtstr, TV_LLEN_DISP + 1, "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
         if (ncpy) memcpy(txtstr, ptr + off_disp, ncpy);
         for (char* d = txtstr; *d; d++) if (*d < ' ') *d = ' ';
         if (al) memcpy(txtstr + p_al, al_str, strnlen(al_str, 16));
         if (ar) memcpy(txtstr + p_ar, ar_str, strnlen(ar_str, 16));
-        
+
         // draw line number & text
         DrawString(TOP_SCREEN, txtstr, x_txt, y, color_text, COLOR_STD_BG, false);
         if (TV_LNOS > 0) { // line number
@@ -1606,17 +1606,17 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
                 DrawStringF(TOP_SCREEN, x_lno, y, ((ptr == text) || (*(ptr-1) == '\n')) ? COLOR_TVOFFS : COLOR_TVOFFSL, COLOR_STD_BG, "%0*lu", TV_LNOS, nln);
             else DrawStringF(TOP_SCREEN, x_lno, y, COLOR_TVOFFSL, COLOR_STD_BG, "%*.*s", TV_LNOS, TV_LNOS, " ");
         }
-        
+
         // colorize comment if is_script
         if ((cmt_start > 0) && ((u32) cmt_start < TV_LLEN_DISP)) {
             memset(txtstr, ' ', cmt_start);
             DrawString(TOP_SCREEN, txtstr, x_txt, y, script_color_comment, COLOR_TRANSPARENT, false);
         }
-        
+
         // colorize arrows
         if (al) DrawStringF(TOP_SCREEN, x_al, y, COLOR_TVOFFS, COLOR_TRANSPARENT, al_str);
         if (ar) DrawStringF(TOP_SCREEN, x_ar, y, COLOR_TVOFFS, COLOR_TRANSPARENT, ar_str);
-        
+
         // advance pointer / line number
         for (char* c = ptr; c < ptr_next; c++) if (*c == '\n') ++nln;
         ptr = ptr_next;
@@ -1664,7 +1664,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
     while (true) {
         // display text on screen
         MemTextView(text, len, line0, off_disp, lcurr, ww, 0, as_script);
-        
+
         // handle user input
         u32 pad_state = InputWait(0);
         char* line0_next = line0;
@@ -1683,7 +1683,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
             ww = ww ? 0 : TV_LLEN_DISP;
             line0_next = line_seek(text, len, ww, line0, 0);
         } else if (pad_state & (BUTTON_B|BUTTON_START)) break;
-        
+
         // check for problems, apply changes
         if (!ww && (line0_next > llast_nww)) line0_next = llast_nww;
         else if (ww && (line0_next > llast_ww)) line0_next = llast_ww;
@@ -1697,10 +1697,10 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
         if (off_disp + TV_LLEN_DISP > llen_max) off_disp = llen_max - TV_LLEN_DISP;
         if ((off_disp < 0) || ww) off_disp = 0;
     }
-    
+
     // clear screens
     ClearScreenF(true, true, COLOR_STD_BG);
-    
+
     return true;
 }
 
@@ -1711,17 +1711,17 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
     char* captions[max_captions];
     u32 lineno[max_captions];
     u32 ww = TV_LLEN_DISP;
-    
+
     // check if this really is text
     if (!ValidateText(text, len)) {
         ShowPrompt(false, "Error: Invalid text data");
         return false;
     }
-    
+
     // clear screens / view start of readme on top
     ClearScreenF(true, true, COLOR_STD_BG);
     MemTextView(text, len, (char*) text, 0, 1, ww, 0, false);
-    
+
     // parse text for markdown captions
     u32 n_captions = 0;
     char* ptr = (char*) text;
@@ -1735,7 +1735,7 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
         }
         ptr = ptr_next;
     }
-    
+
     int cursor = -1;
     while (true) {
         // display ToC
@@ -1756,7 +1756,7 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
                 "%*.*s", len, len, caption);
             y0 += FONT_HEIGHT_EXT + (2*TV_VPAD);
         }
-        
+
         // handle user input
         u32 pad_state = InputWait(0);
         if ((cursor >= 0) && (pad_state & BUTTON_A)) {
@@ -1772,10 +1772,10 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
             MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false);
         }
     }
-    
+
     // clear screens
     ClearScreenF(true, true, COLOR_STD_BG);
-    
+
     return true;
 }
 
@@ -1802,29 +1802,29 @@ bool FileTextViewer(const char* path, bool as_script) {
 bool ExecuteGM9Script(const char* path_script) {
     char path_str[32+1];
     TruncateString(path_str, path_script, 32, 12);
-    
-    
+
+
     // reset control flow global vars
     ifcnt = 0;
     jump_ptr = NULL;
     for_ptr = NULL;
     skip_state = 0;
     syntax_error = false;
-    
-    
+
+
     // allocate && check memory
     var_buffer = (void*) malloc(sizeof(Gm9ScriptVar) * _VAR_MAX_BUFF);
     script_buffer = (void*) malloc(SCRIPT_MAX_SIZE);
     char* script = (char*) script_buffer;
     char* ptr = script;
-    
+
     if (!var_buffer || !script_buffer) {
         if (var_buffer) free(var_buffer);
         if (script_buffer) free(script_buffer);
         ShowPrompt(false, "Out of memory.");
         return false;
     }
-    
+
     // fetch script from path
     u32 script_size = FileGetData(path_script, (u8*) script, SCRIPT_MAX_SIZE, 0);
     if (!script_size || (script_size >= SCRIPT_MAX_SIZE)) {
@@ -1832,13 +1832,13 @@ bool ExecuteGM9Script(const char* path_script) {
         free(script_buffer);
         return false;
     }
-    
+
     char* end = script + script_size;
     *end = '\0';
-    
+
     // initialise variables
     init_vars(path_script);
-    
+
     // setup script preview (only if used)
     u32 preview_mode_local = 0;
     if (MAIN_SCREEN != TOP_SCREEN) {
@@ -1848,7 +1848,7 @@ bool ExecuteGM9Script(const char* path_script) {
         script_color_comment = COLOR_TVCMT;
         script_color_code = COLOR_TVCMD;
     }
-    
+
     // script execute loop
     u32 lno = 1;
     bool result = true;
@@ -1905,17 +1905,17 @@ bool ExecuteGM9Script(const char* path_script) {
                     MemTextView(script, script_size, script, 0, 1, 0, lno, true);
                 } else {
                     char* ptr_view = line_seek(script, script_size, 0, ptr, -(TV_NLIN_DISP/2));
-                    u32 lno_view = lno - (TV_NLIN_DISP/2); 
+                    u32 lno_view = lno - (TV_NLIN_DISP/2);
                     MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true);
                 }
             }
         }
-        
+
         // run command
         char err_str[_ERR_STR_LEN+1] = { 0 };
         result = run_line(ptr, line_end, &flags, err_str, false);
-        
-        
+
+
         // skip state handling
         char* skip_ptr = ptr;
         if ((skip_state == _SKIP_BLOCK) || (skip_state == _SKIP_TILL_END)) {
@@ -1942,12 +1942,12 @@ bool ExecuteGM9Script(const char* path_script) {
             }
             skip_state = 0;
         }
-        
-        
+
+
         if (!result) { // error handling
             if (syntax_error) // severe error, can't continue
                 flags &= ~(_FLG('o')|_FLG('s')); // never silent or optional
-            
+
             if (!(flags & _FLG('s'))) { // not silent
                 if (!*err_str) {
                     char* msg_fail = get_var("ERRORMSG", NULL);
@@ -1970,7 +1970,7 @@ bool ExecuteGM9Script(const char* path_script) {
                 break;
             } else result = true; // set back the result otherwise
         }
-        
+
         // reposition pointer
         if (skip_ptr != ptr) {
             ptr = skip_ptr;
@@ -1987,8 +1987,8 @@ bool ExecuteGM9Script(const char* path_script) {
             lno++;
         }
     }
-    
-    
+
+
     if (result) { // all fine(?) up to this point
         if (ifcnt) { // check for unresolved 'if'
             ShowPrompt(false, "%s\nend of script: unresolved 'if'", path_str);
@@ -2000,13 +2000,13 @@ bool ExecuteGM9Script(const char* path_script) {
             result = false;
         }
     }
-    
+
     if (result) { // success message if applicable
         char* msg_okay = get_var("SUCCESSMSG", NULL);
         if (msg_okay && *msg_okay) ShowPrompt(false, "%s", msg_okay);
     }
-    
-    
+
+
     free(var_buffer);
     free(script_buffer);
     return result;

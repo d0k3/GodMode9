@@ -129,7 +129,7 @@ void NTR_InitKey (u32 aGameCode, u32* pCardHash, int nCardHash, u32* pKeyCode, i
         const u8* BlowfishNtr = (const u8*)0x01FFE428;
         memcpy (pCardHash, BlowfishNtr, 0x1048);
     }
-    
+
     pKeyCode[0] = aGameCode;
     pKeyCode[1] = aGameCode/2;
     pKeyCode[2] = aGameCode*2;
@@ -202,7 +202,7 @@ void NTR_SecureDelay(u16 aTimeout)
   //TIMER0_CR=TIMER_DIV_256|TIMER_ENABLE;
   TIMER0_CR=TIMER_DIV_1024|TIMER_ENABLE;
   while(TIMER0_DATA!=0xFFFF);
-  
+
   // Clear out the timer registers
   TIMER0_CR=0;
   TIMER0_DATA=0;

@@ -32,10 +32,10 @@ u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt, bool devkit) {
         {0x75, 0x05, 0x52, 0xBF, 0xAA, 0x1C, 0x04, 0x07, 0x55, 0xC8, 0xD5, 0x9A, 0x55, 0xF9, 0xAD, 0x1F} , // 4
         {0xAA, 0xDA, 0x4C, 0xA8, 0xF6, 0xE5, 0xA9, 0x77, 0xE0, 0xA0, 0xF9, 0xE4, 0x76, 0xCF, 0x0D, 0x63} , // 5
     };
-    
+
     u32 mode = (encrypt) ? AES_CNT_TITLEKEY_ENCRYPT_MODE : AES_CNT_TITLEKEY_DECRYPT_MODE;
     u8 ctr[16] = { 0 };
-    
+
     // setup key 0x3D // ctr
     if (tik->commonkey_idx >= 6) return 1;
     if (!devkit) setup_aeskeyY(0x3D, (void*) common_keyy[tik->commonkey_idx]);
@@ -43,7 +43,7 @@ u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt, bool devkit) {
     use_aeskey(0x3D);
     memcpy(ctr, tik->title_id, 8);
     set_ctr(ctr);
-    
+
     // decrypt / encrypt the titlekey
     aes_decrypt(tik->titlekey, tik->titlekey, 1, mode);
     return 0;
@@ -54,7 +54,7 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
     memcpy(tik.title_id, ticket->title_id, 8);
     memcpy(tik.titlekey, ticket->titlekey, 16);
     tik.commonkey_idx = ticket->commonkey_idx;
-    
+
     if (CryptTitleKey(&tik, false, TICKET_DEVKIT(ticket)) != 0) return 1;
     memcpy(titlekey, tik.titlekey, 16);
     return 0;
@@ -64,7 +64,7 @@ u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
     const char* path_db = TICKDB_PATH(emunand); // EmuNAND / SysNAND
     char path_store[256] = { 0 };
     char* path_bak = NULL;
-    
+
     strncpy(path_store, GetMountPath(), 256);
     if (*path_store) path_bak = path_store;
     if (!InitImgFS(path_db))
@@ -81,37 +81,37 @@ u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
 
     for (u32 i = force_legit ? 1 : 0; i < 4; i++) {
         snprintf(dir_path, 12, "T:/%s", virtual_tickdb_dirs[i]);
-        
+
         if (fvx_opendir(&dir, dir_path) != FR_OK) {
             InitImgFS(path_bak);
             return 1;
         }
-        
+
         while ((fvx_readdir(&dir, &fno) == FR_OK) && *(fno.fname)) {
             if (strncmp(tid_string, fno.fname, 16) == 0) {
                 snprintf(tik_path, 64, "%s/%s", dir_path, fno.fname);
-                
+
                 u32 size = fvx_qsize(tik_path);
                 if (!(*ticket = malloc(size))) {
                     InitImgFS(path_bak);
                     return 1;
                 }
-                
+
                 if ((fvx_qread(tik_path, *ticket, 0, size, NULL) != FR_OK) ||
                     (force_legit && (ValidateTicketSignature(*ticket) != 0))) {
                     free(*ticket);
                     InitImgFS(path_bak);
                     return 1;
                 }
-                
+
                 InitImgFS(path_bak);
                 return 0;
             }
         }
-        
+
         fvx_closedir(&dir);
     }
-    
+
     InitImgFS(path_bak);
     return 1;
 }
@@ -120,12 +120,12 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     bool found = false;
     TitleKeysInfo* tikdb = (TitleKeysInfo*) malloc(STD_BUFFER_SIZE); // more than enough
     if (!tikdb) return 1;
-    
+
     // search for a titlekey inside encTitleKeys.bin / decTitleKeys.bin
     // when found, add it to the ticket
     for (u32 enc = 0; (enc <= 1) && !found; enc++) {
         u32 len = LoadSupportFile((enc) ? TIKDB_NAME_ENC : TIKDB_NAME_DEC, tikdb, STD_BUFFER_SIZE);
-        
+
         if (len == 0) continue; // file not found
         if (tikdb->n_entries > (len - 16) / 32)
             continue; // filesize / titlekey db size mismatch
@@ -141,7 +141,7 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
             break;
         }
     }
-    
+
     free(tikdb);
     return (found) ? 0 : 1;
 }

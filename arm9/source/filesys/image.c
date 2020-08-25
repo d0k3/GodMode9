@@ -17,7 +17,7 @@ int ReadImageBytes(void* buffer, u64 offset, u64 count) {
     if (!mount_state) return FR_INVALID_OBJECT;
     if (fvx_tell(&mount_file) != offset) {
         if (fvx_size(&mount_file) < offset) return -1;
-        fvx_lseek(&mount_file, offset); 
+        fvx_lseek(&mount_file, offset);
     }
     ret = fvx_read(&mount_file, buffer, count, &bytes_read);
     return (ret != 0) ? (int) ret : (bytes_read != count) ? -1 : 0;

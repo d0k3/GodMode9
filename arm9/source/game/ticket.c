@@ -23,18 +23,18 @@ u32 ValidateTicketSignature(Ticket* ticket) {
     static bool got_modexp = false;
     static u32 mod[0x100 / 0x4] = { 0 };
     static u32 exp = 0;
-    
+
     if (!got_modexp) {
         // grab mod/exp from cert from cert.db
         if (LoadCertFromCertDb(0x3F10, NULL, mod, &exp) == 0)
             got_modexp = true;
         else return 1;
     }
-    
+
     if (!RSA_setKey2048(3, mod, exp) ||
         !RSA_verify2048((void*) &(ticket->signature), (void*) &(ticket->issuer), GetTicketSize(ticket) - 0x140))
         return 1;
-        
+
     return 0;
 }
 
@@ -59,7 +59,7 @@ u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
     ticket->audit = 0x01; // whatever
     memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
     memset(&ticket->content_index[sizeof(ticket_cnt_index)], 0xFF, 0x80); // 1024 content indexes
-    
+
     return 0;
 }
 
@@ -73,14 +73,14 @@ u32 GetTicketSize(const Ticket* ticket) {
 
 u32 BuildTicketCert(u8* tickcert) {
     static const u8 cert_hash_expected[0x20] = {
-        0xDC, 0x15, 0x3C, 0x2B, 0x8A, 0x0A, 0xC8, 0x74, 0xA9, 0xDC, 0x78, 0x61, 0x0E, 0x6A, 0x8F, 0xE3, 
+        0xDC, 0x15, 0x3C, 0x2B, 0x8A, 0x0A, 0xC8, 0x74, 0xA9, 0xDC, 0x78, 0x61, 0x0E, 0x6A, 0x8F, 0xE3,
         0xE6, 0xB1, 0x34, 0xD5, 0x52, 0x88, 0x73, 0xC9, 0x61, 0xFB, 0xC7, 0x95, 0xCB, 0x47, 0xE6, 0x97
     };
     static const u8 cert_hash_expected_dev[0x20] = {
         0x97, 0x2A, 0x32, 0xFF, 0x9D, 0x4B, 0xAA, 0x2F, 0x1A, 0x24, 0xCF, 0x21, 0x13, 0x87, 0xF5, 0x38,
         0xC6, 0x4B, 0xD4, 0x8F, 0xDF, 0x13, 0x21, 0x3D, 0xFC, 0x72, 0xFC, 0x8D, 0x9F, 0xDD, 0x01, 0x0E
     };
-    
+
     // open certs.db file on SysNAND
     FIL db;
     UINT bytes_read;
@@ -94,13 +94,13 @@ u32 BuildTicketCert(u8* tickcert) {
     f_lseek(&db, 0x3A00);
     f_read(&db, tickcert + 0x4F0, 0x210, &bytes_read);
     f_close(&db);
-    
+
     // check the certificate hash
     u8 cert_hash[0x20];
     sha_quick(cert_hash, tickcert, TICKET_CDNCERT_SIZE, SHA256_MODE);
     if (memcmp(cert_hash, IS_DEVKIT ? cert_hash_expected_dev : cert_hash_expected, 0x20) != 0)
         return 1;
-    
+
     return 0;
 }
 

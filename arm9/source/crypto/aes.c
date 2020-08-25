@@ -213,11 +213,11 @@ void ctr_decrypt_byte(void *inbuf, void *outbuf, size_t size, size_t off, uint32
     uint8_t *in  = inbuf;
     uint8_t *out = outbuf;
     uint32_t i;
-    
+
     for (i=0; i<AES_BLOCK_SIZE; i++) // setup local ctr
         ctr_local[i] = ctr[i];
     add_ctr(ctr_local, off / AES_BLOCK_SIZE);
-    
+
     if (off_fix) // handle misaligned offset (at beginning)
     {
         size_t last_byte = ((off_fix + bytes_left) >= AES_BLOCK_SIZE) ?
@@ -229,7 +229,7 @@ void ctr_decrypt_byte(void *inbuf, void *outbuf, size_t size, size_t off, uint32
             *(out++) = temp[i];
         bytes_left -= last_byte - off_fix;
     }
-    
+
     if (bytes_left >= AES_BLOCK_SIZE)
     {
         size_t blocks = bytes_left / AES_BLOCK_SIZE;
@@ -238,7 +238,7 @@ void ctr_decrypt_byte(void *inbuf, void *outbuf, size_t size, size_t off, uint32
         out += AES_BLOCK_SIZE * blocks;
         bytes_left -= AES_BLOCK_SIZE * blocks;
     }
-    
+
     if (bytes_left) // handle misaligned offset (at end)
     {
         for (i=0; i<bytes_left; i++)
@@ -300,7 +300,7 @@ void aes_cmac(void* inbuf, void* outbuf, size_t size)
         AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN;
     uint32_t* out = (uint32_t*) outbuf;
     uint32_t* in  = (uint32_t*) inbuf;
-        
+
     // create xorpad for last block
     set_ctr(zeroes);
     aes_decrypt(xorpad, xorpad, 1, mode);
@@ -312,7 +312,7 @@ void aes_cmac(void* inbuf, void* outbuf, size_t size)
     }
     xorpadb[15] <<= 1;
     xorpadb[15] ^= finalxor;
-    
+
     // process blocks
     for (uint32_t i = 0; i < 4; i++)
         out[i] = 0;

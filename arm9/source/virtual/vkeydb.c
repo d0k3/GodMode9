@@ -17,28 +17,28 @@ void DeinitVKeyDbDrive(void) {
 u64 InitVKeyDbDrive(void) { // prerequisite: aeskeydb.bin mounted as image
     if (!(GetMountState() & BIN_KEYDB)) return 0;
     n_keys = 0;
-    
+
     // sanity check
     u64 fsize = GetMountSize();
     if (!fsize || (fsize % sizeof(AesKeyInfo)) || (fsize > VKEYDB_BUFFER_SIZE)) {
         n_keys = 0;
         return 0;
     }
-    
+
     // setup vkeydb buffer
     DeinitVKeyDbDrive(); // dangerous shit
     key_info = (AesKeyInfo*) malloc(VKEYDB_BUFFER_SIZE);
     if (!key_info) return 0;
-    
+
     // load the full database into memory
     n_keys = fsize / sizeof(AesKeyInfo);
     if (ReadImageBytes((u8*) key_info, 0, fsize) != 0) n_keys = 0;
-    
+
     // decrypt keys if required
     for (u32 i = 0; i < n_keys; i++) {
         if (key_info[i].isEncrypted) CryptAesKeyInfo(&(key_info[i]));
     }
-    
+
     if (!n_keys) DeinitVKeyDbDrive();
     return (n_keys) ? BIN_KEYDB : 0;
 }
@@ -59,17 +59,17 @@ bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir) {
             (key_entry->keyUnitType == KEYS_RETAIL) ? ".ret" : "";
         snprintf(typestr, 12 + 1, "%s%.10s", (key_entry->type == 'I') ? "IV" :
             (key_entry->type == 'X') ? "X" : (key_entry->type == 'Y') ? "Y" : "", key_entry->id);
-        
+
         memset(vfile, 0, sizeof(VirtualFile));
         snprintf(vfile->name, 32, NAME_LEGKEY, keyslot, typestr, unitext);
         vfile->offset = vdir->index * sizeof(AesKeyInfo);
         vfile->size = 16; // standard size of a key
         vfile->keyslot = 0xFF;
         vfile->flags = VFLAG_READONLY;
-        
+
         return true; // found
     }
-    
+
     return false;
 }
 

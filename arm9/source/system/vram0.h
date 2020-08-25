@@ -31,15 +31,15 @@
 
 #define FirstVTarEntry() \
     TARDATA
-    
+
 #define OffsetVTarEntry(off) \
     TARDATA_(off)
 
 #define NextVTarEntry(tardata) \
     NextTarEntry(tardata, TARDATA_END)
-    
+
 #define GetVTarFileInfo(tardata, fname, fsize, is_dir) \
     GetTarFileInfo(tardata, fname, fsize, is_dir)
-    
+
 #define FindVTarFileInfo(fname, fsize) \
     FindTarFileInfo(TARDATA, TARDATA_END, fname, fsize)

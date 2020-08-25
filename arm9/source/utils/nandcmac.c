@@ -55,15 +55,15 @@
 u32 SetupSlot0x30(char drv) {
     u8 keyy[16] __attribute__((aligned(32)));
     char movable_path[32];
-    
+
     if ((drv == 'A') || (drv == 'S')) drv = '1';
     else if ((drv == 'B') || (drv == 'E')) drv = '4';
-    
+
     snprintf(movable_path, 32, "%c:/private/movable.sed", drv);
     if (fvx_qread(movable_path, keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
     setup_aeskeyY(0x30, keyy);
     use_aeskey(0x30);
-    
+
     return 0;
 }
 
@@ -117,12 +117,12 @@ u32 LocateAgbSaveSdCurrentSlot(const char* path, AgbSaveHeader* agbsave) {
 u32 CheckCmacHeader(const char* path) {
     u8 cmac_hdr[0x100];
     UINT br;
-    
+
     if ((fvx_qread(path, cmac_hdr, 0, 0x100, &br) != FR_OK) || (br != 0x100))
         return 1;
     for (u32 i = 0x10; i < 0x100; i++)
         if (cmac_hdr[i] != 0x00) return 1;
-    
+
     return 0;
 }
 
@@ -133,14 +133,14 @@ u32 CheckCmacPath(const char* path) {
 u32 ReadWriteFileCmac(const char* path, u8* cmac, bool do_write, bool check_perms) {
     u32 cmac_type = CalculateFileCmac(path, NULL);
     u32 offset = 0;
-    
+
     if (!cmac_type) return 1;
     else if (cmac_type == CMAC_MOVABLE) offset = 0x130;
     else if (cmac_type == CMAC_AGBSAVE) offset = 0x010;
     else if (cmac_type == CMAC_AGBSAVE_SD) offset = LocateAgbSaveSdCurrentSlot(path, NULL) + 0x10;
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1; // can't do that here
     else offset = 0x000;
-    
+
     if (do_write && check_perms && !CheckWritePermissions(path)) return 1;
     if (!do_write) return (fvx_qread(path, cmac, offset, 0x10, NULL) != FR_OK) ? 1 : 0;
     else return (fvx_qwrite(path, cmac, offset, 0x10, NULL) != FR_OK) ? 1 : 0;
@@ -155,13 +155,13 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
     u32 sid; // save ID / various uses
     char* name;
     char* ext;
-    
+
     name = strrchr(path, '/'); // filename
     if (!name) return 0; // will not happen
     name++;
     ext = strrchr(name, '.'); // extension
     if (ext) ext++;
-    
+
     if ((drv == 'A') || (drv == 'B')) { // data installed on SD
         if (sscanf(path, "%c:/extdata/%08lx/%08lx/%08lx/%08lx", &drv, &xid_high, &xid_low, &fid_high, &fid_low) == 5) {
             sid = 1;
@@ -191,7 +191,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             cmac_type = CMAC_CMD_TWLN; // this is not supported (yet), it's in here just for detection
         }
     }
-    
+
     if (!cmac_type) { // path independent stuff
         const char* db_names[] = { SYS_DB_NAMES };
         for (sid = 0; sid < sizeof(db_names) / sizeof(char*); sid++)
@@ -203,28 +203,28 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         else if (strncasecmp(name, "agbsave.bin", 16) == 0)
             cmac_type = CMAC_AGBSAVE;
     }
-    
+
     // exit with cmac_type if (u8*) cmac is NULL
     // somewhat hacky, but can be used to check if file has a CMAC
     if (!cmac) return cmac_type;
     else if ((cmac_type == CMAC_CMD_SD) || (cmac_type == CMAC_CMD_TWLN)) return 1;
     else if (!cmac_type) return 1;
-    
+
     static const u32 cmac_keyslot[] = { CMAC_KEYSLOT };
-    u8 hashdata[0x200] __attribute__((aligned(4))); 
+    u8 hashdata[0x200] __attribute__((aligned(4)));
     u32 keyslot = cmac_keyslot[cmac_type];
     u32 hashsize = 0;
-    
+
     // setup slot 0x30 via movable.sed
     if ((keyslot == 0x30) && (SetupSlot0x30(drv) != 0))
         return 1;
-    
+
     // build hash data block, get size
     if ((cmac_type == CMAC_AGBSAVE) || (cmac_type == CMAC_AGBSAVE_SD)) { // agbsaves
         AgbSaveHeader* agbsave = (AgbSaveHeader*) malloc(AGBSAVE_MAX_SIZE);
         u32 offset = 0;
         UINT br;
-        
+
         if (!agbsave) return 1;
         if (cmac_type == CMAC_AGBSAVE_SD) offset = LocateAgbSaveSdCurrentSlot(path, NULL);
         if ((fvx_qread(path, agbsave, offset, AGBSAVE_MAX_SIZE, &br) != FR_OK) || (br < 0x200) ||
@@ -232,7 +232,7 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             free(agbsave);
             return 1;
         }
-        
+
         u32 ret = FixAgbSaveCmac(agbsave, cmac, (cmac_type == CMAC_AGBSAVE) ? NULL : path);
         free(agbsave);
         return ret;
@@ -275,14 +275,14 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
             hashsize = 0x10C;
         }
     }
-        
+
     // calculate CMAC
     u8 shasum[32];
     if (!hashsize) return 1;
     sha_quick(shasum, hashdata, hashsize, SHA256_MODE);
     use_aeskey(keyslot);
     aes_cmac(shasum, cmac, 2);
-    
+
     return 0;
 }
 
@@ -311,11 +311,11 @@ u32 FixFileCmac(const char* path, bool check_perms) {
 u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
     AgbSaveHeader* agbsave = (AgbSaveHeader*) (void*) data;
     u8 temp[0x30] __attribute__((aligned(4))); // final hash @temp+0x00
-    
+
     // safety check
     if (ValidateAgbSaveHeader(agbsave) != 0)
         return 1;
-    
+
     if (!sddrv) { // NAND partition mode
         sha_quick(temp + 0x00, (u8*) data + 0x30, (0x200 - 0x30) + agbsave->save_size, SHA256_MODE);
     } else {
@@ -325,7 +325,7 @@ u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
         // this won't work on devkits(!!!)
         const char* cmac_savetype[] = { CMAC_SAVETYPE };
         if (SetupSlot0x30(*sddrv) != 0) return 1;
-        
+
         // first hash (hash0 = AGBSAVE_hash)
         sha_quick(temp + 0x08, (u8*) data + 0x30, (0x200 - 0x30) + agbsave->save_size, SHA256_MODE);
         // second hash (hash1 = CTR-SAV0 + hash0)
@@ -336,11 +336,11 @@ u32 FixAgbSaveCmac(void* data, u8* cmac, const char* sddrv) {
         memcpy(temp + 0x08, &(agbsave->title_id), 8);
         sha_quick(temp + 0x00, temp, 0x30, SHA256_MODE);
     }
-    
+
     use_aeskey((sddrv) ? 0x30 : 0x24);
     aes_cmac(temp, &(agbsave->cmac), 2);
     if (cmac) memcpy(cmac, &(agbsave->cmac), 0x10);
-    
+
     return 0;
 }
 
@@ -368,7 +368,7 @@ u32 CheckFixCmdCmac(const char* path, bool fix, bool check_perms) {
     u64 cmd_size = fvx_qsize(path);
     u8* cmd_data = malloc(cmd_size);
     CmdHeader* cmd = (CmdHeader*) (void*) cmd_data;
-    
+
     // check for out of memory
     if (cmd_data == NULL) return 1;
 
@@ -454,13 +454,13 @@ u32 RecursiveFixFileCmacWorker(char* path) {
     FILINFO fno;
     DIR pdir;
     u32 err = 0;
-    
+
     if (fvx_opendir(&pdir, path) == FR_OK) { // process folder contents
         char pathstr[32 + 1];
         TruncateString(pathstr, path, 32, 8);
         char* fname = path + strnlen(path, 255);
         *(fname++) = '/';
-        
+
         ShowString("%s\nFixing CMACs, please wait...", pathstr);
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
@@ -479,16 +479,16 @@ u32 RecursiveFixFileCmacWorker(char* path) {
         *(--fname) = '\0';
     } else if (CheckCmacPath(path) == 0) // fix single file CMAC
         return FixFileCmac(path, true);
-    
+
     return err;
 }
 
 u32 RecursiveFixFileCmac(const char* path) {
     // create a fixed up local path
     // (this is highly path sensitive)
-    char lpath[256]; 
+    char lpath[256];
     char* p = (char*) path;
-    lpath[255] = '\0'; 
+    lpath[255] = '\0';
     for (u32 i = 0; i < 255; i++) {
         lpath[i] = *(p++);
         while ((lpath[i] == '/') && (*p == '/')) p++;

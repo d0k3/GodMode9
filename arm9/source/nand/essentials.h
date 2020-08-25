@@ -23,7 +23,7 @@ typedef struct {
 // see: http://3dbrew.org/wiki/Nand/private/movable.sed
 typedef struct {
     u8 magic[0x4]; // "SEED"
-    u8 indicator[0x4]; // uninitialized all zero, otherwise u8[1] nonzero  
+    u8 indicator[0x4]; // uninitialized all zero, otherwise u8[1] nonzero
     LocalFriendCodeSeed codeseed_data;
     u8 keyy_high[8];
     u8 unknown[0x10];

@@ -113,14 +113,14 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     int error = IPS_INVALID;
     UINT outlen_min, outlen_max, outlen_min_mem;
     snprintf(errName, 256, "%s", patchName);
-    
+
     if (fvx_open(&patchFile, patchName, FA_READ) != FR_OK) return displayError(IPS_INVALID_FILE_PATH);
     patchSize = fvx_size(&patchFile);
     ShowProgress(0, patchSize, patchName);
-    
+
     patch = malloc(patchSize);
     if (!patch || fvx_read(&patchFile, patch, patchSize, NULL) != FR_OK) return displayError(IPS_MEMORY);
-    
+
     // Check validity of patch
     if (patchSize < 8) return displayError(IPS_INVALID);
     if (read8() != 'P' ||
@@ -131,7 +131,7 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     {
         return displayError(IPS_INVALID);
     }
-    
+
     unsigned int offset = read24();
     unsigned int outlen = 0;
     unsigned int thisout = 0;
@@ -144,7 +144,7 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
             ShowProgress(0, patchSize, patchName);
             ShowProgress(patchOffset, patchSize, patchName);
         }
-        
+
         unsigned int size = read16();
         if (size == 0)
         {
@@ -180,7 +180,7 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     outlen_min = outlen;
     error = IPS_OK;
     if (w_scrambled) error = IPS_SCRAMBLED;
-    
+
     // start applying patch
     bool inPlace = false;
     if (!CheckWritePermissions(outName)) return displayError(IPS_INVALID_FILE_PATH);
@@ -193,19 +193,19 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     else if ((fvx_open(&inFile, inName, FA_READ) != FR_OK) ||
             (fvx_open(&outFile, outName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK))
             return displayError(IPS_INVALID_FILE_PATH);
-    
+
     size_t inSize = fvx_size(&inFile);
     outlen = max(outlen_min, min(inSize, outlen_max));
     fvx_lseek(&outFile, max(outlen, outlen_min_mem));
     fvx_lseek(&outFile, 0);
     size_t outSize = outlen;
     ShowProgress(0, outSize, outName);
-    
+
     fvx_lseek(&inFile, 0);
     if (!inPlace && !IPScopy(COPY_IN, min(inSize, outlen), 0)) return displayError(IPS_MEMORY);
     fvx_lseek(&outFile, inSize);
     if (outSize > inSize && !IPScopy(COPY_RLE, outSize - inSize, 0)) return displayError(IPS_MEMORY);
-    
+
     fvx_lseek(&patchFile, 5);
     offset = read24();
     while (offset != 0x454F46)
@@ -215,14 +215,14 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
             ShowProgress(0, outSize, outName);
             ShowProgress(offset, outSize, outName);
         }
-        
+
         fvx_lseek(&outFile, offset);
         unsigned int size = read16();
-        if (size == 0 && !IPScopy(COPY_RLE, read16(), read8())) return displayError(IPS_MEMORY); 
+        if (size == 0 && !IPScopy(COPY_RLE, read16(), read8())) return displayError(IPS_MEMORY);
         else if (size != 0 && !IPScopy(COPY_PATCH, size, 0)) return displayError(IPS_MEMORY);
         offset = read24();
     }
-    
+
     fvx_lseek(&outFile, outSize);
     f_truncate(&outFile);
     return displayError(error);

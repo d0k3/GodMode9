@@ -13,9 +13,9 @@ void sha_init(u32 mode)
 }
 
 void sha_update(const void* src, u32 size)
-{    
+{
     const u32* src32 = (const u32*)src;
-    
+
     while(size >= 0x40) {
         while(*REG_SHACNT & 1);
         *((volatile _sha_block*)REG_SHAINFIFO) = *((const _sha_block*)src32);

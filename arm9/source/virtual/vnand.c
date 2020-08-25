@@ -54,11 +54,11 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
     int n_templates = sizeof(vNandTemplates) / sizeof(VirtualNandTemplate);
     const VirtualNandTemplate* templates = vNandTemplates;
     u32 nand_src = vdir->flags & VRT_SOURCE;
-    
+
     while (++vdir->index < n_templates) {
         const VirtualNandTemplate* template = templates + vdir->index;
         NandPartitionInfo prt_info;
-        
+
         // set up virtual file
         if (template->flags & VFLAG_NAND_SIZE) { // override for "nand.bin"
             prt_info.sector = 0;
@@ -71,7 +71,7 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
         vfile->size = ((u64) prt_info.count) * 0x200;
         vfile->keyslot = prt_info.keyslot;
         vfile->flags = template->flags;
-        
+
         // handle special cases
         if (!vfile->size) continue;
         if ((nand_src == VRT_XORPAD) && ((vfile->keyslot == 0x11) || (vfile->keyslot >= 0x40)))
@@ -98,12 +98,12 @@ bool ReadVNandDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir
             if (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) != 0) continue;
             vfile->size = KEYDB_PERFECT_SIZE;
         }
-        
+
         // found if arriving here
         vfile->flags |= nand_src;
         return true;
     }
-    
+
     return false;
 }
 

@@ -25,14 +25,14 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     if ((vdir->index < 0) && !cart_init)
         InitVCartDrive();
     if (!cart_init) return false;
-    
+
     const char* ext = (cdata->cart_type & CART_CTR) ? "3ds" : "nds";
     char name[24];
     GetCartName(name, cdata);
     memset(vfile, 0, sizeof(VirtualFile));
     vfile->keyslot = 0xFF; // unused
     vfile->flags = VFLAG_READONLY;
-        
+
     while (++vdir->index <= 7) {
         if ((vdir->index == 0) && (cdata->data_size < FAT_LIMIT)) { // standard full rom
             snprintf(vfile->name, 32, "%s.%s", name, ext);
@@ -69,7 +69,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             return true;
         }
     }
-    
+
     return false;
 }
 

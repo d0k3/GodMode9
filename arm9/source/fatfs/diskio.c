@@ -63,7 +63,7 @@ FATpartition DriveInfo[13] = {
     { TYPE_RAMDRV,  SUBTYPE_NONE, 0, 0, 0xFF }      // Z - RAMDRIVE
 };
 
-static BYTE imgnand_mode = 0x00; 
+static BYTE imgnand_mode = 0x00;
 
 
 
@@ -81,7 +81,7 @@ DWORD get_fattime( void ) {
         ((DSTIMEGET(&dstime, bcd_D)&0x1F) << 16) |
         ((DSTIMEGET(&dstime, bcd_M)&0x0F) << 21) |
         (((DSTIMEGET(&dstime, bcd_Y)+(2000-1980))&0x7F) << 25);
-    
+
     return fattime;
 }
 
@@ -113,10 +113,10 @@ DSTATUS disk_initialize (
     imgnand_mode = (GetMountState() & IMG_NAND) ? 0x01 : 0x00;
     FATpartition* fat_info = PART_INFO(pdrv);
     BYTE type = PART_TYPE(pdrv);
-    
+
     fat_info->offset = fat_info->size = 0;
     fat_info->keyslot = 0xFF;
-    
+
     if (type == TYPE_SDCARD) {
         if (sdmmc_sdcard_init() != 0) return STA_NOINIT|STA_NODISK;
         fat_info->size = getMMCDevice(1)->total_size;
@@ -149,7 +149,7 @@ DSTATUS disk_initialize (
         InitRamDrive();
         fat_info->size = (GetRamDriveSize() + 0x1FF) / 0x200;
     }
-    
+
 	return RES_OK;
 }
 
@@ -166,9 +166,9 @@ DRESULT disk_read (
 	DWORD sector,	/* Sector address in LBA */
 	UINT count		/* Number of sectors to read */
 )
-{   
+{
     BYTE type = PART_TYPE(pdrv);
-    
+
     if (type == TYPE_NONE) {
         return RES_PARERR;
     } else if (type == TYPE_SDCARD) {
@@ -205,7 +205,7 @@ DRESULT disk_write (
 )
 {
     BYTE type = PART_TYPE(pdrv);
-    
+
     if (type == TYPE_NONE) {
         return RES_PARERR;
     } else if (type == TYPE_SDCARD) {
@@ -245,7 +245,7 @@ DRESULT disk_ioctl (
 {
     BYTE type = PART_TYPE(pdrv);
     FATpartition* fat_info = PART_INFO(pdrv);
-    
+
     switch (cmd) {
         case GET_SECTOR_SIZE:
             *((DWORD*) buff) = 0x200;
@@ -262,7 +262,7 @@ DRESULT disk_ioctl (
             // nothing else to do here - sdmmc.c handles the rest
             return RES_OK;
     }
-    
+
 	return RES_PARERR;
 }
 #endif

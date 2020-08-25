@@ -18,18 +18,18 @@ u32 ValidateTmdSignature(TitleMetaData* tmd) {
     static bool got_modexp = false;
     static u32 mod[0x100 / 4] = { 0 };
     static u32 exp = 0;
-    
+
     if (!got_modexp) {
         // grab mod/exp from cert from cert.db
         if (LoadCertFromCertDb(0x3C10, NULL, mod, &exp) == 0)
             got_modexp = true;
         else return 1;
     }
-    
+
     if (!RSA_setKey2048(3, mod, exp) ||
         !RSA_verify2048((void*) &(tmd->signature), (void*) &(tmd->issuer), 0xC4))
         return 1;
-        
+
     return 0;
 }
 
@@ -98,20 +98,20 @@ u32 BuildFakeTmd(TitleMetaData* tmd, u8* title_id, u32 n_contents, u32 save_size
     memcpy(tmd->contentinfo[0].cmd_count, tmd->content_count, 2);
     memset(tmd->contentinfo[0].hash, 0xFF, 0x20); // placeholder (hash)
     // nothing to do for content list (yet)
-    
+
     return 0;
 }
 
 u32 BuildTmdCert(u8* tmdcert) {
     static const u8 cert_hash_expected[0x20] = {
-        0x91, 0x5F, 0x77, 0x3A, 0x07, 0x82, 0xD4, 0x27, 0xC4, 0xCE, 0xF5, 0x49, 0x25, 0x33, 0xE8, 0xEC, 
+        0x91, 0x5F, 0x77, 0x3A, 0x07, 0x82, 0xD4, 0x27, 0xC4, 0xCE, 0xF5, 0x49, 0x25, 0x33, 0xE8, 0xEC,
         0xF6, 0xFE, 0xA1, 0xEB, 0x8C, 0xCF, 0x59, 0x6E, 0x69, 0xBA, 0x2A, 0x38, 0x8D, 0x73, 0x8A, 0xE1
     };
     static const u8 cert_hash_expected_dev[0x20] = {
         0x49, 0xC9, 0x41, 0x56, 0xCA, 0x86, 0xBD, 0x1F, 0x36, 0x51, 0x51, 0x6A, 0x4A, 0x9F, 0x54, 0xA1,
         0xC2, 0xE9, 0xCA, 0x93, 0x94, 0xF4, 0x29, 0xA0, 0x38, 0x54, 0x75, 0xFF, 0xAB, 0x6E, 0x8E, 0x71
     };
-    
+
     // open certs.db file on SysNAND
     FIL db;
     UINT bytes_read;
@@ -125,12 +125,12 @@ u32 BuildTmdCert(u8* tmdcert) {
     f_lseek(&db, 0x3A00);
     f_read(&db, tmdcert + 0x4F0, 0x210, &bytes_read);
     f_close(&db);
-    
+
     // check the certificate hash
     u8 cert_hash[0x20];
     sha_quick(cert_hash, tmdcert, TMD_CDNCERT_SIZE, SHA256_MODE);
     if (memcmp(cert_hash, IS_DEVKIT ? cert_hash_expected_dev : cert_hash_expected, 0x20) != 0)
         return 1;
-    
+
     return 0;
 }

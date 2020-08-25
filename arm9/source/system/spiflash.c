@@ -20,7 +20,7 @@ bool spiflash_read(u32 offset, u32 size, u8 *buf)
 
 		ARM_WbDC_Range(ARM_GetSHMEM()->spiBuffer, blksz);
 		PXI_DoCMD(PXI_NVRAM_READ, args, 2);
-		ARM_InvDC_Range(ARM_GetSHMEM()->spiBuffer, blksz); 
+		ARM_InvDC_Range(ARM_GetSHMEM()->spiBuffer, blksz);
 		ARM_DSB();
 		memcpy(buf, ARM_GetSHMEM()->spiBuffer, blksz);
 

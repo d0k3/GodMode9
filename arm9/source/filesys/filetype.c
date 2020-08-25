@@ -112,7 +112,7 @@ u64 IdentifyFileType(const char* path) {
             }
         }
     }
-    
+
     if (fsize == sizeof(TitleInfoEntry) && (strncasecmp(path, "T:/", 3) == 0)) {
         const char* mntpath = GetMountPath();
         if (mntpath && *mntpath) {
@@ -183,6 +183,6 @@ u64 IdentifyFileType(const char* path) {
         if (FileGetSize(path_cdn) > 0)
             return GAME_NUSCDN; // NUS/CDN type 1
     }
-    
+
     return 0;
 }

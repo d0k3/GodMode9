@@ -18,7 +18,7 @@ bool InitSDCardFS() {
 
 bool InitExtFS() {
     static bool ramdrv_ready = false;
-    
+
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
         snprintf(fsname, 7, "%lu:", i);

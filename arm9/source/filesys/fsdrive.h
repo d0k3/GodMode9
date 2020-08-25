@@ -40,7 +40,7 @@
         "MEMORY VIRTUAL", \
         "VRAM VIRTUAL", \
         "LAST SEARCH" \
-        
+
 #define FS_DRVNUM \
     "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "D:", "M:", "V:", "Z:"
 

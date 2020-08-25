@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.h"
-    
+
 #define GBAVC_MAGIC         '.', 'C', 'A', 'A'
 #define AGBSAVE_MAGIC       '.', 'S', 'A', 'V'
 #define AGBSAVE_MAX_SIZE    (0x000180 * 0x200) // standard size of the NAND partition
@@ -20,14 +20,14 @@
     ((tp >= 0x4) && (tp <= 0x9)) ? GBASAVE_FLASH_64K  : \
     ((tp >= 0xA) && (tp <= 0xD)) ? GBASAVE_FLASH_128K : \
     (tp == 0xE) ? GBASAVE_SRAM_32K : 0); // last one means invalid
-    
+
 #define GBASAVE_VALID(size) \
    (((size) == GBASAVE_EEPROM_512) || \
     ((size) == GBASAVE_EEPROM_8K)  || \
     ((size) == GBASAVE_SRAM_32K)   || \
     ((size) == GBASAVE_FLASH_64K)  || \
     ((size) == GBASAVE_FLASH_128K))
-    
+
 // see: http://problemkaputt.de/gbatek.htm#gbacartridgeheader
 #define AGB_DESTSTR(code) \
    (((code)[3] == 'J') ? "Japan"            : \
@@ -36,9 +36,9 @@
     ((code)[3] == 'D') ? "German"           : \
     ((code)[3] == 'F') ? "French"           : \
     ((code)[3] == 'I') ? "Italian"          : \
-    ((code)[3] == 'S') ? "Spanish" : "Unknown")   
+    ((code)[3] == 'S') ? "Spanish" : "Unknown")
 
-    
+
 // see: http://3dbrew.org/wiki/3DS_Virtual_Console#Footer
 // still a lot of unknowns in here, also redundant stuff left out
 typedef struct {
@@ -73,7 +73,7 @@ typedef struct {
 
 // see: http://problemkaputt.de/gbatek.htm#gbacartridgeheader
 typedef struct {
-    u32 arm7_rom_entry; 
+    u32 arm7_rom_entry;
     u8 logo[0x9C];
     char game_title[12];
     char game_code[4];

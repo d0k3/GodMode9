@@ -6,7 +6,7 @@
 // init SD card filesystem - required(?) for everything else
 bool InitSDCardFS();
 
-// init fill external fileystem 
+// init fill external fileystem
 bool InitExtFS();
 
 // mount and init image file system
@@ -21,7 +21,7 @@ void DeinitSDCardFS();
 // dismount drives of a certain type
 void DismountDriveType(u32 type);
 
-// returns the mount state of the SD card 
+// returns the mount state of the SD card
 bool CheckSDMountState(void);
 
 // get number of mounted file system (only for FATFS filesystems)

@@ -6,7 +6,7 @@ u32 ValidateNcsdHeader(NcsdHeader* header) {
     if ((memcmp(header->magic, "NCSD", 4) != 0) || // check magic number
         (memcmp(header->partitions_fs_type, zeroes, 8) != 0) || !header->mediaId) // prevent detection of NAND images
         return 1;
-    
+
     u32 data_units = 0;
     for (u32 i = 0; i < 8; i++) {
         NcchPartition* partition = header->partitions + i;
@@ -18,7 +18,7 @@ u32 ValidateNcsdHeader(NcsdHeader* header) {
     }
     if (data_units > header->size)
         return 1;
-     
+
     return 0;
 }
 
@@ -30,7 +30,7 @@ u64 GetNcsdTrimmedSize(NcsdHeader* header) {
         if (!partition->size) continue;
         data_units = (partition_end > data_units) ? partition_end : data_units;
     }
-    
+
     return data_units * NCSD_MEDIA_UNIT;
 }
 
@@ -38,11 +38,11 @@ u64 GetNcsdTrimmedSize(NcsdHeader* header) {
 u32 CryptNcsdSequential(void* data, u32 offset_data, u32 size_data, u16 crypto) {
     // warning: this will only work for sequential processing
     static NcsdHeader ncsd;
-    
+
     // fetch ncsd header from data
     if ((offset_data == 0) && (size_data >= sizeof(NcsdHeader)))
         memcpy(&ncsd, data, sizeof(NcsdHeader));
-    
+
     for (u32 i = 0; i < 8; i++) {
         NcchPartition* partition = ncsd.partitions + i;
         u32 offset_p = partition->offset * NCSD_MEDIA_UNIT;
@@ -68,7 +68,7 @@ u32 CryptNcsdSequential(void* data, u32 offset_data, u32 size_data, u16 crypto) 
         if (CryptNcchSequential(data_i, offset_i, size_i, crypto) != 0)
             return 1;
     }
-    
+
     return 0;
 }
 
