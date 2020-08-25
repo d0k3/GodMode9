@@ -108,8 +108,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         if (delete) PathDelete(bootpath);
         DeinitExtFS();
         DeinitSDCardFS();
-        PXI_DoCMD(PXI_SET_VMODE, (u32[]){1}, 1);
-        PXI_DoCMD(PXI_LEGACY_MODE, NULL, 0);
+        PXI_DoCMD(PXICMD_LEGACY_BOOT, NULL, 0);
         BootFirm((FirmHeader*) firm, fixpath);
         while(1);
     }

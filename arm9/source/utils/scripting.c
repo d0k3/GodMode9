@@ -1426,8 +1426,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 fixpath[255] = '\0';
                 DeinitExtFS();
                 DeinitSDCardFS();
-                PXI_DoCMD(PXI_SET_VMODE, (u32[]){1}, 1);
-                PXI_DoCMD(PXI_LEGACY_MODE, NULL, 0);
+                PXI_DoCMD(PXICMD_LEGACY_BOOT, NULL, 0);
                 BootFirm((FirmHeader*)(void*)firm, fixpath);
                 while(1);
             } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");

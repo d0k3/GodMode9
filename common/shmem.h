@@ -36,7 +36,7 @@ typedef struct {
 #ifdef ARM9
 #include <pxi.h>
 
-extern SystemSHMEM *shmemGlobalBase;
+extern SystemSHMEM *shmemBasePtr;
 
 static inline SystemSHMEM *ARM_GetSHMEM(void)
 {
@@ -44,11 +44,11 @@ static inline SystemSHMEM *ARM_GetSHMEM(void)
 	// insert a compiler barrier to force the compiler not to assume
 	// memory values will remain constant in between calls to getSHMEM
 	asm_v("":::"memory", "cc");
-	return shmemGlobalBase;
+	return shmemBasePtr;
 }
 
 static inline void ARM_InitSHMEM(void)
 {
-	shmemGlobalBase = (SystemSHMEM*)PXI_DoCMD(PXI_GET_SHMEM, NULL, 0);
+	shmemBasePtr = (SystemSHMEM*)PXI_DoCMD(PXICMD_GET_SHMEM_ADDRESS, NULL, 0);
 }
 #endif

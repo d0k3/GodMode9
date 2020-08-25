@@ -63,57 +63,73 @@ typedef struct {
 
 static u8 volumeSliderValue;
 static u32 shellState;
-static _Atomic(u32) pendingEvents;
+static _Atomic(u32) pendingEvents, pendingUpdate;
 
-static void mcuUpdateVolumeSlider(void)
+static void mcuEventUpdate(void)
 {
-	volumeSliderValue = mcuReadReg(MCUREG_VOLUME_SLIDER);
-}
+	u32 mask;
 
-static void mcuUpdateShellState(bool open)
-{
-	shellState = open ? SHELL_OPEN : SHELL_CLOSED;
+	if (!atomic_exchange(&pendingUpdate, 0))
+		return;
+
+	// reading the pending mask automagically acknowledges
+	// the interrupts so all of them must be processed in one go
+	mcuReadRegBuf(MCUREG_INT_MASK, (u8*)&mask, sizeof(mask));
+
+	if (mask & MCUEV_HID_VOLUME_SLIDER)
+		volumeSliderValue = mcuReadReg(MCUREG_VOLUME_SLIDER);
+
+	if (mask & MCUEV_HID_SHELL_OPEN) {
+		mcuResetLEDs();
+		shellState = SHELL_OPEN;
+	}
+
+	if (mask & MCUEV_HID_SHELL_CLOSE) {
+		shellState = SHELL_CLOSED;
+	}
+
+	atomic_fetch_or(&pendingEvents, mask);
 }
 
 u32 mcuEventTest(u32 mask)
 {
+	mcuEventUpdate();
 	return atomic_load(&pendingEvents) & mask;
 }
 
 u32 mcuEventClear(u32 mask)
 {
+	mcuEventUpdate();
 	return atomic_fetch_and(&pendingEvents, ~mask) & mask;
 }
 
 u32 mcuEventWait(u32 mask)
 {
 	do {
+		mcuEventUpdate();
 		u32 x = mcuEventClear(mask);
 		if (x) return x;
-		ARM_WFE();
 	} while(1);
 }
 
 u8 mcuGetVolumeSlider(void)
 {
+	mcuEventUpdate();
 	return volumeSliderValue;
 }
 
 u32 mcuGetSpecialHID(void)
 {
-	u32 ret = shellState, pend = mcuEventClear(MCUEV_HID_MASK);
+	u32 ret, pend = mcuEventClear(MCUEV_HID_MASK);
 
 	// hopefully gets unrolled
 	if (pend & (MCUEV_HID_PWR_DOWN | MCUEV_HID_PWR_HOLD))
 		ret |= BUTTON_POWER;
-
 	if (pend & MCUEV_HID_HOME_DOWN)
 		ret |= BUTTON_HOME;
-
 	if (pend & MCUEV_HID_HOME_UP)
 		ret &= ~BUTTON_HOME;
-
-	return ret;
+	return ret | shellState;
 }
 
 void mcuSetStatusLED(u32 period_ms, u32 color)
@@ -162,25 +178,7 @@ void mcuResetLEDs(void)
 
 void mcuInterruptHandler(u32 __attribute__((unused)) irqn)
 {
-	u32 mask;
-
-	// reading the pending mask automagically acknowledges
-	// the interrupts so all of them must be processed in one go
-	mcuReadRegBuf(MCUREG_INT_MASK, (u8*)&mask, sizeof(mask));
-
-	if (mask & MCUEV_HID_VOLUME_SLIDER)
-		mcuUpdateVolumeSlider();
-
-	if (mask & MCUEV_HID_SHELL_OPEN) {
-		mcuResetLEDs();
-		mcuUpdateShellState(true);
-	}
-
-	if (mask & MCUEV_HID_SHELL_CLOSE) {
-		mcuUpdateShellState(false);
-	}
-
-	atomic_fetch_or(&pendingEvents, mask);
+	atomic_store(&pendingUpdate, 1);
 }
 
 void mcuReset(void)
@@ -188,6 +186,7 @@ void mcuReset(void)
 	u32 intmask = 0;
 
 	atomic_init(&pendingEvents, 0);
+	atomic_init(&pendingUpdate, 0);
 
 	// set register mask and clear any pending registers
 	mcuWriteRegBuf(MCUREG_INT_EN, (const u8*)&intmask, sizeof(intmask));
@@ -195,8 +194,8 @@ void mcuReset(void)
 
 	mcuResetLEDs();
 
-	mcuUpdateVolumeSlider();
-	mcuUpdateShellState(true);
+	volumeSliderValue = mcuReadReg(MCUREG_VOLUME_SLIDER);
+	shellState = SHELL_OPEN;
 	// assume the shell is always open on boot
 	// knowing the average 3DS user, there will be plenty
 	// of laughs when this comes back to bite us in the rear

@@ -12,7 +12,7 @@ u32 SetScreenBrightness(int level) {
         arg = 0;
     }
 
-    return PXI_DoCMD(PXI_BRIGHTNESS, &arg, 1);
+    return PXI_DoCMD(PXICMD_SET_BRIGHTNESS, &arg, 1);
 }
 
 u32 GetBatteryPercent() {

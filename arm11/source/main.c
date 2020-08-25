@@ -22,6 +22,8 @@
 #include <arm.h>
 #include <pxi.h>
 
+#include <stdatomic.h>
+
 #include "arm/gic.h"
 
 #include "hw/hid.h"
@@ -43,10 +45,20 @@ static int prev_bright_lvl;
 static bool auto_brightness;
 #endif
 
-static SystemSHMEM __attribute__((section(".shared"))) SharedMemoryState;
+static SystemSHMEM __attribute__((section(".shared"))) sharedMem;
 
-void vblankHandler(u32 __attribute__((unused)) irqn)
+static _Atomic(u32) pendingVblank, pendingPxiRx;
+
+static void vblankHandler(u32 __attribute__((unused)) irqn)
 {
+	atomic_store(&pendingVblank, 1);
+}
+
+static void vblankUpdate(void)
+{
+	if (!atomic_exchange(&pendingVblank, 0))
+		return;
+
 	#ifndef FIXED_BRIGHTNESS
 	int cur_bright_lvl = (mcuGetVolumeSlider() >> 2) % countof(brightness_lvls);
 	if ((cur_bright_lvl != prev_bright_lvl) && auto_brightness) {
@@ -56,128 +68,43 @@ void vblankHandler(u32 __attribute__((unused)) irqn)
 	}
 	#endif
 
-	SharedMemoryState.hidState.full = HID_GetState();
+	// handle shell events
+	u32 shell = mcuEventClear(MCUEV_HID_SHELL_OPEN | MCUEV_HID_SHELL_CLOSE);
+	if (shell & MCUEV_HID_SHELL_CLOSE) {
+		GFX_powerOffBacklights(GFX_BLIGHT_BOTH);
+	} else if (shell & MCUEV_HID_SHELL_OPEN) {
+		GFX_powerOnBacklights(GFX_BLIGHT_BOTH);
+	}
+
+	sharedMem.hidState.full = HID_GetState();
 }
 
-static bool legacy_boot = false;
-
-void pxiRxHandler(u32 __attribute__((unused)) irqn)
+static void pxiRxHandler(u32 __attribute__((unused)) irqn)
 {
-	u32 ret, msg, cmd, argc, args[PXI_MAX_ARGS];
+	atomic_store(&pendingPxiRx, 1);
+}
+
+static void pxiRxUpdate(u32 *cmd, u32 *args)
+{
+	u32 msg, lo, hi;
+
+	*cmd = PXICMD_NONE;
+
+	if (!atomic_exchange(&pendingPxiRx, 0))
+		return;
 
 	msg = PXI_Recv();
-	cmd = msg & 0xFFFF;
-	argc = msg >> 16;
+	lo = msg & 0xFFFF;
+	hi = msg >> 16;
 
-	if (argc >= PXI_MAX_ARGS) {
-		PXI_Send(0xFFFFFFFF);
-		return;
-	}
-
-	PXI_RecvArray(args, argc);
-
-	switch (cmd) {
-		case PXI_LEGACY_MODE:
-		{
-			// TODO: If SMP is enabled, an IPI should be sent here (with a DSB)
-			legacy_boot = true;
-			ret = 0;
-			break;
-		}
-
-		case PXI_GET_SHMEM:
-		{
-			ret = (u32)&SharedMemoryState;
-			break;
-		}
-
-		case PXI_SET_VMODE:
-		{
-			GFX_init(args[0] ? GFX_BGR8 : GFX_RGB565);
-			ret = 0;
-			break;
-		}
-
-		case PXI_I2C_READ:
-		{
-			u32 devId, regAddr, size;
-
-			devId = (args[0] & 0xff);
-			regAddr = (args[0] >> 8) & 0xff;
-			size = (args[0] >> 16) % I2C_SHARED_BUFSZ;
-
-			ret = I2C_readRegBuf(devId, regAddr, SharedMemoryState.i2cBuffer, size);
-			break;
-		}
-
-		case PXI_I2C_WRITE:
-		{
-			u32 devId, regAddr, size;
-
-			devId = (args[0] & 0xff);
-			regAddr = (args[0] >> 8) & 0xff;
-			size = (args[0] >> 16) % I2C_SHARED_BUFSZ;
-
-			ret = I2C_writeRegBuf(devId, regAddr, SharedMemoryState.i2cBuffer, size);
-			break;
-		}
-
-		case PXI_NVRAM_ONLINE:
-		{
-			ret = (NVRAM_Status() & NVRAM_SR_WIP) == 0;
-			break;
-		}
-
-		case PXI_NVRAM_READ:
-		{
-			NVRAM_Read(args[0], (u32*)SharedMemoryState.spiBuffer, args[1]);
-			ret = 0;
-			break;
-		}
-
-		case PXI_NOTIFY_LED:
-		{
-			mcuSetStatusLED(args[0], args[1]);
-			ret = 0;
-			break;
-		}
-
-		case PXI_BRIGHTNESS:
-		{
-			s32 newbrightness = (s32)args[0];
-			ret = GFX_getBrightness();
-			#ifndef FIXED_BRIGHTNESS
-			if ((newbrightness > 0) && (newbrightness < 0x100)) {
-				GFX_setBrightness(newbrightness, newbrightness);
-				auto_brightness = false;
-			} else {
-				prev_bright_lvl = -1;
-				auto_brightness = true;
-			}
-			#endif
-			break;
-		}
-
-		/* New CMD template:
-		case CMD_ID:
-		{
-			<var declarations/assignments>
-			<execute the command>
-			<set the return value>
-			break;
-		}
-		*/
-
-		default:
-			ret = 0xFFFFFFFF;
-			break;
-	}
-
-	PXI_Send(ret);
+	*cmd = lo;
+	PXI_RecvArray(args, hi);
 }
 
 void __attribute__((noreturn)) MainLoop(void)
 {
+	bool runCmdProcessor = true;
+
 	#ifdef FIXED_BRIGHTNESS
 	LCD_SetBrightness(FIXED_BRIGHTNESS);
 	#else
@@ -185,11 +112,14 @@ void __attribute__((noreturn)) MainLoop(void)
 	auto_brightness = true;
 	#endif
 
-	memset(&SharedMemoryState, 0, sizeof(SharedMemoryState));
+	// initialize state stuff
+	atomic_init(&pendingVblank, 0);
+	atomic_init(&pendingPxiRx, 0);
+	memset(&sharedMem, 0, sizeof(sharedMem));
 
 	// configure interrupts
-	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO2, pxiRxHandler);
-	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO1, mcuInterruptHandler);
+	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO0, pxiRxHandler);
+	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO0, mcuInterruptHandler);
 	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, vblankHandler);
 
 	// enable interrupts
@@ -205,18 +135,93 @@ void __attribute__((noreturn)) MainLoop(void)
 	// ARM9 won't try anything funny until this point
 	PXI_Barrier(ARM11_READY_BARRIER);
 
-	// Process IRQs until the ARM9 tells us it's time to boot something else
+	// Process commands until the ARM9 tells
+	// us it's time to boot something else
+	// also handles Vblank events as needed
 	do {
-		ARM_WFI();
+		u32 cmd, resp, args[PXI_MAX_ARGS];
 
-		// handle shell events
-		u32 shell = mcuEventClear(MCUEV_HID_SHELL_OPEN | MCUEV_HID_SHELL_CLOSE);
-		if (shell & MCUEV_HID_SHELL_CLOSE) {
-			GFX_powerOffBacklights(GFX_BLIGHT_BOTH);
-		} else if (shell & MCUEV_HID_SHELL_OPEN) {
-			GFX_powerOnBacklights(GFX_BLIGHT_BOTH);
+		vblankUpdate();
+		pxiRxUpdate(&cmd, args);
+
+		switch(cmd) {
+			case PXICMD_NONE:
+				ARM_WFI();
+				break;
+
+			case PXICMD_LEGACY_BOOT:
+				runCmdProcessor = false;
+				resp = 0;
+				break;
+
+			case PXICMD_GET_SHMEM_ADDRESS:
+				resp = (u32)&sharedMem;
+				break;
+
+			case PXICMD_I2C_OP:
+			{
+				u32 devId, regAddr, size;
+
+				devId = (args[0] & 0xff);
+				regAddr = (args[0] >> 8) & 0xff;
+				size = (args[0] >> 16) % I2C_SHARED_BUFSZ;
+
+				if (args[0] & BIT(31)) {
+					resp = I2C_writeRegBuf(devId, regAddr, sharedMem.i2cBuffer, size);
+				} else {
+					resp = I2C_readRegBuf(devId, regAddr, sharedMem.i2cBuffer, size);
+				}
+				break;
+			}
+
+			case PXICMD_NVRAM_ONLINE:
+				resp = (NVRAM_Status() & NVRAM_SR_WIP) == 0;
+				break;
+
+			case PXICMD_NVRAM_READ:
+				NVRAM_Read(args[0], (u32*)sharedMem.spiBuffer, args[1]);
+				resp = 0;
+				break;
+
+			case PXICMD_SET_NOTIFY_LED:
+				mcuSetStatusLED(args[0], args[1]);
+				resp = 0;
+				break;
+
+			case PXICMD_SET_BRIGHTNESS:
+			{
+				s32 newbrightness = (s32)args[0];
+				resp = GFX_getBrightness();
+				#ifndef FIXED_BRIGHTNESS
+				if ((newbrightness > 0) && (newbrightness < 0x100)) {
+					GFX_setBrightness(newbrightness, newbrightness);
+					auto_brightness = false;
+				} else {
+					prev_bright_lvl = -1;
+					auto_brightness = true;
+				}
+				#endif
+				break;
+			}
+
+			default:
+				resp = 0xFFFFFFFF;
+				break;
 		}
-	} while(!legacy_boot);
+
+		if (cmd != PXICMD_NONE)
+			PXI_Send(resp); // was a command sent from the ARM9, send a response
+	} while(runCmdProcessor);
+
+	// perform deinit in reverse order
+	gicDisableInterrupt(VBLANK_INTERRUPT);
+	gicDisableInterrupt(PXI_RX_INTERRUPT);
+
+	// unconditionally reinitialize the screens
+	// in RGB24 framebuffer mode
+	GFX_init(GFX_BGR8);
+
+	gicDisableInterrupt(MCU_INTERRUPT);
 
 	SYS_CoreZeroShutdown();
 	SYS_CoreShutdown();
