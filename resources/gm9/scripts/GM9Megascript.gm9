@@ -9,7 +9,7 @@ end
 @Start
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nCredits:\nd0k3\n8bitwonder\nwindows_server_2003\nSvenDaHacker64\nMyLegGuy\nemillois\nAnalogMan151\nTurdPooCharger\netc."
 
-labelsel -o -s "Choose an Option." MainMenu_*
+labelsel -s "Choose an Option." MainMenu_*
 goto Start
 
 ##################Backup Options##################
