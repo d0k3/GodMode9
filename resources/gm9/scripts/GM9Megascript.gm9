@@ -2027,7 +2027,7 @@ if findnot "1:/data/$[SYSID0]/sysdata/0001000f/00000000" NULL
 end
 
 if not allow "1:/data/$[SYSID0]/sysdata/0001000f/00000000"
-	echo "Access denied."
+	echo "Operation cancelled."
 	goto MainMenu_Miscellaneous
 end
 
@@ -2039,7 +2039,7 @@ fset "D:/partitionA.bin@3004" "0B07" # 0x70B (1803) titles.
 # Max allowed hex string for 'fset' is 0xFF length.
 # Split the chunks in halves of 0x100; 0x80 (128) bytes.
 # This keeps writing blocks of data somewhat manageable.
-# TitleIDs and seeds extracted from seeddb.fin found at:
+# TitleIDs and seeds extracted from seeddb.bin found at:
 # https://github.com/ihaveamac/3DS-rom-tools/wiki/SeedDB-list
 
 # TitleIDs. (endian)
@@ -2388,7 +2388,7 @@ fset "D:/partitionA.bin@EF00" "CE3AEF899014804AF59D27A15CE9C2074EC4B8509F62589B0
 # Unmount seedsave.bin, fix cmac, return to misc menu.
 imgumount
 fixcmac "1:/data/$[SYSID0]/sysdata/0001000f/00000000"
-echo "Import seeds success."
+echo "Seeds imported successfully."
 goto MainMenu_Miscellaneous
 
 #####################Credits######################
