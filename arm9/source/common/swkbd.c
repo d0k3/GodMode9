@@ -136,7 +136,7 @@ static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 
         (*scroll) ? '<' : '|',
         (inputstr_size > input_shown) ? input_shown : inputstr_size,
         (inputstr_size > input_shown) ? input_shown : inputstr_size,
-        inputstr + *scroll,
+        (*scroll > inputstr_size) ? "" : inputstr + *scroll,
         (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
         (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
         "",
