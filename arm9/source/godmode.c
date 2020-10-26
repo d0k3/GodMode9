@@ -2112,7 +2112,7 @@ u32 HomeMoreMenu(char* current_path) {
         bool seed_sys = false;
         bool seed_emu = false;
         if (BuildSeedInfo(NULL, false) == 0) {
-            ShowString("Building " SEEDDB_NAME "...");
+            ShowString("Building " SEEDINFO_NAME "...");
             seed_sys = (BuildSeedInfo("1:", false) == 0);
             seed_emu = (BuildSeedInfo("4:", false) == 0);
             if (!seed_sys || BuildSeedInfo(NULL, true) != 0)
@@ -2121,7 +2121,7 @@ u32 HomeMoreMenu(char* current_path) {
         ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%18.18-s %s\n%18.18-s %s\n%18.18-s %s",
             TIKDB_NAME_ENC, tik_enc_sys ? tik_enc_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
             TIKDB_NAME_DEC, tik_dec_sys ? tik_dec_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
-            SEEDDB_NAME, seed_sys ? seed_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed");
+            SEEDINFO_NAME, seed_sys ? seed_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed");
         GetDirContents(current_dir, current_path);
         return 0;
     }

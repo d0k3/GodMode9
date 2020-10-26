@@ -1,10 +1,7 @@
 #include "ncch.h"
-#include "support.h"
-#include "disadiff.h"
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
-#include "ff.h"
 
 #define EXEFS_KEYID(name) (((strncmp(name, "banner", 8) == 0) || (strncmp(name, "icon", 8) == 0)) ? 0 : 1)
 
@@ -51,100 +48,6 @@ u32 GetNcchCtr(u8* ctr, NcchHeader* ncch, u8 section) {
     return 0;
 }
 
-u32 GetNcchSeed(u8* seed, NcchHeader* ncch) {
-    static u8 lseed[16+8] __attribute__((aligned(4))) = { 0 }; // seed plus title ID for easy validation
-    u64 titleId = ncch->programId;
-    u32 hash_seed = ncch->hash_seed;
-    u32 sha256sum[8];
-
-    memcpy(lseed+16, &(ncch->programId), 8);
-    sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
-    if (hash_seed == sha256sum[0]) {
-        memcpy(seed, lseed, 16);
-        return 0;
-    }
-
-    // setup a large enough buffer
-    u8* buffer = (u8*) malloc(max(STD_BUFFER_SIZE, SEEDSAVE_AREA_SIZE));
-    if (!buffer) return 1;
-
-    // try to grab the seed from NAND database
-    const char* nand_drv[] = {"1:", "4:"}; // SysNAND and EmuNAND
-    for (u32 i = 0; i < countof(nand_drv); i++) {
-        UINT btr = 0;
-        FIL file;
-        char path[128];
-
-        // grab the key Y from movable.sed
-        u8 movable_keyy[16];
-        snprintf(path, 128, "%s/private/movable.sed", nand_drv[i]);
-        if (f_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
-            continue;
-        f_lseek(&file, 0x110);
-        f_read(&file, movable_keyy, 0x10, &btr);
-        f_close(&file);
-
-        // build the seed save path
-        sha_quick(sha256sum, movable_keyy, 0x10, SHA256_MODE);
-        snprintf(path, 128, "%s/data/%08lX%08lX%08lX%08lX/sysdata/0001000F/00000000",
-            nand_drv[i], sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
-
-        // check seedsave for seed
-        u8* seeddb = buffer;
-        if (ReadDisaDiffIvfcLvl4(path, NULL, SEEDSAVE_AREA_OFFSET, SEEDSAVE_AREA_SIZE, seeddb) != SEEDSAVE_AREA_SIZE)
-            continue;
-
-        // search for the seed
-        for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
-            if (titleId != getle64(seeddb + (s*8))) continue;
-            memcpy(lseed, seeddb + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
-            sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
-            if (hash_seed == sha256sum[0]) {
-                memcpy(seed, lseed, 16);
-                free(buffer);
-                return 0; // found!
-            }
-        }
-    }
-
-    // not found -> try seeddb.bin
-    SeedInfo* seeddb = (SeedInfo*) (void*) buffer;
-    size_t len = LoadSupportFile(SEEDDB_NAME, seeddb, STD_BUFFER_SIZE);
-    if (len && (seeddb->n_entries <= (len - 16) / 32)) { // check filesize / seeddb size
-        for (u32 s = 0; s < seeddb->n_entries; s++) {
-            if (titleId != seeddb->entries[s].titleId)
-                continue;
-            memcpy(lseed, seeddb->entries[s].seed, 16);
-            sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
-            if (hash_seed == sha256sum[0]) {
-                memcpy(seed, lseed, 16);
-                free(buffer);
-                return 0; // found!
-            }
-        }
-    }
-
-    // out of options -> failed!
-    free(buffer);
-    return 1;
-}
-
-u32 AddSeedToDb(SeedInfo* seed_info, SeedInfoEntry* seed_entry) {
-    if (!seed_entry) { // no seed entry -> reset database
-        memset(seed_info, 0, 16);
-        return 0;
-    }
-    // check if entry already in DB
-    u32 n_entries = seed_info->n_entries;
-    SeedInfoEntry* seed = seed_info->entries;
-    for (u32 i = 0; i < n_entries; i++, seed++)
-        if (seed->titleId == seed_entry->titleId) return 0;
-    // actually a new seed entry
-    memcpy(seed, seed_entry, sizeof(SeedInfoEntry));
-    seed_info->n_entries++;
-    return 0;
-}
-
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid) {
     u8 flags3 = (crypto >> 8) & 0xFF;
     u8 flags7 = crypto & 0xFF;
@@ -177,7 +80,7 @@ u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid) {
         if ((memcmp(lsignature, ncch->signature, 16) != 0) || (ltitleId != ncch->programId)) {
             u8 keydata[16+16] __attribute__((aligned(4)));
             memcpy(keydata, ncch->signature, 16);
-            if (GetNcchSeed(keydata + 16, ncch) != 0)
+            if (FindSeed(keydata + 16, ncch->programId, ncch->hash_seed) != 0)
                 return 1;
             sha_quick(seedkeyY, keydata, 32, SHA256_MODE);
             memcpy(lsignature, ncch->signature, 16);
@@ -355,5 +258,14 @@ u32 SetNcchSdFlag(void* data) { // data must be at least 0x600 byte and start wi
     exthdr->flag ^= (1<<1);
     sha_quick(ncch->hash_exthdr, &exthdr_dec, 0x400, SHA256_MODE);
 
+    return 0;
+}
+
+u32 SetupSystemForNcch(NcchHeader* ncch, bool to_emunand) {
+    u16 crypto = NCCH_GET_CRYPTO(ncch);
+    if ((crypto & 0x20) && // seed crypto
+        (SetupSeedSystemCrypto(ncch->programId, ncch->hash_seed, to_emunand) != 0) &&
+        (SetupSeedPrePurchase(ncch->programId, to_emunand) != 0))
+        return 1;
     return 0;
 }
