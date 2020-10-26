@@ -1363,8 +1363,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                     (BuildTitleKeyInfo(NULL, tik_dec, true) == 0))
                     ret = true;
             }
-        } else if (strncasecmp(argv[0], SEEDDB_NAME, _ARG_MAX_LEN) == 0) {
-            if (flags & _FLG('w')) fvx_unlink(OUTPUT_PATH "/" SEEDDB_NAME);
+        } else if (strncasecmp(argv[0], SEEDINFO_NAME, _ARG_MAX_LEN) == 0) {
+            if (flags & _FLG('w')) fvx_unlink(OUTPUT_PATH "/" SEEDINFO_NAME);
             if (BuildSeedInfo(NULL, false) == 0) {
                 ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
                 if (((BuildSeedInfo("1:", false) == 0) ||

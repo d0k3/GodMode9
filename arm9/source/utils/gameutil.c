@@ -1589,6 +1589,7 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
     bool sdtie = ((*drv == 'A') || (*drv == 'B'));
     bool syscmd = (((*drv == '1') || (*drv == '4')) ||
         (((*drv == '2') || (*drv == '5')) && (title_id[3] != 0x04)));
+    bool to_emunand = ((*drv == 'B') || (*drv == '4') || (*drv == '5'));
 
     char path_titledb[32];
     char path_ticketdb[32];
@@ -1660,6 +1661,10 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
         return 1;
     if ((tmd->twl_flag & 0x2) && // TWL banner.sav
         (CreateSaveData(drv, tid64, "banner.sav", sizeof(TwlIconData), false) != 0))
+        return 1;
+
+    // install seed to system (if available)
+    if (ncch && (SetupSystemForNcch(ncch, to_emunand) != 0))
         return 1;
 
     // write ticket and title databases
@@ -3081,7 +3086,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
 
 u32 BuildSeedInfo(const char* path, bool dump) {
     static SeedInfo* seed_info = NULL;
-    const char* path_out = OUTPUT_PATH "/" SEEDDB_NAME;
+    const char* path_out = OUTPUT_PATH "/" SEEDINFO_NAME;
     const char* path_in = path;
     u32 inputtype = 0; // 0 -> none, 1 -> seeddb.bin, 2 -> seed system save
 
@@ -3106,16 +3111,7 @@ u32 BuildSeedInfo(const char* path, bool dump) {
 
     char path_str[128];
     if (path_in && (strnlen(path_in, 16) == 2)) { // when only a drive is given...
-        // grab the key Y from movable.sed
-        u8 movable_keyy[16] __attribute__((aligned(4)));
-        snprintf(path_str, 128, "%s/private/movable.sed", path_in);
-        if (fvx_qread(path_str, movable_keyy, 0x110, 0x10, NULL) != FR_OK)
-            return 1;
-        // build the seed save path
-        u32 sha256sum[8];
-        sha_quick(sha256sum, movable_keyy, 0x10, SHA256_MODE);
-        snprintf(path_str, 128, "%s/data/%08lX%08lX%08lX%08lX/sysdata/0001000F/00000000",
-            path_in, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
+        if (GetSeedPath(path_str, path_in) != 0) return 1;
         path_in = path_str;
         inputtype = 2;
     }
@@ -3126,7 +3122,7 @@ u32 BuildSeedInfo(const char* path, bool dump) {
 
         UINT br;
         if ((fvx_qread(path_in, seed_info_merge, 0, STD_BUFFER_SIZE, &br) != FR_OK) ||
-            (SEEDDB_SIZE(seed_info_merge) != br)) {
+            (SEEDINFO_SIZE(seed_info_merge) != br)) {
             free(seed_info_merge);
             return 1;
         }
@@ -3135,27 +3131,27 @@ u32 BuildSeedInfo(const char* path, bool dump) {
         u32 n_entries = seed_info_merge->n_entries;
         SeedInfoEntry* seed = seed_info_merge->entries;
         for (u32 i = 0; i < n_entries; i++, seed++) {
-            if (SEEDDB_SIZE(seed_info) + 32 > STD_BUFFER_SIZE) break; // no error message
+            if (SEEDINFO_SIZE(seed_info) + 32 > STD_BUFFER_SIZE) break; // no error message
             AddSeedToDb(seed_info, seed); // ignore result
         }
 
         free(seed_info_merge);
     } else if (inputtype == 2) { // seed system save input
-        u8* seedsave = (u8*) malloc(SEEDSAVE_AREA_SIZE);
+        SeedDb* seedsave = (SeedDb*) malloc(sizeof(SeedDb));
         if (!seedsave) return 1;
 
-        if (ReadDisaDiffIvfcLvl4(path_in, NULL, SEEDSAVE_AREA_OFFSET, SEEDSAVE_AREA_SIZE, seedsave) != SEEDSAVE_AREA_SIZE) {
+        if ((ReadDisaDiffIvfcLvl4(path_in, NULL, SEEDSAVE_AREA_OFFSET, sizeof(SeedDb), seedsave) != sizeof(SeedDb)) ||
+            (seedsave->n_entries >= SEEDSAVE_MAX_ENTRIES)) {
             free(seedsave);
             return 1;
         }
 
         SeedInfoEntry seed = { 0 };
-        for (u32 s = 0; s < SEEDSAVE_MAX_ENTRIES; s++) {
-            seed.titleId = getle64(seedsave + (s*8));
-            memcpy(seed.seed, seedsave + (SEEDSAVE_MAX_ENTRIES*8) + (s*16), 16);
-            if (((seed.titleId >> 32) != 0x00040000) ||
-                (!getle64(seed.seed) && !getle64(seed.seed + 8))) continue;
-            if (SEEDDB_SIZE(seed_info) + 32 > STD_BUFFER_SIZE) break; // no error message
+        for (u32 s = 0; s < seedsave->n_entries; s++) {
+            seed.titleId = seedsave->titleId[s];
+            memcpy(&(seed.seed), &(seedsave->seed[s]), sizeof(Seed));
+            if ((seed.titleId >> 32) != 0x00040000) continue;
+            if (SEEDINFO_SIZE(seed_info) + 32 > STD_BUFFER_SIZE) break; // no error message
             AddSeedToDb(seed_info, &seed); // ignore result
         }
 
@@ -3163,7 +3159,7 @@ u32 BuildSeedInfo(const char* path, bool dump) {
     }
 
     if (dump) {
-        u32 dump_size = SEEDDB_SIZE(seed_info);
+        u32 dump_size = SEEDINFO_SIZE(seed_info);
         u32 ret = 0;
 
         if (dump_size > 16) {
