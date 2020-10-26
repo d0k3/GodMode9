@@ -1838,8 +1838,8 @@ u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
     if (getbe32(cia->ticket.console_id) != (&ARM9_ITCM->otp)->deviceId)
         memset(cia->ticket.console_id, 0x00, 4);
 
-    // fix TMD hashes, install CIA system data
-    if ((FixTmdHashes(&(cia->tmd)) != 0) ||
+    // verify TMD hashes, install CIA system data
+    if ((VerifyTmd(&(cia->tmd)) != 0) ||
         (InstallCiaSystemData(cia, path_dest) != 0)) {
         free(cia);
         return 1;
@@ -2019,8 +2019,8 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         }
     }
 
-    // write the CIA stub (take #2)
-    if ((FixTmdHashes(tmd) != 0) ||
+    // verify TMD / write CIA stub / install system data (take #2)
+    if ((VerifyTmd(tmd) != 0) ||
         (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
         (install && (InstallCiaSystemData(cia, path_dest) != 0)))
         return 1;
