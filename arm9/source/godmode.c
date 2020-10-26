@@ -691,7 +691,7 @@ u32 FileHexViewer(const char* path) {
                 marked0 = (s32) found_offset - (offset + curr_pos);
                 marked1 = marked0 + found_size;
                 if (marked0 < 0) marked0 = 0;
-                if (marked1 > cols) marked1 = cols;
+                if (marked1 > (s32) cols) marked1 = (s32) cols;
             }
 
             // switch to bottom screen
@@ -710,7 +710,7 @@ u32 FileHexViewer(const char* path) {
                 COLOR_STD_BG, "%08X", (unsigned int) offset + curr_pos);
             if (x_ascii >= 0) {
                 DrawString(screen, ascii, x_ascii - x0, y, COLOR_HVASCII, COLOR_STD_BG, false);
-                for (u32 i = marked0; i < marked1; i++)
+                for (u32 i = (u32) marked0; i < (u32) marked1; i++)
                     DrawCharacter(screen, ascii[i % cols], x_ascii - x0 + (FONT_WIDTH_EXT * i), y, COLOR_MARKED, COLOR_STD_BG);
                 if (edit_mode && ((u32) cursor / cols == row)) DrawCharacter(screen, ascii[cursor % cols],
                     x_ascii - x0 + FONT_WIDTH_EXT * (cursor % cols), y, COLOR_RED, COLOR_STD_BG);
@@ -720,7 +720,7 @@ u32 FileHexViewer(const char* path) {
             for (u32 col = 0; (col < cols) && (x_hex >= 0); col++) {
                 u32 x = (x_hex + hlpad) + (((2*FONT_WIDTH_EXT) + hrpad + hlpad) * col) - x0;
                 u32 hex_color = (edit_mode && ((u32) cursor == curr_pos + col)) ? COLOR_RED :
-                    ((col >= marked0) && (col < marked1)) ? COLOR_MARKED : COLOR_HVHEX(col);
+                    (((s32) col >= marked0) && ((s32) col < marked1)) ? COLOR_MARKED : COLOR_HVHEX(col);
                 if (col < cutoff)
                     DrawStringF(screen, x, y, hex_color, COLOR_STD_BG, "%02X", (unsigned int) data[curr_pos + col]);
                 else DrawStringF(screen, x, y, hex_color, COLOR_STD_BG, "  ");
