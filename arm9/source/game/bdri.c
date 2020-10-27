@@ -737,6 +737,7 @@ u32 ReadTicketFromDB(const char* path, const u8* title_id, Ticket** ticket) {
     TicketEntry* te = NULL;
     u32 entry_size;
 
+    *ticket = NULL;
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
 

@@ -15,6 +15,9 @@
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
 #define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
 
+// partitionA path
+#define PART_PATH       "D:/partitionA.bin"
+
 u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file, bool nocrypto) {
     u32 offset_ncch = fvx_tell(file);
     UINT btr;
@@ -1455,14 +1458,14 @@ u32 UninstallGameData(u64 tid64, bool remove_tie, bool remove_ticket, bool remov
         if (remove_ticket) {
             char path_ticketdb[256];
             if ((GetInstallDbsPath(path_ticketdb, drv, "ticket.db") != 0) || !InitImgFS(path_ticketdb) ||
-                ((RemoveTicketFromDB("D:/partitionA.bin", title_id)) != 0)) ret = 1;
+                ((RemoveTicketFromDB(PART_PATH, title_id)) != 0)) ret = 1;
         }
 
         // title database
         if (remove_tie) {
             char path_titledb[256];
             if ((GetInstallDbsPath(path_titledb, drv, "title.db") != 0) || !InitImgFS(path_titledb) ||
-                ((RemoveTitleInfoEntryFromDB("D:/partitionA.bin", title_id)) != 0)) ret = 1;
+                ((RemoveTitleInfoEntryFromDB(PART_PATH, title_id)) != 0)) ret = 1;
         }
 
         // restore old mount path
@@ -1676,14 +1679,14 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
 
     // title database
     if (!InitImgFS(path_titledb) ||
-        ((AddTitleInfoEntryToDB("D:/partitionA.bin", title_id, &tie, true)) != 0)) {
+        ((AddTitleInfoEntryToDB(PART_PATH, title_id, &tie, true)) != 0)) {
         InitImgFS(path_bak);
         return 1;
     }
 
     // ticket database
     if (!InitImgFS(path_ticketdb) ||
-        ((AddTicketToDB("D:/partitionA.bin", title_id, (Ticket*) ticket, true)) != 0)) {
+        ((AddTicketToDB(PART_PATH, title_id, (Ticket*) ticket, true)) != 0)) {
         InitImgFS(path_bak);
         return 1;
     }
@@ -3004,45 +3007,27 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
             return 1;
         }
     } else if (filetype & SYS_TICKDB) {
-        if (!InitImgFS(path_in))
-            return 1;
+        u32 num_entries = GetNumTickets(PART_PATH);
+        if (!num_entries) return 1;
+        u8* title_ids = (u8*) malloc(num_entries * 8);
+        if (!title_ids) return 1;
 
-        DIR dir;
-        FILINFO fno;
-        TicketCommon ticket;
-        char tik_path[64];
-
-        if (fvx_opendir(&dir, "T:/eshop") != FR_OK) {
+        if (!InitImgFS(path_in) || (ListTicketTitleIDs(PART_PATH, title_ids, num_entries) != 0)) {
+            free(title_ids);
             InitImgFS(NULL);
             return 1;
         }
 
-        while ((fvx_readdir(&dir, &fno) == FR_OK) && *(fno.fname)) {
-            snprintf(tik_path, 64, "T:/eshop/%s", fno.fname);
-            if (fvx_qread(tik_path, &ticket, 0, TICKET_COMMON_SIZE, NULL) != FR_OK)
-                continue;
-            if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
-            AddTicketToInfo(tik_info, (Ticket*) &ticket, dec); // ignore result
+        // read and validate all tickets, add validated to info
+        for (u32 i = 0; i < num_entries; i++) {
+            Ticket* ticket;
+            if (ReadTicketFromDB(PART_PATH, title_ids + (i * 8), &ticket) != 0) continue;
+            if (ValidateTicketSignature(ticket) == 0)
+                AddTicketToInfo(tik_info, ticket, dec); // ignore result
+            free(ticket);
         }
-
-        fvx_closedir(&dir);
-
-        if (fvx_opendir(&dir, "T:/system") != FR_OK) {
-            InitImgFS(NULL);
-            return 1;
-        }
-
-        while ((fvx_readdir(&dir, &fno) == FR_OK) && *(fno.fname)) {
-            snprintf(tik_path, 64, "T:/system/%s", fno.fname);
-            if ((fvx_qread(tik_path, &ticket, 0, TICKET_COMMON_SIZE, NULL) != FR_OK) ||
-                (ValidateTicketSignature((Ticket*) &ticket) != 0))
-                continue;
-            if (TIKDB_SIZE(tik_info) + 32 > STD_BUFFER_SIZE) break; // no error message
-            AddTicketToInfo(tik_info, (Ticket*) &ticket, dec); // ignore result
-        }
-
-        fvx_closedir(&dir);
-
+        
+        free(title_ids);
         InitImgFS(NULL);
     } else if (filetype & BIN_TIKDB) {
         TitleKeysInfo* tik_info_merge = (TitleKeysInfo*) malloc(STD_BUFFER_SIZE);

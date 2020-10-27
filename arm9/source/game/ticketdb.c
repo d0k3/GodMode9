@@ -1,17 +1,11 @@
 #include "ticketdb.h"
-#include "vbdri.h"
+#include "bdri.h"
 #include "support.h"
 #include "aes.h"
-#include "vff.h"
 #include "fsinit.h"
 #include "image.h"
 
-const char* virtual_tickdb_dirs[] = {
-    "homebrew",
-    "eshop",
-    "system",
-    "unknown",
-};
+#define PART_PATH "D:/partitionA.bin"
 
 u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt, bool devkit) {
     // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
@@ -65,55 +59,31 @@ u32 FindTicket(Ticket** ticket, u8* title_id, bool force_legit, bool emunand) {
     char path_store[256] = { 0 };
     char* path_bak = NULL;
 
+    // just to be safe
+    *ticket = NULL;
+
+    // store previous mount path
     strncpy(path_store, GetMountPath(), 256);
     if (*path_store) path_bak = path_store;
     if (!InitImgFS(path_db))
         return 1;
 
-    char tid_string[17];
-    u64 tid = getbe64(title_id);
-    snprintf(tid_string, 17, "%016llX", tid);
+    // search ticket in database
+    if (ReadTicketFromDB(PART_PATH, title_id, ticket) != 0) {
+        InitImgFS(path_bak);
+        return 1;
+    }
 
-    DIR dir;
-    FILINFO fno;
-    char dir_path[12];
-    char tik_path[64];
-
-    for (u32 i = force_legit ? 1 : 0; i < 4; i++) {
-        snprintf(dir_path, 12, "T:/%s", virtual_tickdb_dirs[i]);
-
-        if (fvx_opendir(&dir, dir_path) != FR_OK) {
-            InitImgFS(path_bak);
-            return 1;
-        }
-
-        while ((fvx_readdir(&dir, &fno) == FR_OK) && *(fno.fname)) {
-            if (strncmp(tid_string, fno.fname, 16) == 0) {
-                snprintf(tik_path, 64, "%s/%s", dir_path, fno.fname);
-
-                u32 size = fvx_qsize(tik_path);
-                if (!(*ticket = malloc(size))) {
-                    InitImgFS(path_bak);
-                    return 1;
-                }
-
-                if ((fvx_qread(tik_path, *ticket, 0, size, NULL) != FR_OK) ||
-                    (force_legit && (ValidateTicketSignature(*ticket) != 0))) {
-                    free(*ticket);
-                    InitImgFS(path_bak);
-                    return 1;
-                }
-
-                InitImgFS(path_bak);
-                return 0;
-            }
-        }
-
-        fvx_closedir(&dir);
+    // (optional) validate ticket signature
+    if (force_legit && (ValidateTicketSignature(*ticket) != 0)) {
+        free(*ticket);
+        *ticket = NULL;
+        InitImgFS(path_bak);
+        return 1;
     }
 
     InitImgFS(path_bak);
-    return 1;
+    return 0;
 }
 
 u32 FindTitleKey(Ticket* ticket, u8* title_id) {
