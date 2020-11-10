@@ -2023,7 +2023,8 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
     }
 
     // verify TMD / write CIA stub / install system data (take #2)
-    if ((VerifyTmd(tmd) != 0) ||
+    if ((force_legit && (VerifyTmd(tmd) != 0)) ||
+        (!force_legit && (FixTmdHashes(tmd) != 0)) ||
         (!install && (WriteCiaStub(cia, path_dest) != 0)) ||
         (install && (InstallCiaSystemData(cia, path_dest) != 0)))
         return 1;
