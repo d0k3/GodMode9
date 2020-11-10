@@ -18,16 +18,16 @@ enum {
     KEY_LEFT    = 0x88,
     KEY_RIGHT   = 0x89,
     KEY_ESCAPE  = 0x8A,
+    KEY_SWITCH  = 0x8B,
     KEY_TXTBOX  = 0xFF
 };
 
 // special key strings
-#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "\x1b", "\x1a", "ESC"
+#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "\x1b", "\x1a", "ESC", "SWITCH"
 
 #define COLOR_SWKBD_NORMAL  COLOR_GREY
 #define COLOR_SWKBD_PRESSED COLOR_LIGHTGREY
 #define COLOR_SWKBD_BOX     COLOR_DARKGREY
-#define COLOR_SWKBD_TEXTBOX COLOR_DARKGREY
 #define COLOR_SWKBD_CHARS   COLOR_BLACK
 #define COLOR_SWKBD_ENTER   COLOR_TINTEDBLUE
 #define COLOR_SWKBD_CAPS    COLOR_TINTEDYELLOW

@@ -58,10 +58,7 @@ static bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout) {
         }
 
         // next row
-        if (layout[l++] != 0) {
-            ShowPrompt(false, "Oh shit %lu %lu", k, l);
-            return false; // error!!!! THIS HAS TO GO!
-        }
+        if (layout[l++] != 0) return false;
         p_y += SWKBD_STDKEY_HEIGHT + SWKDB_KEY_SPACING;
     }
 
@@ -199,6 +196,7 @@ static char KeyboardWait(TouchBox* swkbd, bool uppercase) {
         else if (pressed & BUTTON_R1) return KEY_CAPS;
         else if (pressed & BUTTON_RIGHT) return KEY_RIGHT;
         else if (pressed & BUTTON_LEFT) return KEY_LEFT;
+        else if (pressed & BUTTON_SELECT) return KEY_SWITCH;
         else if (pressed & BUTTON_TOUCH) break;
     }
 
@@ -297,6 +295,9 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
             swkbd = swkbd_special;
         } else if (key == KEY_NUMPAD) {
             swkbd = swkbd_numpad;
+        } else if (key == KEY_SWITCH) {
+            ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+            return ShowStringPrompt(inputstr, max_size, str);
         } else if (key && (key < 0x80)) {
             if ((cursor < (max_size-1)) && (inputstr_size < max_size)) {
                 // pad string (if cursor beyound string size)
