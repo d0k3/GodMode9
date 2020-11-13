@@ -240,6 +240,20 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
     return 0;
 }
 
+u32 ReadCartId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+    u8 ownBuf[GAMECART_ID_SIZE] = { 0 };
+    u32 id;
+    u8 sReg;
+    if (offset >= GAMECART_ID_SIZE) return 1;
+    if (offset + count > GAMECART_ID_SIZE) count = GAMECART_ID_SIZE - offset;
+    ownBuf[0] = (cdata->cart_id >> 24) & 0xff;
+    ownBuf[1] = (cdata->cart_id >> 16) & 0xff;
+    ownBuf[2] = (cdata->cart_id >>  8) & 0xff;
+    ownBuf[3] = cdata->cart_id & 0xff;
+    memcpy(buffer, ownBuf + offset, count);
+    return 0;
+}
+
 u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
