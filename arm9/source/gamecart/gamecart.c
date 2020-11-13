@@ -66,6 +66,23 @@ u32 InitCartRead(CartData* cdata) {
     Cart_Init();
     cdata->cart_id = Cart_GetID();
     cdata->cart_type = (cdata->cart_id & 0x10000000) ? CART_CTR : CART_NTR;
+
+    // Use the cart ID to determine the ROM size.
+    // (ROM header might be incorrect on dev carts.)
+    switch ((cdata->cart_id >> 16) & 0xFF) {
+        case 0x07:  cdata->cart_size = 8ULL*1024*1024; break;
+        case 0x0F:  cdata->cart_size = 16ULL*1024*1024; break;
+        case 0x1F:  cdata->cart_size = 32ULL*1024*1024; break;
+        case 0x3F:  cdata->cart_size = 64ULL*1024*1024; break;
+        case 0x7F:  cdata->cart_size = 128ULL*1024*1024; break;
+        case 0xFF:  cdata->cart_size = 256ULL*1024*1024; break;
+        case 0xFE:  cdata->cart_size = 512ULL*1024*1024; break;
+        case 0xFA:  cdata->cart_size = 1024ULL*1024*1024; break;
+        case 0xF8:  cdata->cart_size = 2048ULL*1024*1024; break;
+        case 0xF0:  cdata->cart_size = 4096ULL*1024*1024; break;
+        default:    cdata->cart_size = 0; break;
+    }
+
     if (cdata->cart_type & CART_CTR) { // CTR cartridges
         memset(cdata, 0xFF, 0x4000 + PRIV_HDR_SIZE); // switch the padding to 0xFF
 
@@ -85,7 +102,8 @@ u32 InitCartRead(CartData* cdata) {
         NcchHeader* ncch = (NcchHeader*) (void*) ncch_header;
         if ((ValidateNcsdHeader(ncsd) != 0) || (ValidateNcchHeader(ncch) != 0))
             return 1;
-        cdata->cart_size = (u64) ncsd->size * NCSD_MEDIA_UNIT;
+        if (cdata->cart_size == 0)
+            cdata->cart_size = (u64) ncsd->size * NCSD_MEDIA_UNIT;
         cdata->data_size = GetNcsdTrimmedSize(ncsd);
         if (cdata->cart_size > 0x100000000) return 1; // carts > 4GB don't exist
         // else if (cdata->cart_size == 0x100000000) cdata->cart_size -= 0x200; // silent 4GB fix
@@ -113,7 +131,8 @@ u32 InitCartRead(CartData* cdata) {
 
         // cartridge size, trimmed size, twl presets
         if (nds_header->device_capacity >= 15) return 1; // too big, not valid
-        cdata->cart_size = (128 * 1024) << nds_header->device_capacity;
+        if (cdata->cart_size == 0)
+            cdata->cart_size = (128 * 1024) << nds_header->device_capacity;
         cdata->data_size = nds_header->ntr_rom_size;
         cdata->arm9i_rom_offset = 0;
 
@@ -242,8 +261,6 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
 
 u32 ReadCartId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     u8 ownBuf[GAMECART_ID_SIZE] = { 0 };
-    u32 id;
-    u8 sReg;
     if (offset >= GAMECART_ID_SIZE) return 1;
     if (offset + count > GAMECART_ID_SIZE) count = GAMECART_ID_SIZE - offset;
     ownBuf[0] = (cdata->cart_id >> 24) & 0xff;
