@@ -144,9 +144,14 @@ u32 InitCartRead(CartData* cdata) {
             if ((cdata->arm9i_rom_offset < nds_header->ntr_rom_size) ||
                 (cdata->arm9i_rom_offset + MODC_AREA_SIZE > cdata->data_size))
                 return 1; // safety first
-            Cart_Init();
-            NTR_CmdReadHeader(cdata->twl_header);
-            if (!NTR_Secure_Init(cdata->twl_header, Cart_GetID(), 1)) return 1;
+
+            // Some NTR dev carts have TWL ROMs flashed to them.
+            // We'll only want to use TWL secure init if this is a TWL cartridge.
+            if (cdata->cart_id & 0x40000000U) { // TWL cartridge
+                Cart_Init();
+                NTR_CmdReadHeader(cdata->twl_header);
+                if (!NTR_Secure_Init(cdata->twl_header, Cart_GetID(), 1)) return 1;
+            }
         }
 
         // last safety check
