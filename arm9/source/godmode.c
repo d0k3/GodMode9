@@ -319,7 +319,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
             ((drvtype & DRV_SDCARD) ? "SD" : (drvtype & DRV_RAMDRIVE) ? "RAMdrive" : (drvtype & DRV_GAME) ? "Game" :
             (drvtype & DRV_SYSNAND) ? "SysNAND" : (drvtype & DRV_EMUNAND) ? "EmuNAND" : (drvtype & DRV_IMAGE) ? "Image" :
             (drvtype & DRV_XORPAD) ? "XORpad" : (drvtype & DRV_MEMORY) ? "Memory" : (drvtype & DRV_ALIAS) ? "Alias" :
-            (drvtype & DRV_CART) ? "Gamecart" : (drvtype & DRV_VRAM) ? "VRAM" : (drvtype & DRV_SEARCH) ? "Search" : ""),
+            (drvtype & DRV_CART) ? "Gamecart" : (drvtype & DRV_VRAM) ? "VRAM" : (drvtype & DRV_SEARCH) ? "Search" :
+            (drvtype & DRV_TITLEMAN) ? "TitleManager" : ""),
             ((drvtype & DRV_FAT) ? " FAT" : (drvtype & DRV_VIRTUAL) ? " Virtual" : ""));
         ResizeString(tempstr, drvstr, str_len_info, 8, false);
     } else {
@@ -1157,7 +1158,14 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (strncmp(clipboard->entry[0].path, file_path, 256) != 0)) ?
         (int) ++n_opt : -1;
     int searchdrv = (DriveType(current_path) & DRV_SEARCH) ? ++n_opt : -1;
-    int titleman = (filetype & GAME_TIE) ? ++n_opt : -1;
+    int titleman = -1;
+    if (DriveType(current_path) & DRV_TITLEMAN) {
+        // special case: title manager (disable almost everything)
+        hexviewer = textviewer = calcsha = calccmac = fileinfo = copystd = inject = searchdrv = -1;
+        special = 1;
+        titleman = 2;
+        n_opt = 2;
+    }
     if (special > 0) optionstr[special-1] =
         (filetype & IMG_NAND  ) ? "NAND image options..." :
         (filetype & IMG_FAT   ) ? (transferable) ? "CTRNAND options..." : "Mount as FAT image" :
@@ -1386,6 +1394,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:", "D:" }; // maybe move that to fsdrive.h
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
+        SetTitleManagerMode(false); // disable title manager mode
         InitImgFS((filetype & GAME_TMD) ? cxi_path : file_path);
 
         const char* drv_path = NULL; // find path of mounted drive
@@ -1628,18 +1637,17 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         if (n_marked > 1) {
             u32 n_success = 0;
             u32 num = 0;
-            ShowProgress(0, 0, "batch uninstall");
             for (u32 i = 0; i < current_dir->n_entries; i++) {
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked) continue;
                 if (!(IdentifyFileType(path) & filetype & TYPE_BASE)) continue;
-                if (!ShowProgress(++num, n_marked, path)) break;
+                if (!num && !CheckWritePermissions(path)) break;
+                if (!ShowProgress(num++, n_marked, path)) break;
                 if (UninstallGameDataTie(path, true, full_uninstall, full_uninstall) == 0)
                     n_success++;
             }
             ShowPrompt(false, "%lu/%lu titles uninstalled", n_success, n_marked);
         } else {
-            ShowString("%s\nUninstalling, please wait...", pathstr);
             if (UninstallGameDataTie(file_path, true, full_uninstall, full_uninstall) != 0)
                 ShowPrompt(false, "%s\nUninstall failed!", pathstr);
             ClearScreenF(true, false, COLOR_STD_BG);
@@ -2353,6 +2361,7 @@ u32 GodMode(int entrypoint) {
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
             ShowPrompt(false, "Invalid directory object");
             *current_path = '\0';
+            SetTitleManagerMode(false);
             DeinitExtFS(); // deinit and...
             InitExtFS(); // reinitialize extended file system
             GetDirContents(current_dir, current_path);
@@ -2388,19 +2397,19 @@ u32 GodMode(int entrypoint) {
 
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
-            if (switched && !(DriveType(curr_entry->path) & DRV_SEARCH)) { // search directory
+            if (switched && !(DriveType(curr_entry->path) & (DRV_SEARCH|DRV_TITLEMAN))) { // exclude Y/Z
                 const char* optionstr[8] = { NULL };
                 char tpath[16] = { 0 };
-                if (!*current_path) snprintf(tpath, 15, "%s/title", curr_entry->path);
+                snprintf(tpath, 16, "%2.2s/dbs/title.db", curr_entry->path);
                 int n_opt = 0;
-                int srch_t = ((strncmp(curr_entry->path + 1, ":/title", 7) == 0) ||
-                    (*tpath && PathExist(tpath))) ? ++n_opt : -1;
+                int tman = ((strncmp(curr_entry->path, tpath, 16) == 0) ||
+                    (!*current_path && PathExist(tpath))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
                 int fixcmac = (!*current_path && ((strspn(curr_entry->path, "14AB") == 1) ||
                     ((GetMountState() == IMG_NAND) && (*(curr_entry->path) == '7')))) ? ++n_opt : -1;
                 int dirnfo = ++n_opt;
                 int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
-                if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
+                if (tman > 0) optionstr[tman-1] = "Open title manager";
                 if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
                 if (fixcmac > 0) optionstr[fixcmac-1] = "Fix CMACs for drive";
                 if (dirnfo > 0) optionstr[dirnfo-1] = (*current_path) ? "Show directory info" : "Show drive info";
@@ -2408,12 +2417,20 @@ u32 GodMode(int entrypoint) {
                 char namestr[32+1];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
                 int user_select = ShowSelectPrompt(n_opt, optionstr, "%s", namestr);
-                if ((user_select == srch_f) || (user_select == srch_t)) {
+                if (user_select == tman) {
+                    if (InitImgFS(tpath)) {
+                        SetTitleManagerMode(true);
+                        snprintf(current_path, 256, "Y:");
+                        GetDirContents(current_dir, current_path);
+                        cursor = 1;
+                        scroll = 0;
+                    } else ShowPrompt(false, "Failed setting up title manager!");
+                } else if (user_select == srch_f) {
                     char searchstr[256];
-                    snprintf(searchstr, 256, (user_select == srch_t) ? "*.tmd" : "*");
+                    snprintf(searchstr, 256, "*");
                     TruncateString(namestr, curr_entry->name, 20, 8);
-                    if ((user_select == srch_t) || ShowKeyboardOrPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
-                        SetFSSearch(searchstr, curr_entry->path, (user_select == srch_t));
+                    if (ShowKeyboardOrPrompt(searchstr, 256, "Search %s?\nEnter search below.", namestr)) {
+                        SetFSSearch(searchstr, curr_entry->path);
                         snprintf(current_path, 256, "Z:");
                         GetDirContents(current_dir, current_path);
                         if (current_dir->n_entries) ShowPrompt(false, "Found %lu results.", current_dir->n_entries - 1);
@@ -2535,6 +2552,7 @@ u32 GodMode(int entrypoint) {
             if (switched && (pad_state & BUTTON_X)) { // unmount image
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
+                SetTitleManagerMode(false);
                 InitImgFS(NULL);
                 ClearScreenF(false, true, COLOR_STD_BG);
                 GetDirContents(current_dir, current_path);

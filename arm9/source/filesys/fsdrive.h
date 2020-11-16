@@ -25,8 +25,9 @@
 #define DRV_VRAM        (1UL<<13)
 #define DRV_ALIAS       (1UL<<14)
 #define DRV_BONUS       (1UL<<15)
-#define DRV_SEARCH      (1UL<<16)
-#define DRV_STDFAT      (1UL<<17) // standard FAT drive without limitations
+#define DRV_TITLEMAN    (1UL<<16)
+#define DRV_SEARCH      (1UL<<17)
+#define DRV_STDFAT      (1UL<<18) // standard FAT drive without limitations
 
 #define DRV_LABEL_LEN   (36)
 
@@ -39,16 +40,21 @@
         "GAME IMAGE", "AESKEYDB IMAGE", "BDRI IMAGE", "DISA/DIFF IMAGE", \
         "MEMORY VIRTUAL", \
         "VRAM VIRTUAL", \
+        "TITLE MANAGER", \
         "LAST SEARCH" \
 
 #define FS_DRVNUM \
-    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", "I:", "C:", "G:", "K:", "T:", "D:", "M:", "V:", "Z:"
+    "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", \
+    "I:", "C:", "G:", "K:", "T:", "D:", "M:", "V:", "Y:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);
 
 /** Set search pattern / path / mode for special Z: drive **/
-void SetFSSearch(const char* pattern, const char* path, bool mode);
+void SetFSSearch(const char* pattern, const char* path);
+
+/** Enable title manager for special processing of mounted title.db **/
+void SetTitleManagerMode(bool mode);
 
 /** Read the FAT volume label of a partition **/
 bool GetFATVolumeLabel(const char* drv, char* label);

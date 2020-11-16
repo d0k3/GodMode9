@@ -1,14 +1,16 @@
 #include "fsgame.h"
 #include "fsperm.h"
 #include "gameutil.h"
+#include "tie.h"
 #include "ui.h"
-#include "ff.h"
+#include "vff.h"
 
-void SetDirGoodNames(DirStruct* contents) {
+void SetupTitleManager(DirStruct* contents) {
     char goodname[256];
     ShowProgress(0, 0, "");
     for (u32 s = 0; s < contents->n_entries; s++) {
         DirEntry* entry = &(contents->entry[s]);
+        // set good name for entry
         u32 plen = strnlen(entry->path, 256);
         if (!ShowProgress(s+1, contents->n_entries, entry->path)) break;
         if ((GetGoodName(goodname, entry->path, false) != 0) ||
@@ -17,6 +19,11 @@ void SetDirGoodNames(DirStruct* contents) {
         entry->p_name = plen + 1;
         entry->name = entry->path + entry->p_name;
         snprintf(entry->name, 256 - entry->p_name, "%s", goodname);
+        // grab title size from tie
+        TitleInfoEntry tie;
+        if (fvx_qread(entry->path, &tie, 0, sizeof(TitleInfoEntry), NULL) != FR_OK)
+            continue;
+        entry->size = tie.title_size;
     }
 }
 

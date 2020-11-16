@@ -3235,8 +3235,8 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         (type_donor & GAME_NDS)  ? "nds" :
         (type_donor & GAME_GBA)  ? "gba" :
         (type_donor & GAME_TMD)  ? "tmd" :
-        (type_donor & GAME_TIE)  ? "tie" : "";
-    if (!*ext) return 1;
+        (type_donor & GAME_TIE)  ? "" : NULL;
+    if (!ext) return 1;
 
     char appid_str[1 + 8 + 1] = { 0 }; // handling for NCCH / NDS in "?:/title" paths
     if ((type_donor & (GAME_NCCH|GAME_NDS)) && (strncmp(path + 1, ":/title/", 8) == 0)) {
@@ -3328,6 +3328,8 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         if ((*c == ':') || (*c == '/') || (*c == '\\') || (*c == '"') ||
             (*c == '*') || (*c == '?') || (*c == '\n') || (*c == '\r'))
             *c = ' ';
+        if ((*c == '.') && !*(c+1))
+            *c = '\0';
     }
 
     // remove double spaces from filename

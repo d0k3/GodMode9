@@ -11,7 +11,7 @@
 // last search pattern, path & mode
 static char search_pattern[256] = { 0 };
 static char search_path[256] = { 0 };
-static bool search_title_mode = false;
+static bool title_manager_mode = false;
 
 int DriveType(const char* path) {
     int type = DRV_UNKNOWN;
@@ -21,6 +21,8 @@ int DriveType(const char* path) {
         type = DRV_FAT | DRV_ALIAS | ((*path == 'A') ? DRV_SYSNAND : DRV_EMUNAND);
     } else if (*search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0)) {
         type = DRV_SEARCH;
+    } else if (title_manager_mode && (strncmp(path, "Y:", 3) == 0)) {
+        type = DRV_TITLEMAN;
     } else if ((pdrv >= 0) && (pdrv < NORM_FS)) {
         if (pdrv == 0) {
             type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
@@ -64,14 +66,17 @@ int DriveType(const char* path) {
     return type;
 }
 
-void SetFSSearch(const char* pattern, const char* path, bool mode) {
+void SetFSSearch(const char* pattern, const char* path) {
     if (pattern && path) {
         strncpy(search_pattern, pattern, 256);
         search_pattern[255] = '\0';
         strncpy(search_path, path, 256);
         search_path[255] = '\0';
-        search_title_mode = mode;
     } else *search_pattern = *search_path = '\0';
+}
+
+void SetTitleManagerMode(bool mode) {
+    title_manager_mode = mode;
 }
 
 bool GetFATVolumeLabel(const char* drv, char* label) {
@@ -208,7 +213,10 @@ void GetDirContents(DirStruct* contents, const char* path) {
     if (*search_path && (DriveType(path) & DRV_SEARCH)) {
         ShowString("Searching, please wait...");
         SearchDirContents(contents, search_path, search_pattern, true);
-        if (search_title_mode) SetDirGoodNames(contents);
+        ClearScreenF(true, false, COLOR_STD_BG);
+    } else if (title_manager_mode && (DriveType(path) & DRV_TITLEMAN)) {
+        SearchDirContents(contents, "T:", "*", false);
+        SetupTitleManager(contents);
         ClearScreenF(true, false, COLOR_STD_BG);
     } else SearchDirContents(contents, path, NULL, false);
     if (*path) SortDirStruct(contents);

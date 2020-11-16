@@ -25,7 +25,8 @@
 
 
 #define VRT_DRIVES  {'S', VRT_SYSNAND}, {'E', VRT_EMUNAND}, {'I', VRT_IMGNAND}, {'X', VRT_XORPAD }, \
-                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_BDRI}, {'C', VRT_CART}, {'V', VRT_VRAM}, {'D', VRT_DISADIFF}
+                    {'M', VRT_MEMORY}, {'G', VRT_GAME}, {'K', VRT_KEYDB}, {'T', VRT_BDRI}, \
+                    {'C', VRT_CART}, {'V', VRT_VRAM}, {'D', VRT_DISADIFF}
 
 // virtual file flag (subject to change):
 // bits 0...3  : reserved for NAND virtual sources and info
