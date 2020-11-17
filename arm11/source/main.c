@@ -85,26 +85,24 @@ static void pxiRxHandler(u32 __attribute__((unused)) irqn)
 	atomic_store(&pendingPxiRx, 1);
 }
 
-static void pxiRxUpdate(u32 *cmd, u32 *args)
+static u32 pxiRxUpdate(u32 *args)
 {
 	u32 msg, lo, hi;
 
-	*cmd = PXICMD_NONE;
-
 	if (!atomic_exchange(&pendingPxiRx, 0))
-		return;
+		return PXICMD_NONE;
 
 	msg = PXI_Recv();
 	lo = msg & 0xFFFF;
 	hi = msg >> 16;
 
-	*cmd = lo;
 	PXI_RecvArray(args, hi);
+	return lo;
 }
 
 void __attribute__((noreturn)) MainLoop(void)
 {
-	bool runCmdProcessor = true;
+	bool runPxiCmdProcessor = true;
 
 	#ifdef FIXED_BRIGHTNESS
 	u8 fixed_bright_lvl = brightness_lvls[clamp(FIXED_BRIGHTNESS, 0, countof(brightness_lvls)-1)];
@@ -139,61 +137,70 @@ void __attribute__((noreturn)) MainLoop(void)
 
 	// Process commands until the ARM9 tells
 	// us it's time to boot something else
-	// also handles Vblank events as needed
+	// also handles VBlank events as needed
 	do {
-		u32 cmd, resp, args[PXI_MAX_ARGS];
+		u32 pxiCmd, pxiReply, args[PXI_MAX_ARGS];
 
 		vblankUpdate();
-		pxiRxUpdate(&cmd, args);
+		pxiCmd = pxiRxUpdate(args);
 
-		switch(cmd) {
+		switch(pxiCmd) {
+			// ignore args and just wait until the next event
 			case PXICMD_NONE:
 				ARM_WFI();
 				break;
 
+			// revert to legacy boot mode
 			case PXICMD_LEGACY_BOOT:
-				runCmdProcessor = false;
-				resp = 0;
+				runPxiCmdProcessor = false;
+				pxiReply = 0;
 				break;
 
+			// returns the shared memory address
 			case PXICMD_GET_SHMEM_ADDRESS:
-				resp = (u32)&sharedMem;
+				pxiReply = (u32)&sharedMem;
 				break;
 
+			// takes in a single argument word and performs either an
+			// I2C read or write depending on the value of the top bit
 			case PXICMD_I2C_OP:
 			{
 				u32 devId, regAddr, size;
 
 				devId = (args[0] & 0xff);
-				regAddr = (args[0] >> 8) & 0xff;
-				size = (args[0] >> 16) % I2C_SHARED_BUFSZ;
+				regAddr = (args[0] >> 8) & 0xFF;
+				size = (args[0] >> 16) % SHMEM_BUFFER_SIZE;
 
 				if (args[0] & BIT(31)) {
-					resp = I2C_writeRegBuf(devId, regAddr, sharedMem.i2cBuffer, size);
+					pxiReply = I2C_writeRegBuf(devId, regAddr, sharedMem.dataBuffer.b, size);
 				} else {
-					resp = I2C_readRegBuf(devId, regAddr, sharedMem.i2cBuffer, size);
+					pxiReply = I2C_readRegBuf(devId, regAddr, sharedMem.dataBuffer.b, size);
 				}
 				break;
 			}
 
+			// checks whether the NVRAM chip is online (not doing any work)
 			case PXICMD_NVRAM_ONLINE:
-				resp = (NVRAM_Status() & NVRAM_SR_WIP) == 0;
+				pxiReply = (NVRAM_Status() & NVRAM_SR_WIP) == 0;
 				break;
 
+			// reads data from the NVRAM chip
 			case PXICMD_NVRAM_READ:
-				NVRAM_Read(args[0], (u32*)sharedMem.spiBuffer, args[1]);
-				resp = 0;
+				NVRAM_Read(args[0], sharedMem.dataBuffer.w, args[1]);
+				pxiReply = 0;
 				break;
 
+			// sets the notification LED with the given color and period
 			case PXICMD_SET_NOTIFY_LED:
 				mcuSetStatusLED(args[0], args[1]);
-				resp = 0;
+				pxiReply = 0;
 				break;
 
+			// sets the LCDs brightness (if FIXED_BRIGHTNESS is disabled)
 			case PXICMD_SET_BRIGHTNESS:
 			{
 				s32 newbrightness = (s32)args[0];
-				resp = GFX_getBrightness();
+				pxiReply = GFX_getBrightness();
 				#ifndef FIXED_BRIGHTNESS
 				if ((newbrightness > 0) && (newbrightness < 0x100)) {
 					GFX_setBrightness(newbrightness, newbrightness);
@@ -206,14 +213,15 @@ void __attribute__((noreturn)) MainLoop(void)
 				break;
 			}
 
+			// replies -1 on default
 			default:
-				resp = 0xFFFFFFFF;
+				pxiReply = 0xFFFFFFFF;
 				break;
 		}
 
-		if (cmd != PXICMD_NONE)
-			PXI_Send(resp); // was a command sent from the ARM9, send a response
-	} while(runCmdProcessor);
+		if (pxiCmd != PXICMD_NONE)
+			PXI_Send(pxiReply); // was a command sent from the ARM9, send a response
+	} while(runPxiCmdProcessor);
 
 	// perform deinit in reverse order
 	gicDisableInterrupt(VBLANK_INTERRUPT);
