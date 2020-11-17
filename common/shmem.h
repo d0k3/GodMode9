@@ -20,8 +20,7 @@
 
 #include <arm.h>
 
-#define I2C_SHARED_BUFSZ 1024
-#define SPI_SHARED_BUFSZ 1024
+#define SHMEM_BUFFER_SIZE 2048
 
 typedef struct {
 	union {
@@ -29,8 +28,12 @@ typedef struct {
 		u64 full;
 	} hidState;
 
-	u8 i2cBuffer[I2C_SHARED_BUFSZ];
-	u32 spiBuffer[SPI_SHARED_BUFSZ/4];
+	union {
+		uint8_t b[SHMEM_BUFFER_SIZE];
+		uint16_t s[SHMEM_BUFFER_SIZE / 2];
+		uint32_t w[SHMEM_BUFFER_SIZE / 4];
+		uint64_t q[SHMEM_BUFFER_SIZE / 8];
+	} dataBuffer;
 } __attribute__((packed, aligned(8))) SystemSHMEM;
 
 #ifdef ARM9

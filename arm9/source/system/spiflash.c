@@ -10,19 +10,20 @@ bool spiflash_get_status(void)
 
 bool spiflash_read(u32 offset, u32 size, u8 *buf)
 {
+	u32 *const dataBuffer = ARM_GetSHMEM()->dataBuffer.w;
 	u32 args[2];
 
 	while(size > 0) {
-		u32 blksz = min(size, SPI_SHARED_BUFSZ);
+		u32 blksz = min(size, SHMEM_BUFFER_SIZE);
 
 		args[0] = offset;
 		args[1] = blksz;
 
-		ARM_WbDC_Range(ARM_GetSHMEM()->spiBuffer, blksz);
 		PXI_DoCMD(PXICMD_NVRAM_READ, args, 2);
-		ARM_InvDC_Range(ARM_GetSHMEM()->spiBuffer, blksz); 
+		ARM_InvDC_Range(dataBuffer, blksz);
 		ARM_DSB();
-		memcpy(buf, ARM_GetSHMEM()->spiBuffer, blksz);
+
+		memcpy(buf, dataBuffer, blksz);
 
 		buf += blksz;
 		size -= blksz;

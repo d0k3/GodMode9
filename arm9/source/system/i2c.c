@@ -8,29 +8,30 @@
 bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
 {
 	int ret;
+	u8 *const dataBuffer = ARM_GetSHMEM()->dataBuffer.b;
 	const u32 arg = devId | (regAddr << 8) | (size << 16);
 
-	if (size >= I2C_SHARED_BUFSZ)
+	if (size >= SHMEM_BUFFER_SIZE)
 		return false;
 
 	ret = PXI_DoCMD(PXICMD_I2C_OP, &arg, 1);
+	ARM_InvDC_Range(dataBuffer, size);
 
-	ARM_InvDC_Range(ARM_GetSHMEM()->i2cBuffer, size);
-	memcpy(out, ARM_GetSHMEM()->i2cBuffer, size);
+	memcpy(out, dataBuffer, size);
 	return ret;
 }
 
 bool I2C_writeRegBuf(I2cDevice devId, u8 regAddr, const u8 *in, u32 size)
 {
 	int ret;
+	u8 *const dataBuffer = ARM_GetSHMEM()->dataBuffer.b;
 	const u32 arg = devId | (regAddr << 8) | (size << 16) | BIT(31);
 
-	if (size >= I2C_SHARED_BUFSZ)
+	if (size >= SHMEM_BUFFER_SIZE)
 		return false;
 
-	ARM_InvDC_Range(ARM_GetSHMEM()->i2cBuffer, size);
-	memcpy(ARM_GetSHMEM()->i2cBuffer, in, size);
-	ARM_WbDC_Range(ARM_GetSHMEM()->i2cBuffer, size);
+	memcpy(dataBuffer, in, size);
+	ARM_WbDC_Range(dataBuffer, size);
 	ARM_DSB();
 
 	ret = PXI_DoCMD(PXICMD_I2C_OP, &arg, 1);
