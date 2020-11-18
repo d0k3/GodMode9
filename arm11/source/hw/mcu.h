@@ -37,17 +37,11 @@ enum {
 	MCUEV_HID_VOLUME_SLIDER = BIT(22),
 };
 
-u32 mcuEventTest(u32 mask);
-u32 mcuEventClear(u32 mask);
-u32 mcuEventWait(u32 mask);
-
 u8 mcuGetVolumeSlider(void);
 u32 mcuGetSpecialHID(void);
 
 void mcuSetStatusLED(u32 period_ms, u32 color);
 void mcuResetLEDs(void);
-
-void mcuInterruptHandler(u32 irqn);
 
 void mcuReset(void);
 

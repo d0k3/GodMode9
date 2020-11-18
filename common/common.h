@@ -53,7 +53,7 @@
     (sizeof(x) / sizeof(*(x)))
 
 #define bkpt \
-    __builtin_trap()
+    do{__builtin_trap(); __builtin_unreachable();}while(0)
 
 #define assert(x) \
     (!!(x) ? (void)0 : __builtin_trap())

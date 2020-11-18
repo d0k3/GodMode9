@@ -19,7 +19,11 @@
 #include <common.h>
 #include <arm.h>
 
+#include <stdatomic.h>
+
 #include "arm/gic.h"
+
+#include "system/event.h"
 
 /* Generic Interrupt Controller Registers */
 #define REG_GIC(cpu, o, t)  REG_ARM_PMR(0x200 + ((cpu) * 0x100) + (o), t)
@@ -72,6 +76,7 @@
 #define IRQN_IS_VALID(n)    ((n) < DIC_MAX_IRQ)
 
 static gicIrqHandler gicIrqHandlers[DIC_MAX_IRQ];
+static _Atomic(u32) gicIrqPending[DIC_MAX_IRQ / 32];
 
 static struct {
     u8 tgt;
@@ -106,14 +111,13 @@ static u8 gicGetDefaultIrqCfg(u32 irqn) {
             return gicDefaultIrqCfg[i].mode;
     }
     // TODO: would it be considerably faster to use bsearch?
-
     return GIC_RISINGEDGE_1N;
 }
 
 void gicTopHandler(void)
 {
     while(1) {
-        u32 irqn;
+        u32 irqn, irqsource, index, mask;
 
         /**
             If more than one of these CPUs reads the Interrupt Acknowledge Register at the
@@ -121,16 +125,22 @@ void gicTopHandler(void)
             routine must ensure that only one of them tries to process the interrupt, with the
             others returning after writing the ID to the End of Interrupt Register.
         */
-        irqn = REG_GIC_IRQACK(GIC_THIS_CPU_ALIAS);
+        irqsource = REG_GIC_IRQACK(GIC_THIS_CPU_ALIAS);
 
-        if (irqn == GIC_IRQ_SPURIOUS) // no further processing is needed
+        if (irqsource == GIC_IRQ_SPURIOUS) // no further processing is needed
             break;
 
-        (gicIrqHandlers[irqn & ~IRQN_SRC_MASK])(irqn);
+        irqn = irqsource & ~IRQN_SRC_MASK;
+
+        index = irqn / 32;
+        mask = BIT(irqn % 32);
+        atomic_fetch_or(&gicIrqPending[index], mask);
+
+        (gicIrqHandlers[irqn])(irqsource);
         // if the id is < 16, the source CPU can be obtained from irqn
         // if the handler isn't set, it'll try to branch to 0 and trigger a prefetch abort
 
-        REG_GIC_IRQEND(GIC_THIS_CPU_ALIAS) = irqn;
+        REG_GIC_IRQEND(GIC_THIS_CPU_ALIAS) = irqsource;
     }
 }
 
@@ -152,6 +162,7 @@ void gicGlobalReset(void)
         gicn = MAX_CPU;
 
     // clear the interrupt handler and config table
+    getEventIRQ()->reset();
     memset(gicIrqHandlers, 0, sizeof(gicIrqHandlers));
     memset(gicIrqConfig, 0, sizeof(gicIrqConfig));
 
@@ -262,4 +273,28 @@ void gicDisableInterrupt(u32 irqn)
 void gicTriggerSoftInterrupt(u32 softirq)
 {
     REG_DIC_SOFTINT = softirq;
+}
+
+static void irqEvReset(void) {
+    memset(&gicIrqPending, 0, sizeof(gicIrqPending));
+}
+
+static u32 irqEvTest(u32 param, u32 clear) {
+    u32 index, tstmask, clrmask;
+
+    if (param >= DIC_MAX_IRQ)
+        bkpt;
+    index = param / 32;
+    tstmask = BIT(param % 32);
+    clrmask = clear ? tstmask : 0;
+    return !!(atomic_fetch_and(&gicIrqPending[index], ~clrmask) & tstmask);
+}
+
+static const EventInterface evIRQ = {
+    .reset = irqEvReset,
+    .test = irqEvTest
+};
+
+const EventInterface *getEventIRQ(void) {
+    return &evIRQ;
 }
