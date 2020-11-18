@@ -22,8 +22,6 @@
 #include <arm.h>
 #include <pxi.h>
 
-#include <stdatomic.h>
-
 #include "arm/gic.h"
 
 #include "hw/hid.h"
@@ -33,6 +31,7 @@
 #include "hw/nvram.h"
 
 #include "system/sys.h"
+#include "system/event.h"
 
 #ifndef FIXED_BRIGHTNESS
 static const u8 brightness_lvls[] = {
@@ -47,16 +46,9 @@ static bool auto_brightness;
 
 static SystemSHMEM __attribute__((section(".shared"))) sharedMem;
 
-static _Atomic(u32) pendingVblank, pendingPxiRx;
-
-static void vblankHandler(u32 __attribute__((unused)) irqn)
-{
-	atomic_store(&pendingVblank, 1);
-}
-
 static void vblankUpdate(void)
 {
-	if (!atomic_exchange(&pendingVblank, 0))
+	if (!getEventIRQ()->test(VBLANK_INTERRUPT, true))
 		return;
 
 	#ifndef FIXED_BRIGHTNESS
@@ -69,7 +61,8 @@ static void vblankUpdate(void)
 	#endif
 
 	// handle shell events
-	u32 shell = mcuEventClear(MCUEV_HID_SHELL_OPEN | MCUEV_HID_SHELL_CLOSE);
+	static const u32 mcuEvShell = MCUEV_HID_SHELL_OPEN | MCUEV_HID_SHELL_CLOSE;
+	u32 shell = getEventMCU()->test(mcuEvShell, mcuEvShell);
 	if (shell & MCUEV_HID_SHELL_CLOSE) {
 		GFX_powerOffBacklights(GFX_BLIGHT_BOTH);
 	} else if (shell & MCUEV_HID_SHELL_OPEN) {
@@ -79,16 +72,11 @@ static void vblankUpdate(void)
 	sharedMem.hidState.full = HID_GetState();
 }
 
-static void pxiRxHandler(u32 __attribute__((unused)) irqn)
-{
-	atomic_store(&pendingPxiRx, 1);
-}
-
 static u32 pxiRxUpdate(u32 *args)
 {
 	u32 msg, lo, hi;
 
-	if (!atomic_exchange(&pendingPxiRx, 0))
+	if (!getEventIRQ()->test(PXI_RX_INTERRUPT, true))
 		return PXICMD_NONE;
 
 	msg = PXI_Recv();
@@ -111,14 +99,14 @@ void __attribute__((noreturn)) MainLoop(void)
 	#endif
 
 	// initialize state stuff
-	atomic_init(&pendingVblank, 0);
-	atomic_init(&pendingPxiRx, 0);
+	getEventIRQ()->reset();
+	getEventMCU()->reset();
 	memset(&sharedMem, 0, sizeof(sharedMem));
 
 	// configure interrupts
-	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO0, pxiRxHandler);
-	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO0, mcuInterruptHandler);
-	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, vblankHandler);
+	gicSetInterruptConfig(PXI_RX_INTERRUPT, BIT(0), GIC_PRIO0, NULL);
+	gicSetInterruptConfig(VBLANK_INTERRUPT, BIT(0), GIC_PRIO0, NULL);
+	gicSetInterruptConfig(MCU_INTERRUPT, BIT(0), GIC_PRIO0, NULL);
 
 	// enable interrupts
 	gicEnableInterrupt(MCU_INTERRUPT);

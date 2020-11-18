@@ -28,6 +28,8 @@
 #include "hw/gpulcd.h"
 #include "hw/mcu.h"
 
+#include "system/event.h"
+
 #define MCUEV_HID_MASK ( \
 	MCUEV_HID_PWR_DOWN | MCUEV_HID_PWR_HOLD | \
 	MCUEV_HID_HOME_DOWN | MCUEV_HID_HOME_UP | MCUEV_HID_WIFI_SWITCH)
@@ -63,13 +65,14 @@ typedef struct {
 
 static u8 volumeSliderValue;
 static u32 shellState;
-static _Atomic(u32) pendingEvents, pendingUpdate;
+static _Atomic(u32) pendingEvents;
 
 static void mcuEventUpdate(void)
 {
 	u32 mask;
 
-	if (!atomic_exchange(&pendingUpdate, 0))
+	// lazily update the mask on each test attempt
+	if (!getEventIRQ()->test(MCU_INTERRUPT, true))
 		return;
 
 	// reading the pending mask automagically acknowledges
@@ -91,27 +94,6 @@ static void mcuEventUpdate(void)
 	atomic_fetch_or(&pendingEvents, mask);
 }
 
-u32 mcuEventTest(u32 mask)
-{
-	mcuEventUpdate();
-	return atomic_load(&pendingEvents) & mask;
-}
-
-u32 mcuEventClear(u32 mask)
-{
-	mcuEventUpdate();
-	return atomic_fetch_and(&pendingEvents, ~mask) & mask;
-}
-
-u32 mcuEventWait(u32 mask)
-{
-	do {
-		mcuEventUpdate();
-		u32 x = mcuEventClear(mask);
-		if (x) return x;
-	} while(1);
-}
-
 u8 mcuGetVolumeSlider(void)
 {
 	mcuEventUpdate();
@@ -120,7 +102,7 @@ u8 mcuGetVolumeSlider(void)
 
 u32 mcuGetSpecialHID(void)
 {
-	u32 ret, pend = mcuEventClear(MCUEV_HID_MASK);
+	u32 ret = 0, pend = getEventMCU()->test(MCUEV_HID_MASK, MCUEV_HID_MASK);
 
 	// hopefully gets unrolled
 	if (pend & (MCUEV_HID_PWR_DOWN | MCUEV_HID_PWR_HOLD))
@@ -176,17 +158,11 @@ void mcuResetLEDs(void)
 	mcuSetStatusLED(0, 0);
 }
 
-void mcuInterruptHandler(u32 __attribute__((unused)) irqn)
-{
-	atomic_store(&pendingUpdate, 1);
-}
-
 void mcuReset(void)
 {
 	u32 intmask = 0;
 
 	atomic_init(&pendingEvents, 0);
-	atomic_init(&pendingUpdate, 0);
 
 	// set register mask and clear any pending registers
 	mcuWriteRegBuf(MCUREG_INT_EN, (const u8*)&intmask, sizeof(intmask));
@@ -202,3 +178,22 @@ void mcuReset(void)
 
 	GPIO_setBit(19, 9);
 }
+
+static void evReset(void) {
+	atomic_store(&pendingEvents, 0);
+}
+
+static u32 evTest(u32 mask, u32 clear) {
+	mcuEventUpdate();
+	return atomic_fetch_and(&pendingEvents, ~clear) & mask;
+}
+
+static const EventInterface evMCU = {
+	.reset = evReset,
+	.test = evTest
+};
+
+const EventInterface *getEventMCU(void) {
+	return &evMCU;
+}
+
