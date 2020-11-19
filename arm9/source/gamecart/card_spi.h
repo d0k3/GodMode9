@@ -1,7 +1,7 @@
 /*
  *  This file is based on SPI.h from TWLSaveTool. Its copyright notice is
  *  reproduced below.
- * 
+ *
  *  Copyright (C) 2015-2016 TuxSH
  *
  *  TWLSaveTool is free software: you can redistribute it and/or modify

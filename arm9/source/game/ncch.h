@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "exefs.h"
+#include "seedsave.h"
 
 #define NCCH_MEDIA_UNIT 0x200
 
@@ -16,13 +17,6 @@
 #define NCCH_NOCRYPTO  0x0004
 #define NCCH_STDCRYPTO 0x0000
 #define NCCH_GET_CRYPTO(ncch) (!NCCH_ENCRYPTED(ncch) ? NCCH_NOCRYPTO : (((ncch)->flags[3] << 8) | ((ncch)->flags[7]&(0x01|0x20))))
-
-#define SEEDDB_NAME         "seeddb.bin"
-#define SEEDDB_SIZE(sdb)    (16 + ((sdb)->n_entries * sizeof(SeedInfoEntry)))
-
-#define SEEDSAVE_MAX_ENTRIES  2000
-#define SEEDSAVE_AREA_OFFSET  0x4000
-#define SEEDSAVE_AREA_SIZE    (SEEDSAVE_MAX_ENTRIES * (8+16))
 
 // wrapper defines
 #define DecryptNcch(data, offset, size, ncch, exefs) CryptNcch(data, offset, size, ncch, exefs, NCCH_NOCRYPTO)
@@ -89,23 +83,10 @@ typedef struct {
     u8  hash_romfs[0x20];
 } __attribute__((packed, aligned(16))) NcchHeader;
 
-typedef struct {
-    u64 titleId;
-    u8 seed[16];
-    u8 reserved[8];
-} PACKED_STRUCT SeedInfoEntry;
-
-typedef struct {
-    u32 n_entries;
-    u8 padding[12];
-    SeedInfoEntry entries[256]; // this number is only a placeholder
-} PACKED_STRUCT SeedInfo;
-
 u32 ValidateNcchHeader(NcchHeader* header);
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid);
 u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to);
 u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);
 u32 CryptNcchSequential(void* data, u32 offset, u32 size, u16 crypto);
 u32 SetNcchSdFlag(void* data);
-
-u32 AddSeedToDb(SeedInfo* seed_info, SeedInfoEntry* seed_entry);
+u32 SetupSystemForNcch(NcchHeader* ncch, bool to_emunand);

@@ -33,15 +33,16 @@
 #include "system/sys.h"
 #include "system/event.h"
 
-#ifndef FIXED_BRIGHTNESS
-static const u8 brightness_lvls[] = {
+static const u8 brLvlTbl[] = {
 	0x10, 0x17, 0x1E, 0x25,
 	0x2C, 0x34, 0x3C, 0x44,
 	0x4D, 0x56, 0x60, 0x6B,
 	0x79, 0x8C, 0xA7, 0xD2
 };
-static int prev_bright_lvl;
-static bool auto_brightness;
+
+#ifndef FIXED_BRIGHTNESS
+static int oldBrLvl;
+static bool autoBr;
 #endif
 
 static SystemSHMEM __attribute__((section(".shared"))) sharedMem;
@@ -52,10 +53,10 @@ static void vblankUpdate(void)
 		return;
 
 	#ifndef FIXED_BRIGHTNESS
-	int cur_bright_lvl = (mcuGetVolumeSlider() >> 2) % countof(brightness_lvls);
-	if ((cur_bright_lvl != prev_bright_lvl) && auto_brightness) {
-		prev_bright_lvl = cur_bright_lvl;
-		u8 br = brightness_lvls[cur_bright_lvl];
+	int newBrLvl = (mcuGetVolumeSlider() >> 2) % countof(brLvlTbl);
+	if ((newBrLvl != oldBrLvl) && autoBr) {
+		oldBrLvl = newBrLvl;
+		u8 br = brLvlTbl[newBrLvl];
 		GFX_setBrightness(br, br);
 	}
 	#endif
@@ -92,10 +93,11 @@ void __attribute__((noreturn)) MainLoop(void)
 	bool runPxiCmdProcessor = true;
 
 	#ifdef FIXED_BRIGHTNESS
-	LCD_SetBrightness(FIXED_BRIGHTNESS);
+	u8 fixBrLvl = brLvlTbl[clamp(FIXED_BRIGHTNESS, 0, countof(brLvlTbl)-1)];
+	GFX_setBrightness(fixBrLvl, fixBrLvl);
 	#else
-	prev_bright_lvl = -1;
-	auto_brightness = true;
+	oldBrLvl = -1;
+	autoBr = true;
 	#endif
 
 	// initialize state stuff
@@ -119,7 +121,7 @@ void __attribute__((noreturn)) MainLoop(void)
 	gicEnableInterrupt(VBLANK_INTERRUPT);
 
 	// ARM9 won't try anything funny until this point
-	PXI_Barrier(ARM11_READY_BARRIER);
+	PXI_Barrier(PXI_BOOT_BARRIER);
 
 	// Process commands until the ARM9 tells
 	// us it's time to boot something else
@@ -190,10 +192,10 @@ void __attribute__((noreturn)) MainLoop(void)
 				#ifndef FIXED_BRIGHTNESS
 				if ((newbrightness > 0) && (newbrightness < 0x100)) {
 					GFX_setBrightness(newbrightness, newbrightness);
-					auto_brightness = false;
+					autoBr = false;
 				} else {
-					prev_bright_lvl = -1;
-					auto_brightness = true;
+					oldBrLvl = -1;
+					autoBr = true;
 				}
 				#endif
 				break;
@@ -218,6 +220,9 @@ void __attribute__((noreturn)) MainLoop(void)
 	GFX_init(GFX_BGR8);
 
 	gicDisableInterrupt(MCU_INTERRUPT);
+
+	// Wait for the ARM9 to do its firmlaunch setup
+	PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
 
 	SYS_CoreZeroShutdown();
 	SYS_CoreShutdown();

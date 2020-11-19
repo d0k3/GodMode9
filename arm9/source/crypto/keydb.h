@@ -14,10 +14,10 @@
 #define KEYS_UNKNOWN 0
 #define KEYS_DEVKIT  1
 #define KEYS_RETAIL  2
-    
+
 
 typedef struct {
-    u8   slot; // keyslot, 0x00...0x3F 
+    u8   slot; // keyslot, 0x00...0x3F
     char type; // type 'X' / 'Y' / 'N' for normalKey / 'I' for IV
     char id[10]; // key ID for special keys, all zero for standard keys
     u8   reserved[2]; // reserved space

@@ -1,4 +1,5 @@
 #include "nds.h"
+#include "fatmbr.h"
 #include "vff.h"
 #include "crc16.h"
 #include "utf.h"
@@ -24,6 +25,66 @@ typedef struct {
 u32 ValidateTwlHeader(TwlHeader* twl) {
     if (twl->logo_crc != NDS_LOGO_CRC16) return 1;
     return (crc16_quick(twl->logo, sizeof(twl->logo)) == NDS_LOGO_CRC16) ? 0 : 1;
+}
+
+u32 BuildTwlSaveHeader(void* sav, u32 size) {
+    const u16 sct_size = 0x200;
+    if (size / (u32) sct_size > 0xFFFF)
+        return 1;
+
+    // fit max number of sectors into size
+    // that's how Nintendo does it ¯\_(ツ)_/¯
+    const u16 n_sct_max = size / sct_size;
+    u16 n_sct = 1;
+    u16 sct_track = 1;
+    u16 sct_heads = 1;
+    while (true) {
+        if (sct_heads < sct_track) {
+            u16 n_sct_next = sct_track * (sct_heads+1) * (sct_heads+1);
+            if (n_sct_next < n_sct_max) {
+                sct_heads++;
+                n_sct = n_sct_next;
+            } else break;
+        } else {
+            u16 n_sct_next = (sct_track+1) * sct_heads * sct_heads;
+            if (n_sct_next < n_sct_max) {
+                sct_track++;
+                n_sct = n_sct_next;
+            } else break;
+        }
+    }
+
+    // sectors per cluster (should be identical to Nintendo)
+    u8 clr_size = (n_sct > 8 * 1024) ? 8 : (n_sct > 1024) ? 4 : 1;
+
+    // how many FAT sectors do we need?
+    u16 tot_clr = align(n_sct, clr_size) / clr_size;
+    u32 fat_byte = (align(tot_clr, 2) / 2) * 3; // 2 sectors -> 3 byte
+    u16 fat_size = align(fat_byte, sct_size) / sct_size;
+
+    // build the FAT header
+    Fat16Header* fat = sav;
+    memset(fat, 0x00, sizeof(Fat16Header));
+    fat->jmp[0] = 0xE9; // E9 00 00
+    memcpy(fat->oemname, "MSWIN4.1", 8);
+    fat->sct_size = sct_size; // 512 byte / sector
+    fat->clr_size = clr_size; // sectors per cluster
+    fat->sct_reserved = 0x0001; // 1 reserved sector
+    fat->fat_n = 0x02; // 2 FATs
+    fat->root_n = 0x0020; // 32 root dir entries (2 sectors)
+    fat->reserved0 = n_sct; // sectors in filesystem
+    fat->mediatype = 0xF8; // "hard disk"
+    fat->fat_size = fat_size; // sectors per fat (1 sector)
+    fat->sct_track = sct_track; // sectors per track (legacy? see above)
+    fat->sct_heads = sct_heads; // sectors per head (legacy? see above)
+    fat->ndrive = 0x05; // for whatever reason
+    fat->boot_sig = 0x29; // "boot signature"
+    fat->vol_id = 0x12345678; // volume id
+    memcpy(fat->vol_label, "VOLUMELABEL", 11); // standard volume label
+    memcpy(fat->fs_type, "FAT12   ", 8); // filesystem type
+    fat->magic = 0xAA55;
+
+    return 0;
 }
 
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon) {
@@ -82,15 +143,15 @@ u32 FindNitroRomDir(u32 dirid, u32* fileid, u8** fnt_entry, TwlHeader* hdr, u8* 
     NitroFntBaseEntry* fnt_base = (NitroFntBaseEntry*) fnt;
     NitroFntBaseEntry* fnt_dir = &((NitroFntBaseEntry*) fnt)[dirid];
     NitroFatEntry* fat_lut = (NitroFatEntry*) fat;
-    
+
     // base sanity checks
     if (fnt_base->parent_id*sizeof(NitroFntBaseEntry) > fnt_base->subtable_offset) return 1; // invalid FNT
     if (dirid >= fnt_base->parent_id) return 1; // dir ID out of bounds
-    
+
     // set first FNT entry / fileid
     *fnt_entry = fnt + fnt_dir->subtable_offset;
     *fileid = fnt_dir->file0_id;
-    
+
     // check subtable / directory validity
     u32 fid = *fileid;
     for (u8* entry = *fnt_entry;; entry = FNT_ENTRY_NEXT(entry)) {
@@ -100,29 +161,29 @@ u32 FindNitroRomDir(u32 dirid, u32* fileid, u8** fnt_entry, TwlHeader* hdr, u8* 
         if (!FNT_ENTRY_ISDIR(entry)) fid++;
     }
     if (fid*sizeof(NitroFatEntry) > hdr->fat_size) return 1; // corrupt fnt / fat
-    
-    
+
+
     return 0;
 }
 
 u32 NextNitroRomEntry(u32* fileid, u8** fnt_entry) {
     // check for end of subtable
     if (!*fnt_entry || !**fnt_entry) return 1;
-    
+
     // advance to next entry
     if (!FNT_ENTRY_ISDIR(*fnt_entry)) (*fileid)++;
     *fnt_entry += FNT_ENTRY_LEN(*fnt_entry);
-    
+
     // check for end of subtable
     if (!**fnt_entry) return 1;
-    
+
     return 0;
 }
 
 u32 ReadNitroRomEntry(u64* offset, u64* size, bool* is_dir, u32 fileid, u8* fnt_entry, u8* fat) {
     // check for end of subtable
     if (!fnt_entry || !*fnt_entry) return 1;
-    
+
     // decipher FNT entry
     *is_dir = FNT_ENTRY_ISDIR(fnt_entry);
     if (!(*is_dir)) { // for files
@@ -134,6 +195,6 @@ u32 ReadNitroRomEntry(u64* offset, u64* size, bool* is_dir, u32 fileid, u8* fnt_
         *offset = (u64) (fnt_entry[1+fnlen]|(fnt_entry[1+fnlen+1]<<8)) & 0xFFF; // dir ID goes in offset
         *size = 0;
     }
-    
+
     return 0;
 }

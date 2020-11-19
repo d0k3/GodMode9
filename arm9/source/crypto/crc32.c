@@ -73,7 +73,7 @@ u32 crc32_calculate_from_file(const char* fileName, u32 offset, u32 length) {
         return crc32;
     }
     fvx_lseek(&inputFile, offset);
-    
+
     bool ret = true;
     for (u64 pos = 0; (pos < length) && ret; pos += bufsiz) {
         UINT read_bytes = min(bufsiz, length - pos);
@@ -83,7 +83,7 @@ u32 crc32_calculate_from_file(const char* fileName, u32 offset, u32 length) {
             ret = false;
         if (ret) crc32 = crc32_calculate(crc32, buffer, read_bytes);
     }
-    
+
     fvx_close(&inputFile);
     free(buffer);
     return ~crc32;

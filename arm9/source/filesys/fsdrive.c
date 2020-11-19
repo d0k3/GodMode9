@@ -16,7 +16,7 @@ static bool search_title_mode = false;
 int DriveType(const char* path) {
     int type = DRV_UNKNOWN;
     int pdrv = GetMountedFSNum(path);
-    
+
     if (CheckAliasDrive(path)) {
         type = DRV_FAT | DRV_ALIAS | ((*path == 'A') ? DRV_SYSNAND : DRV_EMUNAND);
     } else if (*search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0)) {
@@ -39,7 +39,7 @@ int DriveType(const char* path) {
         }  else if ((pdrv >= 7) && (pdrv <= 9) &&
             (GetMountState() & (IMG_FAT|IMG_NAND))) {
             type = DRV_FAT | DRV_IMAGE | DRV_STDFAT;
-        }    
+        }
     } else if (CheckVirtualDrive(path)) {
         int vsrc = GetVirtualSource(path);
         if (vsrc == VRT_SYSNAND) {
@@ -58,9 +58,9 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_CART;
         } else if (vsrc == VRT_VRAM) {
             type = DRV_VIRTUAL | DRV_VRAM;
-        } 
+        }
     }
-    
+
     return type;
 }
 
@@ -82,14 +82,14 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
     static const char* drvname[] = { FS_DRVNAME };
     static const char* drvnum[] = { FS_DRVNUM };
     u32 n_entries = 0;
-    
+
     char sdlabel[DRV_LABEL_LEN];
     if (!GetFATVolumeLabel("0:", sdlabel) || !(*sdlabel))
         strcpy(sdlabel, "NOLABEL");
 
     char carttype[16];
     GetVCartTypeString(carttype);
-    
+
     // virtual root objects hacked in
     for (u32 i = 0; (i < countof(drvnum)) && (n_entries < MAX_DIR_ENTRIES); i++) {
         DirEntry* entry = &(contents->entry[n_entries]);
@@ -124,7 +124,7 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         n_entries++;
     }
     contents->n_entries = n_entries;
-    
+
     return contents->n_entries;
 }
 
@@ -133,11 +133,11 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
     FILINFO fno;
     char* fname = fpath + strnlen(fpath, fnsize - 1);
     bool ret = false;
-    
+
     if (fvx_opendir(&pdir, fpath) != FR_OK)
         return false;
     if (*(fname-1) != '/') *(fname++) = '/';
-    
+
     while (fvx_readdir(&pdir, &fno) == FR_OK) {
         if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
             continue; // filter out virtual entries
@@ -176,7 +176,7 @@ bool GetDirContentsWorker(DirStruct* contents, char* fpath, int fnsize, const ch
         }
     }
     fvx_closedir(&pdir);
-    
+
     return ret;
 }
 
@@ -222,7 +222,7 @@ uint64_t GetFreeSpace(const char* path)
     int pdrv = GetMountedFSNum(path);
     FATFS* fsobj = GetMountedFSObject(path);
     if ((pdrv < 0) || !fsobj) return 0;
-    
+
     snprintf(fsname, 3, "%i:", pdrv);
     if (f_getfree(fsname, &free_clusters, &fsptr) != FR_OK)
         return 0;

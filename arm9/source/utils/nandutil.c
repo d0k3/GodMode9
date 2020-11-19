@@ -50,7 +50,7 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
     };
     memset(essential, 0, sizeof(EssentialBackup));
     memcpy(essential, filelist, sizeof(filelist));
-    
+
     // backup current mount path, mount new path
     char path_store[256] = { 0 };
     char* path_bak = NULL;
@@ -61,7 +61,7 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
         InitImgFS(path_bak);
         return 1;
     }
-    
+
     // read four files
     ExeFsFileHeader* files = essential->header.files;
     if ((fvx_qread("I:/nand_hdr.bin", &(essential->nand_hdr), 0, 0x200, (UINT*) &(files[0].size)) != FR_OK) ||
@@ -73,34 +73,34 @@ u32 BuildEssentialBackup(const char* path, EssentialBackup* essential) {
         InitImgFS(path_bak);
         return 1;
     }
-    
+
     // HWCAL0.dat / HWCAL1.dat
     if ((fvx_qread("7:/ro/sys/HWCAL0.dat", &(essential->hwcal0), 0, 0x1000, (UINT*) &(files[6].size)) != FR_OK) ||
         (fvx_qread("7:/ro/sys/HWCAL1.dat", &(essential->hwcal1), 0, 0x1000, (UINT*) &(files[7].size)) != FR_OK)) {
         memset(&(filelist[6]), 0, 2 * sizeof(ExeFsFileHeader));
     }
-    
+
     // mount original file
     InitImgFS(path_bak);
-    
+
     // fill nand cid / otp hash
     sdmmc_get_cid(1, (u32*) (void*) &(essential->nand_cid));
     if (!IS_UNLOCKED) memset(&(filelist[5]), 0, 3 * sizeof(ExeFsFileHeader));
     else memcpy(&(essential->otp), (u8*) __OTP_ADDR, 0x100);
-    
+
     // calculate hashes
-    for (u32 i = 0; i < 8 && *(filelist[i].name); i++) 
+    for (u32 i = 0; i < 8 && *(filelist[i].name); i++)
         sha_quick(essential->header.hashes[9-i],
             ((u8*) essential) + files[i].offset + sizeof(ExeFsHeader),
             files[i].size, SHA256_MODE);
-    
+
     return 0;
 }
 
 u32 CheckEmbeddedBackup(const char* path) {
     EssentialBackup* essential = (EssentialBackup*) malloc(sizeof(EssentialBackup));
     EssentialBackup* embedded = (EssentialBackup*) malloc(sizeof(EssentialBackup));
-    
+
     if (!essential || !embedded || (BuildEssentialBackup(path, essential) != 0) ||
         (fvx_qread(path, embedded, SECTOR_D0K3 * 0x200, sizeof(EssentialBackup), NULL) != FR_OK) ||
         (memcmp(embedded, essential, sizeof(EssentialBackup)) != 0)) {
@@ -108,7 +108,7 @@ u32 CheckEmbeddedBackup(const char* path) {
         free(embedded);
         return 1;
     }
-    
+
     free(essential);
     free(embedded);
     return 0;
@@ -117,7 +117,7 @@ u32 CheckEmbeddedBackup(const char* path) {
 u32 EmbedEssentialBackup(const char* path) {
     EssentialBackup* essential = (EssentialBackup*) malloc(sizeof(EssentialBackup));
     if (!essential) return 1;
-    
+
     // leaving out the write permissions check here, it's okay
     if ((BuildEssentialBackup(path, essential) != 0) ||
         (ValidateNandNcsdHeader((void*)essential->nand_hdr) != 0) ||
@@ -125,7 +125,7 @@ u32 EmbedEssentialBackup(const char* path) {
         free(essential);
         return 1;
     }
-    
+
     free(essential);
     return 0;
 }
@@ -133,27 +133,27 @@ u32 EmbedEssentialBackup(const char* path) {
 u32 DumpGbaVcSavegameBuffered(const char* path, void* buffer) {
     AgbSaveHeader* agbsave = (AgbSaveHeader*) buffer;
     u8* savegame = (u8*) (agbsave + 1);
-    
+
     // read full AGBsave to memory
     if ((fvx_qread(path, agbsave, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) || (ValidateAgbSaveHeader(agbsave) != 0) ||
         (fvx_qread(path, savegame, sizeof(AgbSaveHeader), agbsave->save_size, NULL) != FR_OK)) return 1; // not a proper AGBSAVE file
-        
+
     // byteswap for eeprom type saves (512 byte / 8 kB)
     if ((agbsave->save_size == GBASAVE_EEPROM_512) || (agbsave->save_size == GBASAVE_EEPROM_8K)) {
         for (u8* ptr = savegame; (ptr - savegame) < (int) agbsave->save_size; ptr += 8)
             *(u64*) (void*) ptr = getbe64(ptr);
     }
-    
+
     // ensure the output dir exists
     if (fvx_rmkdir(OUTPUT_PATH) != FR_OK)
         return 1;
-    
+
     // generate output path
     char path_vcsav[64];
     snprintf(path_vcsav, 64, OUTPUT_PATH "/%016llX.gbavc.sav", agbsave->title_id);
     if (fvx_qwrite(path_vcsav, savegame, 0, agbsave->save_size, NULL) != FR_OK) return 1; // write fail
-    
-    return 0;        
+
+    return 0;
 }
 
 u32 DumpGbaVcSavegame(const char* path) {
@@ -162,7 +162,7 @@ u32 DumpGbaVcSavegame(const char* path) {
         ShowPrompt(false, "Out of memory.");
         return 1;
     }
-    
+
     u32 ret = DumpGbaVcSavegameBuffered(path, buffer);
     free(buffer);
     return ret;
@@ -171,7 +171,7 @@ u32 DumpGbaVcSavegame(const char* path) {
 u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void* buffer) {
     AgbSaveHeader* agbsave = (AgbSaveHeader*) buffer;
     u8* savegame = (u8*) (agbsave + 1);
-    
+
     // basic sanity checks for path_vcsave
     FILINFO fno;
     char* ext = strrchr(path_vcsave, '.');
@@ -179,27 +179,27 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
         (strncasecmp(ext+1, "SaveRAM", 8) != 0))) return 1; // bad extension
     if ((fvx_stat(path_vcsave, &fno) != FR_OK) || !GBASAVE_VALID(fno.fsize))
         return 1; // bad size
-    
+
     // read AGBsave header to memory
     if ((fvx_qread(path, agbsave, 0, sizeof(AgbSaveHeader), NULL) != FR_OK) ||
         (ValidateAgbSaveHeader(agbsave) != 0)) return 1; // not a proper header
-        
+
     // read savegame to memory
     u32 inject_save_size = min(agbsave->save_size, fno.fsize);
     memset(savegame, 0xFF, agbsave->save_size); // pad with 0xFF
     if (fvx_qread(path_vcsave, savegame, 0, inject_save_size, NULL) != FR_OK) return 1;
-    
+
     // byteswap for eeprom type saves (512 byte / 8 kB)
     if ((agbsave->save_size == GBASAVE_EEPROM_512) || (agbsave->save_size == GBASAVE_EEPROM_8K)) {
         for (u8* ptr = savegame; (ptr - savegame) < (int) inject_save_size; ptr += 8)
             *(u64*) (void*) ptr = getbe64(ptr);
     }
-    
+
     // fix CMAC for NAND partition, rewrite AGBSAVE file
     u32 data_size = sizeof(AgbSaveHeader) + agbsave->save_size;
     if (FixAgbSaveCmac(agbsave, NULL, NULL) != 0) return 1;
     if (fvx_qwrite(path, agbsave, 0, data_size, NULL) != FR_OK) return 1; // write fail
-    
+
     // fix CMAC for SD partition, take it over to SD
     if (strncasecmp(path, "S:/agbsave.bin", 256) == 0) {
         AgbSaveHeader agbsave_sd;
@@ -217,18 +217,18 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
             (ValidateAgbSaveHeader(&agbsave_sd) == 0) &&
             (agbsave->times_saved == agbsave_sd.times_saved))
             slot = data_size; // proper slot is bottom slot (otherwise it's the top slot)
-        
+
         // inject next slot
         agbsave->times_saved++; // increase # of times saved
         if (FixAgbSaveCmac(agbsave, NULL, path_sd) != 0) return 1;
         if (fvx_qwrite(path_sd, agbsave, slot, data_size, NULL) != FR_OK) return 1; // write fail
     }
-    
+
     // set CFG_BOOTENV to 0x7 so the save is taken over (not needed anymore)
     // https://www.3dbrew.org/wiki/CONFIG9_Registers#CFG9_BOOTENV
     // if (strncasecmp(path, "S:/agbsave.bin", 256) == 0) *(u32*) 0x10010000 = 0x7;
-    
-    return 0;        
+
+    return 0;
 }
 
 u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
@@ -237,7 +237,7 @@ u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
         ShowPrompt(false, "Out of memory.");
         return 1;
     }
-    
+
     u32 ret = InjectGbaVcSavegameBuffered(path, path_vcsave, buffer);
     free(buffer);
     return ret;
@@ -246,54 +246,54 @@ u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
 u32 RebuildNandNcsdHeader(NandNcsdHeader* ncsd) {
     // signature (retail or dev)
     const u8* signature = (IS_DEVKIT) ? sig_nand_ncsd_dev : sig_nand_ncsd_retail;
-    
+
     // encrypted TWL MBR
     u8 twl_mbr_data[0x200] = { 0 };
     u8* twl_mbr = twl_mbr_data + (0x200 - sizeof(twl_mbr_std));
     memcpy(twl_mbr, twl_mbr_std, sizeof(twl_mbr_std));
     CryptNand(twl_mbr_data, 0, 1, 0x03);
-    
+
     // rebuild NAND header for console
-    memset(ncsd, 0x00, sizeof(NandNcsdHeader)); 
+    memset(ncsd, 0x00, sizeof(NandNcsdHeader));
     memcpy(ncsd->signature, signature, 0x100); // signature
     memcpy(ncsd->twl_mbr, twl_mbr, 0x42); // TWL MBR
     memcpy(ncsd->magic, "NCSD", 0x4); // magic number
     ncsd->size = (IS_O3DS) ? 0x200000 : 0x280000; // total size
-    
+
     // TWL partition (0)
     ncsd->partitions_fs_type[0] = 0x01;
     ncsd->partitions_crypto_type[0] = 0x01;
     ncsd->partitions[0].offset = 0x000000;
     ncsd->partitions[0].size = 0x058800;
-    
+
     // AGBSAVE partition (1)
     ncsd->partitions_fs_type[1] = 0x04;
     ncsd->partitions_crypto_type[1] = 0x02;
     ncsd->partitions[1].offset = 0x058800;
     ncsd->partitions[1].size = 0x000180;
-    
+
     // FIRM0 partition (2)
     ncsd->partitions_fs_type[2] = 0x03;
     ncsd->partitions_crypto_type[2] = 0x02;
     ncsd->partitions[2].offset = 0x058980;
     ncsd->partitions[2].size = 0x002000;
-    
+
     // FIRM1 partition (3)
     ncsd->partitions_fs_type[3] = 0x03;
     ncsd->partitions_crypto_type[3] = 0x02;
     ncsd->partitions[3].offset = 0x05A980;
     ncsd->partitions[3].size = 0x002000;
-    
+
     // CTR partition (4)
     ncsd->partitions_fs_type[4] = 0x01;
     ncsd->partitions_crypto_type[4] = (IS_O3DS) ? 0x02 : 0x03;
     ncsd->partitions[4].offset = 0x05C980;
     ncsd->partitions[4].size = (IS_O3DS) ? 0x17AE80 : 0x20F680;
-    
+
     // unknown stuff - whatever this is ¯\_(ツ)_/¯
     ncsd->unknown[0x25] = 0x04;
     ncsd->unknown[0x2C] = 0x01;
-    
+
     // done
     return 0;
 }
@@ -301,13 +301,13 @@ u32 RebuildNandNcsdHeader(NandNcsdHeader* ncsd) {
 u32 FixNandHeader(const char* path, bool check_size) {
     NandNcsdHeader ncsd;
     if (RebuildNandNcsdHeader(&ncsd) != 0) return 1;
-    
+
     // safety check
     FILINFO fno;
     FSIZE_t min_size = check_size ? GetNandNcsdMinSizeSectors(&ncsd) * 0x200 : 0x200;
     if ((fvx_stat(path, &fno) != FR_OK) || (min_size > fno.fsize))
         return 1;
-    
+
     // inject to path
     if (!CheckWritePermissions(path)) return 1;
     return (fvx_qwrite(path, &ncsd, 0x0, 0x200, NULL) == FR_OK) ? 0 : 1;
@@ -316,15 +316,15 @@ u32 FixNandHeader(const char* path, bool check_size) {
 u32 ValidateNandDump(const char* path) {
     NandPartitionInfo info;
     FIL file;
-    
+
     // truncated path string
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
-    
+
     // open file
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
-    
+
     // check NAND header
     NandNcsdHeader ncsd;
     if ((ReadNandFile(&file, &ncsd, 0, 1, 0xFF) != 0) || (ValidateNandNcsdHeader(&ncsd) != 0)) {
@@ -332,14 +332,14 @@ u32 ValidateNandDump(const char* path) {
         fvx_close(&file);
         return 1;
     }
-    
+
     // check size
     if (fvx_size(&file) < (GetNandNcsdMinSizeSectors(&ncsd) * 0x200)) {
         ShowPrompt(false, "%s\nNAND dump misses data", pathstr);
         fvx_close(&file);
         return 1;
     }
-    
+
     // check TWL & CTR FAT partitions
     for (u32 i = 0; i < 2; i++) {
         char* section_type = (i) ? "CTR" : "MBR";
@@ -366,11 +366,11 @@ u32 ValidateNandDump(const char* path) {
             }
         }
     }
-    
+
     // check FIRMs (at least one FIRM must be valid)
     u8* firm = (u8*) malloc(FIRM_MAX_SIZE);
     if (!firm) return 1;
-    
+
     // check all 8 firms, also check if ARM9 & ARM11 entrypoints are available
     for (u32 f = 0; f <= 8; f++) {
         if (GetNandNcsdPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, f, &ncsd) != 0) {
@@ -379,17 +379,17 @@ u32 ValidateNandDump(const char* path) {
             free(firm);
             return 1;
         }
-        
+
         u32 firm_size = info.count * 0x200;
         if ((firm_size <= FIRM_MAX_SIZE) &&
             (ReadNandFile(&file, firm, info.sector, info.count, info.keyslot) == 0) &&
             (ValidateFirm(firm, firm_size, true) == 0))
             break;
     }
-    
+
     free(firm);
     fvx_close(&file);
-    
+
     return 0;
 }
 
@@ -406,17 +406,17 @@ u32 SafeRestoreNandDump(const char* path) {
             EmbedEssentialBackup("S:/nand.bin");
         else return 1;
     }
-    
+
     if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(B9S/A9LH will be left intact.)"))
         return 1;
     if (!SetWritePermissions(PERM_SYS_LVL1, true)) return 1;
-    
+
     // open file, get size
     FIL file;
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return 1;
     u32 fsize = fvx_size(&file);
-    
+
     // get NCSD headers from image and SysNAND
     NandNcsdHeader ncsd_loc, ncsd_img;
     MbrHeader twl_mbr_img;
@@ -426,7 +426,7 @@ u32 SafeRestoreNandDump(const char* path) {
         fvx_close(&file);
         return 1;
     }
-    
+
     // compare NCSD header partitioning
     // FIRMS must be at the same place for image and local NAND
     bool header_inject = false;
@@ -452,7 +452,7 @@ u32 SafeRestoreNandDump(const char* path) {
             return 1;
         }
     }
-    
+
     // additional warning for elevated write permissions
     if (header_inject) {
         if (!ShowPrompt(true, "!WARNING!\n \nNCSD differs between image and local,\nelevated write permissions required\n \nProceed on your own risk?") ||
@@ -461,13 +461,13 @@ u32 SafeRestoreNandDump(const char* path) {
             return 1;
         }
     }
-    
+
     u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
     if (!buffer) {
         fvx_close(&file);
         return 1;
     }
-    
+
     // main processing loop
     u32 ret = 0;
     u32 sector0 = SECTOR_SECRET + COUNT_SECRET; // start at the sector after secret sector
@@ -487,22 +487,22 @@ u32 SafeRestoreNandDump(const char* path) {
         if (sector1 == fsize / 0x200) break; // at file end
         sector0 = np_info.sector + np_info.count; // skip partition
     }
-    
+
     free(buffer);
     fvx_close(&file);
-    
+
     // NCSD header inject, should only be required with 2.1 local NANDs on N3DS
     if (header_inject && (ret == 0) &&
         (WriteNandSectors((u8*) &ncsd_img, 0, 1, 0xFF, NAND_SYSNAND) != 0))
         ret = 1;
-    
+
     return ret;
 }
 
 u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz) {
     char pathstr[32 + 1]; // truncated path string
     TruncateString(pathstr, path, 32, 8);
-    
+
     // load / check FIRM
     u8* firm = buffer;
     UINT firm_size;
@@ -512,12 +512,12 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
             "%s\nNot a installable FIRM." : "%s\nFIRM load/verify error.", pathstr);
         return 1;
     }
-    
+
     // inject sighax signature, get hash
     u8 firm_sha[0x20];
     memcpy(firm + 0x100, (IS_DEVKIT) ? sig_nand_firm_dev : sig_nand_firm_retail, 0x100);
     sha_quick(firm_sha, firm, firm_size, SHA256_MODE);
-    
+
     // check install slots
     for (u32 s = 0; s < 8; s++) {
         NandPartitionInfo info;
@@ -528,7 +528,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
             return 1;
         }
     }
-    
+
     // check sector 0x96 on N3DS, offer fix if required
     u8 sector0x96[0x200] __attribute__((aligned(4)));
     bool fix_sector0x96 = false;
@@ -552,11 +552,11 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
             fix_sector0x96 = true;
         } else return 1;
     }
-    
+
     // all checked, ready to go
     if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will install the\nprovided FIRM to the SysNAND\nand inject sighax.\n \nInstalling an unsupported FIRM\nwill BRICK your console!")) return 1;
     // if (!SetWritePermissions(PERM_SYS_LVL3, true)) return 1; // one unlock sequence is enough
-    
+
     // point of no return
     ShowString(false, "Installing FIRM, please wait...");
     if (fix_sector0x96 && (WriteNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0)) {
@@ -572,7 +572,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
             return 1;
         }
     }
-    
+
     // done, now check the installation
     ShowString(false, "Checking installation, please wait...");
     if (fix_sector0x96 && ((ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0) ||
@@ -590,7 +590,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
             return 1;
         }
     }
-    
+
     return 0;
 }
 
@@ -600,7 +600,7 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
         ShowPrompt(false, "Out of memory.");
         return 1;
     }
-    
+
     u32 ret = SafeInstallFirmBuffered(path, slots, buffer, FIRM_MAX_SIZE);
     free(buffer);
     return ret;
@@ -609,29 +609,29 @@ u32 SafeInstallFirm(const char* path, u32 slots) {
 u32 SafeInstallKeyDb(const char* path) {
     static const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
     u8 keydb[KEYDB_PERFECT_SIZE] __attribute__((aligned(4)));
-    
+
     char pathstr[32 + 1]; // truncated path string
     TruncateString(pathstr, path, 32, 8);
-    
+
     // already installed?
     if ((ReadNandBytes(keydb, SECTOR_KEYDB*0x200, KEYDB_PERFECT_SIZE, 0xFF, NAND_SYSNAND) == 0) &&
         (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) == 0)) {
         ShowPrompt(false, "Perfect " KEYDB_NAME " is already installed!");
         return 1;
     }
-    
+
     // check input path...
     if ((fvx_qread(path, keydb, 0, KEYDB_PERFECT_SIZE, NULL) != FR_OK) ||
         (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) != 0)) {
         ShowPrompt(false, "%s\nNot a perfect " KEYDB_NAME " image.\nCannot install to NAND!", pathstr);
         return 1;
     }
-    
+
     // point of no return, install key database
     if (WriteNandBytes(keydb, SECTOR_KEYDB*0x200, KEYDB_PERFECT_SIZE, 0xFF, NAND_SYSNAND) != 0) {
         ShowPrompt(false, "%s\nFailed writing " KEYDB_NAME " to NAND!", pathstr);
         return 1;
     }
-    
+
     return 0;
 }

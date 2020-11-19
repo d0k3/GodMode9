@@ -31,7 +31,7 @@ enum {
 	GIC_RISINGEDGE_1N = 3
 
 	// With the 1-N model, an interrupt that is taken on any CPU clears the Pending
-	// status on all CPUs. 
+	// status on all CPUs.
 	// With the N-N model, all CPUs receive the interrupt independently. The Pending
 	// status is cleared only for the CPU that takes it, not for the other CPUs
 };

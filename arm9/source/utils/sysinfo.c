@@ -276,16 +276,16 @@ void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
     strncpy(info->friendcodeseed, "<unknown>", countof("<unknown>"));
     strncpy(info->movablekeyy, "<unknown>", countof("<unknown>"));
     strncpy(info->nand_id0, "<unknown>", countof("<unknown>"));
-    
+
     if (fvx_qread(path, &data, 0, 0x120 /* sizeof(data) */, NULL) != FR_OK) // whatever, we don't need the last 0x20 byte here
         return;
-    
+
     // The LocalFriendCodeSeed.
     snprintf(info->friendcodeseed, 16 + 1, "%016llX", getbe64(data.codeseed_data.codeseed));
-    
+
     // The Movable KeyY
     snprintf(info->movablekeyy, 32 + 1, "%s%016llX", info->friendcodeseed, getbe64(data.keyy_high));
-    
+
     // SysNAND ID0
     unsigned int sha256sum[8];
     sha_quick(sha256sum, data.codeseed_data.codeseed, 16, SHA256_MODE);
@@ -296,17 +296,17 @@ void GetSysInfo_Movable(SysInfo* info, char nand_drive) {
 // Read sdmmc.
 void GetSysInfo_SDMMC(SysInfo* info, char nand_drive) {
     (void) nand_drive;
-    
+
     u8 nand_cid[16] = { 0 };
     u8 sd_cid[16] = { 0 };
-    
+
     strncpy(info->nand_cid, "<unknown>", countof("<unknown>"));
     strncpy(info->sd_cid, "<unknown>", countof("<unknown>"));
     strncpy(info->nand_id1, "<unknown>", countof("<unknown>"));
-    
+
     sdmmc_get_cid(1, (u32*) (void*) nand_cid);
     snprintf(info->nand_cid, 32 + 1, "%016llX%016llX", getbe64(nand_cid), getbe64(nand_cid+8));
-    
+
     sdmmc_get_cid(0, (u32*) (void*) sd_cid);
     snprintf(info->sd_cid, 32 + 1, "%016llX%016llX", getbe64(sd_cid), getbe64(sd_cid+8));
     snprintf(info->nand_id1, 32 + 1, "%08lX%08lX%08lX%08lX",

@@ -33,7 +33,7 @@ static const u8 ALIGN(4) slot0x05KeyY_sha256[0x20] = { // hash for slot0x05KeyY 
 };
 
 static const u8 ALIGN(4) slot0x11Key95_sha256[0x20] = { // slot0x11Key95 hash (first 16 byte of sector0x96)
-    0xBA, 0xC1, 0x40, 0x9C, 0x6E, 0xE4, 0x1F, 0x04, 0xAA, 0xC4, 0xE2, 0x09, 0x5C, 0xE9, 0x4F, 0x78, 
+    0xBA, 0xC1, 0x40, 0x9C, 0x6E, 0xE4, 0x1F, 0x04, 0xAA, 0xC4, 0xE2, 0x09, 0x5C, 0xE9, 0x4F, 0x78,
     0x6C, 0x78, 0x5F, 0xAC, 0xEC, 0x7E, 0xC0, 0x11, 0x26, 0x9D, 0x4E, 0x47, 0xB3, 0x64, 0xC4, 0xA5
 };
 
@@ -78,12 +78,12 @@ bool GetOtp0x90(void* otp0x90, u32 len)
         cbc_encrypt(otp0x90, otp0x90, len / 0x10, AES_CNT_TITLEKEY_ENCRYPT_MODE, otp_iv);
         return true;
     }
-    
+
     return false;
 }
 
 bool InitNandCrypto(bool init_full)
-{   
+{
     // part #0: KeyX / KeyY for secret sector 0x96
     if (IS_UNLOCKED) { // if OTP is unlocked
         // see: https://www.3dbrew.org/wiki/OTP_Registers
@@ -95,11 +95,11 @@ bool InitNandCrypto(bool init_full)
         if (GetOtp0x90(otp0x90, 0x90))
             sha_quick(OtpSha256, otp0x90, 0x90, SHA256_MODE);
     }
-    
+
     // part #1: Get NAND CID, set up TWL/CTR counter
     u32 NandCid[4];
     u8 shasum[32];
-    
+
     sdmmc_sdcard_init();
     sdmmc_get_cid(1, NandCid);
     sha_quick(shasum, (u8*) NandCid, 16, SHA256_MODE);
@@ -107,7 +107,7 @@ bool InitNandCrypto(bool init_full)
     sha_quick(shasum, (u8*) NandCid, 16, SHA1_MODE);
     for(u32 i = 0; i < 16; i++) // little endian and reversed order
         TwlNandCtr[i] = shasum[15-i];
-    
+
     // part #2: TWL KEY (if not already set up)
     // see: https://www.3dbrew.org/wiki/Memory_layout#ARM9_ITCM
     if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_TWL, 0, NAND_SYSNAND) != 0) {
@@ -118,11 +118,11 @@ bool InitNandCrypto(bool init_full)
             u64 ALIGN(32) otp0x10[2];
             if (GetOtp0x90(otp0x10, 0x10)) TwlCustId = *otp0x10;
         }
-        
+
         if (TwlCustId) { // give up if TwlCustId not found
             u32 ALIGN(32) TwlKey0x03Y[4];
             u32 ALIGN(32) TwlKey0x03X[4];
-            
+
             if (IS_DEVKIT) {
                 TwlKey0x03X[1] = 0xEE7A4B1E;
                 TwlKey0x03X[2] = 0xAF42C08B;
@@ -132,20 +132,20 @@ bool InitNandCrypto(bool init_full)
                 TwlKey0x03X[2] = *(vu32*)0x01FFD3AC; // "ENDO"
                 memcpy(TwlKey0x03Y, (u8*) 0x01FFD3C8, 16);
             }
-            
+
             TwlKey0x03X[0] = (u32) (TwlCustId>>0);
             TwlKey0x03X[3] = (u32) (TwlCustId>>32);
             TwlKey0x03Y[3] = 0xE1A00005;
-            
+
             setup_aeskeyX(0x03, TwlKey0x03X);
             setup_aeskeyY(0x03, TwlKey0x03Y);
             use_aeskey(0x03);
-            
+
             if (init_full) { // full init
                 vu32 *RegKey0x01X = &REG_AESKEY0123[((0x30u * 0x01) + 0x10u)/4u];
                 RegKey0x01X[2] = (u32) (TwlCustId>>32);
                 RegKey0x01X[3] = (u32) (TwlCustId>>0);
-                
+
                 setup_aeskeyX(0x02, (u8*)0x01FFD398);
                 if (IS_DEVKIT) {
                     u32 ALIGN(32) TwlKey0x02Y[4];
@@ -153,24 +153,24 @@ bool InitNandCrypto(bool init_full)
                     setup_aeskeyY(0x02, TwlKey0x02Y);
                 } else setup_aeskeyY(0x02, (u8*)0x01FFD220);
                 use_aeskey(0x02);
-                
+
                 if (IS_UNLOCKED)
                     (*(vu64*)0x10012100) = TwlCustId;
             }
         }
     }
-    
+
     // part #3: CTRNAND N3DS KEY (if not set up)
     if (GetNandPartitionInfo(NULL, NP_TYPE_FAT, NP_SUBTYPE_CTR, 0, NAND_SYSNAND) != 0)
         LoadKeyFromFile(slot0x05KeyY, 0x05, 'Y', NULL);
-    
+
     // part #4: AGBSAVE CMAC KEY (set up on unlocked systems)
     if (init_full && IS_UNLOCKED)
         LoadKeyFromFile(NULL, 0x24, 'Y', NULL);
-    
+
     // part #5: FULL INIT
     if (init_full) InitKeyDb(NULL);
-    
+
     return true;
 }
 
@@ -179,11 +179,11 @@ bool CheckSlot0x05Crypto(void)
     // step #1 - check the slot0x05KeyY SHA-256
     if (sha_cmp(slot0x05KeyY_sha256, slot0x05KeyY, 16, SHA256_MODE) == 0)
         return true;
-    
+
     // step #2 - check actual presence of CTRNAND FAT
     if (GetNandPartitionInfo(NULL, NP_TYPE_STD, NP_SUBTYPE_CTR_N, 0, NAND_SYSNAND) == 0)
         return true;
-    
+
     // failed if we arrive here
     return false;
 }
@@ -206,14 +206,14 @@ bool CheckGenuineNandNcsd(void)
     };
     u8 ALIGN(4) gen_n3ds_hash[0x20] = {
         0x49, 0xB7, 0x4A, 0xF1, 0xFD, 0xB7, 0xCF, 0x5B, 0x76, 0x8F, 0xA2, 0x94, 0x0D, 0xB2, 0xB3, 0xE2,
-        0xA4, 0xBD, 0x25, 0x03, 0x06, 0x03, 0x47, 0x0B, 0x24, 0x5A, 0x86, 0x6A, 0x43, 0x60, 0xBC, 0x84, 
+        0xA4, 0xBD, 0x25, 0x03, 0x06, 0x03, 0x47, 0x0B, 0x24, 0x5A, 0x86, 0x6A, 0x43, 0x60, 0xBC, 0x84,
     };
 
     u8 ALIGN(4) gen_hdr[0x100];
     if ((ReadNandBytes(gen_hdr, 0x100, 0x100, 0xFF, NAND_SYSNAND) != 0) ||
         (ReadNandBytes(gen_hdr + 0xBE, 0x1BE, 0x42, 0x03, NAND_SYSNAND) != 0))
         return false;
-        
+
     return (sha_cmp((IS_O3DS) ? gen_o3ds_hash : gen_n3ds_hash, gen_hdr, 0x100, SHA256_MODE) == 0);
 }
 
@@ -226,7 +226,7 @@ void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot)
     // copy NAND CTR and increment it
     memcpy(ctr, (keyslot != 0x03) ? CtrNandCtr : TwlNandCtr, 16); // hacky again
     add_ctr(ctr, sector * (0x200 / 0x10));
-    
+
     // decrypt the data
     use_aeskey(keyslot);
     ctr_decrypt((void*) buffer, (void*) buffer, blocks, mode, ctr);
@@ -235,11 +235,11 @@ void CryptNand(void* buffer, u32 sector, u32 count, u32 keyslot)
 void CryptSector0x96(void* buffer, bool encrypt)
 {
     u32 mode = encrypt ? AES_CNT_ECB_ENCRYPT_MODE : AES_CNT_ECB_DECRYPT_MODE;
-    
+
     // setup the key
     setup_aeskeyX(0x11, OtpSha256);
     setup_aeskeyY(0x11, OtpSha256 + 16);
-    
+
     // decrypt the sector
     use_aeskey(0x11);
     ecb_decrypt((void*) buffer, (void*) buffer, 0x200 / AES_BLOCK_SIZE, mode);
@@ -247,7 +247,7 @@ void CryptSector0x96(void* buffer, bool encrypt)
 
 int ReadNandBytes(void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src)
 {
-    if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
+    if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case
         // simple wrapper function for ReadNandSectors(...)
         return ReadNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_src);
     } else { // misaligned data -> -___-
@@ -280,7 +280,7 @@ int ReadNandBytes(void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_src
 
 int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 nand_dst)
 {
-    if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case 
+    if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case
         // simple wrapper function for WriteNandSectors(...)
         return WriteNandSectors(buffer, offset / 0x200, count / 0x200, keyslot, nand_dst);
     } else { // misaligned data -> -___-
@@ -316,7 +316,7 @@ int WriteNandBytes(const void* buffer, u64 offset, u64 count, u32 keyslot, u32 n
 }
 
 int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_src)
-{   
+{
     u8* buffer8 = (u8*) buffer;
     if (!count) return 0; // <--- just to be safe
     if (nand_src == NAND_EMUNAND) { // EmuNAND
@@ -335,7 +335,7 @@ int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_s
         if (errorcode) return errorcode;
     } else if (nand_src == NAND_SYSNAND) { // SysNAND
         int errorcode = sdmmc_nand_readsectors(sector, count, buffer8);
-        if (errorcode) return errorcode;   
+        if (errorcode) return errorcode;
     } else if (nand_src == NAND_ZERONAND) { // zero NAND (good for XORpads)
         memset(buffer8, 0, count * 0x200);
     } else {
@@ -343,7 +343,7 @@ int ReadNandSectors(void* buffer, u32 sector, u32 count, u32 keyslot, u32 nand_s
     }
     if ((keyslot == 0x11) && (sector == SECTOR_SECRET)) CryptSector0x96(buffer8, false);
     else if (keyslot < 0x40) CryptNand(buffer8, sector, count, keyslot);
-    
+
     return 0;
 }
 
@@ -353,7 +353,7 @@ int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32
     void* nand_buffer = (void*) malloc(min(STD_BUFFER_SIZE, count * 0x200));
     if (!nand_buffer) return -1;
     int errorcode = 0;
-    
+
     for (u32 s = 0; s < count; s += (STD_BUFFER_SIZE / 0x200)) {
         u32 pcount = min((STD_BUFFER_SIZE/0x200), (count - s));
         memcpy(nand_buffer, ((u8*) buffer) + (s*0x200), pcount * 0x200);
@@ -372,7 +372,7 @@ int WriteNandSectors(const void* buffer, u32 sector, u32 count, u32 keyslot, u32
             errorcode = -1;
         }
     }
-    
+
     free(nand_buffer);
     return errorcode;
 }
@@ -390,7 +390,7 @@ u32 ValidateNandNcsdHeader(NandNcsdHeader* header)
     if ((memcmp(header->magic, "NCSD", 4) != 0) || // check magic number
         (memcmp(header->partitions_fs_type, zeroes, 8) == 0) || header->mediaId) // prevent detection of cart NCSD images
         return 1;
-    
+
     u32 data_units = 0;
     u32 firm_count = 0;
     for (u32 i = 0; i < 8; i++) {
@@ -406,7 +406,7 @@ u32 ValidateNandNcsdHeader(NandNcsdHeader* header)
     }
     if (data_units > header->size) return 1;
     if (!firm_count) return 1; // at least one firm is required
-     
+
     return 0;
 }
 
@@ -417,7 +417,7 @@ u32 GetNandNcsdMinSizeSectors(NandNcsdHeader* ncsd)
         u32 prt_end = ncsd->partitions[prt_idx].offset + ncsd->partitions[prt_idx].size;
         if (prt_end > nand_minsize) nand_minsize = prt_end;
     }
-    
+
     return nand_minsize;
 }
 
@@ -426,7 +426,7 @@ u32 GetNandMinSizeSectors(u32 nand_src)
     NandNcsdHeader ncsd;
     if ((ReadNandSectors((u8*) &ncsd, 0, 1, 0xFF, nand_src) != 0) ||
         (ValidateNandNcsdHeader(&ncsd) != 0)) return 0;
-    
+
     return GetNandNcsdMinSizeSectors(&ncsd);
 }
 
@@ -434,7 +434,7 @@ u32 GetNandSizeSectors(u32 nand_src)
 {
     u32 sysnand_sectors = getMMCDevice(0)->total_size;
     if (nand_src == NAND_SYSNAND) return sysnand_sectors; // for SysNAND
-    
+
     u32 min_sectors = GetNandMinSizeSectors(nand_src);
     if (nand_src == NAND_EMUNAND) { // for EmuNAND
         u32 partition_offset = GetPartitionOffsetSector("0:");
@@ -447,7 +447,7 @@ u32 GetNandSizeSectors(u32 nand_src)
         u32 img_sectors = (GetMountState() & IMG_NAND) ? GetMountSize() / 0x200 : 0;
         return (img_sectors >= min_sectors) ? img_sectors : 0;
     }
-    
+
     return 0;
 }
 
@@ -456,14 +456,14 @@ u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32
     // safety / set keyslot
     if ((type == NP_TYPE_FAT) || (type > NP_TYPE_BONUS) || (subtype > NP_SUBTYPE_CTR_N)) return 1;
     info->keyslot = np_keyslots[type][subtype];
-    
+
     // full (minimum) NAND "partition"
     if (type == NP_TYPE_NONE) {
         info->sector = 0x00;
         info->count = GetNandNcsdMinSizeSectors(ncsd);
         return 0;
     }
-    
+
     // special, custom partition types, not in NCSD
     if (type >= NP_TYPE_NCSD) {
         if (type == NP_TYPE_NCSD) {
@@ -484,7 +484,7 @@ u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32
         } else return 1;
         return 0;
     }
-    
+
     u32 prt_idx = 8;
     for (prt_idx = 0; prt_idx < 8; prt_idx++) {
         if ((ncsd->partitions_fs_type[prt_idx] != type) ||
@@ -492,11 +492,11 @@ u32 GetNandNcsdPartitionInfo(NandPartitionInfo* info, u32 type, u32 subtype, u32
         if (index == 0) break;
         index--;
     }
-    
+
     if (prt_idx >= 8) return 1; // not found
     info->sector = ncsd->partitions[prt_idx].offset;
     info->count = ncsd->partitions[prt_idx].size;
-    
+
     return 0;
 }
 
@@ -546,7 +546,7 @@ u32 AutoEmuNandBase(bool reset)
     if (!reset) {
         u32 last_valid = emunand_base_sector;
         u32 emunand_min_sectors = GetNandMinSizeSectors(NAND_EMUNAND);
-        
+
         // legacy type multiNAND
         u32 legacy_sectors = (getMMCDevice(0)->total_size > 0x200000) ? 0x400000 : 0x200000;
         emunand_base_sector += legacy_sectors - (emunand_base_sector % legacy_sectors);
@@ -555,7 +555,7 @@ u32 AutoEmuNandBase(bool reset)
         emunand_base_sector++;
         if (GetNandSizeSectors(NAND_EMUNAND) && (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) == 0))
             return emunand_base_sector; // RedNAND type EmuNAND
-        
+
         // compact type multiNAND
         if (emunand_min_sectors && (last_valid % 0x2000 <= 1)) {
             u32 compact_sectors = align(emunand_min_sectors + 1, 0x2000);
@@ -564,7 +564,7 @@ u32 AutoEmuNandBase(bool reset)
                 return emunand_base_sector;
         }
     }
-    
+
     emunand_base_sector = 0x000001; // RedNAND type EmuNAND, default
     if (GetNandPartitionInfo(NULL, NP_TYPE_NCSD, NP_SUBTYPE_CTR, 0, NAND_EMUNAND) != 0) {
         emunand_base_sector = 0x000000; // GW type EmuNAND
@@ -573,7 +573,7 @@ u32 AutoEmuNandBase(bool reset)
             // still nothing found? revert to default (RedNAND offset)
             emunand_base_sector = 0x000001;
     }
-    
+
     return emunand_base_sector;
 }
 

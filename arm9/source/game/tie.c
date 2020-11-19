@@ -6,8 +6,9 @@
 
 u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     u64 title_id = getbe64(tmd->title_id);
-    u32 has_idx1 = false;
-    
+    bool has_idx1 = false;
+    bool has_idx2 = false;
+
     // set basic values
     memset(tie, 0x00, sizeof(TitleInfoEntry));
     tie->title_type = 0x40;
@@ -21,19 +22,32 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     // align size: 0x4000 for TWL and CTRNAND, 0x8000 for SD
     u32 align_size = CMD_SIZE_ALIGN(sd);
     u32 content_count = getbe16(tmd->content_count);
-    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
     tie->title_size =
         (align_size * 3) + // base folder + 'content' + 'cmd'
         align(TMD_SIZE_N(content_count), align_size) + // TMD
         align_size; // CMD, placeholder (!!!)
+    if (getle32(tmd->save_size) || getle32(tmd->twl_privsave_size) || (tmd->twl_flag & 0x2)) {
+        tie->title_size +=
+            align_size + // data folder
+            align(getle32(tmd->save_size), align_size) +
+            align(getle32(tmd->twl_privsave_size), align_size) +
+            ((tmd->twl_flag & 0x2) ? align(sizeof(TwlIconData), align_size) : 0);
+    }
+
+    // contents title size + some additional stuff
+    TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+    tie->content0_id = getbe32(chunk->id);
     for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++, chunk++) {
         if (getbe16(chunk->index) == 1) has_idx1 = true; // will be useful later
+        else if (getbe16(chunk->index) == 2) has_idx2 = true; // will be useful later
         tie->title_size += align(getbe64(chunk->size), align_size);
     }
 
-    // manual? (we need to properly check this later)
-    if (has_idx1 && (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010))) {
-        tie->flags_0[0] = 0x1; // this may have a manual
+    // manual? dlp? save? (we need to properly check this later)
+    if (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010)) {
+        if (has_idx1) tie->flags_0[0] = 0x1; // this may have a manual
+        if (has_idx2) tie->title_version |= (0xFFFF << 16); // this may have a dlp
+        if (getle32(tmd->save_size)) tie->flags_1[0] = 0x01; // this may have an sd save
     }
 
     return 0;
@@ -41,7 +55,7 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
 
 u32 BuildTitleInfoEntryTwl(TitleInfoEntry* tie, TitleMetaData* tmd, TwlHeader* twl) {
     u64 title_id = getbe64(tmd->title_id);
-    
+
     // build the basic titledb entry
     if (BuildTitleInfoEntryTmd(tie, tmd, false) != 0) return 1;
 
@@ -59,7 +73,7 @@ u32 BuildTitleInfoEntryTwl(TitleInfoEntry* tie, TitleMetaData* tmd, TwlHeader* t
         tie->flags_2[0] = 0x01;
         tie->flags_2[4] = 0x01;
         tie->flags_2[5] = 0x01;
-    }
+    } else tie->content0_id = 0;
 
     return 0;
 }
@@ -72,8 +86,11 @@ u32 BuildTitleInfoEntryNcch(TitleInfoEntry* tie, TitleMetaData* tmd, NcchHeader*
 
     // product code, extended title version
     memcpy(tie->product_code, ncch->productcode, 0x10);
-    tie->title_version |= (ncch->version << 16);
-    
+    tie->title_version &= ((ncch->version << 16) | 0xFFFF);
+
+    // NCCH titles need no content0 ID
+    tie->content0_id = 0;
+
     // specific flags
     // see: http://3dbrew.org/wiki/Titles
     if (!((title_id >> 32) & 0x10)) // not a system title
@@ -81,17 +98,13 @@ u32 BuildTitleInfoEntryNcch(TitleInfoEntry* tie, TitleMetaData* tmd, NcchHeader*
 
     // stuff from extheader
     if (exthdr) {
-        // add save data size to title size
-        if (exthdr->savedata_size) {
-            u32 align_size = CMD_SIZE_ALIGN(sd);
-            tie->title_size +=
-                align_size + // 'data' folder
-                align(exthdr->savedata_size, align_size); // savegame
-            tie->flags_1[0] = 0x01; // has SD save
-        };
-        // extdata ID low (hacky)
-        tie->extdata_id_low = getle32(exthdr->aci_data + 0x30 - 0x0C + 0x04);
-    } else tie->flags_0[0] = 0x00; // no manual
+        // extdata ID low (hacky, we navigate to storage info)
+        tie->extdata_id_low = getle32(exthdr->aci_data + (0x30 - 0x0C));
+    } else {
+        tie->flags_0[0] = 0x00; // no manual
+        tie->flags_1[0] = 0x00; // no sd save
+        tie->title_version &= 0xFFFF; // no dlp
+    }
 
     return 0;
 }

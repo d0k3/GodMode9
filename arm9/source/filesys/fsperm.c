@@ -7,7 +7,7 @@
 #include "ui.h"
 #include "sdmmc.h"
 
-#define PATH_SYS_LVL1   "S:/twln.bin", "S:/twlp.bin" 
+#define PATH_SYS_LVL1   "S:/twln.bin", "S:/twlp.bin"
 #define PATH_SYS_LVL2   "1:/rw/sys/LocalFriendCodeSeed_B", "1:/rw/sys/LocalFriendCodeSeed_A", \
                         "1:/rw/sys/SecureInfo_A", "1:/rw/sys/SecureInfo_B", \
                         "1:/private/movable.sed", "1:/ro/sys/HWCAL0.dat", "1:/ro/sys/HWCAL1.dat", \
@@ -23,7 +23,7 @@ bool CheckWritePermissions(const char* path) {
     char area_name[16];
     int drvtype = DriveType(path);
     u32 perm;
-    
+
     // create a standardized path string
     char path_f[256];
     char* p = (char*) path;
@@ -37,13 +37,13 @@ bool CheckWritePermissions(const char* path) {
     // check mounted image write permissions
     if ((drvtype & DRV_IMAGE) && !CheckWritePermissions(GetMountPath()))
         return false; // endless loop when mounted file inside image, but not possible
-    
+
     // SD card write protection check
     if ((drvtype & (DRV_SDCARD | DRV_EMUNAND | DRV_ALIAS)) && SD_WRITE_PROTECTED) {
         ShowPrompt(false, "SD card is write protected!\nCan't continue.");
         return false;
     }
-    
+
     // check drive type, get permission type
     if (drvtype & DRV_SYSNAND) {
         static const u32 perms[] = { PERM_SYS_LVL0, PERM_SYS_LVL1, PERM_SYS_LVL2, PERM_SYS_LVL3 };
@@ -104,20 +104,20 @@ bool CheckWritePermissions(const char* path) {
     } else {
         return false;
     }
-    
+
     // check permission, return if already set
     if ((write_permissions & perm) == perm)
         return true;
-    
+
     // offer unlock if possible
     if (!(perm & (PERM_VRAM|PERM_GAME|PERM_XORPAD))) {
         // ask the user
         if (!ShowPrompt(true, "Writing to %s is locked!\nUnlock it now?", area_name))
             return false;
-            
+
         return SetWritePermissions(perm, true);
     }
-    
+
     // unlock not possible
     ShowPrompt(false, "Unlock write permission for\n%s is not allowed.", area_name);
     return false;
@@ -141,7 +141,7 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
         if (!add_perm) write_permissions = perm;
         return true;
     }
-    
+
     switch (perm) {
         case PERM_BASE:
             if (!ShowUnlockSequence(1, "You want to enable base\nwriting permissions."))
@@ -207,9 +207,9 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             break;
         #endif
     }
-    
+
     write_permissions = add_perm ? write_permissions | perm : perm;
-    
+
     return true;
 }
 

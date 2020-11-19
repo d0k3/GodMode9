@@ -58,10 +58,7 @@ static bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout) {
         }
 
         // next row
-        if (layout[l++] != 0) {
-            ShowPrompt(false, "Oh shit %lu %lu", k, l);
-            return false; // error!!!! THIS HAS TO GO!
-        }
+        if (layout[l++] != 0) return false;
         p_y += SWKBD_STDKEY_HEIGHT + SWKDB_KEY_SPACING;
     }
 
@@ -73,7 +70,7 @@ static bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout) {
 
 static void DrawKey(const TouchBox* key, const bool pressed, const u32 uppercase) {
     const char* keystrs[] = { SWKBD_KEYSTR };
-    const u32 color = (pressed) ? COLOR_SWKBD_PRESSED : 
+    const u32 color = (pressed) ? COLOR_SWKBD_PRESSED :
         (key->id == KEY_ENTER) ? COLOR_SWKBD_ENTER :
         ((key->id == KEY_CAPS) && (uppercase > 1)) ? COLOR_SWKBD_CAPS :
         COLOR_SWKBD_NORMAL;
@@ -125,24 +122,24 @@ static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 
     const u32 input_shown = (txtbox->w / FONT_WIDTH_EXT) - 2;
     const u32 inputstr_size = strlen(inputstr); // we rely on a zero terminated string
     const u16 x = txtbox->x;
-    const u16 y = txtbox->y; 
-    
+    const u16 y = txtbox->y;
+
     // fix scroll
     if (cursor < *scroll) *scroll = cursor;
     else if (cursor - *scroll > input_shown) *scroll = cursor - input_shown;
-        
+
     // draw input string
     DrawStringF(BOT_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%-*.*s%c",
         (*scroll) ? '<' : '|',
         (inputstr_size > input_shown) ? input_shown : inputstr_size,
         (inputstr_size > input_shown) ? input_shown : inputstr_size,
-        inputstr + *scroll,
+        (*scroll > inputstr_size) ? "" : inputstr + *scroll,
         (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
         (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
         "",
         (inputstr_size - (s32) *scroll > input_shown) ? '>' : '|'
     );
-    
+
     // draw cursor
     DrawStringF(BOT_SCREEN, x-(FONT_WIDTH_EXT/2), y+10, COLOR_STD_FONT, COLOR_STD_BG, "%-*.*s^%-*.*s",
         1 + cursor - *scroll,
@@ -199,6 +196,7 @@ static char KeyboardWait(TouchBox* swkbd, bool uppercase) {
         else if (pressed & BUTTON_R1) return KEY_CAPS;
         else if (pressed & BUTTON_RIGHT) return KEY_RIGHT;
         else if (pressed & BUTTON_LEFT) return KEY_LEFT;
+        else if (pressed & BUTTON_SELECT) return KEY_SWITCH;
         else if (pressed & BUTTON_TOUCH) break;
     }
 
@@ -297,6 +295,9 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
             swkbd = swkbd_special;
         } else if (key == KEY_NUMPAD) {
             swkbd = swkbd_numpad;
+        } else if (key == KEY_SWITCH) {
+            ClearScreen(BOT_SCREEN, COLOR_STD_BG);
+            return ShowStringPrompt(inputstr, max_size, str);
         } else if (key && (key < 0x80)) {
             if ((cursor < (max_size-1)) && (inputstr_size < max_size)) {
                 // pad string (if cursor beyound string size)

@@ -18,20 +18,20 @@ u32 ValidateCiaHeader(CiaHeader* header) {
 
 u32 GetCiaInfo(CiaInfo* info, CiaHeader* header) {
     if ((u8*) info != (u8*) header) memcpy(info, header, 0x20); // take over first 0x20 byte
-    
+
     info->offset_cert = align(header->size_header, 64);
     info->offset_ticket = info->offset_cert + align(header->size_cert, 64);
     info->offset_tmd = info->offset_ticket + align(header->size_ticket, 64);
     info->offset_content = info->offset_tmd + align(header->size_tmd, 64);
     info->offset_meta = (header->size_meta) ? info->offset_content + align(header->size_content, 64) : 0;
     info->offset_content_list = info->offset_tmd + sizeof(TitleMetaData);
-    
+
     info->size_content_list = info->size_tmd - sizeof(TitleMetaData);
     info->size_cia = (header->size_meta) ? info->offset_meta + info->size_meta :
         info->offset_content + info->size_content;
-        
+
     info->max_contents = (info->size_tmd - sizeof(TitleMetaData)) /  sizeof(TmdContentChunk);
-    
+
     return 0;
 }
 
@@ -58,7 +58,7 @@ u32 BuildCiaCert(u8* ciacert) {
         0xFB, 0xD2, 0xC0, 0x47, 0x95, 0xB9, 0x4C, 0xC8, 0x0B, 0x64, 0x58, 0x96, 0xF6, 0x61, 0x0F, 0x52,
         0x18, 0x83, 0xAF, 0xE0, 0xF4, 0xE5, 0x62, 0xBA, 0x69, 0xEE, 0x72, 0x2A, 0xC2, 0x4E, 0x95, 0xB3
     };
-    
+
     // open certs.db file on SysNAND
     FIL db;
     UINT bytes_read;
@@ -74,13 +74,13 @@ u32 BuildCiaCert(u8* ciacert) {
     f_lseek(&db, 0x3C10);
     f_read(&db, ciacert + 0x700, 0x300, &bytes_read);
     f_close(&db);
-    
+
     // check the certificate hash
     u8 cert_hash[0x20];
     sha_quick(cert_hash, ciacert, CIA_CERT_SIZE, SHA256_MODE);
     if (memcmp(cert_hash, IS_DEVKIT ? cert_hash_expected_dev : cert_hash_expected, 0x20) != 0)
         return 1;
-    
+
     return 0;
 }
 

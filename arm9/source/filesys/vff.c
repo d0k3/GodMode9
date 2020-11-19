@@ -151,22 +151,22 @@ FRESULT fvx_qread (const TCHAR* path, void* buff, FSIZE_t ofs, UINT btr, UINT* b
     FIL fp;
     FRESULT res;
     UINT brt = 0;
-    
+
     res = fvx_open(&fp, path, FA_READ | FA_OPEN_EXISTING);
     if (res != FR_OK) return res;
-    
+
     res = fvx_lseek(&fp, ofs);
     if (res != FR_OK) {
         fvx_close(&fp);
         return res;
     }
-    
+
     res = fvx_read(&fp, buff, btr, &brt);
     fvx_close(&fp);
-    
+
     if (br) *br = brt;
     else if ((res == FR_OK) && (brt != btr)) res = FR_DENIED;
-    
+
     return res;
 }
 
@@ -174,24 +174,62 @@ FRESULT fvx_qwrite (const TCHAR* path, const void* buff, FSIZE_t ofs, UINT btw, 
     FIL fp;
     FRESULT res;
     UINT bwt = 0;
-    
+
     res = fvx_open(&fp, path, FA_WRITE | FA_OPEN_ALWAYS);
     if (res != FR_OK) return res;
-    
+
     res = fvx_lseek(&fp, ofs);
     if (res != FR_OK) {
         fvx_close(&fp);
         return res;
     }
-    
+
     res = fvx_write(&fp, buff, btw, &bwt);
     fvx_close(&fp);
-    
+
     if (bw) *bw = bwt;
     else if ((res == FR_OK) && (bwt != btw)) res = FR_DENIED;
-    
+
     return res;
 }
+
+FRESULT fvx_qcreate (const TCHAR* path, UINT btc) {
+    FIL fp;
+    FRESULT res;
+
+    res = fvx_open(&fp, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (res != FR_OK) return res;
+
+    res = fvx_lseek(&fp, btc);
+    fvx_close(&fp);
+
+    return res;
+}
+
+/* // untested / unused, might come in handy at a later point
+FRESULT fvx_qfill (const TCHAR* path, const void* buff, UINT btb) {
+    FIL fp;
+    FRESULT res;
+    UINT bwtt = 0;
+    UINT fsiz = 0;
+
+    res = fvx_open(&fp, path, FA_WRITE | FA_OPEN_EXISTING);
+    if (res != FR_OK) return res;
+
+    fsiz = fvx_size(&fp);
+    while (bwtt < fsiz) {
+        UINT btw = ((fsiz - bwtt) >= btb) ? btb : (fsiz - bwtt);
+        UINT bwt;
+
+        res = fvx_write(&fp, buff, btw, &bwt);
+        if ((res == FR_OK) && (bwt != btw)) res = FR_DENIED;
+        if (res != FR_OK) break;
+        bwtt += bwt;
+    }
+    fvx_close(&fp);
+
+    return res;
+}*/
 
 FSIZE_t fvx_qsize (const TCHAR* path) {
     FILINFO fno;
@@ -243,17 +281,17 @@ FRESULT fvx_rmkpath (const TCHAR* path) {
 FRESULT worker_fvx_runlink (TCHAR* tpath) {
     FILINFO fno;
     FRESULT res;
-    
+
     // this code handles directory content deletion
     if ((res = fvx_stat(tpath, &fno)) != FR_OK) return res; // tpath does not exist
     if (fno.fattrib & AM_DIR) { // process folder contents
         DIR pdir;
         TCHAR* fname = tpath + strnlen(tpath, 255);
-        
-        
+
+
         if ((res = fa_opendir(&pdir, tpath)) != FR_OK) return res;
         *(fname++) = '/';
-        
+
         while (fvx_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
@@ -267,7 +305,7 @@ FRESULT worker_fvx_runlink (TCHAR* tpath) {
         fvx_closedir(&pdir);
         *(--fname) = '\0';
     }
-    
+
     return fvx_unlink( tpath );
 }
 #endif
@@ -306,7 +344,7 @@ FRESULT fvx_match_name(const TCHAR* path, const TCHAR* pattern) {
             if (fvx_match_name(path, pattern + 1) == FR_OK) return FR_OK;
         }
     }
-    
+
     return FR_NO_FILE;
 }
 
@@ -322,19 +360,19 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode) {
     TCHAR* fname = strrchr(path, '/');
     if (!fname) return FR_DENIED;
     *fname = '\0';
-    
+
     TCHAR* npattern = strrchr(pattern, '/');
     if (!npattern) return FR_DENIED;
     npattern++;
-    
+
     DIR pdir;
     FILINFO fno;
     FRESULT res;
     if ((res = fvx_opendir(&pdir, path)) != FR_OK) return res;
-    
+
     *(fname++) = '/';
     *fname = '\0';
-    
+
     while ((fvx_preaddir(&pdir, &fno, npattern) == FR_OK) && *(fno.fname)) {
         int cmp = strncmp(fno.fname, fname, _MAX_FN_LEN);
         if (((mode & FN_HIGHEST) && (cmp > 0)) || ((mode & FN_LOWEST) && (cmp < 0)) || !(*fname))
@@ -342,7 +380,7 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode) {
         if (!(mode & (FN_HIGHEST|FN_LOWEST))) break;
     }
     fvx_closedir( &pdir );
-    
+
     return (*fname) ? FR_OK : FR_NO_PATH;
 }
 
@@ -351,7 +389,7 @@ FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
     TCHAR* fname = strrchr(path, '/');
     if (!fname) return FR_DENIED;
     fname++;
-    
+
     TCHAR* rep[16];
     u32 n_rep = 0;
     for (u32 i = 0; fname[i]; i++) {
@@ -362,7 +400,7 @@ FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
         if (n_rep >= 16) return FR_DENIED;
     }
     if (!n_rep) return (fvx_stat(path, NULL) == FR_OK) ? FR_NO_PATH : FR_OK;
-    
+
     while (fvx_stat(path, NULL) == FR_OK) {
         for (int i = n_rep - 1; (i >= 0); i--) {
             if (*(rep[i]) == '9') {
@@ -374,7 +412,7 @@ FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
             }
         }
     }
-    
+
     return FR_OK;
 }
 

@@ -42,7 +42,7 @@ void dealias_path (TCHAR* alias, const TCHAR* path) {
 
 FilCryptInfo* fx_find_cryptinfo(FIL* fptr) {
     FilCryptInfo* info = NULL;
-    
+
     for (u32 i = 0; i < NUM_FILCRYPTINFO; i++) {
         if (!info && !filcrypt[i].fptr) // use first free
             info = &filcrypt[i];
@@ -51,7 +51,7 @@ FilCryptInfo* fx_find_cryptinfo(FIL* fptr) {
             break;
         }
     }
-    
+
     return info;
 }
 
@@ -59,27 +59,27 @@ FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
     const u32 mode = AES_CNT_TITLEKEY_DECRYPT_MODE;
     const u32 num_tbl = sizeof(TadContentTable) / sizeof(u32);
     const FSIZE_t ofs0 = f_tell(fp);
-    
+
     u8 __attribute__((aligned(16))) iv[AES_BLOCK_SIZE];
     u32 tbl[num_tbl];
     u8 hdr[TAD_HEADER_LEN];
-    
+
     FRESULT res;
     UINT br;
-    
-    
+
+
     // read and decrypt header
     if ((res = f_lseek(fp, TAD_HEADER_OFFSET)) != FR_OK) return res;
     if ((res = f_read(fp, hdr, TAD_HEADER_LEN, &br)) != FR_OK) return res;
     if (br != TAD_HEADER_LEN) return FR_DENIED;
     memcpy(iv, hdr + TAD_HEADER_LEN - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     cbc_decrypt(hdr, hdr, sizeof(TadHeader) / AES_BLOCK_SIZE, mode, iv);
-    
+
     // setup the table
     if (BuildTadContentTable(tbl, hdr) != 0) return FR_DENIED;
     if (tbl[num_tbl-1] > f_size(fp)) return FR_DENIED; // obviously missing data
-    
-    
+
+
     // process sections
     u32 sct_start = 0;
     u32 sct_end = 0;
@@ -87,21 +87,21 @@ FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
         sct_end = tbl[i];
         if (sct_start == sct_end) continue; // nothing in section
         if ((ofs + len <= sct_start) || (ofs >= sct_end)) continue; // section not in data
-        
+
         const u32 crypt_end = sct_end - (AES_BLOCK_SIZE * 2);
         const u32 data_end = min(crypt_end, ofs + len);
         u32 data_pos = max(ofs, sct_start);
         if (ofs >= crypt_end) continue; // nothing to do
-        
+
         if ((sct_start < ofs) || (sct_end > ofs + len)) { // incomplete section, ugh
             u8 __attribute__((aligned(16))) block[AES_BLOCK_SIZE];
-            
+
             // load iv0
             FSIZE_t block0_ofs = data_pos - (data_pos % AES_BLOCK_SIZE);
             FSIZE_t iv0_ofs = ((block0_ofs > sct_start) ? block0_ofs : sct_end) - AES_BLOCK_SIZE;
             if ((res = f_lseek(fp, iv0_ofs)) != FR_OK) return res;
             if ((res = f_read(fp, iv, AES_BLOCK_SIZE, &br)) != FR_OK) return res;
-            
+
             // load and decrypt block0 (if misaligned)
             if (data_pos % AES_BLOCK_SIZE) {
                 if ((res = f_lseek(fp, block0_ofs)) != FR_OK) return res;
@@ -110,7 +110,7 @@ FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
                 data_pos = min(block0_ofs + AES_BLOCK_SIZE, data_end);
                 memcpy(buff, block + (ofs - block0_ofs), data_pos - ofs);
             }
-            
+
             // decrypt blocks in between
             u32 num_blocks = (data_end - data_pos) / AES_BLOCK_SIZE;
             if (num_blocks) {
@@ -118,7 +118,7 @@ FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
                 cbc_decrypt(blocks, blocks, num_blocks, mode, iv);
                 data_pos += num_blocks * AES_BLOCK_SIZE;
             }
-            
+
             // decrypt last block
             if (data_pos < data_end) {
                 u8* lbuff = (u8*) buff + (data_pos - ofs);
@@ -137,7 +137,7 @@ FRESULT fx_decrypt_dsiware (FIL* fp, void* buff, FSIZE_t ofs, UINT len) {
             cbc_decrypt(blocks, blocks, num_blocks, mode, iv);
         }
     }
-    
+
     return f_lseek(fp, ofs0);
 }
 
@@ -145,7 +145,7 @@ FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode) {
     int num = alias_num(path);
     FilCryptInfo* info = fx_find_cryptinfo(fp);
     if (info) info->fptr = NULL;
-    
+
     if (info && (num >= 0)) {
         // DSIWare Export, mark with the magic number
         if (strncmp(path + 2, "/" DSIWARE_MAGIC, 1 + 16) == 0) {
@@ -172,7 +172,7 @@ FRESULT fx_open (FIL* fp, const TCHAR* path, BYTE mode) {
         memcpy(info->keyy, sd_keyy[num], 16);
         info->fptr = fp;
     }
-    
+
     return fa_open(fp, path, mode);
 }
 
@@ -193,12 +193,12 @@ FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
     FilCryptInfo* info = fx_find_cryptinfo(fp);
     FSIZE_t off = f_tell(fp);
     FRESULT res = FR_OK;
-    
+
     if (info && info->fptr) {
         if (memcmp(info->ctr, DSIWARE_MAGIC, 16) == 0) return FR_DENIED;
         void* crypt_buff = (void*) malloc(min(btw, STD_BUFFER_SIZE));
         if (!crypt_buff) return FR_DENIED;
-    
+
         setup_aeskeyY(0x34, info->keyy);
         use_aeskey(0x34);
         *bw = 0;
@@ -210,7 +210,7 @@ FRESULT fx_write (FIL* fp, const void* buff, UINT btw, UINT* bw) {
             res = f_write(fp, (const void*) crypt_buff, pcount, &bwl);
             *bw += bwl;
         }
-        
+
         free(crypt_buff);
     } else res = f_write(fp, buff, btw, bw);
     return res;
@@ -255,12 +255,12 @@ FRESULT fa_unlink (const TCHAR* path) {
 // special functions for access of virtual NAND SD drives
 bool SetupNandSdDrive(const char* path, const char* sd_path, const char* movable, int num) {
     char alias[128];
-    
+
     // initial checks
     if ((num >= NUM_ALIAS_DRV) || (num < 0)) return false;
     alias_drv[num] = 0;
     if (!sd_path || !movable || !path) return true;
-    
+
     // grab the key Y from movable.sed
     UINT bytes_read = 0;
     FIL file;
@@ -272,13 +272,13 @@ bool SetupNandSdDrive(const char* path, const char* sd_path, const char* movable
         return false;
     }
     f_close(&file);
-    
+
     // build the alias path (id0)
     u32 sha256sum[8];
     sha_quick(sha256sum, sd_keyy[num], 0x10, SHA256_MODE);
     snprintf(alias, 127, "%s/Nintendo 3DS/%08lX%08lX%08lX%08lX",
         sd_path, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
-    
+
     // find the alias path (id1)
     char* id1 = alias + strnlen(alias, 127);
     DIR pdir;
@@ -297,7 +297,7 @@ bool SetupNandSdDrive(const char* path, const char* sd_path, const char* movable
     }
     f_closedir(&pdir);
     if (!(*id1)) return false;
-    
+
     // create the alias drive
     return SetupAliasDrive(path, alias, num);
 }
@@ -307,12 +307,12 @@ bool SetupAliasDrive(const char* path, const char* alias, int num) {
     if ((num >= NUM_ALIAS_DRV) || (num < 0)) return false;
     alias_drv[num] = 0;
     if (!alias || !path) return true;
-    
+
     // take over drive path and alias
     strncpy(alias_path[num], alias, 128);
     if (path[1] != ':') return false;
     alias_drv[num] = path[0];
-    
+
     return true;
 }
 

@@ -19,7 +19,7 @@
 #define STRBUF_SIZE 512 // maximum size of the string buffer
 #define FONT_MAX_WIDTH 8
 #define FONT_MAX_HEIGHT 10
-#define PROGRESS_REFRESH_RATE 30 // the progress bar is only allowed to draw to screen every X milliseconds 
+#define PROGRESS_REFRESH_RATE 30 // the progress bar is only allowed to draw to screen every X milliseconds
 
 static u32 font_width = 0;
 static u32 font_height = 0;
@@ -247,7 +247,7 @@ void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcol
     size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
 
     for (size_t i = 0; i < len; i++) {
-        char c = (char) (fix_utf8 && str[i] >= 0x80) ? '?' : str[i]; 
+        char c = (char) (fix_utf8 && str[i] >= 0x80) ? '?' : str[i];
         DrawCharacter(screen, c, x + i * font_width, y, color, bgcolor);
     }
 }
@@ -445,17 +445,17 @@ void ShowIconString(u16* icon, int w, int h, const char *format, ...)
 bool ShowPrompt(bool ask, const char *format, ...)
 {
     bool ret = true;
-    
+
     char str[STRBUF_SIZE];
     va_list va;
     va_start(va, format);
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
-    
+
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s\n \n%s", str,
         (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
-    
+
     while (true) {
         u32 pad_state = InputWait(0);
         if (pad_state & BUTTON_A) break;
@@ -464,9 +464,9 @@ bool ShowPrompt(bool ask, const char *format, ...)
             break;
         }
     }
-    
+
     ClearScreenF(true, false, COLOR_STD_BG);
-    
+
     return ret;
 }
 
@@ -661,7 +661,7 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
             DrawStringF(MAIN_SCREEN, x, yopt + ((line_height+2)*(i-scroll)),
                 (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%2.2s %s",
                 (sel == (int)i) ? "->" : "", content_str);
-                
+
             DrawStringF(MAIN_SCREEN, x + item_width - font_width * 11, yopt + ((line_height+2)*(i-scroll)),
                 (sel == (int)i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%10.10s",
                 (options[i]->type == T_DIR) ? "(dir)" : (options[i]->type == T_DOTDOT) ? "(..)" : bytestr);
@@ -768,7 +768,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     if (str_width < (24 * font_width)) str_width = 24 * font_width;
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
-    
+
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
     DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 40, COLOR_STD_FONT, COLOR_STD_BG,
@@ -901,7 +901,7 @@ bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...) {
     ret = ShowInputPrompt(inputstr, max_size, 1, alphabet, format, va);
     va_end(va);
 
-    return ret; 
+    return ret;
 }
 
 u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
@@ -919,7 +919,7 @@ u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
     } else ret = (u64) -1;
     va_end(va);
 
-    return ret; 
+    return ret;
 }
 
 u64 ShowNumberPrompt(u64 start_val, const char *format, ...) {
@@ -936,7 +936,7 @@ u64 ShowNumberPrompt(u64 start_val, const char *format, ...) {
     } else ret = (u64) -1;
     va_end(va);
 
-    return ret; 
+    return ret;
 }
 
 bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
@@ -965,7 +965,7 @@ bool ShowDataPrompt(u8* data, u32* size, const char *format, ...) {
     }
     va_end(va);
 
-    return ret; 
+    return ret;
 }
 
 

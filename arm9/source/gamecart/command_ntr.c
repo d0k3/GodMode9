@@ -42,9 +42,9 @@ void NTR_CmdReadHeader (u8* buffer)
     while(REG_NTRCARDROMCNT&NTRCARD_BUSY) ;
     u32 iCardId=cardReadID(NTRCARD_CLK_SLOW);
     while(REG_NTRCARDROMCNT&NTRCARD_BUSY) ;
-    
+
     u32 iCheapCard=iCardId&0x80000000;
-    
+
     if(iCheapCard)
     {
         //this is magic of wood goblins

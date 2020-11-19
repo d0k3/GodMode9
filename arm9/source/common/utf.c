@@ -189,7 +189,7 @@ int utf16_to_utf8(u8 *out, const u16 *in, int len_out, int len_in)
         units = decode_utf16(&code, in);
         if(units == -1)
             return -1;
-        
+
         if (len_in >= units)
             len_in -= units;
         else return -1;
@@ -238,7 +238,7 @@ int utf8_to_utf16(u16 *out, const u8 *in, int len_out, int len_in)
         units = decode_utf8(&code, in);
         if(units == -1)
             return -1;
-        
+
         if (len_in >= units)
             len_in -= units;
         else return -1;

@@ -1,0 +1,43 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    container: devkitpro/devkitarm:latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Fix apt sources
+        run: |
+          apt-get update
+          apt-get -y install dirmngr
+          echo 'deb http://us.archive.ubuntu.com/ubuntu/ bionic main' >> /etc/apt/sources.list
+          apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
+          apt-get update
+
+      - name: Install and update packages
+        run: |
+          apt-get -y install python3 python3-pip p7zip-full libarchive13
+          python3 --version
+          python3 -m pip install --upgrade pip setuptools
+          python3 -m pip install cryptography
+          python3 -m pip install git+https://github.com/TuxSH/firmtool.git
+
+      - name: Build Project
+        run: make release
+
+      - name: Prepare build artifact
+        run: |
+          cd release
+          ZIPNAME=$(ls GodMode9-*.zip)
+          rm $ZIPNAME
+          echo "OUTNAME=${ZIPNAME%.zip}" >> $GITHUB_ENV
+          cd ..
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.OUTNAME }}
+          path: release/*

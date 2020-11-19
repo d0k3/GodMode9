@@ -12,7 +12,7 @@ bool CheckSupportFile(const char* fname)
     // try VRAM0 first
     if (FindVTarFileInfo(fname, NULL))
         return true;
-    
+
     // try support file paths
     const char* base_paths[] = { SUPPORT_FILE_PATHS };
     for (u32 i = 0; i < countof(base_paths); i++) {
@@ -21,7 +21,7 @@ bool CheckSupportFile(const char* fname)
         if (fvx_stat(path, NULL) == FR_OK)
             return true;
     }
-    
+
     return false;
 }
 
@@ -34,7 +34,7 @@ size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len)
         memcpy(buffer, data, len64);
         return (size_t) len64;
     }
-    
+
     // try support file paths
     const char* base_paths[] = { SUPPORT_FILE_PATHS };
     for (u32 i = 0; i < countof(base_paths); i++) {
@@ -44,7 +44,7 @@ size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len)
         if (fvx_qread(path, buffer, 0, max_len, &len32) == FR_OK)
             return len32;
     }
-    
+
     return 0;
 }
 
@@ -73,7 +73,7 @@ bool SaveSupportFile(const char* fname, void* buffer, size_t len)
         if (fvx_qwrite(path, buffer, 0, len, NULL) == FR_OK)
             return true;
     }
-    
+
     return false;
 }
 
@@ -102,7 +102,7 @@ bool GetSupportDir(char* path, const char* dname)
         if ((fvx_stat(path, &fno) == FR_OK) && (fno.fattrib & AM_DIR))
             return true;
     }
-    
+
     return false;
 }
 

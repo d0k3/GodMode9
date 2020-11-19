@@ -14,7 +14,7 @@
 typedef struct {
     // actual BOSS header
     u8 magic[8]; // "boss" + 0x00010001, see above
-    u8 filesize[4]; // big endian 
+    u8 filesize[4]; // big endian
     u8 release_date[8];
     u8 unknown0[2]; // always 0x0001
     u8 padding[2];
@@ -27,7 +27,7 @@ typedef struct {
     u8 hash_header[0x20];
     u8 signature_header[0x100];
     // payload header, first 0x1C byte used for hash (0x15A)
-    u8 programId[8]; 
+    u8 programId[8];
     u8 unknown2[4]; // typically zero
     u8 data_type[4];
     u8 size_payload[4];

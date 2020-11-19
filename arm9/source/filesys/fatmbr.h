@@ -15,7 +15,7 @@ typedef struct {
 
 typedef struct {
     char text[446];
-    MbrPartitionInfo partitions[4]; 
+    MbrPartitionInfo partitions[4];
     u16  magic;         // 0xAA55
 } PACKED_ALIGN(2) MbrHeader;
 
@@ -50,7 +50,7 @@ typedef struct {
     u32  clr_root;      // 0x02
     u16  sct_fsinfo;    // 0x01
     u16  sct_backup;    // 0x06
-    u8   reserved3[12]; 
+    u8   reserved3[12];
     u8   ndrive;        // 0x80
     u8   head_cur;      // 0x00
     u8   boot_sig;      // 0x29
