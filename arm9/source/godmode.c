@@ -2402,8 +2402,9 @@ u32 GodMode(int entrypoint) {
                 char tpath[16] = { 0 };
                 snprintf(tpath, 16, "%2.2s/dbs/title.db", curr_entry->path);
                 int n_opt = 0;
-                int tman = ((strncmp(curr_entry->path, tpath, 16) == 0) ||
-                    (!*current_path && PathExist(tpath))) ? ++n_opt : -1;
+                int tman = (!(DriveType(curr_entry->path) & DRV_IMAGE) &&
+                    ((strncmp(curr_entry->path, tpath, 16) == 0) ||
+                     (!*current_path && PathExist(tpath)))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
                 int fixcmac = (!*current_path && ((strspn(curr_entry->path, "14AB") == 1) ||
                     ((GetMountState() == IMG_NAND) && (*(curr_entry->path) == '7')))) ? ++n_opt : -1;
