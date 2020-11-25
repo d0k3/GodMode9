@@ -2700,11 +2700,13 @@ u32 GodMode(int entrypoint) {
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
             int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : 0;
+            int titleman = ++n_opt;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
+            if (titleman > 0) optionstr[titleman - 1] = "Title manager";
             if (brick > 0) optionstr[brick - 1] = "Brick my 3DS";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
             if (payloads > 0) optionstr[payloads - 1] = "Payloads...";
@@ -2715,7 +2717,35 @@ u32 GodMode(int entrypoint) {
                 (user_select != poweroff) && (user_select != reboot)) {
                 char loadpath[256];
                 if ((user_select == more) && (HomeMoreMenu(current_path) == 0)) break; // more... menu
-                else if (user_select == scripts) {
+                else if (user_select == titleman) {
+                    static const char* tmoptionstr[4] = {
+                        "[A:] SD CARD",
+                        "[1:] NAND / TWL",
+                        "[B:] SD CARD",
+                        "[4:] NAND / TWL"
+                    };
+                    static const char* tmpaths[4] = {
+                        "A:/dbs/title.db",
+                        "1:/dbs/title.db",
+                        "B:/dbs/title.db",
+                        "4:/dbs/title.db"
+                    };
+                    u32 tmnum = 2;
+                    if (!CheckSDMountState() || (tmnum = ShowSelectPrompt(
+                        (CheckVirtualDrive("E:")) ? 4 : 2, tmoptionstr,
+                        "Title manager menu.\nSelect titles source:", buttonstr))) {
+                        const char* tpath = tmpaths[tmnum-1];
+                        if (InitImgFS(tpath)) {
+                            SetTitleManagerMode(true);
+                            snprintf(current_path, 256, "Y:");
+                            GetDirContents(current_dir, current_path);
+                            ClearScreenF(true, true, COLOR_STD_BG);
+                            cursor = 1;
+                            scroll = 0;
+                            break;
+                        } else ShowPrompt(false, "Failed setting up title manager!");
+                    }
+                } else if (user_select == scripts) {
                     if (!CheckSupportDir(SCRIPTS_DIR)) {
                         ShowPrompt(false, "Scripts directory not found.\n(default path: 0:/gm9/" SCRIPTS_DIR ")");
                     } else if (FileSelectorSupport(loadpath, "HOME scripts... menu.\nSelect script:", SCRIPTS_DIR, "*.gm9")) {
