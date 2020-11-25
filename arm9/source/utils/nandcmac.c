@@ -23,7 +23,7 @@
 #define CMAC_AGBSAVE       10
 #define CMAC_AGBSAVE_SD    11
 #define CMAC_CMD_SD        12
-#define CMAC_CMD_TWLN      13 // unsupported
+#define CMAC_CMD_TWLN      13
 
 // see: https://www.3dbrew.org/wiki/Savegames#AES_CMAC_header
 #define CMAC_SAVETYPE NULL, "CTR-EXT0", "CTR-EXT0", "CTR-SYS0", "CTR-NOR0", "CTR-SAV0", "CTR-SIGN", "CTR-9DB0", "CTR-9DB0", NULL, NULL, NULL
@@ -186,9 +186,9 @@ u32 CalculateFileCmac(const char* path, u8* cmac) {
         } else if (sscanf(path, "%c:/data/%016llx%016llx/sysdata/%08lx/%08lx", &drv, &id0_high, &id0_low, &fid_low, &fid_high) == 5)
             cmac_type = CMAC_SAVEDATA_SYS;
     } else if ((drv == '2') || (drv == '5') || (drv == '8')) { // data on TWLN
-        if ((sscanf(path, "%c:/title/%08lx/%08lx/content/cmd/%08lx.cmd", &drv, &tid_high, &tid_low, &sid) == 4) &&
+        if ((sscanf(path, "%c:/title/00030004/%08lx/content/cmd/%08lx.cmd", &drv, &tid_low, &sid) == 3) &&
             ext && (strncasecmp(ext, "cmd", 4) == 0)) {
-            cmac_type = CMAC_CMD_TWLN; // this is not supported (yet), it's in here just for detection
+            cmac_type = CMAC_CMD_TWLN;
         }
     }
 

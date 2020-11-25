@@ -2396,7 +2396,8 @@ u32 GodMode(int entrypoint) {
                 int srch_t = ((strncmp(curr_entry->path + 1, ":/title", 7) == 0) ||
                     (*tpath && PathExist(tpath))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
-                int fixcmac = (!*current_path && (strspn(curr_entry->path, "14AB") == 1)) ? ++n_opt : -1;
+                int fixcmac = (!*current_path && ((strspn(curr_entry->path, "14AB") == 1) ||
+                    ((GetMountState() == IMG_NAND) && (*(curr_entry->path) == '7')))) ? ++n_opt : -1;
                 int dirnfo = ++n_opt;
                 int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
                 if (srch_t > 0) optionstr[srch_t-1] = "Search for titles";
