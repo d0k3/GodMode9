@@ -103,7 +103,7 @@ static void SPI_SingleXfer(u32 reg, u32 bus, void *buffer, u32 len, bool read)
 				u32 tmp = REG_SPI(bus, REG_SPI_FIFO);
 				memcpy((u8 *) buffer + pos, &tmp, min(4, len - pos));
 			} else {
-				u32 tmp;
+				u32 tmp = 0;
 				memcpy(&tmp, (u8 *) buffer + pos, min(4, len - pos));
 				REG_SPI(bus, REG_SPI_FIFO) = tmp;
 			}
