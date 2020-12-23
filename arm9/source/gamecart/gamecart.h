@@ -11,7 +11,6 @@
 #define MODC_AREA_SIZE          0x4000
 #define PRIV_HDR_SIZE           0x50
 #define JEDECID_AND_SREG_SIZE   0x4
-#define GAMECART_ID_SIZE        0x4
 
 typedef struct {
     u8  header[0x8000]; // NTR header + secure area / CTR header + private header
@@ -26,11 +25,12 @@ typedef struct {
 } PACKED_ALIGN(16) CartData;
 
 u32 GetCartName(char* name, CartData* cdata);
+u32 GetCartInfoString(char* info, CartData* cdata);
 u32 InitCartRead(CartData* cdata);
 u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata);
 u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata);
-u32 ReadCartId(u8* buffer, u64 offset, u64 count, CartData* cdata);
+u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata);
 u32 WriteCartSave(const u8* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata);

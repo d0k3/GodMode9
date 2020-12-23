@@ -2,7 +2,7 @@
 #include "gamecart.h"
 
 #define FAT_LIMIT   0x100000000
-#define VFLAG_GAMECART_ID       (1UL<<28)
+#define VFLAG_GAMECART_NFO      (1UL<<28)
 #define VFLAG_JEDECID_AND_SRFG  (1UL<<29)
 #define VFLAG_SAVEGAME          (1UL<<30)
 #define VFLAG_PRIV_HDR          (1UL<<31)
@@ -63,10 +63,12 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->size = cdata->save_size;
             vfile->flags = VFLAG_SAVEGAME;
             return true;
-        } else if (vdir->index == 7) { // gamecart ID
-            strcpy(vfile->name, "gamecart_id.bin");
-            vfile->size = GAMECART_ID_SIZE;
-            vfile->flags |= VFLAG_GAMECART_ID;
+        } else if (vdir->index == 7) { // gamecart info
+            char info[256];
+            GetCartInfoString(info, cdata);
+            snprintf(vfile->name, 32, "%s.txt", name);
+            vfile->size = strnlen(info, 255);
+            vfile->flags |= VFLAG_GAMECART_NFO;
             return true;
         } else if ((vdir->index == 8) && cdata->save_type.chip) { // JEDEC id and status register
             strcpy(vfile->name, "jedecid_and_sreg.bin");
@@ -86,8 +88,8 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_SAVEGAME)
         return ReadCartSave(buffer, foffset, count, cdata);
-    else if (vfile->flags & VFLAG_GAMECART_ID)
-        return ReadCartId(buffer, foffset, count, cdata);
+    else if (vfile->flags & VFLAG_GAMECART_NFO)
+        return ReadCartInfo(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_JEDECID_AND_SRFG)
         return ReadCartSaveJedecId(buffer, foffset, count, cdata);
     else return ReadCartBytes(buffer, foffset, count, cdata);

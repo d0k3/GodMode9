@@ -6,6 +6,7 @@
 #include "nds.h"
 #include "ncch.h"
 #include "ncsd.h"
+#include "rtc.h"
 
 #define CART_INSERTED (!(REG_CARDSTATUS & 0x1))
 
@@ -44,6 +45,8 @@ typedef struct {
     u32 arm9i_rom_offset;
 } PACKED_ALIGN(16) CartDataNtrTwl;
 
+DsTime init_time;
+
 u32 GetCartName(char* name, CartData* cdata) {
     if (cdata->cart_type & CART_CTR) {
         CartDataCtr* cdata_i = (CartDataCtr*)cdata;
@@ -59,7 +62,32 @@ u32 GetCartName(char* name, CartData* cdata) {
     return 0;
 }
 
+u32 GetCartInfoString(char* info, CartData* cdata) {
+	if (cdata->cart_type & CART_CTR) {
+        CartDataCtr* cdata_i = (CartDataCtr*)cdata;
+        NcsdHeader* ncsd = &(cdata_i->ncsd);
+        NcchHeader* ncch = &(cdata_i->ncch);
+        snprintf(info, 256, "Title ID     : %016llX\nProduct Code : %.10s\nRevision     : %lu\nCart ID      : %08lX\nPlatform     : %s\nTimestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\nGM9 Version  : %s\n",
+        	ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id,
+        	(ncch->flags[4] == 0x2) ? "N3DS" : "O3DS",
+            init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
+            init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
+            VERSION);
+    }  else if (cdata->cart_type & CART_NTR) {
+        CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)cdata;
+        TwlHeader* nds = &(cdata_i->ntr_header);
+        snprintf(info, 256, "Title String : %.12s\nProduct Code : %.6s\nRevision     : %u\nCart ID      : %08lX\nPlatform     : %s\nTimestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\nGM9 Version  : %s\n",
+        	nds->game_title, nds->game_code, nds->rom_version, cdata_i->cart_id,
+        	(nds->unit_code == 0x2) ? "DSi Enhanced" : (nds->unit_code == 0x3) ? "DSi Exclusive" : "DS",
+            init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
+            init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
+            VERSION);
+    } else return 1;
+    return 0;
+}
+
 u32 InitCartRead(CartData* cdata) {
+    get_dstime(&init_time);
     memset(cdata, 0x00, sizeof(CartData));
     cdata->cart_type = CART_NONE;
     if (!CART_INSERTED) return 1;
@@ -264,17 +292,17 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
     return 0;
 }
 
-u32 ReadCartId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
-    u8 ownBuf[GAMECART_ID_SIZE] = { 0 };
-    u32 id;
-    u8 sReg;
-    if (offset >= GAMECART_ID_SIZE) return 1;
-    if (offset + count > GAMECART_ID_SIZE) count = GAMECART_ID_SIZE - offset;
-    ownBuf[0] = (cdata->cart_id >> 24) & 0xff;
-    ownBuf[1] = (cdata->cart_id >> 16) & 0xff;
-    ownBuf[2] = (cdata->cart_id >>  8) & 0xff;
-    ownBuf[3] = cdata->cart_id & 0xff;
-    memcpy(buffer, ownBuf + offset, count);
+u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
+	char info[256];
+	u32 len;
+	
+	GetCartInfoString(info, cdata);
+	len = strnlen(info, 255);
+
+	if (offset >= len) return 0;
+	if (offset + count > len) count = len - offset;
+	memcpy(buffer, info + offset, count);
+
     return 0;
 }
 
