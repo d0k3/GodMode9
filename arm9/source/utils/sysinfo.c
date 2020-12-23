@@ -41,6 +41,7 @@ static const struct {
     { 'K', "Korea" },
     { 'T', "Taiwan" },
     // Manufacturing regions that have another region's region lock.
+    { 'U', "United Kingdom" },
     { 'S', "Middle East" }, // "S" = Saudi Arabia?  Singapore?  (Southeast Asia included.)
     { 'A', "Australia" },
 };
