@@ -1931,15 +1931,14 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         free(ticket_tmp);
     } else if (cdn) {
         Ticket* ticket_tmp = NULL;
-        if ((LoadCdnTicketFile(&ticket_tmp, path_tmd) != 0) &&
-            (FindTitleKey(ticket_tmp, title_id) != 0)) {
-            ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
+        if (LoadCdnTicketFile(&ticket_tmp, path_tmd) == 0) {
+            memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+            ticket->commonkey_idx = ticket_tmp->commonkey_idx;
             free(ticket_tmp);
+        } else if (FindTitleKey(ticket, title_id) != 0) {
+            ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
             return 1;
         }
-        memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
-        ticket->commonkey_idx = ticket_tmp->commonkey_idx;
-        free(ticket_tmp);
     } else {
         Ticket* ticket_tmp = NULL;
         if ((FindTitleKey(ticket, title_id) != 0) &&
@@ -2288,52 +2287,6 @@ u32 BuildInstallFromNdsFile(const char* path_nds, const char* path_dest, bool in
     return 0;
 }
 
-u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
-    u64 filetype = IdentifyFileType(path);
-    char dest[256];
-    u32 ret = 0;
-
-    // build output name
-    snprintf(dest, 256, OUTPUT_PATH "/");
-    char* dname = dest + strnlen(dest, 256);
-    if (!((filetype & (GAME_TMD|GAME_TIE)) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
-        (GetGoodName(dname, path, false) != 0)) {
-        char* name = strrchr(path, '/');
-        if (!name) return 1;
-        snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
-    }
-    // replace extension
-    char* dot = strrchr(dest, '.');
-    if (!dot || (dot < strrchr(dest, '/')))
-        dot = dest + strnlen(dest, 256);
-    snprintf(dot, 16, ".%s", force_legit ? "legit.cia" : "cia");
-
-    if (!CheckWritePermissions(dest)) return 1;
-    f_unlink(dest); // remove the file if it already exists
-
-    // ensure the output dir exists
-    if (fvx_rmkdir(OUTPUT_PATH) != FR_OK)
-        return 1;
-
-    // build CIA from game file
-    if (filetype & GAME_TIE)
-        ret = BuildCiaFromTieFile(path, dest, force_legit);
-    else if (filetype & GAME_TMD)
-        ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & FLAG_NUSCDN);
-    else if (filetype & GAME_NCCH)
-        ret = BuildInstallFromNcchFile(path, dest, false);
-    else if (filetype & GAME_NCSD)
-        ret = BuildInstallFromNcsdFile(path, dest, false);
-    else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW))
-        ret = BuildInstallFromNdsFile(path, dest, false);
-    else ret = 1;
-
-    if (ret != 0) // try to get rid of the borked file
-        f_unlink(dest);
-
-    return ret;
-}
-
 u64 GetGameFileTitleId(const char* path) {
     u64 filetype = IdentifyFileType(path);
     u64 tid64 = 0;
@@ -2365,6 +2318,55 @@ u64 GetGameFileTitleId(const char* path) {
     }
 
     return tid64;
+}
+
+u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
+    u64 filetype = IdentifyFileType(path);
+    char dest[256];
+    u32 ret = 0;
+
+    // build output name
+    snprintf(dest, 256, OUTPUT_PATH "/");
+    char* dname = dest + strnlen(dest, 256);
+    if (!((filetype & (GAME_TMD|GAME_TIE)) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
+        (GetGoodName(dname, path, false) != 0)) {
+        u64 title_id = (filetype & GAME_TMD) ? GetGameFileTitleId(path) : 0;
+        if (!title_id) {
+            char* name = strrchr(path, '/');
+            if (!name) return 1;
+            snprintf(dest, 256, "%s/%s", OUTPUT_PATH, ++name);
+        } else snprintf(dest, 256, "%s/%016llX", OUTPUT_PATH, title_id);
+    }
+    // replace extension
+    char* dot = strrchr(dest, '.');
+    if (!dot || (dot < strrchr(dest, '/')))
+        dot = dest + strnlen(dest, 256);
+    snprintf(dot, 16, ".%s", force_legit ? "legit.cia" : "cia");
+
+    if (!CheckWritePermissions(dest)) return 1;
+    f_unlink(dest); // remove the file if it already exists
+
+    // ensure the output dir exists
+    if (fvx_rmkdir(OUTPUT_PATH) != FR_OK)
+        return 1;
+
+    // build CIA from game file
+    if (filetype & GAME_TIE)
+        ret = BuildCiaFromTieFile(path, dest, force_legit);
+    else if (filetype & GAME_TMD)
+        ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & FLAG_NUSCDN);
+    else if (filetype & GAME_NCCH)
+        ret = BuildInstallFromNcchFile(path, dest, false);
+    else if (filetype & GAME_NCSD)
+        ret = BuildInstallFromNcsdFile(path, dest, false);
+    else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW))
+        ret = BuildInstallFromNdsFile(path, dest, false);
+    else ret = 1;
+
+    if (ret != 0) // try to get rid of the borked file
+        f_unlink(dest);
+
+    return ret;
 }
 
 u32 InstallGameFile(const char* path, bool to_emunand) {
