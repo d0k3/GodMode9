@@ -33,8 +33,7 @@ typedef struct {
     TwlHeader ntr_header;
     u8 ntr_padding[0x3000]; // 0x00
     u8 secure_area[0x4000];
-    TwlHeader twl_header;
-    u8 twl_padding[0x3000]; // 0x00
+    u8 secure_area_enc[0x4000];
     u8 modcrypt_area[0x4000];
     u32 cart_type;
     u32 cart_id;
@@ -45,7 +44,8 @@ typedef struct {
     u32 arm9i_rom_offset;
 } PACKED_ALIGN(16) CartDataNtrTwl;
 
-DsTime init_time;
+static DsTime init_time;
+static bool encrypted_sa = false;
 
 u32 GetCartName(char* name, CartData* cdata) {
     if (cdata->cart_type & CART_CTR) {
@@ -86,8 +86,14 @@ u32 GetCartInfoString(char* info, CartData* cdata) {
     return 0;
 }
 
+u32 SetSecureAreaEncryption(bool encrypted) {
+    encrypted_sa = encrypted;
+    return 0;
+}
+
 u32 InitCartRead(CartData* cdata) {
     get_dstime(&init_time);
+    encrypted_sa = false;
     memset(cdata, 0x00, sizeof(CartData));
     cdata->cart_type = CART_NONE;
     if (!CART_INSERTED) return 1;
@@ -153,9 +159,11 @@ u32 InitCartRead(CartData* cdata) {
     } else { // NTR/TWL cartridges
         // NTR header
         TwlHeader* nds_header = (void*)cdata->header;
+        u8 secure_area_enc[0x4000];
         NTR_CmdReadHeader(cdata->header);
         if (!(*(cdata->header))) return 1; // error reading the header
-        if (!NTR_Secure_Init(cdata->header, Cart_GetID(), 0)) return 1;
+        if (!NTR_Secure_Init(cdata->header, secure_area_enc, Cart_GetID(), 0)) return 1;
+
 
         // cartridge size, trimmed size, twl presets
         if (nds_header->device_capacity >= 15) return 1; // too big, not valid
@@ -177,10 +185,13 @@ u32 InitCartRead(CartData* cdata) {
             // We'll only want to use TWL secure init if this is a TWL cartridge.
             if (cdata->cart_id & 0x40000000U) { // TWL cartridge
                 Cart_Init();
-                NTR_CmdReadHeader(cdata->twl_header);
-                if (!NTR_Secure_Init(cdata->twl_header, Cart_GetID(), 1)) return 1;
+                NTR_CmdReadHeader(cdata->storage);
+                if (!NTR_Secure_Init(cdata->storage, NULL, Cart_GetID(), 1)) return 1;
             }
         }
+
+        // store encrypted secure area
+        memcpy(cdata->storage, secure_area_enc, 0x4000);
 
         // last safety check
         if (cdata->data_size > cdata->cart_size) return 1;
@@ -199,7 +210,7 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
     u8* buffer8 = (u8*) buffer;
     if (!CART_INSERTED) return 1;
     // header
-    u32 header_sectors = (cdata->cart_type & CART_CTR) ? 0x4000/0x200 : 0x8000/0x200;
+    const u32 header_sectors = 0x4000/0x200;
     if (sector < header_sectors) {
         u32 header_count = (sector + count > header_sectors) ? header_sectors - sector : count;
         memcpy(buffer8, cdata->header + (sector * 0x200), header_count * 0x200);
@@ -219,6 +230,7 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
             CTR_CmdReadData(sector + i, 0x200, min(max_read, count - i), buff);
             buff += max_read * 0x200;
         }
+
         // overwrite the card2 savegame with 0xFF
         u32 card2_offset = getle32(cdata->header + 0x200);
         if ((card2_offset != 0xFFFFFFFF) &&
@@ -231,9 +243,24 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
         }
     } else if (cdata->cart_type & CART_NTR) {
         u8* buff = buffer8;
+
+        // secure area handling
+        const u32 sa_sector_end = 0x8000/0x200;
+        if (sector < sa_sector_end) {
+            CartDataNtrTwl* cdata_twl = (CartDataNtrTwl*) cdata;
+            u8* sa = encrypted_sa ? cdata_twl->secure_area_enc : cdata_twl->secure_area;
+            u32 count_sa = ((sector + count) > sa_sector_end) ?  sa_sector_end - sector : count;
+            memcpy(buff, sa + ((sector - header_sectors) * 0x200), count_sa * 0x200);
+            buff += count_sa * 0x200;
+            sector += count_sa;
+            count -= count_sa;
+        }
+
+        // regular cart data
         u32 off = sector * 0x200;
         for (u32 i = 0; i < count; i++, off += 0x200, buff += 0x200)
             NTR_CmdReadData(off, buff);
+
         // modcrypt area handling
         if ((cdata->cart_type & CART_TWL) &&
             ((sector+count) * 0x200 > cdata->arm9i_rom_offset) &&
@@ -248,7 +275,7 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
             size_i = MODC_AREA_SIZE - offset_i;
             if (size_i > (count * 0x200) - (buffer_arm9i - buffer8))
                 size_i = (count * 0x200) - (buffer_arm9i - buffer8);
-            if (size_i) memcpy(buffer_arm9i, cdata->twl_header + 0x4000 + offset_i, size_i);
+            if (size_i) memcpy(buffer_arm9i, cdata->storage + 0x4000 + offset_i, size_i);
         }
     } else return 1;
     return 0;

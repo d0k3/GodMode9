@@ -15,5 +15,5 @@ void NTR_CmdEnter16ByteMode(void);
 void NTR_CmdReadHeader (u8* buffer);
 void NTR_CmdReadData (u32 offset, void* buffer);
 
-bool NTR_Secure_Init (u8* buffer, u32 CartID, int iCardDevice);
+bool NTR_Secure_Init (u8* buffer, u8* sa_copy, u32 CartID, int iCardDevice);
 

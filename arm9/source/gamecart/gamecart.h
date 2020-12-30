@@ -14,7 +14,7 @@
 
 typedef struct {
     u8  header[0x8000]; // NTR header + secure area / CTR header + private header
-    u8  twl_header[0x8000]; // TWL header + modcrypt area / unused
+    u8  storage[0x8000]; // encrypted secure area + modcrypt area / unused
     u32 cart_type;
     u32 cart_id;
     u64 cart_size;
@@ -26,6 +26,7 @@ typedef struct {
 
 u32 GetCartName(char* name, CartData* cdata);
 u32 GetCartInfoString(char* info, CartData* cdata);
+u32 SetSecureAreaEncryption(bool encrypted);
 u32 InitCartRead(CartData* cdata);
 u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata);
 u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata);

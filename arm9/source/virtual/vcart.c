@@ -2,6 +2,7 @@
 #include "gamecart.h"
 
 #define FAT_LIMIT   0x100000000
+#define VFLAG_SECURE_AREA_ENC   (1UL<<27)
 #define VFLAG_GAMECART_NFO      (1UL<<28)
 #define VFLAG_JEDECID_AND_SRFG  (1UL<<29)
 #define VFLAG_SAVEGAME          (1UL<<30)
@@ -34,7 +35,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     vfile->keyslot = 0xFF; // unused
     vfile->flags = VFLAG_READONLY;
 
-    while (++vdir->index <= 8) {
+    while (++vdir->index <= 9) {
         if ((vdir->index == 0) && (cdata->data_size < FAT_LIMIT)) { // standard full rom
             snprintf(vfile->name, 32, "%s.%s", name, ext);
             vfile->size = cdata->cart_size;
@@ -53,24 +54,31 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->size = (FAT_LIMIT / 2);
             vfile->offset = (FAT_LIMIT / 2);
             return true;
-        } else if ((vdir->index == 5) && (cdata->cart_type & CART_CTR)) { // private header
+        } else if ((vdir->index == 5) && (cdata->data_size < FAT_LIMIT) &&
+            (cdata->cart_type & CART_NTR)) { // encrypted secure area
+            snprintf(vfile->name, 32, "%s.nds.enc", name);
+            vfile->size = cdata->cart_size;
+            if (vfile->size == FAT_LIMIT) vfile->size--;
+            vfile->flags = VFLAG_SECURE_AREA_ENC;
+            return true;
+        } else if ((vdir->index == 6) && (cdata->cart_type & CART_CTR)) { // private header
             snprintf(vfile->name, 32, "%s-priv.bin", name);
             vfile->size = PRIV_HDR_SIZE;
             vfile->flags |= VFLAG_PRIV_HDR;
             return true;
-        } else if ((vdir->index == 6) && (cdata->save_size > 0)) { // savegame
+        } else if ((vdir->index == 7) && (cdata->save_size > 0)) { // savegame
             snprintf(vfile->name, 32, "%s.sav", name);
             vfile->size = cdata->save_size;
             vfile->flags = VFLAG_SAVEGAME;
             return true;
-        } else if (vdir->index == 7) { // gamecart info
+        } else if (vdir->index == 8) { // gamecart info
             char info[256];
             GetCartInfoString(info, cdata);
             snprintf(vfile->name, 32, "%s.txt", name);
             vfile->size = strnlen(info, 255);
             vfile->flags |= VFLAG_GAMECART_NFO;
             return true;
-        } else if ((vdir->index == 8) && cdata->save_type.chip) { // JEDEC id and status register
+        } else if ((vdir->index == 9) && cdata->save_type.chip) { // JEDEC id and status register
             strcpy(vfile->name, "jedecid_and_sreg.bin");
             vfile->size = JEDECID_AND_SREG_SIZE;
             vfile->flags |= VFLAG_JEDECID_AND_SRFG;
@@ -84,6 +92,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
 int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     u32 foffset = vfile->offset + offset;
     if (!cdata) return -1;
+
     if (vfile->flags & VFLAG_PRIV_HDR)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_SAVEGAME)
@@ -92,7 +101,9 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         return ReadCartInfo(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_JEDECID_AND_SRFG)
         return ReadCartSaveJedecId(buffer, foffset, count, cdata);
-    else return ReadCartBytes(buffer, foffset, count, cdata);
+
+    SetSecureAreaEncryption(vfile->flags & VFLAG_SECURE_AREA_ENC);
+    return ReadCartBytes(buffer, foffset, count, cdata);
 }
 
 int WriteVCartFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {

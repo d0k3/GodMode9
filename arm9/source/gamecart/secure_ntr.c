@@ -231,7 +231,7 @@ void NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd)
     cardPolledTransfer (flags, buffer, length, pcmd);
 }
 
-bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
+bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
 {
     u32 iGameCode;
     u32 iCardHash[0x412] = {0};
@@ -329,6 +329,7 @@ bool NTR_Secure_Init (u8* header, u32 CartID, int iCardDevice)
     NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
 
     //CycloDS doesn't like the dsi secure area being decrypted
+    if (sa_copy) memcpy(sa_copy, secureArea, 0x4000);
     if(!iCardDevice && ((nds9Offset != 0x4000) || secureArea[0] || secureArea[1]))
     {
         NTR_DecryptSecureArea (iGameCode, iCardHash, nCardHash, iKeyCode, secureArea, iCardDevice);
