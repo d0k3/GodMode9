@@ -512,8 +512,9 @@ bool expand_arg(char* argex, const char* arg, u32 len) {
         u32 out_len = out - argex;
         if (out_len >= (_ARG_MAX_LEN-1)) return false; // maximum arglen reached
 
-        if (*in == '\\') { // escape line breaks
+        if (*in == '\\') { // escape line breaks & quotes
             if (*(++in) == 'n') *(out++) = '\n';
+            else if (*in == '\"') *(out++) = '\"';
             else {
                 *(out++) = '\\';
                 *(out++) = *in;
@@ -597,7 +598,7 @@ char* get_string(char* ptr, const char* line_end, u32* len, char** next, char* e
     // handle string
     if (*ptr == '\"') { // quotes
         str = ++ptr;
-        for (; (*ptr != '\"') && (ptr < line_end); ptr++, (*len)++);
+        for (; ((*ptr != '\"') || (*(ptr-1) == '\\')) && (ptr < line_end); ptr++, (*len)++);
         if (ptr >= line_end) { // failed if unresolved quotes
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "unresolved quotes");
             return NULL;
