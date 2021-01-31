@@ -221,7 +221,11 @@ u32 InitCartRead(CartData* cdata) {
                 cdata->save_type = CARD_SAVE_NONE;
             }
         } else {
-            cdata->spi_save_type = CardSPIGetCardSPIType(false);
+            cdata->spi_save_type = (CardSPIType) { FLASH_CTR_GENERIC, false };
+            cdata->save_size = CardSPIGetCapacity(cdata->spi_save_type);
+            if (cdata->save_size == 0) {
+                cdata->spi_save_type = (CardSPIType) { NO_CHIP, false };
+            }
             if (cdata->spi_save_type.chip == NO_CHIP) {
                 cdata->save_type = CARD_SAVE_NONE;
             } else {

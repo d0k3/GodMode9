@@ -37,7 +37,7 @@ struct CardSPITypeData {
     int (*readSaveData) (CardSPIType type, u32 offset, void* data, u32 size);
     int (*writeSaveData) (CardSPIType type, u32 offset, const void* data, u32 size);
     int (*eraseSector) (CardSPIType type, u32 offset);
-    u32 jedecId;
+    u16 jedecId;
     u32 capacity;
     u32 eraseSize;
     u32 pageSize;
@@ -55,16 +55,12 @@ extern const CardSPITypeData * const EEPROM_8KB;
 extern const CardSPITypeData * const EEPROM_64KB;
 extern const CardSPITypeData * const EEPROM_128KB;
 
-extern const CardSPITypeData * const FLASH_256KB_1;
-extern const CardSPITypeData * const FLASH_256KB_2;
-extern const CardSPITypeData * const FLASH_512KB_1;
-extern const CardSPITypeData * const FLASH_512KB_2;
-extern const CardSPITypeData * const FLASH_1MB;
+extern const CardSPITypeData * const FLASH_NTR_GENERIC; // Most common flash chip in DS games, in 3 different sizes
+extern const CardSPITypeData * const FLASH_256KB;
+extern const CardSPITypeData * const FLASH_512KB;
 extern const CardSPITypeData * const FLASH_8MB;
 
-extern const CardSPITypeData * const FLASH_128KB_CTR; // Most common, including Ocarina of time 3D
-extern const CardSPITypeData * const FLASH_512KB_CTR; // Also common, including Detective Pikachu
-extern const CardSPITypeData * const FLASH_1MB_CTR; // For example Pokemon Ultra Sun
+extern const CardSPITypeData * const FLASH_CTR_GENERIC; // Handles each 3ds cartridge the exact same
 
 int CardSPIWriteRead(bool infrared, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
 int CardSPIWaitWriteEnd(bool infrared, u32 timeout);
