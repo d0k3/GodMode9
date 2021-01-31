@@ -90,7 +90,7 @@ u64 IdentifyFileType(const char* path) {
             else if (fsize >= TMD_SIZE_N(getbe16(header + 0x1DE)))
                 return GAME_TMD; // TMD file
         } else if (ValidateTicket((Ticket*) data) == 0) {
-            return GAME_TICKET; // Ticket file (not used for anything right now)
+            return GAME_TICKET; // Ticket file
         } else if (ValidateFirmHeader((FirmHeader*) data, fsize) == 0) {
             return SYS_FIRM; // FIRM file
         } else if ((ValidateAgbSaveHeader((AgbSaveHeader*) data) == 0) && (fsize >= AGBSAVE_MAX_SIZE)) {

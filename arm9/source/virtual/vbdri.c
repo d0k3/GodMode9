@@ -9,10 +9,10 @@
 #define VBDRI_MAX_ENTRIES   8192 // Completely arbitrary
 
 #define VFLAG_UNKNOWN       (1UL<<28)
-#define VFLAG_HOMEBREW      (1UL<<29)
+#define VFLAG_ILLEGIT       (1UL<<29)
 #define VFLAG_ESHOP         (1UL<<30)
 #define VFLAG_SYSTEM        (1UL<<31)
-#define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_HOMEBREW|VFLAG_ESHOP|VFLAG_SYSTEM)
+#define VFLAG_TICKDIR       (VFLAG_UNKNOWN|VFLAG_ILLEGIT|VFLAG_ESHOP|VFLAG_SYSTEM)
 
 #define NAME_TIE            "%016llX"
 #define NAME_TIE_LEN        16
@@ -30,10 +30,10 @@ typedef struct {
 
 // only for the main directory
 static const VirtualFile VTickDbFileTemplates[] = {
-    { "system"  , 0x00000000, 0x00000000, 0xFF, VFLAG_DIR | VFLAG_SYSTEM },
-    { "homebrew", 0x00000000, 0x00000000, 0xFF, VFLAG_DIR | VFLAG_HOMEBREW },
     { "eshop"   , 0x00000000, 0x00000000, 0xFF, VFLAG_DIR | VFLAG_ESHOP },
+    { "system"  , 0x00000000, 0x00000000, 0xFF, VFLAG_DIR | VFLAG_SYSTEM },
     { "unknown" , 0x00000000, 0x00000000, 0xFF, VFLAG_DIR | VFLAG_UNKNOWN },
+    { "illegit" , 0x00000000, 0x00000000, 0xFF, VFLAG_DIR | VFLAG_ILLEGIT },
 };
 
 static bool is_tickdb;
@@ -74,8 +74,10 @@ bool SortVBDRITickets() {
             tick_info = NULL;
             return false;
         }
-        tick_info[i].type = (ticket->commonkey_idx > 1) ? 3 :
-            ((ValidateTicketSignature(ticket) != 0) ? 1 : ((ticket->commonkey_idx == 1) ? 2 : 0));
+        tick_info[i].type =
+            (ValidateTicketSignature(ticket) != 0) ? 3 : // illegit
+            (ticket->commonkey_idx > 1) ? 2 : // unknown
+            ticket->commonkey_idx; // eshop (0) / system (1)
         tick_info[i].size = GetTicketSize(ticket);
         memcpy(tick_info[i].console_id, ticket->console_id, 4);
         free(ticket);
@@ -128,10 +130,10 @@ bool ReadVBDRIDir(VirtualFile* vfile, VirtualDir* vdir) {
             u64 tid = getbe64(title_ids + (vdir->index * 8));
 
             if ((tid == 0) || !(
-                ((vdir->flags & VFLAG_ESHOP) && (type == 0)) ||
-                ((vdir->flags & VFLAG_HOMEBREW) && (type == 1)) ||
-                ((vdir->flags & VFLAG_SYSTEM) && (type == 2)) ||
-                ((vdir->flags & VFLAG_UNKNOWN) && (type == 3))))
+                ((vdir->flags & VFLAG_ESHOP)   && (type == 0)) ||
+                ((vdir->flags & VFLAG_SYSTEM)  && (type == 1)) ||
+                ((vdir->flags & VFLAG_UNKNOWN) && (type == 2)) ||
+                ((vdir->flags & VFLAG_ILLEGIT) && (type == 3))))
                 continue;
 
             memset(vfile, 0, sizeof(VirtualFile));
