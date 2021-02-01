@@ -257,7 +257,8 @@ FRESULT worker_fvx_rmkdir (TCHAR* tpath) {
 FRESULT fvx_rmkdir (const TCHAR* path) {
     #if !_LFN_UNICODE // this will not work for unicode
     TCHAR tpath[_MAX_FN_LEN+1];
-    strncpy(tpath, path, _MAX_FN_LEN);
+    if (strlen(path) > _MAX_FN_LEN) return FR_INVALID_NAME;
+    strcpy(tpath, path);
     return worker_fvx_rmkdir( tpath );
     #else
     return FR_DENIED;
@@ -267,7 +268,8 @@ FRESULT fvx_rmkdir (const TCHAR* path) {
 FRESULT fvx_rmkpath (const TCHAR* path) {
     #if !_LFN_UNICODE // this will not work for unicode
     TCHAR tpath[_MAX_FN_LEN+1];
-    strncpy(tpath, path, _MAX_FN_LEN);
+    if (strlen(path) > _MAX_FN_LEN) return FR_INVALID_NAME;
+    strcpy(tpath, path);
     TCHAR* slash = strrchr(tpath, '/');
     if (!slash) return FR_DENIED;
     *slash = '\0';
@@ -295,7 +297,7 @@ FRESULT worker_fvx_runlink (TCHAR* tpath) {
         while (fvx_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
-            strncpy(fname, fno.fname, tpath + 255 - fname);
+            strcpy(fname, fno.fname);
             if (fno.fname[0] == 0) {
                 break;
             } else { // return value won't matter
@@ -313,7 +315,8 @@ FRESULT worker_fvx_runlink (TCHAR* tpath) {
 FRESULT fvx_runlink (const TCHAR* path) {
     #if !_LFN_UNICODE // this will not work for unicode
     TCHAR tpath[_MAX_FN_LEN+1];
-    strncpy(tpath, path, _MAX_FN_LEN);
+    if (strlen(path) > _MAX_FN_LEN) return FR_INVALID_NAME;
+    strcpy(tpath, path);
     return worker_fvx_runlink( tpath );
     #else
     return FR_DENIED;
@@ -356,7 +359,8 @@ FRESULT fvx_preaddir (DIR* dp, FILINFO* fno, const TCHAR* pattern) {
 }
 
 FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode) {
-    strncpy(path, pattern, _MAX_FN_LEN);
+    if (strlen(pattern) > _MAX_FN_LEN) return FR_INVALID_NAME;
+    strcpy(path, pattern);
     TCHAR* fname = strrchr(path, '/');
     if (!fname) return FR_DENIED;
     *fname = '\0';
@@ -376,7 +380,7 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode) {
     while ((fvx_preaddir(&pdir, &fno, npattern) == FR_OK) && *(fno.fname)) {
         int cmp = strncmp(fno.fname, fname, _MAX_FN_LEN);
         if (((mode & FN_HIGHEST) && (cmp > 0)) || ((mode & FN_LOWEST) && (cmp < 0)) || !(*fname))
-            strncpy(fname, fno.fname, _MAX_FN_LEN - (fname - path));
+            strcpy(fname, fno.fname);
         if (!(mode & (FN_HIGHEST|FN_LOWEST))) break;
     }
     fvx_closedir( &pdir );
@@ -385,7 +389,8 @@ FRESULT fvx_findpath (TCHAR* path, const TCHAR* pattern, BYTE mode) {
 }
 
 FRESULT fvx_findnopath (TCHAR* path, const TCHAR* pattern) {
-    strncpy(path, pattern, _MAX_FN_LEN);
+    if (strlen(pattern) > _MAX_FN_LEN) return FR_INVALID_NAME;
+    strcpy(path, pattern);
     TCHAR* fname = strrchr(path, '/');
     if (!fname) return FR_DENIED;
     fname++;
