@@ -12,6 +12,13 @@
 #define PRIV_HDR_SIZE           0x50
 #define JEDECID_AND_SREG_SIZE   0x4
 
+typedef enum CardSaveType {
+    CARD_SAVE_NONE,
+    CARD_SAVE_SPI,
+    CARD_SAVE_CARD2,
+    CARD_SAVE_RETAIL_NAND,
+} CardSaveType;
+
 typedef struct {
     u8  header[0x8000]; // NTR header + secure area / CTR header + private header
     u8  storage[0x8000]; // encrypted secure area + modcrypt area / unused
@@ -20,7 +27,8 @@ typedef struct {
     u64 cart_size;
     u64 data_size;
     u32 save_size;
-    CardSPIType save_type;
+    CardSaveType save_type;
+    CardSPIType spi_save_type; // Specific data for SPI save 
     u32 arm9i_rom_offset; // TWL specific
 } PACKED_ALIGN(16) CartData;
 
@@ -34,4 +42,3 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata);
 u32 WriteCartSave(const u8* buffer, u64 offset, u64 count, CartData* cdata);
-u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata);

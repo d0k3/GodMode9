@@ -152,10 +152,18 @@ u32 InitCartRead(CartData* cdata) {
 
         // save data
         u32 card2_offset = getle32(cdata->header + 0x200);
-        if ((card2_offset != 0xFFFFFFFF) || (CardSPIGetCardSPIType(&(cdata->save_type), 0) != 0)) {
-            cdata->save_type = (CardSPIType) { NO_CHIP, false };
+        if (card2_offset != 0xFFFFFFFF) {
+            cdata->save_type = CARD_SAVE_CARD2;
+            cdata->save_size = cdata->cart_size - card2_offset * NCSD_MEDIA_UNIT;
+        } else {
+            cdata->spi_save_type = CardSPIGetCardSPIType(false);
+            if (cdata->spi_save_type.chip == NO_CHIP) {
+                cdata->save_type = CARD_SAVE_NONE;
+            } else {
+                cdata->save_type = CARD_SAVE_SPI;
+                cdata->save_size = CardSPIGetCapacity(cdata->spi_save_type);
+            }
         }
-        cdata->save_size = CardSPIGetCapacity(cdata->save_type);
     } else { // NTR/TWL cartridges
         // NTR header
         TwlHeader* nds_header = (void*)cdata->header;
@@ -198,10 +206,13 @@ u32 InitCartRead(CartData* cdata) {
 
         // save data
         bool infrared = *(nds_header->game_code) == 'I';
-        if (CardSPIGetCardSPIType(&(cdata->save_type), infrared) != 0) {
-            cdata->save_type = (CardSPIType) { NO_CHIP, false };
+        cdata->spi_save_type = CardSPIGetCardSPIType(infrared);
+        if (cdata->spi_save_type.chip == NO_CHIP) {
+            cdata->save_type = CARD_SAVE_NONE;
+        } else {
+            cdata->save_type = CARD_SAVE_SPI;
+            cdata->save_size = CardSPIGetCapacity(cdata->spi_save_type);
         }
-        cdata->save_size = CardSPIGetCapacity(cdata->save_type);
     }
     return 0;
 }
@@ -336,27 +347,11 @@ u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
 u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
-    return (CardSPIReadSaveData(cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;
+    return (CardSPIReadSaveData(cdata->spi_save_type, offset, buffer, count) == 0) ? 0 : 1;
 }
 
 u32 WriteCartSave(const u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
-    return (CardSPIWriteSaveData(cdata->save_type, offset, buffer, count) == 0) ? 0 : 1;
-}
-
-u32 ReadCartSaveJedecId(u8* buffer, u64 offset, u64 count, CartData* cdata) {
-    u8 ownBuf[JEDECID_AND_SREG_SIZE] = { 0 };
-    u32 id;
-    u8 sReg;
-    if (offset >= JEDECID_AND_SREG_SIZE) return 1;
-    if (offset + count > JEDECID_AND_SREG_SIZE) count = JEDECID_AND_SREG_SIZE - offset;
-    int res = CardSPIReadJEDECIDAndStatusReg(cdata->save_type, &id, &sReg);
-    if (res) return res;
-    ownBuf[0] = (id >> 16) & 0xff;
-    ownBuf[1] = (id >> 8) & 0xff;
-    ownBuf[2] = id & 0xff;
-    ownBuf[JEDECID_AND_SREG_SIZE - 1] = sReg;
-    memcpy(buffer, ownBuf + offset, count);
-    return 0;
+    return (CardSPIWriteSaveData(cdata->spi_save_type, offset, buffer, count) == 0) ? 0 : 1;
 }

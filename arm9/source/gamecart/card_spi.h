@@ -66,11 +66,11 @@ extern const CardSPITypeData * const FLASH_128KB_CTR; // Most common, including 
 extern const CardSPITypeData * const FLASH_512KB_CTR; // Also common, including Detective Pikachu
 extern const CardSPITypeData * const FLASH_1MB_CTR; // For example Pokemon Ultra Sun
 
-int CardSPIWriteRead(CardSPIType type, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
-int CardSPIWaitWriteEnd(CardSPIType type, u32 timeout);
+int CardSPIWriteRead(bool infrared, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);
+int CardSPIWaitWriteEnd(bool infrared, u32 timeout);
 int CardSPIEnableWriting(CardSPIType type);
-int CardSPIReadJEDECIDAndStatusReg(CardSPIType type, u32* id, u8* statusReg);
-int CardSPIGetCardSPIType(CardSPIType* type, bool infrared);
+int CardSPIReadJEDECIDAndStatusReg(bool infrared, u32* id, u8* statusReg);
+CardSPIType CardSPIGetCardSPIType(bool infrared);
 u32 CardSPIGetPageSize(CardSPIType type);
 u32 CardSPIGetCapacity(CardSPIType type);
 u32 CardSPIGetEraseSize(CardSPIType type);
