@@ -2,9 +2,8 @@
 #include "gamecart.h"
 
 #define FAT_LIMIT   0x100000000
-#define VFLAG_SECURE_AREA_ENC   (1UL<<27)
-#define VFLAG_GAMECART_NFO      (1UL<<28)
-#define VFLAG_JEDECID_AND_SRFG  (1UL<<29)
+#define VFLAG_SECURE_AREA_ENC   (1UL<<28)
+#define VFLAG_GAMECART_NFO      (1UL<<29)
 #define VFLAG_SAVEGAME          (1UL<<30)
 #define VFLAG_PRIV_HDR          (1UL<<31)
 
@@ -66,7 +65,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->size = PRIV_HDR_SIZE;
             vfile->flags |= VFLAG_PRIV_HDR;
             return true;
-        } else if ((vdir->index == 7) && (cdata->save_size > 0)) { // savegame
+        } else if ((vdir->index == 7) && (cdata->save_type != CARD_SAVE_NONE)) { // savegame
             snprintf(vfile->name, 32, "%s.sav", name);
             vfile->size = cdata->save_size;
             vfile->flags = VFLAG_SAVEGAME;
@@ -77,11 +76,6 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             snprintf(vfile->name, 32, "%s.txt", name);
             vfile->size = strnlen(info, 255);
             vfile->flags |= VFLAG_GAMECART_NFO;
-            return true;
-        } else if ((vdir->index == 9) && cdata->save_type.chip) { // JEDEC id and status register
-            strcpy(vfile->name, "jedecid_and_sreg.bin");
-            vfile->size = JEDECID_AND_SREG_SIZE;
-            vfile->flags |= VFLAG_JEDECID_AND_SRFG;
             return true;
         }
     }
@@ -99,8 +93,6 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         return ReadCartSave(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_GAMECART_NFO)
         return ReadCartInfo(buffer, foffset, count, cdata);
-    else if (vfile->flags & VFLAG_JEDECID_AND_SRFG)
-        return ReadCartSaveJedecId(buffer, foffset, count, cdata);
 
     SetSecureAreaEncryption(vfile->flags & VFLAG_SECURE_AREA_ENC);
     return ReadCartBytes(buffer, foffset, count, cdata);
