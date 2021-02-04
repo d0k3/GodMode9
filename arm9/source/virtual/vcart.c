@@ -69,6 +69,9 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             snprintf(vfile->name, 32, "%s.sav", name);
             vfile->size = cdata->save_size;
             vfile->flags = VFLAG_SAVEGAME;
+            if (cdata->save_type == CARD_SAVE_CARD2) {
+                vfile->flags |= VFLAG_READONLY;
+            }
             return true;
         } else if (vdir->index == 8) { // gamecart info
             char info[256];
@@ -95,7 +98,7 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         return ReadCartInfo(buffer, foffset, count, cdata);
 
     SetSecureAreaEncryption(vfile->flags & VFLAG_SECURE_AREA_ENC);
-    return ReadCartBytes(buffer, foffset, count, cdata);
+    return ReadCartBytes(buffer, foffset, count, cdata, true);
 }
 
 int WriteVCartFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {

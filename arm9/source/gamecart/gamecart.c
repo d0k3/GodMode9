@@ -217,7 +217,7 @@ u32 InitCartRead(CartData* cdata) {
     return 0;
 }
 
-u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
+u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool card2_blanking) {
     u8* buffer8 = (u8*) buffer;
     if (!CART_INSERTED) return 1;
     // header
@@ -244,7 +244,8 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
 
         // overwrite the card2 savegame with 0xFF
         u32 card2_offset = getle32(cdata->header + 0x200);
-        if ((card2_offset != 0xFFFFFFFF) &&
+        if (card2_blanking &&
+            (card2_offset != 0xFFFFFFFF) &&
             ((card2_offset * 0x200) >= cdata->data_size) &&
             (sector + count > card2_offset)) {
             if (sector > card2_offset)
@@ -292,16 +293,16 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata) {
     return 0;
 }
 
-u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata) {
+u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata, bool card2_blanking) {
     if (!(offset % 0x200) && !(count % 0x200)) { // aligned data -> simple case
         // simple wrapper function for ReadCartSectors(...)
-        return ReadCartSectors(buffer, offset / 0x200, count / 0x200, cdata);
+        return ReadCartSectors(buffer, offset / 0x200, count / 0x200, cdata, card2_blanking);
     } else { // misaligned data -> -___-
         u8* buffer8 = (u8*) buffer;
         u8 l_buffer[0x200];
         if (offset % 0x200) { // handle misaligned offset
             u32 offset_fix = 0x200 - (offset % 0x200);
-            if (ReadCartSectors(l_buffer, offset / 0x200, 1, cdata) != 0) return 1;
+            if (ReadCartSectors(l_buffer, offset / 0x200, 1, cdata, card2_blanking) != 0) return 1;
             memcpy(buffer8, l_buffer + 0x200 - offset_fix, min(offset_fix, count));
             if (count <= offset_fix) return 0;
             offset += offset_fix;
@@ -309,11 +310,11 @@ u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata) {
             count -= offset_fix;
         } // offset is now aligned and part of the data is read
         if (count >= 0x200) { // otherwise this is misaligned and will be handled below
-            if (ReadCartSectors(buffer8, offset / 0x200, count / 0x200, cdata) != 0) return 1;
+            if (ReadCartSectors(buffer8, offset / 0x200, count / 0x200, cdata, card2_blanking) != 0) return 1;
         }
         if (count % 0x200) { // handle misaligned count
             u32 count_fix = count % 0x200;
-            if (ReadCartSectors(l_buffer, (offset + count) / 0x200, 1, cdata) != 0) return 1;
+            if (ReadCartSectors(l_buffer, (offset + count) / 0x200, 1, cdata, card2_blanking) != 0) return 1;
             memcpy(buffer8 + count - count_fix, l_buffer, count_fix);
         }
         return 0;
@@ -347,7 +348,19 @@ u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
 u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
-    return (CardSPIReadSaveData(cdata->spi_save_type, offset, buffer, count) == 0) ? 0 : 1;
+    switch (cdata->save_type) {
+    case CARD_SAVE_SPI:
+        return (CardSPIReadSaveData(cdata->spi_save_type, offset, buffer, count) == 0) ? 0 : 1;
+        break;
+
+    case CARD_SAVE_CARD2:
+        return ReadCartBytes(buffer, cdata->cart_size - cdata->save_size + offset, count, cdata, false);
+        break;
+
+    default:
+        return 1;
+        break;
+    }
 }
 
 u32 WriteCartSave(const u8* buffer, u64 offset, u64 count, CartData* cdata) {
