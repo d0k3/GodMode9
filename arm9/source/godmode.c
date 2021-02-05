@@ -2194,7 +2194,7 @@ u32 GodMode(int entrypoint) {
     const u32 quick_stp = (MAIN_SCREEN == TOP_SCREEN) ? 20 : 19;
     u32 exit_mode = GODMODE_EXIT_POWEROFF;
 
-    char current_path[256] = { 0x00 };
+    char current_path[256] = { 0x00 }; // don't change this size!
     u32 cursor = 0;
     u32 scroll = 0;
 

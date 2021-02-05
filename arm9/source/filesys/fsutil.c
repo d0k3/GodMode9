@@ -606,8 +606,8 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
     int odrvtype = DriveType(orig);
     char ldest[256]; // 256 is the maximum length of a full path
     char lorig[256];
-    strncpy(ldest, dest, 255);
-    strncpy(lorig, orig, 255);
+    strncpy(ldest, dest, 256);
+    strncpy(lorig, orig, 256);
     char deststr[36 + 1];
     TruncateString(deststr, ldest, 36, 8);
 
@@ -883,6 +883,7 @@ bool FileSelector(char* result, const char* text, const char* path, const char* 
     void* buffer = (void*) malloc(sizeof(DirStruct));
     if (!buffer) return false;
 
+    // for this to work, result needs to be at least 256 bytes in size
     bool ret = FileSelectorWorker(result, text, path, pattern, flags, buffer, new_style);
     free(buffer);
     return ret;

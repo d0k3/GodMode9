@@ -774,7 +774,7 @@ bool for_handler(char* path, const char* dir, const char* pattern, bool recursiv
         snprintf(path, 256, "%s/%.254s", ldir, fno.fname);
         if (rec && (fno.fattrib & AM_DIR) && (dp - fdir < _MAX_FOR_DEPTH - 1)) {
             if (fvx_opendir(++dp, path) != FR_OK) dp--;
-            else strncpy(ldir, path, 255);
+            else strncpy(ldir, path, 256);
         }
     } else return false;
 

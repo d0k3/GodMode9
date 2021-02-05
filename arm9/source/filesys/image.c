@@ -74,6 +74,6 @@ u64 MountImage(const char* path) {
         return 0;
     fvx_lseek(&mount_file, 0);
     fvx_sync(&mount_file);
-    strncpy(mount_path, path, 255);
+    strncpy(mount_path, path, 256);
     return (mount_state = type);
 }

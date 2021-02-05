@@ -35,9 +35,9 @@ int alias_num (const TCHAR* path) {
 void dealias_path (TCHAR* alias, const TCHAR* path) {
     int num = alias_num(path);
     u32 p_offs = (path[2] == '/' && ((path[3] == '/') || (path[3] == '\0'))) ? 3 : 2;
-    if (num >= 0) // set alias (alias is assumed to be 256 byte)
+    if (num >= 0) // set alias (alias is assumed to be 256 byte!)
         snprintf(alias, 256, "%s%s", alias_path[num], path + p_offs);
-    else strncpy(alias, path, 256);
+    else snprintf(alias, 256, "%s", path);
 }
 
 FilCryptInfo* fx_find_cryptinfo(FIL* fptr) {

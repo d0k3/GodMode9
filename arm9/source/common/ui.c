@@ -651,7 +651,7 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
 
             char content_str[64 + 1];
             char temp_str[256];
-            strncpy(temp_str, options[i]->name, 255);
+            strncpy(temp_str, options[i]->name, 256);
 
             char* dot = strrchr(temp_str, '.');
             if (hide_ext && dot) *dot = '\0';

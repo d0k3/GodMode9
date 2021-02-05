@@ -238,12 +238,14 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
 }
 
 u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
+    // path_content should be 256 bytes in size!
+    
     // get path to TMD first content
     static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
 
     // content path string
     char* name_content;
-    strncpy(path_content, path_tmd, 256);
+    snprintf(path_content, 255, "%s", path_tmd);
     path_content[255] = '\0';
     name_content = strrchr(path_content, '/');
     if (!name_content) return 1; // will not happen
@@ -2449,6 +2451,8 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr)
     strncpy(dest, path_out ? path_out : OUTPUT_PATH, 256);
     dest[255] = '\0';
     if (!CheckWritePermissions(dest)) return 1;
+
+    // extstr should be at least 16 bytes in size
 
     // NCSD handling
     u32 ncch_offset = 0;

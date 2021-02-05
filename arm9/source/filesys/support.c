@@ -115,6 +115,7 @@ bool CheckSupportDir(const char* dname)
 bool FileSelectorSupport(char* result, const char* text, const char* dname, const char* pattern)
 {
     char path[256];
+    // result needs to be at least 256 bytes long for this to work!
     if (!GetSupportDir(path, dname)) return false;
     return FileSelector(result, text, path, pattern, HIDE_EXT, false);
 }
