@@ -1095,6 +1095,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
     bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
         !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS) && !(drvtype & DRV_IMAGE);
+    bool tik_installable = (FTYPE_TIKINSTALL(filetype));
     bool uninstallable = (FTYPE_UNINSTALL(filetype));
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
@@ -1330,6 +1331,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int cia_build_legit = (cia_buildable_legit) ? ++n_opt : -1;
     int cxi_dump = (cxi_dumpable) ? ++n_opt : -1;
     int cia_install = (cia_installable) ? ++n_opt : -1;
+    int tik_install = (tik_installable) ? ++n_opt : -1;
     int uninstall = (uninstallable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
@@ -1364,6 +1366,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (cia_build_legit > 0) optionstr[cia_build_legit-1] = "Build CIA (legit)";
     if (cxi_dump > 0) optionstr[cxi_dump-1] = "Dump CXI/NDS file";
     if (cia_install > 0) optionstr[cia_install-1] = "Install game image";
+    if (tik_install > 0) optionstr[tik_install-1] = "Install ticket";
     if (uninstall > 0) optionstr[uninstall-1] = "Uninstall title";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
@@ -1572,7 +1575,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         }
         return 0;
     }
-    else if (user_select == cia_install) { // -> install game file
+    else if ((user_select == cia_install) || (user_select == tik_install)) { // -> install game/ticket file
+        bool install_tik = (user_select == tik_install);
         bool to_emunand = false;
         if (CheckVirtualDrive("E:")) {
             optionstr[0] = "Install to SysNAND";
@@ -1595,7 +1599,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (InstallGameFile(path, to_emunand) == 0) n_success++;
+                if ((!install_tik && (InstallGameFile(path, to_emunand) == 0)) ||
+                    (install_tik && (InstallTicketFile(path, to_emunand) == 0)))
+                    n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[32+1];
                     TruncateString(lpathstr, path, 32, 8);
@@ -1609,7 +1615,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     n_success, n_marked, n_other, n_marked);
             } else ShowPrompt(false, "%lu/%lu files installed ok", n_success, n_marked);
         } else {
-            u32 ret = InstallGameFile(file_path, to_emunand);
+            u32 ret = install_tik ? InstallTicketFile(file_path, to_emunand) :
+                InstallGameFile(file_path, to_emunand);
             ShowPrompt(false, "%s\nInstall %s", pathstr, (ret == 0) ? "success" : "failed");
             if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
                 ShowPrompt(true, "%s\nfile failed install.\n \nVerify now?", pathstr)) {

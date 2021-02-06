@@ -205,8 +205,30 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     return 0;
 }
 
-u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
+u32 LoadTicketFile(Ticket** ticket, const char* path_tik) {
     if(!ticket) return 1;
+
+    // load and check ticket
+    TicketMinimum tmp;
+    UINT br;
+    if ((fvx_qread(path_tik, &tmp, 0, TICKET_MINIMUM_SIZE, &br) != FR_OK) || (br != TICKET_MINIMUM_SIZE) ||
+        ValidateTicket((Ticket*)&tmp) != 0) return 1;
+
+    u32 tik_size = GetTicketSize((Ticket*)&tmp);
+
+    Ticket* tik = (Ticket*)malloc(tik_size);
+    if (!tik) return 1;
+
+    if ((fvx_qread(path_tik, tik, 0, tik_size, &br) != FR_OK) || (br != tik_size)) {
+        free(tik);
+        return 1;
+    }
+
+    *ticket = tik;
+    return 0;
+}
+
+u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
     // path points to CDN content file
     char path_cetk[256];
     strncpy(path_cetk, path_cnt, 256);
@@ -216,25 +238,8 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
     char* ext_cetk = strrchr(++name_cetk, '.');
     ext_cetk = (ext_cetk) ? ext_cetk + 1 : name_cetk;
     snprintf(ext_cetk, 256 - (ext_cetk - path_cetk), "cetk");
-
-    // load and check ticket
-    TicketMinimum tmp;
-    UINT br;
-    if ((fvx_qread(path_cetk, &tmp, 0, TICKET_MINIMUM_SIZE, &br) != FR_OK) || (br != TICKET_MINIMUM_SIZE) ||
-        ValidateTicket((Ticket*)&tmp) != 0) return 1;
-
-    u32 tik_size = GetTicketSize((Ticket*)&tmp);
-
-    Ticket* tik = (Ticket*)malloc(tik_size);
-    if (!tik) return 1;
-
-    if ((fvx_qread(path_cetk, tik, 0, tik_size, &br) != FR_OK) || (br != tik_size)) {
-        free(tik);
-        return 1;
-    }
-
-    *ticket = tik;
-    return 0;
+    // ticket is loaded and vaildated here
+    return LoadTicketFile(ticket, path_cetk);
 }
 
 u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
@@ -310,6 +315,52 @@ u32 GetTieContentPath(char* path_content, const char* path_tie) {
 
     // get the TMD path first
     if (GetTieTmdPath(path_tmd, path_tie) != 0)
+        return 1;
+
+    // let the TMD content path function take over
+    return GetTmdContentPath(path_content, path_tmd);
+}
+
+u32 GetTitleIdTmdPath(char* path_tmd, const u64 title_id, bool from_emunand) {
+    u32 tid_high = (u32) ((title_id >> 32) & 0xFFFFFFFF);
+    u32 tid_low = (u32) (title_id & 0xFFFFFFFF);
+    char* drv = from_emunand ?
+        ((tid_high & 0x8000) ? "5:" : ((tid_high & 0x10) ? "4:" : "B:")) :
+        ((tid_high & 0x8000) ? "2:" : ((tid_high & 0x10) ? "1:" : "A:"));
+    if (tid_high & 0x8000) tid_high = 0x00030000 | (tid_high&0xFF);
+
+    char path_pat[64];
+    snprintf(path_pat, 64, "%2.2s/title/%08lX/%08lX/content/*.tmd",
+        drv, tid_high, tid_low);
+
+    if (fvx_findpath(path_tmd, path_pat, FN_HIGHEST) != FR_OK)
+        return 1;
+
+    // done
+    return 0;
+}
+
+u32 GetTicketContentPath(char* path_content, const char* path_tik) {
+    char path_tmd[256];
+    bool from_emunand = false;
+    u64 tid64 = 0;
+
+    // available for all tickets, but will fail for titles not installed
+
+    // from mounted ticket.db?
+    if (*path_tik == 'T') {
+        const char* mntpath = GetMountPath();
+        from_emunand = (mntpath && (*mntpath == '4'));
+    }
+
+    // load ticket, get title id
+    Ticket ticket;
+    if (fvx_qread(path_tik, &ticket, 0, sizeof(Ticket), NULL) != FR_OK)
+        return 1;
+    tid64 = getbe64(ticket.title_id);
+
+    // get the TMD path
+    if (GetTitleIdTmdPath(path_tmd, tid64, from_emunand) != 0)
         return 1;
 
     // let the TMD content path function take over
@@ -846,6 +897,18 @@ u32 VerifyBossFile(const char* path) {
     return 0;
 }
 
+u32 VerifyTicketFile(const char* path) {
+    // load ticket
+    Ticket* ticket;
+    if (LoadTicketFile(&ticket, path) != 0)
+        return 1;
+
+    // ticket verification is strict, fake-signed tickets are discarded
+    u32 res = ValidateTicketSignature(ticket);
+    free(ticket);
+    return res;
+}
+
 u32 VerifyGameFile(const char* path) {
     u64 filetype = IdentifyFileType(path);
     if (filetype & GAME_CIA)
@@ -862,6 +925,8 @@ u32 VerifyGameFile(const char* path) {
         return VerifyBossFile(path);
     else if (filetype & SYS_FIRM)
         return VerifyFirmFile(path);
+    else if (filetype & GAME_TICKET)
+        return VerifyTicketFile(path);
     else return 1;
 }
 
@@ -2416,6 +2481,71 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
     return ret;
 }
 
+u32 InstallTicketFile(const char* path, bool to_emunand) {
+    // sanity check
+    if (!(IdentifyFileType(path) & GAME_TICKET))
+        return 1;
+
+    // path string
+    char pathstr[32 + 1];
+    TruncateString(pathstr, path, 32, 8);
+
+    // check ticket db
+    char path_ticketdb[32];
+    if ((GetInstallDbsPath(path_ticketdb, to_emunand ? "4:" : "1:", "ticket.db") != 0) || !fvx_qsize(path_ticketdb)) {
+        ShowPrompt(false, "Install error:\nThis system is missing the\nticket.db file.");
+        return 1;
+    }
+
+    // load & verify ticket
+    Ticket* ticket;
+    if (LoadTicketFile(&ticket, path) != 0)
+        return 1;
+    if (ValidateTicketSignature(ticket) != 0) {
+        ShowPrompt(false, "%s\nError: Fake-signed ticket\n \nOnly valid signed tickets can\nbe installed to the system.", pathstr);
+        free(ticket);
+        return 1;
+    }
+
+    // check ticket console id
+    u32 cid = getbe32(ticket->console_id);
+    if (cid && (cid != (&ARM9_ITCM->otp)->deviceId)) {
+        ShowPrompt(false, "%s\nError: Unknown cid %08lX\n \nThis ticket does not belong to\nthis 3DS console.", pathstr, cid);
+        free(ticket);
+        return 1;
+    }
+
+    // check permissions for SysNAND
+    if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) {
+        free(ticket);
+        return 1;
+    }
+
+    // let the user know we're working
+    ShowString("%s\nInstalling ticket...\n", pathstr);
+
+    // write ticket database
+    // ensure remounting the old mount path
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
+
+    // ticket database
+    if (!InitImgFS(path_ticketdb) ||
+        ((AddTicketToDB(PART_PATH, ticket->title_id, (Ticket*) ticket, true)) != 0)) {
+        InitImgFS(path_bak);
+        free(ticket);
+        return 1;
+    }
+
+    // restore old mount path
+    InitImgFS(path_bak);
+
+    free(ticket);
+    return 0;
+}
+
 // this has very limited uses right now
 u32 DumpCxiSrlFromTmdFile(const char* path) {
     u64 filetype = 0;
@@ -2648,6 +2778,10 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
         char path_content[256];
         if (GetTieContentPath(path_content, path) != 0) return 1;
         return LoadSmdhFromGameFile(path_content, smdh);
+    } else if (filetype & GAME_TICKET) {
+        char path_content[256];
+        if (GetTicketContentPath(path_content, path) != 0) return 1;
+        return LoadSmdhFromGameFile(path_content, smdh);
     } else if (filetype & GAME_3DSX) {
         ThreedsxHeader threedsx;
         if ((fvx_qread(path, &threedsx, 0, sizeof(ThreedsxHeader), NULL) != FR_OK) ||
@@ -2709,6 +2843,9 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     } else if (itype & GAME_TIE) {
          if (GetTieContentPath(path_content, path) != 0) return 1;
         path = path_content;
+    } else if (itype & GAME_TICKET) {
+         if (GetTicketContentPath(path_content, path) != 0) return 1;
+        path = path_content;
     }
 
     void* buffer = (void*) malloc(max(sizeof(Smdh), sizeof(TwlIconData)));
@@ -2741,7 +2878,7 @@ u32 ShowCiaCheckerInfo(const char* path) {
     CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
     if (!cia) return 1;
 
-     // path string
+    // path string
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
 
