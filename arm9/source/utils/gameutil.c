@@ -1375,6 +1375,9 @@ u32 GetInstallDataDrive(char* drv, u64 tid64, bool to_emunand) {
     bool to_twl = ((tid64 >> 32) & 0x8000);
     bool to_sd = (!to_twl && !((tid64 >> 32) & 0x10));
 
+    // sanity
+    if (!tid64) return 1;
+
     // determine the correct drive
     drv[0] = to_emunand ?
         (to_twl ? '5' : to_sd ? 'B' : '4') :
@@ -2378,9 +2381,9 @@ u64 GetGameFileTitleId(const char* path) {
         NcsdHeader ncsd;
         if (LoadNcsdHeader(&ncsd, path) == 0)
             tid64 = ncsd.mediaId;
-    } else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW)) {
+    } else if (filetype & GAME_NDS) {
         TwlHeader twl;
-        if (fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK)
+        if ((fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK) && (twl.unit_code & 0x02))
             tid64 = 0x0004800000000000ull | (twl.title_id & 0xFFFFFFFFFFull);
     }
 
@@ -2794,7 +2797,7 @@ u32 LoadSmdhFromGameFile(const char* path, Smdh* smdh) {
     return 1;
 }
 
-u32 ShowSmdhTitleInfo(Smdh* smdh, u16* screen) {
+u32 ShowSmdhTitleInfo(Smdh* smdh, char* str, u16* screen) {
     static const u8 smdh_magic[] = { SMDH_MAGIC };
     const u32 lwrap = 24;
     u16 icon[SMDH_SIZE_ICON_BIG / sizeof(u16)];
@@ -2810,11 +2813,11 @@ u32 ShowSmdhTitleInfo(Smdh* smdh, u16* screen) {
     WordWrapString(desc_l, lwrap);
     WordWrapString(desc_s, lwrap);
     WordWrapString(pub, lwrap);
-    ShowIconStringF(screen, icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s\n%s\n%s", desc_l, desc_s, pub);
+    ShowIconStringF(screen, icon, SMDH_DIM_ICON_BIG, SMDH_DIM_ICON_BIG, "%s%s\n%s\n%s", str, desc_l, desc_s, pub);
     return 0;
 }
 
-u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon, u16* screen) {
+u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon, char* str, u16* screen) {
     const u32 lwrap = 24;
     u16 icon[TWLICON_SIZE_ICON / sizeof(u16)];
     char desc[TWLICON_SIZE_DESC+1];
@@ -2822,7 +2825,7 @@ u32 ShowTwlIconTitleInfo(TwlIconData* twl_icon, u16* screen) {
         (GetTwlTitle(desc, twl_icon) != 0))
         return 1;
     WordWrapString(desc, lwrap);
-    ShowIconStringF(screen, icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s", desc);
+    ShowIconStringF(screen, icon, TWLICON_DIM_ICON, TWLICON_DIM_ICON, "%s%s", str, desc);
     return 0;
 }
 
@@ -2852,13 +2855,18 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     Smdh* smdh = (Smdh*) buffer;
     TwlIconData* twl_icon = (TwlIconData*) buffer;
 
+    // title id available?
+    u64 tid = GetGameFileTitleId(path);
+    char tidstr[32] = { '\0' };
+    if (tid) snprintf(tidstr, 32, "<%016llX>\n", tid);
+
     // try loading SMDH, then try NDS / GBA
     u32 ret = 1;
     if (LoadSmdhFromGameFile(path, smdh) == 0)
-        ret = ShowSmdhTitleInfo(smdh, screen);
+        ret = ShowSmdhTitleInfo(smdh, tidstr, screen);
     else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
         ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
-        ret = ShowTwlIconTitleInfo(twl_icon, screen);
+        ret = ShowTwlIconTitleInfo(twl_icon, tidstr, screen);
     else ret = ShowGbaFileTitleInfo(path, screen);
 
     if (!ret && clear) {
