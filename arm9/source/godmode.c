@@ -148,7 +148,7 @@ u32 SplashInit(const char* modestr) {
 
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
-        "------------------------------", "https://github.com/d0k3/GodMode9",
+        "--------------------------------", "https://github.com/d0k3/GodMode9",
         "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
         "Hourlies:", "https://d0k3.secretalgorithm.com/");
     DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
