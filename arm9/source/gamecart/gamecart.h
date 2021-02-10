@@ -10,7 +10,6 @@
 
 #define MODC_AREA_SIZE          0x4000
 #define PRIV_HDR_SIZE           0x50
-#define JEDECID_AND_SREG_SIZE   0x4
 
 typedef enum CardSaveType {
     CARD_SAVE_NONE,
@@ -33,7 +32,7 @@ typedef struct {
 } PACKED_ALIGN(16) CartData;
 
 u32 GetCartName(char* name, CartData* cdata);
-u32 GetCartInfoString(char* info, CartData* cdata);
+u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata);
 u32 SetSecureAreaEncryption(bool encrypted);
 u32 InitCartRead(CartData* cdata);
 u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool card2_blanking);
