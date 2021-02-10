@@ -75,7 +75,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             return true;
         } else if (vdir->index == 8) { // gamecart info
             char info[256];
-            GetCartInfoString(info, cdata);
+            GetCartInfoString(info, sizeof(info), cdata);
             snprintf(vfile->name, 32, "%s.txt", name);
             vfile->size = strnlen(info, 255);
             vfile->flags |= VFLAG_GAMECART_NFO;

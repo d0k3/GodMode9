@@ -62,27 +62,57 @@ u32 GetCartName(char* name, CartData* cdata) {
     return 0;
 }
 
-u32 GetCartInfoString(char* info, CartData* cdata) {
+u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
+    size_t info_index = 0;
     if (cdata->cart_type & CART_CTR) {
         CartDataCtr* cdata_i = (CartDataCtr*)cdata;
         NcsdHeader* ncsd = &(cdata_i->ncsd);
         NcchHeader* ncch = &(cdata_i->ncch);
-        snprintf(info, 256, "Title ID     : %016llX\nProduct Code : %.10s\nRevision     : %lu\nCart ID      : %08lX\nPlatform     : %s\nTimestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\nGM9 Version  : %s\n",
+        info_index += snprintf(info + info_index, info_size - info_index,
+            "Title ID     : %016llX\n"
+            "Product Code : %.10s\n"
+            "Revision     : %lu\n"
+            "Cart ID      : %08lX\n"
+            "Platform     : %s\n"
+            "GM9 Version  : " VERSION "\n",
             ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id,
-            (ncch->flags[4] == 0x2) ? "N3DS" : "O3DS",
-            init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
-            init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
-            VERSION);
+            (ncch->flags[4] == 0x2) ? "N3DS" : "O3DS");
     }  else if (cdata->cart_type & CART_NTR) {
         CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)cdata;
         TwlHeader* nds = &(cdata_i->ntr_header);
-        snprintf(info, 256, "Title String : %.12s\nProduct Code : %.6s\nRevision     : %u\nCart ID      : %08lX\nPlatform     : %s\nTimestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\nGM9 Version  : %s\n",
+        info_index += snprintf(info + info_index, info_size - info_index,
+            "Title String : %.12s\n"
+            "Product Code : %.6s\n"
+            "Revision     : %u\n"
+            "Cart ID      : %08lX\n"
+            "Platform     : %s\n"
+            "GM9 Version  : " VERSION "\n",
             nds->game_title, nds->game_code, nds->rom_version, cdata_i->cart_id,
-            (nds->unit_code == 0x2) ? "DSi Enhanced" : (nds->unit_code == 0x3) ? "DSi Exclusive" : "DS",
-            init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
-            init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
-            VERSION);
+            (nds->unit_code == 0x2) ? "DSi Enhanced" : (nds->unit_code == 0x3) ? "DSi Exclusive" : "DS");
     } else return 1;
+
+    info_index += snprintf(info + info_index, info_size - info_index,
+        "Save Type    : %s\n",
+        (cdata->save_type == CARD_SAVE_NONE) ? "NONE" :
+        (cdata->save_type == CARD_SAVE_SPI) ? "SPI" :
+        (cdata->save_type == CARD_SAVE_CARD2) ? "CARD2" :
+        (cdata->save_type == CARD_SAVE_RETAIL_NAND) ? "RETAIL_NAND" : "UNK");
+
+    if (cdata->save_type == CARD_SAVE_SPI) {
+        u32 jedecid = 0;
+        if (CardSPIReadJEDECIDAndStatusReg(cdata->spi_save_type.infrared, &jedecid, NULL) == 0) {
+            info_index += snprintf(info + info_index, info_size - info_index,
+                "Save chip ID : 0x%06lX\n",
+                jedecid);
+        }
+    }
+
+    info_index += snprintf(info + info_index, info_size - info_index,
+        "Timestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\n"
+        "GM9 Version  : %s\n",
+        init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
+        init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
+        VERSION);
     return 0;
 }
 
@@ -334,13 +364,13 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
 u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     char info[256];
     u32 len;
-    
-    GetCartInfoString(info, cdata);
+
+    GetCartInfoString(info, sizeof(info), cdata);
     len = strnlen(info, 255);
 
     if (offset >= len) return 0;
     if (offset + count > len) count = len - offset;
-    memcpy(buffer, info + offset, count);
+memcpy(buffer, info + offset, count);
 
     return 0;
 }
