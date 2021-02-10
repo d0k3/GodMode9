@@ -119,6 +119,37 @@ u32 SetSecureAreaEncryption(bool encrypted) {
     return 0;
 }
 
+static u32 GetCtrCartSaveSize(CartData* cdata) {
+    NcsdHeader* ncsd = (NcsdHeader*) (void*) cdata->header;
+    u32 ncch_sector = ncsd->partitions[0].offset;
+
+    // Load header and ExHeader for first partition
+    u8 buffer[0x400];
+    CTR_CmdReadData(ncch_sector, 0x200, 2, buffer);
+    NcchHeader* ncch = (NcchHeader*) (void*) buffer;
+    if (ValidateNcchHeader(ncch) != 0) {
+        return 0;
+    }
+
+    // Ensure first partition has ExHeader
+    if (ncch->size_exthdr < 0x200) {
+        return 0;
+    }
+
+    // Decrypt ExHeader
+    if ((NCCH_ENCRYPTED(ncch)) && (SetupNcchCrypto(ncch, NCCH_NOCRYPTO) == 0)) {
+        DecryptNcch(buffer + NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_OFFSET, sizeof(buffer) - NCCH_EXTHDR_OFFSET, ncch, NULL);
+    }
+    u64 savesize = getle64(buffer + NCCH_EXTHDR_OFFSET + 0x1C0);
+
+    // check our work
+    if (savesize <= UINT32_MAX) {
+        return (u32) savesize;
+    } else {
+        return 0;
+    }
+}
+
 u32 InitCartRead(CartData* cdata) {
     get_dstime(&init_time);
     encrypted_sa = false;
@@ -182,7 +213,13 @@ u32 InitCartRead(CartData* cdata) {
         u32 card2_offset = getle32(cdata->header + 0x200);
         if (card2_offset != 0xFFFFFFFF) {
             cdata->save_type = CARD_SAVE_CARD2;
-            cdata->save_size = cdata->cart_size - card2_offset * NCSD_MEDIA_UNIT;
+            cdata->save_size = GetCtrCartSaveSize(cdata);
+            // Sanity checks
+            if ((cdata->save_size == 0) ||
+                (card2_offset * NCSD_MEDIA_UNIT >= cdata->cart_size) ||
+                (card2_offset * NCSD_MEDIA_UNIT + cdata->save_size > cdata->cart_size)) {
+                cdata->save_type = CARD_SAVE_NONE;
+            }
         } else {
             cdata->spi_save_type = CardSPIGetCardSPIType(false);
             if (cdata->spi_save_type.chip == NO_CHIP) {
@@ -272,14 +309,26 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool c
 
         // overwrite the card2 savegame with 0xFF
         u32 card2_offset = getle32(cdata->header + 0x200);
+        u32 save_sectors = cdata->save_size / 0x200;
         if (card2_blanking &&
-            (card2_offset != 0xFFFFFFFF) &&
+            (cdata->save_type == CARD_SAVE_CARD2) &&
             ((card2_offset * 0x200) >= cdata->data_size) &&
-            (sector + count > card2_offset)) {
-            if (sector > card2_offset)
-                memset(buffer8, 0xFF, (count * 0x200));
-            else memset(buffer8 + (card2_offset - sector) * 0x200, 0xFF,
-                (count - (card2_offset - sector)) * 0x200);
+            (sector + count > card2_offset) && // requested area ends after the save starts
+            (sector < card2_offset + save_sectors)) { // requested area starts before the save ends
+            u32 blank_start_sector, blank_end_sector;
+            if (sector > card2_offset) {
+                blank_start_sector = sector;
+            } else {
+                blank_start_sector = card2_offset;
+            }
+            if (sector + count < card2_offset + save_sectors) {
+                blank_end_sector = sector + count;
+            } else {
+                blank_end_sector = card2_offset + save_sectors;
+            }
+
+            memset(buffer8 + (blank_start_sector - sector) * 0x200, 0xFF,
+                (blank_end_sector - blank_start_sector) * 0x200);
         }
     } else if (cdata->cart_type & CART_NTR) {
         u8* buff = buffer8;
@@ -382,8 +431,11 @@ u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
         break;
 
     case CARD_SAVE_CARD2:
-        return ReadCartBytes(buffer, cdata->cart_size - cdata->save_size + offset, count, cdata, false);
+    {
+        u32 card2_offset = getle32(cdata->header + 0x200);
+        return ReadCartBytes(buffer, card2_offset * NCSD_MEDIA_UNIT + offset, count, cdata, false);
         break;
+    }
 
     default:
         return 1;
