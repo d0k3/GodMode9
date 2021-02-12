@@ -1948,6 +1948,12 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
     bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     if (!content_count) return 1;
 
+    // check for legit TMD
+    if (force_legit && (ValidateTmdSignature(&(cia->tmd)) != 0)) {
+        ShowPrompt(false, "ID %016llX\nTMD and title is not legit.", getbe64(title_id));
+        return 1;
+    }
+
     // get (legit) ticket
     Ticket* ticket = (Ticket*)&(cia->ticket);
     bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
@@ -1981,7 +1987,7 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         if (copy && getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
             static const char* optionstr[2] =
-                {"Use generic ticket (not legit)", "Use personalized ticket (legit)"};
+                {"Generic ticket (\"pirate legit\")", "Personalized ticket (legit)"};
             if (!default_action) {
                 default_action = ShowSelectPrompt(2, optionstr,
                     "ID %016llX\nLegit ticket is personalized.\nUsing this is not recommended.\nChoose default action:", getbe64(title_id));
