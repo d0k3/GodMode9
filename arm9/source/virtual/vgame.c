@@ -68,7 +68,7 @@
 #define NAME_TAD_TYPES      "tmd", "srl.app", "02.unk", \
                             "03.unk", "04.unk", "05.unk", \
                             "06.unk", "07.unk", "08.unk", \
-                            "public.sav", "banner.sav", "11.unk"
+                            "public.sav", "banner.sav", "private.sav"
 #define NAME_TAD_CONTENT    "%016llX.%s" // titleid.type
 
 

@@ -56,4 +56,14 @@ typedef struct {
     u8  padding[0x4];
 } PACKED_STRUCT TadFooter;
 
+typedef struct {
+    TadBanner banner;
+    TadBlockMetaData banner_bmd;
+    TadHeader header;
+    TadBlockMetaData header_bmd;
+    TadFooter footer;
+    TadBlockMetaData footer_bmd;
+} PACKED_STRUCT TadStub;
+
+u32 VerifyTadStub(TadStub* tad);
 u32 BuildTadContentTable(void* table, void* header);

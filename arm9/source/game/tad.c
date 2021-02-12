@@ -1,5 +1,19 @@
 #include "tad.h"
+#include "sha.h"
 
+
+u32 VerifyTadStub(TadStub* tad) {
+    TadFooter* ftr = &(tad->footer);
+    TadHeader* hdr = &(tad->header);
+    TadBanner* bnr = &(tad->banner);
+
+    if ((strncmp(hdr->magic, TAD_HEADER_MAGIC, strlen(TAD_HEADER_MAGIC)) != 0) ||
+        (sha_cmp(ftr->banner_sha256, bnr, sizeof(TadBanner), SHA256_MODE) != 0) ||
+        (sha_cmp(ftr->header_sha256, hdr, sizeof(TadHeader), SHA256_MODE) != 0))
+        return 1;
+
+    return 0;
+}
 
 u32 BuildTadContentTable(void* table, void* header) {
     TadHeader* hdr = (TadHeader*) header;

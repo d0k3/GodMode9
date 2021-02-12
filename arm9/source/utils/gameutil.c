@@ -1,6 +1,7 @@
 #include "gameutil.h"
 #include "nandcmac.h"
 #include "disadiff.h"
+#include "fsutil.h" // for TAD verification
 #include "game.h"
 #include "nand.h" // so that we can trim NAND images
 #include "itcm.h" // we need access to part of the OTP
@@ -781,6 +782,32 @@ u32 VerifyTieFile(const char* path) {
     return VerifyTmdFile(path_tmd, false);
 }
 
+u32 VerifyTadFile(const char* path) {
+    TadStub tad;
+    TadHeader* hdr = &(tad.header);
+    TadFooter* ftr = &(tad.footer);
+
+    // only works for GM9 decrypted TAD files
+    if (!ShowProgress(0, 0, path)) return 1;
+    if ((fvx_qread(path, &tad, 0, sizeof(TadStub), NULL) != FR_OK) ||
+        (VerifyTadStub(&tad) != 0))
+        return 1;
+
+    // verify contents
+    u32 content_start = sizeof(TadStub); 
+    for (u32 i = 0; i < TAD_NUM_CONTENT; i++) {
+        u8 hash[32];
+        u32 len = align(hdr->content_size[i], 0x10);
+        if (!len) continue; // non-existant section
+        if (!FileGetSha256(path, hash, content_start, len) ||
+            (memcmp(hash, ftr->content_sha256[i], 32) != 0))
+            return 1;
+        content_start += len + sizeof(TadBlockMetaData);
+    }
+
+    return 0;
+}
+
 u32 VerifyFirmFile(const char* path) {
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
@@ -921,6 +948,8 @@ u32 VerifyGameFile(const char* path) {
         return VerifyTmdFile(path, filetype & FLAG_NUSCDN);
     else if (filetype & GAME_TIE)
         return VerifyTieFile(path);
+    else if (filetype & GAME_TAD)
+        return VerifyTadFile(path);
     else if (filetype & GAME_BOSS)
         return VerifyBossFile(path);
     else if (filetype & SYS_FIRM)
@@ -1923,6 +1952,98 @@ u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
     return 0;
 }
 
+u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_legit) {
+    TadStub tad;
+    TadHeader* hdr = &(tad.header);
+
+    // only works for GM9 decrypted TAD files
+    // fetch the TAD stub
+    if (!ShowProgress(0, 0, path_tad)) return 1;
+    if ((fvx_qread(path_tad, &tad, 0, sizeof(TadStub), NULL) != FR_OK) ||
+        (VerifyTadStub(&tad) != 0) || (hdr->content_size[0] < TMD_SIZE_N(1)))
+        return 1;
+    
+    // build the CIA stub
+    CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+    if (!cia) return 1;
+    TitleMetaData* tmd = &(cia->tmd);
+    TicketCommon* ticket = &(cia->ticket);
+    memset(cia, 0, sizeof(CiaStub));
+    if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
+        (BuildCiaCert(cia->cert) != 0) ||
+        (fvx_qread(path_tad, tmd, sizeof(TadStub), hdr->content_size[0], NULL) != FR_OK) ||
+        (BuildFakeTicket((Ticket*) ticket, tmd->title_id) != 0) ||
+        (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
+        (WriteCiaStub(cia, path_dest) != 0)) {
+        free(cia);
+        return 1;
+    }
+    
+    // extract info from TMD
+    u32 content_count = getbe16(tmd->content_count);
+    u8* title_id = tmd->title_id;
+    if (!content_count || (content_count > 8)) {
+        free(cia);
+        return 1;
+    }
+    
+    // check for legit TMD
+    if (force_legit && (ValidateTmdSignature(&(cia->tmd)) != 0)) {
+        ShowPrompt(false, "ID %016llX\nTMD in TAD is not legit.", getbe64(title_id));
+        free(cia);
+        return 1;
+    }
+
+    // compare TMD with TAD content table
+    u32 tad_content_count = 0;
+    for (u32 i = 1, ci = 0; i < 9; i++) {
+        u32 size_in_tad = hdr->content_size[i];
+        if (size_in_tad) {
+            u64 size = 0;
+            if (ci < content_count) {
+                TmdContentChunk* chunk = &(cia->content_list[ci]);
+                size = getbe64(chunk->size);
+                ci++;
+            }
+            if (size != size_in_tad) break;
+            tad_content_count++;
+        }
+    }
+    if (tad_content_count != content_count) {
+        free(cia);
+        return 1;
+    }
+    
+    // attempt to find a titlekey
+    u8 titlekey[16] = { 0xFF };
+    FindTitleKey((Ticket*) ticket, title_id);
+    GetTitleKey(titlekey, (Ticket*)&(cia->ticket));
+
+    // insert TAD contents into CIA
+    u64 next_offset = sizeof(TadStub) + align(hdr->content_size[0], 0x10) + sizeof(TadBlockMetaData);
+    for (u32 i = 0; i < content_count; i++) {
+        TmdContentChunk* chunk = &(cia->content_list[i]);
+        u64 size = getbe64(chunk->size);
+        if (InsertCiaContent(path_dest, path_tad, next_offset, size,
+             chunk, titlekey, force_legit, false, false) != 0) {
+            free(cia);
+            return 1;
+        }
+        next_offset += align(size, 0x10) + sizeof(TadBlockMetaData);
+    }
+
+    // verify TMD / write CIA stub / install system data (take #2)
+    if ((force_legit && (VerifyTmd(tmd) != 0)) ||
+        (!force_legit && (FixTmdHashes(tmd) != 0)) ||
+        (WriteCiaStub(cia, path_dest) != 0)) {
+        free(cia);
+        return 1;
+    }
+
+    free(cia);
+    return 0;
+}
+
 u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest, bool force_legit, bool cdn, void* buffer, bool install) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     CiaStub* cia = (CiaStub*) buffer;
@@ -2437,6 +2558,8 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
         ret = BuildInstallFromNcsdFile(path, dest, false);
     else if ((filetype & GAME_NDS) && (filetype & FLAG_DSIW))
         ret = BuildInstallFromNdsFile(path, dest, false);
+    else if (filetype & GAME_TAD)
+        ret = BuildCiaFromTadFile(path, dest, force_legit);
     else ret = 1;
 
     if (ret != 0) // try to get rid of the borked file
