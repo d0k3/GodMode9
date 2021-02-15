@@ -21,7 +21,7 @@
 #define PERM_BASE       (PERM_SDCARD | PERM_IMAGE | PERM_RAMDRIVE | PERM_EMU_LVL0 | PERM_SYS_LVL0)
 
 // permission levels / colors
-#define PERM_BLUE       (GetWritePermissions()&PERM_MEMORY)
+#define PERM_BLUE       (GetWritePermissions()&(PERM_MEMORY|(PERM_SDDATA&~PERM_SDCARD)))
 #define PERM_RED        (GetWritePermissions()&(PERM_SYS_LVL3&~PERM_SYS_LVL2))
 #define PERM_ORANGE     (GetWritePermissions()&(PERM_SYS_LVL2&~PERM_SYS_LVL1))
 #define PERM_YELLOW     (GetWritePermissions()&((PERM_SYS_LVL1&~PERM_SYS_LVL0)|(PERM_EMU_LVL1&~PERM_EMU_LVL0)|(PERM_SDDATA&~PERM_SDCARD)|PERM_CART))

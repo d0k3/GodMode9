@@ -175,10 +175,6 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             if (!ShowUnlockSequence(2, "You want to enable SysNAND\nlvl1 writing permissions.\n \nThis enables you to modify\nsystem data, installations,\nuser data & savegames."))
                 return false;
             break;
-        case PERM_SDDATA:
-            if (!ShowUnlockSequence(2, "You want to enable SD data\nwriting permissions.\n \nThis enables you to modify\ninstallations, user data &\nsavegames."))
-                return false;
-            break;
         case PERM_CART:
             if (!ShowUnlockSequence(2, "You want to enable gamecart\nsave writing permissions."))
                 return false;
@@ -190,6 +186,10 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
             break;
         case PERM_MEMORY:
             if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\n \nWriting to certain areas may\nlead to unexpected results."))
+                return false;
+            break;
+        case PERM_SDDATA:
+            if (!ShowUnlockSequence(5, "!THIS IS NOT RECOMMENDED!\n \nYou want to enable SD data\nwriting permissions.\n \nEverything here is encrypted.\nIt is recommended to use the\nA:/B: drives for modification\nof installations, user data &\nsavegames instead."))
                 return false;
             break;
         case PERM_SYS_LVL3:

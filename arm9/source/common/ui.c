@@ -474,7 +474,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
 #define PRNG (*(volatile u32*)0x10011000)
 bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     static const int seqcolors[7] = { COLOR_STD_FONT, COLOR_BRIGHTGREEN,
-        COLOR_BRIGHTYELLOW, COLOR_ORANGE, COLOR_BRIGHTBLUE, COLOR_RED, COLOR_DARKRED };
+        COLOR_BRIGHTYELLOW, COLOR_ORANGE, COLOR_BRIGHTBLUE, COLOR_BRIGHTBLUE, COLOR_DARKRED };
     const u32 seqlen_max = 7;
     const u32 seqlen = seqlen_max - ((seqlvl < 3) ? 2 : (seqlvl < 4) ? 1 : 0);
 
@@ -499,7 +499,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     x = (str_width >= SCREEN_WIDTH_MAIN) ? 0 : (SCREEN_WIDTH_MAIN - str_width) / 2;
     y = (str_height >= SCREEN_HEIGHT) ? 0 : (SCREEN_HEIGHT - str_height) / 2;
 
-    if (seqlvl >= 6) { // special handling
+    if (seqlvl >= 5) { // special handling
         color_bg = seqcolors[seqlvl];
         color_font = COLOR_BLACK;
         color_off = COLOR_BLACK;
