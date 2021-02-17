@@ -1863,7 +1863,7 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     if (!ShowProgress(0, 0, path_content)) ret = 1;
     for (u32 i = 0; (i < size) && (ret == 0); i += STD_BUFFER_SIZE) {
         u32 read_bytes = min(STD_BUFFER_SIZE, (size - i));
-        if (fvx_read(&ofile, buffer, read_bytes, &bytes_read) != FR_OK) ret = 1;
+        if (fvx_read(&ofile, buffer, read_bytes, &bytes_read) != FR_OK) ret = 2;
         if (cdn_decrypt && (DecryptCiaContentSequential(buffer, read_bytes, ctr_in, titlekey) != 0)) ret = 1;
         if (ncch_decrypt && (DecryptNcchSequential(buffer, i, read_bytes) != 0)) ret = 1;
         if ((i == 0) && cxi_fix && (SetNcchSdFlag(buffer) != 0)) ret = 1;
@@ -1874,7 +1874,7 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
         if ((read_bytes != bytes_read) || (bytes_read != bytes_written)) ret = 1;
         if (!ShowProgress(offset + i + read_bytes, fsize, path_content)) ret = 1;
     }
-    u8 hash[0x20];
+    u8 hash[0x20] __attribute__((aligned(4)));
     sha_get(hash);
 
     free(buffer);
@@ -1882,8 +1882,8 @@ u32 InsertCiaContent(const char* path_cia, const char* path_content, u32 offset,
     fvx_close(&dfile);
 
     // force legit?
-    if (force_legit && (memcmp(hash, chunk->hash, 0x20) != 0)) return 1;
-    if (force_legit && (getbe64(chunk->size) != size)) return 1;
+    if (force_legit && (memcmp(hash, chunk->hash, 0x20) != 0)) return 2;
+    if (force_legit && (getbe64(chunk->size) != size)) return 2;
 
     // chunk size / chunk hash
     for (u32 i = 0; i < 8; i++) chunk->size[i] = (u8) (size >> (8*(7-i)));
@@ -1952,6 +1952,82 @@ u32 InstallFromCiaFile(const char* path_cia, const char* path_dest) {
     return 0;
 }
 
+u32 BuildCiaLegitTicket(Ticket* ticket, u8* title_id, const char* path_cnt, bool cdn, bool force_legit) {
+    bool src_emunand = ((*path_cnt == 'B') || (*path_cnt == '4'));
+
+    if (BuildFakeTicket(ticket, title_id) != 0)
+        return 1; 
+
+    if (force_legit) {
+        Ticket* ticket_tmp = NULL;
+        bool copy = true;
+
+        if ((cdn && (LoadCdnTicketFile(&ticket_tmp, path_cnt) != 0)) ||
+            (!cdn && (FindTicket(&ticket_tmp, title_id, true, src_emunand) != 0))) {
+            FindTitleKey(ticket, title_id);
+            copy = false;
+        }
+
+        // either, it's a ticket without ways to check ownership data, smaller sized
+        // or, it's title ticket with > 1024 contents, of which can't make it work with current CiaStub
+        if (copy && GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE) {
+            ShowPrompt(false, "ID %016llX\nLegit ticket of unsupported size.", getbe64(title_id));
+            free(ticket_tmp);
+            return 1;
+        }
+
+        // check the tickets' console id, warn if it isn't zero
+        if (copy && getbe32(ticket_tmp->console_id)) {
+            static u32 default_action = 0;
+            static const char* optionstr[2] =
+                {"Generic ticket (\"pirate legit\")", "Personalized ticket (legit)"};
+            if (!default_action) {
+                default_action = ShowSelectPrompt(2, optionstr,
+                    "ID %016llX\nLegit ticket is personalized.\nUsing this is not recommended.\nChoose default action:", getbe64(title_id));
+                ShowProgress(0, 0, path_cnt);
+            }
+            if (!default_action) {
+                free(ticket_tmp);
+                return 1;
+            }
+            else if (default_action == 1) {
+                memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+                ticket->commonkey_idx = ticket_tmp->commonkey_idx;
+                copy = false;
+            }
+        }
+
+        // copy what we found
+        if (copy) memcpy(ticket, ticket_tmp, TICKET_COMMON_SIZE);
+        free(ticket_tmp);
+    } else if (cdn) {
+        Ticket* ticket_tmp = NULL;
+
+        // take over data from CDN ticket into fake ticket
+        if (LoadCdnTicketFile(&ticket_tmp, path_cnt) == 0) {
+            memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+            ticket->commonkey_idx = ticket_tmp->commonkey_idx;
+            free(ticket_tmp);
+        } else if (FindTitleKey(ticket, title_id) != 0) {
+            ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
+            return 1;
+        }
+    } else {
+        Ticket* ticket_tmp = NULL;
+
+        // standard ticket, based on fake ticket
+        if ((FindTitleKey(ticket, title_id) != 0) &&
+            (FindTicket(&ticket_tmp, title_id, false, src_emunand) == 0)) {
+            // we just copy the titlekey from a valid ticket (if we can)
+            memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
+            ticket->commonkey_idx = ticket_tmp->commonkey_idx;
+        }
+        if (ticket_tmp) free(ticket_tmp);
+    }
+
+    return 0;
+}
+
 u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_legit) {
     TadStub tad;
     TadHeader* hdr = &(tad.header);
@@ -1972,6 +2048,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
     if ((BuildCiaHeader(&(cia->header), TICKET_COMMON_SIZE) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
         (fvx_qread(path_tad, tmd, sizeof(TadStub), hdr->content_size[0], NULL) != FR_OK) ||
+        (BuildCiaLegitTicket((Ticket*) &(cia->ticket), tmd->title_id, path_tad, false, force_legit) != 0) ||
         (BuildFakeTicket((Ticket*) ticket, tmd->title_id) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (WriteCiaStub(cia, path_dest) != 0)) {
@@ -1988,7 +2065,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
     }
     
     // check for legit TMD
-    if (force_legit && (ValidateTmdSignature(&(cia->tmd)) != 0)) {
+    if (force_legit && ((ValidateTmdSignature(tmd) != 0) || VerifyTmd(tmd) != 0)) {
         ShowPrompt(false, "ID %016llX\nTMD in TAD is not legit.", getbe64(title_id));
         free(cia);
         return 1;
@@ -2047,6 +2124,8 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
 u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest, bool force_legit, bool cdn, void* buffer, bool install) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
     CiaStub* cia = (CiaStub*) buffer;
+    TitleMetaData* tmd = &(cia->tmd);
+    TmdContentChunk* content_list = cia->content_list;
 
     // Init progress bar
     if (!ShowProgress(0, 0, path_tmd)) return 1;
@@ -2057,94 +2136,19 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         (LoadTmdFile(&(cia->tmd), path_tmd) != 0) ||
         (FixCiaHeaderForTmd(&(cia->header), &(cia->tmd)) != 0) ||
         (BuildCiaCert(cia->cert) != 0) ||
-        (BuildFakeTicket((Ticket*)&(cia->ticket), cia->tmd.title_id) != 0)) {
+        (BuildCiaLegitTicket((Ticket*) &(cia->ticket), tmd->title_id, path_tmd, cdn, force_legit) != 0))
         return 1;
-    }
 
     // extract info from TMD
-    TitleMetaData* tmd = &(cia->tmd);
-    TmdContentChunk* content_list = cia->content_list;
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = tmd->title_id;
     bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
     if (!content_count) return 1;
 
     // check for legit TMD
-    if (force_legit && (ValidateTmdSignature(&(cia->tmd)) != 0)) {
-        ShowPrompt(false, "ID %016llX\nTMD and title is not legit.", getbe64(title_id));
+    if (force_legit && ((ValidateTmdSignature(tmd) != 0) || VerifyTmd(tmd) != 0)) {
+        ShowPrompt(false, "ID %016llX\nTMD is not legit.", getbe64(title_id));
         return 1;
-    }
-
-    // get (legit) ticket
-    Ticket* ticket = (Ticket*)&(cia->ticket);
-    bool src_emunand = ((*path_tmd == 'B') || (*path_tmd == '4'));
-    if (force_legit) {
-        Ticket* ticket_tmp = NULL;
-        bool copy = true;
-        if ((cdn && (LoadCdnTicketFile(&ticket_tmp, path_tmd) != 0)) ||
-            (!cdn && (FindTicket(&ticket_tmp, title_id, true, src_emunand) != 0))) {
-            static bool use_generic = false;
-            if (!use_generic) {
-                use_generic = ShowPrompt(true, "ID %016llX\nLegit ticket not found.\n \nFallback to generic as default?", getbe64(title_id));
-                if (!use_generic) {
-                    free(ticket_tmp);
-                    return 1;
-                }
-                ShowProgress(0, 0, path_tmd);
-            }
-            if (use_generic) {
-                FindTitleKey(ticket, title_id);
-                copy = false;
-            }
-        }
-        // either, it's a ticket without ways to check ownership data, smaller sized
-        // or, it's title ticket with > 1024 contents, of which can't make it work with current CiaStub
-        if (copy && GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE) {
-            ShowPrompt(false, "ID %016llX\nLegit ticket of unsupported size.", getbe64(title_id));
-            free(ticket_tmp);
-            return 1;
-        }
-        // check the tickets' console id, warn if it isn't zero
-        if (copy && getbe32(ticket_tmp->console_id)) {
-            static u32 default_action = 0;
-            static const char* optionstr[2] =
-                {"Generic ticket (\"pirate legit\")", "Personalized ticket (legit)"};
-            if (!default_action) {
-                default_action = ShowSelectPrompt(2, optionstr,
-                    "ID %016llX\nLegit ticket is personalized.\nUsing this is not recommended.\nChoose default action:", getbe64(title_id));
-                ShowProgress(0, 0, path_tmd);
-            }
-            if (!default_action) {
-                free(ticket_tmp);
-                return 1;
-            }
-            else if (default_action == 1) {
-                memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
-                ticket->commonkey_idx = ticket_tmp->commonkey_idx;
-                copy = false;
-            }
-        }
-        if (copy) memcpy(ticket, ticket_tmp, TICKET_COMMON_SIZE);
-        free(ticket_tmp);
-    } else if (cdn) {
-        Ticket* ticket_tmp = NULL;
-        if (LoadCdnTicketFile(&ticket_tmp, path_tmd) == 0) {
-            memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
-            ticket->commonkey_idx = ticket_tmp->commonkey_idx;
-            free(ticket_tmp);
-        } else if (FindTitleKey(ticket, title_id) != 0) {
-            ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
-            return 1;
-        }
-    } else {
-        Ticket* ticket_tmp = NULL;
-        if ((FindTitleKey(ticket, title_id) != 0) &&
-            (FindTicket(&ticket_tmp, title_id, false, src_emunand) == 0)) {
-            // we just copy the titlekey from a valid ticket (if we can)
-            memcpy(ticket->titlekey, ticket_tmp->titlekey, 0x10);
-            ticket->commonkey_idx = ticket_tmp->commonkey_idx;
-        }
-        if (ticket_tmp) free(ticket_tmp);
     }
 
     // content path string
@@ -2178,6 +2182,7 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
     }
 
     // insert / install contents
+    u32 ret = 0;
     u8 titlekey[16] = { 0xFF };
     if ((GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0) && force_legit) return 1;
     if (!install && (WriteCiaStub(cia, path_dest) != 0)) return 1;
@@ -2186,9 +2191,10 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         if (present[i / 8] & (1 << (i % 8))) {
             snprintf(name_content, 256 - (name_content - path_content),
                 (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
-            if (!install && (InsertCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
-                    chunk, titlekey, force_legit, false, cdn) != 0)) {
-                ShowPrompt(false, "ID %016llX.%08lX\nInsert content failed", getbe64(title_id), getbe32(chunk->id));
+            if (!install && ((ret = InsertCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
+                    chunk, titlekey, force_legit, false, cdn)) != 0)) {
+                ShowPrompt(false, "ID %016llX.%08lX\n%s", getbe64(title_id), getbe32(chunk->id),
+                    (ret == 2) ? "Content is corrupt" : "Insert content failed");
                 return 1;
             }
             if (install && (InstallCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
@@ -2383,7 +2389,7 @@ u32 BuildInstallFromNcsdFile(const char* path_ncsd, const char* path_dest, bool 
         }
     }
 
-    // optional stuff (proper titlekey / meta data)
+    // optional stuff (proper titlekey)
     if (!install) {
         CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
         if (meta && (BuildCiaMeta(meta, &exthdr, NULL) == 0) &&
@@ -2538,7 +2544,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     char* dot = strrchr(dest, '.');
     if (!dot || (dot < strrchr(dest, '/')))
         dot = dest + strnlen(dest, 256);
-    snprintf(dot, 16, ".%s", force_legit ? "legit.cia" : "cia");
+    snprintf(dot, 16, ".%s", "tmp.cia");
 
     if (!CheckWritePermissions(dest)) return 1;
     f_unlink(dest); // remove the file if it already exists
@@ -2562,8 +2568,30 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
         ret = BuildCiaFromTadFile(path, dest, force_legit);
     else ret = 1;
 
-    if (ret != 0) // try to get rid of the borked file
-        f_unlink(dest);
+    // finalizing CIA build...
+    if (ret != 0) { // try to get rid of the borked file
+        fvx_unlink(dest);
+    } else { // find a proper extension for CIA
+        char dest_old[256];
+        strncpy(dest_old, dest, 256);
+        CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+        if (!cia) return 1;
+        if (LoadCiaStub(cia, dest) != 0) {
+            free(cia);
+            return 1;
+        }
+
+        if ((ValidateTmdSignature(&(cia->tmd)) == 0) && (VerifyTmd(&(cia->tmd)) == 0)) {
+            Ticket* ticket = (Ticket*) &(cia->ticket);
+            if (ValidateTicketSignature(ticket) == 0)
+                snprintf(dot, 32, ".%08lX.%s", getbe32(ticket->console_id), "legit.cia");
+            else snprintf(dot, 32, ".%s", "piratelegit.cia");
+        } else snprintf(dot, 16, ".%s", "standard.cia");
+        free(cia);
+
+        fvx_unlink(dest);
+        fvx_rename(dest_old, dest);
+    }
 
     return ret;
 }
