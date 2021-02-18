@@ -4,11 +4,15 @@
 
 #define TICKET_COMMON_SIZE  sizeof(TicketCommon)
 #define TICKET_MINIMUM_SIZE sizeof(TicketMinimum)
+#define TICKET_TWL_SIZE     sizeof(Ticket)
 #define TICKET_CDNCERT_SIZE 0x700
 
 #define TICKET_ISSUER       "Root-CA00000003-XS0000000c"
 #define TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
 #define TICKET_SIG_TYPE     0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
+
+#define TICKET_ISSUER_TWL   "Root-CA00000001-XS00000006"
+#define TICKET_SIG_TYPE_TWL 0x00, 0x01, 0x00, 0x01 // RSA_2048 SHA1
 
 #define TICKET_DEVKIT(tick) (strncmp((char*)tick->issuer, TICKET_ISSUER_DEV, 0x40) == 0)
 
@@ -91,6 +95,7 @@ typedef struct {
 } TicketRightsCheck;
 
 u32 ValidateTicket(Ticket* ticket);
+u32 ValidateTwlTicket(Ticket* ticket);
 u32 ValidateTicketSignature(Ticket* ticket);
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
 u32 GetTicketContentIndexSize(const Ticket* ticket);

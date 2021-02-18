@@ -194,14 +194,27 @@ u32 LoadNcchMeta(CiaMeta* meta, const char* path, u64 offset) {
 }
 
 u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
-    // first part (TMD only) (we need to read the content count first)
-    if ((fvx_qread(path, tmd, 0, TMD_SIZE_MIN, NULL) != FR_OK) ||
-        (ValidateTmd(tmd) != 0))
+    // first part (TMD stub only) (we need to read the content count first)
+    if (fvx_qread(path, tmd, 0, TMD_SIZE_STUB, NULL) != FR_OK)
         return 1;
 
     // second part (read full size)
-    if (fvx_qread(path, tmd, 0, TMD_SIZE_N(getbe16(tmd->content_count)), NULL) != FR_OK)
-        return 1;
+    if (ValidateTmd(tmd) == 0) {        
+        if (fvx_qread(path, tmd, 0, TMD_SIZE_N(getbe16(tmd->content_count)), NULL) != FR_OK)
+            return 1;
+    } else if ((ValidateTwlTmd(tmd) == 0) && (getbe16(tmd->content_count) == 1)) {
+        // for TWL: convert to new TMD format
+        static const u8 magic[] = { TMD_SIG_TYPE };
+        memcpy(tmd->sig_type, magic, sizeof(magic));
+        strncpy((char*) tmd->issuer, TMD_ISSUER, 0x40);
+        memset(((u8*) tmd) + TMD_SIZE_STUB, 0x00, TMD_SIZE_N(1) - TMD_SIZE_STUB);
+        (tmd->contentinfo)->cmd_count[1] = 0x01;
+        // convert and take over chunk (SHA-1 hash stays)
+        TmdContentChunk* chunk = (TmdContentChunk*) (void*) (tmd + 1);
+        if ((fvx_qread(path, chunk, TMD_SIZE_STUB, 0x24, NULL) != FR_OK) ||
+            (FixTmdHashes(tmd) != 0))
+            return 1;
+    }
 
     return 0;
 }
@@ -212,17 +225,30 @@ u32 LoadTicketFile(Ticket** ticket, const char* path_tik) {
     // load and check ticket
     TicketMinimum tmp;
     UINT br;
-    if ((fvx_qread(path_tik, &tmp, 0, TICKET_MINIMUM_SIZE, &br) != FR_OK) || (br != TICKET_MINIMUM_SIZE) ||
-        ValidateTicket((Ticket*)&tmp) != 0) return 1;
+    if (fvx_qread(path_tik, &tmp, 0, TICKET_MINIMUM_SIZE, &br) != FR_OK)
+        return 1;
 
-    u32 tik_size = GetTicketSize((Ticket*)&tmp);
+    // check type of ticket, set size
+    u32 tik_size = 0;
+    if ((br == TICKET_MINIMUM_SIZE) && (ValidateTicket((Ticket*)&tmp) == 0)) {
+        // standard 3DS ticket
+        tik_size = GetTicketSize((Ticket*)&tmp);
+    } else if ((br == TICKET_TWL_SIZE) && (ValidateTwlTicket((Ticket*)&tmp) == 0)) {
+        // TWL ticket
+        tik_size = TICKET_COMMON_SIZE;
+    } else return 1;
 
     Ticket* tik = (Ticket*)malloc(tik_size);
     if (!tik) return 1;
 
-    if ((fvx_qread(path_tik, tik, 0, tik_size, &br) != FR_OK) || (br != tik_size)) {
-        free(tik);
-        return 1;
+    if (br == TICKET_MINIMUM_SIZE) { // standard 3DS ticket
+        if ((fvx_qread(path_tik, tik, 0, tik_size, &br) != FR_OK) || (br != tik_size)) {
+            free(tik);
+            return 1;
+        }
+    } else { // TWL ticket (just take over title id and key)
+        BuildFakeTicket(tik, tmp.title_id);
+        memcpy(tik->titlekey, tmp.titlekey, 0x10);
     }
 
     *ticket = tik;
@@ -236,10 +262,9 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
     path_cetk[255] = '\0';
     char* name_cetk = strrchr(path_cetk, '/');
     if (!name_cetk) return 1; // will not happen
-    char* ext_cetk = strrchr(++name_cetk, '.');
-    ext_cetk = (ext_cetk) ? ext_cetk + 1 : name_cetk;
-    snprintf(ext_cetk, 256 - (ext_cetk - path_cetk), "cetk");
-    // ticket is loaded and vaildated here
+    name_cetk++;
+    snprintf(name_cetk, 256 - (name_cetk - path_cetk), "cetk");
+    // ticket is loaded and validated here
     return LoadTicketFile(ticket, path_cetk);
 }
 
@@ -389,7 +414,7 @@ u32 WriteCiaStub(CiaStub* stub, const char* path) {
 }
 
 u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const u8* titlekey) {
-    u8 hash[32];
+    u8 hash[32] = { 0 };
     u8 ctr[16];
     FIL file;
 
@@ -412,8 +437,11 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
         return 1;
     }
 
+    u32 mode = SHA1_MODE;
+    for (u32 i = 20; i < 32; i++)
+        if (expected[i]) mode = SHA256_MODE;
     GetTmdCtr(ctr, chunk);
-    sha_init(SHA256_MODE);
+    sha_init(mode);
     for (u32 i = 0; i < size; i += STD_BUFFER_SIZE) {
         u32 read_bytes = min(STD_BUFFER_SIZE, (size - i));
         UINT bytes_read;
@@ -944,8 +972,8 @@ u32 VerifyGameFile(const char* path) {
         return VerifyNcsdFile(path);
     else if (filetype & GAME_NCCH)
         return VerifyNcchFile(path, 0, 0);
-    else if (filetype & GAME_TMD)
-        return VerifyTmdFile(path, filetype & FLAG_NUSCDN);
+    else if (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD))
+        return VerifyTmdFile(path, filetype & (GAME_CDNTMD|GAME_TWLTMD));
     else if (filetype & GAME_TIE)
         return VerifyTieFile(path);
     else if (filetype & GAME_TAD)
@@ -1065,7 +1093,7 @@ u32 CheckEncryptedGameFile(const char* path) {
     else if (filetype & SYS_FIRM)
         return CheckEncryptedFirmFile(path);
     else if (filetype & GAME_NUSCDN)
-        return 0; // these should always be encrypted
+        return 0; // these *should* always be encrypted
     else return 1;
 }
 
@@ -1270,7 +1298,6 @@ u32 DecryptFirmFile(const char* orig, const char* dest) {
 }
 
 u32 CryptCdnFileBuffered(const char* orig, const char* dest, u16 crypto, void* buffer) {
-    bool inplace = (strncmp(orig, dest, 256) == 0);
     TitleMetaData* tmd = (TitleMetaData*) buffer;
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
 
@@ -1335,15 +1362,7 @@ u32 CryptCdnFileBuffered(const char* orig, const char* dest, u16 crypto, void* b
     }
 
     // actual crypto
-    if (CryptNcchNcsdBossFirmFile(orig, dest, GAME_NUSCDN, crypto, 0, 0, chunk, titlekey) != 0)
-        return 1;
-
-    if (inplace && tmd) { // in that case, write the change to the TMD file, too
-        u32 offset = ((u8*) chunk) - ((u8*) tmd);
-        fvx_qwrite(path_tmd, chunk, offset, sizeof(TmdContentChunk), NULL);
-    }
-
-    return 0;
+    return CryptNcchNcsdBossFirmFile(orig, dest, GAME_NUSCDN, crypto, 0, 0, chunk, titlekey);
 }
 
 u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
@@ -2123,6 +2142,9 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
 
 u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest, bool force_legit, bool cdn, void* buffer, bool install) {
     const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    static const u8 twl_tid_high[] = { 0x00, 0x03, 0x00, 0x04 };
+    static const u8 ctr_tid_high[] = { 0x00, 0x04, 0x80, 0x04 };
+
     CiaStub* cia = (CiaStub*) buffer;
     TitleMetaData* tmd = &(cia->tmd);
     TmdContentChunk* content_list = cia->content_list;
@@ -2149,6 +2171,15 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
     if (force_legit && ((ValidateTmdSignature(tmd) != 0) || VerifyTmd(tmd) != 0)) {
         ShowPrompt(false, "ID %016llX\nTMD is not legit.", getbe64(title_id));
         return 1;
+    }
+
+    // fix title id/key for faked TWL TMDs & Tickets
+    if (memcmp(title_id, twl_tid_high, 3) == 0) {
+        u8 titlekey[16];
+        memcpy(title_id, ctr_tid_high, 3);
+        GetTitleKey(titlekey, (Ticket*) &(cia->ticket));
+        memcpy((cia->ticket).title_id, title_id, 8);
+        SetTitleKey(titlekey, (Ticket*) &(cia->ticket));
     }
 
     // content path string
@@ -2239,7 +2270,7 @@ u32 InstallFromTmdFile(const char* path_tmd, const char* path_dest) {
     void* buffer = (void*) malloc(sizeof(CiaStub));
     if (!buffer) return 1;
 
-    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, true, true, buffer, true);
+    u32 ret = BuildInstallFromTmdFileBuffered(path_tmd, path_dest, false, true, buffer, true);
 
     free(buffer);
     return ret;
@@ -2500,7 +2531,7 @@ u64 GetGameFileTitleId(const char* path) {
         if (LoadCiaStub(cia, path) == 0)
             tid64 = getbe64(cia->tmd.title_id);
         free(cia);
-    } else if (filetype & GAME_TMD) {
+    } else if (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) {
         TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
         if (!tmd) return 0;
         if (LoadTmdFile(tmd, path) == 0)
@@ -2517,9 +2548,11 @@ u64 GetGameFileTitleId(const char* path) {
     } else if (filetype & GAME_NDS) {
         TwlHeader twl;
         if ((fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK) && (twl.unit_code & 0x02))
-            tid64 = 0x0004800000000000ull | (twl.title_id & 0xFFFFFFFFFFull);
+            tid64 = twl.title_id;
     }
 
+    if ((tid64 & 0xFFFFFF0000000000ull) == 0x0003000000000000ull)
+        tid64 = 0x0004800000000000ull | (tid64 & 0xFFFFFFFFFFull);
     return tid64;
 }
 
@@ -2533,7 +2566,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     char* dname = dest + strnlen(dest, 256);
     if (!((filetype & (GAME_TMD|GAME_TIE)) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
         (GetGoodName(dname, path, false) != 0)) {
-        u64 title_id = (filetype & GAME_TMD) ? GetGameFileTitleId(path) : 0;
+        u64 title_id = (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) ? GetGameFileTitleId(path) : 0;
         if (!title_id) {
             char* name = strrchr(path, '/');
             if (!name) return 1;
@@ -2556,8 +2589,8 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     // build CIA from game file
     if (filetype & GAME_TIE)
         ret = BuildCiaFromTieFile(path, dest, force_legit);
-    else if (filetype & GAME_TMD)
-        ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & FLAG_NUSCDN);
+    else if (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD))
+        ret = BuildCiaFromTmdFile(path, dest, force_legit, filetype & (GAME_CDNTMD|GAME_TWLTMD));
     else if (filetype & GAME_NCCH)
         ret = BuildInstallFromNcchFile(path, dest, false);
     else if (filetype & GAME_NCSD)
@@ -2625,7 +2658,7 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
     // install game file
     if (filetype & GAME_CIA)
         ret = InstallFromCiaFile(path, drv);
-    else if ((filetype & GAME_TMD) && (filetype & FLAG_NUSCDN))
+    else if (filetype & (GAME_CDNTMD|GAME_TWLTMD))
         ret = InstallFromTmdFile(path, drv);
     else if (filetype & GAME_NCCH)
         ret = BuildInstallFromNcchFile(path, drv, true);
@@ -3069,7 +3102,7 @@ u32 ShowCiaCheckerInfo(const char* path) {
         state_ticket = (ValidateTicketSignature((Ticket*)&(cia->ticket)) == 0) ? 2 : 1;
 
     // check tmd
-    if (ValidateTmd(&(cia->tmd)) == 0)
+    if (VerifyTmd(&(cia->tmd)) == 0)
         state_tmd = (ValidateTmdSignature(&(cia->tmd)) == 0) ? 2 : 1;
 
     // check for available contents

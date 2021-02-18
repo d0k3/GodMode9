@@ -14,6 +14,15 @@ u32 ValidateTmd(TitleMetaData* tmd) {
     return 0;
 }
 
+u32 ValidateTwlTmd(TitleMetaData* tmd) {
+    static const u8 magic[] = { TMD_SIG_TYPE_TWL };
+    if ((memcmp(tmd->sig_type, magic, sizeof(magic)) != 0) ||
+        (strncmp((char*) tmd->issuer, TMD_ISSUER_TWL, 0x40) != 0) ||
+        (getbe16(tmd->content_count) != 1))
+        return 1;
+    return 0;
+}
+
 u32 ValidateTmdSignature(TitleMetaData* tmd) {
     static bool got_modexp = false;
     static u32 mod[0x100 / 4] = { 0 };

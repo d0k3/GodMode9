@@ -7,11 +7,16 @@
 #define TMD_SIZE_MIN        sizeof(TitleMetaData)
 #define TMD_SIZE_MAX        (sizeof(TitleMetaData) + (TMD_MAX_CONTENTS*sizeof(TmdContentChunk)))
 #define TMD_SIZE_N(n)       (sizeof(TitleMetaData) + (n*sizeof(TmdContentChunk)))
+#define TMD_SIZE_STUB       (TMD_SIZE_MIN - (0x20 + (64 * sizeof(TmdContentInfo))))
+#define TMD_SIZE_TWL        (TMD_SIZE_STUB + 0x24)
 #define TMD_CDNCERT_SIZE    0x700
 
 #define TMD_ISSUER          "Root-CA00000003-CP0000000b"
 #define TMD_ISSUER_DEV      "Root-CA00000004-CP0000000a"
 #define TMD_SIG_TYPE        0x00, 0x01, 0x00, 0x04 // RSA_2048 SHA256
+
+#define TMD_ISSUER_TWL      "Root-CA00000001-CP00000007"
+#define TMD_SIG_TYPE_TWL    0x00, 0x01, 0x00, 0x01 // RSA_2048 SHA1
 
 #define DLC_TID_HIGH        0x00, 0x04, 0x00, 0x8C // title id high for DLC
 
@@ -58,6 +63,7 @@ typedef struct {
 } __attribute__((packed, aligned(4))) TitleMetaData;
 
 u32 ValidateTmd(TitleMetaData* tmd);
+u32 ValidateTwlTmd(TitleMetaData* tmd);
 u32 ValidateTmdSignature(TitleMetaData* tmd);
 u32 VerifyTmd(TitleMetaData* tmd);
 u32 GetTmdCtr(u8* ctr, TmdContentChunk* chunk);

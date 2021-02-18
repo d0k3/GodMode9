@@ -86,9 +86,12 @@ u64 IdentifyFileType(const char* path) {
             return GAME_ROMFS; // RomFS file (check could be better)
         } else if (ValidateTmd((TitleMetaData*) data) == 0) {
             if (fsize == TMD_SIZE_N(getbe16(header + 0x1DE)) + TMD_CDNCERT_SIZE)
-                return GAME_TMD | FLAG_NUSCDN; // TMD file from NUS/CDN
+                return GAME_CDNTMD; // TMD file from NUS/CDN
             else if (fsize >= TMD_SIZE_N(getbe16(header + 0x1DE)))
                 return GAME_TMD; // TMD file
+        } else if (ValidateTwlTmd((TitleMetaData*) data) == 0) {
+            if (fsize == TMD_SIZE_TWL + TMD_CDNCERT_SIZE)
+                return GAME_TWLTMD; // TMD file from NUS/CDN (TWL)
         } else if (ValidateTicket((Ticket*) data) == 0) {
             return GAME_TICKET; // Ticket file
         } else if (ValidateFirmHeader((FirmHeader*) data, fsize) == 0) {
@@ -143,14 +146,6 @@ u64 IdentifyFileType(const char* path) {
     } else if ((strncasecmp(ext, "png", 4) == 0) &&
         (fsize > sizeof(png_magic)) && (memcmp(data, png_magic, sizeof(png_magic)) == 0)) {
         return GFX_PNG;
-    } else if ((strncasecmp(ext, "cdn", 4) == 0) || (strncasecmp(ext, "nus", 4) == 0)) {
-        char path_cetk[256];
-        char* ext_cetk = path_cetk + (ext - path);
-        strncpy(path_cetk, path, 256);
-        path_cetk[255] = '\0';
-        strncpy(ext_cetk, "cetk", 5);
-        if (FileGetSize(path_cetk) > 0)
-            return GAME_NUSCDN; // NUS/CDN type 2
     } else if (strncasecmp(fname, TIKDB_NAME_ENC, sizeof(TIKDB_NAME_ENC)+1) == 0) {
         return BIN_TIKDB | FLAG_ENC; // titlekey database / encrypted
     } else if (strncasecmp(fname, TIKDB_NAME_DEC, sizeof(TIKDB_NAME_DEC)+1) == 0) {
@@ -176,12 +171,12 @@ u64 IdentifyFileType(const char* path) {
         char* name_cdn = path_cdn + (fname - path);
         strncpy(path_cdn, path, 256);
         path_cdn[255] = '\0';
-        strncpy(name_cdn, "tmd", 4);
+        strncpy(name_cdn, "tmd", 4); // this will not catch tmd with version
         if (FileGetSize(path_cdn) > 0)
-            return GAME_NUSCDN; // NUS/CDN type 1
+            return GAME_NUSCDN; // NUS/CDN, recognized by TMD
         strncpy(name_cdn, "cetk", 5);
         if (FileGetSize(path_cdn) > 0)
-            return GAME_NUSCDN; // NUS/CDN type 1
+            return GAME_NUSCDN; // NUS/CDN, recognized by CETK
     }
 
     return 0;

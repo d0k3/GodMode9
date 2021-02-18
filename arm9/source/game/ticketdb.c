@@ -26,15 +26,21 @@ u32 CryptTitleKey(TitleKeyEntry* tik, bool encrypt, bool devkit) {
         {0x75, 0x05, 0x52, 0xBF, 0xAA, 0x1C, 0x04, 0x07, 0x55, 0xC8, 0xD5, 0x9A, 0x55, 0xF9, 0xAD, 0x1F} , // 4
         {0xAA, 0xDA, 0x4C, 0xA8, 0xF6, 0xE5, 0xA9, 0x77, 0xE0, 0xA0, 0xF9, 0xE4, 0x76, 0xCF, 0x0D, 0x63} , // 5
     };
+    // From unknown source
+    static const u8 common_key_twl[16] __attribute__((aligned(16))) =
+        {0xAF, 0x1B, 0xF5, 0x16, 0xA8, 0x07, 0xD2, 0x1A, 0xEA, 0x45, 0x98, 0x4F, 0x04, 0x74, 0x28, 0x61};  // TWL
 
     u32 mode = (encrypt) ? AES_CNT_TITLEKEY_ENCRYPT_MODE : AES_CNT_TITLEKEY_DECRYPT_MODE;
     u8 ctr[16] = { 0 };
 
-    // setup key 0x3D // ctr
-    if (tik->commonkey_idx >= 6) return 1;
-    if (!devkit) setup_aeskeyY(0x3D, (void*) common_keyy[tik->commonkey_idx]);
-    else setup_aeskey(0x3D, (void*) common_key_dev[tik->commonkey_idx]);
-    use_aeskey(0x3D);
+    if (getbe16(tik->title_id) == 0x3) { // setup TWL key
+        setup_aeskey(0x11, (void*) common_key_twl);
+        use_aeskey(0x11);
+    } else { // setup key 0x3D // ctr
+        if (!devkit) setup_aeskeyY(0x3D, (void*) common_keyy[tik->commonkey_idx]);
+        else setup_aeskey(0x3D, (void*) common_key_dev[tik->commonkey_idx]);
+        use_aeskey(0x3D);
+    }
     memcpy(ctr, tik->title_id, 8);
     set_ctr(ctr);
 
@@ -51,6 +57,17 @@ u32 GetTitleKey(u8* titlekey, Ticket* ticket) {
 
     if (CryptTitleKey(&tik, false, TICKET_DEVKIT(ticket)) != 0) return 1;
     memcpy(titlekey, tik.titlekey, 16);
+    return 0;
+}
+
+u32 SetTitleKey(const u8* titlekey, Ticket* ticket) {
+    TitleKeyEntry tik = { 0 };
+    memcpy(tik.title_id, ticket->title_id, 8);
+    memcpy(tik.titlekey, titlekey, 16);
+    tik.commonkey_idx = ticket->commonkey_idx;
+
+    if (CryptTitleKey(&tik, true, TICKET_DEVKIT(ticket)) != 0) return 1;
+    memcpy(ticket->titlekey, tik.titlekey, 16);
     return 0;
 }
 
@@ -140,4 +157,10 @@ u32 AddTicketToInfo(TitleKeysInfo* tik_info, Ticket* ticket, bool decrypt) { // 
     memcpy(tik.titlekey, ticket->titlekey, 16);
     tik.commonkey_idx = ticket->commonkey_idx;
     return AddTitleKeyToInfo(tik_info, &tik, false, decrypt, TICKET_DEVKIT(ticket));
+}
+
+u32 CryptTitleKeyInfo(TitleKeysInfo* tik_info, bool encrypt) {
+    for (u32 t = 0; t < tik_info->n_entries; t++)
+        CryptTitleKey(tik_info->entries + t, encrypt, false);
+    return 0;
 }

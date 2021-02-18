@@ -19,6 +19,14 @@ u32 ValidateTicket(Ticket* ticket) {
     return 0;
 }
 
+u32 ValidateTwlTicket(Ticket* ticket) {
+    static const u8 magic[] = { TICKET_SIG_TYPE_TWL };
+    if ((memcmp(ticket->sig_type, magic, sizeof(magic)) != 0) ||
+        (strncmp((char*) ticket->issuer, TICKET_ISSUER_TWL, 0x40) != 0))
+        return 1;
+    return 0;
+}
+
 u32 ValidateTicketSignature(Ticket* ticket) {
     static bool got_modexp = false;
     static u32 mod[0x100 / 0x4] = { 0 };

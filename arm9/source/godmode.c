@@ -1126,7 +1126,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool agbimportable = (FTYPE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
 
     char cxi_path[256] = { 0 }; // special options for TMD
-    if ((filetype & GAME_TMD) && !(filetype & FLAG_NUSCDN) &&
+    if ((filetype & GAME_TMD) &&
         (GetTmdContentPath(cxi_path, file_path) == 0) &&
         (PathExist(cxi_path))) {
         u64 filetype_cxi = IdentifyFileType(cxi_path);
@@ -1134,7 +1134,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         extrcodeable = (FTYPE_HASCODE(filetype_cxi));
     }
 
-    bool special_opt = mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit || cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable || hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable || keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable || agbimportable;
+    bool special_opt =
+        mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit ||
+        cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable ||
+        hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable ||
+        keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable ||
+        agbimportable || cia_installable || tik_installable;
 
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1176,6 +1181,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & GAME_EXEFS) ? "Mount as EXEFS image"  :
         (filetype & GAME_ROMFS) ? "Mount as ROMFS image"  :
         (filetype & GAME_TMD  ) ? "TMD file options..."   :
+        (filetype & GAME_CDNTMD)? "TMD/CDN options..."    :
+        (filetype & GAME_TWLTMD)? "TMD/TWL options..."    :
         (filetype & GAME_TIE  ) ? "Manage Title..."       :
         (filetype & GAME_BOSS ) ? "BOSS file options..."  :
         (filetype & GAME_NUSCDN)? "Decrypt NUS/CDN file"  :
