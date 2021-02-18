@@ -63,13 +63,13 @@ u32 GetCartName(char* name, CartData* cdata) {
 }
 
 u32 GetCartInfoString(char* info, CartData* cdata) {
-	if (cdata->cart_type & CART_CTR) {
+    if (cdata->cart_type & CART_CTR) {
         CartDataCtr* cdata_i = (CartDataCtr*)cdata;
         NcsdHeader* ncsd = &(cdata_i->ncsd);
         NcchHeader* ncch = &(cdata_i->ncch);
         snprintf(info, 256, "Title ID     : %016llX\nProduct Code : %.10s\nRevision     : %lu\nCart ID      : %08lX\nPlatform     : %s\nTimestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\nGM9 Version  : %s\n",
-        	ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id,
-        	(ncch->flags[4] == 0x2) ? "N3DS" : "O3DS",
+            ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id,
+            (ncch->flags[4] == 0x2) ? "N3DS" : "O3DS",
             init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
             init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
             VERSION);
@@ -77,8 +77,8 @@ u32 GetCartInfoString(char* info, CartData* cdata) {
         CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)cdata;
         TwlHeader* nds = &(cdata_i->ntr_header);
         snprintf(info, 256, "Title String : %.12s\nProduct Code : %.6s\nRevision     : %u\nCart ID      : %08lX\nPlatform     : %s\nTimestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\nGM9 Version  : %s\n",
-        	nds->game_title, nds->game_code, nds->rom_version, cdata_i->cart_id,
-        	(nds->unit_code == 0x2) ? "DSi Enhanced" : (nds->unit_code == 0x3) ? "DSi Exclusive" : "DS",
+            nds->game_title, nds->game_code, nds->rom_version, cdata_i->cart_id,
+            (nds->unit_code == 0x2) ? "DSi Enhanced" : (nds->unit_code == 0x3) ? "DSi Exclusive" : "DS",
             init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
             init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
             VERSION);
@@ -320,15 +320,15 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
 }
 
 u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
-	char info[256];
-	u32 len;
-	
-	GetCartInfoString(info, cdata);
-	len = strnlen(info, 255);
+    char info[256];
+    u32 len;
+    
+    GetCartInfoString(info, cdata);
+    len = strnlen(info, 255);
 
-	if (offset >= len) return 0;
-	if (offset + count > len) count = len - offset;
-	memcpy(buffer, info + offset, count);
+    if (offset >= len) return 0;
+    if (offset + count > len) count = len - offset;
+    memcpy(buffer, info + offset, count);
 
     return 0;
 }

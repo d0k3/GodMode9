@@ -9,28 +9,28 @@
 
 // this structure is 0x80 bytes, thanks @luigoalma
 typedef struct {
-  char magic[4]; // "PREP" for prepurchase install. NIM excepts "PREP" to do seed downloads on the background.
-  // playable date parameters
-  // 2000-01-01 is a safe bet for a stub entry
-  s32 year;
-  u8 month;
-  u8 day;
-  u16 country_code; // enum list of values, this will affect seed downloading, just requires at least one valid enum value. 1 == Japan, it's enough.
-  // everything after this point can be 0 padded
-  u32 seed_status; // 0 == not tried, 1 == last attempt failed, 2 == seed downloaded successfully
-  s32 seed_result; // result related to last download attempt
-  s32 seed_support_error_code; // support code derived from the result code 
-  // after this point, all is unused or padding. NIM wont use or access this at all.
-  // It's memset to 0 by NIM
-  u8 unknown[0x68];
+    char magic[4]; // "PREP" for prepurchase install. NIM excepts "PREP" to do seed downloads on the background.
+    // playable date parameters
+    // 2000-01-01 is a safe bet for a stub entry
+    s32 year;
+    u8 month;
+    u8 day;
+    u16 country_code; // enum list of values, this will affect seed downloading, just requires at least one valid enum value. 1 == Japan, it's enough.
+    // everything after this point can be 0 padded
+    u32 seed_status; // 0 == not tried, 1 == last attempt failed, 2 == seed downloaded successfully
+    s32 seed_result; // result related to last download attempt
+    s32 seed_support_error_code; // support code derived from the result code 
+    // after this point, all is unused or padding. NIM wont use or access this at all.
+    // It's memset to 0 by NIM
+    u8 unknown[0x68];
 } PACKED_STRUCT TitleTagEntry;
 
 typedef struct {
-	u32 unknown0;
-	u32 n_entries;
-	u8  unknown1[0x1000 - 0x8];
-	u64 titleId[TITLETAG_MAX_ENTRIES];
-	TitleTagEntry tag[TITLETAG_MAX_ENTRIES];
+    u32 unknown0;
+    u32 n_entries;
+    u8  unknown1[0x1000 - 0x8];
+    u64 titleId[TITLETAG_MAX_ENTRIES];
+    TitleTagEntry tag[TITLETAG_MAX_ENTRIES];
 } PACKED_STRUCT TitleTag;
 
 u32 GetSeedPath(char* path, const char* drv) {
@@ -82,7 +82,7 @@ u32 FindSeed(u8* seed, u64 titleId, u32 hash_seed) {
         // read SEEDDB from file
         if (GetSeedPath(path, nand_drv[i]) != 0) continue;
         if ((ReadDisaDiffIvfcLvl4(path, NULL, SEEDSAVE_AREA_OFFSET, sizeof(SeedDb), seeddb) != sizeof(SeedDb)) ||
-        	(seeddb->n_entries > SEEDSAVE_MAX_ENTRIES))
+            (seeddb->n_entries > SEEDSAVE_MAX_ENTRIES))
             continue;
 
         // search for the seed
@@ -97,8 +97,8 @@ u32 FindSeed(u8* seed, u64 titleId, u32 hash_seed) {
             }
         }
     }
-	
-	// not found -> try seeddb.bin
+    
+    // not found -> try seeddb.bin
     SeedInfo* seeddb = (SeedInfo*) (void*) buffer;
     size_t len = LoadSupportFile(SEEDINFO_NAME, seeddb, STD_BUFFER_SIZE);
     if (len && (seeddb->n_entries <= (len - 16) / 32)) { // check filesize / seeddb size
@@ -169,49 +169,49 @@ u32 InstallSeedDbToSystem(SeedInfo* seed_info, bool to_emunand) {
 }
 
 u32 SetupSeedPrePurchase(u64 titleId, bool to_emunand) {
-	// here, we ask the system to install the seed for us
-	TitleTag* titletag = (TitleTag*) malloc(sizeof(TitleTag));
-	if (!titletag) return 1;
-	
-	char path[128];
-	if ((GetSeedPath(path, to_emunand ? "4:" : "1:") != 0) ||
+    // here, we ask the system to install the seed for us
+    TitleTag* titletag = (TitleTag*) malloc(sizeof(TitleTag));
+    if (!titletag) return 1;
+    
+    char path[128];
+    if ((GetSeedPath(path, to_emunand ? "4:" : "1:") != 0) ||
         (ReadDisaDiffIvfcLvl4(path, NULL, TITLETAG_AREA_OFFSET, sizeof(TitleTag), titletag) != sizeof(TitleTag)) ||
         (titletag->n_entries >= TITLETAG_MAX_ENTRIES)) {
-    	free (titletag);
+        free (titletag);
         return 1;
     }
     
     // pointers for TITLETAG title IDs and seeds
-	// find a free slot, insert titletag
-	u32 slot = 0;
-	for (; slot < titletag->n_entries; slot++)
-		if (titletag->titleId[slot] == titleId) break;
-	if (slot >= titletag->n_entries)
-		titletag->n_entries = slot + 1;
-	
-	TitleTagEntry* ttag = &(titletag->tag[slot]);
-	titletag->titleId[slot] = titleId;
-	memset(ttag, 0, sizeof(TitleTagEntry));
-	memcpy(ttag->magic, "PREP", 4);
-	ttag->year = 2000;
-	ttag->month = 1;
-	ttag->day = 1;
-	ttag->country_code = 1;
+    // find a free slot, insert titletag
+    u32 slot = 0;
+    for (; slot < titletag->n_entries; slot++)
+        if (titletag->titleId[slot] == titleId) break;
+    if (slot >= titletag->n_entries)
+        titletag->n_entries = slot + 1;
+    
+    TitleTagEntry* ttag = &(titletag->tag[slot]);
+    titletag->titleId[slot] = titleId;
+    memset(ttag, 0, sizeof(TitleTagEntry));
+    memcpy(ttag->magic, "PREP", 4);
+    ttag->year = 2000;
+    ttag->month = 1;
+    ttag->day = 1;
+    ttag->country_code = 1;
 
     // write back to system (warning: no write protection checks here)
-	u32 size = WriteDisaDiffIvfcLvl4(path, NULL, TITLETAG_AREA_OFFSET, sizeof(TitleTag), titletag);
-	FixFileCmac(path, false);
-	
-	free(titletag);
-	return (size == sizeof(TitleTag)) ? 0 : 1;
+    u32 size = WriteDisaDiffIvfcLvl4(path, NULL, TITLETAG_AREA_OFFSET, sizeof(TitleTag), titletag);
+    FixFileCmac(path, false);
+    
+    free(titletag);
+    return (size == sizeof(TitleTag)) ? 0 : 1;
 }
 
 u32 SetupSeedSystemCrypto(u64 titleId, u32 hash_seed, bool to_emunand) {
-	// attempt to find the seed inside the seeddb.bin support file
-	SeedInfo* seeddb = (SeedInfo*) malloc(STD_BUFFER_SIZE);
-	if (!seeddb) return 1;
+    // attempt to find the seed inside the seeddb.bin support file
+    SeedInfo* seeddb = (SeedInfo*) malloc(STD_BUFFER_SIZE);
+    if (!seeddb) return 1;
 
-	size_t len = LoadSupportFile(SEEDINFO_NAME, seeddb, STD_BUFFER_SIZE);
+    size_t len = LoadSupportFile(SEEDINFO_NAME, seeddb, STD_BUFFER_SIZE);
     if (len && (seeddb->n_entries <= (len - 16) / 32)) { // check filesize / seeddb size
         for (u32 s = 0; s < seeddb->n_entries; s++) {
             if (titleId != seeddb->entries[s].titleId)
@@ -224,7 +224,7 @@ u32 SetupSeedSystemCrypto(u64 titleId, u32 hash_seed, bool to_emunand) {
             sha_quick(sha256sum, lseed, 16 + 8, SHA256_MODE);
             u32 res = 0; // assuming the installed seed to be correct
             if (hash_seed == sha256sum[0]) {
-            	// found, install it
+                // found, install it
                 seeddb->n_entries = 1;
                 seeddb->entries[0].titleId = titleId;
                 memcpy(&(seeddb->entries[0].seed), lseed, sizeof(Seed));
@@ -236,5 +236,5 @@ u32 SetupSeedSystemCrypto(u64 titleId, u32 hash_seed, bool to_emunand) {
     }
 
     free(seeddb);
-	return 1;
+    return 1;
 }

@@ -10,7 +10,7 @@
 #define SEEDSAVE_AREA_OFFSET  0x3000
 
 typedef struct {
-	u8 byte[16];
+    u8 byte[16];
 } PACKED_STRUCT Seed;
 
 typedef struct {
@@ -26,11 +26,11 @@ typedef struct {
 } PACKED_STRUCT SeedInfo;
 
 typedef struct {
-	u32 unknown0;
-	u32 n_entries;
-	u8  unknown1[0x1000 - 0x8];
-	u64 titleId[SEEDSAVE_MAX_ENTRIES];
-	Seed seed[SEEDSAVE_MAX_ENTRIES];
+    u32 unknown0;
+    u32 n_entries;
+    u8  unknown1[0x1000 - 0x8];
+    u64 titleId[SEEDSAVE_MAX_ENTRIES];
+    Seed seed[SEEDSAVE_MAX_ENTRIES];
 } PACKED_STRUCT SeedDb;
 
 u32 GetSeedPath(char* path, const char* drv);
