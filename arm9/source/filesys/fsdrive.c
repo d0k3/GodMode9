@@ -22,7 +22,7 @@ int DriveType(const char* path) {
     } else if (*search_pattern && *search_path && (strncmp(path, "Z:", 3) == 0)) {
         type = DRV_SEARCH;
     } else if (title_manager_mode && (strncmp(path, "Y:", 3) == 0)) {
-        type = DRV_TITLEMAN;
+        type = DRV_VIRTUAL | DRV_TITLEMAN;
     } else if ((pdrv >= 0) && (pdrv < NORM_FS)) {
         if (pdrv == 0) {
             type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
