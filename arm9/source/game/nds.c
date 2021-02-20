@@ -27,6 +27,23 @@ u32 ValidateTwlHeader(TwlHeader* twl) {
     return (crc16_quick(twl->logo, sizeof(twl->logo)) == NDS_LOGO_CRC16) ? 0 : 1;
 }
 
+u32 VerifyTwlIconData(TwlIconData* icon, u32 version) {
+    u32 tsize = TWLICON_SIZE_DATA(version);
+    u32 isize = TWLICON_SIZE_DATA(icon->version);
+    u8* icn = (u8*) icon;
+
+    if (!isize) return 1;
+    if (version && (!tsize || tsize > isize)) return 1;
+
+    u32 size = version ? tsize : isize;
+    if ((size >= 0x0840) && (crc16_quick(icn + 0x0020, 0x0840 - 0x0020) != icon->crc_0x0020_0x0840)) return 1;
+    if ((size >= 0x0940) && (crc16_quick(icn + 0x0020, 0x0940 - 0x0020) != icon->crc_0x0020_0x0940)) return 1;
+    if ((size >= 0x1240) && (crc16_quick(icn + 0x0020, 0x0A40 - 0x0020) != icon->crc_0x0020_0x0A40)) return 1;
+    if ((size >= 0x23C0) && (crc16_quick(icn + 0x1240, 0x23C0 - 0x1240) != icon->crc_0x1240_0x23C0)) return 1;
+    
+    return 0;
+}
+
 u32 BuildTwlSaveHeader(void* sav, u32 size) {
     const u16 sct_size = 0x200;
     if (size / (u32) sct_size > 0xFFFF)

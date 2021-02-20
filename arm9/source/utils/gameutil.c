@@ -19,6 +19,33 @@
 // partitionA path
 #define PART_PATH       "D:/partitionA.bin"
 
+
+u32 GetCbcBlocks(FIL* file, void* buffer, u64 offset, u32 count, u8* titlekey, u8* forced_iv) {
+    u8 iv[16] __attribute__((aligned(4)));
+    UINT btr;
+    
+    // sanity, get IV
+    if ((count % 0x10) || (offset % 0x10)) return 1; // not possible
+    if (forced_iv) memcpy(iv, forced_iv, 0x10);
+    else if ((offset < 0x10) || (fvx_lseek(file, offset - 0x10) != FR_OK) ||
+        (fvx_read(file, iv, 0x10, &btr) != FR_OK) || (btr != 0x10))
+        return 1;
+    
+    // load data
+    if ((fvx_lseek(file, offset) != FR_OK) ||
+        (fvx_read(file, buffer, count, &btr) != FR_OK) || (btr != count))
+        return 1;
+    
+    // decrypt
+    if (titlekey) {
+        setup_aeskey(0x11, titlekey);
+        use_aeskey(0x11);
+        cbc_decrypt(buffer, buffer, count / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, iv);   
+    }
+
+    return 0;
+}
+
 u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, FIL* file, bool nocrypto) {
     u32 offset_ncch = fvx_tell(file);
     UINT btr;
@@ -282,6 +309,9 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     if (!name_content) return 1; // will not happen
     name_content++;
 
+    // CDN content?
+    bool cdn = IdentifyFileType(path_tmd) & (GAME_CDNTMD|GAME_TWLTMD);
+
     // load TMD file
     TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
     TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
@@ -290,7 +320,7 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
         free(tmd);
         return 1;
     }
-    snprintf(name_content, 256 - (name_content - path_content),
+    snprintf(name_content, 256 - (name_content - path_content), cdn ? "%08lx" :
         (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
 
     free(tmd);
@@ -1617,6 +1647,126 @@ u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, 
     return UninstallGameData(tid64, remove_tie, remove_ticket, remove_save, from_emunand);
 }
 
+u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, bool cia_meta) {
+    u64 filetype = IdentifyFileType(path);
+    u8 tik_data[16] __attribute__((aligned(32)));
+    u8 iv[16] __attribute__((aligned(4)));
+    u8* titlekey = NULL;
+    u64 offset_cnt = 0;
+    char path_cnt[256];
+    u8 title_id[8];
+
+    strcpy(path_cnt, path);
+    char* name_cnt = strrchr(path_cnt, '/');
+    if (!name_cnt) return 0; // will not happen
+
+    void* data = (void*) malloc(max(sizeof(CiaStub), 0x1000));
+    if (!data) return 0;
+    
+    // get content path/offset and TMD data
+    TitleMetaData* tmd = (TitleMetaData*) data;
+    Ticket* ticket = NULL;
+    if ((filetype & GAME_CIA) && (LoadCiaStub(data, path) == 0)) { // CIA file
+        CiaStub* cia = (CiaStub*) data;
+        CiaInfo info;
+        GetCiaInfo(&info, data);
+        tmd = &(cia->tmd);
+        ticket =(Ticket*) &(cia->ticket);
+        offset_cnt = info.offset_content;
+        // strcpy(path_cnt, path); // unchanged
+    } else if ((filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) && (LoadTmdFile(tmd, path) == 0)) {
+        const bool cdn = (filetype & (GAME_CDNTMD|GAME_TWLTMD));
+        snprintf(++name_cnt, 16, (cdn ? "%08lx" : "%08lx.app"),
+            getbe32(((TmdContentChunk*) (tmd+1))->id));
+        // offset_cnt = 0; // unchanged
+    } else {
+        free(data);
+        return 0;
+    }
+    
+    // title_id, titlekey & iv
+    TmdContentChunk* chunk = (TmdContentChunk*) (tmd+1);
+    GetTmdCtr(iv, chunk);
+    memcpy(title_id, tmd->title_id, 8);
+    if (getbe16(chunk->type) & 0x1) {
+        titlekey = tik_data;
+        if ((ticket && (GetTitleKey(titlekey, ticket) != 0)) ||
+            (FindTitleKeyForId(titlekey, title_id) != 0)) {
+            free(data);
+            return 0;
+        }
+    }
+    
+    // load first block of data
+    FIL file;
+    if (fvx_open(&file, path_cnt, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
+        free(data);
+        return 0;
+    }
+    if (GetCbcBlocks(&file, data, offset_cnt, 0x1000, titlekey, iv) != 0) {
+        fvx_close(&file);
+        free(data);
+        return 0;
+    }
+    
+    // find out what it is and proceed
+    u32 ret = 0;
+    if (!cia_meta && ValidateTwlHeader((TwlHeader*) data) == 0) {
+        // TWL data
+        TwlHeader* twl = (TwlHeader*) data;
+        if (twl->icon_offset && (GetCbcBlocks(&file, (u8*) output,
+                offset_cnt + twl->icon_offset, TWLICON_SIZE_DATA(0x0001), titlekey, NULL) == 0) &&
+            (VerifyTwlIconData((TwlIconData*) output, 0x0001) == 0))
+            ret = GAME_NDS;
+    } else if (ValidateNcchHeader((NcchHeader*) data) == 0) {
+        // NCCH data
+        static const u8 smdh_magic[] = { SMDH_MAGIC };
+        NcchHeader* ncch = (NcchHeader*) data;
+        u8* icon = NULL;
+        if (cia_meta) {
+            CiaMeta* meta = (CiaMeta*) output;
+            NcchExtHeader* exthdr = (NcchExtHeader*) (void*) (((u8*)data) + NCCH_EXTHDR_OFFSET);
+            if (!ncch->size_exthdr || 
+                (DecryptNcch(exthdr, NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_SIZE, ncch, NULL) != 0) ||
+                (BuildCiaMeta(meta, exthdr, NULL) != 0)) {
+                fvx_close(&file);
+                free(data);
+                return 0;
+            }
+            icon = (u8*) &(meta->smdh);
+        } else icon = (u8*) output;
+        memset(icon, 0x00, sizeof(smdh_magic)); // magic number
+
+        if (ncch->size_exefs) {
+            ExeFsHeader exefs;
+            u64 offset_exefs = ncch->offset_exefs * NCCH_MEDIA_UNIT;
+            if ((GetCbcBlocks(&file, &exefs, offset_cnt + offset_exefs, sizeof(ExeFsHeader), titlekey, NULL) == 0) &&
+                (DecryptNcch(&exefs, offset_exefs, sizeof(ExeFsHeader), ncch, NULL) == 0) &&
+                (ValidateExeFsHeader(&exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) == 0)) {
+                ExeFsFileHeader* exefile = NULL;
+                for (u32 i = 0; i < 10; i++) {
+                    if ((exefs.files[i].size == sizeof(Smdh)) &&
+                        (strncmp("icon", exefs.files[i].name, 8) == 0)) {
+                        exefile = exefs.files + i;
+                        break;
+                    }
+                }
+                if (exefile) {
+                    u32 offset_exef = offset_exefs + sizeof(ExeFsHeader) + exefile->offset;
+                    if ((GetCbcBlocks(&file, icon, offset_cnt + offset_exef, sizeof(Smdh), titlekey, NULL) == 0) &&
+                        (DecryptNcch(icon, offset_exef, sizeof(Smdh), ncch, &exefs) == 0) &&
+                        (memcmp(icon, smdh_magic, sizeof(smdh_magic)) == 0))
+                        ret = GAME_NCCH;
+                }
+            }
+        }
+    }
+
+    fvx_close(&file);
+    free(data);
+    return ret;
+}
+
 u32 InstallCiaContent(const char* drv, const char* path_content, u32 offset, u32 size,
     TmdContentChunk* chunk, const u8* title_id, const u8* titlekey, bool cxi_fix, bool cdn_decrypt) {
     char dest[256];
@@ -2236,18 +2386,15 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         }
     }
 
-    // try to build & insert meta, but ignore result
-    if (!install) {
+    // try to build & insert meta, but ignore result (from encrypted data?)
+    if (!install && content_count) {
         CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
         if (meta) {
-            if (content_count && cdn) {
-                if (!force_legit || !(getbe16(content_list->type) & 0x01)) {
-                    CiaInfo info;
-                    GetCiaInfo(&info, &(cia->header));
-                    if ((LoadNcchMeta(meta, path_dest, info.offset_content) == 0) && (InsertCiaMeta(path_dest, meta) == 0))
-                        cia->header.size_meta = CIA_META_SIZE;
-                }
-            } else if (content_count) {
+            if (cdn) {
+                if ((LoadEncryptedIconFromCiaTmd(path_tmd, meta, true) == GAME_NCCH) &&
+                    (InsertCiaMeta(path_dest, meta) == 0))
+                    cia->header.size_meta = CIA_META_SIZE;
+            } else {
                 snprintf(name_content, 256 - (name_content - path_content), "%08lx.app", getbe32(content_list->id));
                 if ((LoadNcchMeta(meta, path_content, 0) == 0) && (InsertCiaMeta(path_dest, meta) == 0))
                     cia->header.size_meta = CIA_META_SIZE;
@@ -3050,13 +3197,17 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     char tidstr[32] = { '\0' };
     if (tid) snprintf(tidstr, 32, "<%016llX>\n", tid);
 
-    // try loading SMDH, then try NDS / GBA
+    // try loading SMDH, then try NDS / encrypted / GBA
     u32 ret = 1;
+    u32 tp = 0;
     if (LoadSmdhFromGameFile(path, smdh) == 0)
         ret = ShowSmdhTitleInfo(smdh, tidstr, screen);
     else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
         ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
         ret = ShowTwlIconTitleInfo(twl_icon, tidstr, screen);
+    else if ((tp = LoadEncryptedIconFromCiaTmd(path, buffer, false)) != 0)
+        ret = (tp == GAME_NCCH) ? ShowSmdhTitleInfo(smdh, tidstr, screen) :
+              (tp == GAME_NDS ) ? ShowTwlIconTitleInfo(twl_icon, tidstr, screen) : 1;
     else ret = ShowGbaFileTitleInfo(path, screen);
 
     if (!ret && clear) {

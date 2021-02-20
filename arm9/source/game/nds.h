@@ -127,6 +127,7 @@ typedef struct {
 } PACKED_STRUCT TwlHeader;
 
 u32 ValidateTwlHeader(TwlHeader* twl);
+u32 VerifyTwlIconData(TwlIconData* icon, u32 size);
 u32 BuildTwlSaveHeader(void* sav, u32 size);
 u32 LoadTwlMetaData(const char* path, TwlHeader* hdr, TwlIconData* icon);
 u32 GetTwlTitle(char* desc, const TwlIconData* twl_icon);

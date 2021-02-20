@@ -133,6 +133,17 @@ u32 FindTitleKey(Ticket* ticket, u8* title_id) {
     return (found) ? 0 : 1;
 }
 
+u32 FindTitleKeyForId(u8* titlekey, u8* title_id) {
+    TicketCommon tik;
+
+    if ((BuildFakeTicket((Ticket*) &tik, title_id) != 0) ||
+        (FindTitleKey((Ticket*) &tik, title_id) != 0) ||
+        (GetTitleKey(titlekey, (Ticket*) &tik) != 0))
+        return 1;
+
+    return 0;
+}
+
 u32 AddTitleKeyToInfo(TitleKeysInfo* tik_info, TitleKeyEntry* tik_entry, bool decrypted_in, bool decrypted_out, bool devkit) {
     if (!tik_entry) { // no titlekey entry -> reset database
         memset(tik_info, 0, 16);
