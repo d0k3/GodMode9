@@ -187,9 +187,9 @@ void __attribute__((noreturn)) MainLoop(void)
 			// sets the LCDs brightness (if FIXED_BRIGHTNESS is disabled)
 			case PXICMD_SET_BRIGHTNESS:
 			{
-				s32 newbrightness = (s32)args[0];
 				pxiReply = GFX_getBrightness();
 				#ifndef FIXED_BRIGHTNESS
+				s32 newbrightness = (s32)args[0];
 				if ((newbrightness > 0) && (newbrightness < 0x100)) {
 					GFX_setBrightness(newbrightness, newbrightness);
 					auto_brightness = false;
