@@ -1647,7 +1647,7 @@ u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, 
     return UninstallGameData(tid64, remove_tie, remove_ticket, remove_save, from_emunand);
 }
 
-u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, bool cia_meta) {
+u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, void* hdr, bool cia_meta) {
     u64 filetype = IdentifyFileType(path);
     u8 tik_data[16] __attribute__((aligned(32)));
     u8 iv[16] __attribute__((aligned(4)));
@@ -1761,6 +1761,9 @@ u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, bool cia_meta) {
             }
         }
     }
+
+    // copy header if requested
+    if (ret && hdr) memcpy(hdr, data, 0x300);
 
     fvx_close(&file);
     free(data);
@@ -2391,7 +2394,7 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
         if (meta) {
             if (cdn) {
-                if ((LoadEncryptedIconFromCiaTmd(path_tmd, meta, true) == GAME_NCCH) &&
+                if ((LoadEncryptedIconFromCiaTmd(path_tmd, meta, NULL, true) == GAME_NCCH) &&
                     (InsertCiaMeta(path_dest, meta) == 0))
                     cia->header.size_meta = CIA_META_SIZE;
             } else {
@@ -2711,7 +2714,8 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     // build output name
     snprintf(dest, 256, OUTPUT_PATH "/");
     char* dname = dest + strnlen(dest, 256);
-    if (!((filetype & (GAME_TMD|GAME_TIE)) || (strncmp(path + 1, ":/title/", 8) == 0)) ||
+    if (!((filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD|GAME_TIE)) ||
+        (strncmp(path + 1, ":/title/", 8) == 0)) ||
         (GetGoodName(dname, path, false) != 0)) {
         u64 title_id = (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) ? GetGameFileTitleId(path) : 0;
         if (!title_id) {
@@ -3205,7 +3209,7 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
         ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
         ret = ShowTwlIconTitleInfo(twl_icon, tidstr, screen);
-    else if ((tp = LoadEncryptedIconFromCiaTmd(path, buffer, false)) != 0)
+    else if ((tp = LoadEncryptedIconFromCiaTmd(path, buffer, NULL, false)) != 0)
         ret = (tp == GAME_NCCH) ? ShowSmdhTitleInfo(smdh, tidstr, screen) :
               (tp == GAME_NDS ) ? ShowTwlIconTitleInfo(twl_icon, tidstr, screen) : 1;
     else ret = ShowGbaFileTitleInfo(path, screen);
@@ -3724,7 +3728,7 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         (type_donor & GAME_NCCH) ? ((type_donor & FLAG_CXI) ? "cxi" : "cfa") :
         (type_donor & GAME_NDS)  ? "nds" :
         (type_donor & GAME_GBA)  ? "gba" :
-        (type_donor & GAME_TMD)  ? "tmd" :
+        (type_donor & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD))  ? "tmd" :
         (type_donor & GAME_TIE)  ? "" : NULL;
     if (!ext) return 1;
 
@@ -3747,71 +3751,87 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         type_donor = IdentifyFileType(path_donor);
     }
 
+    void* data = malloc(0x1000 + max(sizeof(Smdh), sizeof(TwlIconData)));
+    void* header = data;
+    void* icon = ((u8*) data) + 0x1000;
+
+    // load metadata
     if (type_donor & GAME_GBA) { // AGB
-        AgbHeader agb;
-        if (fvx_qread(path_donor, &agb, 0, sizeof(AgbHeader), NULL) != FR_OK) return 1;
-        snprintf(name, 128, "%.12s (AGB-%.4s).%s", agb.game_title, agb.game_code, ext);
+        if (fvx_qread(path_donor, header, 0, sizeof(AgbHeader), NULL) != FR_OK) type_donor = 0;
+    } else if (type_donor & GAME_NDS) { // TWL
+        if (LoadTwlMetaData(path_donor, (TwlHeader*) header,
+            quick ? NULL : (TwlIconData*) icon) != 0) type_donor = 0;
+    } else if (type_donor & (GAME_NCSD|GAME_NCCH)) { // CTR (data from NCCH)
+        if (LoadNcchFromGameFile(path_donor, (NcchHeader*) header) != 0) type_donor = 0;
+        if (!quick && (LoadSmdhFromGameFile(path_donor, (Smdh*) icon) != 0)) quick = true;
+    } else if (type_donor & (GAME_CIA|GAME_CDNTMD|GAME_TWLTMD)) { // encrypted
+        type_donor = LoadEncryptedIconFromCiaTmd(path_donor, icon, header, false);
+    }
+
+    // generate name
+    if (type_donor & GAME_GBA) { // AGB
+        AgbHeader* agb = (AgbHeader*) header;
+        snprintf(name, 128, "%.12s (AGB-%.4s).%s", agb->game_title, agb->game_code, ext);
     } else if (type_donor & GAME_NDS) { // NTR or TWL
-        TwlHeader twl;
-        TwlIconData icon;
-        if (LoadTwlMetaData(path_donor, &twl, quick ? NULL : &icon) != 0) return 1;
+        TwlHeader* twl = (TwlHeader*) header;
         if (quick) {
-            if (twl.unit_code & 0x02) { // TWL
-                snprintf(name, 128, "%016llX (TWL-%.4s).%s", twl.title_id, twl.game_code, ext);
+            if (twl->unit_code & 0x02) { // TWL
+                snprintf(name, 128, "%016llX (TWL-%.4s).%s", twl->title_id, twl->game_code, ext);
             } else { // NTR
-                snprintf(name, 128, "%.12s (NTR-%.4s).%s", twl.game_title, twl.game_code, ext);
+                snprintf(name, 128, "%.12s (NTR-%.4s).%s", twl->game_title, twl->game_code, ext);
             }
         } else {
             char title_name[0x80+1] = { 0 };
-            if (GetTwlTitle(title_name, &icon) != 0) return 1;
+            if (GetTwlTitle(title_name, (TwlIconData*) icon) != 0) return 1;
             char* linebrk = strchr(title_name, '\n');
             if (linebrk) *linebrk = '\0';
 
-            if (twl.unit_code & 0x02) { // TWL
+            if (twl->unit_code & 0x02) { // TWL
                 char region[8] = { 0 };
-                if (twl.region_flags == TWL_REGION_FREE) snprintf(region, 8, "W");
+                if (twl->region_flags == TWL_REGION_FREE) snprintf(region, 8, "W");
                 snprintf(region, 8, "%s%s%s%s%s",
-                    (twl.region_flags & REGION_MASK_JPN) ? "J" : "",
-                    (twl.region_flags & REGION_MASK_USA) ? "U" : "",
-                    (twl.region_flags & REGION_MASK_EUR) ? "E" : "",
-                    (twl.region_flags & REGION_MASK_CHN) ? "C" : "",
-                    (twl.region_flags & REGION_MASK_KOR) ? "K" : "");
+                    (twl->region_flags & REGION_MASK_JPN) ? "J" : "",
+                    (twl->region_flags & REGION_MASK_USA) ? "U" : "",
+                    (twl->region_flags & REGION_MASK_EUR) ? "E" : "",
+                    (twl->region_flags & REGION_MASK_CHN) ? "C" : "",
+                    (twl->region_flags & REGION_MASK_KOR) ? "K" : "");
                 if (strncmp(region, "JUECK", 8) == 0) snprintf(region, 8, "W");
                 if (!*region) snprintf(region, 8, "UNK");
 
-                char* unit_str = (twl.unit_code == TWL_UNITCODE_TWLNTR) ? "DSi Enhanced" : "DSi Exclusive";
+                char* unit_str = (twl->unit_code == TWL_UNITCODE_TWLNTR) ? "DSi Enhanced" : "DSi Exclusive";
                 snprintf(name, 128, "%016llX %s (TWL-%.4s) (%s) (%s).%s",
-                    twl.title_id, title_name, twl.game_code, unit_str, region, ext);
+                    twl->title_id, title_name, twl->game_code, unit_str, region, ext);
             } else { // NTR
-                snprintf(name, 128, "%s (NTR-%.4s).%s", title_name, twl.game_code, ext);
+                snprintf(name, 128, "%s (NTR-%.4s).%s", title_name, twl->game_code, ext);
             }
         }
-    } else if (type_donor & (GAME_CIA|GAME_NCSD|GAME_NCCH)) { // CTR (data from NCCH)
-        NcchHeader ncch;
-        Smdh smdh; // pretty big for the stack, but should be okay here
-        if (LoadNcchFromGameFile(path_donor, &ncch) != 0) return 1;
-        if (quick || (LoadSmdhFromGameFile(path_donor, &smdh) != 0)) {
-            snprintf(name, 128, "%016llX%s (%.16s).%s", ncch.programId, appid_str, ncch.productcode, ext);
-        } else {
+    } else if (type_donor & (GAME_NCSD|GAME_NCCH)) { // CTR (data from NCCH)
+        NcchHeader* ncch = (NcchHeader*) header;
+        if (quick) snprintf(name, 128, "%016llX%s (%.16s).%s", ncch->programId, appid_str, ncch->productcode, ext);
+        else {
+            Smdh* smdh = (Smdh*) icon;
             char title_name[0x40+1] = { 0 };
-            if (GetSmdhDescShort(title_name, &smdh) != 0) return 1;
+            if (GetSmdhDescShort(title_name, smdh) != 0) return 1;
 
             char region[8] = { 0 };
-            if (smdh.region_lockout == SMDH_REGION_FREE) snprintf(region, 8, "W");
+            if (smdh->region_lockout == SMDH_REGION_FREE) snprintf(region, 8, "W");
             else snprintf(region, 8, "%s%s%s%s%s%s",
-                (smdh.region_lockout & REGION_MASK_JPN) ? "J" : "",
-                (smdh.region_lockout & REGION_MASK_USA) ? "U" : "",
-                (smdh.region_lockout & REGION_MASK_EUR) ? "E" : "",
-                (smdh.region_lockout & REGION_MASK_CHN) ? "C" : "",
-                (smdh.region_lockout & REGION_MASK_KOR) ? "K" : "",
-                (smdh.region_lockout & REGION_MASK_TWN) ? "T" : "");
+                (smdh->region_lockout & REGION_MASK_JPN) ? "J" : "",
+                (smdh->region_lockout & REGION_MASK_USA) ? "U" : "",
+                (smdh->region_lockout & REGION_MASK_EUR) ? "E" : "",
+                (smdh->region_lockout & REGION_MASK_CHN) ? "C" : "",
+                (smdh->region_lockout & REGION_MASK_KOR) ? "K" : "",
+                (smdh->region_lockout & REGION_MASK_TWN) ? "T" : "");
             if (strncmp(region, "JUECKT", 8) == 0) snprintf(region, 8, "W");
             if (!*region) snprintf(region, 8, "UNK");
 
             snprintf(name, 128, "%016llX%s %s (%.16s) (%s).%s",
-                ncch.programId, appid_str, title_name, ncch.productcode, region, ext);
+                ncch->programId, appid_str, title_name, ncch->productcode, region, ext);
         }
-    } else return 1;
+    }
+
+    free(data);
+    if (!type_donor) return 1;
 
     // remove illegal chars from filename
     for (char* c = name; *c; c++) {
