@@ -3048,11 +3048,53 @@ u32 CompressCode(const char* path, const char* path_out) {
     return 0;
 }
 
+u64 GetAnyFileTrimmedSize(const char* path) {
+    u64 fsize = 0;
+    u64 trimsize = 0;
+    u8 pad_byte = 0x7F; 
+    FIL fp;
+    UINT br;
+
+    if (fvx_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return 0;
+
+    fsize = fvx_size(&fp);
+    u32 bufsize = min(STD_BUFFER_SIZE, fsize);
+    u8* buffer = (u8*) malloc(bufsize);
+    if (!buffer) return 0;
+
+    for (s64 pos = align(fsize, bufsize) - bufsize; (pos >= 0) && !trimsize; pos -= bufsize) {
+        if ((fvx_lseek(&fp, (UINT) pos) != FR_OK) ||
+            (fvx_read(&fp, buffer, bufsize, &br) != FR_OK) || !br) break;
+        if (pad_byte == 0x7F) { // start value
+            pad_byte = buffer[br-1];
+            if ((pad_byte != 0x00) && (pad_byte != 0xFF)) break;
+        }
+        for (u8* b = buffer + (br-1); b >= buffer; b--) {
+            if (*b != pad_byte) {
+                trimsize = pos + (b-buffer) + 1;
+                break;
+            }
+        }
+    }
+
+    fvx_close(&fp);
+    free(buffer);
+
+    // 4 byte forced alignment
+    // 512 byte trimming minimum
+    trimsize = align(trimsize, 4);
+    if ((trimsize > fsize) || (fsize - trimsize < 0x200)) return 0;
+    return trimsize;
+}
+
 u64 GetGameFileTrimmedSize(const char* path) {
     u64 filetype = IdentifyFileType(path);
     u64 trimsize = 0;
 
-    if (filetype & GAME_NDS) {
+    if (filetype & GAME_GBA) {
+        trimsize = GetAnyFileTrimmedSize(path);
+    } else if (filetype & GAME_NDS) {
         TwlHeader hdr;
         if (fvx_qread(path, &hdr, 0, sizeof(TwlHeader), NULL) != FR_OK)
             return 0;
