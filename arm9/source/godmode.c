@@ -2299,11 +2299,6 @@ u32 GodMode(int entrypoint) {
         }
     }
 
-    // check aeskeydb.bin / key state
-    if ((entrypoint != ENTRY_B9S) && (CheckRecommendedKeyDb(NULL) != 0)) {
-        ShowPrompt(false, "WARNING:\nNot running from a boot9strap\ncompatible entrypoint. Not\neverything may work as expected.\n \nProvide the recommended\naeskeydb.bin file to make this\nwarning go away.");
-    }
-
     #if defined(SALTMODE)
     show_splash = bootmenu = (bootloader && CheckButton(BOOTMENU_KEY));
     if (show_splash) SplashInit("saltmode");

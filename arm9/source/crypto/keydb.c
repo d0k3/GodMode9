@@ -226,25 +226,3 @@ u32 InitKeyDb(const char* path)
     free(keydb);
     return (nkeys) ? 0 : 1;
 }
-
-// creates dependency to "sha.h", not required for base keydb functions
-u32 CheckRecommendedKeyDb(const char* path)
-{
-    // SHA-256 of the recommended aeskeydb.bin file
-    // equals MD5 A5B28945A7C051D7A0CD18AF0E580D1B
-    static const u8 recommended_sha[0x20] = {
-        0x40, 0x76, 0x54, 0x3D, 0xA3, 0xFF, 0x91, 0x1C, 0xE1, 0xCC, 0x4E, 0xC7, 0x2F, 0x92, 0xE4, 0xB7,
-        0x2B, 0x24, 0x00, 0x15, 0xBE, 0x9B, 0xFC, 0xDE, 0x7F, 0xED, 0x95, 0x1D, 0xD5, 0xAB, 0x2D, 0xCB
-    };
-
-    // try to load aeskeydb.bin file
-    AesKeyInfo* keydb = (AesKeyInfo*) malloc(STD_BUFFER_SIZE);
-    if (!keydb) return 1;
-    u32 nkeys = LoadKeyDb(path, keydb, STD_BUFFER_SIZE);
-
-    // compare with recommended SHA
-    bool res = (nkeys && (sha_cmp(recommended_sha, keydb, nkeys * sizeof(AesKeyInfo), SHA256_MODE) == 0));
-
-    free(keydb);
-    return res ? 0 : 1;
-}
