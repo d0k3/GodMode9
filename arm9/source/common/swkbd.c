@@ -226,6 +226,13 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     TouchBox swkbd_numpad[32];
     TouchBox* textbox = swkbd_alphabet; // always use this textbox
 
+    static bool show_instr = true;
+    static const char* instr = "Keyboard Controls:\n \n\x1B/\x1A - Move cursor\nR - Caps / Capslock\nX - Delete char\nY - Insert char\nA - Submit\nB - Cancel\n \nSELECT switches to\nclassic prompt";
+    if (show_instr) {
+        ShowPrompt(false, instr);
+        show_instr = false;
+    }
+
     // generate keyboards
     if (!BuildKeyboard(swkbd_alphabet, keys_alphabet, layout_alphabet)) return false;
     if (!BuildKeyboard(swkbd_special, keys_special, layout_special)) return false;
