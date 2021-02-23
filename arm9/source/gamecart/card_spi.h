@@ -49,18 +49,6 @@ struct CardSPITypeData {
 
 #define NO_CHIP NULL
 
-extern const CardSPITypeData * const EEPROM_512B;
-
-extern const CardSPITypeData * const EEPROM_8KB;
-extern const CardSPITypeData * const EEPROM_64KB;
-extern const CardSPITypeData * const EEPROM_128KB;
-
-extern const CardSPITypeData * const FLASH_NTR_GENERIC; // Most common flash chip in DS games, in 3 different sizes
-extern const CardSPITypeData * const FLASH_256KB;
-extern const CardSPITypeData * const FLASH_512KB;
-extern const CardSPITypeData * const FLASH_8MB;
-extern const CardSPITypeData * const FLASH_NTR_BOOTLEG; // Found in some DS bootlegs off of eBay (ST M25PE40VP in my case)
-
 extern const CardSPITypeData * const FLASH_CTR_GENERIC; // Handles each 3ds cartridge the exact same
 
 int CardSPIWriteRead(bool infrared, const void* cmd, u32 cmdSize, void* answer, u32 answerSize, const void* data, u32 dataSize);

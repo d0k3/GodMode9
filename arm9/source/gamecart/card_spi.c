@@ -57,7 +57,7 @@ int CardSPIWriteSaveData_24bit_erase_program(CardSPIType type, u32 offset, const
 int CardSPIEraseSector_emulated(CardSPIType type, u32 offset);
 int CardSPIEraseSector_real(CardSPIType type, u32 offset);
 
-const CardSPITypeData EEPROM_512B_ = { CardSPIEnableWriting_512B, CardSPIReadSaveData_9bit, CardSPIWriteSaveData_9bit, CardSPIEraseSector_emulated, 0xffff, 1 << 9, 16, 16, 16, 0, 0, 0 };
+const CardSPITypeData EEPROM_512B = { CardSPIEnableWriting_512B, CardSPIReadSaveData_9bit, CardSPIWriteSaveData_9bit, CardSPIEraseSector_emulated, 0xffff, 1 << 9, 16, 16, 16, 0, 0, 0 };
 
 const CardSPITypeData EEPROM_DUMMY = { CardSPIEnableWriting_regular, CardSPIReadSaveData_16bit, CardSPIWriteSaveData_16bit, CardSPIEraseSector_emulated, 0xffff, UINT32_MAX, 1, 1, 1, SPI_EEPROM_CMD_WRITE, 0, 0 };
 const CardSPITypeData EEPROMTypes[] = {
@@ -69,25 +69,25 @@ const CardSPITypeData EEPROMTypes[] = {
 const CardSPITypeData FLASH_DUMMY = { NULL, CardSPIReadSaveData_24bit, NULL, NULL, 0x0, 0, 0, 0, 0, 0, 0, 0 };
 const CardSPITypeData flashTypes[] = {
     // NTR/TWL
+
+    // Most common flash chip in DS games, in 3 different sizes (256kB: ST M45PE20, 512kB: ST M45PE40, 1MB: ST M45PE80)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_write, CardSPIEraseSector_real, 0x2040, 0, 65536, 256, 256, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+
+    // Found in Mario Kart, for example (always 256kB, Sanyo LE25FW203T)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x6216, 1 << 18, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+
+    // Found in some copies of Pokemon Diamond/Pearl (always 512kB, Sanyo ??)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_write, CardSPIEraseSector_real, 0x6211, 1 << 19, 65536, 256, 256, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+
+    // Found in Art Academy, and maybe some other ones (8MB: ST M25P64)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x2020, 0, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+
+    // Found in some DS bootlegs (ST M25PE40VP in my case)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x2080, 0, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+
+    // This is the most common type of flash 3DS cartridges. Not normally found in DS ones, but check anyway. (Custom MXIC chips)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0xC222, 0, 4096, 32, 4096, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
 };
-
-const CardSPITypeData * const EEPROM_512B = &EEPROM_512B_;
-
-const CardSPITypeData * const EEPROM_8KB = EEPROMTypes + 0;
-const CardSPITypeData * const EEPROM_64KB = EEPROMTypes + 1;
-const CardSPITypeData * const EEPROM_128KB = EEPROMTypes + 2;
-
-const CardSPITypeData * const FLASH_NTR_GENERIC = flashTypes + 0;
-const CardSPITypeData * const FLASH_256KB = flashTypes + 1;
-const CardSPITypeData * const FLASH_512KB = flashTypes + 2;
-const CardSPITypeData * const FLASH_8MB = flashTypes + 3;
-const CardSPITypeData * const FLASH_NTR_BOOTLEG = flashTypes + 4;
 
 const CardSPITypeData * const FLASH_CTR_GENERIC = flashTypes + 5;
 
@@ -455,7 +455,7 @@ CardSPIType CardSPIGetCardSPIType(bool infrared) {
     if (res) return (CardSPIType) {NO_CHIP, false};
 
     if ((sr & 0xfd) == 0x00 && (jedec != 0x00ffffff)) { t.chip = &FLASH_DUMMY; }
-    if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { return (CardSPIType) { EEPROM_512B, false }; }
+    if ((sr & 0xfd) == 0xF0 && (jedec == 0x00ffffff)) { return (CardSPIType) { &EEPROM_512B, false }; }
     if ((sr & 0xfd) == 0x00 && (jedec == 0x00ffffff)) { t = (CardSPIType) { &EEPROM_DUMMY, false }; }
 
     if(t.chip == NO_CHIP) {
