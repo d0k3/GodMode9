@@ -59,6 +59,7 @@ extern const CardSPITypeData * const FLASH_NTR_GENERIC; // Most common flash chi
 extern const CardSPITypeData * const FLASH_256KB;
 extern const CardSPITypeData * const FLASH_512KB;
 extern const CardSPITypeData * const FLASH_8MB;
+extern const CardSPITypeData * const FLASH_NTR_BOOTLEG; // Found in some DS bootlegs off of eBay (ST M25PE40VP in my case)
 
 extern const CardSPITypeData * const FLASH_CTR_GENERIC; // Handles each 3ds cartridge the exact same
 
