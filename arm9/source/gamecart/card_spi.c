@@ -73,6 +73,7 @@ const CardSPITypeData flashTypes[] = {
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x6216, 1 << 18, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_write, CardSPIEraseSector_real, 0x6211, 1 << 19, 65536, 256, 256, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x2020, 0, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
+    { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0x2080, 0, 65536, 256, 65536, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_SE },
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0xC222, 0, 4096, 32, 4096, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
 };
 
@@ -86,8 +87,9 @@ const CardSPITypeData * const FLASH_NTR_GENERIC = flashTypes + 0;
 const CardSPITypeData * const FLASH_256KB = flashTypes + 1;
 const CardSPITypeData * const FLASH_512KB = flashTypes + 2;
 const CardSPITypeData * const FLASH_8MB = flashTypes + 3;
+const CardSPITypeData * const FLASH_NTR_BOOTLEG = flashTypes + 4;
 
-const CardSPITypeData * const FLASH_CTR_GENERIC = flashTypes + 4;
+const CardSPITypeData * const FLASH_CTR_GENERIC = flashTypes + 5;
 
 #define REG_CFG9_CARDCTL      *((vu16*)0x1000000C)
 #define CARDCTL_SPICARD       (1u<<8)
