@@ -19,6 +19,9 @@ export COMMON_DIR := ../common
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
 VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 262144
+ifeq ($(NTRBOOT),1)
+	VRAM_SCRIPTS := resources/gm9/scripts
+endif
 
 ifeq ($(OS),Windows_NT)
 	ifeq ($(TERM),cygwin)
@@ -80,7 +83,7 @@ release: clean unmarked_readme
 vram0:
 	@mkdir -p "$(OUTDIR)"
 	@echo "Creating $(VRAM_OUT)"
-	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA)/*)
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA)/* $(VRAM_SCRIPTS))
 
 %.elf: .FORCE
 	@echo "Building $@"
