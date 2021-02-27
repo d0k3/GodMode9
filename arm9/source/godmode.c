@@ -1660,7 +1660,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     n_success++;
             }
             ShowPrompt(false, "%lu/%lu titles uninstalled", n_success, n_marked);
-        } else {
+        } else if (CheckWritePermissions(file_path)) {
+            ShowString("%s\nUninstalling, please wait...", pathstr);
             if (UninstallGameDataTie(file_path, true, full_uninstall, full_uninstall) != 0)
                 ShowPrompt(false, "%s\nUninstall failed!", pathstr);
             ClearScreenF(true, false, COLOR_STD_BG);
