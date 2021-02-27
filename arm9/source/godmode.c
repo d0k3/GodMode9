@@ -1089,7 +1089,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool verificable = (FTYPE_VERIFICABLE(filetype));
     bool decryptable = (FTYPE_DECRYPTABLE(filetype));
     bool encryptable = (FTYPE_ENCRYPTABLE(filetype));
-    bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (drvtype & DRV_FAT));
+    bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (*current_path == '0'));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
     bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
