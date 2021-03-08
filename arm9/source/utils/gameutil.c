@@ -3269,72 +3269,131 @@ u32 ShowGameFileTitleInfo(const char* path) {
     return ShowGameFileTitleInfoF(path, MAIN_SCREEN, true);
 }
 
-u32 ShowCiaCheckerInfo(const char* path) {
-    CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
-    if (!cia) return 1;
+u32 ShowCiaTieCheckerInfo(const char* path) {
+    u64 type = IdentifyFileType(path); // filetype
+
+    u32 content_count = 0;
+    u32 content_found = 0;
+    bool missing_first = false;
+
+    Ticket* ticket = NULL;
+    TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
+    if (!tmd) return 1;
 
     // path string
     char pathstr[32 + 1];
     TruncateString(pathstr, path, 32, 8);
 
-    // load CIA stub
-    if (LoadCiaStub(cia, path) != 0) {
-        ShowPrompt(false, "%s\nError: Probably not a CIA file", pathstr);
+    // CIA / TIE specific stuff
+    if (type & GAME_TIE) {
+        // load TMD
+        char path_tmd[256];
+        if ((GetTieTmdPath(path_tmd, path) != 0) ||
+            (LoadTmdFile(tmd, path_tmd) != 0)) {
+            free(tmd);
+            tmd = NULL;
+        } else content_found = content_count = getbe16(tmd->content_count);
+        
+        // ticket needs some preparation
+        // ensure remounting the old mount path
+        char path_store[256] = { 0 };
+        char* path_bak = NULL;
+        strncpy(path_store, GetMountPath(), 256);
+        if (*path_store) path_bak = path_store;
+        
+        char path_ticketdb[32];
+        char* drv = path_store;
+        snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
+            ((*drv == 'A') || (*drv == '2')) ? "1:" :
+            ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
+
+        // load ticket
+        if (!InitImgFS(path_ticketdb) ||
+            ((ReadTicketFromDB(PART_PATH, tmd->title_id, &ticket)) != 0))
+            ticket = NULL;
+
+        InitImgFS(path_bak);
+    } else if (type & GAME_CIA) {
+        CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+        if (!cia) {
+            free(tmd);
+            return 1;
+        }
+
+        // load CIA stub
+        if (LoadCiaStub(cia, path) != 0) {
+            ShowPrompt(false, "%s\nError: Probably not a CIA file", pathstr);
+            free(cia);
+            free(tmd);
+            return 1;
+        }
+
+        // check for available contents
+        u8* cnt_index = cia->header.content_index;
+        content_count = getbe16(cia->tmd.content_count);
+        for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
+            TmdContentChunk* chunk = &(cia->content_list[i]);
+            u16 index = getbe16(chunk->index);
+            if (cnt_index[index/8] & (1 << (7-(index%8)))) content_found++;
+            else if (i == 0) missing_first = true;
+        }
+
+        // copy TMD, ticket
+        memcpy(tmd, &(cia->tmd), cia->header.size_tmd);
+        ticket = (Ticket*) malloc(cia->header.size_ticket);
+        if (ticket) memcpy(ticket, &(cia->ticket), cia->header.size_ticket);
+        
         free(cia);
-        return 1;
     }
 
     // states: 0 -> invalid / 1 -> valid / badsig / 2 -> valid / goodsig
     u32 state_ticket = 0;
     u32 state_tmd = 0;
-    u32 content_count = getbe16(cia->tmd.content_count);
-    u32 content_found = 0;
-    u64 title_id = getbe64(cia->ticket.title_id);
-    u32 console_id = getbe32(cia->ticket.console_id);
-    bool missing_first = false;
-    bool is_dlc = ((title_id >> 32) == 0x0004008C);
+    u64 title_id = 0;
+    u32 console_id = 0xFFFFFFFF;
+    bool is_dlc = false;
+
+    // basic info
+    if (tmd) title_id = getbe64(tmd->title_id);
+    if (ticket) console_id = getbe32(ticket->console_id);
+    is_dlc = ((title_id >> 32) == 0x0004008C);
 
     // check ticket
-    if (ValidateTicket((Ticket*)&(cia->ticket)) == 0)
-        state_ticket = (ValidateTicketSignature((Ticket*)&(cia->ticket)) == 0) ? 2 : 1;
+    if (ticket && ValidateTicket(ticket) == 0)
+        state_ticket = (ValidateTicketSignature(ticket) == 0) ? 2 : 1;
 
     // check tmd
-    if (VerifyTmd(&(cia->tmd)) == 0)
-        state_tmd = (ValidateTmdSignature(&(cia->tmd)) == 0) ? 2 : 1;
+    if (tmd && VerifyTmd(tmd) == 0)
+        state_tmd = (ValidateTmdSignature(tmd) == 0) ? 2 : 1;
 
-    // check for available contents
-    u8* cnt_index = cia->header.content_index;
-    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
-        TmdContentChunk* chunk = &(cia->content_list[i]);
-        u16 index = getbe16(chunk->index);
-        if (cnt_index[index/8] & (1 << (7-(index%8)))) content_found++;
-        else if (i == 0) missing_first = true;
-    }
-
-    // CIA type string
+    // CIA / title type string
     char typestr[32];
     if (!state_ticket || !state_tmd || missing_first || (!is_dlc && (content_found != content_count)))
-        snprintf(typestr, 32, "Possibly Broken");
-    else snprintf(typestr, 32, "%s %s%s",
+        snprintf(typestr, 32, "Possibly Broken %s", (type & GAME_TIE) ? "Title" : "CIA File");
+    else snprintf(typestr, 32, "%s %s%s %s",
         console_id ? "Personal" : "Universal",
         ((state_ticket == 2) && (state_tmd == 2)) ? "Legit" :
          (state_tmd == 2) ? "Pirate Legit" : "Custom",
-        is_dlc ? " DLC" : "");
+        is_dlc ? " DLC" : "",
+        (type & GAME_TIE) ? "Title" : "CIA File");
 
     // output results
+    char contents_str[64];
     s32 state_verify = -1;
+    if (type & GAME_TIE) snprintf(contents_str, 64, "Contents in TMD: %lu", content_count);
+    else snprintf(contents_str, 64, "Contents in CIA: %lu/%lu", content_found, content_count);
     while (true) {
-        if (!ShowPrompt(state_verify < 0, "%s\n%s CIA File\n \nTitle ID: %016llX\nConsole ID: %08lX\nContents in CIA: %lu/%lu\nTicket/TMD: %s/%s\nVerification: %s",
-            pathstr, typestr, title_id, console_id,
-            content_found, content_count,
+        if (!ShowPrompt(state_verify < 0, "%s\n%s\n \nTitle ID: %016llX\nConsole ID: %08lX\n%s\nTicket/TMD: %s/%s\nVerification: %s",
+            pathstr, typestr, title_id, console_id, contents_str,
             (state_ticket == 0) ? "invalid" : (state_ticket == 2) ? "legit" : "illegit",
             (state_tmd == 0) ? "invalid" : (state_tmd == 2) ? "legit" : "illegit",
             (state_verify < 0) ? "pending\n \nProceed with verification?" : (state_verify == 0) ? "passed" : "failed") ||
             (state_verify >= 0)) break;
-        state_verify = VerifyCiaFile(path);
+        state_verify = (type & GAME_TIE) ? VerifyTieFile(path) : VerifyCiaFile(path);
     }
 
-    free(cia);
+    if (tmd) free(tmd);
+    if (ticket) free(ticket);
     return (state_ticket && state_tmd) ? 0 : 1;
 }
 

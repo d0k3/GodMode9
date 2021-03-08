@@ -1365,7 +1365,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (ebackup > 0) optionstr[ebackup-1] = "Update embedded backup";
     if (ncsdfix > 0) optionstr[ncsdfix-1] = "Rebuild NCSD header";
     if (show_info > 0) optionstr[show_info-1] = "Show title info";
-    if (ciacheck > 0) optionstr[ciacheck-1] = "CIA checker tool";
+    if (ciacheck > 0) optionstr[ciacheck-1] = (filetype & GAME_TIE) ? "Title checker tool" : "CIA checker tool";
     if (decrypt > 0) optionstr[decrypt-1] = (cryptable_inplace) ? "Decrypt file (...)" : "Decrypt file (" OUTPUT_PATH ")";
     if (encrypt > 0) optionstr[encrypt-1] = (cryptable_inplace) ? "Encrypt file (...)" : "Encrypt file (" OUTPUT_PATH ")";
     if (cia_build > 0) optionstr[cia_build-1] = (cia_build_legit < 0) ? "Build CIA from file" : "Build CIA (standard)";
@@ -1852,7 +1852,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == ciacheck) { // -> CIA checker tool
-        ShowCiaCheckerInfo(file_path);
+        ShowCiaTieCheckerInfo(file_path);
         return 0;
     }
     else if (user_select == hsinject) { // -> Inject to Health & Safety
