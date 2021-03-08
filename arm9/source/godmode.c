@@ -1095,6 +1095,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
         !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS) && !(drvtype & DRV_IMAGE);
     bool tik_installable = (FTYPE_TIKINSTALL(filetype));
+    bool tik_dumpable = (FTYPE_TIKDUMP(filetype));
     bool uninstallable = (FTYPE_UNINSTALL(filetype));
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
@@ -1138,7 +1139,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable ||
         hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable ||
         keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable ||
-        agbimportable || cia_installable || tik_installable;
+        agbimportable || cia_installable || tik_installable || tik_dumpable;
 
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1338,6 +1339,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int cxi_dump = (cxi_dumpable) ? ++n_opt : -1;
     int cia_install = (cia_installable) ? ++n_opt : -1;
     int tik_install = (tik_installable) ? ++n_opt : -1;
+    int tik_dump = (tik_dumpable) ? ++n_opt : -1;
     int uninstall = (uninstallable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
@@ -1373,6 +1375,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (cxi_dump > 0) optionstr[cxi_dump-1] = "Dump CXI/NDS file";
     if (cia_install > 0) optionstr[cia_install-1] = "Install game image";
     if (tik_install > 0) optionstr[tik_install-1] = "Install ticket";
+    if (tik_dump > 0) optionstr[tik_dump-1] = "Dump ticket file";
     if (uninstall > 0) optionstr[uninstall-1] = "Uninstall title";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
@@ -1712,7 +1715,42 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         }
         return 0;
     }
-    else if ((user_select == tik_build_enc) || (user_select == tik_build_dec)) { // -> (Re)Build titlekey database
+    else if (user_select == tik_dump) { // dump ticket file
+        if ((n_marked > 1) && ShowPrompt(true, "Dump for all %lu selected files?", n_marked)) {
+            u32 n_success = 0;
+            u32 n_legit = 0;
+            bool force_legit = true;
+            for (u32 n_processed = 0;; n_processed = 0) {
+                for (u32 i = 0; i < current_dir->n_entries; i++) {
+                    const char* path = current_dir->entry[i].path;
+                    if (!current_dir->entry[i].marked) continue;
+                    if (!ShowProgress(n_processed++, n_marked, path)) break;
+                    DrawDirContents(current_dir, (*cursor = i), scroll);
+                    if (DumpTicketForGameFile(path, force_legit) == 0) n_success++;
+                    else if (IdentifyFileType(path) & filetype & TYPE_BASE) continue;
+                    if (force_legit) n_legit++;
+                    current_dir->entry[i].marked = false;
+                }
+                if (force_legit && (n_success != n_marked))
+                    if (!ShowPrompt(true, "%lu/%lu legit tickets dumped.\n \nAttempt to dump all tickets?",
+                        n_legit, n_marked)) break;
+                if (!force_legit) break;
+                force_legit = false;
+            }
+            ShowPrompt(false, "%lu/%lu tickets dumped to %s",
+                n_success, n_marked, OUTPUT_PATH);
+        } else {
+            if (DumpTicketForGameFile(file_path, true) == 0) {
+                ShowPrompt(false, "%s\nTicket dumped to %s", pathstr, OUTPUT_PATH);
+            } else if (ShowPrompt(false, "%s\nLegit ticket not found.\n \nDump anyways?", pathstr)) {
+                if (DumpTicketForGameFile(file_path, false) == 0)
+                    ShowPrompt(false, "%s\nTicket dumped to %s", pathstr, OUTPUT_PATH);
+                else ShowPrompt(false, "%s\nDump ticket failed!");
+            }
+        }
+        return 0;
+    }
+    else if ((user_select == tik_build_enc) || (user_select == tik_build_dec)) { // -> (re)build titlekey database
         bool dec = (user_select == tik_build_dec);
         const char* path_out = (dec) ? OUTPUT_PATH "/" TIKDB_NAME_DEC : OUTPUT_PATH "/" TIKDB_NAME_ENC;
         if (BuildTitleKeyInfo(NULL, dec, false) != 0) return 1; // init database

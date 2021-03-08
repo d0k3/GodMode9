@@ -54,6 +54,7 @@
 #define FTYPE_CIABUILD_L(tp)    (tp&(GAME_TMD|GAME_CDNTMD|GAME_TIE|GAME_TAD))
 #define FTYPE_CIAINSTALL(tp)    ((tp&(GAME_NCSD|GAME_NCCH|GAME_CIA|GAME_CDNTMD|GAME_TWLTMD)) || ((tp&GAME_NDS)&&(tp&(FLAG_DSIW))))
 #define FTYPE_TIKINSTALL(tp)    (tp&(GAME_TICKET))
+#define FTYPE_TIKDUMP(tp)       (tp&(GAME_TIE))
 #define FTYPE_CXIDUMP(tp)       (tp&(GAME_TMD))
 #define FTYPE_UNINSTALL(tp)     (tp&(GAME_TIE))
 #define FTYPE_TIKBUILD(tp)      (tp&(GAME_TICKET|SYS_TICKDB|BIN_TIKDB))

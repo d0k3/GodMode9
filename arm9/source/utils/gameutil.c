@@ -295,6 +295,35 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
     return LoadTicketFile(ticket, path_cetk);
 }
 
+u32 LoadTicketForTitleId(Ticket** ticket, const u64 title_id) {
+    u8 tid[8];
+    for (u32 i = 0; i < 8; i++)
+        tid[7-i] = (title_id >> (i*8)) & 0xFF;
+
+    // ensure remounting the old mount path
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
+    
+    // path to ticket.db
+    char path_ticketdb[32];
+    char* drv = path_store;
+    snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
+        ((*drv == 'A') || (*drv == '2')) ? "1:" :
+        ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
+
+    // load ticket
+    if (!InitImgFS(path_ticketdb) ||
+        ((ReadTicketFromDB(PART_PATH, tid, ticket)) != 0))
+        *ticket = NULL;
+
+    // remount old path
+    InitImgFS(path_bak);
+
+    return (*ticket) ? 0 : 1;
+}
+
 u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     // path_content should be 256 bytes in size!
     
@@ -2699,6 +2728,9 @@ u64 GetGameFileTitleId(const char* path) {
         TwlHeader twl;
         if ((fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK) && (twl.unit_code & 0x02))
             tid64 = twl.title_id;
+    } else if (filetype & GAME_TIE) {
+        if ((*path == 'T') && (sscanf(path, "T:/%016llx", &tid64) != 1))
+            tid64 = 0;
     }
 
     if ((tid64 & 0xFFFFFF0000000000ull) == 0x0003000000000000ull)
@@ -2885,6 +2917,42 @@ u32 InstallTicketFile(const char* path, bool to_emunand) {
 
     // restore old mount path
     InitImgFS(path_bak);
+
+    free(ticket);
+    return 0;
+}
+
+u32 DumpTicketForGameFile(const char* path, bool force_legit) {
+    u64 tid64 = GetGameFileTitleId(path);
+    if (!tid64) return 1;
+
+    Ticket* ticket;
+    if (LoadTicketForTitleId(&ticket, tid64) != 0)
+        return 1;
+
+    if ((ValidateTicket(ticket) != 0) ||
+        (force_legit && (ValidateTicketSignature(ticket) != 0))) {
+        free(ticket);
+        return 1;
+    }
+    
+    // build output name
+    char dest[256];
+    snprintf(dest, 256, OUTPUT_PATH "/");
+    char* dname = dest + strnlen(dest, 256);
+    if (GetGoodName(dname, path, false) != 0)
+        snprintf(dest, 256, "%s/%016llX", OUTPUT_PATH, tid64);
+
+    // replace extension
+    char* dot = strrchr(dest, '.');
+    if (!dot || (dot < strrchr(dest, '/')))
+        dot = dest + strnlen(dest, 256);
+    snprintf(dot, 16, ".%s", force_legit ? "legit.tik" : "tik");
+
+    // dump ticket
+    if (!CheckWritePermissions(dest)) return 1;
+    f_unlink(dest); // remove the file if it already exists
+    fvx_qwrite(dest, ticket, 0, GetTicketSize(ticket), NULL);
 
     free(ticket);
     return 0;
@@ -3294,25 +3362,10 @@ u32 ShowCiaTieCheckerInfo(const char* path) {
             tmd = NULL;
         } else content_found = content_count = getbe16(tmd->content_count);
         
-        // ticket needs some preparation
-        // ensure remounting the old mount path
-        char path_store[256] = { 0 };
-        char* path_bak = NULL;
-        strncpy(path_store, GetMountPath(), 256);
-        if (*path_store) path_bak = path_store;
-        
-        char path_ticketdb[32];
-        char* drv = path_store;
-        snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
-            ((*drv == 'A') || (*drv == '2')) ? "1:" :
-            ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
-
         // load ticket
-        if (!InitImgFS(path_ticketdb) ||
-            ((ReadTicketFromDB(PART_PATH, tmd->title_id, &ticket)) != 0))
+        u64 tid64 = tmd ? getbe64(tmd->title_id) : 0;
+        if (LoadTicketForTitleId(&ticket, tid64) != 0)
             ticket = NULL;
-
-        InitImgFS(path_bak);
     } else if (type & GAME_CIA) {
         CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
         if (!cia) {
