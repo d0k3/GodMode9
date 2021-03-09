@@ -1673,6 +1673,7 @@ set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nClear friendli
 if	not ask "This script will delete friend code\nand friendlist,continue?"
 	echo "Operation Cancelled."
 	goto MainMenu_Miscellaneous
+end
 if	not allow -a 1:
 	echo "Permissions denied. Aborting."
 	goto MainMenu_Miscellaneous
