@@ -192,7 +192,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **JaySea**, **YodaDaCoda**, **liomajor**, **Supster131**, **imanoob**, **Kasher_CS** and countless others from freenode #Cakey and the GBAtemp forums for testing, feedback and helpful hints
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
-* **SirNapkin1334** for testing, bug reports and for hosting the official [GodMode9 Discord channel](https://discord.gg/EGu6Qxw)
+* **SirNapkin1334** for testing, bug reports and for hosting the official [GodMode9 Discord channel](https://discord.gg/BRcbvtFxX4)
 * **Lilith Valentine** for testing and helpful advice
 * **Project Nayuki** for [qrcodegen](https://github.com/nayuki/QR-Code-generator)
 * **Amazingmax fonts** for the Amazdoom font
