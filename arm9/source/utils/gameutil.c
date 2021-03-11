@@ -308,10 +308,9 @@ u32 LoadTicketForTitleId(Ticket** ticket, const u64 title_id) {
     
     // path to ticket.db
     char path_ticketdb[32];
-    char* drv = path_store;
+    char drv = *path_store;
     snprintf(path_ticketdb, 32, "%2.2s/dbs/ticket.db",
-        ((*drv == 'A') || (*drv == '2')) ? "1:" :
-        ((*drv == 'B') || (*drv == '5')) ? "4:" : drv);
+        ((drv == 'B') || (drv == '5') || (drv == '4')) ? "4:" : "1:");
 
     // load ticket
     if (!InitImgFS(path_ticketdb) ||
@@ -2711,11 +2710,9 @@ u64 GetGameFileTitleId(const char* path) {
             tid64 = getbe64(cia->tmd.title_id);
         free(cia);
     } else if (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) {
-        TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
-        if (!tmd) return 0;
-        if (LoadTmdFile(tmd, path) == 0)
-            tid64 = getbe64(tmd->title_id);
-        free(tmd);
+        u8 tid[8];
+        if (fvx_qread(path, tid, 0x18C, 8, NULL) == FR_OK)
+            tid64 = getbe64(tid);
     } else if (filetype & GAME_NCCH) {
         NcchHeader ncch;
         if (LoadNcchHeaders(&ncch, NULL, NULL, path, 0) == 0)
@@ -2726,7 +2723,7 @@ u64 GetGameFileTitleId(const char* path) {
             tid64 = ncsd.mediaId;
     } else if (filetype & GAME_NDS) {
         TwlHeader twl;
-        if ((fvx_qread(path, &twl, 0, sizeof(TwlHeader), NULL) == FR_OK) && (twl.unit_code & 0x02))
+        if ((fvx_qread(path, &twl, 0, 0x300, NULL) == FR_OK) && (twl.unit_code & 0x02))
             tid64 = twl.title_id;
     } else if (filetype & GAME_TIE) {
         if ((*path == 'T') && (sscanf(path, "T:/%016llx", &tid64) != 1))
@@ -2736,6 +2733,28 @@ u64 GetGameFileTitleId(const char* path) {
     if ((tid64 & 0xFFFFFF0000000000ull) == 0x0003000000000000ull)
         tid64 = 0x0004800000000000ull | (tid64 & 0xFFFFFFFFFFull);
     return tid64;
+}
+
+u32 GetGameFileTitleVersion(const char* path) {
+    u64 filetype = IdentifyFileType(path);
+    u32 version = (u32) -1;
+
+    if (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) {
+        TitleMetaData tmd;
+        if (fvx_qread(path, &tmd, 0, TMD_SIZE_STUB, NULL) == FR_OK)
+            version = getbe16(tmd.title_version);
+    } else if (filetype & GAME_TIE) {
+        TitleInfoEntry tie;
+        if (fvx_qread(path, &tie, 0, sizeof(TitleInfoEntry), NULL) == FR_OK)
+            version = tie.title_version & 0xFFFF;
+    } else if (filetype & GAME_CIA) {
+        CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
+        if (cia && LoadCiaStub(cia, path) != 0)
+            version = getbe16(cia->tmd.title_version);
+        if (cia) free(cia);
+    }   
+
+    return version;
 }
 
 u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
@@ -3288,7 +3307,7 @@ u32 ShowGbaFileTitleInfo(const char* path, u16* screen) {
     return 0;
 }
 
-u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
+u32 ShowGameFileTitleInfoF(const char* path, u16* screen, const char* str, bool clear) {
     char path_content[256];
     u64 itype = IdentifyFileType(path); // initial type
     if (itype & GAME_TMD) {
@@ -3306,22 +3325,20 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     Smdh* smdh = (Smdh*) buffer;
     TwlIconData* twl_icon = (TwlIconData*) buffer;
 
-    // title id available?
-    u64 tid = GetGameFileTitleId(path);
-    char tidstr[32] = { '\0' };
-    if (tid) snprintf(tidstr, 32, "<%016llX>\n", tid);
+    char disp_str[64];
+    snprintf(disp_str, 64, str ? "%s\n" : "", str);
 
     // try loading SMDH, then try NDS / encrypted / GBA
     u32 ret = 1;
     u32 tp = 0;
     if (LoadSmdhFromGameFile(path, smdh) == 0)
-        ret = ShowSmdhTitleInfo(smdh, tidstr, screen);
+        ret = ShowSmdhTitleInfo(smdh, disp_str, screen);
     else if ((LoadTwlMetaData(path, NULL, twl_icon) == 0) ||
         ((itype & GAME_TAD) && (fvx_qread(path, twl_icon, TAD_BANNER_OFFSET, sizeof(TwlIconData), NULL) == FR_OK)))
-        ret = ShowTwlIconTitleInfo(twl_icon, tidstr, screen);
+        ret = ShowTwlIconTitleInfo(twl_icon, disp_str, screen);
     else if ((tp = LoadEncryptedIconFromCiaTmd(path, buffer, NULL, false)) != 0)
-        ret = (tp == GAME_NCCH) ? ShowSmdhTitleInfo(smdh, tidstr, screen) :
-              (tp == GAME_NDS ) ? ShowTwlIconTitleInfo(twl_icon, tidstr, screen) : 1;
+        ret = (tp == GAME_NCCH) ? ShowSmdhTitleInfo(smdh, disp_str, screen) :
+              (tp == GAME_NDS ) ? ShowTwlIconTitleInfo(twl_icon, disp_str, screen) : 1;
     else ret = ShowGbaFileTitleInfo(path, screen);
 
     if (!ret && clear) {
@@ -3333,15 +3350,14 @@ u32 ShowGameFileTitleInfoF(const char* path, u16* screen, bool clear) {
     return ret;
 }
 
-u32 ShowGameFileTitleInfo(const char* path) {
-    return ShowGameFileTitleInfoF(path, MAIN_SCREEN, true);
-}
-
-u32 ShowCiaTieCheckerInfo(const char* path) {
+u32 ShowGameCheckerInfo(const char* path) {
     u64 type = IdentifyFileType(path); // filetype
+    if (!(type & (GAME_CIA|GAME_TIE|GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)))
+        return 1;
 
     u32 content_count = 0;
     u32 content_found = 0;
+    bool sd_title = false;
     bool missing_first = false;
 
     Ticket* ticket = NULL;
@@ -3360,12 +3376,20 @@ u32 ShowCiaTieCheckerInfo(const char* path) {
             (LoadTmdFile(tmd, path_tmd) != 0)) {
             free(tmd);
             tmd = NULL;
-        } else content_found = content_count = getbe16(tmd->content_count);
+        } else {
+            content_found = content_count = getbe16(tmd->content_count);
+            sd_title = (*path_tmd == 'A') || (*path_tmd == 'B');
+        }
         
         // load ticket
         u64 tid64 = tmd ? getbe64(tmd->title_id) : 0;
         if (LoadTicketForTitleId(&ticket, tid64) != 0)
             ticket = NULL;
+    } else if (type & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD)) {
+        if (LoadTmdFile(tmd, path) != 0) {
+            free(tmd);
+            tmd = NULL;
+        } else content_found = content_count = getbe16(tmd->content_count);
     } else if (type & GAME_CIA) {
         CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
         if (!cia) {
@@ -3403,13 +3427,25 @@ u32 ShowCiaTieCheckerInfo(const char* path) {
     u32 state_ticket = 0;
     u32 state_tmd = 0;
     u64 title_id = 0;
-    u32 console_id = 0xFFFFFFFF;
+    u32 console_id = 0;
+    u32 title_version = 0;
+    u64 content_size = 0;
     bool is_dlc = false;
 
     // basic info
     if (tmd) title_id = getbe64(tmd->title_id);
+    if (tmd) title_version = getbe16(tmd->title_version);
     if (ticket) console_id = getbe32(ticket->console_id);
     is_dlc = ((title_id >> 32) == 0x0004008C);
+
+    // size of contents
+    char bytestr[32];
+    if (tmd && content_count) {
+        TmdContentChunk* chunk = (TmdContentChunk*) (tmd + 1);
+        for (u32 i = 0; i < content_count; i++, chunk++)
+            content_size += getbe64(chunk->size);
+    }
+    FormatBytes(bytestr, content_size);
 
     // check ticket
     if (ticket && ValidateTicket(ticket) == 0)
@@ -3421,33 +3457,73 @@ u32 ShowCiaTieCheckerInfo(const char* path) {
 
     // CIA / title type string
     char typestr[32];
-    if (!state_ticket || !state_tmd || missing_first || (!is_dlc && (content_found != content_count)))
-        snprintf(typestr, 32, "Possibly Broken %s", (type & GAME_TIE) ? "Title" : "CIA File");
-    else snprintf(typestr, 32, "%s %s%s %s",
+    if ((!state_ticket && (type&(GAME_CIA|GAME_TIE))) || !state_tmd || missing_first ||
+        (!is_dlc && (content_found != content_count)))
+        snprintf(typestr, 32, "Possibly Broken");
+    else snprintf(typestr, 32, "%s %s%s",
         console_id ? "Personal" : "Universal",
         ((state_ticket == 2) && (state_tmd == 2)) ? "Legit" :
          (state_tmd == 2) ? "Pirate Legit" : "Custom",
-        is_dlc ? " DLC" : "",
-        (type & GAME_TIE) ? "Title" : "CIA File");
+        is_dlc ? " DLC" : "");
+
+    char srcstr[5];
+    snprintf(srcstr, 5, "%s",
+        (type & GAME_TIE) ? (tmd ? (sd_title ? "SD" : "NAND") : "UNK") :
+        (type & GAME_CIA) ? "CIA" :
+        (type & GAME_TMD) ? "TMD" :
+        (type & GAME_CDNTMD) ? "CDN" :
+        (type & GAME_TWLTMD) ? "TWL" : "UNK");
+
+    char contents_str[64];
+    if (type & GAME_CIA) snprintf(contents_str, 64, "Contents in CIA: %lu/%lu", content_found, content_count);
+    else snprintf(contents_str, 64, "Contents in TMD: %lu", content_count);
+
+    char conid_str[32] = { '\0' };
+    if (type & (GAME_CIA|GAME_TIE)) snprintf(conid_str, 64, "Console ID: %08lX\n", console_id);
+
+    // show icon on top
+    u32 icon_res = ShowGameFileTitleInfoF(path, ALT_SCREEN, NULL, false);
 
     // output results
-    char contents_str[64];
     s32 state_verify = -1;
-    if (type & GAME_TIE) snprintf(contents_str, 64, "Contents in TMD: %lu", content_count);
-    else snprintf(contents_str, 64, "Contents in CIA: %lu/%lu", content_found, content_count);
     while (true) {
-        if (!ShowPrompt(state_verify < 0, "%s\n%s\n \nTitle ID: %016llX\nConsole ID: %08lX\n%s\nTicket/TMD: %s/%s\nVerification: %s",
-            pathstr, typestr, title_id, console_id, contents_str,
-            (state_ticket == 0) ? "invalid" : (state_ticket == 2) ? "legit" : "illegit",
+        if (!ShowPrompt(state_verify < 0,
+                "%s\n%s %s Title\n \n"
+                "Title ID: %016llX\n"
+                "Title version: %u.%u.%u\n"
+                "Contents size: %s\n"
+                "%s\n%s \n"
+                "Ticket/TMD: %s/%s\n"
+                "Icon data: %s\n"
+                "Verification: %s",
+            pathstr, typestr, srcstr, title_id,
+            (title_version>>10)&0x3F, (title_version>>4)&0x3F, (title_version)&0xF,
+            bytestr, contents_str, conid_str,
+            (state_ticket == 0) ? "unknown" : (state_ticket == 2) ? "legit" : "illegit",
             (state_tmd == 0) ? "invalid" : (state_tmd == 2) ? "legit" : "illegit",
+            (icon_res) ? "unavailable" : "(see other screen)",
             (state_verify < 0) ? "pending\n \nProceed with verification?" : (state_verify == 0) ? "passed" : "failed") ||
             (state_verify >= 0)) break;
-        state_verify = (type & GAME_TIE) ? VerifyTieFile(path) : VerifyCiaFile(path);
+        state_verify = VerifyGameFile(path);
     }
 
     if (tmd) free(tmd);
     if (ticket) free(ticket);
-    return (state_ticket && state_tmd) ? 0 : 1;
+    ClearScreenF(true, true, COLOR_STD_BG);
+    return 0;
+}
+
+u32 ShowGameFileTitleInfo(const char* path) {
+    // try the checker tool first
+    if (ShowGameCheckerInfo(path) == 0)
+        return 0;
+
+    // title id available?
+    char tidstr[32] = { '\0' };
+    u64 tid = GetGameFileTitleId(path);
+    if (tid) snprintf(tidstr, 32, "<%016llX>", tid);
+
+    return ShowGameFileTitleInfoF(path, MAIN_SCREEN, tidstr, true);
 }
 
 u32 BuildNcchInfoXorpads(const char* destdir, const char* path) {
