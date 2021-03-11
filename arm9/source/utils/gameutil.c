@@ -2777,7 +2777,7 @@ u32 BuildCiaFromGameFile(const char* path, bool force_legit) {
     }
     // replace extension
     char* dot = strrchr(dest, '.');
-    if (!dot || (dot < strrchr(dest, '/')))
+    if (!dot || (strpbrk(dot, "/(){}[]!$#*+-")))
         dot = dest + strnlen(dest, 256);
     snprintf(dot, 16, ".%s", "tmp.cia");
 
@@ -3970,6 +3970,14 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         strncpy(appid_str + 1, name, 8);
     }
 
+    char version_str[16] = { 0 };
+    if (!quick && (type_donor & (GAME_CIA|GAME_TIE|GAME_TMD|GAME_CDNTMD|GAME_TWLTMD))) {
+        u32 version = GetGameFileTitleVersion(path);
+        if (version < 0x10000)
+            snprintf(version_str, 16, " (v%lu.%lu.%lu)",
+                (version>>10)&0x3F, (version>>4)&0x3F, version&0xF);
+    }
+
     char path_content[256];
     if (type_donor & GAME_TMD) {
         if (GetTmdContentPath(path_content, path) != 0) return 1;
@@ -4006,7 +4014,7 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         TwlHeader* twl = (TwlHeader*) header;
         if (quick) {
             if (twl->unit_code & 0x02) { // TWL
-                snprintf(name, 128, "%016llX (TWL-%.4s).%s", twl->title_id, twl->game_code, ext);
+                snprintf(name, 128, "%016llX%s (TWL-%.4s).%s", twl->title_id, appid_str, twl->game_code, ext);
             } else { // NTR
                 snprintf(name, 128, "%.12s (NTR-%.4s).%s", twl->game_title, twl->game_code, ext);
             }
@@ -4029,8 +4037,8 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
                 if (!*region) snprintf(region, 8, "UNK");
 
                 char* unit_str = (twl->unit_code == TWL_UNITCODE_TWLNTR) ? "DSi Enhanced" : "DSi Exclusive";
-                snprintf(name, 128, "%016llX %s (TWL-%.4s) (%s) (%s).%s",
-                    twl->title_id, title_name, twl->game_code, unit_str, region, ext);
+                snprintf(name, 128, "%016llX%s %s (TWL-%.4s) (%s) (%s)%s.%s",
+                    twl->title_id, appid_str, title_name, twl->game_code, unit_str, region, version_str, ext);
             } else { // NTR
                 snprintf(name, 128, "%s (NTR-%.4s).%s", title_name, twl->game_code, ext);
             }
@@ -4055,8 +4063,8 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
             if (strncmp(region, "JUECKT", 8) == 0) snprintf(region, 8, "W");
             if (!*region) snprintf(region, 8, "UNK");
 
-            snprintf(name, 128, "%016llX%s %s (%.16s) (%s).%s",
-                ncch->programId, appid_str, title_name, ncch->productcode, region, ext);
+            snprintf(name, 128, "%016llX%s %s (%.16s) (%s)%s.%s",
+                ncch->programId, appid_str, title_name, ncch->productcode, region, version_str, ext);
         }
     }
 
