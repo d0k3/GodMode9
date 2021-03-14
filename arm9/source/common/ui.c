@@ -309,6 +309,26 @@ u32 GetFontHeight(void) {
     return font_height;
 }
 
+void MultiLineString(char* dest, const char* orig, int llen, int maxl) {
+    char* ptr_o = (char*) orig;
+    char* ptr_d = (char*) dest;
+    for (int l = 0; l < maxl; l++) {
+        int len = strnlen(ptr_o, llen+1);
+        snprintf(ptr_d, llen+1, "%.*s", llen, ptr_o);
+        ptr_o += min(len, llen);
+        ptr_d += min(len, llen);
+        if (len <= llen) break;
+        *(ptr_d++) = '\n';
+    }
+
+    // string too long?
+    if (!maxl) *dest = '\0';
+    else if (*ptr_o) {
+        if (llen >= 3) snprintf(ptr_d - 4, 4, "...");
+        else *(ptr_d-1) = '\0';
+    } 
+}
+
 void WordWrapString(char* str, int llen) {
     char* last_brk = str - 1;
     char* last_spc = str - 1;

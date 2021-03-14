@@ -67,6 +67,7 @@ u32 GetDrawStringWidth(const char* str);
 u32 GetFontWidth(void);
 u32 GetFontHeight(void);
 
+void MultiLineString(char* dest, const char* orig, int llen, int maxl);
 void WordWrapString(char* str, int llen);
 void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);
 void TruncateString(char* dest, const char* orig, int nsize, int tpos);

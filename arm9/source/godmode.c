@@ -952,12 +952,12 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
 u32 DirFileAttrMenu(const char* path, const char *name) {
     bool drv = (path[2] == '\0');
     bool vrt = (!drv); // will be checked below
-    char namestr[32], datestr[32], attrstr[128], sizestr[192];
+    char namestr[128], datestr[32], attrstr[128], sizestr[192];
     FILINFO fno;
     u8 new_attrib;
 
-    // create truncated name string
-    TruncateString(namestr, name, 31, 8);
+    // create mutiline name string
+    MultiLineString(namestr, name, 31, 4);
 
     // preparations: create file info, date string
     if (!drv) {
