@@ -798,6 +798,7 @@ u32 VerifyCiaFile(const char* path) {
 
 u32 VerifyTmdFile(const char* path, bool cdn) {
     static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
+    bool ignore_missing_dlc = false;
 
     // path string
     char pathstr[32 + 1];
@@ -839,22 +840,27 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
 
     // verify contents
     u32 content_count = getbe16(tmd->content_count);
-    bool dlc = !cdn && (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
-    for (u32 i = 0; (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
+    bool dlc = (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0);
+    u32 res = 0;
+    for (u32 i = 0; !res && (i < content_count) && (i < TMD_MAX_CONTENTS); i++) {
         TmdContentChunk* chunk = &(content_list[i]);
         if (!cdn) chunk->type[1] &= ~0x01; // remove crypto flag
         snprintf(name_content, 256 - (name_content - path_content),
             (cdn) ? "%08lx" : (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         TruncateString(pathstr, path_content, 32, 8);
+        if (dlc && i && !PathExist(path_content)) {
+            if (!ignore_missing_dlc && !ShowPrompt(true, "%s\nDLC content is missing\n \nIgnore all and continue?", pathstr)) res = 1;
+            ignore_missing_dlc = true;
+            continue;
+        }
         if (VerifyTmdContent(path_content, 0, chunk, titlekey) != 0) {
-            ShowPrompt(false, "%s\nVerification failed", pathstr);
-            free(tmd);
-            return 1;
+            ShowPrompt(false, "%s\n%s", pathstr, PathExist(path_content) ? "Verification failed" : "Content is missing");
+            res = 1;
         }
     }
 
     free(tmd);
-    return 0;
+    return res;
 }
 
 u32 VerifyTieFile(const char* path) {
@@ -3509,7 +3515,7 @@ u32 ShowGameCheckerInfo(const char* path) {
 
     if (tmd) free(tmd);
     if (ticket) free(ticket);
-    ClearScreenF(true, true, COLOR_STD_BG);
+    if (!icon_res) ClearScreenF(true, true, COLOR_STD_BG);
     return 0;
 }
 
