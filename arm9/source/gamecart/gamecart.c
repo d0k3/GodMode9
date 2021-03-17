@@ -73,8 +73,7 @@ u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
             "Product Code : %.10s\n"
             "Revision     : %lu\n"
             "Cart ID      : %08lX\n"
-            "Platform     : %s\n"
-            "GM9 Version  : " VERSION "\n",
+            "Platform     : %s\n",
             ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id,
             (ncch->flags[4] == 0x2) ? "N3DS" : "O3DS");
     }  else if (cdata->cart_type & CART_NTR) {
@@ -85,8 +84,7 @@ u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
             "Product Code : %.6s\n"
             "Revision     : %u\n"
             "Cart ID      : %08lX\n"
-            "Platform     : %s\n"
-            "GM9 Version  : " VERSION "\n",
+            "Platform     : %s\n",
             nds->game_title, nds->game_code, nds->rom_version, cdata_i->cart_id,
             (nds->unit_code == 0x2) ? "DSi Enhanced" : (nds->unit_code == 0x3) ? "DSi Exclusive" : "DS");
     } else return 1;
@@ -419,7 +417,7 @@ u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
 
     if (offset >= len) return 0;
     if (offset + count > len) count = len - offset;
-memcpy(buffer, info + offset, count);
+    memcpy(buffer, info + offset, count);
 
     return 0;
 }
@@ -428,20 +426,20 @@ u32 ReadCartSave(u8* buffer, u64 offset, u64 count, CartData* cdata) {
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
     switch (cdata->save_type) {
-    case CARD_SAVE_SPI:
-        return (CardSPIReadSaveData(cdata->spi_save_type, offset, buffer, count) == 0) ? 0 : 1;
-        break;
+        case CARD_SAVE_SPI:
+            return (CardSPIReadSaveData(cdata->spi_save_type, offset, buffer, count) == 0) ? 0 : 1;
+            break;
 
-    case CARD_SAVE_CARD2:
-    {
-        u32 card2_offset = getle32(cdata->header + 0x200);
-        return ReadCartBytes(buffer, card2_offset * NCSD_MEDIA_UNIT + offset, count, cdata, false);
-        break;
-    }
+        case CARD_SAVE_CARD2:
+        {
+            u32 card2_offset = getle32(cdata->header + 0x200);
+            return ReadCartBytes(buffer, card2_offset * NCSD_MEDIA_UNIT + offset, count, cdata, false);
+            break;
+        }
 
-    default:
-        return 1;
-        break;
+        default:
+            return 1;
+            break;
     }
 }
 
