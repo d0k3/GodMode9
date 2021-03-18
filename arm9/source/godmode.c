@@ -1077,6 +1077,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
 
     u64 filetype = IdentifyFileType(file_path);
     u32 drvtype = DriveType(file_path);
+    u64 tid = GetGameFileTitleId(file_path);
 
     bool in_output_path = (strncasecmp(current_path, OUTPUT_PATH, 256) == 0);
 
@@ -1142,6 +1143,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
 
     char pathstr[32+1];
     TruncateString(pathstr, file_path, 32, 8);
+
+    char tidstr[32] = { 0 };
+    if (tid) snprintf(tidstr, 32, "\ntid: <%016llX>", tid);
 
     u32 n_marked = 0;
     if ((&(current_dir->entry[*cursor]))->marked) {
@@ -1216,7 +1220,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (titleman > 0) optionstr[titleman-1] = "Open title folder";
 
     int user_select = ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
-        "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+        "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
     if (user_select == hexviewer) { // -> show in hex viewer
         FileHexViewer(file_path);
         GetDirContents(current_dir, current_path);
@@ -1235,7 +1239,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         optionstr[0] = "Check current CMAC only";
         optionstr[1] = "Verify CMAC for all";
         optionstr[2] = "Fix CMAC for all";
-        user_select = (n_marked > 1) ? ShowSelectPrompt(3, optionstr, "%s\n%(%lu files selected)", pathstr, n_marked) : 1;
+        user_select = (n_marked > 1) ? ShowSelectPrompt(3, optionstr, "%s\n(%lu files selected)", pathstr, n_marked) : 1;
         if (user_select == 1) {
             CmacCalculator(file_path);
             return 0;
@@ -1398,7 +1402,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
 
     // auto select when there is only one option
     user_select = (n_opt <= 1) ? n_opt : (int) ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
-        "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+        "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
     if (user_select == mount) { // -> mount file as image
         const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:", "D:" }; // maybe move that to fsdrive.h
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
@@ -1437,7 +1441,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             optionstr[0] = "Decrypt to " OUTPUT_PATH;
             optionstr[1] = "Decrypt inplace";
             user_select = (int) ShowSelectPrompt(2, optionstr, (n_marked > 1) ?
-                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+                "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
@@ -1491,7 +1495,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             optionstr[0] = "Encrypt to " OUTPUT_PATH;
             optionstr[1] = "Encrypt inplace";
             user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
-                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+                "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
@@ -1588,7 +1592,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             optionstr[0] = "Install to SysNAND";
             optionstr[1] = "Install to EmuNAND";
             user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
-                "%s\n%(%lu files selected)" : "%s", pathstr, n_marked);
+                "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
             if (!user_select) return 0;
             else to_emunand = (user_select == 2);
         }
@@ -1882,8 +1886,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == show_info) { // -> Show title info
-        if (ShowGameFileTitleInfo(file_path) != 0)
-            ShowPrompt(false, "Title info: not found");
+        ShowGameCheckerInfo(file_path);
         return 0;
     }
     else if (user_select == hsinject) { // -> Inject to Health & Safety
@@ -2513,7 +2516,10 @@ u32 GodMode(int entrypoint) {
                 }
             }
         } else if ((pad_state & BUTTON_A) && (curr_entry->type == T_FILE)) { // process a file
+            if (!curr_entry->marked) ShowGameFileIcon(curr_entry->path, ALT_SCREEN);
+            DrawTopBar(current_path);
             FileHandlerMenu(current_path, &cursor, &scroll, &pane); // processed externally
+            ClearScreenF(true, true, COLOR_STD_BG);
         } else if (*current_path && ((pad_state & BUTTON_B) || // one level down
             ((pad_state & BUTTON_A) && (curr_entry->type == T_DOTDOT)))) {
             if (switched) { // use R+B to return to root fast

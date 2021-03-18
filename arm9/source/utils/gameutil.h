@@ -14,8 +14,9 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr)
 u32 CompressCode(const char* path, const char* path_out);
 u64 GetGameFileTrimmedSize(const char* path);
 u32 TrimGameFile(const char* path);
-u32 ShowGameFileTitleInfoF(const char* path, u16* screen, const char* str, bool clear);
-u32 ShowGameFileTitleInfo(const char* path);
+u32 ShowGameFileIcon(const char* path, u16* screen);
+u32 ShowGameCheckerInfo(const char* path);
+u64 GetGameFileTitleId(const char* path);
 u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, bool remove_save);
 u32 GetTmdContentPath(char* path_content, const char* path_tmd);
 u32 GetTieContentPath(char* path_content, const char* path_tie);
