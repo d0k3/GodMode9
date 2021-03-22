@@ -1985,16 +1985,20 @@ u32 InstallCiaSystemData(CiaStub* cia, const char* drv) {
 
     // title database
     if (!InitImgFS(path_titledb) ||
-        ((AddTitleInfoEntryToDB(PART_PATH, title_id, &tie, true)) != 0)) {
+        (AddTitleInfoEntryToDB(PART_PATH, title_id, &tie, true) != 0)) {
         InitImgFS(path_bak);
         return 1;
     }
 
     // ticket database
     if (!InitImgFS(path_ticketdb) ||
-        ((AddTicketToDB(PART_PATH, title_id, (Ticket*) ticket, true)) != 0)) {
-        InitImgFS(path_bak);
-        return 1;
+        (AddTicketToDB(PART_PATH, title_id, (Ticket*) ticket, true) != 0)) {
+        // workaround for bug #685
+        RemoveTicketFromDB(PART_PATH, title_id);
+        if (AddTicketToDB(PART_PATH, title_id, (Ticket*) ticket, true) != 0) {
+            InitImgFS(path_bak);
+            return 1;
+        }
     }
 
     // restore old mount path
