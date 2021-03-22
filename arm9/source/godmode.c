@@ -1095,7 +1095,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
     bool cia_installable = (FTYPE_CIAINSTALL(filetype)) && !(drvtype & DRV_CTRNAND) &&
         !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS) && !(drvtype & DRV_IMAGE);
-    bool tik_installable = (FTYPE_TIKINSTALL(filetype));
+    bool tik_installable = (FTYPE_TIKINSTALL(filetype)) && !(drvtype & DRV_IMAGE);
     bool tik_dumpable = (FTYPE_TIKDUMP(filetype));
     bool uninstallable = (FTYPE_UNINSTALL(filetype));
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
