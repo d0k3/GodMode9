@@ -307,7 +307,7 @@ int CardSPIReadSaveData_9bit(CardSPIType type, u32 pos, void* data, u32 size) {
 
     u32 read = 0;
     if (pos < 0x100) {
-        u32 len = 0x100 - pos;
+        u32 len = min(0x100 - pos, size);
         cmd[0] = SPI_512B_EEPROM_CMD_RDLO;
         cmd[1] = (u8) pos;
 
@@ -318,7 +318,7 @@ int CardSPIReadSaveData_9bit(CardSPIType type, u32 pos, void* data, u32 size) {
     }
 
     if (end >= 0x100) {
-        u32 len = end - 0x100;
+        u32 len = min(end - 0x100, size);
 
         cmd[0] = SPI_512B_EEPROM_CMD_RDHI;
         cmd[1] = (u8)(pos + read);
