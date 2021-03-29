@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
+#include <arm.h>
 #include "card_spi.h"
 #include <spi.h>
 #include "timer.h"
@@ -102,6 +103,8 @@ int CardSPIWriteRead(bool infrared, const void* cmd, u32 cmdSize, void* answer, 
     if (infrared) {
         SPI_XferInfo irXfer = { &headerFooterVal, 1, false };
         SPI_DoXfer(SPI_DEV_CART_IR, &irXfer, 1, false);
+        // Wait as specified by GBATEK (0x800 cycles at 33 MHz)
+        ARM_WaitCycles(0x800 * 4);
     }
 
     SPI_XferInfo transfers[3] = {
@@ -112,6 +115,11 @@ int CardSPIWriteRead(bool infrared, const void* cmd, u32 cmdSize, void* answer, 
     SPI_DoXfer(SPI_DEV_CART_FLASH, transfers, 3, true);
 
     REG_CFG9_CARDCTL &= ~CARDCTL_SPICARD;
+
+    if (infrared) {
+        // Wait as specified by GBATEK (0x800 cycles at 33 MHz)
+        ARM_WaitCycles(0x800 * 4);
+    }
 
     return 0;
 }
@@ -167,7 +175,7 @@ int CardSPIReadJEDECIDAndStatusReg(bool infrared, u32* id, u8* statusReg) {
     u8 reg = 0;
     u8 idbuf[3] = { 0 };
     u32 id_ = 0;
-    int res = CardSPIWaitWriteEnd(infrared, 0);
+    int res = CardSPIWaitWriteEnd(infrared, 10);
     if (res) return res;
 
     if ((res = CardSPIWriteRead(infrared, &cmd, 1, idbuf, 3, 0, 0))) return res;
@@ -445,11 +453,6 @@ CardSPIType CardSPIGetCardSPIType(bool infrared) {
     u32 jedec = 0;
     CardSPIType t = {NO_CHIP, infrared};
     int res;
-
-    if(infrared) {
-        // Infrared carts currently not supported, need additional handling!
-        return (CardSPIType) {NO_CHIP, true};
-    }
 
     res = CardSPIReadJEDECIDAndStatusReg(infrared, &jedec, &sr);
     if (res) return (CardSPIType) {NO_CHIP, false};
