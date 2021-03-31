@@ -25,7 +25,7 @@ goto Start
 @Backup_Options_SysNAND_Backup
 set PREVIEW_MODE "GODMODE9 ALL-IN-ONE MEGASCRIPT\nby annson24\n \nBackup Options\n>SysNAND Backup"
 
-if	not ask "Create a SysNAND backup in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space."
+if	not ask "Create a SysNAND backup in $[GM9OUT]?\n \nPlease make sure you have\nenough storage space.\nAt least 1.3GB free is recommended,\ngo back to main screen to see available SD disk space\n"
 	goto MainMenu_Backup_Options
 end
 
