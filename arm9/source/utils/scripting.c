@@ -445,6 +445,30 @@ void upd_var(const char* name) {
         snprintf(emu_base_str, 8+1, "%08lX", emu_base);
         set_var("EMUBASE", emu_base_str);
     }
+
+    // SD card storage
+    if (!name || (strncmp(name, "SDSIZE", _VAR_NAME_LEN) == 0)) {
+        u64 sdsize = GetTotalSpace("0:");
+        char sdsize_str[32+1];
+        FormatBytes(sdsize_str, sdsize);
+        set_var("SDSIZE", sdsize_str);
+    }
+
+    // SD card free storage
+    if (!name || (strncmp(name, "SDFREE", _VAR_NAME_LEN) == 0)) {
+        u64 sdfree = GetFreeSpace("0:");
+        char sdfree_str[32+1];
+        FormatBytes(sdfree_str, sdfree);
+        set_var("SDFREE", sdfree_str);
+    }
+
+    // NAND size
+    if (!name || (strncmp(name, "NANDSIZE", _VAR_NAME_LEN) == 0)) {
+        u64 nandsize = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
+        char nandsize_str[32+1];
+        FormatBytes(nandsize_str, nandsize);
+        set_var("NANDSIZE", nandsize_str);
+    }
 }
 
 char* get_var(const char* name, char** endptr) {
