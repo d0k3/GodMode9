@@ -44,7 +44,9 @@ u32 BuildTitleInfoEntryTmd(TitleInfoEntry* tie, TitleMetaData* tmd, bool sd) {
     }
 
     // manual? dlp? save? (we need to properly check this later)
-    if (((title_id >> 32) == 0x00040000) || ((title_id >> 32) == 0x00040010)) {
+    if (((title_id >> 32) == 0x00040000) ||
+        ((title_id >> 32) == 0x0004000E) ||
+        ((title_id >> 32) == 0x00040010)) {
         if (has_idx1) tie->flags_0[0] = 0x1; // this may have a manual
         if (has_idx2) tie->title_version |= (0xFFFF << 16); // this may have a dlp
         if (getle32(tmd->save_size)) tie->flags_1[0] = 0x01; // this may have an sd save
