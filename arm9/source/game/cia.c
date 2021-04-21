@@ -4,6 +4,7 @@
 #include "ff.h"
 #include "aes.h"
 #include "sha.h"
+#include "cert.h"
 
 u32 ValidateCiaHeader(CiaHeader* header) {
     if ((header->size_header != CIA_HEADER_SIZE) ||
@@ -59,21 +60,49 @@ u32 BuildCiaCert(u8* ciacert) {
         0x18, 0x83, 0xAF, 0xE0, 0xF4, 0xE5, 0x62, 0xBA, 0x69, 0xEE, 0x72, 0x2A, 0xC2, 0x4E, 0x95, 0xB3
     };
 
-    // open certs.db file on SysNAND
-    FIL db;
-    UINT bytes_read;
-    if (f_open(&db, "1:/dbs/certs.db", FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    const char* issuer_ca = !IS_DEVKIT ? "Root-CA00000003" : "Root-CA00000004";
+    const char* issuer_xs = !IS_DEVKIT ? "Root-CA00000003-XS0000000c" : "Root-CA00000004-XS00000009";
+    const char* issuer_cp = !IS_DEVKIT ? "Root-CA00000003-CP0000000b" : "Root-CA00000004-CP0000000a";
+
+    // open certs.db file on SysNAND or EmuNAND
+    Certificate cert_ca;
+    Certificate cert_xs;
+    Certificate cert_cp;
+    if (LoadCertFromCertDb(false, &cert_ca, issuer_ca) != 0 && LoadCertFromCertDb(true, &cert_ca, issuer_ca) != 0)
         return 1;
-    // grab CIA cert from 4 offsets
-    f_lseek(&db, 0x0C10);
-    f_read(&db, ciacert + 0x000, 0x1F0, &bytes_read);
-    f_lseek(&db, 0x3A00);
-    f_read(&db, ciacert + 0x1F0, 0x210, &bytes_read);
-    f_lseek(&db, 0x3F10);
-    f_read(&db, ciacert + 0x400, 0x300, &bytes_read);
-    f_lseek(&db, 0x3C10);
-    f_read(&db, ciacert + 0x700, 0x300, &bytes_read);
-    f_close(&db);
+
+    if (LoadCertFromCertDb(false, &cert_xs, issuer_xs) != 0 && LoadCertFromCertDb(true, &cert_xs, issuer_xs) != 0) {
+        Certificate_Cleanup(&cert_ca);
+        return 1;
+    }
+
+    if (LoadCertFromCertDb(false, &cert_cp, issuer_cp) != 0 && LoadCertFromCertDb(true, &cert_cp, issuer_cp) != 0) {
+        Certificate_Cleanup(&cert_ca);
+        Certificate_Cleanup(&cert_xs);
+        return 1;
+    }
+
+    u32 cert_size_ca;
+    u32 cert_size_xs;
+    u32 cert_size_cp;
+    if (Certificate_GetFullSize(&cert_ca, &cert_size_ca) != 0 ||
+        cert_size_ca != 0x400 ||
+        Certificate_GetFullSize(&cert_xs, &cert_size_xs) != 0 ||
+        cert_size_xs != 0x300 ||
+        Certificate_GetFullSize(&cert_cp, &cert_size_cp) != 0 ||
+        cert_size_cp != 0x300 ||
+        Certificate_RawCopy(&cert_ca, ciacert) != 0 ||
+        Certificate_RawCopy(&cert_xs, &ciacert[0x400]) != 0 ||
+        Certificate_RawCopy(&cert_cp, &ciacert[0x700]) != 0) {
+        Certificate_Cleanup(&cert_ca);
+        Certificate_Cleanup(&cert_xs);
+        Certificate_Cleanup(&cert_cp);
+        return 1;
+    }
+
+    Certificate_Cleanup(&cert_ca);
+    Certificate_Cleanup(&cert_xs);
+    Certificate_Cleanup(&cert_cp);
 
     // check the certificate hash
     u8 cert_hash[0x20];
