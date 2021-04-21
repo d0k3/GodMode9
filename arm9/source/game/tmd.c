@@ -24,16 +24,25 @@ u32 ValidateTwlTmd(TitleMetaData* tmd) {
 }
 
 u32 ValidateTmdSignature(TitleMetaData* tmd) {
-    static bool got_modexp = false;
-    static u32 mod[0x100 / 4] = { 0 };
-    static u32 exp = 0;
+    Certificate cert;
+    u32 mod[2048/8];
+    u32 exp = 0;
 
-    if (!got_modexp) {
-        // grab mod/exp from cert from cert.db
-        if (LoadCertFromCertDb(0x3C10, NULL, mod, &exp) == 0)
-            got_modexp = true;
-        else return 1;
+    // grab mod/exp from cert from cert.db
+    if (LoadCertFromCertDb(false, &cert, (char*)(tmd->issuer)) != 0 && LoadCertFromCertDb(true, &cert, (char*)(tmd->issuer)) != 0)
+        return 1;
+
+    // current code only expects RSA2048
+    u32 mod_size;
+    if (Certificate_GetModulusSize(&cert, &mod_size) != 0 ||
+        mod_size != 2048/8 ||
+        Certificate_GetModulus(&cert, &mod) != 0 ||
+        Certificate_GetExponent(&cert, &exp) != 0) {
+        Certificate_Cleanup(&cert);
+        return 1;
     }
+
+    Certificate_Cleanup(&cert);
 
     if (!RSA_setKey2048(3, mod, exp) ||
         !RSA_verify2048((void*) &(tmd->signature), (void*) &(tmd->issuer), 0xC4))
@@ -121,19 +130,35 @@ u32 BuildTmdCert(u8* tmdcert) {
         0xC2, 0xE9, 0xCA, 0x93, 0x94, 0xF4, 0x29, 0xA0, 0x38, 0x54, 0x75, 0xFF, 0xAB, 0x6E, 0x8E, 0x71
     };
 
-    // open certs.db file on SysNAND
-    FIL db;
-    UINT bytes_read;
-    if (f_open(&db, "1:/dbs/certs.db", FA_READ | FA_OPEN_EXISTING) != FR_OK)
+    const char* issuer_cp = !IS_DEVKIT ? "Root-CA00000003-CP0000000b" : "Root-CA00000004-CP0000000a";
+    const char* issuer_ca = !IS_DEVKIT ? "Root-CA00000003" : "Root-CA00000004";
+
+    // open certs.db file on SysNAND or EmuNAND
+    Certificate cert_cp;
+    Certificate cert_ca;
+    if (LoadCertFromCertDb(false, &cert_cp, issuer_cp) != 0 && LoadCertFromCertDb(true, &cert_cp, issuer_cp) != 0)
         return 1;
-    // grab TMD cert from 3 offsets
-    f_lseek(&db, 0x3C10);
-    f_read(&db, tmdcert + 0x000, 0x300, &bytes_read);
-    f_lseek(&db, 0x0C10);
-    f_read(&db, tmdcert + 0x300, 0x1F0, &bytes_read);
-    f_lseek(&db, 0x3A00);
-    f_read(&db, tmdcert + 0x4F0, 0x210, &bytes_read);
-    f_close(&db);
+
+    if (LoadCertFromCertDb(false, &cert_ca, issuer_ca) != 0 && LoadCertFromCertDb(true, &cert_ca, issuer_ca) != 0) {
+        Certificate_Cleanup(&cert_cp);
+        return 1;
+    }
+
+    u32 cert_size_cp;
+    u32 cert_size_ca;
+    if (Certificate_GetFullSize(&cert_cp, &cert_size_cp) != 0 ||
+        cert_size_cp != 0x300 ||
+        Certificate_GetFullSize(&cert_ca, &cert_size_ca) != 0 ||
+        cert_size_ca != 0x400 ||
+        Certificate_RawCopy(&cert_cp, tmdcert) != 0 ||
+        Certificate_RawCopy(&cert_ca, &tmdcert[0x300]) != 0) {
+        Certificate_Cleanup(&cert_cp);
+        Certificate_Cleanup(&cert_ca);
+        return 1;
+    }
+
+    Certificate_Cleanup(&cert_cp);
+    Certificate_Cleanup(&cert_ca);
 
     // check the certificate hash
     u8 cert_hash[0x20];
