@@ -50,18 +50,18 @@
 typedef struct {
     TICKETBASE;
     u8 content_index[];
-} __attribute__((packed, aligned(4))) Ticket;
+} PACKED_STRUCT Ticket;
 
 typedef struct {
     TICKETBASE;
     u8 content_index[0xAC];
-} __attribute__((packed, aligned(4))) TicketCommon;
+} PACKED_STRUCT TicketCommon;
 
 // minimum allowed content_index is 0x14
 typedef struct {
     TICKETBASE;
     u8 content_index[0x14];
-} __attribute__((packed, aligned(4))) TicketMinimum;
+} PACKED_STRUCT TicketMinimum;
 
 typedef struct {
     u8 unk1[2];
@@ -71,7 +71,7 @@ typedef struct {
     u8 unk3[2];
     u8 unk4[2];
     u8 unk5[4];
-} __attribute__((packed)) TicketContentIndexMainHeader;
+} PACKED_ALIGN(1) TicketContentIndexMainHeader;
 
 typedef struct {
     u8 data_relative_offset[4]; // relative to content index start
@@ -80,14 +80,14 @@ typedef struct {
     u8 total_size_used[4]; // also no effect
     u8 data_type[2]; // perhaps, does have effect and change with different data like on 0004000D tickets
     u8 unknown[2]; // or padding
-} __attribute__((packed)) TicketContentIndexDataHeader;
+} PACKED_ALIGN(1) TicketContentIndexDataHeader;
 
 // data type == 3
 typedef struct {
     u8 unk[2]; // seemly has no meaning
     u8 indexoffset[2];
     u8 rightsbitfield[0x80];
-} __attribute__((packed)) TicketRightsField;
+} PACKED_ALIGN(1) TicketRightsField;
 
 typedef struct {
     size_t count;
