@@ -2767,7 +2767,7 @@ u32 GetGameFileTitleVersion(const char* path) {
             version = tie.title_version & 0xFFFF;
     } else if (filetype & GAME_CIA) {
         CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
-        if (cia && LoadCiaStub(cia, path) != 0)
+        if (cia && LoadCiaStub(cia, path) == 0)
             version = getbe16(cia->tmd.title_version);
         if (cia) free(cia);
     }   
