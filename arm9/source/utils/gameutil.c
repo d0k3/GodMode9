@@ -2982,7 +2982,7 @@ u32 DumpTicketForGameFile(const char* path, bool force_legit) {
 
     // replace extension
     char* dot = strrchr(dest, '.');
-    if (!dot || (dot < strrchr(dest, '/')))
+    if (!dot || (strpbrk(dot, "/(){}[]!$#*+-")))
         dot = dest + strnlen(dest, 256);
     snprintf(dot, 16, ".%s", force_legit ? "legit.tik" : "tik");
 
