@@ -29,30 +29,16 @@ u32 ValidateTwlTicket(Ticket* ticket) {
 
 u32 ValidateTicketSignature(Ticket* ticket) {
     Certificate cert;
-    u32 mod[2048/8];
-    u32 exp = 0;
 
     // grab cert from certs.db
     if (LoadCertFromCertDb(&cert, (char*)(ticket->issuer)) != 0)
         return 1;
 
-    // current code only expects RSA2048
-    u32 mod_size;
-    if (Certificate_GetModulusSize(&cert, &mod_size) != 0 ||
-        mod_size != 2048/8 ||
-        Certificate_GetModulus(&cert, &mod) != 0 ||
-        Certificate_GetExponent(&cert, &exp) != 0) {
-        Certificate_Cleanup(&cert);
-        return 1;
-    }
+    int ret = Certificate_VerifySignatureBlock(&cert, &(ticket->signature), 0x100, (void*)&(ticket->issuer), GetTicketSize(ticket) - 0x140, true);
 
     Certificate_Cleanup(&cert);
 
-    if (!RSA_setKey2048(3, mod, exp) ||
-        !RSA_verify2048((void*) &(ticket->signature), (void*) &(ticket->issuer), GetTicketSize(ticket) - 0x140))
-        return 1;
-
-    return 0;
+    return ret;
 }
 
 u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
