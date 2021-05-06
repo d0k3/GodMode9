@@ -130,35 +130,14 @@ u32 BuildTmdCert(u8* tmdcert) {
         0xC2, 0xE9, 0xCA, 0x93, 0x94, 0xF4, 0x29, 0xA0, 0x38, 0x54, 0x75, 0xFF, 0xAB, 0x6E, 0x8E, 0x71
     };
 
-    const char* issuer_cp = !IS_DEVKIT ? "Root-CA00000003-CP0000000b" : "Root-CA00000004-CP0000000a";
-    const char* issuer_ca = !IS_DEVKIT ? "Root-CA00000003" : "Root-CA00000004";
+    static const char* const retail_issuers[] = {"Root-CA00000003-CP0000000b", "Root-CA00000003"};
+    static const char* const dev_issuers[] = {"Root-CA00000004-CP0000000a", "Root-CA00000004"};
 
-    // open certs.db file on SysNAND or EmuNAND
-    Certificate cert_cp;
-    Certificate cert_ca;
-    if (LoadCertFromCertDb(false, &cert_cp, issuer_cp) != 0 && LoadCertFromCertDb(true, &cert_cp, issuer_cp) != 0)
-        return 1;
-
-    if (LoadCertFromCertDb(false, &cert_ca, issuer_ca) != 0 && LoadCertFromCertDb(true, &cert_ca, issuer_ca) != 0) {
-        Certificate_Cleanup(&cert_cp);
+    size_t size = TMD_CDNCERT_SIZE;
+    if (BuildRawCertBundleFromCertDb(tmdcert, &size, !IS_DEVKIT ? retail_issuers : dev_issuers, 2) ||
+        size != TMD_CDNCERT_SIZE) {
         return 1;
     }
-
-    u32 cert_size_cp;
-    u32 cert_size_ca;
-    if (Certificate_GetFullSize(&cert_cp, &cert_size_cp) != 0 ||
-        cert_size_cp != 0x300 ||
-        Certificate_GetFullSize(&cert_ca, &cert_size_ca) != 0 ||
-        cert_size_ca != 0x400 ||
-        Certificate_RawCopy(&cert_cp, tmdcert) != 0 ||
-        Certificate_RawCopy(&cert_ca, &tmdcert[0x300]) != 0) {
-        Certificate_Cleanup(&cert_cp);
-        Certificate_Cleanup(&cert_ca);
-        return 1;
-    }
-
-    Certificate_Cleanup(&cert_cp);
-    Certificate_Cleanup(&cert_ca);
 
     // check the certificate hash
     u8 cert_hash[0x20];

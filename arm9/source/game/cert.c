@@ -8,7 +8,7 @@ typedef struct {
     u8 garbage[4]; // literally garbage values
 } PACKED_STRUCT CertsDbPartitionHeader;
 
-static void GetCertDBPath(char* path, bool emunand) {
+static inline void GetCertDBPath(char* path, bool emunand) {
     path[0] = emunand ? '4' : '1';
     strcpy(&path[1], ":/dbs/certs.db");
 }
@@ -64,6 +64,8 @@ static struct {
         (CertificateBody*)&_CommonCertsStorage.dev_CPa_raw[CERT_RSA2048_SIG_SIZE]
     }
 };
+
+static inline void _Certificate_CleanupImpl(Certificate* cert);
 
 bool Certificate_IsValid(const Certificate* cert) {
     if (!cert || !cert->sig || !cert->data)
@@ -228,9 +230,34 @@ u32 Certificate_GetFullSize(const Certificate* cert, u32* size) {
     return 0;
 }
 
-u32 Certificate_RawCopy(const Certificate* cert, void* raw) {
-    if (!raw || !Certificate_IsValid(cert)) return 1;
+static u32 _Certificate_AllocCopyOutImpl(const Certificate* cert, Certificate* out_cert) {
+    u32 sig_size = _Certificate_GetSignatureChunkSizeFromType(getbe32(cert->sig->sig_type));
+    u32 data_size = _Certificate_GetDataChunkSizeFromType(getbe32(cert->data->keytype));
 
+    if (sig_size == 0 || data_size == 0)
+        return 1;
+
+    out_cert->sig = (CertificateSignature*)malloc(sig_size);
+    out_cert->data = (CertificateBody*)malloc(data_size);
+
+    if (!out_cert->sig || !out_cert->data) {
+        _Certificate_CleanupImpl(out_cert);
+        return 1;
+    }
+
+    memcpy(out_cert->sig, cert->sig, sig_size);
+    memcpy(out_cert->data, cert->data, data_size);
+
+    return 0;
+}
+
+u32 Certificate_AllocCopyOut(const Certificate* cert, Certificate* out_cert) {
+    if (!out_cert || !Certificate_IsValid(cert)) return 1;
+
+    return _Certificate_AllocCopyOutImpl(cert, out_cert);
+}
+
+static u32 _Certificate_RawCopyImpl(const Certificate* cert, void* raw) {
     u32 sig_size = _Certificate_GetSignatureChunkSizeFromType(getbe32(cert->sig->sig_type));
     u32 data_size = _Certificate_GetDataChunkSizeFromType(getbe32(cert->data->keytype));
 
@@ -243,6 +270,12 @@ u32 Certificate_RawCopy(const Certificate* cert, void* raw) {
     return 0;
 }
 
+u32 Certificate_RawCopy(const Certificate* cert, void* raw) {
+    if (!raw || !Certificate_IsValid(cert)) return 1;
+
+    return _Certificate_RawCopyImpl(cert, raw);
+}
+
 // ptr free check, to not free if ptr is pointing to static storage!!
 static inline void _Certificate_SafeFree(void* ptr) {
     if ((u32)ptr >= (u32)&_CommonCertsStorage && (u32)ptr < (u32)&_CommonCertsStorage + sizeof(_CommonCertsStorage))
@@ -251,13 +284,17 @@ static inline void _Certificate_SafeFree(void* ptr) {
     free(ptr);
 }
 
-u32 Certificate_Cleanup(Certificate* cert) {
-    if (!cert) return 1;
-
+static inline void _Certificate_CleanupImpl(Certificate* cert) {
     _Certificate_SafeFree(cert->sig);
     _Certificate_SafeFree(cert->data);
     cert->sig = NULL;
     cert->data = NULL;
+}
+
+u32 Certificate_Cleanup(Certificate* cert) {
+    if (!cert) return 1;
+
+    _Certificate_CleanupImpl(cert);
 
     return 0;
 }
@@ -400,9 +437,97 @@ static void _SaveToCertStorage(const Certificate* cert, u32 ident) {
     if (sig_size + data_size != raw_size)
         return;
 
-    if (!Certificate_RawCopy(cert, raw_space)) {
+    if (!_Certificate_RawCopyImpl(cert, raw_space)) {
         _CommonCertsStorage.loaded_certs_flg |= ident;
     }
+}
+
+// grumble grumble, gotta avoid repeated code when possible or at least if significant enough
+
+static u32 _DisaOpenCertDb(char (*path)[16], bool emunand, DisaDiffRWInfo* info, u8** cache, u32* offset, u32* max_offset) {
+    GetCertDBPath(*path, emunand);
+
+    u8* _cache = NULL;
+    if (GetDisaDiffRWInfo(*path, info, false) != 0) return 1;
+    _cache = (u8*)malloc(info->size_dpfs_lvl2);
+    if (!_cache) return 1;
+    if (BuildDisaDiffDpfsLvl2Cache(*path, info, _cache, info->size_dpfs_lvl2) != 0) {
+        free(_cache);
+        return 1;
+    }
+
+    CertsDbPartitionHeader header;
+
+    if (ReadDisaDiffIvfcLvl4(*path, info, 0, sizeof(CertsDbPartitionHeader), &header) != sizeof(CertsDbPartitionHeader)) {
+        free(_cache);
+        return 1;
+    }
+
+    if (getbe32(header.magic) != 0x43455254 /* 'CERT' */ ||
+      getbe32(header.unk) != 0 ||
+      getle32(header.used_size) & 0xFF) {
+        free(_cache);
+        return 1;
+    }
+
+    *cache = _cache;
+
+    *offset = sizeof(CertsDbPartitionHeader);
+    *max_offset = getle32(header.used_size) + sizeof(CertsDbPartitionHeader);
+
+    return 0;
+}
+
+static u32 _ProcessNextCertDbEntry(const char* path, DisaDiffRWInfo* info, Certificate* cert, u32 *full_size, char (*full_issuer)[0x41], u32* offset, u32 max_offset) {
+    u8 sig_type_data[4];
+    u8 keytype_data[4];
+
+    if (*offset + 4 > max_offset) return 1;
+
+    if (ReadDisaDiffIvfcLvl4(path, info, *offset, 4, sig_type_data) != 4)
+        return 1;
+
+    u32 sig_type = getbe32(sig_type_data);
+
+    if (sig_type == 0x10002 || sig_type == 0x10005) return 1; // ECC signs not allowed on db
+
+    u32 sig_size = _Certificate_GetSignatureChunkSizeFromType(sig_type);
+    if (sig_size == 0) return 1;
+
+    u32 keytype_off = *offset + sig_size + offsetof(CertificateBody, keytype);
+    if (keytype_off + 4 > max_offset) return 1;
+
+    if (ReadDisaDiffIvfcLvl4(path, info, keytype_off, 4, keytype_data) != 4)
+        return 1;
+
+    u32 keytype = getbe32(keytype_data);
+
+    if (keytype == 2) return 1; // ECC keys not allowed on db
+
+    u32 data_size = _Certificate_GetDataChunkSizeFromType(keytype);
+    if (data_size == 0) return 1;
+
+    *full_size = sig_size + data_size;
+    if (*offset + *full_size > max_offset) return 1;
+
+    cert->sig = (CertificateSignature*)malloc(sig_size);
+    cert->data = (CertificateBody*)malloc(data_size);
+    if (!cert->sig || !cert->data)
+        return 1;
+
+    if (ReadDisaDiffIvfcLvl4(path, info, *offset, sig_size, cert->sig) != sig_size)
+        return 1;
+
+    if (ReadDisaDiffIvfcLvl4(path, info, *offset + sig_size, data_size, cert->data) != data_size)
+        return 1;
+
+    if (!Certificate_IsValid(cert))
+        return 1;
+
+    if (snprintf(*full_issuer, 0x41, "%s-%s", cert->data->issuer, cert->data->name) > 0x40)
+        return 1;
+
+    return 0;
 }
 
 u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
@@ -416,34 +541,13 @@ u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
     Certificate cert_local = {NULL, NULL};
 
     char path[16];
-    GetCertDBPath(path, emunand);
-
     DisaDiffRWInfo info;
-    u8* cache = NULL;
-    if (GetDisaDiffRWInfo(path, &info, false) != 0) return 1;
-    cache = malloc(info.size_dpfs_lvl2);
-    if (!cache) return 1;
-    if (BuildDisaDiffDpfsLvl2Cache(path, &info, cache, info.size_dpfs_lvl2) != 0) {
-        free(cache);
+    u8* cache;
+
+    u32 offset, max_offset;
+
+    if (_DisaOpenCertDb(&path, emunand, &info, &cache, &offset, &max_offset))
         return 1;
-    }
-
-    CertsDbPartitionHeader header;
-
-    if (ReadDisaDiffIvfcLvl4(path, &info, 0, sizeof(CertsDbPartitionHeader), &header) != sizeof(CertsDbPartitionHeader)) {
-        free(cache);
-        return 1;
-    }
-
-    if (getbe32(header.magic) != 0x43455254 /* 'CERT' */ ||
-      getbe32(header.unk) != 0 ||
-      getle32(header.used_size) & 0xFF) {
-        free(cache);
-        return 1;
-    }
-
-    u32 offset = sizeof(CertsDbPartitionHeader);
-    u32 max_offset = getle32(header.used_size) + sizeof(CertsDbPartitionHeader);
 
     u32 ret = 1;
 
@@ -452,52 +556,9 @@ u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
     // so most cases of bad data, leads to giving up
     while (offset < max_offset) {
         char full_issuer[0x41];
-        u8 sig_type_data[4];
-        u8 keytype_data[4];
+        u32 full_size;
 
-        if (offset + 4 > max_offset) break;
-
-        if (ReadDisaDiffIvfcLvl4(path, &info, offset, 4, sig_type_data) != 4)
-            break;
-
-        u32 sig_type = getbe32(sig_type_data);
-
-        if (sig_type == 0x10002 || sig_type == 0x10005) break; // ECC signs not allowed on db
-
-        u32 sig_size = _Certificate_GetSignatureChunkSizeFromType(sig_type);
-        if (sig_size == 0) break;
-
-        u32 keytype_off = offset + sig_size + offsetof(CertificateBody, keytype);
-        if (keytype_off + 4 > max_offset) break;
-
-        if (ReadDisaDiffIvfcLvl4(path, &info, keytype_off, 4, keytype_data) != 4)
-            break;
-
-        u32 keytype = getbe32(keytype_data);
-
-        if (keytype == 2) break; // ECC keys not allowed on db
-
-        u32 data_size = _Certificate_GetDataChunkSizeFromType(keytype);
-        if (data_size == 0) break;
-
-        u32 full_size = sig_size + data_size;
-        if (offset + full_size > max_offset) break;
-
-        cert_local.sig = (CertificateSignature*)malloc(sig_size);
-        cert_local.data = (CertificateBody*)malloc(data_size);
-        if (!cert_local.sig || !cert_local.data)
-            break;
-
-        if (ReadDisaDiffIvfcLvl4(path, &info, offset, sig_size, cert_local.sig) != sig_size)
-            break;
-
-        if (ReadDisaDiffIvfcLvl4(path, &info, offset + sig_size, data_size, cert_local.data) != data_size)
-            break;
-
-        if (!Certificate_IsValid(&cert_local))
-            break;
-
-        if (snprintf(full_issuer, 0x41, "%s-%s", cert_local.data->issuer, cert_local.data->name) > 0x40)
+        if (_ProcessNextCertDbEntry(path, &info, &cert_local, &full_size, &full_issuer, &offset, max_offset))
             break;
 
         if (!strcmp(full_issuer, issuer)) {
@@ -505,13 +566,13 @@ u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
             break;
         }
 
-        Certificate_Cleanup(&cert_local);
+        _Certificate_CleanupImpl(&cert_local);
 
         offset += full_size;
     }
 
     if (ret) {
-        Certificate_Cleanup(&cert_local);
+        _Certificate_CleanupImpl(&cert_local);
     } else {
         _SaveToCertStorage(&cert_local, _ident);
     }
@@ -519,5 +580,124 @@ u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
     *cert = cert_local;
 
     free(cache);
+    return ret;
+}
+
+// I dont expect many certs on a cert bundle, so I'll cap it to 8
+u32 BuildRawCertBundleFromCertDb(void* rawout, size_t* size, const char* const* cert_issuers, int count) {
+    if (!rawout || !size || !cert_issuers || count < 0 || count > 8) return 1;
+    if (!*size && count) return 1;
+    if (!count) { // *shrug*
+        *size = 0;
+        return 0;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        if (!cert_issuers[i])
+            return 1;
+    }
+
+    Certificate certs[8];
+    u8 certs_loaded = 0;
+
+    memset(certs, 0, sizeof(certs));
+
+    int loaded_count = 0;
+
+    // search static storage first
+    for (int i = 0; i < count; ++i) {
+        u32 _ident = _Issuer_To_StorageIdent(cert_issuers[i]);
+        if (_LoadFromCertStorage(&certs[i], _ident)) {
+            certs_loaded |= BIT(i);
+            ++loaded_count;
+        }
+    }
+
+    int ret = 0;
+
+    for (int i = 0; i < 2 && loaded_count != count && !ret; ++i) {
+        Certificate cert_local = {NULL, NULL};
+
+        char path[16];
+        DisaDiffRWInfo info;
+        u8* cache;
+
+        u32 offset, max_offset;
+
+        if (_DisaOpenCertDb(&path, i ? true : false, &info, &cache, &offset, &max_offset))
+            continue;
+
+        while (offset < max_offset) {
+            char full_issuer[0x41];
+            u32 full_size;
+
+            if (_ProcessNextCertDbEntry(path, &info, &cert_local, &full_size, &full_issuer, &offset, max_offset))
+                break;
+
+            for (int j = 0; j < count; j++) {
+                if (certs_loaded & BIT(j)) continue;
+                if (!strcmp(full_issuer, cert_issuers[j])) {
+                    ret = _Certificate_AllocCopyOutImpl(&cert_local, &certs[j]);
+                    if (ret) break;
+                    certs_loaded |= BIT(j);
+                    ++loaded_count;
+                }
+            }
+
+            // while at it, try to save to static storage, if applicable
+            u32 _ident = _Issuer_To_StorageIdent(full_issuer);
+            _SaveToCertStorage(&cert_local, _ident);
+
+            _Certificate_CleanupImpl(&cert_local);
+
+            if (loaded_count == count || ret) // early exit
+                break;
+
+            offset += full_size;
+        }
+
+        free(cache);
+    }
+
+    if (!ret && loaded_count == count) {
+        u8* out = (u8*)rawout;
+        size_t limit = *size, written = 0;
+
+        for (int i = 0; i < count; ++i) {
+            u32 sig_size = _Certificate_GetSignatureChunkSizeFromType(getbe32(certs[i].sig->sig_type));
+            u32 data_size = _Certificate_GetDataChunkSizeFromType(getbe32(certs[i].data->keytype));
+
+            if (sig_size == 0 || data_size == 0) {
+                ret = 1;
+                break;
+            }
+
+            u32 full_size = sig_size + data_size;
+
+            if (written + full_size > limit) {
+                ret = 1;
+                break;
+            }
+
+            if (_Certificate_RawCopyImpl(&certs[i], out)) {
+                ret = 1;
+                break;
+            }
+
+            out += full_size;
+            written += full_size;
+        }
+
+        if (!ret)
+            *size = written;
+    } else {
+        ret = 1;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        if (certs_loaded & BIT(i))
+            _Certificate_CleanupImpl(&certs[i]);
+    }
+
     return ret;
 }
