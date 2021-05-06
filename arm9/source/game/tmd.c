@@ -28,8 +28,8 @@ u32 ValidateTmdSignature(TitleMetaData* tmd) {
     u32 mod[2048/8];
     u32 exp = 0;
 
-    // grab mod/exp from cert from cert.db
-    if (LoadCertFromCertDb(false, &cert, (char*)(tmd->issuer)) != 0 && LoadCertFromCertDb(true, &cert, (char*)(tmd->issuer)) != 0)
+    // grab cert from certs.db
+    if (LoadCertFromCertDb(&cert, (char*)(tmd->issuer)) != 0)
         return 1;
 
     // current code only expects RSA2048

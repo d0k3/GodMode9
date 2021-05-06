@@ -530,7 +530,7 @@ static u32 _ProcessNextCertDbEntry(const char* path, DisaDiffRWInfo* info, Certi
     return 0;
 }
 
-u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
+u32 LoadCertFromCertDb(Certificate* cert, const char* issuer) {
     if (!issuer || !cert) return 1;
 
     u32 _ident = _Issuer_To_StorageIdent(issuer);
@@ -538,48 +538,50 @@ u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer) {
         return 0;
     }
 
-    Certificate cert_local = {NULL, NULL};
+    int ret = 1;
 
-    char path[16];
-    DisaDiffRWInfo info;
-    u8* cache;
+    for (int i = 0; i < 2 && ret; ++i) {
+        Certificate cert_local = {NULL, NULL};
 
-    u32 offset, max_offset;
+        char path[16];
+        DisaDiffRWInfo info;
+        u8* cache;
 
-    if (_DisaOpenCertDb(&path, emunand, &info, &cache, &offset, &max_offset))
-        return 1;
+        u32 offset, max_offset;
 
-    u32 ret = 1;
+        if (_DisaOpenCertDb(&path, i ? true : false, &info, &cache, &offset, &max_offset))
+            return 1;
 
-    // certs.db has no filesystem.. its pretty plain, certificates after another
-    // but also, certificates are not equally sized
-    // so most cases of bad data, leads to giving up
-    while (offset < max_offset) {
-        char full_issuer[0x41];
-        u32 full_size;
+        // certs.db has no filesystem.. its pretty plain, certificates after another
+        // but also, certificates are not equally sized
+        // so most cases of bad data, leads to giving up
+        while (offset < max_offset) {
+            char full_issuer[0x41];
+            u32 full_size;
 
-        if (_ProcessNextCertDbEntry(path, &info, &cert_local, &full_size, &full_issuer, &offset, max_offset))
-            break;
+            if (_ProcessNextCertDbEntry(path, &info, &cert_local, &full_size, &full_issuer, &offset, max_offset))
+                break;
 
-        if (!strcmp(full_issuer, issuer)) {
-            ret = 0;
-            break;
+            if (!strcmp(full_issuer, issuer)) {
+                ret = 0;
+                break;
+            }
+
+            _Certificate_CleanupImpl(&cert_local);
+
+            offset += full_size;
         }
 
-        _Certificate_CleanupImpl(&cert_local);
+        if (ret) {
+            _Certificate_CleanupImpl(&cert_local);
+        } else {
+            *cert = cert_local;
+            _SaveToCertStorage(&cert_local, _ident);
+        }
 
-        offset += full_size;
+        free(cache);
     }
 
-    if (ret) {
-        _Certificate_CleanupImpl(&cert_local);
-    } else {
-        _SaveToCertStorage(&cert_local, _ident);
-    }
-    
-    *cert = cert_local;
-
-    free(cache);
     return ret;
 }
 

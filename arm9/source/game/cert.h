@@ -47,5 +47,5 @@ u32 Certificate_AllocCopyOut(const Certificate* cert, Certificate* out_cert);
 u32 Certificate_RawCopy(const Certificate* cert, void* raw);
 u32 Certificate_Cleanup(Certificate* cert);
 
-u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer);
+u32 LoadCertFromCertDb(Certificate* cert, const char* issuer);
 u32 BuildRawCertBundleFromCertDb(void* rawout, size_t* size, const char* const* cert_issuers, int count);
