@@ -11,6 +11,8 @@
 #define CERT_RSA2048_BODY_SIZE (sizeof(CertificateBody) + 0x138)
 #define CERT_ECC_BODY_SIZE     (sizeof(CertificateBody) + 0x78)
 
+#define CERTIFICATE_NULL_INIT  ((Certificate){NULL, NULL})
+
 // from: http://3dbrew.org/wiki/Certificates
 // all numbers in big endian
 typedef struct {
@@ -44,6 +46,7 @@ u32 Certificate_GetSignatureChunkSize(const Certificate* cert, u32* size);
 u32 Certificate_GetDataChunkSize(const Certificate* cert, u32* size);
 u32 Certificate_GetFullSize(const Certificate* cert, u32* size);
 u32 Certificate_VerifySignatureBlock(const Certificate* cert, const void* sig, u32 sig_size, const void* data, u32 data_size, bool sha256);
+u32 Certificate_MakeEditSafe(Certificate* cert);
 u32 Certificate_AllocCopyOut(const Certificate* cert, Certificate* out_cert);
 u32 Certificate_RawCopy(const Certificate* cert, void* raw);
 u32 Certificate_Cleanup(Certificate* cert);

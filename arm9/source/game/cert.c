@@ -298,6 +298,48 @@ u32 Certificate_VerifySignatureBlock(const Certificate* cert, const void* sig, u
     return 1;
 }
 
+static inline void* _Certificate_SafeRealloc(void* ptr, size_t size, size_t oldsize) {
+    void* new_ptr;
+    size_t min_size = min(oldsize, size);
+
+    if ((u32)ptr >= (u32)&_CommonCertsStorage && (u32)ptr < (u32)&_CommonCertsStorage + sizeof(_CommonCertsStorage)) {
+        new_ptr = malloc(size);
+        if (new_ptr) memcpy(new_ptr, ptr, min_size);
+    } else {
+        new_ptr = realloc(ptr, size);
+    }
+    if (!new_ptr) return NULL;
+
+    memset(&((u8*)new_ptr)[min_size], 0, size - min_size);
+    return new_ptr;
+}
+
+// will reallocate memory for certificate signature and body to fit the max possible size.
+// will also allocate an empty object if Certificate is NULL initialized.
+// if certificate points to static storage, an allocated version will be created.
+// if function fails, the Certificate, even if previously NULL initialized, still has to be passed to cleaned up after use.
+u32 Certificate_MakeEditSafe(Certificate* cert) {
+    if (!cert) return 1;
+    bool isvalid = Certificate_IsValid(cert);
+    if ((cert->sig || cert->data) && !isvalid) return 1;
+
+    Certificate cert_local;
+
+    u32 sig_size = isvalid ? _Certificate_GetSignatureChunkSizeFromType(getbe32(cert->sig->sig_type)) : 0;
+    u32 data_size = isvalid ? _Certificate_GetDataChunkSizeFromType(getbe32(cert->data->keytype)) : 0;
+
+    if (isvalid && (sig_size == 0 || data_size == 0)) return 1;
+
+    cert_local.sig = _Certificate_SafeRealloc(cert->sig, CERT_RSA4096_SIG_SIZE, sig_size);
+    if (!cert_local.sig) return 1;
+    cert->sig = cert_local.sig;
+    cert_local.data = _Certificate_SafeRealloc(cert->data, CERT_RSA4096_BODY_SIZE, data_size);
+    if (!cert_local.data) return 1;
+    cert->data = cert_local.data;
+
+    return 0;
+}
+
 static u32 _Certificate_AllocCopyOutImpl(const Certificate* cert, Certificate* out_cert) {
     u32 sig_size = _Certificate_GetSignatureChunkSizeFromType(getbe32(cert->sig->sig_type));
     u32 data_size = _Certificate_GetDataChunkSizeFromType(getbe32(cert->data->keytype));
@@ -598,6 +640,7 @@ static u32 _ProcessNextCertDbEntry(const char* path, DisaDiffRWInfo* info, Certi
     return 0;
 }
 
+// certificates returned by this call are not to be deemed safe to edit, pointers or pointed data
 u32 LoadCertFromCertDb(Certificate* cert, const char* issuer) {
     if (!issuer || !cert) return 1;
 
@@ -609,7 +652,7 @@ u32 LoadCertFromCertDb(Certificate* cert, const char* issuer) {
     int ret = 1;
 
     for (int i = 0; i < 2 && ret; ++i) {
-        Certificate cert_local = {NULL, NULL};
+        Certificate cert_local = CERTIFICATE_NULL_INIT;
 
         char path[16];
         DisaDiffRWInfo info;
@@ -686,7 +729,7 @@ u32 BuildRawCertBundleFromCertDb(void* rawout, size_t* size, const char* const* 
     int ret = 0;
 
     for (int i = 0; i < 2 && loaded_count != count && !ret; ++i) {
-        Certificate cert_local = {NULL, NULL};
+        Certificate cert_local = CERTIFICATE_NULL_INIT;
 
         char path[16];
         DisaDiffRWInfo info;
