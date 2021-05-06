@@ -98,35 +98,14 @@ u32 BuildTicketCert(u8* tickcert) {
         0xC6, 0x4B, 0xD4, 0x8F, 0xDF, 0x13, 0x21, 0x3D, 0xFC, 0x72, 0xFC, 0x8D, 0x9F, 0xDD, 0x01, 0x0E
     };
 
-    const char* issuer_xs = !IS_DEVKIT ? "Root-CA00000003-XS0000000c" : "Root-CA00000004-XS00000009";
-    const char* issuer_ca = !IS_DEVKIT ? "Root-CA00000003" : "Root-CA00000004";
+    static const char* const retail_issuers[] = {"Root-CA00000003-XS0000000c", "Root-CA00000003"};
+    static const char* const dev_issuers[] = {"Root-CA00000004-XS00000009", "Root-CA00000004"};
 
-    // open certs.db file on SysNAND or EmuNAND
-    Certificate cert_xs;
-    Certificate cert_ca;
-    if (LoadCertFromCertDb(false, &cert_xs, issuer_xs) != 0 && LoadCertFromCertDb(true, &cert_xs, issuer_xs) != 0)
-        return 1;
-
-    if (LoadCertFromCertDb(false, &cert_ca, issuer_ca) != 0 && LoadCertFromCertDb(true, &cert_ca, issuer_ca) != 0) {
-        Certificate_Cleanup(&cert_xs);
+    size_t size = TICKET_CDNCERT_SIZE;
+    if (BuildRawCertBundleFromCertDb(tickcert, &size, !IS_DEVKIT ? retail_issuers : dev_issuers, 2) ||
+        size != TICKET_CDNCERT_SIZE) {
         return 1;
     }
-
-    u32 cert_size_xs;
-    u32 cert_size_ca;
-    if (Certificate_GetFullSize(&cert_xs, &cert_size_xs) != 0 ||
-        cert_size_xs != 0x300 ||
-        Certificate_GetFullSize(&cert_ca, &cert_size_ca) != 0 ||
-        cert_size_ca != 0x400 ||
-        Certificate_RawCopy(&cert_xs, tickcert) != 0 ||
-        Certificate_RawCopy(&cert_ca, &tickcert[0x300]) != 0) {
-        Certificate_Cleanup(&cert_xs);
-        Certificate_Cleanup(&cert_ca);
-        return 1;
-    }
-
-    Certificate_Cleanup(&cert_xs);
-    Certificate_Cleanup(&cert_ca);
 
     // check the certificate hash
     u8 cert_hash[0x20];

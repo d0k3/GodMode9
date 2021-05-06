@@ -43,7 +43,9 @@ u32 Certificate_GetEccXY(const Certificate* cert, void* X, void* Y);
 u32 Certificate_GetSignatureChunkSize(const Certificate* cert, u32* size);
 u32 Certificate_GetDataChunkSize(const Certificate* cert, u32* size);
 u32 Certificate_GetFullSize(const Certificate* cert, u32* size);
+u32 Certificate_AllocCopyOut(const Certificate* cert, Certificate* out_cert);
 u32 Certificate_RawCopy(const Certificate* cert, void* raw);
 u32 Certificate_Cleanup(Certificate* cert);
 
 u32 LoadCertFromCertDb(bool emunand, Certificate* cert, const char* issuer);
+u32 BuildRawCertBundleFromCertDb(void* rawout, size_t* size, const char* const* cert_issuers, int count);

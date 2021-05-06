@@ -60,49 +60,14 @@ u32 BuildCiaCert(u8* ciacert) {
         0x18, 0x83, 0xAF, 0xE0, 0xF4, 0xE5, 0x62, 0xBA, 0x69, 0xEE, 0x72, 0x2A, 0xC2, 0x4E, 0x95, 0xB3
     };
 
-    const char* issuer_ca = !IS_DEVKIT ? "Root-CA00000003" : "Root-CA00000004";
-    const char* issuer_xs = !IS_DEVKIT ? "Root-CA00000003-XS0000000c" : "Root-CA00000004-XS00000009";
-    const char* issuer_cp = !IS_DEVKIT ? "Root-CA00000003-CP0000000b" : "Root-CA00000004-CP0000000a";
+    static const char* const retail_issuers[] = {"Root-CA00000003", "Root-CA00000003-XS0000000c", "Root-CA00000003-CP0000000b"};
+    static const char* const dev_issuers[] = {"Root-CA00000004", "Root-CA00000004-XS00000009", "Root-CA00000004-CP0000000a"};
 
-    // open certs.db file on SysNAND or EmuNAND
-    Certificate cert_ca;
-    Certificate cert_xs;
-    Certificate cert_cp;
-    if (LoadCertFromCertDb(false, &cert_ca, issuer_ca) != 0 && LoadCertFromCertDb(true, &cert_ca, issuer_ca) != 0)
-        return 1;
-
-    if (LoadCertFromCertDb(false, &cert_xs, issuer_xs) != 0 && LoadCertFromCertDb(true, &cert_xs, issuer_xs) != 0) {
-        Certificate_Cleanup(&cert_ca);
+    size_t size = CIA_CERT_SIZE;
+    if (BuildRawCertBundleFromCertDb(ciacert, &size, !IS_DEVKIT ? retail_issuers : dev_issuers, 3) ||
+        size != CIA_CERT_SIZE) {
         return 1;
     }
-
-    if (LoadCertFromCertDb(false, &cert_cp, issuer_cp) != 0 && LoadCertFromCertDb(true, &cert_cp, issuer_cp) != 0) {
-        Certificate_Cleanup(&cert_ca);
-        Certificate_Cleanup(&cert_xs);
-        return 1;
-    }
-
-    u32 cert_size_ca;
-    u32 cert_size_xs;
-    u32 cert_size_cp;
-    if (Certificate_GetFullSize(&cert_ca, &cert_size_ca) != 0 ||
-        cert_size_ca != 0x400 ||
-        Certificate_GetFullSize(&cert_xs, &cert_size_xs) != 0 ||
-        cert_size_xs != 0x300 ||
-        Certificate_GetFullSize(&cert_cp, &cert_size_cp) != 0 ||
-        cert_size_cp != 0x300 ||
-        Certificate_RawCopy(&cert_ca, ciacert) != 0 ||
-        Certificate_RawCopy(&cert_xs, &ciacert[0x400]) != 0 ||
-        Certificate_RawCopy(&cert_cp, &ciacert[0x700]) != 0) {
-        Certificate_Cleanup(&cert_ca);
-        Certificate_Cleanup(&cert_xs);
-        Certificate_Cleanup(&cert_cp);
-        return 1;
-    }
-
-    Certificate_Cleanup(&cert_ca);
-    Certificate_Cleanup(&cert_xs);
-    Certificate_Cleanup(&cert_cp);
 
     // check the certificate hash
     u8 cert_hash[0x20];
