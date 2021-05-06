@@ -1,5 +1,6 @@
 #include "cert.h"
 #include "disadiff.h"
+#include "rsa.h"
 
 typedef struct {
     char magic[4]; // "CERT"
@@ -228,6 +229,73 @@ u32 Certificate_GetFullSize(const Certificate* cert, u32* size) {
     *size = sig_size + data_size;
 
     return 0;
+}
+
+static inline u32 _Certificate_KeytypeSignatureSize(u32 keytype) {
+    if (keytype == 0)
+        return 0x200;
+    else if (keytype == 1)
+        return 0x100;
+    else if (keytype == 2)
+        return 0x3C;
+    return 0;
+}
+
+static inline u32 _Certificate_VerifyRSA4096(const Certificate* cert, const void* sig, const void* data, u32 data_size, bool sha256) {
+    (void)cert; (void)sig; (void)data; (void)data_size; (void)sha256;
+    return 2; // not implemented
+}
+
+// noipa, to avoid form of inlining, cloning, etc, to avoid the extra stack usage when unneeded
+static __attribute__((noipa)) bool _Certificate_SetKey2048Misaligned(const Certificate* cert) {
+    u32 mod[2048/8];
+    u32 exp;
+
+    memcpy(mod, cert->data->pub_key_data, 2048/8);
+    exp = getle32(&cert->data->pub_key_data[2048/8]);
+
+    return RSA_setKey2048(3, mod, exp);
+}
+
+static inline u32 _Certificate_VerifyRSA2048(const Certificate* cert, const void* sig, const void* data, u32 data_size, bool sha256) {
+    if (!sha256)
+        return 2; // not implemented
+
+    int ret;
+
+    if (((u32)&cert->data->pub_key_data[0]) & 0x3)
+        ret = !_Certificate_SetKey2048Misaligned(cert);
+    else
+        ret = !RSA_setKey2048(3, (const u32*)(const void*)&cert->data->pub_key_data[0], getle32(&cert->data->pub_key_data[2048/8]));
+
+    if (ret)
+        return ret;
+
+    return !RSA_verify2048(sig, data, data_size);
+}
+
+static inline u32 _Certificate_VerifyECC(const Certificate* cert, const void* sig, const void* data, u32 data_size, bool sha256) {
+    (void)cert; (void)sig; (void)data; (void)data_size; (void)sha256;
+    return 2; // not implemented
+}
+
+u32 Certificate_VerifySignatureBlock(const Certificate* cert, const void* sig, u32 sig_size, const void* data, u32 data_size, bool sha256) {
+    if (!sig || !sig_size || (!data && data_size) || !Certificate_IsValid(cert))
+        return 1;
+
+    u32 keytype = getbe32(cert->data->keytype);
+    u32 _sig_size = _Certificate_KeytypeSignatureSize(keytype);
+
+    if (sig_size != _sig_size)
+        return 1;
+
+    if (keytype == 0)
+        return _Certificate_VerifyRSA4096(cert, sig, data, data_size, sha256);
+    if (keytype == 1)
+        return _Certificate_VerifyRSA2048(cert, sig, data, data_size, sha256);
+    if (keytype == 2)
+        return _Certificate_VerifyECC(cert, sig, data, data_size, sha256);
+    return 1;
 }
 
 static u32 _Certificate_AllocCopyOutImpl(const Certificate* cert, Certificate* out_cert) {

@@ -25,30 +25,16 @@ u32 ValidateTwlTmd(TitleMetaData* tmd) {
 
 u32 ValidateTmdSignature(TitleMetaData* tmd) {
     Certificate cert;
-    u32 mod[2048/8];
-    u32 exp = 0;
 
     // grab cert from certs.db
     if (LoadCertFromCertDb(&cert, (char*)(tmd->issuer)) != 0)
         return 1;
 
-    // current code only expects RSA2048
-    u32 mod_size;
-    if (Certificate_GetModulusSize(&cert, &mod_size) != 0 ||
-        mod_size != 2048/8 ||
-        Certificate_GetModulus(&cert, &mod) != 0 ||
-        Certificate_GetExponent(&cert, &exp) != 0) {
-        Certificate_Cleanup(&cert);
-        return 1;
-    }
+    int ret = Certificate_VerifySignatureBlock(&cert, &(tmd->signature), 0x100, (void*)&(tmd->issuer), 0xC4, true);
 
     Certificate_Cleanup(&cert);
 
-    if (!RSA_setKey2048(3, mod, exp) ||
-        !RSA_verify2048((void*) &(tmd->signature), (void*) &(tmd->issuer), 0xC4))
-        return 1;
-
-    return 0;
+    return ret;
 }
 
 u32 VerifyTmd(TitleMetaData* tmd) {
