@@ -168,6 +168,8 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 ## License
 You may use this under the terms of the GNU General Public License GPL v2 or under the terms of any later revisions of the GPL. Refer to the provided `LICENSE.txt` file for further information.
 
+## Conact info
+You can chat directly with us via IRC @ #GodMode9 on [libera.chat](https://web.libera.chat/) or [Discord](https://discord.gg/BRcbvtFxX4)!
 
 ## Credits
 This tool would not have been possible without the help of numerous people. Thanks go to (in no particular order)...
@@ -192,11 +194,11 @@ This tool would not have been possible without the help of numerous people. Than
 * **JaySea**, **YodaDaCoda**, **liomajor**, **Supster131**, **imanoob**, **Kasher_CS** and countless others from freenode #Cakey and the GBAtemp forums for testing, feedback and helpful hints
 * **Shadowhand** for being awesome and [hosting my nightlies](https://d0k3.secretalgorithm.com/)
 * **Plailect** for putting his trust in my tools and recommending this in [The Guide](https://3ds.guide/)
-* **SirNapkin1334** for testing, bug reports and for hosting the official [GodMode9 Discord channel](https://discord.gg/BRcbvtFxX4)
+* **SirNapkin1334** for testing, bug reports and for hosting the original GodMode9 Discord server
 * **Lilith Valentine** for testing and helpful advice
 * **Project Nayuki** for [qrcodegen](https://github.com/nayuki/QR-Code-generator)
 * **Amazingmax fonts** for the Amazdoom font
-* The fine folks on **the official GodMode9 Discord**
+* The fine folks on **the official GodMode9 IRC channel and Discord server**
 * The fine folks on **freenode #Cakey**
 * All **[3dbrew.org](https://www.3dbrew.org/wiki/Main_Page) editors**
-* Everyone I possibly forgot, if you think you deserve to be mentioned, just contact me!
+* Everyone I possibly forgot, if you think you deserve to be mentioned, just contact us!
