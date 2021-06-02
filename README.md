@@ -168,8 +168,8 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 ## License
 You may use this under the terms of the GNU General Public License GPL v2 or under the terms of any later revisions of the GPL. Refer to the provided `LICENSE.txt` file for further information.
 
-## Conact info
-You can chat directly with us via IRC @ #GodMode9 on [libera.chat](https://web.libera.chat/) or [Discord](https://discord.gg/BRcbvtFxX4)!
+## Contact info
+You can chat directly with us via IRC @ #GodMode9 on [libera.chat](https://web.libera.chat/#GodMode9) or [Discord](https://discord.gg/BRcbvtFxX4)!
 
 ## Credits
 This tool would not have been possible without the help of numerous people. Thanks go to (in no particular order)...
