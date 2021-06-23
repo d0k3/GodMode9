@@ -143,11 +143,19 @@ u32 GetTwlIcon(u16* icon, const TwlIconData* twl_icon) {
                 u32 ix = x + (i & 0x7);
                 u32 iy = y + (i >> 3);
 
-                pix555 = palette[((i%2) ? (*pix4 >> 4) : *pix4) & 0xF];
-                r = pix555 & 0x1F;
-                g = ((pix555 >> 5) & 0x1F) << 1;
-                g |= (g >> 1) & 1;
-                b = (pix555 >> 10) & 0x1F;
+                int palette_index = ((i%2) ? (*pix4 >> 4) : *pix4) & 0xF;
+                if (palette_index) {
+                    pix555 = palette[palette_index];
+                    r = pix555 & 0x1F;
+                    g = ((pix555 >> 5) & 0x1F) << 1;
+                    g |= (g >> 1) & 1;
+                    b = (pix555 >> 10) & 0x1F;
+                } else {
+                    // Set transparent pixels to white
+                    r = 31;
+                    g = 63;
+                    b = 31;
+                }
                 icon[(iy * w) + ix] = (r << 11) | (g << 5) | b;
                 if (i % 2) pix4++;
             }
