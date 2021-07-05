@@ -4014,8 +4014,15 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
         } else {
             char title_name[0x80+1] = { 0 };
             if (GetTwlTitle(title_name, (TwlIconData*) icon) != 0) return 1;
-            char* linebrk = strchr(title_name, '\n');
+            char* linebrk = strrchr(title_name, '\n'); // search for the last occurence of newline, because everything until the last newline is part of the name
+
             if (linebrk) *linebrk = '\0';
+
+            for (char *c = title_name; *c; c++) {
+                if (*c == "\n") {
+                    *c = " "; //replace any remaining newlines with a space, to merge the parts
+                }
+            }
 
             if (twl->unit_code & 0x02) { // TWL
                 char region[8] = { 0 };
