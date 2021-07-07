@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#define TMD_MAX_CONTENTS    1000 // 383 // theme CIAs contain maximum 100 themes + 1 index content
+#define TMD_MAX_CONTENTS    TITLE_MAX_CONTENTS // 1024 // 383 // theme CIAs contain maximum 100 themes + 1 index content
 
 #define TMD_SIZE_MIN        sizeof(TitleMetaData)
 #define TMD_SIZE_MAX        (sizeof(TitleMetaData) + (TMD_MAX_CONTENTS*sizeof(TmdContentChunk)))

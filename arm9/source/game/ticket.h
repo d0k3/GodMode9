@@ -1,11 +1,14 @@
 #pragma once
 
 #include "common.h"
+#include "tmd.h"
 
 #define TICKET_COMMON_SIZE  sizeof(TicketCommon)
 #define TICKET_MINIMUM_SIZE sizeof(TicketMinimum)
 #define TICKET_TWL_SIZE     sizeof(Ticket)
 #define TICKET_CDNCERT_SIZE 0x700
+#define TICKET_MAX_CONTENTS TITLE_MAX_CONTENTS // should be TMD_MAX_CONTENTS
+#define TICKET_COMMON_CNT_INDEX_SIZE (0x28 + (((TICKET_MAX_CONTENTS + 1023) >> 10) * 0x84))
 
 #define TICKET_ISSUER       "Root-CA00000003-XS0000000c"
 #define TICKET_ISSUER_DEV   "Root-CA00000004-XS00000009"
@@ -54,7 +57,7 @@ typedef struct {
 
 typedef struct {
     TICKETBASE;
-    u8 content_index[0xAC];
+    u8 content_index[TICKET_COMMON_CNT_INDEX_SIZE];
 } PACKED_STRUCT TicketCommon;
 
 // minimum allowed content_index is 0x14
@@ -97,7 +100,7 @@ typedef struct {
 u32 ValidateTicket(Ticket* ticket);
 u32 ValidateTwlTicket(Ticket* ticket);
 u32 ValidateTicketSignature(Ticket* ticket);
-u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
+u32 BuildFakeTicket(Ticket* ticket, const u8* title_id);
 u32 GetTicketContentIndexSize(const Ticket* ticket);
 u32 GetTicketSize(const Ticket* ticket);
 u32 BuildTicketCert(u8* tickcert);

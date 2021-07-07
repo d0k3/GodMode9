@@ -225,6 +225,10 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
     if (fvx_qread(path, tmd, 0, TMD_SIZE_STUB, NULL) != FR_OK)
         return 1;
 
+    // sanity check
+    if (getbe16(tmd->content_count) > TMD_MAX_CONTENTS)
+        return 1;
+
     // second part (read full size)
     if (ValidateTmd(tmd) == 0) {        
         if (fvx_qread(path, tmd, 0, TMD_SIZE_N(getbe16(tmd->content_count)), NULL) != FR_OK)
@@ -348,7 +352,7 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
         free(tmd);
         return 1;
     }
-    snprintf(name_content, 256 - (name_content - path_content), cdn ? "%08lx" :
+    snprintf(name_content, 255 - (name_content - path_content), cdn ? "%08lx" :
         (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
 
     free(tmd);
@@ -2173,17 +2177,10 @@ u32 BuildCiaLegitTicket(Ticket* ticket, u8* title_id, const char* path_cnt, bool
         bool copy = true;
 
         if ((cdn && (LoadCdnTicketFile(&ticket_tmp, path_cnt) != 0)) ||
-            (!cdn && (FindTicket(&ticket_tmp, title_id, true, src_emunand) != 0))) {
+            (!cdn && (FindTicket(&ticket_tmp, title_id, true, src_emunand) != 0)) ||
+            (GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE)) {
             FindTitleKey(ticket, title_id);
             copy = false;
-        }
-
-        // either, it's a ticket without ways to check ownership data, smaller sized
-        // or, it's title ticket with > 1024 contents, of which can't make it work with current CiaStub
-        if (copy && GetTicketSize(ticket_tmp) != TICKET_COMMON_SIZE) {
-            ShowPrompt(false, "ID %016llX\nLegit ticket of unsupported size.", getbe64(title_id));
-            free(ticket_tmp);
-            return 1;
         }
 
         // check the tickets' console id, warn if it isn't zero
@@ -2392,9 +2389,9 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
         TicketRightsCheck rights_ctx;
         TicketRightsCheck_InitContext(&rights_ctx, (Ticket*)&(cia->ticket));
         snprintf(name_content, 256 - (name_content - path_content),
-            (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
+            (cdn) ? "%08lx" : (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         if ((fvx_stat(path_content, &fno) != FR_OK) || (fno.fsize != (u32) getbe64(chunk->size)) ||
-            !TicketRightsCheck_CheckIndex(&rights_ctx, getbe16(chunk->index))) {
+            (!cdn && !TicketRightsCheck_CheckIndex(&rights_ctx, getbe16(chunk->index)))) {
             present[i / 8] ^= 1 << (i % 8);
 
             u16 index = getbe16(chunk->index);

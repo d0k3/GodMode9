@@ -25,6 +25,12 @@ else ifeq ($(FLAVOR),ZuishMode9)
     CFLAGS += -DDEFAULT_FONT=\"font_zuish_8x8.pbm\"
 endif
 
+ifeq ($(LARGEDLC),1)
+    CFLAGS += -DTITLE_MAX_CONTENTS=1536
+else
+    CFLAGS += -DTITLE_MAX_CONTENTS=1024
+endif
+
 ifeq ($(SALTMODE),1)
     CFLAGS += -DSALTMODE
 endif

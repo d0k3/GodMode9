@@ -108,11 +108,11 @@ static u64 offset_ccnt  = (u64) -1;
 static u64 offset_tad   = (u64) -1;
 static u32 index_ccnt   = (u32) -1;
 
-static CiaStub* cia       = NULL;
+// static CiaStub* cia       = NULL; *unused*
 static TwlHeader* twl     = NULL;
+static NcsdHeader* ncsd   = NULL;
 static FirmA9LHeader* a9l = NULL;
 static FirmHeader* firm   = NULL;
-static NcsdHeader* ncsd   = NULL;
 static NcchHeader* ncch   = NULL;
 static ExeFsHeader* exefs = NULL;
 static RomFsLv3Index lv3idx;
@@ -357,7 +357,7 @@ bool BuildVGameNcsdDir(void) {
     return true;
 }
 
-bool BuildVGameCiaDir(void) {
+bool BuildVGameCiaDir(CiaStub* cia) {
     CiaInfo info;
     VirtualFile* templates = templates_cia;
     u32 n = 0;
@@ -777,21 +777,20 @@ u64 InitVGameDrive(void) { // prerequisite: game file mounted as image
     vgame_buffer = (void*) malloc(0x40000);
     if (!vgame_buffer) return 0;
 
-    templates_cia   = (void*) ((u8*) vgame_buffer); // first 184kb reserved (enough for 3364 entries)
-    templates_firm  = (void*) (((u8*) vgame_buffer) + 0x2E000); // 2kb reserved (enough for 36 entries)
-    templates_ncsd  = (void*) (((u8*) vgame_buffer) + 0x2E800); // 2kb reserved (enough for 36 entries)
-    templates_ncch  = (void*) (((u8*) vgame_buffer) + 0x2F000); // 1kb reserved (enough for 18 entries)
-    templates_nds   = (void*) (((u8*) vgame_buffer) + 0x2F400); // 1kb reserved (enough for 18 entries)
-    templates_exefs = (void*) (((u8*) vgame_buffer) + 0x2F800); // 1kb reserved (enough for 18 entries)
-    templates_tad   = (void*) (((u8*) vgame_buffer) + 0x2FC00); // 1kb reserved (enough for 18 entries)
-    cia   = (CiaStub*)       (void*) (((u8*) vgame_buffer) + 0x30000); // 61kB reserved - should be enough by far
-    twl   = (TwlHeader*)     (void*) (((u8*) vgame_buffer) + 0x3F400); // 512 byte reserved (not the full thing)
-    a9l   = (FirmA9LHeader*) (void*) (((u8*) vgame_buffer) + 0x3F600); // 512 byte reserved
-    firm  = (FirmHeader*)    (void*) (((u8*) vgame_buffer) + 0x3F800); // 512 byte reserved
-    ncsd  = (NcsdHeader*)    (void*) (((u8*) vgame_buffer) + 0x3FA00); // 512 byte reserved
-    ncch  = (NcchHeader*)    (void*) (((u8*) vgame_buffer) + 0x3FC00); // 512 byte reserved
-    exefs = (ExeFsHeader*)   (void*) (((u8*) vgame_buffer) + 0x3FE00); // 512 byte reserved
-    // filesystem stuff (RomFS / NitroFS) will be allocated on demand
+    templates_cia   = (void*) ((u8*) vgame_buffer); // first 180kb reserved (enough for 3291 entries)
+    templates_firm  = (void*) (((u8*) vgame_buffer) + 0x2D000); // 2kb reserved (enough for 36 entries)
+    templates_ncsd  = (void*) (((u8*) vgame_buffer) + 0x2D800); // 2kb reserved (enough for 36 entries)
+    templates_ncch  = (void*) (((u8*) vgame_buffer) + 0x2E000); // 1kb reserved (enough for 18 entries)
+    templates_nds   = (void*) (((u8*) vgame_buffer) + 0x2E400); // 1kb reserved (enough for 18 entries)
+    templates_exefs = (void*) (((u8*) vgame_buffer) + 0x2E800); // 1kb reserved (enough for 18 entries)
+    templates_tad   = (void*) (((u8*) vgame_buffer) + 0x2EC00); // 1kb reserved (enough for 18 entries)
+    twl   = (TwlHeader*)     (void*) (((u8*) vgame_buffer) + 0x2F000); // 512 byte reserved (not the full thing)
+    a9l   = (FirmA9LHeader*) (void*) (((u8*) vgame_buffer) + 0x2F200); // 512 byte reserved
+    firm  = (FirmHeader*)    (void*) (((u8*) vgame_buffer) + 0x2F400); // 512 byte reserved
+    ncsd  = (NcsdHeader*)    (void*) (((u8*) vgame_buffer) + 0x2F600); // 512 byte reserved
+    ncch  = (NcchHeader*)    (void*) (((u8*) vgame_buffer) + 0x2F800); // 512 byte reserved
+    exefs = (ExeFsHeader*)   (void*) (((u8*) vgame_buffer) + 0x2FA00); // 512 byte reserved (1kb reserve)
+    // filesystem stuff (RomFS / NitroFS) and CIA/TADX will be allocated on demand
 
     vgame_type = type;
     return type;
@@ -842,14 +841,24 @@ bool OpenVGameDir(VirtualDir* vdir, VirtualFile* ventry) {
         if (!BuildVGameTadDir()) return false;
     } else if ((vdir->flags & VFLAG_CIA) && (offset_cia != vdir->offset)) {
         CiaInfo info;
-        if ((ReadImageBytes((u8*) cia, 0, 0x20) != 0) ||
-            (ValidateCiaHeader(&(cia->header)) != 0) ||
-            (GetCiaInfo(&info, &(cia->header)) != 0) ||
-            (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0))
+        CiaStub* cia;
+        u8 __attribute__((aligned(32))) hdr[0x20];
+        if ((ReadImageBytes(hdr, 0, 0x20) != 0) ||
+            (ValidateCiaHeader((CiaHeader*) (void*) hdr) != 0) ||
+            (GetCiaInfo(&info, (CiaHeader*) (void*) hdr) != 0) ||
+            !(cia = (CiaStub*) malloc(info.offset_content)))
             return false;
+        if (ReadImageBytes((u8*) cia, 0, info.offset_content) != 0) {
+            free(cia);
+            return false;
+        }
         offset_cia = vdir->offset; // always zero(!)
         GetTitleKey(cia_titlekey, (Ticket*)&(cia->ticket));
-        if (!BuildVGameCiaDir()) return false;
+        if (!BuildVGameCiaDir(cia)) {
+            free(cia);
+            return false;
+        }
+        free(cia);
     } else if ((vdir->flags & VFLAG_NCSD) && (offset_ncsd != vdir->offset)) {
         if ((ReadImageBytes((u8*) ncsd, 0, sizeof(NcsdHeader)) != 0) ||
             (ValidateNcsdHeader(ncsd) != 0))
