@@ -252,7 +252,7 @@ u32 InitCartRead(CartData* cdata) {
         // TWL header
         if (nds_header->unit_code != 0x00) { // DSi or NDS+DSi
             cdata->cart_type |= CART_TWL;
-            cdata->data_size = nds_header->ntr_twl_rom_size + 0x88;
+            cdata->data_size = nds_header->ntr_twl_rom_size;
             cdata->arm9i_rom_offset = nds_header->arm9i_rom_offset;
             if ((cdata->arm9i_rom_offset < nds_header->ntr_rom_size) ||
                 (cdata->arm9i_rom_offset + MODC_AREA_SIZE > cdata->data_size))
