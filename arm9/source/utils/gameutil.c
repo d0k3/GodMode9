@@ -3020,6 +3020,22 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     return 0;
 }
 
+u32 DumpCxiSrlFromGameFile(const char* path) {
+    u64 filetype = IdentifyFileType(path);
+    const char* path_tmd = path;
+    char path_data[256];
+    if (!(filetype & (GAME_TIE|GAME_TMD)))
+        return 1;
+
+    if (filetype & GAME_TIE) {
+        if (GetTieTmdPath(path_data, path) != 0)
+            return 1;
+        path_tmd = path_data;
+    }
+    
+    return DumpCxiSrlFromTmdFile(path_tmd);
+}
+
 u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr) {
     u64 filetype = IdentifyFileType(path);
     char dest[256];
