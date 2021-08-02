@@ -23,10 +23,102 @@
 
 static u32 font_width = 0;
 static u32 font_height = 0;
+static u32 font_count = 0;
 static u32 line_height = 0;
-static u8 font_bin[FONT_MAX_HEIGHT * 256];
+static u16 question_mark_index = 0;
+static u8* font_bin = NULL;
+static u16* font_map = NULL;
+
+// lookup table to sort CP-437 so it can be binary searched with Unicode codepoints
+static const u8 cp437_sorted[0x100] = {
+    0x00, 0xF5, 0xF6, 0xFC, 0xFD, 0xFB, 0xFA, 0xA4, 0xF3, 0xF2, 0xF4, 0xF9, 0xF8, 0xFE, 0xFF, 0xF7,
+    0xEF, 0xF1, 0xAD, 0xA5, 0x6D, 0x65, 0xED, 0xAE, 0xA9, 0xAB, 0xAA, 0xA8, 0xB2, 0xAC, 0xEE, 0xF0,
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20,
+    0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30,
+    0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40,
+    0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50,
+    0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0xB8,
+    0x77, 0x95, 0x85, 0x7F, 0x80, 0x7D, 0x81, 0x83, 0x86, 0x87, 0x84, 0x8B, 0x8A, 0x88, 0x74, 0x75,
+    0x78, 0x82, 0x76, 0x8F, 0x90, 0x8D, 0x94, 0x92, 0x96, 0x7A, 0x7B, 0x62, 0x63, 0x64, 0xA7, 0x97,
+    0x7E, 0x89, 0x8E, 0x93, 0x8C, 0x79, 0x66, 0x6F, 0x73, 0xB9, 0x68, 0x72, 0x71, 0x61, 0x67, 0x70,
+    0xE9, 0xEA, 0xEB, 0xBD, 0xC3, 0xD8, 0xD9, 0xCD, 0xCC, 0xDA, 0xC8, 0xCE, 0xD4, 0xD3, 0xD2, 0xBF,
+    0xC0, 0xC5, 0xC4, 0xC2, 0xBC, 0xC6, 0xD5, 0xD6, 0xD1, 0xCB, 0xE0, 0xDD, 0xD7, 0xC7, 0xE3, 0xDE,
+    0xDF, 0xDB, 0xDC, 0xD0, 0xCF, 0xC9, 0xCA, 0xE2, 0xE1, 0xC1, 0xBE, 0xE6, 0xE5, 0xE7, 0xE8, 0xE4,
+    0x9D, 0x7C, 0x98, 0xA0, 0x9A, 0xA1, 0x6C, 0xA2, 0x9B, 0x99, 0x9C, 0x9E, 0xB1, 0xA3, 0x9F, 0xB3,
+    0xB5, 0x6A, 0xB7, 0xB6, 0xBA, 0xBB, 0x91, 0xB4, 0x69, 0xAF, 0x6E, 0xB0, 0xA6, 0x6B, 0xEC, 0x60
+};
+
+// Unicode font mapping for sorted CP-437
+static const u16 cp437_sorted_map[0x100] = {
+    0x0000, 0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E,
+    0x002F, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D, 0x003E,
+    0x003F, 0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047, 0x0048, 0x0049, 0x004A, 0x004B, 0x004C, 0x004D, 0x004E,
+    0x004F, 0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057, 0x0058, 0x0059, 0x005A, 0x005B, 0x005C, 0x005D, 0x005E,
+    0x005F, 0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067, 0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E,
+    0x006F, 0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, 0x0079, 0x007A, 0x007B, 0x007C, 0x007D, 0x007E,
+    0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x00A5, 0x00A7, 0x00AA, 0x00AB, 0x00AC, 0x00B0, 0x00B1, 0x00B2, 0x00B5, 0x00B6, 0x00B7, 0x00BA,
+    0x00BB, 0x00BC, 0x00BD, 0x00BF, 0x00C4, 0x00C5, 0x00C6, 0x00C7, 0x00C9, 0x00D1, 0x00D6, 0x00DC, 0x00DF, 0x00E0, 0x00E1, 0x00E2,
+    0x00E4, 0x00E5, 0x00E6, 0x00E7, 0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x00EC, 0x00ED, 0x00EE, 0x00EF, 0x00F1, 0x00F2, 0x00F3, 0x00F4,
+    0x00F6, 0x00F7, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FF, 0x0192, 0x0393, 0x0398, 0x03A3, 0x03A6, 0x03A9, 0x03B1, 0x03B4, 0x03B5,
+    0x03C0, 0x03C3, 0x03C4, 0x03C6, 0x2022, 0x203C, 0x207F, 0x20A7, 0x2190, 0x2191, 0x2192, 0x2193, 0x2194, 0x2195, 0x21A8, 0x2219,
+    0x221A, 0x221E, 0x221F, 0x2229, 0x2248, 0x2261, 0x2264, 0x2265, 0x2302, 0x2310, 0x2320, 0x2321, 0x2500, 0x2502, 0x250C, 0x2510,
+    0x2514, 0x2518, 0x251C, 0x2524, 0x252C, 0x2534, 0x253C, 0x2550, 0x2551, 0x2552, 0x2553, 0x2554, 0x2555, 0x2556, 0x2557, 0x2558,
+    0x2559, 0x255A, 0x255B, 0x255C, 0x255D, 0x255E, 0x255F, 0x2560, 0x2561, 0x2562, 0x2563, 0x2564, 0x2565, 0x2566, 0x2567, 0x2568,
+    0x2569, 0x256A, 0x256B, 0x256C, 0x2580, 0x2584, 0x2588, 0x258C, 0x2590, 0x2591, 0x2592, 0x2593, 0x25A0, 0x25AC, 0x25B2, 0x25BA,
+    0x25BC, 0x25C4, 0x25CB, 0x25D8, 0x25D9, 0x263A, 0x263B, 0x263C, 0x2640, 0x2642, 0x2660, 0x2663, 0x2665, 0x2666, 0x266A, 0x266B
+};
 
 #define PIXEL_OFFSET(x, y)  (((x) * SCREEN_HEIGHT) + (SCREEN_HEIGHT - (y) - 1))
+
+
+u16 GetFontIndex(u16 c)
+{
+    int left = 0;
+    int right = font_count;
+
+    while (left <= right) {
+        int mid = left + ((right - left) / 2);
+        if (font_map[mid] == c)
+            return mid;
+
+        if (font_map[mid] < c)
+            left = mid + 1;
+        else
+            right = mid - 1;
+    }
+
+    // if not found in font, return a '?'
+    return question_mark_index;
+}
+
+// gets a u32 codepoint from a UTF-8 string and moves the pointer to the next character
+u32 GetCharacter(const char** str)
+{
+    u32 c;
+
+    if ((**str & 0x80) == 0) {
+        c = *(*str)++;
+    } else if ((**str & 0xE0) == 0xC0) {
+        c  = (*(*str)++ & 0x1F) << 6;
+        c |=  *(*str)++ & 0x3F;
+    } else if ((**str & 0xF0) == 0xE0) {
+        c  = (*(*str)++ & 0x0F) << 12;
+        c |= (*(*str)++ & 0x3F) << 6;
+        c |=  *(*str)++ & 0x3F;
+    } else if ((**str & 0xF8) == 0xF0) {
+        c  = (*(*str)++ & 0x07) << 18;
+        c |= (*(*str)++ & 0x3F) << 12;
+        c |= (*(*str)++ & 0x3F) << 6;
+        c |=  *(*str)++ & 0x3F;
+    } else {
+        // invalid UTF-8, skip to next character
+        (*str)++;
+        c = '?';
+    }
+
+    return c;
+}
 
 u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     char* hdr = (char*) pbm;
@@ -90,46 +182,130 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     return (u8*) pbm + p;
 }
 
-// sets the font from a given PBM
-// if no PBM is given, the PBM is fetched from the default VRAM0 location
-bool SetFontFromPbm(const void* pbm, u32 pbm_size) {
+u8* GetFontFromRiff(const void* riff, const u32 riff_size, u32* w, u32* h, u16* count) {
+    u8 *ptr = (u8*) riff;
+    u8 riff_w = 0;
+    u8 riff_h = 0;
+    u16 riff_count = 0;
+
+    // check header magic, then skip over
+    if (memcmp(ptr, "RIFF", 4) != 0) return NULL;
+
+    // ensure enough space is allocated
+    u32 data_size;
+    memcpy(&data_size, ptr + 4, sizeof(u32));
+    if (data_size > riff_size) return NULL;
+
+    ptr += 8;
+
+    // check for and load META section
+    if (memcmp(ptr, "META", 4) == 0) {
+        riff_w = ptr[8];
+        riff_h = ptr[9];
+        memcpy(&riff_count, ptr + 10, sizeof(u16));
+
+        u32 section_size;
+        memcpy(&section_size, ptr + 4, sizeof(u32));
+        ptr += 8 + section_size;
+
+        if (riff_w > FONT_MAX_WIDTH || riff_h > FONT_MAX_HEIGHT) return NULL;
+    } else return NULL;
+
+    // all good
+    if (w) *w = riff_w;
+    if (h) *h = riff_h;
+    if (count) *count = riff_count;
+    return ptr;
+}
+
+// sets the font from a given RIFF or PBM
+// if no font is given, the font is fetched from the default VRAM0 location
+bool SetFont(const void* font, u32 font_size) {
     u32 w, h;
+    u16 count;
     u8* ptr = NULL;
 
-    if (!pbm) {
-        u64 pbm_size64 = 0;
-        pbm = FindVTarFileInfo(VRAM0_FONT_PBM, &pbm_size64);
-        pbm_size = (u32) pbm_size64;
+    if (!font) {
+        u64 font_size64 = 0;
+        font = FindVTarFileInfo(VRAM0_FONT, &font_size64);
+        font_size = (u32) font_size64;
     }
 
-    if (pbm)
-        ptr = GetFontFromPbm(pbm, pbm_size, &w, &h);
-
-    if (!ptr) {
+    if (!font)
         return false;
-    } else if (w > 8) {
-        font_width = w / 16;
-        font_height = h / 16;
-        memset(font_bin, 0x00, w * h / 8);
 
-        for (u32 cy = 0; cy < 16; cy++) {
-            for (u32 row = 0; row < font_height; row++) {
-                for (u32 cx = 0; cx < 16; cx++) {
-                    u32 bp0 = (cx * font_width) >> 3;
-                    u32 bm0 = (cx * font_width) % 8;
-                    u8 byte = ((ptr[bp0] << bm0) | (ptr[bp0+1] >> (8 - bm0))) & (0xFF << (8 - font_width));
-                    font_bin[(((cy << 4) + cx) * font_height) + row] = byte;
-                }
-                ptr += font_width << 1;
-            }
-        }
-    } else {
+    if ((ptr = GetFontFromRiff(font, font_size, &w, &h, &count))) { // RIFF font
         font_width = w;
-        font_height = h / 256;
-        memcpy(font_bin, ptr, h);
+        font_height = h;
+        font_count = count;
+
+        // character data
+        if (memcmp(ptr, "CDAT", 4) == 0) {
+            u32 section_size;
+            memcpy(&section_size, ptr + 4, sizeof(u32));
+
+            if (font_bin) free(font_bin);
+            font_bin = malloc(font_height * font_count);
+            if (!font_bin) return NULL;
+
+            memcpy(font_bin, ptr + 8, font_height * font_count);
+
+            ptr += 8 + section_size;
+        } else return NULL;
+
+        // character map
+        if (memcmp(ptr, "CMAP", 4) == 0) {
+            u32 section_size;
+            memcpy(&section_size, ptr + 4, sizeof(u32));
+
+            if (font_map) free(font_map);
+            font_map = malloc(sizeof(u16) * font_count);
+            if (!font_map) return NULL;
+
+            memcpy(font_map, ptr + 8, sizeof(u16) * font_count);
+
+            ptr += 8 + section_size;
+        } else return NULL;
+    } else if ((ptr = GetFontFromPbm(font, font_size, &w, &h))) {
+        font_count = 0x100;
+
+        if (w > 8) {
+            font_width = w / 16;
+            font_height = h / 16;
+
+            if (font_bin) free(font_bin);
+            font_bin = malloc(font_height * font_count);
+            if (!font_bin) return NULL;
+
+            for (u32 cy = 0; cy < 16; cy++) {
+                for (u32 row = 0; row < font_height; row++) {
+                    for (u32 cx = 0; cx < 16; cx++) {
+                        u32 bp0 = (cx * font_width) >> 3;
+                        u32 bm0 = (cx * font_width) % 8;
+                        u8 byte = ((ptr[bp0] << bm0) | (ptr[bp0+1] >> (8 - bm0))) & (0xFF << (8 - font_width));
+                        font_bin[(cp437_sorted[(cy << 4) + cx] * font_height) + row] = byte;
+                    }
+                    ptr += font_width << 1;
+                }
+            }
+        } else {
+            font_width = w;
+            font_height = h / 256;
+            for (u32 i = 0; i < font_count; i++)
+                memcpy(font_bin + cp437_sorted[i] * font_height, ptr + i * font_height, font_height);
+        }
+
+        if (font_map) free(font_map);
+        font_map = malloc(sizeof(u16) * font_count);
+        if (!font_map) return NULL;
+
+        memcpy(font_map, cp437_sorted_map, sizeof(cp437_sorted_map));
+    } else {
+        return false;
     }
 
     line_height = min(10, font_height + 2);
+    question_mark_index = GetFontIndex('?');
     return true;
 }
 
@@ -222,14 +398,14 @@ void DrawQrCode(u16 *screen, const u8* qrcode)
     }
 }
 
-void DrawCharacter(u16 *screen, int character, int x, int y, u32 color, u32 bgcolor)
+void DrawCharacter(u16 *screen, u32 character, int x, int y, u32 color, u32 bgcolor)
 {
     for (int yy = 0; yy < (int) font_height; yy++) {
         int xDisplacement = x * SCREEN_HEIGHT;
         int yDisplacement = SCREEN_HEIGHT - (y + yy) - 1;
         u16* screenPos = screen + xDisplacement + yDisplacement;
 
-        u8 charPos = font_bin[character * font_height + yy];
+        u8 charPos = font_bin[GetFontIndex(character) * font_height + yy];
         for (int xx = 7; xx >= (8 - (int) font_width); xx--) {
             if ((charPos >> xx) & 1) {
                 *screenPos = color;
@@ -241,14 +417,12 @@ void DrawCharacter(u16 *screen, int character, int x, int y, u32 color, u32 bgco
     }
 }
 
-void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor, bool fix_utf8)
+void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor)
 {
     size_t max_len = (((screen == TOP_SCREEN) ? SCREEN_WIDTH_TOP : SCREEN_WIDTH_BOT) - x) / font_width;
-    size_t len = (strlen(str) > max_len) ? max_len : strlen(str);
 
-    for (size_t i = 0; i < len; i++) {
-        char c = (char) (fix_utf8 && str[i] >= 0x80) ? '?' : str[i];
-        DrawCharacter(screen, c, x + i * font_width, y, color, bgcolor);
+    for (size_t i = 0; i < max_len && *str; i++) {
+        DrawCharacter(screen, GetCharacter(&str), x + i * font_width, y, color, bgcolor);
     }
 }
 
@@ -261,7 +435,7 @@ void DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *
     va_end(va);
 
     for (char* text = strtok(str, "\n"); text != NULL; text = strtok(NULL, "\n"), y += line_height)
-        DrawString(screen, text, x, y, color, bgcolor, true);
+        DrawString(screen, text, x, y, color, bgcolor);
 }
 
 void DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...)
@@ -292,11 +466,21 @@ u32 GetDrawStringWidth(const char* str) {
     char* old_lf = (char*) str;
     char* str_end = (char*) str + strnlen(str, STRBUF_SIZE);
     for (char* lf = strchr(str, '\n'); lf != NULL; lf = strchr(lf + 1, '\n')) {
-        if ((u32) (lf - old_lf) > width) width = lf - old_lf;
+        u32 length = 0;
+        for (char* c = old_lf; c != lf; c++) {
+            if ((*c & 0xC0) != 0x80) length++;
+        }
+
+        if (length > width) width = length;
         old_lf = lf;
     }
-    if ((u32) (str_end - old_lf) > width)
-        width = str_end - old_lf;
+
+    u32 length = 0;
+    for (char* c = old_lf; c != str_end; c++) {
+        if ((*c & 0xC0) != 0x80) length++;
+    }
+
+    if (length > width) width = length;
     width *= font_width;
     return width;
 }
@@ -350,26 +534,60 @@ void WordWrapString(char* str, int llen) {
     }
 }
 
-void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right) {
-    int osize = strnlen(orig, 256);
-    if (nsize < osize) {
-        TruncateString(dest, orig, nsize, tpos);
+// dest must be at least 4x the size of nlength to account for UTF-8
+void ResizeString(char* dest, const char* orig, int nlength, int tpos, bool align_right) {
+    int olength = 0;
+    for (int i = 0; i < 256 && orig[i]; i++) {
+        if ((orig[i] & 0xC0) != 0x80) olength++;
+    }
+
+    if (nlength < olength) {
+        TruncateString(dest, orig, nlength, tpos);
     } else if (!align_right) {
+        int nsize = 0;
+        for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
+            if ((orig[nsize] & 0xC0) != 0x80) i++;
+        }
         snprintf(dest, nsize + 1, "%-*.*s", nsize, nsize, orig);
     } else {
+        int nsize = 0;
+        for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
+            if ((orig[nsize] & 0xC0) != 0x80) i++;
+        }
         snprintf(dest, nsize + 1, "%*.*s", nsize, nsize, orig);
     }
 }
 
-void TruncateString(char* dest, const char* orig, int nsize, int tpos) {
-    int osize = strnlen(orig, 256);
-    if (nsize < 0) {
+// dest must be at least 4x the size of nlength to account for UTF-8
+void TruncateString(char* dest, const char* orig, int nlength, int tpos) {
+    int osize = strnlen(orig, 256), olength = 0;
+    for (int i = 0; i < 256 && orig[i]; i++) {
+        if ((orig[i] & 0xC0) != 0x80) olength++;
+    }
+
+    if (nlength < 0) {
         return;
-    } else if ((nsize <= 3) || (nsize >= osize)) {
-        snprintf(dest, nsize + 1, "%s", orig);
+    } else if ((nlength <= 3) || (nlength >= olength)) {
+        strcpy(dest, orig);
     } else {
-        if (tpos + 3 > nsize) tpos = nsize - 3;
-        snprintf(dest, nsize + 1, "%-.*s...%-.*s", tpos, orig, nsize - (3 + tpos), orig + osize - (nsize - (3 + tpos)));
+        int nsize = 0;
+        for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
+            if ((orig[nsize] & 0xC0) != 0x80) i++;
+        }
+
+        if (tpos + 3 > nlength) tpos = nlength - 3;
+
+        int tposStart = 0;
+        for (int i = 0; i < tpos || (orig[tposStart] & 0xC0) == 0x80; tposStart++) {
+            if ((orig[tposStart] & 0xC0) != 0x80) i++;
+        }
+
+        int tposEnd = 0;
+        for (int i = 0; i < nlength - tpos - 3; tposEnd++) {
+            if ((orig[osize - 1 - tposEnd] & 0xC0) != 0x80) i++;
+        }
+
+        snprintf(dest, nsize + 1, "%-.*s...%-.*s", tposStart, orig, tposEnd, orig + osize - tposEnd);
     }
 }
 
@@ -532,10 +750,10 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
 
     // generate sequence
-    const char dpad_symbols[] = { '\x1A', '\x1B', '\x18', '\x19' }; // R L U D
+    const char *dpad_symbols[] = { "→", "←", "↑", "↓" }; // R L U D
 
     u32 sequence[seqlen_max];
-    char seqsymbols[seqlen_max];
+    const char *seqsymbols[seqlen_max];
     u32 lastlsh = (u32) -1;
     for (u32 n = 0; n < (seqlen-1); n++) {
         u32 lsh = lastlsh;
@@ -545,13 +763,13 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
         seqsymbols[n] = dpad_symbols[lsh];
     }
     sequence[seqlen-1] = BUTTON_A;
-    seqsymbols[seqlen-1] = 'A';
+    seqsymbols[seqlen-1] = "A";
 
 
     while (true) {
         for (u32 n = 0; n < seqlen; n++) {
             DrawStringF(MAIN_SCREEN, x + (n*4*FONT_WIDTH_EXT), y + str_height - 28 + line_height,
-                (lvl > n) ? color_on : color_off, color_bg, "<%c>", seqsymbols[n]);
+                (lvl > n) ? color_on : color_off, color_bg, "<%s>", seqsymbols[n]);
         }
         if (lvl == seqlen)
             break;
@@ -669,7 +887,7 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
             char bytestr[16];
             FormatBytes(bytestr, options[i]->size);
 
-            char content_str[64 + 1];
+            char content_str[64 * 4 + 1];
             char temp_str[256];
             strncpy(temp_str, options[i]->name, 256);
 
@@ -792,7 +1010,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
     DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 40, COLOR_STD_FONT, COLOR_STD_BG,
-        "R - (\x18\x19) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
+        "R - (↑↓) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
 
     // wait for all keys released
     while (HID_ReadState() & BUTTON_ANY);
@@ -1068,8 +1286,8 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     const u32 text_pos_y = bar_pos_y + bar_height + 2;
     u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
     u32 prog_percent = ((total > 0) && (current <= total)) ? (current * 100) / total : 0;
-    char tempstr[64];
-    char progstr[64];
+    char tempstr[256];
+    char progstr[256];
 
     static u64 last_msec_elapsed = 0;
     static u64 last_sec_remain = 0;
@@ -1095,14 +1313,14 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     TruncateString(progstr, opstr, min(63, (bar_width / FONT_WIDTH_EXT) - 7), 8);
     snprintf(tempstr, 64, "%s (%lu%%)", progstr, prog_percent);
     ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
-    DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG, true);
+    DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     if (sec_elapsed >= 1) {
         snprintf(tempstr, 16, "ETA %02llum%02llus", sec_remain / 60, sec_remain % 60);
         ResizeString(progstr, tempstr, 16, 8, true);
         DrawString(MAIN_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
-            bar_pos_y - line_height - 1, COLOR_STD_FONT, COLOR_STD_BG, true);
+            bar_pos_y - line_height - 1, COLOR_STD_FONT, COLOR_STD_BG);
     }
-    DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG, false);
+    DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
 
     last_prog_width = prog_width;
 
@@ -1116,8 +1334,8 @@ int ShowBrightnessConfig(int set_brightness)
     int bar_x_pos, bar_y_pos, bar_width, bar_height;
 
     const char *brightness_str =
-        "[\x1B] Decrease brightness\n"
-        "[\x1A] Increase brightness\n"
+        "[←] Decrease brightness\n"
+        "[→] Increase brightness\n"
         " \n"
         "[X] Use volume slider control\n"
         "[A] Set current brightness\n"

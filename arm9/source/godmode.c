@@ -1206,7 +1206,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
         (filetype & BIN_NCCHNFO)? "NCCHinfo options..."   :
         (filetype & TXT_SCRIPT) ? "Execute GM9 script"    :
-        (filetype & FONT_RIFF)  ? "Font options..."       :
+        (FTYPE_FONT(filetype))  ? "Font options..."       :
         (filetype & GFX_PNG)    ? "View PNG file"         :
         (filetype & HDR_NAND)   ? "Rebuild NCSD header"   :
         (filetype & NOIMG_NAND) ? "Rebuild NCSD header" : "???";
@@ -2040,12 +2040,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == font) { // set font
-        u8* riff = (u8*) malloc(0x10000); // arbitrary, should be enough by far
-        if (!riff) return 1;
-        u32 riff_size = FileGetData(file_path, riff, 0x10000, 0);
-        if (riff_size) SetFontFromRiff(riff, riff_size);
+        u8* font = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+        if (!font) return 1;
+        u32 font_size = FileGetData(file_path, font, 0x10000, 0);
+        if (font_size) SetFont(font, font_size);
         ClearScreenF(true, true, COLOR_STD_BG);
-        free(riff);
+        free(font);
         return 0;
     }
     else if (user_select == view) { // view gfx
@@ -2071,7 +2071,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == setup) { // set as default (font)
         if (filetype & FONT_RIFF) {
-            if (SetAsSupportFile("font.riff", file_path))
+            if (SetAsSupportFile("font.frf", file_path))
+                ShowPrompt(false, "%s\nFont will be active on next boot", pathstr);
+        } else if (filetype & FONT_PBM) {
+            if (SetAsSupportFile("font.pbm", file_path))
                 ShowPrompt(false, "%s\nFont will be active on next boot", pathstr);
         }
         return 0;
@@ -2281,7 +2284,7 @@ u32 GodMode(int entrypoint) {
     #endif
 
     // init font
-    if (!SetFontFromRiff(NULL, 0)) return exit_mode;
+    if (!SetFont(NULL, 0)) return exit_mode;
 
     // show splash screen (if enabled)
     ClearScreenF(true, true, COLOR_STD_BG);
@@ -2301,12 +2304,19 @@ u32 GodMode(int entrypoint) {
         SetScreenBrightness(brightness);
 
     // custom font handling
-    if (CheckSupportFile("font.riff")) {
+    if (CheckSupportFile("font.frf")) {
         u8* riff = (u8*) malloc(0x10000); // arbitrary, should be enough by far
         if (riff) {
-            u32 riff_size = LoadSupportFile("font.riff", riff, 0x10000);
-            if (riff_size) SetFontFromRiff(riff, riff_size);
+            u32 riff_size = LoadSupportFile("font.frf", riff, 0x10000);
+            if (riff_size) SetFont(riff, riff_size);
             free(riff);
+        }
+    } else if (CheckSupportFile("font.pbm")) {
+        u8* pbm = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+        if (pbm) {
+            u32 pbm_size = LoadSupportFile("font.pbm", pbm, 0x10000);
+            if (pbm_size) SetFont(pbm, pbm_size);
+            free(pbm);
         }
     }
 
@@ -2858,7 +2868,7 @@ u32 GodMode(int entrypoint) {
 #else
 u32 ScriptRunner(int entrypoint) {
     // init font and show splash
-    if (!SetFontFromPbm(NULL, 0)) return GODMODE_EXIT_POWEROFF;
+    if (!SetFont(NULL, 0)) return GODMODE_EXIT_POWEROFF;
     SplashInit("scriptrunner mode");
     u64 timer = timer_start();
 
