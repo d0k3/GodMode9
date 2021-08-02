@@ -1832,7 +1832,7 @@ bool FileTextViewer(const char* path, bool as_script) {
 }
 
 bool ExecuteGM9Script(const char* path_script) {
-    char path_str[32 * 4 + 1];
+    char path_str[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(path_str, path_script, 32, 12);
 
 

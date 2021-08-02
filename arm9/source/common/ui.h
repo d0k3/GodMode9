@@ -21,6 +21,9 @@
 #define FONT_WIDTH_EXT   GetFontWidth()
 #define FONT_HEIGHT_EXT  GetFontHeight()
 
+#define UTF_MAX_BYTES_PER_RUNE 4
+#define UTF_BUFFER_BYTESIZE(rune_count) (((rune_count) + 1) * UTF_MAX_BYTES_PER_RUNE)
+
 #define TOP_SCREEN          ((u16*)VRAM_TOP_LA)
 #define BOT_SCREEN          ((u16*)VRAM_BOT_A)
 
