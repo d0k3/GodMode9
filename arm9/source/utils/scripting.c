@@ -24,7 +24,7 @@
 #define _VAR_CNT_LEN    256
 #define _VAR_NAME_LEN   32
 #define _VAR_MAX_BUFF   256
-#define _ERR_STR_LEN    32
+#define _ERR_STR_LEN    256
 
 #define _CHOICE_STR_LEN 32
 #define _CHOICE_MAX_N   12
@@ -1624,7 +1624,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         if (ar) memcpy(txtstr + p_ar, ar_str, strnlen(ar_str, 16));
 
         // draw line number & text
-        DrawString(TOP_SCREEN, txtstr, x_txt, y, color_text, COLOR_STD_BG, false);
+        DrawString(TOP_SCREEN, txtstr, x_txt, y, color_text, COLOR_STD_BG);
         if (TV_LNOS > 0) { // line number
             if (ptr != ptr_next)
                 DrawStringF(TOP_SCREEN, x_lno, y, ((ptr == text) || (*(ptr-1) == '\n')) ? COLOR_TVOFFS : COLOR_TVOFFSL, COLOR_STD_BG, "%0*lu", TV_LNOS, nln);
@@ -1634,7 +1634,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         // colorize comment if is_script
         if ((cmt_start > 0) && ((u32) cmt_start < TV_LLEN_DISP)) {
             memset(txtstr, ' ', cmt_start);
-            DrawString(TOP_SCREEN, txtstr, x_txt, y, script_color_comment, COLOR_TRANSPARENT, false);
+            DrawString(TOP_SCREEN, txtstr, x_txt, y, script_color_comment, COLOR_TRANSPARENT);
         }
 
         // colorize arrows
@@ -1660,7 +1660,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
     ClearScreenF(true, true, COLOR_STD_BG);
 
     // instructions
-    static const char* instr = "Textviewer Controls:\n \n\x18\x19\x1A\x1B(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
+    static const char* instr = "Textviewer Controls:\n \n↑↓→←(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
     ShowString(instr);
 
     // set script colors
@@ -1824,7 +1824,7 @@ bool FileTextViewer(const char* path, bool as_script) {
 }
 
 bool ExecuteGM9Script(const char* path_script) {
-    char path_str[32+1];
+    char path_str[32 * 4 + 1];
     TruncateString(path_str, path_script, 32, 12);
 
 

@@ -527,7 +527,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     ExeFsHeader exefs;
     FIL file;
 
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // open file, get NCCH, ExeFS header
@@ -727,7 +727,7 @@ u32 VerifyNcsdFile(const char* path) {
     NcsdHeader ncsd;
 
     // path string
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // load NCSD header
@@ -760,7 +760,7 @@ u32 VerifyCiaFile(const char* path) {
     if (!cia) return 1;
 
      // path string
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // load CIA stub
@@ -805,7 +805,7 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     bool ignore_missing_dlc = false;
 
     // path string
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // content path string
@@ -905,7 +905,7 @@ u32 VerifyTadFile(const char* path) {
 }
 
 u32 VerifyFirmFile(const char* path) {
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     void* firm_buffer = (void*) malloc(FIRM_MAX_SIZE);
@@ -953,7 +953,7 @@ u32 VerifyBossFile(const char* path) {
     FIL file;
     UINT btr;
 
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // read file header
@@ -2897,7 +2897,7 @@ u32 InstallTicketFile(const char* path, bool to_emunand) {
         return 1;
 
     // path string
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // check ticket db
@@ -3389,7 +3389,7 @@ u32 ShowGameCheckerInfo(const char* path) {
     if (!tmd) return 1;
 
     // path string
-    char pathstr[32 + 1];
+    char pathstr[32 * 4 + 1];
     TruncateString(pathstr, path, 32, 8);
 
     // CIA / TIE specific stuff

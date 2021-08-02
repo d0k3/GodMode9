@@ -456,7 +456,7 @@ u32 RecursiveFixFileCmacWorker(char* path) {
     u32 err = 0;
 
     if (fvx_opendir(&pdir, path) == FR_OK) { // process folder contents
-        char pathstr[32 + 1];
+        char pathstr[32 * 4 + 1];
         TruncateString(pathstr, path, 32, 8);
         char* fname = path + strnlen(path, 255);
         *(fname++) = '/';

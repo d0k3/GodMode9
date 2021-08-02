@@ -34,7 +34,7 @@ bool GoodRenamer(DirEntry* entry, bool ask) {
         return false;
 
     if (ask) { // ask for confirmatiom
-        char oldname_tr[32+1];
+        char oldname_tr[32 * 4 + 1];
         char newname_ww[256];
         TruncateString(oldname_tr, entry->name, 32, 8);
         strncpy(newname_ww, goodname, 256);
