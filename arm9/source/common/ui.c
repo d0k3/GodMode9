@@ -25,9 +25,9 @@ static u32 font_width = 0;
 static u32 font_height = 0;
 static u32 font_count = 0;
 static u32 line_height = 0;
-static u16 question_mark_index = 0;
 static u8* font_bin = NULL;
 static u16* font_map = NULL;
+static u16 ascii_lut[0x60];
 
 // lookup table to sort CP-437 so it can be binary searched with Unicode codepoints
 static const u8 cp437_sorted[0x100] = {
@@ -72,8 +72,10 @@ static const u16 cp437_sorted_map[0x100] = {
 #define PIXEL_OFFSET(x, y)  (((x) * SCREEN_HEIGHT) + (SCREEN_HEIGHT - (y) - 1))
 
 
-u16 GetFontIndex(u16 c)
+u16 GetFontIndex(u16 c, bool use_ascii_lut)
 {
+    if (use_ascii_lut && c >= 0x20 && c <= 0x7F) return ascii_lut[c - 0x20];
+
     int left = 0;
     int right = font_count;
 
@@ -89,7 +91,7 @@ u16 GetFontIndex(u16 c)
     }
 
     // if not found in font, return a '?'
-    return question_mark_index;
+    return ascii_lut['?' - 0x20];
 }
 
 // gets a u32 codepoint from a UTF-8 string and moves the pointer to the next character
@@ -304,8 +306,14 @@ bool SetFont(const void* font, u32 font_size) {
         return false;
     }
 
+
+    // set up ASCII lookup table
+    ascii_lut['?' - 0x20] = GetFontIndex('?', false);
+    for (int i = 0; i < 0x60; i++) {
+        ascii_lut[i] = GetFontIndex(i + 0x20, false);
+    }
+
     line_height = min(10, font_height + 2);
-    question_mark_index = GetFontIndex('?');
     return true;
 }
 
@@ -405,7 +413,7 @@ void DrawCharacter(u16 *screen, u32 character, int x, int y, u32 color, u32 bgco
         int yDisplacement = SCREEN_HEIGHT - (y + yy) - 1;
         u16* screenPos = screen + xDisplacement + yDisplacement;
 
-        u8 charPos = font_bin[GetFontIndex(character) * font_height + yy];
+        u8 charPos = font_bin[GetFontIndex(character, true) * font_height + yy];
         for (int xx = 7; xx >= (8 - (int) font_width); xx--) {
             if ((charPos >> xx) & 1) {
                 *screenPos = color;
