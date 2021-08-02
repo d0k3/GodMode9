@@ -51,7 +51,7 @@ typedef struct {
 
 
 u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
-    char pathstr[32 * 4 + 1];
+    char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, bootpath, 32, 8);
 
     size_t firm_size = FileGetSize(bootpath);
@@ -231,7 +231,7 @@ void DrawTopBar(const char* curr_path) {
     const u32 bartxt_start = (FONT_HEIGHT_EXT >= 10) ? 1 : (FONT_HEIGHT_EXT >= 7) ? 2 : 3;
     const u32 bartxt_x = 2;
     const u32 len_path = SCREEN_WIDTH_TOP - 120;
-    char tempstr[64 * 4];
+    char tempstr[UTF_BUFFER_BYTESIZE(63)];
 
     // top bar - current path
     DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
@@ -282,7 +282,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     const u32 instr_x = (SCREEN_WIDTH_MAIN - (34*FONT_WIDTH_EXT)) / 2;
     const u32 len_info = (SCREEN_WIDTH_MAIN - ((SCREEN_WIDTH_MAIN >= 400) ? 80 : 20)) / 2;
     const u32 str_len_info = min(63, len_info / FONT_WIDTH_EXT);
-    char tempstr[256];
+    char tempstr[UTF_BUFFER_BYTESIZE(str_len_info)];
 
     static u32 state_prev = 0xFFFFFFFF;
     u32 state_curr =
@@ -386,12 +386,12 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
         *scroll = (contents->n_entries > lines) ? contents->n_entries - lines : 0;
 
     for (u32 i = 0; pos_y < SCREEN_HEIGHT; i++) {
-        char tempstr[str_width * 4 + 1];
+        char tempstr[UTF_BUFFER_BYTESIZE(str_width)];
         u32 offset_i = *scroll + i;
         u32 color_font = COLOR_WHITE;
         if (offset_i < contents->n_entries) {
             DirEntry* curr_entry = &(contents->entry[offset_i]);
-            char namestr[str_width * 4 - 10 + 1];
+            char namestr[UTF_BUFFER_BYTESIZE(str_width - 10)];
             char bytestr[10 + 1];
             color_font = (cursor != offset_i) ? COLOR_ENTRY(curr_entry) : COLOR_STD_FONT;
             FormatBytes(bytestr, curr_entry->size);
@@ -845,7 +845,7 @@ u32 FileHexViewer(const char* path) {
 
 u32 Sha256Calculator(const char* path) {
     u32 drvtype = DriveType(path);
-    char pathstr[32 * 4 + 1];
+    char pathstr[UTF_BUFFER_BYTESIZE(32)];
     u8 sha256[32];
     TruncateString(pathstr, path, 32, 8);
     if (!FileGetSha256(path, sha256, 0, 0)) {
@@ -880,7 +880,7 @@ u32 Sha256Calculator(const char* path) {
 }
 
 u32 CmacCalculator(const char* path) {
-    char pathstr[32 * 4 + 1];
+    char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, path, 32, 8);
     if (IdentifyFileType(path) != GAME_CMD) {
         u8 cmac[16] __attribute__((aligned(4)));
@@ -931,7 +931,7 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
             DrawDirContents(current_dir, (*cursor = i), scroll);
             if (PathCopy(OUTPUT_PATH, path, &flags)) n_success++;
             else { // on failure: show error, break
-                char currstr[32 * 4 + 1];
+                char currstr[UTF_BUFFER_BYTESIZE(32)];
                 TruncateString(currstr, path, 32, 12);
                 ShowPrompt(false, "%s\nFailed copying item", currstr);
                 break;
@@ -940,7 +940,7 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
         }
         if (n_success) ShowPrompt(false, "%lu items copied to %s", n_success, OUTPUT_PATH);
     } else {
-        char pathstr[32 * 4 + 1];
+        char pathstr[UTF_BUFFER_BYTESIZE(32)];
         TruncateString(pathstr, curr_entry->path, 32, 8);
         if (!PathCopy(OUTPUT_PATH, curr_entry->path, &flags))
             ShowPrompt(false, "%s\nFailed copying item", pathstr);
@@ -1142,7 +1142,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable ||
         agbimportable || cia_installable || tik_installable || tik_dumpable;
 
-    char pathstr[32 * 4 + 1];
+    char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, file_path, 32, 8);
 
     char tidstr[32] = { 0 };
@@ -1289,7 +1289,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == inject) { // -> inject data from clipboard
-        char origstr[18 * 4 + 1];
+        char origstr[UTF_BUFFER_BYTESIZE(18)];
         TruncateString(origstr, clipboard->entry[0].name, 18, 10);
         u64 offset = ShowHexPrompt(0, 8, "Inject data from %s?\nSpecify offset below.", origstr);
         if (offset != (u64) -1) {
@@ -1467,7 +1467,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, false) == 0)) n_success++;
                 else { // on failure: show error, continue
-                    char lpathstr[32 * 4 + 1];
+                    char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nDecryption failed\n \nContinue?", lpathstr)) continue;
                     else break;
@@ -1516,7 +1516,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, true) == 0)) n_success++;
                 else { // on failure: show error, continue
-                    char lpathstr[32 * 4 + 1];
+                    char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nEncryption failed\n \nContinue?", lpathstr)) continue;
                     else break;
@@ -1554,7 +1554,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 if (((user_select != cxi_dump) && (BuildCiaFromGameFile(path, force_legit) == 0)) ||
                     ((user_select == cxi_dump) && (DumpCxiSrlFromGameFile(path) == 0))) n_success++;
                 else { // on failure: show error, continue
-                    char lpathstr[32 * 4 + 1];
+                    char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nBuild %s failed\n \nContinue?", lpathstr, type)) continue;
                     else break;
@@ -1614,7 +1614,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     (install_tik && (InstallTicketFile(path, to_emunand) == 0)))
                     n_success++;
                 else { // on failure: show error, continue
-                    char lpathstr[32 * 4 + 1];
+                    char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nInstall failed\n \nContinue?", lpathstr)) continue;
                     else break;
@@ -1694,7 +1694,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 if ((filetype & IMG_NAND) && (ValidateNandDump(path) == 0)) n_success++;
                 else if (VerifyGameFile(path) == 0) n_success++;
                 else { // on failure: show error, continue
-                    char lpathstr[32 * 4 + 1];
+                    char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nVerification failed\n \nContinue?", lpathstr)) {
                         if (!(filetype & (GAME_CIA|GAME_TMD|GAME_NCSD|GAME_NCCH)))
@@ -1829,7 +1829,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     n_success++;
                     savings += prevsize - FileGetSize(path);
                 } else { // on failure: show error, continue (should not happen)
-                    char lpathstr[32 * 4 + 1];
+                    char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
                     if (ShowPrompt(true, "%s\nTrimming failed\n \nContinue?", lpathstr)) {
                         ShowProgress(0, n_marked, path); // restart progress bar
@@ -2469,7 +2469,7 @@ u32 GodMode(int entrypoint) {
                 if (fixcmac > 0) optionstr[fixcmac-1] = "Fix CMACs for drive";
                 if (dirnfo > 0) optionstr[dirnfo-1] = (*current_path) ? "Show directory info" : "Show drive info";
                 if (stdcpy > 0) optionstr[stdcpy-1] = "Copy to " OUTPUT_PATH;
-                char namestr[32 * 4 + 1];
+                char namestr[UTF_BUFFER_BYTESIZE(32)];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
                 int user_select = ShowSelectPrompt(n_opt, optionstr, "%s", namestr);
                 if (user_select == tman) {
@@ -2508,7 +2508,7 @@ u32 GodMode(int entrypoint) {
                 u32 user_select = 1;
                 if (curr_drvtype & DRV_SEARCH) { // special menu for search drive
                     static const char* optionstr[2] = { "Open this folder", "Open containing folder" };
-                    char pathstr[32 * 4 + 1];
+                    char pathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(pathstr, curr_entry->path, 32, 8);
                     user_select = ShowSelectPrompt(2, optionstr, "%s", pathstr);
                 }
@@ -2639,7 +2639,7 @@ u32 GodMode(int entrypoint) {
                         if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
                     }
                 } else if (curr_entry->type != T_DOTDOT) {
-                    char namestr[36 * 4 + 1];
+                    char namestr[UTF_BUFFER_BYTESIZE(28)];
                     TruncateString(namestr, curr_entry->name, 28, 12);
                     if (ShowPrompt(true, "Delete \"%s\"?", namestr)) {
                         ShowString("Deleting files, please wait...");
@@ -2677,7 +2677,7 @@ u32 GodMode(int entrypoint) {
                 u32 flags = 0;
                 u32 user_select;
                 if (clipboard->n_entries == 1) {
-                    char namestr[20 * 4 + 1];
+                    char namestr[UTF_BUFFER_BYTESIZE(20)];
                     TruncateString(namestr, clipboard->entry[0].name, 20, 12);
                     snprintf(promptstr, 64, "Paste \"%s\" here?", namestr);
                 } else snprintf(promptstr, 64, "Paste %lu paths here?", clipboard->n_entries);
@@ -2685,7 +2685,7 @@ u32 GodMode(int entrypoint) {
                     ShowSelectPrompt(2, optionstr, "%s", promptstr) : (ShowPrompt(true, "%s", promptstr) ? 1 : 0);
                 if (user_select) {
                     for (u32 c = 0; c < clipboard->n_entries; c++) {
-                        char namestr[36 * 4 + 1];
+                        char namestr[UTF_BUFFER_BYTESIZE(36)];
                         TruncateString(namestr, clipboard->entry[c].name, 36, 12);
                         flags &= ~ASK_ALL;
                         if (c < clipboard->n_entries - 1) flags |= ASK_ALL;
@@ -2711,7 +2711,7 @@ u32 GodMode(int entrypoint) {
                 ShowPrompt(false, "Not allowed in alias path");
             } else if ((pad_state & BUTTON_X) && (curr_entry->type != T_DOTDOT)) { // rename a file
                 char newname[256];
-                char namestr[20 * 4 + 1];
+                char namestr[UTF_BUFFER_BYTESIZE(20)];
                 TruncateString(namestr, curr_entry->name, 20, 12);
                 snprintf(newname, 255, "%s", curr_entry->name);
                 if (ShowKeyboardOrPrompt(newname, 256, "Rename %s?\nEnter new name below.", namestr)) {
@@ -2735,7 +2735,7 @@ u32 GodMode(int entrypoint) {
                         ((type != 2) || ((fsize = ShowNumberPrompt(0, "Create a new %s here?\nEnter file size below.", typestr)) != (u64) -1))) {
                         if (((type == 1) && !DirCreate(current_path, ename)) ||
                             ((type == 2) && !FileCreateDummy(current_path, ename, fsize))) {
-                            char namestr[36 * 4 + 1];
+                            char namestr[UTF_BUFFER_BYTESIZE(36)];
                             TruncateString(namestr, ename, 36, 12);
                             ShowPrompt(false, "Failed creating %s:\n%s", typestr, namestr);
                         } else {

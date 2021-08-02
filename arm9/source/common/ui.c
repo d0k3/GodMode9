@@ -548,13 +548,13 @@ void ResizeString(char* dest, const char* orig, int nlength, int tpos, bool alig
         for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
             if ((orig[nsize] & 0xC0) != 0x80) i++;
         }
-        snprintf(dest, nsize + 1, "%-*.*s", nsize, nsize, orig);
+        snprintf(dest, UTF_BUFFER_BYTESIZE(nlength), "%-*.*s", nsize, nsize, orig);
     } else {
         int nsize = 0;
         for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
             if ((orig[nsize] & 0xC0) != 0x80) i++;
         }
-        snprintf(dest, nsize + 1, "%*.*s", nsize, nsize, orig);
+        snprintf(dest, UTF_BUFFER_BYTESIZE(nlength), "%*.*s", nsize, nsize, orig);
     }
 }
 
@@ -570,11 +570,6 @@ void TruncateString(char* dest, const char* orig, int nlength, int tpos) {
     } else if ((nlength <= 3) || (nlength >= olength)) {
         strcpy(dest, orig);
     } else {
-        int nsize = 0;
-        for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
-            if ((orig[nsize] & 0xC0) != 0x80) i++;
-        }
-
         if (tpos + 3 > nlength) tpos = nlength - 3;
 
         int tposStart = 0;
@@ -587,7 +582,7 @@ void TruncateString(char* dest, const char* orig, int nlength, int tpos) {
             if ((orig[osize - 1 - tposEnd] & 0xC0) != 0x80) i++;
         }
 
-        snprintf(dest, nsize + 1, "%-.*s...%-.*s", tposStart, orig, tposEnd, orig + osize - tposEnd);
+        snprintf(dest, UTF_BUFFER_BYTESIZE(nlength), "%-.*s...%-.*s", tposStart, orig, tposEnd, orig + osize - tposEnd);
     }
 }
 
@@ -887,7 +882,7 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
             char bytestr[16];
             FormatBytes(bytestr, options[i]->size);
 
-            char content_str[64 * 4 + 1];
+            char content_str[UTF_BUFFER_BYTESIZE(fname_len)];
             char temp_str[256];
             strncpy(temp_str, options[i]->name, 256);
 
@@ -1286,8 +1281,8 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     const u32 text_pos_y = bar_pos_y + bar_height + 2;
     u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
     u32 prog_percent = ((total > 0) && (current <= total)) ? (current * 100) / total : 0;
-    char tempstr[256];
-    char progstr[256];
+    char tempstr[64];
+    char progstr[UTF_BUFFER_BYTESIZE(64)];
 
     static u64 last_msec_elapsed = 0;
     static u64 last_sec_remain = 0;
