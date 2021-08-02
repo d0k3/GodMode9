@@ -35,8 +35,9 @@
 #define TXT_GENERIC (1ULL<<30)
 #define GFX_PNG     (1ULL<<31)
 #define FONT_PBM    (1ULL<<32)
-#define NOIMG_NAND  (1ULL<<33)
-#define HDR_NAND    (1ULL<<34)
+#define FONT_RIFF   (1ULL<<33)
+#define NOIMG_NAND  (1ULL<<34)
+#define HDR_NAND    (1ULL<<35)
 #define TYPE_BASE   0xFFFFFFFFFFULL // 40 bit reserved for base types
 
 // #define FLAG_FIRM   (1ULL<<58) // <--- for CXIs containing FIRMs
@@ -73,9 +74,9 @@
 #define FTYPE_KEYINIT(tp)       (tp&(BIN_KEYDB))
 #define FTYPE_KEYINSTALL(tp)    (tp&(BIN_KEYDB))
 #define FTYPE_SCRIPT(tp)        (tp&(TXT_SCRIPT))
-#define FTYPE_FONT(tp)          (tp&(FONT_PBM))
+#define FTYPE_FONT(tp)          (tp&(FONT_PBM|FONT_RIFF))
 #define FTYPE_GFX(tp)           (tp&(GFX_PNG))
-#define FTYPE_SETABLE(tp)       (tp&(FONT_PBM))
+#define FTYPE_SETABLE(tp)       (tp&(FONT_PBM|FONT_RIFF))
 #define FTYPE_BOOTABLE(tp)      (tp&(SYS_FIRM))
 #define FTYPE_INSTALLABLE(tp)   (tp&(SYS_FIRM))
 #define FTYPE_AGBSAVE(tp)       (tp&(SYS_AGBSAVE))

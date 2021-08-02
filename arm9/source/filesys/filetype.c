@@ -127,6 +127,8 @@ u64 IdentifyFileType(const char* path) {
         }
     } else if (GetFontFromPbm(data, fsize, NULL, NULL)) {
         return FONT_PBM;
+    } else if (GetFontFromRiff(data, fsize, NULL, NULL, NULL)) {
+        return FONT_RIFF;
     } else if ((fsize > sizeof(AgbHeader)) &&
         (ValidateAgbHeader((AgbHeader*) data) == 0)) {
         return GAME_GBA;
