@@ -23,7 +23,7 @@ enum {
 };
 
 // special key strings
-#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "\x1b", "\x1a", "ESC", "SWITCH"
+#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "←", "→", "ESC", "SWITCH"
 
 #define COLOR_SWKBD_NORMAL  COLOR_GREY
 #define COLOR_SWKBD_PRESSED COLOR_LIGHTGREY

@@ -127,7 +127,7 @@ bool FileUnlock(const char* path) {
 
     if (!(DriveType(path) & DRV_FAT)) return true; // can't really check this
     if ((res = fx_open(&file, path, FA_READ | FA_OPEN_EXISTING)) != FR_OK) {
-        char pathstr[32 + 1];
+        char pathstr[32 * 4 + 1];
         TruncateString(pathstr, path, 32, 8);
         if (GetMountState() && (res == FR_LOCKED) &&
             (ShowPrompt(true, "%s\nFile is currently mounted.\nUnmount to unlock?", pathstr))) {
@@ -461,7 +461,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
     if (move && (to_virtual || fno.fattrib & AM_VRT)) return false; // trying to move a virtual file
 
     // path string (for output)
-    char deststr[36 + 1];
+    char deststr[36 * 4 + 1];
     TruncateString(deststr, dest, 36, 8);
 
     // the copy process takes place here
@@ -609,7 +609,7 @@ bool PathMoveCopy(const char* dest, const char* orig, u32* flags, bool move) {
     char lorig[256];
     strncpy(ldest, dest, 256);
     strncpy(lorig, orig, 256);
-    char deststr[36 + 1];
+    char deststr[36 * 4 + 1];
     TruncateString(deststr, ldest, 36, 8);
 
     // moving only for regular FAT drives (= not alias drives)
@@ -749,8 +749,8 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
                 return false;
             snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
         } else if (osize < dvfile.size) { // if origin is smaller than destination...
-            char deststr[36 + 1];
-            char origstr[36 + 1];
+            char deststr[36 * 4 + 1];
+            char origstr[36 * 4 + 1];
             char osizestr[32];
             char dsizestr[32];
             TruncateString(deststr, dest, 36, 8);
@@ -822,7 +822,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
         GetDirContents(contents, path_local);
 
         while (pos < contents->n_entries) {
-            char opt_names[_MAX_FS_OPT+1][32+1];
+            char opt_names[_MAX_FS_OPT+1][32 * 4 + 1];
             DirEntry* res_entry[MAX_DIR_ENTRIES+1] = { NULL };
             u32 n_opt = 0;
             for (; pos < contents->n_entries; pos++) {
@@ -872,7 +872,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
             }
         }
         if (!n_found) { // not a single matching entry found
-            char pathstr[32+1];
+            char pathstr[32 * 4 + 1];
             TruncateString(pathstr, path_local, 32, 8);
             ShowPrompt(false, "%s\nNo usable entries found.", pathstr);
             return false;

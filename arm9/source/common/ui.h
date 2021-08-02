@@ -57,8 +57,8 @@ void DrawRectangle(u16 *screen, int x, int y, u32 width, u32 height, u32 color);
 void DrawBitmap(u16 *screen, int x, int y, u32 w, u32 h, const u16* bitmap);
 void DrawQrCode(u16 *screen, const u8* qrcode);
 
-void DrawCharacter(u16 *screen, int character, int x, int y, u32 color, u32 bgcolor);
-void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor, bool fix_utf8);
+void DrawCharacter(u16 *screen, u32 character, int x, int y, u32 color, u32 bgcolor);
+void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor);
 void DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *format, ...);
 void DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...);
 
@@ -69,8 +69,8 @@ u32 GetFontHeight(void);
 
 void MultiLineString(char* dest, const char* orig, int llen, int maxl);
 void WordWrapString(char* str, int llen);
-void ResizeString(char* dest, const char* orig, int nsize, int tpos, bool align_right);
-void TruncateString(char* dest, const char* orig, int nsize, int tpos);
+void ResizeString(char* dest, const char* orig, int nlength, int tpos, bool align_right);
+void TruncateString(char* dest, const char* orig, int nlength, int tpos);
 void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 

@@ -90,7 +90,7 @@ static void DrawKey(const TouchBox* key, const bool pressed, const u32 uppercase
     const u32 f_offs_y = (key->h - FONT_HEIGHT_EXT) / 2;
 
     DrawRectangle(BOT_SCREEN, key->x, key->y, key->w, key->h, color);
-    DrawString(BOT_SCREEN, keystr, key->x + f_offs_x, key->y + f_offs_y, COLOR_SWKBD_CHARS, color, false);
+    DrawString(BOT_SCREEN, keystr, key->x + f_offs_x, key->y + f_offs_y, COLOR_SWKBD_CHARS, color);
 }
 
 static void DrawKeyBoardBox(TouchBox* swkbd, u32 color) {
@@ -227,7 +227,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     TouchBox* textbox = swkbd_alphabet; // always use this textbox
 
     static bool show_instr = true;
-    static const char* instr = "Keyboard Controls:\n \n\x1B/\x1A - Move cursor\nR - Caps / Capslock\nX - Delete char\nY - Insert char\nA - Submit\nB - Cancel\n \nSELECT switches to\nclassic prompt";
+    static const char* instr = "Keyboard Controls:\n \n←/→ - Move cursor\nR - Caps / Capslock\nX - Delete char\nY - Insert char\nA - Submit\nB - Cancel\n \nSELECT switches to\nclassic prompt";
     if (show_instr) {
         ShowPrompt(false, instr);
         show_instr = false;
