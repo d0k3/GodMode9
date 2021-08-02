@@ -318,7 +318,7 @@ u32 ValidateNandDump(const char* path) {
     FIL file;
 
     // truncated path string
-    char pathstr[32 * 4 + 1];
+    char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, path, 32, 8);
 
     // open file
@@ -500,7 +500,7 @@ u32 SafeRestoreNandDump(const char* path) {
 }
 
 u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz) {
-    char pathstr[32 * 4 + 1]; // truncated path string
+    char pathstr[UTF_BUFFER_BYTESIZE(32)]; // truncated path string
     TruncateString(pathstr, path, 32, 8);
 
     // load / check FIRM
@@ -610,7 +610,7 @@ u32 SafeInstallKeyDb(const char* path) {
     static const u8 perfect_sha[] = { KEYDB_PERFECT_HASH };
     u8 keydb[KEYDB_PERFECT_SIZE] __attribute__((aligned(4)));
 
-    char pathstr[32 * 4 + 1]; // truncated path string
+    char pathstr[UTF_BUFFER_BYTESIZE(32)]; // truncated path string
     TruncateString(pathstr, path, 32, 8);
 
     // already installed?
