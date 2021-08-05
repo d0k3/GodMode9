@@ -246,8 +246,6 @@ u32 InitCartRead(CartData* cdata) {
         if (nds_header->device_capacity >= 15) return 1; // too big, not valid
         if (cdata->cart_size == 0)
             cdata->cart_size = (128 * 1024) << nds_header->device_capacity;
-		// safety check for 0x88 addition
-		if (cdata->data_size > nds_header->ntr_rom_size + 0x88) return 1;
         cdata->data_size = nds_header->ntr_rom_size + 0x88;
         cdata->arm9i_rom_offset = 0;
 
