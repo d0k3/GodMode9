@@ -1,0 +1,116 @@
+diff --git a/arm9/source/game/ticket.c b/arm9/source/game/ticket.c
+index 14e5a7e..856f80a 100644
+--- a/arm9/source/game/ticket.c
++++ b/arm9/source/game/ticket.c
+@@ -41,27 +41,80 @@ u32 ValidateTicketSignature(Ticket* ticket) {
+     return ret;
+ }
+ 
+-u32 BuildFakeTicket(Ticket* ticket, u8* title_id) {
++u32 BuildFakeTicket(Ticket** ticket, u32* ticket_size, const u8* title_id, u32 index_max) {
++    if (!ticket || !ticket_size)
++        return 1;
++
+     static const u8 sig_type[4] =  { TICKET_SIG_TYPE }; // RSA_2048 SHA256
+-    static const u8 ticket_cnt_index[] = { // whatever this is
+-        0x00, 0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0xAC, 0x00, 0x00, 0x00, 0x14, 0x00, 0x01, 0x00, 0x14,
+-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x84,
+-        0x00, 0x00, 0x00, 0x84, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+-    };
++
++    // calculate sizes and determine pointers to use
++    u32 rights_field_count = (min(index_max, 0x10000) + 1023) >> 10; // round up to 1024 and cap at 65536, and div by 1024
++    u32 content_index_size = sizeof(TicketContentIndexMainHeader) + sizeof(TicketContentIndexDataHeader) + sizeof(TicketRightsField) * rights_field_count;
++    u32 _ticket_size = sizeof(Ticket) + content_index_size;
++    Ticket *_ticket;
++
++    if (*ticket) { // if a pointer was pregiven
++        if (*ticket_size < _ticket_size) { // then check given boundary size
++            *ticket_size = _ticket_size; // if not enough, inform the actual needed size
++            return 2; // indicate a size error
++        }
++        _ticket = *ticket; // get the pointer if we good to go
++    } else // if not pregiven, allocate one
++        _ticket = (Ticket*)malloc(_ticket_size);
++
++    if (!_ticket)
++        return 1;
++
+     // set ticket all zero for a clean start
+-    memset(ticket, 0x00, TICKET_COMMON_SIZE); // 0xAC being size of this fake ticket's content index
++    memset(_ticket, 0x00, _ticket_size);
+     // fill ticket values
+-    memcpy(ticket->sig_type, sig_type, 4);
+-    memset(ticket->signature, 0xFF, 0x100);
+-    snprintf((char*) ticket->issuer, 0x40, IS_DEVKIT ? TICKET_ISSUER_DEV : TICKET_ISSUER);
+-    memset(ticket->ecdsa, 0xFF, 0x3C);
+-    ticket->version = 0x01;
+-    memset(ticket->titlekey, 0xFF, 16);
+-    memcpy(ticket->title_id, title_id, 8);
+-    ticket->commonkey_idx = 0x00; // eshop
+-    ticket->audit = 0x01; // whatever
+-    memcpy(ticket->content_index, ticket_cnt_index, sizeof(ticket_cnt_index));
+-    memset(&ticket->content_index[sizeof(ticket_cnt_index)], 0xFF, 0x80); // 1024 content indexes
++    memcpy(_ticket->sig_type, sig_type, 4);
++    memset(_ticket->signature, 0xFF, 0x100);
++    snprintf((char*) _ticket->issuer, 0x40, IS_DEVKIT ? TICKET_ISSUER_DEV : TICKET_ISSUER);
++    memset(_ticket->ecdsa, 0xFF, 0x3C);
++    _ticket->version = 0x01;
++    memset(_ticket->titlekey, 0xFF, 16);
++    memcpy(_ticket->title_id, title_id, 8);
++    _ticket->commonkey_idx = 0x00; // eshop
++    _ticket->audit = 0x01; // whatever
++
++    // fill in rights
++    TicketContentIndexMainHeader* mheader = (TicketContentIndexMainHeader*)&_ticket->content_index[0];
++    TicketContentIndexDataHeader* dheader = (TicketContentIndexDataHeader*)&_ticket->content_index[0x14];
++    TicketRightsField* rights = (TicketRightsField*)&_ticket->content_index[0x28];
++
++    // first main data header
++    mheader->unk1[1] = 0x1; mheader->unk2[1] = 0x14;
++    mheader->content_index_size[3] = (u8)(content_index_size >>  0);
++    mheader->content_index_size[2] = (u8)(content_index_size >>  8);
++    mheader->content_index_size[1] = (u8)(content_index_size >> 16);
++    mheader->content_index_size[0] = (u8)(content_index_size >> 24);
++    mheader->data_header_relative_offset[3] = 0x14; // relative offset for TicketContentIndexDataHeader
++    mheader->unk3[1] = 0x1; mheader->unk4[1] = 0x14;
++
++    // then the data header
++    dheader->data_relative_offset[3] = 0x28; // relative offset for TicketRightsField
++    dheader->max_entry_count[3] = (u8)(rights_field_count >>  0);
++    dheader->max_entry_count[2] = (u8)(rights_field_count >>  8);
++    dheader->max_entry_count[1] = (u8)(rights_field_count >> 16);
++    dheader->max_entry_count[0] = (u8)(rights_field_count >> 24);
++    dheader->size_per_entry[3] = (u8)sizeof(TicketRightsField); // sizeof should be 0x84
++    dheader->total_size_used[3] = (u8)((sizeof(TicketRightsField) * rights_field_count) >>  0);
++    dheader->total_size_used[2] = (u8)((sizeof(TicketRightsField) * rights_field_count) >>  8);
++    dheader->total_size_used[1] = (u8)((sizeof(TicketRightsField) * rights_field_count) >> 16);
++    dheader->total_size_used[0] = (u8)((sizeof(TicketRightsField) * rights_field_count) >> 24);
++    dheader->data_type[1] = 3; // right fields
++
++    // now the right fields
++    // indexoffets must be in accending order to have the desired effect
++    for (u32 i = 0; i < rights_field_count; ++i) {
++        rights[i].indexoffset[1] = (u8)((1024 * i) >> 0);
++        rights[i].indexoffset[0] = (u8)((1024 * i) >> 8);
++        memset(&rights[i].rightsbitfield[0], 0xFF, sizeof(rights[0].rightsbitfield));
++    }
++
++    *ticket = _ticket;
++    *ticket_size = _ticket_size;
+ 
+     return 0;
+ }
+diff --git a/arm9/source/game/ticket.h b/arm9/source/game/ticket.h
+index 956023d..28214ab 100644
+--- a/arm9/source/game/ticket.h
++++ b/arm9/source/game/ticket.h
+@@ -97,7 +97,7 @@ typedef struct {
+ u32 ValidateTicket(Ticket* ticket);
+ u32 ValidateTwlTicket(Ticket* ticket);
+ u32 ValidateTicketSignature(Ticket* ticket);
+-u32 BuildFakeTicket(Ticket* ticket, u8* title_id);
++u32 BuildFakeTicket(Ticket** ticket, u32* ticket_size, const u8* title_id, u32 index_max);
+ u32 GetTicketContentIndexSize(const Ticket* ticket);
+ u32 GetTicketSize(const Ticket* ticket);
+ u32 BuildTicketCert(u8* tickcert);

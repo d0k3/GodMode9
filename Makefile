@@ -24,11 +24,7 @@ ifeq ($(NTRBOOT),1)
 endif
 
 ifeq ($(OS),Windows_NT)
-	ifeq ($(TERM),cygwin)
-		PY3 := py -3 # Windows / CMD/PowerShell
-	else
-		PY3 := python3 # Windows / MSYS2
-	endif
+	PY3 := py -3 # Windows / CMD/PowerShell
 else
 	PY3 := python3 # Unix-like
 endif
