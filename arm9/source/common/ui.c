@@ -476,6 +476,24 @@ u32 GetDrawStringHeight(const char* str) {
     return height;
 }
 
+u32 GetCharSize(const char* str) {
+    const char *start = str;
+    do {
+        str++;
+    } while ((*str & 0xC0) == 0x80);
+
+    return str - start;
+}
+
+u32 GetPrevCharSize(const char* str) {
+    const char *start = str;
+    do {
+        str--;
+    } while ((*str & 0xC0) == 0x80);
+
+    return start - str;
+}
+
 u32 GetDrawStringWidth(const char* str) {
     u32 width = 0;
     char* old_lf = (char*) str;
@@ -994,7 +1012,7 @@ u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *f
 
 bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alphabet, const char *format, va_list va) {
     const u32 alphabet_size = strnlen(alphabet, 256);
-    const u32 input_shown = 22;
+    const u32 input_shown_length = 22;
     const u32 fast_scroll = 4;
     const u64 aprv_delay = 128;
 
@@ -1033,25 +1051,43 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
 
     while (true) {
         u32 inputstr_size = strnlen(inputstr, max_size - 1);
-        if (cursor_s < scroll) scroll = cursor_s;
-        else if (cursor_s - scroll >= input_shown) scroll = cursor_s - input_shown + 1;
-        while (scroll && (inputstr_size - scroll < input_shown)) scroll--;
-        DrawStringF(MAIN_SCREEN, x, y + str_height - 76, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c%-*.*s\n%-*.*s^%-*.*s",
+
+        if (cursor_s < scroll) {
+            scroll = cursor_s;
+        } else {
+            int scroll_adjust = -input_shown_length;
+            for (u32 i = scroll; i < cursor_s; i++) {
+                if (i >= inputstr_size || (inputstr[i] & 0xC0) != 0x80) scroll_adjust++;
+            }
+
+            for (int i = 0; i <= scroll_adjust; i++)
+                scroll += scroll >= inputstr_size ? 1 : GetCharSize(inputstr + scroll);
+        }
+
+        u32 input_shown_size = 0;
+        for (u32 i = 0; i < input_shown_length || (scroll + input_shown_size < inputstr_size && (inputstr[scroll + input_shown_size] & 0xC0) == 0x80); input_shown_size++) {
+            if (scroll + input_shown_size >= inputstr_size || (inputstr[scroll + input_shown_size] & 0xC0) != 0x80) i++;
+        }
+
+        u16 cpos = 0;
+        for (u16 i = scroll; i < cursor_s; i++) {
+            if (i >= inputstr_size || (inputstr[i] & 0xC0) != 0x80) cpos++;
+        }
+
+        DrawStringF(MAIN_SCREEN, x, y + str_height - 76, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c\n%-*.*s^%-*.*s",
             (scroll) ? '<' : '|',
-            (inputstr_size > input_shown) ? input_shown : inputstr_size,
-            (inputstr_size > input_shown) ? input_shown : inputstr_size,
-            inputstr + scroll,
-            (inputstr_size - scroll > input_shown) ? '>' : '|',
-            (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
-            (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
+            input_shown_size,
+            input_shown_size,
+            (scroll > inputstr_size) ? "" : inputstr + scroll,
+            (inputstr_size - (s32) scroll > input_shown_size) ? '>' : '|',
+            1 + cpos,
+            1 + cpos,
             "",
-            1 + cursor_s - scroll,
-            1 + cursor_s - scroll,
-            "",
-            input_shown - (cursor_s - scroll),
-            input_shown - (cursor_s - scroll),
+            input_shown_length - cpos,
+            input_shown_length - cpos,
             ""
         );
+
         if (cursor_a < 0) {
             for (cursor_a = alphabet_size - 1; (cursor_a > 0) && (alphabet[cursor_a] != inputstr[cursor_s]); cursor_a--);
         }
@@ -1091,11 +1127,26 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
             }
         } else if (pad_state & BUTTON_X) {
             if (resize && (inputstr_size > resize)) {
-                char* inputfrom = inputstr + cursor_s - (cursor_s % resize) + resize;
-                char* inputto = inputstr + cursor_s - (cursor_s % resize);
+                u32 char_index = 0;
+                for(u32 i = 0; i < cursor_s; i++) {
+                    if (i >= inputstr_size || (inputstr[i] & 0xC0) != 0x80) char_index++;
+                }
+
+                u32 to_index = char_index - (char_index % resize);
+                u32 from_index = to_index + resize;
+
+                char* inputto = inputstr + cursor_s;
+                for (u32 i = 0; i < char_index - to_index; i++) {
+                    inputto -= GetPrevCharSize(inputto);
+                }
+                char* inputfrom = inputto;
+                for (u32 i = 0; i < from_index - to_index; i++) {
+                    inputfrom += GetCharSize(inputfrom);
+                }
+
                 memmove(inputto, inputfrom, max_size - (inputfrom - inputstr));
-                inputstr_size -= resize;
-                while (cursor_s >= inputstr_size)
+                inputstr_size -= inputfrom - inputto;
+                while (cursor_s >= inputstr_size || (inputstr[cursor_s] & 0xC0) == 0x80)
                     cursor_s--;
                 cursor_a = -1;
             } else if (resize == 1) {
@@ -1112,18 +1163,29 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
                 cursor_a = 0;
             }
         } else if (pad_state & BUTTON_UP) {
+            int size = GetCharSize(inputstr + cursor_s);
+            if(size > 1) {
+                memmove(inputstr + cursor_s, inputstr + cursor_s + size - 1, inputstr_size - cursor_s + size - 1);
+            }
+
             cursor_a += (pad_state & BUTTON_R1) ? fast_scroll : 1;
             cursor_a = cursor_a % alphabet_size;
             inputstr[cursor_s] = alphabet[cursor_a];
         } else if (pad_state & BUTTON_DOWN) {
+            int size = GetCharSize(inputstr + cursor_s);
+            if(size > 1) {
+                memmove(inputstr + cursor_s, inputstr + cursor_s + size - 1, inputstr_size - cursor_s + size - 1);
+            }
+
             cursor_a -= (pad_state & BUTTON_R1) ? fast_scroll : 1;
             if (cursor_a < 0) cursor_a = alphabet_size + cursor_a;
             inputstr[cursor_s] = alphabet[cursor_a];
         } else if (pad_state & BUTTON_LEFT) {
-            if (cursor_s > 0) cursor_s--;
+            if (cursor_s > 0) cursor_s -= GetPrevCharSize(inputstr + cursor_s);
             cursor_a = -1;
         } else if (pad_state & BUTTON_RIGHT) {
-            if (cursor_s < max_size - 2) cursor_s++;
+            int size = cursor_s > inputstr_size ? 1 : GetCharSize(inputstr + cursor_s);
+            if (cursor_s + size < max_size - 1) cursor_s += size;
             if (cursor_s >= inputstr_size) {
                 memset(inputstr + cursor_s, alphabet[0], resize);
                 inputstr[cursor_s + resize] = '\0';

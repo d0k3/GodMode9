@@ -119,34 +119,50 @@ static void DrawKeyBoard(TouchBox* swkbd, const u32 uppercase) {
 }
 
 static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 cursor, u32* scroll) {
-    const u32 input_shown = (txtbox->w / FONT_WIDTH_EXT) - 2;
+    const u32 input_shown_length = (txtbox->w / FONT_WIDTH_EXT) - 2;
     const u32 inputstr_size = strlen(inputstr); // we rely on a zero terminated string
     const u16 x = txtbox->x;
     const u16 y = txtbox->y;
 
     // fix scroll
-    if (cursor < *scroll) *scroll = cursor;
-    else if (cursor - *scroll > input_shown) *scroll = cursor - input_shown;
+    if (cursor < *scroll) {
+        *scroll = cursor;
+    } else {
+        int scroll_adjust = -input_shown_length;
+        for (u32 i = *scroll; i < cursor; i++) {
+            if (i >= inputstr_size || (inputstr[i] & 0xC0) != 0x80) scroll_adjust++;
+        }
+
+        for (int i = 0; i < scroll_adjust; i++)
+            *scroll += *scroll >= inputstr_size ? 1 : GetCharSize(inputstr + *scroll);
+    }
+
+    u32 input_shown_size = 0;
+    for (u32 i = 0; i < input_shown_length || (*scroll + input_shown_size < inputstr_size && (inputstr[*scroll + input_shown_size] & 0xC0) == 0x80); input_shown_size++) {
+        if (*scroll + input_shown_size >= inputstr_size || (inputstr[*scroll + input_shown_size] & 0xC0) != 0x80) i++;
+    }
 
     // draw input string
-    DrawStringF(BOT_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%-*.*s%c",
+    DrawStringF(BOT_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c",
         (*scroll) ? '<' : '|',
-        (inputstr_size > input_shown) ? input_shown : inputstr_size,
-        (inputstr_size > input_shown) ? input_shown : inputstr_size,
+        input_shown_size,
+        input_shown_size,
         (*scroll > inputstr_size) ? "" : inputstr + *scroll,
-        (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
-        (inputstr_size > input_shown) ? 0 : input_shown - inputstr_size,
-        "",
-        (inputstr_size - (s32) *scroll > input_shown) ? '>' : '|'
+        (inputstr_size - (s32) *scroll > input_shown_size) ? '>' : '|'
     );
 
     // draw cursor
+    u16 cpos = 0;
+    for (u16 i = *scroll; i < cursor; i++) {
+        if (i >= inputstr_size || (inputstr[i] & 0xC0) != 0x80) cpos++;
+    }
+
     DrawStringF(BOT_SCREEN, x-(FONT_WIDTH_EXT/2), y+10, COLOR_STD_FONT, COLOR_STD_BG, "%-*.*s^%-*.*s",
-        1 + cursor - *scroll,
-        1 + cursor - *scroll,
+        1 + cpos,
+        1 + cpos,
         "",
-        input_shown - (cursor - *scroll),
-        input_shown - (cursor - *scroll),
+        input_shown_length - cpos,
+        input_shown_length - cpos,
         ""
     );
 }
@@ -163,8 +179,17 @@ static void MoveTextBoxCursor(const TouchBox* txtbox, const char* inputstr, cons
         const TouchBox* tb = TouchBoxGet(&id, x, y, txtbox, 0);
         if (id == KEY_TXTBOX) {
             u16 x_tb = x - tb->x;
-            u16 cpos = (x_tb < (FONT_WIDTH_EXT/2)) ? 0 : (x_tb - (FONT_WIDTH_EXT/2)) / FONT_WIDTH_EXT;
-            u32 cursor_next = *scroll + ((cpos <= input_shown) ? cpos : input_shown);
+
+            const u32 inputstr_size = strlen(inputstr);
+            const u16 cpos_x = (x_tb < (FONT_WIDTH_EXT/2)) ? 0 : (x_tb - (FONT_WIDTH_EXT/2)) / FONT_WIDTH_EXT;
+            u16 cpos_length = 0;
+            u16 cpos_size = 0;
+            while ((cpos_length < cpos_x && cpos_length < input_shown) || (*scroll + cpos_size < inputstr_size && (inputstr[*scroll + cpos_size] & 0xC0) == 0x80)) {
+                if (*scroll + cpos_size >= inputstr_size || (inputstr[*scroll + cpos_size] & 0xC0) != 0x80) cpos_length++;
+                cpos_size++;
+            }
+
+            u32 cursor_next = *scroll + cpos_size;
             // move cursor to position pointed to
             if (*cursor != cursor_next) {
                 if (cursor_next < max_size) *cursor = cursor_next;
@@ -173,10 +198,10 @@ static void MoveTextBoxCursor(const TouchBox* txtbox, const char* inputstr, cons
             }
             // move beyound visible field
             if (timer_msec(timer) >= scroll_cooldown) {
-                if ((cpos == 0) && (*scroll > 0))
-                    (*scroll)--;
-                else if ((cpos >= input_shown) && (*cursor < (max_size-1)))
-                    (*scroll)++;
+                if ((cpos_length == 0) && (*scroll > 0))
+                    *scroll -= GetPrevCharSize(inputstr + *scroll);
+                else if ((cpos_length >= input_shown) && (*cursor < (max_size-1)))
+                    *scroll += GetCharSize(inputstr + *scroll);
             }
         }
     }
@@ -286,16 +311,18 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
             break;
         } else if (key == KEY_BKSPC) {
             if (cursor) {
+                int size = GetPrevCharSize(inputstr + cursor);
                 if (cursor <= inputstr_size) {
-                    memmove(inputstr + cursor - 1, inputstr + cursor, inputstr_size - cursor + 1);
-                    inputstr_size--;
+                    memmove(inputstr + cursor - size, inputstr + cursor, inputstr_size - cursor + size);
+                    inputstr_size -= size;
                 }
-                cursor--;
+                cursor -= size;
             }
         } else if (key == KEY_LEFT) {
-            if (cursor) cursor--;
+            if (cursor) cursor -= GetPrevCharSize(inputstr + cursor);
         } else if (key == KEY_RIGHT) {
-            if (cursor < (max_size-1)) cursor++;
+            int size = cursor > inputstr_size ? 1 : GetCharSize(inputstr + cursor);
+            if (cursor + size < max_size) cursor += size;
         } else if (key == KEY_ALPHA) {
             swkbd = swkbd_alphabet;
         } else if (key == KEY_SPECIAL) {
