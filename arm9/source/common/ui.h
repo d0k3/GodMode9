@@ -66,6 +66,9 @@ void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcol
 void DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *format, ...);
 void DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...);
 
+u32 GetCharSize(const char* str);
+u32 GetPrevCharSize(const char* str);
+
 u32 GetDrawStringHeight(const char* str);
 u32 GetDrawStringWidth(const char* str);
 u32 GetFontWidth(void);
