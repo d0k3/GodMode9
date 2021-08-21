@@ -19,11 +19,12 @@ enum {
     KEY_RIGHT   = 0x89,
     KEY_ESCAPE  = 0x8A,
     KEY_SWITCH  = 0x8B,
+    KEY_UNICODE = 0x8C,
     KEY_TXTBOX  = 0xFF
 };
 
 // special key strings
-#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "←", "→", "ESC", "SWITCH"
+#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "←", "→", "ESC", "SWITCH", "U+"
 
 #define COLOR_SWKBD_NORMAL  COLOR_GREY
 #define COLOR_SWKBD_PRESSED COLOR_LIGHTGREY
@@ -56,7 +57,7 @@ enum {
     '4', '5', '6', 'D', 'C', \
     '3', '2', '1', 'B', 'A', \
     '0', '.', '_', KEY_LEFT, KEY_RIGHT, \
-    KEY_ALPHA, ' ', KEY_BKSPC
+    KEY_ALPHA, KEY_UNICODE, ' ', KEY_BKSPC
 
 // offset, num of keys in row, width of special keys (...), 0
 #define SWKBD_LAYOUT_ALPHABET \
@@ -80,7 +81,7 @@ enum {
     5, 0, \
     5, 0, \
     5, 18, 18, 0, \
-    3, 30, 34, 30, 0, \
+    4, 20, 20, 31, 20, 0, \
     0
 
 

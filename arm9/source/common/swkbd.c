@@ -3,6 +3,7 @@
 #include "swkbd.h"
 #include "timer.h"
 #include "hid.h"
+#include "utf.h"
 
 
 static inline char to_uppercase(char c) {
@@ -332,6 +333,30 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
         } else if (key == KEY_SWITCH) {
             ClearScreen(BOT_SCREEN, COLOR_STD_BG);
             return ShowStringPrompt(inputstr, max_size, str);
+        } else if (key == KEY_UNICODE) {
+            if (cursor > 3 && cursor <= inputstr_size) {
+                u16 codepoint = 0;
+                for (char *c = inputstr + cursor - 4; c < inputstr + cursor; c++) {
+                    if ((*c >= '0' && *c <= '9') || (*c >= 'A' && *c <= 'F') || (*c >= 'a' && *c <= 'f')) {
+                        codepoint <<= 4;
+                        codepoint |= *c - (*c <= '9' ? '0' : ((*c <= 'F' ? 'A' : 'a') - 10));
+                    } else {
+                        codepoint = 0;
+                        break;
+                    }
+                }
+
+                if(codepoint != 0) {
+                    char character[5] = {0};
+                    u16 input[2] = {codepoint, 0};
+                    utf16_to_utf8((u8*)character, input, 4, 1);
+
+                    u32 char_size = GetCharSize(character);
+                    memmove(inputstr + cursor - 4 + char_size, inputstr + cursor, max_size - cursor + 4 - char_size);
+                    memcpy(inputstr + cursor - 4, character, char_size);
+                    cursor -= 4 - char_size;
+                }
+            }
         } else if (key && (key < 0x80)) {
             if ((cursor < (max_size-1)) && (inputstr_size < max_size)) {
                 // pad string (if cursor beyound string size)
