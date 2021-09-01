@@ -20,3 +20,4 @@
 #include "bdri.h"
 #include "ticketdb.h"
 #include "ncchinfo.h"
+#include "cifinish.h"

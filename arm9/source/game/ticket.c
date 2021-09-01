@@ -74,7 +74,7 @@ u32 BuildVariableFakeTicket(Ticket** ticket, u32* ticket_size, const u8* title_i
     memset(_ticket->ecdsa, 0xFF, 0x3C);
     _ticket->version = 0x01;
     memset(_ticket->titlekey, 0xFF, 16);
-    memcpy(_ticket->title_id, title_id, 8);
+    if (title_id) memcpy(_ticket->title_id, title_id, 8);
     _ticket->commonkey_idx = 0x00; // eshop
     _ticket->audit = 0x01; // whatever
 

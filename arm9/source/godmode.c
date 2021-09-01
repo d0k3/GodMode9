@@ -1107,6 +1107,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         !(drvtype & DRV_TWLNAND) && !(drvtype & DRV_ALIAS) && !(drvtype & DRV_IMAGE);
     bool tik_installable = (FTYPE_TIKINSTALL(filetype)) && !(drvtype & DRV_IMAGE);
     bool tik_dumpable = (FTYPE_TIKDUMP(filetype));
+    bool cif_installable = (FTYPE_CIFINSTALL(filetype)) && !(drvtype & DRV_IMAGE);
     bool uninstallable = (FTYPE_UNINSTALL(filetype));
     bool cxi_dumpable = (FTYPE_CXIDUMP(filetype));
     bool tik_buildable = (FTYPE_TIKBUILD(filetype)) && !in_output_path;
@@ -1149,7 +1150,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable ||
         hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable ||
         keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable ||
-        agbimportable || cia_installable || tik_installable || tik_dumpable;
+        agbimportable || cia_installable || tik_installable || tik_dumpable || cif_installable;
 
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1211,6 +1212,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & SYS_TICKDB) ? "Ticket.db options..."  :
         (filetype & SYS_DIFF)   ? "Mount as DIFF image"   :
         (filetype & SYS_DISA)   ? "Mount as DISA image"   :
+        (filetype & BIN_CIFNSH) ? "Install cifinish.bin" :
         (filetype & BIN_TIKDB)  ? "Titlekey options..."   :
         (filetype & BIN_KEYDB)  ? "AESkeydb options..."   :
         (filetype & BIN_LEGKEY) ? "Build " KEYDB_NAME     :
@@ -1359,6 +1361,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int cia_install = (cia_installable) ? ++n_opt : -1;
     int tik_install = (tik_installable) ? ++n_opt : -1;
     int tik_dump = (tik_dumpable) ? ++n_opt : -1;
+    int cif_install = (cif_installable) ? ++n_opt : -1;
     int uninstall = (uninstallable) ? ++n_opt : -1;
     int tik_build_enc = (tik_buildable) ? ++n_opt : -1;
     int tik_build_dec = (tik_buildable) ? ++n_opt : -1;
@@ -1394,6 +1397,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (cia_install > 0) optionstr[cia_install-1] = "Install game image";
     if (tik_install > 0) optionstr[tik_install-1] = "Install ticket";
     if (tik_dump > 0) optionstr[tik_dump-1] = "Dump ticket file";
+    if (cif_install > 0) optionstr[cif_install-1] = "Install cifinish.bin";
     if (uninstall > 0) optionstr[uninstall-1] = "Uninstall title";
     if (tik_build_enc > 0) optionstr[tik_build_enc-1] = "Build " TIKDB_NAME_ENC;
     if (tik_build_dec > 0) optionstr[tik_build_dec-1] = "Build " TIKDB_NAME_DEC;
@@ -1602,8 +1606,11 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         }
         return 0;
     }
-    else if ((user_select == cia_install) || (user_select == tik_install)) { // -> install game/ticket file
-        bool install_tik = (user_select == tik_install);
+    else if ((user_select == cia_install) || (user_select == tik_install) ||
+             (user_select == cif_install)) { // -> install game/ticket/cifinish file
+        u32 (*InstallFunction)(const char*, bool) =
+            (user_select == cia_install) ? &InstallGameFile :
+            (user_select == tik_install) ? &InstallTicketFile : &InstallCifinishFile;
         bool to_emunand = false;
         if (CheckVirtualDrive("E:")) {
             optionstr[0] = "Install to SysNAND";
@@ -1626,8 +1633,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if ((!install_tik && (InstallGameFile(path, to_emunand) == 0)) ||
-                    (install_tik && (InstallTicketFile(path, to_emunand) == 0)))
+                if ((*InstallFunction)(path, to_emunand) == 0)
                     n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
@@ -1642,8 +1648,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     n_success, n_marked, n_other, n_marked);
             } else ShowPrompt(false, "%lu/%lu files installed ok", n_success, n_marked);
         } else {
-            u32 ret = install_tik ? InstallTicketFile(file_path, to_emunand) :
-                InstallGameFile(file_path, to_emunand);
+            u32 ret = (*InstallFunction)(file_path, to_emunand);
             ShowPrompt(false, "%s\nInstall %s", pathstr, (ret == 0) ? "success" : "failed");
             if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
                 ShowPrompt(true, "%s\nfile failed install.\n \nVerify now?", pathstr)) {

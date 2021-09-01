@@ -156,6 +156,9 @@ u64 IdentifyFileType(const char* path) {
         return BIN_KEYDB; // key database
     } else if ((sscanf(fname, "slot%02lXKey", &id) == 1) && (strncasecmp(ext, "bin", 4) == 0) && (fsize = 16) && (id < 0x40)) {
         return BIN_LEGKEY; // legacy key file
+    } else if ((strncmp((char*) data, CIFINISH_MAGIC, strlen(CIFINISH_MAGIC)) == 0) &&
+        (fsize == CIFINISH_SIZE((void*) data)) && (fsize > sizeof(CifinishHeader))) {
+        return BIN_CIFNSH;
     } else if (ValidateText((char*) data, (fsize > 0x200) ? 0x200 : fsize)) {
         u64 type = 0;
         if ((fsize < SCRIPT_MAX_SIZE) && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))

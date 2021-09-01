@@ -7,6 +7,7 @@ u32 CheckEncryptedGameFile(const char* path);
 u32 CryptGameFile(const char* path, bool inplace, bool encrypt);
 u32 BuildCiaFromGameFile(const char* path, bool force_legit);
 u32 InstallGameFile(const char* path, bool to_emunand);
+u32 InstallCifinishFile(const char* path, bool to_emunand);
 u32 InstallTicketFile(const char* path, bool to_emunand);
 u32 DumpTicketForGameFile(const char* path, bool force_legit);
 u32 DumpCxiSrlFromGameFile(const char* path);

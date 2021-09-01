@@ -2891,6 +2891,82 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
     return ret;
 }
 
+u32 InstallCifinishFile(const char* path, bool to_emunand) {
+    u8 ALIGN(4) seeddb_storage[sizeof(SeedInfo) + sizeof(SeedInfoEntry)];
+    SeedInfo* seeddb = (SeedInfo*) (void*) seeddb_storage;
+    TicketCommon ticket;
+    u32 ret = 0;
+
+    // sanity check / preparations
+    if (!(IdentifyFileType(path) & BIN_CIFNSH)) return 1;
+    if (BuildFakeTicket((Ticket*) &ticket, NULL) != 0) return 1;
+    seeddb->n_entries = 1;
+
+    // check ticket db
+    char path_ticketdb[32];
+    if ((GetInstallDbsPath(path_ticketdb, to_emunand ? "4:" : "1:", "ticket.db") != 0) || !fvx_qsize(path_ticketdb)) {
+        ShowPrompt(false, "Install error:\nThis system is missing the\nticket.db file.");
+        return 1;
+    }
+
+    // check permissions for SysNAND (this includes everything we need)
+    if (!CheckWritePermissions(to_emunand ? "4:" : "1:")) return 1;
+
+    // store mount path
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
+
+    // load the entire cifinish file into memory
+    CifinishHeader* cifinish = (CifinishHeader*) malloc(fvx_qsize(path));
+    CifinishTitle* cftitle = (CifinishTitle*) (cifinish+1);
+    if (!cifinish) return 1;
+    if (fvx_qread(path, cifinish, 0, fvx_qsize(path), NULL) != FR_OK) {
+        free(cifinish);
+        return 1;
+    }
+
+    // process tickets for the entire cifinish file
+    if (!ShowProgress(0, 0, path)) ret = 1;
+    if (!InitImgFS(path_ticketdb)) ret = 1;
+    for (u32 i = 0; !ret && (i < cifinish->n_entries); i++) {
+        // sanity
+        if (strncmp(cftitle[i].magic, CIFINISH_TITLE_MAGIC, strlen(CIFINISH_TITLE_MAGIC)) != 0) {
+            ret = 1;
+            continue;
+        }
+        // check for forbidden title id (the "too large dlc")
+        if ((TITLE_MAX_CONTENTS <= 1024) && (cftitle[i].title_id == 0x0004008C000CBD00)) {
+            ShowPrompt(false, "Skipped title:\nTitle with id 0004008C000CBD00\nneeds special compiler flags.");
+            ShowProgress(0, 0, path);
+            continue;
+        }
+        if (!ShowProgress(i, cifinish->n_entries, path)) ret = 1;
+        // insert ticket with correct title id
+        for (u32 t = 0; t < 8; t++)
+            ticket.title_id[7-t] = (cftitle[i].title_id >> (8*t)) & 0xFF;
+        AddTicketToDB(PART_PATH, ticket.title_id, (Ticket*) &ticket, false);
+    }
+
+    // process seeds for the entire cifinish file
+    if (!ShowProgress(0, 0, path)) ret = 1;
+    for (u32 i = 0; !ret && (i < cifinish->n_entries); i++) {
+        if (!ShowProgress(i, cifinish->n_entries, path)) ret = 1;
+        if ((TITLE_MAX_CONTENTS <= 1024) && (cftitle[i].title_id == 0x0004008C000CBD00)) continue;
+        if (!cftitle[i].has_seed) continue;
+        seeddb->entries[0].titleId = cftitle[i].title_id;
+        memcpy(&(seeddb->entries[0].seed), cftitle[i].seed, sizeof(Seed));
+        ret = InstallSeedDbToSystem(seeddb, to_emunand);
+    }
+
+    // cleanup
+    InitImgFS(path_bak);
+    free(cifinish);
+
+    return ret;
+}
+
 u32 InstallTicketFile(const char* path, bool to_emunand) {
     // sanity check
     if (!(IdentifyFileType(path) & GAME_TICKET))
