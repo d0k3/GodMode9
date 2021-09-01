@@ -2040,9 +2040,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == font) { // set font
-        u8* font = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+        u8* font = (u8*) malloc(0x20000); // arbitrary, should be enough by far
         if (!font) return 1;
-        u32 font_size = FileGetData(file_path, font, 0x10000, 0);
+        u32 font_size = FileGetData(file_path, font, 0x20000, 0);
         if (font_size) SetFont(font, font_size);
         ClearScreenF(true, true, COLOR_STD_BG);
         free(font);
@@ -2305,9 +2305,9 @@ u32 GodMode(int entrypoint) {
 
     // custom font handling
     if (CheckSupportFile("font.frf")) {
-        u8* riff = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+        u8* riff = (u8*) malloc(0x20000); // arbitrary, should be enough by far
         if (riff) {
-            u32 riff_size = LoadSupportFile("font.frf", riff, 0x10000);
+            u32 riff_size = LoadSupportFile("font.frf", riff, 0x20000);
             if (riff_size) SetFont(riff, riff_size);
             free(riff);
         }
