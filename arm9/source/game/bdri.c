@@ -369,7 +369,7 @@ static u32 AddBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_offse
 
         // If an entry for the tid already existed that is already the specified size and replace was specified, just replace the existing entry
         if (memcmp(title_id_be, file_entry.title_id, 8) == 0) {
-            if (!replace || (file_entry.size != size)) return 1;
+            if (!replace || (file_entry.size != size)) return 2;
             else {
                 do_replace = true;
                 break;
@@ -864,10 +864,15 @@ u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bo
 
     bdrifp = &file;
 
+    u32 add_bdri_res = 0;
+
     if ((BDRIRead(0, sizeof(TickDBPreHeader), &pre_header) != FR_OK) ||
         !CheckDBMagic((u8*) &pre_header, true) ||
-        (AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id,
-            (const u8*) te, entry_size, replace) != 0)) {
+        ((add_bdri_res = AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id,
+            (const u8*) te, entry_size, replace)) == 1) ||
+        (add_bdri_res == 2 && ((RemoveBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id) != 0) ||
+            (AddBDRIEntry(&(pre_header.fs_header), sizeof(TickDBPreHeader) - sizeof(BDRIFsHeader), title_id,
+            (const u8*) te, entry_size, replace) != 0)))) {
         free(te);
         fvx_close(bdrifp);
         bdrifp = NULL;
