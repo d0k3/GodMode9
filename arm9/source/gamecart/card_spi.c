@@ -88,6 +88,9 @@ const CardSPITypeData flashTypes[] = {
 
     // This is the most common type of flash 3DS cartridges. Not normally found in DS ones, but check anyway. (Custom MXIC chips)
     { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0xC222, 0, 4096, 32, 4096, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
+
+    // Found this in some copies of ArtAcademy, I think it's something from MXIC (Thank you for the help @FerozElMejor on Discord)
+    { CardSPIEnableWriting_regular, CardSPIReadSaveData_24bit, CardSPIWriteSaveData_24bit_erase_program, CardSPIEraseSector_real, 0xC220, 0, 4096, 32, 4096, SPI_FLASH_CMD_PW, SPI_CMD_PP, SPI_FLASH_CMD_MXIC_SE },
 };
 
 const CardSPITypeData * const FLASH_CTR_GENERIC = flashTypes + 5;
@@ -167,7 +170,7 @@ int _SPIWriteTransaction(CardSPIType type, void* cmd, u32 cmdSize, const void* d
     int res;
     if ((res = CardSPIEnableWriting(type))) return res;
     if ((res = CardSPIWriteRead(type.infrared, cmd, cmdSize, NULL, 0, (void*) ((u8*) data), dataSize))) return res;
-    return CardSPIWaitWriteEnd(type.infrared, 1000);
+    return CardSPIWaitWriteEnd(type.infrared, 10000);
 }
 
 int CardSPIReadJEDECIDAndStatusReg(bool infrared, u32* id, u8* statusReg) {
