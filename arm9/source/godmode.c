@@ -1158,6 +1158,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
     int textviewer = (filetype & TXT_GENERIC) ? ++n_opt : -1;
+    int tocviewer = (filetype & TXT_MD) ? ++n_opt : -1;
     int calcsha = ++n_opt;
     int calccmac = (CheckCmacPath(file_path) == 0) ? ++n_opt : -1;
     int fileinfo = ++n_opt;
@@ -1213,6 +1214,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     optionstr[calcsha-1] = "Calculate SHA-256";
     optionstr[fileinfo-1] = "Show file info";
     if (textviewer > 0) optionstr[textviewer-1] = "Show in Textviewer";
+    if (tocviewer > 0) optionstr[tocviewer-1] = "Show in MD ToCviewer";
     if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
     if (copystd > 0) optionstr[copystd-1] = "Copy to " OUTPUT_PATH;
     if (inject > 0) optionstr[inject-1] = "Inject data @offset";
@@ -1228,6 +1230,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == textviewer) { // -> show in text viewer
         FileTextViewer(file_path, scriptable);
+        return 0;
+    }
+    else if (user_select == tocviewer) { // -> show in MD ToC viewer
+	u32 flen, len;
+
+        char* text = malloc(STD_BUFFER_SIZE);
+        if (!text) return false;
+
+    	flen = FileGetData(file_path, text, STD_BUFFER_SIZE - 1, 0);
+
+    	text[flen] = '\0';
+        len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
+
+        // let MemToCViewer take over
+
+        MemToCViewer(text, len, "Table of Content");
+	free(text);
         return 0;
     }
     else if (user_select == calcsha) { // -> calculate SHA-256
@@ -1551,7 +1570,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (((user_select != cxi_dump) && (BuildCiaFromGameFile(path, force_legit) == 0)) ||
-                    ((user_select == cxi_dump) && (DumpCxiSrlFromGameFile(path) == 0))) n_success++;
+                    ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(path) == 0))) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[32+1];
                     TruncateString(lpathstr, path, 32, 8);
@@ -1571,7 +1590,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             }
         } else {
             if (((user_select != cxi_dump) && (BuildCiaFromGameFile(file_path, force_legit) == 0)) ||
-                ((user_select == cxi_dump) && (DumpCxiSrlFromGameFile(file_path) == 0))) {
+                ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(file_path) == 0))) {
                 ShowPrompt(false, "%s\n%s built to %s", pathstr, type, OUTPUT_PATH);
                 if (in_output_path) GetDirContents(current_dir, current_path);
             } else {
@@ -2230,7 +2249,9 @@ u32 HomeMoreMenu(char* current_path) {
     }
     else if (user_select == readme) { // Display GodMode9 readme
         u64 README_md_size;
-        char* README_md = FindVTarFileInfo(VRAM0_README_MD, &README_md_size);
+	char readme_file[50];
+	ShowKeyboard(readme_file,50,"Select a .md file to view: ");
+        char* README_md = FindVTarFileInfo(readme_file, &README_md_size);
         MemToCViewer(README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
     } else return 1;

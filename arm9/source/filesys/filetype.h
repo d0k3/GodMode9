@@ -37,6 +37,7 @@
 #define FONT_PBM    (1ULL<<32)
 #define NOIMG_NAND  (1ULL<<33)
 #define HDR_NAND    (1ULL<<34)
+#define TXT_MD	    (1ULL<<35)
 #define TYPE_BASE   0xFFFFFFFFFFULL // 40 bit reserved for base types
 
 // #define FLAG_FIRM   (1ULL<<58) // <--- for CXIs containing FIRMs
@@ -55,7 +56,7 @@
 #define FTYPE_CIAINSTALL(tp)    ((tp&(GAME_NCSD|GAME_NCCH|GAME_CIA|GAME_CDNTMD|GAME_TWLTMD)) || ((tp&GAME_NDS)&&(tp&(FLAG_DSIW))))
 #define FTYPE_TIKINSTALL(tp)    (tp&(GAME_TICKET))
 #define FTYPE_TIKDUMP(tp)       (tp&(GAME_TIE))
-#define FTYPE_CXIDUMP(tp)       (tp&(GAME_TMD|GAME_TIE))
+#define FTYPE_CXIDUMP(tp)       (tp&(GAME_TMD))
 #define FTYPE_UNINSTALL(tp)     (tp&(GAME_TIE))
 #define FTYPE_TIKBUILD(tp)      (tp&(GAME_TICKET|SYS_TICKDB|BIN_TIKDB))
 #define FTYPE_KEYBUILD(tp)      (tp&(BIN_KEYDB|BIN_LEGKEY))

@@ -3020,22 +3020,6 @@ u32 DumpCxiSrlFromTmdFile(const char* path) {
     return 0;
 }
 
-u32 DumpCxiSrlFromGameFile(const char* path) {
-    u64 filetype = IdentifyFileType(path);
-    const char* path_tmd = path;
-    char path_data[256];
-    if (!(filetype & (GAME_TIE|GAME_TMD)))
-        return 1;
-
-    if (filetype & GAME_TIE) {
-        if (GetTieTmdPath(path_data, path) != 0)
-            return 1;
-        path_tmd = path_data;
-    }
-    
-    return DumpCxiSrlFromTmdFile(path_tmd);
-}
-
 u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr) {
     u64 filetype = IdentifyFileType(path);
     char dest[256];
@@ -3218,7 +3202,7 @@ u64 GetGameFileTrimmedSize(const char* path) {
             return 0;
         if (hdr.unit_code != 0x00) // DSi or NDS+DSi
             trimsize = hdr.ntr_twl_rom_size;
-        else trimsize = hdr.ntr_rom_size + 0x88; // regular NDS
+        else trimsize = hdr.ntr_rom_size; // regular NDS
     } else {
         u8 hdr[0x200];
         if (fvx_qread(path, &hdr, 0, 0x200, NULL) != FR_OK)
