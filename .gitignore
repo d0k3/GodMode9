@@ -5,6 +5,8 @@
 *.obj
 *.elf
 *.map
+# bash for cycles output
+*.log
 
 # Precompiled Headers
 *.gch

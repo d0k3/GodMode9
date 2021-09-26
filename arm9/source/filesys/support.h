@@ -2,9 +2,10 @@
 
 #include "common.h"
 
-// scripts / payloads dir names
+// scripts / payloads / markdown dir names
 #define SCRIPTS_DIR     "scripts"
 #define PAYLOADS_DIR    "payloads"
+#define MDFILES_DIR	"markdown"
 
 bool CheckSupportFile(const char* fname);
 size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len);

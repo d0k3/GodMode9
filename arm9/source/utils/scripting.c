@@ -1802,7 +1802,23 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
 
     return true;
 }
+bool MDToCViewer(const char* file_path){
+	u32 flen, len;
 
+        char* text = malloc(STD_BUFFER_SIZE);
+        if (!text) return false;
+
+        flen = FileGetData(file_path, text, STD_BUFFER_SIZE - 1, 0);
+
+        text[flen] = '\0';
+        len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
+
+        // let MemToCViewer take over
+
+        bool result=MemToCViewer(text, len, "Table of Content");
+        free(text);
+        return result;
+}
 bool FileTextViewer(const char* path, bool as_script) {
     // load text file (completely into memory)
     // text file needs to fit inside the STD_BUFFER_SIZE

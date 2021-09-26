@@ -1233,20 +1233,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == tocviewer) { // -> show in MD ToC viewer
-	u32 flen, len;
-
-        char* text = malloc(STD_BUFFER_SIZE);
-        if (!text) return false;
-
-    	flen = FileGetData(file_path, text, STD_BUFFER_SIZE - 1, 0);
-
-    	text[flen] = '\0';
-        len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
-
-        // let MemToCViewer take over
-
-        MemToCViewer(text, len, "Table of Content");
-	free(text);
+	MDToCViewer(file_path);
         return 0;
     }
     else if (user_select == calcsha) { // -> calculate SHA-256
@@ -2771,6 +2758,7 @@ u32 GodMode(int entrypoint) {
             int titleman = ++n_opt;
             int scripts = ++n_opt;
             int payloads = ++n_opt;
+	    int mdfiles = ++n_opt;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = "Poweroff system";
             if (reboot > 0) optionstr[reboot - 1] = "Reboot system";
@@ -2778,6 +2766,7 @@ u32 GodMode(int entrypoint) {
             if (brick > 0) optionstr[brick - 1] = "Brick my 3DS";
             if (scripts > 0) optionstr[scripts - 1] = "Scripts...";
             if (payloads > 0) optionstr[payloads - 1] = "Payloads...";
+	    if (mdfiles > 0) optionstr[mdfiles - 1] = "Markdown...";
             if (more > 0) optionstr[more - 1] = "More...";
 
             int user_select = 0;
@@ -2826,6 +2815,12 @@ u32 GodMode(int entrypoint) {
                     if (!CheckSupportDir(PAYLOADS_DIR)) ShowPrompt(false, "Payloads directory not found.\n(default path: 0:/gm9/" PAYLOADS_DIR ")");
                     else if (FileSelectorSupport(loadpath, "HOME payloads... menu.\nSelect payload:", PAYLOADS_DIR, "*.firm"))
                         BootFirmHandler(loadpath, false, false);
+		} else if (user_select == mdfiles) {
+		    if (!CheckSupportDir(MDFILES_DIR)) ShowPrompt(false, "Markdown directory not found.\n(default path: 0:/gm9/" MDFILES_DIR ")");
+                    else if (FileSelectorSupport(loadpath, "HOME markdown... menu.\nSelect markdown:", MDFILES_DIR, "*.md"))
+			MDToCViewer(loadpath);
+			ClearScreenF(true, true, COLOR_STD_BG);
+			break;
                 } else if (user_select == brick) {
                     Paint9(); // hiding a secret here
                     ClearScreenF(true, true, COLOR_STD_BG);
