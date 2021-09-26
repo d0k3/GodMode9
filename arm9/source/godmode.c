@@ -1570,7 +1570,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if (((user_select != cxi_dump) && (BuildCiaFromGameFile(path, force_legit) == 0)) ||
-                    ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(path) == 0))) n_success++;
+                    ((user_select == cxi_dump) && (DumpCxiSrlFromGameFile(path) == 0))) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[32+1];
                     TruncateString(lpathstr, path, 32, 8);
@@ -1590,7 +1590,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             }
         } else {
             if (((user_select != cxi_dump) && (BuildCiaFromGameFile(file_path, force_legit) == 0)) ||
-                ((user_select == cxi_dump) && (DumpCxiSrlFromTmdFile(file_path) == 0))) {
+                ((user_select == cxi_dump) && (DumpCxiSrlFromGameFile(file_path) == 0))) {
                 ShowPrompt(false, "%s\n%s built to %s", pathstr, type, OUTPUT_PATH);
                 if (in_output_path) GetDirContents(current_dir, current_path);
             } else {
