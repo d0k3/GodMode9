@@ -117,6 +117,7 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Chainload FIRM payloads__: Press the A button on a FIRM file, select `FIRM options` -> `Boot FIRM`. Keep in mind you should not run FIRMs from dubious sources and that the write permissions system is no longer in place after booting a payload.
 * __Chainload FIRM payloads from a neat menu__: The `payloads` menu is found inside the HOME button menu. It provides any FIRM found in `0:/gm9/payloads` for quick chainloading.
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
+* __(NEW!) View .md files via a neat menu__: Press the HOME button, select `More...` -> `Scripts...`. Any script you put into `0:/gm9/markdown/` (subdirs included) will be found here.
 
 ### Scripting functionality
 * __Run .gm9 scripts from anywhere on your SD card__: You can run scripts in .gm9 format via the A button menu. .gm9 scripts use a shell-like language and can be edited in any text editor. For an overview of usable commands have a look into the sample scripts included in the release archive. *Don't run scripts from untrusted sources.*
