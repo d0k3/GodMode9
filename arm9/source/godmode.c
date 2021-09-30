@@ -842,37 +842,46 @@ u32 FileHexViewer(const char* path) {
     return 0;
 }
 
-u32 Sha256Calculator(const char* path) {
+u32 ShaCalculator(const char* path, bool sha1) {
+    const u8 hashlen = sha1 ? 20 : 32;
     u32 drvtype = DriveType(path);
     char pathstr[32 + 1];
-    u8 sha256[32];
+    u8 hash[32];
     TruncateString(pathstr, path, 32, 8);
-    if (!FileGetSha256(path, sha256, 0, 0)) {
-        ShowPrompt(false, "Calculating SHA-256: failed!");
+    if (!FileGetSha(path, hash, 0, 0, sha1)) {
+        ShowPrompt(false, "Calculating SHA-%s: failed!", sha1 ? "1" : "256");
         return 1;
     } else {
         static char pathstr_prev[32 + 1] = { 0 };
-        static u8 sha256_prev[32] = { 0 };
+        static u8 hash_prev[32] = { 0 };
         char sha_path[256];
-        u8 sha256_file[32];
+        u8 sha_file[32];
 
-        snprintf(sha_path, 256, "%s.sha", path);
-        bool have_sha = (FileGetData(sha_path, sha256_file, 32, 0) == 32);
-        bool match_sha = have_sha && (memcmp(sha256, sha256_file, 32) == 0);
-        bool match_prev = (memcmp(sha256, sha256_prev, 32) == 0);
+        snprintf(sha_path, 256, "%s.sha%c", path, sha1 ? '1' : '\0');
+        bool have_sha = (FileGetData(sha_path, sha_file, hashlen, 0) == hashlen);
+        bool match_sha = have_sha && (memcmp(hash, sha_file, hashlen) == 0);
+        bool match_prev = (memcmp(hash, hash_prev, hashlen) == 0);
         bool write_sha = (!have_sha || !match_sha) && (drvtype & DRV_SDCARD); // writing only on SD
-        if (ShowPrompt(write_sha, "%s\n%016llX%016llX\n%016llX%016llX%s%s%s%s%s",
-            pathstr, getbe64(sha256 + 0), getbe64(sha256 + 8), getbe64(sha256 + 16), getbe64(sha256 + 24),
+        char hash_str[32+1+32+1];
+        if (sha1)
+            snprintf(hash_str, 40+1, "%016llX%016llX%08lX", getbe64(hash + 0), getbe64(hash + 8),
+            getbe32(hash + 16));
+        else
+            snprintf(hash_str, 32+1+32+1, "%016llX%016llX\n%016llX%016llX", getbe64(hash + 0), getbe64(hash + 8),
+            getbe64(hash + 16), getbe64(hash + 24));
+        if (ShowPrompt(write_sha, "%s\n%s%s%s%s%s%c \nWrite .SHA%s file?",
+            pathstr, hash_str,
             (have_sha) ? "\nSHA verification: " : "",
             (have_sha) ? ((match_sha) ? "passed!" : "failed!") : "",
             (match_prev) ? "\n \nIdentical with previous file:\n" : "",
             (match_prev) ? pathstr_prev : "",
-            (write_sha) ? "\n \nWrite .SHA file?" : "") && write_sha) {
-            FileSetData(sha_path, sha256, 32, 0, true);
+            (write_sha) ? '\n' : '\0',
+            (sha1) ? "1" : "") && write_sha) {
+            FileSetData(sha_path, hash, hashlen, 0, true);
         }
 
         strncpy(pathstr_prev, pathstr, 32 + 1);
-        memcpy(sha256_prev, sha256, 32);
+        memcpy(hash_prev, hash, hashlen);
     }
 
     return 0;
@@ -1158,7 +1167,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int special = (special_opt) ? ++n_opt : -1;
     int hexviewer = ++n_opt;
     int textviewer = (filetype & TXT_GENERIC) ? ++n_opt : -1;
-    int calcsha = ++n_opt;
+    int calcsha256 = ++n_opt;
+    int calcsha1 = ++n_opt;
     int calccmac = (CheckCmacPath(file_path) == 0) ? ++n_opt : -1;
     int fileinfo = ++n_opt;
     int copystd = (!in_output_path) ? ++n_opt : -1;
@@ -1170,7 +1180,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int titleman = -1;
     if (DriveType(current_path) & DRV_TITLEMAN) {
         // special case: title manager (disable almost everything)
-        hexviewer = textviewer = calcsha = calccmac = fileinfo = copystd = inject = searchdrv = -1;
+        hexviewer = textviewer = calcsha256 = calcsha1 = calccmac = fileinfo = copystd = inject = searchdrv = -1;
         special = 1;
         titleman = 2;
         n_opt = 2;
@@ -1210,7 +1220,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & HDR_NAND)   ? "Rebuild NCSD header"   :
         (filetype & NOIMG_NAND) ? "Rebuild NCSD header" : "???";
     optionstr[hexviewer-1] = "Show in Hexeditor";
-    optionstr[calcsha-1] = "Calculate SHA-256";
+    optionstr[calcsha256-1] = "Calculate SHA-256";
+    optionstr[calcsha1-1] = "Calculate SHA-1";
     optionstr[fileinfo-1] = "Show file info";
     if (textviewer > 0) optionstr[textviewer-1] = "Show in Textviewer";
     if (calccmac > 0) optionstr[calccmac-1] = "Calculate CMAC";
@@ -1230,8 +1241,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         FileTextViewer(file_path, scriptable);
         return 0;
     }
-    else if (user_select == calcsha) { // -> calculate SHA-256
-        Sha256Calculator(file_path);
+    else if (user_select == calcsha256) { // -> calculate SHA-256
+        ShaCalculator(file_path, false);
+        GetDirContents(current_dir, current_path);
+        return 0;
+    }
+    else if (user_select == calcsha1) { // -> calculate SHA-1
+        ShaCalculator(file_path, true);
         GetDirContents(current_dir, current_path);
         return 0;
     }

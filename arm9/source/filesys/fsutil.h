@@ -7,12 +7,13 @@
 #define NO_CANCEL       (1UL<<1)
 #define SILENT          (1UL<<2)
 #define CALC_SHA        (1UL<<3)
-#define BUILD_PATH      (1UL<<4)
-#define ALLOW_EXPAND    (1UL<<5)
-#define ASK_ALL         (1UL<<6)
-#define SKIP_ALL        (1UL<<7)
-#define OVERWRITE_ALL   (1UL<<8)
-#define APPEND_ALL      (1UL<<9)
+#define USE_SHA1        (1UL<<4)
+#define BUILD_PATH      (1UL<<5)
+#define ALLOW_EXPAND    (1UL<<6)
+#define ASK_ALL         (1UL<<7)
+#define SKIP_ALL        (1UL<<8)
+#define OVERWRITE_ALL   (1UL<<9)
+#define APPEND_ALL      (1UL<<10)
 
 // file selector flags
 #define NO_DIRS         (1UL<<0)
@@ -43,7 +44,7 @@ size_t FileGetData(const char* path, void* data, size_t size, size_t foffset);
 size_t FileGetSize(const char* path);
 
 /** Get SHA-256 of file **/
-bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size);
+bool FileGetSha(const char* path, u8* hash, u64 offset, u64 size, bool sha1);
 
 /** Find data in file **/
 u32 FileFindData(const char* path, u8* data, u32 size_data, u32 offset_file);

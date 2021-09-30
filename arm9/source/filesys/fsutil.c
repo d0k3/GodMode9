@@ -161,7 +161,7 @@ size_t FileGetSize(const char* path) {
     return fno.fsize;
 }
 
-bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size) {
+bool FileGetSha(const char* path, u8* hash, u64 offset, u64 size, bool sha1) {
     bool ret = true;
     FIL file;
     u64 fsize;
@@ -179,7 +179,7 @@ bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size) {
     if (!buffer) return false;
 
     ShowProgress(0, 0, path);
-    sha_init(SHA256_MODE);
+    sha_init(sha1 ? SHA1_MODE : SHA256_MODE);
     for (u64 pos = 0; (pos < size) && ret; pos += bufsiz) {
         UINT read_bytes = min(bufsiz, size - pos);
         UINT bytes_read = 0;
@@ -190,7 +190,7 @@ bool FileGetSha256(const char* path, u8* sha256, u64 offset, u64 size) {
         sha_update(buffer, bytes_read);
     }
 
-    sha_get(sha256);
+    sha_get(hash);
     fvx_close(&file);
     free(buffer);
 
@@ -448,6 +448,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
     bool silent = (flags && (*flags & SILENT));
     bool append = (flags && (*flags & APPEND_ALL));
     bool calcsha = (flags && (*flags & CALC_SHA) && !append);
+    bool sha1 = (flags && (*flags & USE_SHA1));
     bool ret = false;
 
     // check destination write permission (special paths only)
@@ -552,7 +553,7 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         fvx_lseek(&ofile, 0);
         fvx_sync(&ofile);
 
-        if (calcsha) sha_init(SHA256_MODE);
+        if (calcsha) sha_init(sha1 ? SHA1_MODE : SHA256_MODE);
         for (u64 pos = 0; (pos < osize) && ret; pos += bufsiz) {
             UINT bytes_read = 0;
             UINT bytes_written = 0;
@@ -580,11 +581,11 @@ bool PathMoveCopyRec(char* dest, char* orig, u32* flags, bool move, u8* buffer, 
         if (!ret && ((dsize == 0) || (fvx_lseek(&dfile, dsize) != FR_OK) || (f_truncate(&dfile) != FR_OK))) {
             fvx_unlink(dest);
         } else if (!to_virtual && calcsha) {
-            u8 sha256[0x20];
+            u8 hash[0x20];
             char* ext_sha = dest + strnlen(dest, 256);
-            strncpy(ext_sha, ".sha", 256 - (ext_sha - dest));
-            sha_get(sha256);
-            FileSetData(dest, sha256, 0x20, 0, true);
+            snprintf(ext_sha, 256 - (ext_sha - dest), ".sha%c", sha1 ? '1' : '\0');
+            sha_get(hash);
+            FileSetData(dest, hash, sha1 ? 20 : 32, 0, true);
         }
     }
 
