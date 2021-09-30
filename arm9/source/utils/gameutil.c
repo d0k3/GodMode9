@@ -895,7 +895,7 @@ u32 VerifyTadFile(const char* path) {
         u8 hash[32];
         u32 len = align(hdr->content_size[i], 0x10);
         if (!len) continue; // non-existant section
-        if (!FileGetSha256(path, hash, content_start, len) ||
+        if (!FileGetSha(path, hash, content_start, len, false) ||
             (memcmp(hash, ftr->content_sha256[i], 32) != 0))
             return 1;
         content_start += len + sizeof(TadBlockMetaData);

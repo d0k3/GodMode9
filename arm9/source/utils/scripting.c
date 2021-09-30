@@ -59,7 +59,7 @@
 // some useful macros
 #define IS_WHITESPACE(c)    ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
 #define MATCH_STR(s,l,c)    ((l == strlen(c)) && (strncmp(s, c, l) == 0))
-#define _FLG(c)             ((c >= 'a') ? (1 << (c - 'a')) : 0)
+#define _FLG(c)             ((c >= 'a') ? (1 << (c - 'a')) : ((c >= '0') ? (1 << (26 + c - '0')) : 0))
 
 #define IS_CTRLFLOW_CMD(id) ((id == CMD_ID_IF) || (id == CMD_ID_ELIF) || (id == CMD_ID_ELSE) || (id == CMD_ID_END) || \
     (id == CMD_ID_GOTO) || (id == CMD_ID_LABELSEL) || \
@@ -163,7 +163,7 @@ static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_STRREP  , "strrep"  , 3, 0 },
     { CMD_ID_CHK     , "chk"     , 2, _FLG('u') },
     { CMD_ID_ALLOW   , "allow"   , 1, _FLG('a') },
-    { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') | _FLG('p')},
+    { CMD_ID_CP      , "cp"      , 2, _FLG('h') | _FLG('1') | _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') | _FLG('p')},
     { CMD_ID_MV      , "mv"      , 2, _FLG('w') | _FLG('k') | _FLG('s') | _FLG('n') },
     { CMD_ID_INJECT  , "inject"  , 2, _FLG('n') },
     { CMD_ID_FILL    , "fill"    , 2, _FLG('n') },
@@ -176,8 +176,8 @@ static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_FINDNOT , "findnot" , 2, 0 },
     { CMD_ID_FGET    , "fget"    , 2, _FLG('e') },
     { CMD_ID_FSET    , "fset"    , 2, _FLG('e') },
-    { CMD_ID_SHA     , "sha"     , 2, 0 },
-    { CMD_ID_SHAGET  , "shaget"  , 2, 0 },
+    { CMD_ID_SHA     , "sha"     , 2, _FLG('1') },
+    { CMD_ID_SHAGET  , "shaget"  , 2, _FLG('1') },
     { CMD_ID_DUMPTXT , "dumptxt" , 2, _FLG('p') },
     { CMD_ID_FIXCMAC , "fixcmac" , 1, 0 },
     { CMD_ID_VERIFY  , "verify"  , 1, 0 },
@@ -584,6 +584,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
 
     if ((len < 2) || (*str != '-')) flag_char = '\0';
     else if (len == 2) flag_char = str[1];
+    else if (strncmp(str, "--sha1", len) == 0) flag_char = '1';
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
     else if (strncmp(str, "--include_dirs", len) == 0) flag_char = 'd';
@@ -603,7 +604,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--overwrite", len) == 0) flag_char = 'w';
     else if (strncmp(str, "--explorer", len) == 0) flag_char = 'x';
 
-    if ((flag_char < 'a') && (flag_char > 'z')) {
+    if (((flag_char < 'a') || (flag_char > 'z')) && ((flag_char < '0') || (flag_char > '5'))) {
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "illegal flag");
         return 0;
     }
@@ -1150,6 +1151,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
         if (flags & _FLG('h')) flags_ext |= CALC_SHA;
+        if (flags & _FLG('1')) flags_ext |= USE_SHA1;
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         if (flags & _FLG('s')) flags_ext |= SILENT;
         if (flags & _FLG('w')) flags_ext |= OVERWRITE_ALL;
@@ -1291,30 +1293,36 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
     }
     else if (id == CMD_ID_SHA) {
-        u8 sha256_fil[0x20];
-        u8 sha256_cmp[0x20];
-        if (!FileGetSha256(argv[0], sha256_fil, at_org, sz_org)) {
+        const u8 hashlen = (flags & _FLG('1')) ? 20 : 32;
+        u8 hash_fil[0x20];
+        u8 hash_cmp[0x20];
+        if (!FileGetSha(argv[0], hash_fil, at_org, sz_org, flags & _FLG('1'))) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
-        } else if ((FileGetData(argv[1], sha256_cmp, 0x20, 0) != 0x20) && !strntohex(argv[1], sha256_cmp, 0x20)) {
+        } else if ((FileGetData(argv[1], hash_cmp, hashlen, 0) != hashlen) && !strntohex(argv[1], hash_cmp, hashlen)) {
             ret = false;
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg1 fail");
         } else {
-            ret = (memcmp(sha256_fil, sha256_cmp, 0x20) == 0);
+            ret = (memcmp(hash_fil, hash_cmp, hashlen) == 0);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha does not match");
         }
     }
     else if (id == CMD_ID_SHAGET) {
-        u8 sha256_fil[0x20];
-        if (!(ret = FileGetSha256(argv[0], sha256_fil, at_org, sz_org))) {
+        const u8 hashlen = (flags & _FLG('1')) ? 20 : 32;
+        u8 hash_fil[0x20];
+        if (!(ret = FileGetSha(argv[0], hash_fil, at_org, sz_org, flags & _FLG('1')))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
         } else if (!strchr(argv[1], ':')) {
-            char sha256_str[64+1];
-            snprintf(sha256_str, 64+1, "%016llX%016llX%016llX%016llX", getbe64(sha256_fil + 0), getbe64(sha256_fil + 8),
-                getbe64(sha256_fil + 16), getbe64(sha256_fil + 24));
-            ret = set_var(argv[1], sha256_str);
+            char hash_str[64+1];
+            if (flags & _FLG('1'))
+                snprintf(hash_str, 64+1, "%016llX%016llX%08lX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
+                getbe32(hash_fil + 16));
+            else
+                snprintf(hash_str, 64+1, "%016llX%016llX%016llX%016llX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
+                getbe64(hash_fil + 16), getbe64(hash_fil + 24));
+            ret = set_var(argv[1], hash_str);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
-        } else if (!(ret = FileSetData(argv[1], sha256_fil, 0x20, 0, true))) {
+        } else if (!(ret = FileSetData(argv[1], hash_fil, hashlen, 0, true))) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha write fail");
         }
     }
