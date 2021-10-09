@@ -100,10 +100,11 @@ u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
         u32 jedecid = 0;
         if (CardSPIReadJEDECIDAndStatusReg(cdata->spi_save_type.infrared, &jedecid, NULL) == 0) {
             info_index += snprintf(info + info_index, info_size - info_index,
-                "Save chip ID : 0x%06lX\n",
+                "Save chip ID : %06lX\n",
                 jedecid);
         }
-    }
+    } else info_index += snprintf(info + info_index, info_size - info_index,
+        "Save chip ID : <none>\n");
 
     info_index += snprintf(info + info_index, info_size - info_index,
         "Timestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\n"
