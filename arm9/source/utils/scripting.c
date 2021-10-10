@@ -1730,6 +1730,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
 
 // right now really only intended for use with the GodMode9 readme
 // (misses safety checks for wider compatibility)
+// pokemaniac05: added security check if there are no captions
 bool MemToCViewer(const char* text, u32 len, const char* title) {
     const u32 max_captions = 24; // we assume this is enough
     char* captions[max_captions];
@@ -1762,6 +1763,9 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
 
     int cursor = -1;
     while (true) {
+        // display simple text viewer if no caption is found
+        if(n_captions == 0)
+            return(MemTextViewer(text,len,0,false));
         // display ToC
         u32 y0 = TV_VPAD;
         u32 x0 = (SCREEN_WIDTH_BOT - GetDrawStringWidth(title)) / 2;
