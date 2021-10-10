@@ -2236,8 +2236,8 @@ u32 HomeMoreMenu(char* current_path) {
     }
     else if (user_select == readme) { // Display GodMode9 readme
         u64 README_md_size;
-	char readme_file[50];
-	ShowKeyboard(readme_file,50,"Select a .md file to view: ");
+        char readme_file[50] = VRAM0_README_MD;
+        ShowKeyboard(readme_file,50,"Select a .md file to view: ");
         char* README_md = FindVTarFileInfo(readme_file, &README_md_size);
         MemToCViewer(README_md, README_md_size, "GodMode9 ReadMe Table of Contents");
         return 0;
