@@ -2166,8 +2166,9 @@ u32 HomeMoreMenu(char* current_path) {
         bool tik_enc_sys = false;
         bool tik_enc_emu = false;
         if (BuildTitleKeyInfo(NULL, false, false) == 0) {
-            ShowString("Building " TIKDB_NAME_ENC "...");
+            ShowString("Building " TIKDB_NAME_ENC " (SysNAND)...");
             tik_enc_sys = (BuildTitleKeyInfo("1:/dbs/ticket.db", false, false) == 0);
+            ShowString("Building " TIKDB_NAME_ENC " (EmuNAND)...");
             tik_enc_emu = (BuildTitleKeyInfo("4:/dbs/ticket.db", false, false) == 0);
             if (!tik_enc_sys || BuildTitleKeyInfo(NULL, false, true) != 0)
                 tik_enc_sys = tik_enc_emu = false;
@@ -2175,8 +2176,9 @@ u32 HomeMoreMenu(char* current_path) {
         bool tik_dec_sys = false;
         bool tik_dec_emu = false;
         if (BuildTitleKeyInfo(NULL, true, false) == 0) {
-            ShowString("Building " TIKDB_NAME_DEC "...");
+            ShowString("Building " TIKDB_NAME_DEC " (SysNAND)...");
             tik_dec_sys = (BuildTitleKeyInfo("1:/dbs/ticket.db", true, false) == 0);
+            ShowString("Building " TIKDB_NAME_DEC " (EmuNAND)...");
             tik_dec_emu = (BuildTitleKeyInfo("4:/dbs/ticket.db", true, false) == 0);
             if (!tik_dec_sys || BuildTitleKeyInfo(NULL, true, true) != 0)
                 tik_dec_sys = tik_dec_emu = false;
@@ -2184,8 +2186,9 @@ u32 HomeMoreMenu(char* current_path) {
         bool seed_sys = false;
         bool seed_emu = false;
         if (BuildSeedInfo(NULL, false) == 0) {
-            ShowString("Building " SEEDINFO_NAME "...");
+            ShowString("Building " SEEDINFO_NAME " (SysNAND)...");
             seed_sys = (BuildSeedInfo("1:", false) == 0);
+            ShowString("Building " SEEDINFO_NAME " (EmuNAND)...");
             seed_emu = (BuildSeedInfo("4:", false) == 0);
             if (!seed_sys || BuildSeedInfo(NULL, true) != 0)
                 seed_sys = seed_emu = false;

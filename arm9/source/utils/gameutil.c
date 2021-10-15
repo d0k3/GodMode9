@@ -3741,26 +3741,13 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
             return 1;
         }
     } else if (filetype & SYS_TICKDB) {
-        if (!InitImgFS(path_in))
-            return 1;
+        u32 num_entries = 0;
+        u8* title_ids = NULL;
 
-        u32 num_entries = GetNumTickets(PART_PATH);
-
-        if (!num_entries)
-        {
-            InitImgFS(NULL);
-            return 1;
-        }
-
-        u8* title_ids = (u8*) malloc(num_entries * 8);
-
-        if (!title_ids)
-        {
-            InitImgFS(NULL);
-            return 1;
-        }
-
-        if ((ListTicketTitleIDs(PART_PATH, title_ids, num_entries) != 0)) {
+        if (!InitImgFS(path_in) || 
+            !(num_entries = GetNumTickets(PART_PATH)) ||
+            !(title_ids = (u8*) malloc(num_entries * 8)) ||
+            (ListTicketTitleIDs(PART_PATH, title_ids, num_entries) != 0)) {
             free(title_ids);
             InitImgFS(NULL);
             return 1;
