@@ -864,8 +864,8 @@ u32 ShaCalculator(const char* path, bool sha1) {
         bool write_sha = (!have_sha || !match_sha) && (drvtype & DRV_SDCARD); // writing only on SD
         char hash_str[32+1+32+1];
         if (sha1)
-            snprintf(hash_str, 32+1+8+1, "%016llX%016llX\n%08lX", getbe64(hash + 0), getbe64(hash + 8),
-            getbe32(hash + 16));
+            snprintf(hash_str, 20+1+20+1, "%016llX%04X\n%016llX%04X", getbe64(hash + 0), getbe16(hash + 8),
+            getbe64(hash + 10), getbe16(hash + 18));
         else
             snprintf(hash_str, 32+1+32+1, "%016llX%016llX\n%016llX%016llX", getbe64(hash + 0), getbe64(hash + 8),
             getbe64(hash + 16), getbe64(hash + 24));
