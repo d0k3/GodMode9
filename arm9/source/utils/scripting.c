@@ -2,6 +2,7 @@
 #include "fs.h"
 #include "utils.h"
 #include "nand.h"
+#include "gamecart.h"
 #include "bootfirm.h"
 #include "qrcodegen.h"
 #include "game.h"
@@ -118,6 +119,7 @@ typedef enum {
     CMD_ID_APPLYBPS,
     CMD_ID_APPLYBPM,
     CMD_ID_TEXTVIEW,
+    CMD_ID_CARTDUMP,
     CMD_ID_ISDIR,
     CMD_ID_EXIST,
     CMD_ID_BOOT,
@@ -192,6 +194,7 @@ static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_APPLYBPS, "applybps", 3, 0 },
     { CMD_ID_APPLYBPM, "applybpm", 3, 0 },
     { CMD_ID_TEXTVIEW, "textview", 1, 0 },
+    { CMD_ID_CARTDUMP, "cartdump", 2, _FLG('e') },
     { CMD_ID_ISDIR   , "isdir"   , 1, 0 },
     { CMD_ID_EXIST   , "exist"   , 1, 0 },
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
@@ -588,6 +591,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--all", len) == 0) flag_char = 'a';
     else if (strncmp(str, "--before", len) == 0) flag_char = 'b';
     else if (strncmp(str, "--include_dirs", len) == 0) flag_char = 'd';
+    else if (strncmp(str, "--encrypted", len) == 0) flag_char = 'e';
     else if (strncmp(str, "--flip_endian", len) == 0) flag_char = 'e';
     else if (strncmp(str, "--to_emunand", len) == 0) flag_char = 'e';
     else if (strncmp(str, "--first", len) == 0) flag_char = 'f';
@@ -1424,6 +1428,36 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_TEXTVIEW) {
         ret = FileTextViewer(argv[0], false);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "textviewer failed");
+    }
+    else if (id == CMD_ID_CARTDUMP) {
+        CartData* cdata = (CartData*) malloc(sizeof(CartData));
+        u8* buf = (u8*) malloc(STD_BUFFER_SIZE);
+        u64 fsize;
+        ret = false;
+        if (!cdata || !buf) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
+        } else if (sscanf(argv[1], "%llX", &fsize) != 1) {
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "bad dumpsize");
+        } else if (InitCartRead(cdata) != 0){
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "cart init fail");
+        } else {
+            SetSecureAreaEncryption(flags & _FLG('e'));
+            fvx_unlink(argv[0]);
+            ret = true;
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "cart dump failed");
+            for (u64 p = 0; p < fsize; p += STD_BUFFER_SIZE) {
+                u64 len = min((fsize - p), STD_BUFFER_SIZE);
+                ShowProgress(p, fsize, argv[0]);
+                if (!ShowProgress(p, fsize, argv[0]) ||
+                    (ReadCartBytes(buf, p, len, cdata, false) != 0) ||
+                    (fvx_qwrite(argv[0], buf, p, len, NULL) != FR_OK)) {
+                    ret = false;
+                    break;
+                }
+            }
+        }
+        free(buf);
+        free(cdata);
     }
     else if (id == CMD_ID_ISDIR) {
         DIR fdir;
