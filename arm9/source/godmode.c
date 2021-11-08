@@ -10,6 +10,7 @@
 #include "fs.h"
 #include "utils.h"
 #include "nand.h"
+#include "gamecart.h"
 #include "virtual.h"
 #include "vcart.h"
 #include "game.h"
@@ -957,6 +958,67 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
     }
 
     return 0;
+}
+
+u32 CartRawDump(void) {
+    CartData* cdata = (CartData*) malloc(sizeof(CartData));
+    char dest[256];
+    char cname[24];
+    char bytestr[32];
+    u64 dsize = 0;
+
+    if (!cdata ||(InitCartRead(cdata) != 0) || (GetCartName(cname, cdata) != 0)) {
+        ShowPrompt(false, "Cart init failed!");
+        free(cdata);
+        return 1;
+    }
+
+    // input dump size
+    dsize = cdata->cart_size;
+    FormatBytes(bytestr, dsize);
+    dsize = ShowHexPrompt(dsize, 8, "Cart: %s\nDetected size: %s\n \nInput dump size below.", cname, bytestr);
+    if (!dsize || (dsize == (u64) -1)) {
+        free(cdata);
+        return 1;
+    }
+
+    // for NDS carts: ask for secure area encryption
+    if (cdata->cart_type & CART_NTR)
+        SetSecureAreaEncryption(
+            !ShowPrompt(true, "Cart: %s\nNDS cart detected\nDecrypt the secure area?", cname));
+
+    // destination path
+    snprintf(dest, 256, "%s/%s_%08llX.%s",
+        OUTPUT_PATH, cname, dsize, (cdata->cart_type & CART_CTR) ? "3ds" : "nds");
+
+    // buffer allocation
+    u8* buf = (u8*) malloc(STD_BUFFER_SIZE);
+    if (!buf) { // this will not happen
+        free(cdata);
+        return 1;
+    }
+
+    // actual cart dump
+    u32 ret = 0;
+    PathDelete(dest);
+    ShowProgress(0, 0, cname);
+    for (u64 p = 0; p < dsize; p += STD_BUFFER_SIZE) {
+        u64 len = min((dsize - p), STD_BUFFER_SIZE);
+        if ((ReadCartBytes(buf, p, len, cdata, false) != 0) ||
+            (fvx_qwrite(dest, buf, p, len, NULL) != FR_OK) ||
+            !ShowProgress(p, dsize, cname)) {
+            PathDelete(dest);
+            ret = 1;
+            break;
+        }
+    }
+
+    if (ret) ShowPrompt(false, "%s\nFailed dumping cart", cname);
+    else ShowPrompt(false, "%s\nDumped to %s", cname, OUTPUT_PATH);
+    
+    free(buf);
+    free(cdata);
+    return ret;
 }
 
 u32 DirFileAttrMenu(const char* path, const char *name) {
@@ -2488,11 +2550,13 @@ u32 GodMode(int entrypoint) {
                     ((GetMountState() == IMG_NAND) && (*(curr_entry->path) == '7')))) ? ++n_opt : -1;
                 int dirnfo = ++n_opt;
                 int stdcpy = (*current_path && strncmp(current_path, OUTPUT_PATH, 256) != 0) ? ++n_opt : -1;
+                int rawdump = (!*current_path && (DriveType(curr_entry->path) & DRV_CART)) ? ++n_opt : -1;
                 if (tman > 0) optionstr[tman-1] = "Open title manager";
                 if (srch_f > 0) optionstr[srch_f-1] = "Search for files...";
                 if (fixcmac > 0) optionstr[fixcmac-1] = "Fix CMACs for drive";
                 if (dirnfo > 0) optionstr[dirnfo-1] = (*current_path) ? "Show directory info" : "Show drive info";
                 if (stdcpy > 0) optionstr[stdcpy-1] = "Copy to " OUTPUT_PATH;
+                if (rawdump > 0) optionstr[rawdump-1] = "Dump to " OUTPUT_PATH;
                 char namestr[UTF_BUFFER_BYTESIZE(32)];
                 TruncateString(namestr, (*current_path) ? curr_entry->path : curr_entry->name, 32, 8);
                 int user_select = ShowSelectPrompt(n_opt, optionstr, "%s", namestr);
@@ -2527,6 +2591,8 @@ u32 GodMode(int entrypoint) {
                     }
                 } else if (user_select == stdcpy) {
                     StandardCopy(&cursor, &scroll);
+                } else if (user_select == rawdump) {
+                    CartRawDump();
                 }
             } else { // one level up
                 u32 user_select = 1;
