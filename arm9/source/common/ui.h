@@ -24,6 +24,8 @@
 #define UTF_MAX_BYTES_PER_RUNE 4
 #define UTF_BUFFER_BYTESIZE(rune_count) (((rune_count) + 1) * UTF_MAX_BYTES_PER_RUNE)
 
+#define PRINTF_ARGS(n) __attribute__ ((format (printf, (n), (n) + 1)))
+
 #define TOP_SCREEN          ((u16*)VRAM_TOP_LA)
 #define BOT_SCREEN          ((u16*)VRAM_BOT_A)
 
@@ -43,7 +45,7 @@
 
 
 #ifndef AUTO_UNLOCK
-bool ShowUnlockSequence(u32 seqlvl, const char *format, ...);
+bool PRINTF_ARGS(2) ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 #else
 #define ShowUnlockSequence ShowPrompt
 #endif
@@ -63,8 +65,8 @@ void DrawQrCode(u16 *screen, const u8* qrcode);
 
 void DrawCharacter(u16 *screen, u32 character, int x, int y, u32 color, u32 bgcolor);
 void DrawString(u16 *screen, const char *str, int x, int y, u32 color, u32 bgcolor);
-void DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *format, ...);
-void DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...);
+void PRINTF_ARGS(6) DrawStringF(u16 *screen, int x, int y, u32 color, u32 bgcolor, const char *format, ...);
+void PRINTF_ARGS(4) DrawStringCenter(u16 *screen, u32 color, u32 bgcolor, const char *format, ...);
 
 u32 GetCharSize(const char* str);
 u32 GetPrevCharSize(const char* str);
@@ -81,19 +83,19 @@ void TruncateString(char* dest, const char* orig, int nlength, int tpos);
 void FormatNumber(char* str, u64 number);
 void FormatBytes(char* str, u64 bytes);
 
-void ShowString(const char *format, ...);
-void ShowStringF(u16* screen, const char *format, ...);
-void ShowIconString(u16* icon, int w, int h, const char *format, ...);
-void ShowIconStringF(u16* screen, u16* icon, int w, int h, const char *format, ...);
-bool ShowPrompt(bool ask, const char *format, ...);
-u32 ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
-u32 ShowFileScrollPrompt(u32 n, const DirEntry** entries, bool hide_ext, const char *format, ...);
-u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *format, ...);
-bool ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...);
-u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...);
-u64 ShowNumberPrompt(u64 start_val, const char *format, ...);
-bool ShowDataPrompt(u8* data, u32* size, const char *format, ...);
-bool ShowRtcSetterPrompt(void* time, const char *format, ...);
+void PRINTF_ARGS(1) ShowString(const char *format, ...);
+void PRINTF_ARGS(2) ShowStringF(u16* screen, const char *format, ...);
+void PRINTF_ARGS(4) ShowIconString(u16* icon, int w, int h, const char *format, ...);
+void PRINTF_ARGS(5) ShowIconStringF(u16* screen, u16* icon, int w, int h, const char *format, ...);
+bool PRINTF_ARGS(2) ShowPrompt(bool ask, const char *format, ...);
+u32 PRINTF_ARGS(3) ShowSelectPrompt(u32 n, const char** options, const char *format, ...);
+u32 PRINTF_ARGS(4) ShowFileScrollPrompt(u32 n, const DirEntry** entries, bool hide_ext, const char *format, ...);
+u32 PRINTF_ARGS(4) ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *format, ...);
+bool PRINTF_ARGS(3) ShowStringPrompt(char* inputstr, u32 max_size, const char *format, ...);
+u64 PRINTF_ARGS(3) ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...);
+u64 PRINTF_ARGS(2) ShowNumberPrompt(u64 start_val, const char *format, ...);
+bool PRINTF_ARGS(3) ShowDataPrompt(u8* data, u32* size, const char *format, ...);
+bool PRINTF_ARGS(2) ShowRtcSetterPrompt(void* time, const char *format, ...);
 bool ShowProgress(u64 current, u64 total, const char* opstr);
 
 int ShowBrightnessConfig(int set_brightness);

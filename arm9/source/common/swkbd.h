@@ -86,4 +86,4 @@ enum {
 
 
 #define ShowKeyboardOrPrompt (TouchIsCalibrated() ? ShowKeyboard : ShowStringPrompt)
-bool ShowKeyboard(char* inputstr, u32 max_size, const char *format, ...);
+bool PRINTF_ARGS(3) ShowKeyboard(char* inputstr, u32 max_size, const char *format, ...);
