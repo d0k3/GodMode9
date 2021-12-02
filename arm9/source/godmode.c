@@ -571,7 +571,7 @@ u32 FileHexViewer(const char* path) {
     }
 
     static bool show_instr = true;
-    static const char* instr = "Hexeditor Controls:\n ↑↓→←(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+↑↓→← - Edit value\nB - Exit\n";
+    static const char* instr = "Hexeditor Controls:\n \n↑↓→←(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+↑↓→← - Edit value\nB - Exit\n";
     if (show_instr) { // show one time instructions
         ShowPrompt(false, instr);
         show_instr = false;
