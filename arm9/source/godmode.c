@@ -1830,7 +1830,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             } else if (ShowPrompt(false, "%s\nLegit ticket not found.\n \nDump anyways?", pathstr)) {
                 if (DumpTicketForGameFile(file_path, false) == 0)
                     ShowPrompt(false, "%s\nTicket dumped to %s", pathstr, OUTPUT_PATH);
-                else ShowPrompt(false, "%s\nDump ticket failed!");
+                else ShowPrompt(false, "%s\nDump ticket failed!", pathstr);
             }
         }
         return 0;
@@ -2047,7 +2047,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 ShowPrompt(false, "%s\nCTRNAND transfer %s", pathstr,
                     (TransferCtrNandImage(file_path, destdrv[user_select-1]) == 0) ? "success" : "failed");
             }
-        } else ShowPrompt(false, "%s\nNo valid destination found");
+        } else ShowPrompt(false, "%s\nNo valid destination found", pathstr);
         return 0;
     }
     else if (user_select == restore) { // -> restore SysNAND (A9LH preserving)
