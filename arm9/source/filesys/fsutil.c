@@ -12,8 +12,8 @@
 #include "ui.h"
 #include "swkbd.h"
 
-#define SKIP_CUR        (1UL<<10)
-#define OVERWRITE_CUR   (1UL<<11)
+#define SKIP_CUR        (1UL<<11)
+#define OVERWRITE_CUR   (1UL<<12)
 
 #define _MAX_FS_OPT     8 // max file selector options
 
