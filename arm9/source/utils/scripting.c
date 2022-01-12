@@ -527,7 +527,6 @@ bool init_vars(const char* path_script) {
     set_var("RDTYPE", IS_DEVKIT ? "devkit" : "retail"); // devkit / retail
     char* ptr = set_var("GM9VER", VERSION); // GodMode9 version, truncated below
     while (*(ptr++) != '\0') if (*ptr == '-') *ptr = '\0';
-    upd_var(NULL); // set all dynamic environment vars
 
     return true;
 }
