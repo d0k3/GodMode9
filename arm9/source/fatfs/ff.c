@@ -149,9 +149,11 @@
 #define DIR_NTres			12		/* Lower case flag (BYTE) */
 #define DIR_CrtTime10		13		/* Created time sub-second (BYTE) */
 #define DIR_CrtTime			14		/* Created time (DWORD) */
+#define DIR_CrtDate         16      /* Created date (WORD) */
 #define DIR_LstAccDate		18		/* Last accessed date (WORD) */
 #define DIR_FstClusHI		20		/* Higher 16-bit of first cluster (WORD) */
 #define DIR_ModTime			22		/* Modified time (DWORD) */
+#define DIR_ModDate         24      /* Modified date (WORD) */
 #define DIR_FstClusLO		26		/* Lower 16-bit of first cluster (WORD) */
 #define DIR_FileSize		28		/* File size (DWORD) */
 #define LDIR_Ord			0		/* LFN: LFN order and LLE flag (BYTE) */
@@ -2765,8 +2767,11 @@ static void get_fileinfo (
 
 	fno->fattrib = dp->dir[DIR_Attr];					/* Attribute */
 	fno->fsize = ld_dword(dp->dir + DIR_FileSize);		/* Size */
-	fno->ftime = ld_word(dp->dir + DIR_ModTime + 0);	/* Time */
-	fno->fdate = ld_word(dp->dir + DIR_ModTime + 2);	/* Date */
+	fno->mod_ftime = ld_word(dp->dir + DIR_ModTime);	/* Modified Time */
+	fno->mod_fdate = ld_word(dp->dir + DIR_ModDate);	/* Modified Date */
+	fno->crt_ftime = ld_word(dp->dir + DIR_CrtTime);    /* Created Time */
+	fno->crt_fdate = ld_word(dp->dir + DIR_CrtDate);    /* Created Date */
+	fno->lac_fdate = ld_word(dp->dir + DIR_LstAccDate); /* Last Access Date */
 }
 
 #endif /* FF_FS_MINIMIZE <= 1 || FF_FS_RPATH >= 2 */
@@ -3766,9 +3771,12 @@ FRESULT f_open (
 				} else
 #endif
 				{
+					DWORD tm = GET_FATTIME();
 					/* Set directory entry initial state */
 					cl = ld_clust(fs, dj.dir);			/* Get current cluster chain */
-					st_dword(dj.dir + DIR_CrtTime, GET_FATTIME());	/* Set created time */
+					st_dword(dj.dir + DIR_CrtTime, tm);	/* Set created time */
+					st_dword(dj.dir + DIR_ModTime, tm);	/* Set modified time */
+					st_word(dj.dir + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF)); /* Set last access date */
 					dj.dir[DIR_Attr] = AM_ARC;			/* Reset attribute */
 					st_clust(fs, dj.dir, 0);			/* Reset file allocation info */
 					st_dword(dj.dir + DIR_FileSize, 0);
@@ -4165,7 +4173,7 @@ FRESULT f_sync (
 					st_clust(fp->obj.fs, dir, fp->obj.sclust);		/* Update file allocation information  */
 					st_dword(dir + DIR_FileSize, (DWORD)fp->obj.objsize);	/* Update file size */
 					st_dword(dir + DIR_ModTime, tm);				/* Update modified time */
-					st_word(dir + DIR_LstAccDate, 0);
+					st_word(dir + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF)); /* Update last access date */
 					fs->wflag = 1;
 					res = sync_fs(fs);					/* Restore it to the directory */
 					fp->flag &= (BYTE)~FA_MODIFIED;
@@ -5053,7 +5061,9 @@ FRESULT f_mkdir (
 						mem_set(fs->win + DIR_Name, ' ', 11);	/* Create "." entry */
 						fs->win[DIR_Name] = '.';
 						fs->win[DIR_Attr] = AM_DIR;
-						st_dword(fs->win + DIR_ModTime, tm);
+						st_dword(fs->win + DIR_ModTime, tm); /* set modified time */
+						st_dword(fs->win + DIR_CrtTime, tm); /* set created time */
+						st_word(fs->win + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF));
 						st_clust(fs, fs->win, dcl);
 						mem_cpy(fs->win + SZDIRE, fs->win, SZDIRE); /* Create ".." entry */
 						fs->win[SZDIRE + 1] = '.'; pcl = dj.obj.sclust;
@@ -5076,7 +5086,9 @@ FRESULT f_mkdir (
 				} else
 #endif
 				{
-					st_dword(dj.dir + DIR_ModTime, tm);	/* Created time */
+					st_dword(fs->win + DIR_ModTime, tm); /* set modified time */
+					st_dword(fs->win + DIR_CrtTime, tm); /* set created time */
+					st_word(fs->win + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF)); /* set last access date */
 					st_clust(fs, dj.dir, dcl);			/* Table start cluster */
 					dj.dir[DIR_Attr] = AM_DIR;			/* Attribute */
 					fs->wflag = 1;
@@ -5283,7 +5295,9 @@ FRESULT f_utime (
 			} else
 #endif
 			{
-				st_dword(dj.dir + DIR_ModTime, (DWORD)fno->fdate << 16 | fno->ftime);
+				st_dword(dj.dir + DIR_ModTime, (DWORD)fno->mod_fdate << 16 | fno->mod_ftime);
+				st_dword(dj.dir + DIR_CrtTime, (DWORD)fno->crt_fdate << 16 | fno->crt_ftime);
+				st_dword(dj.dir + DIR_LstAccDate, fno->lac_fdate);
 				fs->wflag = 1;
 			}
 			if (res == FR_OK) {

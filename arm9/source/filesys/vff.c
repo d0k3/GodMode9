@@ -84,8 +84,8 @@ FRESULT fvx_stat (const TCHAR* path, FILINFO* fno) {
         if (!GetVirtualFile(&vfile, path, FA_READ)) return FR_NO_PATH;
         if (fno) {
             fno->fsize = vfile.size;
-            fno->fdate = (1<<5)|(1<<0); // 1 for month / day
-            fno->ftime = 0;
+            fno->mod_fdate = fno->crt_fdate = fno->lac_fdate = (1<<5)|(1<<0); // 1 for month / day
+            fno->mod_ftime = fno->crt_ftime = 0;
             fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
             // could be better...
             if (FF_USE_LFN != 0) GetVirtualFilename(fno->fname, &vfile, FF_MAX_LFN + 1);
@@ -137,7 +137,7 @@ FRESULT fvx_readdir (DIR* dp, FILINFO* fno) {
             VirtualFile vfile;
             if (ReadVirtualDir(&vfile, vdir)) {
                 fno->fsize = vfile.size;
-                fno->fdate = fno->ftime = 0;
+                fno->mod_fdate = fno->crt_fdate = fno->lac_fdate = (1<<5)|(1<<0); // 1 for month / day
                 fno->fattrib = (vfile.flags & VFLAG_DIR) ? (AM_DIR|AM_VRT) : AM_VRT;
                 GetVirtualFilename(fno->fname, &vfile, FF_MAX_LFN + 1);
             } else *(fno->fname) = 0;

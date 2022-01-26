@@ -246,8 +246,8 @@ typedef struct {
 
 typedef struct {
 	FSIZE_t	fsize;			/* File size */
-	WORD	fdate;			/* Modified date */
-	WORD	ftime;			/* Modified time */
+	WORD	mod_fdate;			/* Modified date */
+	WORD	mod_ftime;			/* Modified time */
 	BYTE	fattrib;		/* File attribute */
 #if FF_USE_LFN
 	TCHAR	altname[FF_SFN_BUF + 1];/* Altenative file name */
@@ -255,6 +255,9 @@ typedef struct {
 #else
 	TCHAR	fname[12 + 1];	/* File name */
 #endif
+	WORD    crt_fdate;  			/* Creation date */
+	WORD    crt_ftime;			/* Creation time */
+	WORD    lac_fdate;          /* Last access date */ 
 } FILINFO;
 
 
