@@ -274,6 +274,7 @@
 #define GET_FATTIME()	get_fattime()
 #endif
 
+#define GET_FATDATE(tm)	((WORD)(((tm) >> 16) & 0xFFFF))
 
 /* File lock controls */
 #if FF_FS_LOCK != 0
@@ -3776,7 +3777,7 @@ FRESULT f_open (
 					cl = ld_clust(fs, dj.dir);			/* Get current cluster chain */
 					st_dword(dj.dir + DIR_CrtTime, tm);	/* Set created time */
 					st_dword(dj.dir + DIR_ModTime, tm);	/* Set modified time */
-					st_word(dj.dir + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF)); /* Set last access date */
+					st_word(dj.dir + DIR_LstAccDate, GET_FATDATE(tm)); /* Set last access date */
 					dj.dir[DIR_Attr] = AM_ARC;			/* Reset attribute */
 					st_clust(fs, dj.dir, 0);			/* Reset file allocation info */
 					st_dword(dj.dir + DIR_FileSize, 0);
@@ -4173,7 +4174,7 @@ FRESULT f_sync (
 					st_clust(fp->obj.fs, dir, fp->obj.sclust);		/* Update file allocation information  */
 					st_dword(dir + DIR_FileSize, (DWORD)fp->obj.objsize);	/* Update file size */
 					st_dword(dir + DIR_ModTime, tm);				/* Update modified time */
-					st_word(dir + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF)); /* Update last access date */
+					st_word(dir + DIR_LstAccDate, GET_FATDATE(tm)); /* Update last access date */
 					fs->wflag = 1;
 					res = sync_fs(fs);					/* Restore it to the directory */
 					fp->flag &= (BYTE)~FA_MODIFIED;
@@ -5063,7 +5064,7 @@ FRESULT f_mkdir (
 						fs->win[DIR_Attr] = AM_DIR;
 						st_dword(fs->win + DIR_ModTime, tm); /* set modified time */
 						st_dword(fs->win + DIR_CrtTime, tm); /* set created time */
-						st_word(fs->win + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF));
+						st_word(fs->win + DIR_LstAccDate, GET_FATDATE(tm)); /* set last access date */
 						st_clust(fs, fs->win, dcl);
 						mem_cpy(fs->win + SZDIRE, fs->win, SZDIRE); /* Create ".." entry */
 						fs->win[SZDIRE + 1] = '.'; pcl = dj.obj.sclust;
@@ -5088,7 +5089,7 @@ FRESULT f_mkdir (
 				{
 					st_dword(fs->win + DIR_ModTime, tm); /* set modified time */
 					st_dword(fs->win + DIR_CrtTime, tm); /* set created time */
-					st_word(fs->win + DIR_LstAccDate, (WORD)(((tm) >> 16) & 0xFFFF)); /* set last access date */
+					st_word(fs->win + DIR_LstAccDate, GET_FATDATE(tm)); /* set last access date */
 					st_clust(fs, dj.dir, dcl);			/* Table start cluster */
 					dj.dir[DIR_Attr] = AM_DIR;			/* Attribute */
 					fs->wflag = 1;
