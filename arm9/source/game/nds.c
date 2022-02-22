@@ -55,20 +55,24 @@ u32 BuildTwlSaveHeader(void* sav, u32 size) {
     u16 n_sct = 1;
     u16 sct_track = 1;
     u16 sct_heads = 1;
-    while (true) {
-        if (sct_heads < sct_track) {
-            u16 n_sct_next = sct_track * (sct_heads+1) * (sct_heads+1);
-            if (n_sct_next < n_sct_max) {
-                sct_heads++;
+    u16 n_sct_next = 0;
+    while (n_sct_next <= n_sct_max) {
+        n_sct_next = sct_track * (sct_heads + 1) * (sct_heads + 1);
+        if (n_sct_next <= n_sct_max) {
+            sct_heads++;
+            n_sct = n_sct_next;
+
+            sct_track++;
+            n_sct_next = sct_track * sct_heads * sct_heads;
+            if (n_sct_next <= n_sct_max) {
                 n_sct = n_sct_next;
-            } else break;
-        } else {
-            u16 n_sct_next = (sct_track+1) * sct_heads * sct_heads;
-            if (n_sct_next < n_sct_max) {
-                sct_track++;
-                n_sct = n_sct_next;
-            } else break;
+            }
         }
+    }
+    n_sct_next = (sct_track + 1) * sct_heads * sct_heads;
+    if (n_sct_next <= n_sct_max) {
+        sct_track++;
+        n_sct = n_sct_next;
     }
 
     // sectors per cluster (should be identical to Nintendo)
