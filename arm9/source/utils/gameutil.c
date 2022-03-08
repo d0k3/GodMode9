@@ -3294,7 +3294,8 @@ u64 GetGameFileTrimmedSize(const char* path) {
             return 0;
         if (hdr.unit_code != 0x00) // DSi or NDS+DSi
             trimsize = hdr.ntr_twl_rom_size;
-        else trimsize = hdr.ntr_rom_size + 0x88; // regular NDS
+        else if (hdr.ntr_rom_size) // regular NDS
+            trimsize = hdr.ntr_rom_size + 0x88;
     } else {
         u8 hdr[0x200];
         if (fvx_qread(path, &hdr, 0, 0x200, NULL) != FR_OK)
