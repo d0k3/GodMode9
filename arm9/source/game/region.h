@@ -27,5 +27,5 @@
 
 // Names of system regions, short form.
 extern const char* const g_regionNamesShort[SMDH_NUM_REGIONS];
-// Names of system regions, long form.
-extern const char* const g_regionNamesLong[SMDH_NUM_REGIONS];
+// Names of system regions, long form and translatable.
+const char* regionNameLong(int region);

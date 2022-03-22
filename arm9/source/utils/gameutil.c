@@ -537,7 +537,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     // fetch and check NCCH header
     fvx_lseek(&file, offset);
     if (GetNcchHeaders(&ncch, NULL, NULL, &file, cryptofix) != 0) {
-        if (!offset) ShowPrompt(false, "%s\nError: Not a NCCH file", pathstr);
+        if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_NOT_NCCH_FILE);
         fvx_close(&file);
         return 1;
     }
@@ -545,7 +545,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     // check NCCH size
     if (!size) size = fvx_size(&file) - offset;
     if ((fvx_size(&file) < offset) || (size < ncch.size * NCCH_MEDIA_UNIT)) {
-        if (!offset) ShowPrompt(false, "%s\nError: File is too small", pathstr);
+        if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_FILE_IS_TOO_SMALL);
         fvx_close(&file);
         return 1;
     }
@@ -561,15 +561,15 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
             if (GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix) == 0) {
                 if (cryptofix_always) borkedflags = true;
                 else {
-                    const char* optionstr[3] = { "Attempt fix this time", "Attempt fix always", "Abort verification" };
-                    u32 user_select = ShowSelectPrompt(3, optionstr, "%s\nError: Bad crypto flags", pathstr);
+                    const char* optionstr[3] = { STR_ATTEMPT_FIX_THIS_TIME, STR_ATTEMPT_FIX_ALWAYS, STR_ABORT_VERIFICATION };
+                    u32 user_select = ShowSelectPrompt(3, optionstr, "%s\n%s", pathstr, STR_ERROR_BAD_CRYPTO_FLAGS);
                     if ((user_select == 1) || (user_select == 2)) borkedflags = true;
                     if (user_select == 2) cryptofix_always = true;
                 }
             }
         }
         if (!borkedflags) {
-            if (!offset) ShowPrompt(false, "%s\nError: Bad ExeFS header", pathstr);
+            if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_BAD_EXEFS_HEADER);
             fvx_close(&file);
             return 1;
         }
@@ -578,14 +578,14 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     // fetch and check ExtHeader
     fvx_lseek(&file, offset);
     if (ncch.size_exthdr && (GetNcchHeaders(&ncch, &exthdr, NULL, &file, cryptofix) != 0)) {
-        if (!offset) ShowPrompt(false, "%s\nError: Missing ExtHeader", pathstr);
+        if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_MISSING_EXTHEADER);
         fvx_close(&file);
         return 1;
     }
 
     // check / setup crypto
     if (SetupNcchCrypto(&ncch, NCCH_NOCRYPTO) != 0) {
-        if (!offset) ShowPrompt(false, "%s\nError: Crypto not set up", pathstr);
+        if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_CRYPTO_NOT_SET_UP);
         fvx_close(&file);
         return 1;
     }
@@ -712,10 +712,10 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     }
 
     if (!offset && (ver_exthdr|ver_exefs|ver_romfs)) { // verification summary
-        ShowPrompt(false, "%s\nNCCH verification failed:\nExtHdr/ExeFS/RomFS: %s/%s/%s", pathstr,
-            (!ncch.size_exthdr) ? "-" : (ver_exthdr == 0) ? "ok" : "fail",
-            (!ncch.size_exefs) ? "-" : (ver_exefs == 0) ? "ok" : "fail",
-            (!ncch.size_romfs) ? "-" : (ver_romfs == 0) ? "ok" : "fail");
+        ShowPrompt(false, STR_PATH_NCCH_VERIFICATION_FAILED_INFO, pathstr,
+            (!ncch.size_exthdr) ? "-" : (ver_exthdr == 0) ? STR_OK : STR_FAIL,
+            (!ncch.size_exefs) ? "-" : (ver_exefs == 0) ? STR_OK : STR_FAIL,
+            (!ncch.size_romfs) ? "-" : (ver_romfs == 0) ? STR_OK : STR_FAIL);
     }
 
     fvx_close(&file);
@@ -732,7 +732,7 @@ u32 VerifyNcsdFile(const char* path) {
 
     // load NCSD header
     if (LoadNcsdHeader(&ncsd, path) != 0) {
-        ShowPrompt(false, "%s\nError: Not a NCSD file", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_NOT_NCSD_FILE);
         return 1;
     }
 
@@ -743,7 +743,7 @@ u32 VerifyNcsdFile(const char* path) {
         u32 size = partition->size * NCSD_MEDIA_UNIT;
         if (!size) continue;
         if (VerifyNcchFile(path, offset, size) != 0) {
-            ShowPrompt(false, "%s\nContent%lu (%08lX@%08lX):\nVerification failed",
+            ShowPrompt(false, STR_PATH_CONTENT_N_SIZE_AT_OFFSET_VERIFICATION_FAILED,
                 pathstr, i, size, offset);
             return 1;
         }
@@ -767,14 +767,14 @@ u32 VerifyCiaFile(const char* path) {
     if ((LoadCiaStub(cia, path) != 0) ||
         (GetCiaInfo(&info, &(cia->header)) != 0) ||
         (GetTitleKey(titlekey, (Ticket*)&(cia->ticket)) != 0)) {
-        ShowPrompt(false, "%s\nError: Probably not a CIA file", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_PROBABLY_NOT_CIA_FILE);
         free(cia);
         return 1;
     }
 
     // verify TMD
     if (VerifyTmd(&(cia->tmd)) != 0) {
-        ShowPrompt(false, "%s\nError: TMD probably corrupted", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_TMD_PROBABLY_CORRUPTED);
         free(cia);
         return 1;
     }
@@ -788,7 +788,7 @@ u32 VerifyCiaFile(const char* path) {
         u16 index = getbe16(chunk->index);
         if (!(cnt_index[index/8] & (1 << (7-(index%8))))) continue; // don't check missing contents
         if (VerifyTmdContent(path, next_offset, chunk, titlekey) != 0) {
-            ShowPrompt(false, "%s\nID %08lX (%08llX@%08llX)\nVerification failed",
+            ShowPrompt(false, STR_PATH_ID_N_SIZE_AT_OFFSET_VERIFICATION_FAILED,
                 pathstr, getbe32(chunk->id), getbe64(chunk->size), next_offset);
             free(cia);
             return 1;
@@ -821,7 +821,7 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
     TitleMetaData* tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
     TmdContentChunk* content_list = (TmdContentChunk*) (tmd + 1);
     if ((LoadTmdFile(tmd, path) != 0) || (VerifyTmd(tmd) != 0)) {
-        ShowPrompt(false, "%s\nError: TMD probably corrupted", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_TMD_PROBABLY_CORRUPTED);
         free(tmd);
         return 1;
     }
@@ -834,7 +834,7 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
              (BuildFakeTicket(ticket, tmd->title_id) == 0) &&
              (FindTitleKey(ticket, tmd->title_id) == 0))) ||
             (GetTitleKey(titlekey, ticket) != 0)) {
-            ShowPrompt(false, "%s\nError: CDN titlekey not found", pathstr);
+            ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_CDN_TITLEKEY_NOT_FOUND);
             free(ticket);
             free(tmd);
             return 1;
@@ -853,12 +853,12 @@ u32 VerifyTmdFile(const char* path, bool cdn) {
             (cdn) ? "%08lx" : (dlc) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
         TruncateString(pathstr, path_content, 32, 8);
         if (dlc && i && !PathExist(path_content)) {
-            if (!ignore_missing_dlc && !ShowPrompt(true, "%s\nDLC content is missing\n \nIgnore all and continue?", pathstr)) res = 1;
+            if (!ignore_missing_dlc && !ShowPrompt(true, "%s\n%s", pathstr, STR_DLC_CONTENT_IS_MISSING_IGNORE_ALL_AND_CONTINUE)) res = 1;
             ignore_missing_dlc = true;
             continue;
         }
         if (VerifyTmdContent(path_content, 0, chunk, titlekey) != 0) {
-            ShowPrompt(false, "%s\n%s", pathstr, PathExist(path_content) ? "Verification failed" : "Content is missing");
+            ShowPrompt(false, "%s\n%s", pathstr, PathExist(path_content) ? STR_VERIFICATION_FAILED : STR_CONTENT_IS_MISSING);
             res = 1;
         }
     }
@@ -927,7 +927,7 @@ u32 VerifyFirmFile(const char* path) {
         void* section = ((u8*) firm_buffer) + sct->offset;
         if (!(sct->size)) continue;
         if (sha_cmp(sct->hash, section, sct->size, SHA256_MODE) != 0) {
-            ShowPrompt(false, "%s\nSection %lu hash mismatch", pathstr, i);
+            ShowPrompt(false, STR_PATH_SECTION_N_HASH_MISMATCH, pathstr, i);
             free(firm_buffer);
             return 1;
         }
@@ -935,11 +935,11 @@ u32 VerifyFirmFile(const char* path) {
 
     // no arm11 / arm9 entrypoints?
     if (!header.entry_arm9) {
-        ShowPrompt(false, "%s\nARM9 entrypoint is missing", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ARM9_ENTRYPOINT_IS_MISSING);
         free(firm_buffer);
         return 1;
     } else if (!header.entry_arm11) {
-        ShowPrompt(false, "%s\nWarning: ARM11 entrypoint is missing", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_WARNING_ARM11_ENTRYPOINT_IS_MISSING);
     }
 
     free(firm_buffer);
@@ -962,7 +962,7 @@ u32 VerifyBossFile(const char* path) {
     fvx_lseek(&file, 0);
     if ((fvx_read(&file, &boss, sizeof(BossHeader), &btr) != FR_OK) ||
         (btr != sizeof(BossHeader)) || (ValidateBossHeader(&boss, 0) != 0)) {
-        ShowPrompt(false, "%s\nError: Not a BOSS file", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_NOT_A_BOSS_FILE);
         fvx_close(&file);
         return 1;
     }
@@ -1007,7 +1007,7 @@ u32 VerifyBossFile(const char* path) {
     free(buffer);
 
     if (memcmp(hash, boss.hash_payload, 0x20) != 0) {
-        if (ShowPrompt(true, "%s\nBOSS payload hash mismatch.\n \nTry to fix it?", pathstr)) {
+        if (ShowPrompt(true, "%s\n%s", pathstr, STR_BOSS_PAYLOAD_HASH_MISMATCH_TRY_TO_FIX_IT)) {
             // fix hash, reencrypt BOSS header if required, write to file
             memcpy(boss.hash_payload, hash, 0x20);
             if (encrypted) CryptBoss((void*) &boss, 0, sizeof(BossHeader), &boss);
@@ -2192,11 +2192,11 @@ u32 BuildCiaLegitTicket(Ticket* ticket, u8* title_id, const char* path_cnt, bool
         // check the tickets' console id, warn if it isn't zero
         if (copy && getbe32(ticket_tmp->console_id)) {
             static u32 default_action = 0;
-            static const char* optionstr[2] =
-                {"Generic ticket (\"pirate legit\")", "Personalized ticket (legit)"};
+            const char* optionstr[2] =
+                {STR_GENERIC_TICKET_PIRATE_LEGIT, STR_PERSONALIZED_TICKET_LEGIT};
             if (!default_action) {
                 default_action = ShowSelectPrompt(2, optionstr,
-                    "ID %016llX\nLegit ticket is personalized.\nUsing this is not recommended.\nChoose default action:", getbe64(title_id));
+                    STR_ID_N_LEGIT_TICKET_IS_PERSONALIZED_USING_THIS_NOT_RECOMMENDED_CHOOSE_DEFAULT_ACTION, getbe64(title_id));
                 ShowProgress(0, 0, path_cnt);
             }
             if (!default_action) {
@@ -2222,7 +2222,7 @@ u32 BuildCiaLegitTicket(Ticket* ticket, u8* title_id, const char* path_cnt, bool
             ticket->commonkey_idx = ticket_tmp->commonkey_idx;
             free(ticket_tmp);
         } else if (FindTitleKey(ticket, title_id) != 0) {
-            ShowPrompt(false, "ID %016llX\nTitlekey not found.", getbe64(title_id));
+            ShowPrompt(false, STR_ID_N_TITLEKEY_NOT_FOUND, getbe64(title_id));
             return 1;
         }
     } else {
@@ -2279,7 +2279,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
     
     // check for legit TMD
     if (force_legit && ((ValidateTmdSignature(tmd) != 0) || VerifyTmd(tmd) != 0)) {
-        ShowPrompt(false, "ID %016llX\nTMD in TAD is not legit.", getbe64(title_id));
+        ShowPrompt(false, STR_ID_N_TMD_IN_TAD_NOT_LEGIT, getbe64(title_id));
         free(cia);
         return 1;
     }
@@ -2363,7 +2363,7 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
 
     // check for legit TMD
     if (force_legit && ((ValidateTmdSignature(tmd) != 0) || VerifyTmd(tmd) != 0)) {
-        ShowPrompt(false, "ID %016llX\nTMD is not legit.", getbe64(title_id));
+        ShowPrompt(false, STR_ID_N_TMD_NOT_LEGIT, getbe64(title_id));
         return 1;
     }
 
@@ -2418,13 +2418,13 @@ u32 BuildInstallFromTmdFileBuffered(const char* path_tmd, const char* path_dest,
                 (cdn) ? "%08lx" : (dlc && !cdn) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
             if (!install && ((ret = InsertCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
                     chunk, titlekey, force_legit, false, cdn)) != 0)) {
-                ShowPrompt(false, "ID %016llX.%08lX\n%s", getbe64(title_id), getbe32(chunk->id),
-                    (ret == 2) ? "Content is corrupt" : "Insert content failed");
+                ShowPrompt(false, STR_ID_N_DOT_N_STATUS, getbe64(title_id), getbe32(chunk->id),
+                    (ret == 2) ? STR_CONTENT_IS_CORRUPT : STR_INSERT_CONTENT_FAILED);
                 return 1;
             }
             if (install && (InstallCiaContent(path_dest, path_content, 0, (u32) getbe64(chunk->size),
                     chunk, title_id, titlekey, false, cdn) != 0)) {
-                ShowPrompt(false, "ID %016llX.%08lX\nInstall content failed", getbe64(title_id), getbe32(chunk->id));
+                ShowPrompt(false, STR_ID_N_DOT_N_STATUS, getbe64(title_id), getbe32(chunk->id), STR_INSTALL_CONTENT_FAILED);
                 return 1;
             }
         }
@@ -2867,7 +2867,7 @@ u32 InstallGameFile(const char* path, bool to_emunand) {
     if (((GetInstallDbsPath(path_db, drv, "title.db" ) != 0) || !fvx_qsize(path_db)) ||
         ((GetInstallDbsPath(path_db, drv, "import.db") != 0) || !fvx_qsize(path_db)) ||
         ((GetInstallDbsPath(path_db, drv, "ticket.db") != 0) || !fvx_qsize(path_db))) {
-        ShowPrompt(false, "Install error:\nThis system is missing one or\nmore .db files.\n \nMaybe the SD card is missing\nor uninitialized?");
+        ShowPrompt(false, "%s", STR_INSTALL_ERROR_THIS_SYSTEM_IS_MISSING_DB_FILES_MAYBE_SD_MISSING_OR_UNINITIALIZED);
         return 1;
     }
 
@@ -2911,7 +2911,7 @@ u32 InstallCifinishFile(const char* path, bool to_emunand) {
     // check ticket db
     char path_ticketdb[32];
     if ((GetInstallDbsPath(path_ticketdb, to_emunand ? "4:" : "1:", "ticket.db") != 0) || !fvx_qsize(path_ticketdb)) {
-        ShowPrompt(false, "Install error:\nThis system is missing the\nticket.db file.");
+        ShowPrompt(false, "%s", STR_INSTALL_ERROR_THIS_SYSTEM_IS_MISSING_TICKET_DB);
         return 1;
     }
 
@@ -2944,7 +2944,7 @@ u32 InstallCifinishFile(const char* path, bool to_emunand) {
         }
         // check for forbidden title id (the "too large dlc")
         if ((TITLE_MAX_CONTENTS <= 1024) && (cftitle[i].title_id == 0x0004008C000CBD00)) {
-            ShowPrompt(false, "Skipped title:\nTitle with id 0004008C000CBD00\nneeds special compiler flags.");
+            ShowPrompt(false, "%s", STR_SKIPPED_TITLE_0004008C000CBD00_NEEDS_SPECIAL_COMPILE_FLAGS);
             ShowProgress(0, 0, path);
             continue;
         }
@@ -2985,7 +2985,7 @@ u32 InstallTicketFile(const char* path, bool to_emunand) {
     // check ticket db
     char path_ticketdb[32];
     if ((GetInstallDbsPath(path_ticketdb, to_emunand ? "4:" : "1:", "ticket.db") != 0) || !fvx_qsize(path_ticketdb)) {
-        ShowPrompt(false, "Install error:\nThis system is missing the\nticket.db file.");
+        ShowPrompt(false, "%s", STR_INSTALL_ERROR_THIS_SYSTEM_IS_MISSING_TICKET_DB);
         return 1;
     }
 
@@ -2994,7 +2994,7 @@ u32 InstallTicketFile(const char* path, bool to_emunand) {
     if (LoadTicketFile(&ticket, path) != 0)
         return 1;
     if (ValidateTicketSignature(ticket) != 0) {
-        ShowPrompt(false, "%s\nError: Fake-signed ticket\n \nOnly valid signed tickets can\nbe installed to the system.", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_FAKE_SIGNED_TICKET_ONLY_VALID_SIGNED_TICKETS_CAN_BE_INSTALLED);
         free(ticket);
         return 1;
     }
@@ -3002,7 +3002,7 @@ u32 InstallTicketFile(const char* path, bool to_emunand) {
     // check ticket console id
     u32 cid = getbe32(ticket->console_id);
     if (cid && (cid != (&ARM9_ITCM->otp)->deviceId)) {
-        ShowPrompt(false, "%s\nError: Unknown cid %08lX\n \nThis ticket does not belong to\nthis 3DS console.", pathstr, cid);
+        ShowPrompt(false, STR_PATH_ERROR_UNKNOWN_CID_N_THIS_TICKET_DOES_NOT_BELONG_TO_THIS_3DS, pathstr, cid);
         free(ticket);
         return 1;
     }
@@ -3014,7 +3014,7 @@ u32 InstallTicketFile(const char* path, bool to_emunand) {
     }
 
     // let the user know we're working
-    ShowString("%s\nInstalling ticket...\n", pathstr);
+    ShowString("%s\n%s\n", pathstr, STR_INSTALLING_TICKET);
 
     // write ticket database
     // ensure remounting the old mount path
@@ -3170,7 +3170,7 @@ u32 ExtractCodeFromCxiFile(const char* path, const char* path_out, char* extstr)
     // allocate memory
     u8* code = (u8*) malloc(code_max_size);
     if (!code) {
-        ShowPrompt(false, "Out of memory.");
+        ShowPrompt(false, "%s", STR_OUT_OF_MEMORY);
         return 1;
     }
 
@@ -3223,7 +3223,7 @@ u32 CompressCode(const char* path, const char* path_out) {
     if (!code_dec || !code_cmp) {
         if (code_dec != NULL) free(code_dec);
         if (code_cmp != NULL) free(code_cmp);
-        ShowPrompt(false, "Out of memory.");
+        ShowPrompt(false, "%s", STR_OUT_OF_MEMORY);
         return 1;
     }
 
@@ -3427,7 +3427,7 @@ u32 ShowGbaFileTitleInfo(const char* path, u16* screen) {
     if ((fvx_qread(path, &agb, 0, sizeof(AgbHeader), NULL) != FR_OK) ||
         (ValidateAgbHeader(&agb) != 0)) return 1;
     ClearScreen(screen, COLOR_STD_BG);
-    ShowStringF(screen, "%.12s (AGB-%.4s)\n%s", agb.game_title, agb.game_code, AGB_DESTSTR(agb.game_code));
+    ShowStringF(screen, "%.12s (AGB-%.4s)\n%s", agb.game_title, agb.game_code, AgbDestStr(agb.game_code));
     return 0;
 }
 
@@ -3515,7 +3515,7 @@ u32 ShowGameCheckerInfo(const char* path) {
 
         // load CIA stub
         if (LoadCiaStub(cia, path) != 0) {
-            ShowPrompt(false, "%s\nError: Probably not a CIA file", pathstr);
+            ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_PROBABLY_NOT_CIA_FILE);
             free(cia);
             free(tmd);
             return 1;
@@ -3572,15 +3572,23 @@ u32 ShowGameCheckerInfo(const char* path) {
         state_tmd = (ValidateTmdSignature(tmd) == 0) ? 2 : 1;
 
     // CIA / title type string
-    char typestr[32];
+    const char *typestr;
     if ((!state_ticket && (type&(GAME_CIA|GAME_TIE))) || !state_tmd || missing_first ||
         (!is_dlc && (content_found != content_count)))
-        snprintf(typestr, sizeof(typestr), "Possibly Broken");
-    else snprintf(typestr, sizeof(typestr), "%s %s%s",
-        console_id ? "Personal" : "Universal",
-        ((state_ticket == 2) && (state_tmd == 2)) ? "Legit" :
-         (state_tmd == 2) ? "Pirate Legit" : "Custom",
-        is_dlc ? " DLC" : "");
+        typestr = STR_POSSIBLY_BROKEN;
+    else {
+        if (console_id) {
+            if (state_tmd == 2) {
+                if (state_ticket == 2) typestr = is_dlc ? STR_PERSONAL_LEGIT_DLC : STR_PERSONAL_LEGIT;
+                else typestr = is_dlc ? STR_PERSONAL_PIRATE_LEGIT_DLC : STR_PERSONAL_PIRATE_LEGIT;
+            } else typestr = is_dlc ? STR_PERSONAL_CUSTOM_DLC : STR_PERSONAL_CUSTOM;
+        } else {
+            if (state_tmd == 2) {
+                if (state_ticket == 2) typestr = is_dlc ? STR_UNIVERSAL_LEGIT_DLC : STR_UNIVERSAL_LEGIT;
+                else typestr = is_dlc ? STR_UNIVERSAL_PIRATE_LEGIT_DLC : STR_UNIVERSAL_PIRATE_LEGIT;
+            } else typestr = is_dlc ? STR_UNIVERSAL_CUSTOM_DLC : STR_UNIVERSAL_CUSTOM;
+        }
+    }
 
     char srcstr[5];
     snprintf(srcstr, sizeof(srcstr), "%s",
@@ -3591,30 +3599,23 @@ u32 ShowGameCheckerInfo(const char* path) {
         (type & GAME_TWLTMD) ? "TWL" : "UNK");
 
     char contents_str[64];
-    if (type & GAME_CIA) snprintf(contents_str, sizeof(contents_str), "Contents in CIA: %lu/%lu", content_found, content_count);
-    else snprintf(contents_str, 64, "Contents in TMD: %lu", content_count);
+    if (type & GAME_CIA) snprintf(contents_str, sizeof(contents_str), STR_CONTENTS_IN_CIA_FOUND_TOTAL, content_found, content_count);
+    else snprintf(contents_str, sizeof(contents_str), STR_CONTENTS_IN_CIA_TOTAL, content_count);
 
     char conid_str[32] = { '\0' };
-    if (type & (GAME_CIA|GAME_TIE)) snprintf(conid_str, sizeof(conid_str), "Console ID: %08lX\n", console_id);
+    if (type & (GAME_CIA|GAME_TIE)) snprintf(conid_str, sizeof(conid_str), STR_CONSOLE_ID_N, console_id);
 
 
     // output results
     s32 state_verify = -1;
     while (true) {
-        if (!ShowPrompt(state_verify < 0,
-                "%s\n%s %s Title\n \n"
-                "Title ID: %016llX\n"
-                "Title version: %lu.%lu.%lu\n"
-                "Contents size: %s\n"
-                "%s\n%s \n"
-                "Ticket/TMD: %s/%s\n"
-                "Verification: %s",
+        if (!ShowPrompt(state_verify < 0, STR_SHOW_GAME_INFO_DETAILS,
             pathstr, typestr, srcstr, title_id,
             (title_version>>10)&0x3F, (title_version>>4)&0x3F, (title_version)&0xF,
             bytestr, contents_str, conid_str,
-            (state_ticket == 0) ? "unknown" : (state_ticket == 2) ? "legit" : "illegit",
-            (state_tmd == 0) ? "invalid" : (state_tmd == 2) ? "legit" : "illegit",
-            (state_verify < 0) ? "pending\n \nProceed with verification?" : (state_verify == 0) ? "passed" : "failed") ||
+            (state_ticket == 0) ? STR_STATE_UNKNOWN : (state_ticket == 2) ? STR_STATE_LEGIT : STR_STATE_ILLEGIT,
+            (state_tmd == 0) ? STR_STATE_INVALID : (state_tmd == 2) ? STR_STATE_LEGIT : STR_STATE_ILLEGIT,
+            (state_verify < 0) ? STR_STATE_PENDING_PROCEED_WITH_VERIFICATION : (state_verify == 0) ? STR_STATE_PASSED : STR_STATE_FAILED) ||
             (state_verify >= 0)) break;
         state_verify = VerifyGameFile(path);
     }
@@ -3819,7 +3820,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
         memset(tik_info, 0, 16);
 
         if ((fvx_stat(path_out, NULL) == FR_OK) &&
-            (ShowPrompt(true, "%s\nOutput file already exists.\nUpdate this?", path_out)))
+            (ShowPrompt(true, "%s\n%s", path_out, STR_OUTPUT_FILE_ALREADY_EXISTS_UPDATE_THIS)))
             path_in = path_out;
         else return 0;
     }
@@ -3912,7 +3913,7 @@ u32 BuildSeedInfo(const char* path, bool dump) {
         memset(seed_info, 0, 16);
 
         if ((fvx_stat(path_out, NULL) == FR_OK) &&
-            (ShowPrompt(true, "%s\nOutput file already exists.\nUpdate this?", path_out))) {
+            (ShowPrompt(true, "%s\n%s", path_out, STR_OUTPUT_FILE_ALREADY_EXISTS_UPDATE_THIS))) {
             path_in = path_out;
             inputtype = 1;
         } else return 0;
@@ -4142,7 +4143,7 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
                 if (strncmp(region, "JUECK", 8) == 0) snprintf(region, sizeof(region), "W");
                 if (!*region) snprintf(region, sizeof(region), "UNK");
 
-                char* unit_str = (twl->unit_code == TWL_UNITCODE_TWLNTR) ? "DSi Enhanced" : "DSi Exclusive";
+                const char* unit_str = (twl->unit_code == TWL_UNITCODE_TWLNTR) ? STR_DSI_ENHANCED : STR_DSI_EXCLUSIVE;
                 snprintf(name, 128, "%016llX%s %s (TWL-%.4s) (%s) (%s)%s.%s",
                     twl->title_id, appid_str, title_name, twl->game_code, unit_str, region, version_str, ext);
             } else { // NTR

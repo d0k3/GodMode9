@@ -5,6 +5,7 @@
 #include "ips.h"
 #include "common.h"
 #include "fsperm.h"
+#include "language.h"
 #include "ui.h"
 #include "vff.h"
 
@@ -30,21 +31,21 @@ char errName[256];
 int displayError(int errcode) {
     switch(errcode) {
         case IPS_NOTTHIS:
-            ShowPrompt(false, "%s\nThe patch is most likely not intended for this file.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_PATCH_MOST_LIKELY_NOT_FOR_THIS_FILE); break;
         case IPS_THISOUT:
-            ShowPrompt(false, "%s\nYou most likely applied the patch on the output file.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_YOU_MOST_LIKELY_APPLIED_PATCH_ON_OUTPUT); break;
         case IPS_SCRAMBLED:
-            ShowPrompt(false, "%s\nThe patch is technically valid,\nbut seems scrambled or malformed.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_PATCH_TECHNICALLY_VALID_BUT_SEEMS_SCRAMBLED); break;
         case IPS_INVALID:
-            ShowPrompt(false, "%s\nThe patch is invalid.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_PATCH_IS_INVALID); break;
         case IPS_16MB:
-            ShowPrompt(false, "%s\nOne or both files is bigger than 16MB.\nThe IPS format doesn't support that.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_FILES_BIGGER_THAN_16MB_IPS_DOESNT_SUPPORT_THAT); break;
         case IPS_INVALID_FILE_PATH:
-            ShowPrompt(false, "%s\nThe requested file path was invalid.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_REQUESTED_FILE_PATH_WAS_INVALID); break;
         case IPS_CANCELED:
-            ShowPrompt(false, "%s\nPatching canceled.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_PATCHING_CANCELED); break;
         case IPS_MEMORY:
-            ShowPrompt(false, "%s\nNot enough memory.", errName); break;
+            ShowPrompt(false, "%s\n%s", errName, STR_NOT_ENOUGH_MEMORY); break;
     }
     fvx_close(&patchFile);
     fvx_close(&inFile);
@@ -140,7 +141,7 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     while (offset != 0x454F46) // 454F46=EOF
     {
         if (!ShowProgress(patchOffset, patchSize, patchName)) {
-            if (ShowPrompt(true, "%s\nB button detected. Cancel?", patchName)) return displayError(IPS_CANCELED);
+            if (ShowPrompt(true, "%s\n%s", patchName, STR_B_DETECTED_CANCEL)) return displayError(IPS_CANCELED);
             ShowProgress(0, patchSize, patchName);
             ShowProgress(patchOffset, patchSize, patchName);
         }
@@ -211,7 +212,7 @@ int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName
     while (offset != 0x454F46)
     {
         if (!ShowProgress(offset, outSize, outName)) {
-            if (ShowPrompt(true, "%s\nB button detected. Cancel?", outName)) return displayError(IPS_CANCELED);
+            if (ShowPrompt(true, "%s\n%s", outName, STR_B_DETECTED_CANCEL)) return displayError(IPS_CANCELED);
             ShowProgress(0, outSize, outName);
             ShowProgress(offset, outSize, outName);
         }

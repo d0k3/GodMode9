@@ -1,6 +1,7 @@
 #include "fsgame.h"
 #include "fsperm.h"
 #include "gameutil.h"
+#include "language.h"
 #include "tie.h"
 #include "ui.h"
 #include "vff.h"
@@ -39,7 +40,7 @@ bool GoodRenamer(DirEntry* entry, bool ask) {
         TruncateString(oldname_tr, entry->name, 32, 8);
         strncpy(newname_ww, goodname, 256);
         WordWrapString(newname_ww, 32);
-        if (!ShowPrompt(true, "%s\nRename to good name?\n \n%s", oldname_tr, newname_ww))
+        if (!ShowPrompt(true, "%s\n%s\n \n%s", oldname_tr, STR_RENAME_TO_GOOD_NAME, newname_ww))
             return true; // call it a success because user choice
     }
 

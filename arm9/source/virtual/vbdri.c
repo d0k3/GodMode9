@@ -5,6 +5,7 @@
 #include "bdri.h"
 #include "vff.h"
 #include "ui.h"
+#include "language.h"
 
 #define VBDRI_MAX_ENTRIES   8192 // Completely arbitrary
 
@@ -65,7 +66,7 @@ bool SortVBDRITickets() {
     if (!tick_info)
         return false;
 
-    ShowString("Sorting tickets, please wait ...");
+    ShowString("%s", STR_SORTING_TICKETS_PLEASE_WAIT);
 
     for (u32 i = 0; i < num_entries - 1; i++) {
         Ticket* ticket;

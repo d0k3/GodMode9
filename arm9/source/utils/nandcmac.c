@@ -461,7 +461,7 @@ u32 RecursiveFixFileCmacWorker(char* path) {
         char* fname = path + strnlen(path, 255);
         *(fname++) = '/';
 
-        ShowString("%s\nFixing CMACs, please wait...", pathstr);
+        ShowString("%s\n%s", pathstr, STR_FIXING_CMACS_PLEASE_WAIT);
         while (f_readdir(&pdir, &fno) == FR_OK) {
             if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
                 continue; // filter out virtual entries
@@ -472,7 +472,7 @@ u32 RecursiveFixFileCmacWorker(char* path) {
                 if (RecursiveFixFileCmacWorker(path) != 0) err = 1;
             } else if (CheckCmacPath(path) == 0) { // file, try to fix the CMAC
                 if (FixFileCmac(path, true) != 0) err = 1;
-                ShowString("%s\nFixing CMACs, please wait...", pathstr);
+                ShowString("%s\n%s", pathstr, STR_FIXING_CMACS_PLEASE_WAIT);
             }
         }
         f_closedir(&pdir);

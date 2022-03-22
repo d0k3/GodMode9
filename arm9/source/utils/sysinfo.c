@@ -1,6 +1,7 @@
 #include "common.h"
 #include "i2c.h"
 #include "itcm.h"
+#include "language.h"
 #include "region.h"
 #include "unittype.h"
 #include "essentials.h" // For SecureInfo / movable
@@ -28,24 +29,24 @@ static const struct {
 };
 STATIC_ASSERT(countof(s_modelNames) == NUM_MODELS);
 
-// Table of sales regions.
-static const struct {
-    char serial_char;
-    const char* name;
-} s_salesRegions[] = {
-    // Typical regions.
-    { 'J', "Japan" },
-    { 'W', "Americas" },    // "W" = worldwide?
-    { 'E', "Europe" },
-    { 'C', "China" },
-    { 'K', "Korea" },
-    { 'T', "Taiwan" },
-    // Manufacturing regions that have another region's region lock.
-    { 'U', "United Kingdom" },
-    { 'S', "Middle East" }, // "S" = Saudi Arabia?  Singapore?  (Southeast Asia included.)
-    { 'A', "Australia" },
-    { 'B', "Brazil" },
-};
+// Sales regions.
+const char* salesRegion(char serial_char) {
+    switch(serial_char) {
+        // Typical regions.
+        case 'J': return STR_REGION_JAPAN;
+        case 'W': return STR_REGION_AMERICAS; // "W" = worldwide?
+        case 'E': return STR_REGION_EUROPE;
+        case 'C': return STR_REGION_CHINA;
+        case 'K': return STR_REGION_KOREA;
+        case 'T': return STR_REGION_TAIWAN;
+        // Manufacturing regions that have another region's region lock.
+        case 'U': return STR_REGION_UNITED_KINGDOM;
+        case 'S': return STR_REGION_MIDDLE_EAST; // "S" = Saudi Arabia?  Singapore?  (Southeast Asia included.)
+        case 'A': return STR_REGION_AUSTRALIA;
+        case 'B': return STR_REGION_BRAZIL;
+        default:  return STR_REGION_UNKNOWN;
+    }
+}
 
 // Structure of system information.
 typedef struct _SysInfo {
@@ -60,8 +61,8 @@ typedef struct _SysInfo {
     // From SecureInfo_A/B
     char sub_model[15 + 1];
     char serial[15 + 1];
-    char system_region[15 + 1];
-    char sales_region[15 + 1];
+    char system_region[64 + 1];
+    char sales_region[64 + 1];
     // From movable.sed
     char friendcodeseed[16 + 1];
     char movablekeyy[32 + 1];
@@ -165,7 +166,7 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
 
     // Decode region.
     if (data.region < SMDH_NUM_REGIONS) {
-        strncpy(info->system_region, g_regionNamesLong[data.region], countof(info->system_region));
+        strncpy(info->system_region, regionNameLong(data.region), countof(info->system_region));
         info->system_region[countof(info->system_region) - 1] = '\0';
     }
 
@@ -233,13 +234,8 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
 
     // Determine the sales region from the second letter of the prefix.
     if (second_letter != '\0') {
-        for (unsigned x = 0; x < countof(s_salesRegions); ++x) {
-            if (s_salesRegions[x].serial_char == second_letter) {
-                strncpy(info->sales_region, s_salesRegions[x].name, countof(info->sales_region));
-                info->sales_region[countof(info->sales_region) - 1] = '\0';
-                break;
-            }
-        }
+        strncpy(info->sales_region, salesRegion(second_letter), countof(info->sales_region));
+        info->sales_region[countof(info->sales_region) - 1] = '\0';
     }
 
     // Determine the sub-model from the first two digits of the digit part.
@@ -599,18 +595,18 @@ void MyriaSysinfo(char* sysinfo_txt) {
     GetSysInfo_TWLN(&info, '1');
 
     char** meow = &sysinfo_txt;
-    MeowSprintf(meow, "Model: %s (%s)\r\n", info.model, info.sub_model);
-    MeowSprintf(meow, "Serial: %s\r\n", info.serial);
-    MeowSprintf(meow, "Region (system): %s\r\n", info.system_region);
-    MeowSprintf(meow, "Region (sales): %s\r\n", info.sales_region);
-    MeowSprintf(meow, "SoC manufacturing date: %s\r\n", info.soc_date);
-    MeowSprintf(meow, "System assembly date: %s\r\n", info.assembly_date);
-    MeowSprintf(meow, "Original firmware: %s\r\n", info.original_firmware);
+    MeowSprintf(meow, STR_SYSINFO_MODEL, info.model, info.sub_model);
+    MeowSprintf(meow, STR_SYSINFO_SERIAL, info.serial);
+    MeowSprintf(meow, STR_SYSINFO_REGION_SYSTEM, info.system_region);
+    MeowSprintf(meow, STR_SYSINFO_REGION_SALES, info.sales_region);
+    MeowSprintf(meow, STR_SYSINFO_SOC_MANUFACTURING_DATE, info.soc_date);
+    MeowSprintf(meow, STR_SYSINFO_SYSTEM_ASSEMBLY_DATE, info.assembly_date);
+    MeowSprintf(meow, STR_SYSINFO_ORIGINAL_FIRMWARE, info.original_firmware);
     MeowSprintf(meow, "\r\n");
-    MeowSprintf(meow, "Friendcode seed: %s\r\n", info.friendcodeseed);
-    MeowSprintf(meow, "SD keyY: %s\r\n", info.movablekeyy);
-    MeowSprintf(meow, "NAND CID: %s\r\n", info.nand_cid);
-    MeowSprintf(meow, "SD CID: %s\r\n", info.sd_cid);
-    MeowSprintf(meow, "System ID0: %s\r\n", info.nand_id0);
-    MeowSprintf(meow, "System ID1: %s\r\n", info.nand_id1);
+    MeowSprintf(meow, STR_SYSINFO_FRIENDCODE_SEED, info.friendcodeseed);
+    MeowSprintf(meow, STR_SYSINFO_SD_KEYY, info.movablekeyy);
+    MeowSprintf(meow, STR_SYSINFO_NAND_CID, info.nand_cid);
+    MeowSprintf(meow, STR_SYSINFO_SD_CID, info.sd_cid);
+    MeowSprintf(meow, STR_SYSINFO_SYSTEM_ID0, info.nand_id0);
+    MeowSprintf(meow, STR_SYSINFO_SYSTEM_ID1, info.nand_id1);
 }

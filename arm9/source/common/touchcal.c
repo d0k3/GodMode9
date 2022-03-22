@@ -2,6 +2,7 @@
 #include "ui.h"
 #include "hid.h"
 #include "crc16.h"
+#include "language.h"
 #include "spiflash.h"
 #include "support.h"
 
@@ -46,8 +47,8 @@ bool ShowTouchCalibrationDialog(void)
 
     // clear screen, draw instructions
     ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-    DrawStringCenter(BOT_SCREEN, COLOR_STD_FONT, COLOR_STD_BG,
-        "Touch the red crosshairs to\ncalibrate your touchscreen.\n \nUse the stylus for best\nresults!");
+    DrawStringCenter(BOT_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s",
+        STR_TOUCH_CROSSHAIRS_TO_CALIBRATE_TOUCHSCREEN_USE_STYLUS);
 
     // set calibration defaults
     SetCalibrationDefaults();

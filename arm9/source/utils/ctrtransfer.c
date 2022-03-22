@@ -2,6 +2,7 @@
 #include "nandcmac.h"
 #include "fs.h"
 #include "essentials.h"
+#include "language.h"
 #include "ui.h"
 #include "sha.h"
 
@@ -110,7 +111,7 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
         PathCopy(path_dbs, path_from, &flags);
         FixFileCmac(path_to, true);
     }
-    ShowString("Cleaning up titles, please wait...");
+    ShowString("%s", STR_CLEANING_UP_TITLES_PLEASE_WAIT);
     snprintf(path_to, 32, "%s/title", drv);
     snprintf(path_from, 32, "7:/title");
     PathDelete(path_to);

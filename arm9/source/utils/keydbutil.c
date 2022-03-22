@@ -1,6 +1,7 @@
 #include "keydbutil.h"
 #include "fs.h"
 #include "ui.h"
+#include "language.h"
 #include "unittype.h"
 
 #define MAX_KEYDB_SIZE  (STD_BUFFER_SIZE)
@@ -84,7 +85,7 @@ u32 BuildKeyDb(const char* path, bool dump) {
 
         AddKeyToDb(key_info, NULL);
         if ((fvx_stat(path_out, NULL) == FR_OK) &&
-            (ShowPrompt(true, "%s\nOutput file already exists.\nUpdate this?", path_out)))
+            (ShowPrompt(true, "%s\n%s", path_out, STR_OUTPUT_FILE_ALREADY_EXISTS_UPDATE_THIS)))
             path_in = path_out;
         else return 0;
     }

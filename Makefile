@@ -40,7 +40,7 @@ export ASFLAGS := -g -x assembler-with-cpp $(INCLUDE)
 export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSION="\"$(VERSION)\"" -DFLAVOR="\"$(FLAVOR)\"" \
                   -g -Os -Wall -Wextra -Wcast-align -Wformat=2 -Wno-main \
                   -fomit-frame-pointer -ffast-math -std=gnu11 -MMD -MP \
-                  -Wno-unused-function -Wno-format-truncation $(INCLUDE) -ffunction-sections -fdata-sections
+                  -Wno-unused-function -Wno-format-truncation -Wno-format-nonliteral $(INCLUDE) -ffunction-sections -fdata-sections
 export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=4096
 ELF := arm9/arm9.elf arm11/arm11.elf
 

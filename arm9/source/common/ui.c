@@ -15,6 +15,7 @@
 #include "power.h"
 #include "hid.h"
 #include "fixp.h"
+#include "language.h"
 
 #define STRBUF_SIZE 512 // maximum size of the string buffer
 #define FONT_MAX_WIDTH 8
@@ -576,18 +577,13 @@ void ResizeString(char* dest, const char* orig, int nlength, int tpos, bool alig
 
     if (nlength < olength) {
         TruncateString(dest, orig, nlength, tpos);
-    } else if (!align_right) {
-        int nsize = 0;
-        for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
-            if ((orig[nsize] & 0xC0) != 0x80) i++;
-        }
-        snprintf(dest, UTF_BUFFER_BYTESIZE(nlength), "%-*.*s", nsize, nsize, orig);
     } else {
         int nsize = 0;
-        for (int i = 0; i < nlength || (orig[nsize] & 0xC0) == 0x80; nsize++) {
-            if ((orig[nsize] & 0xC0) != 0x80) i++;
+        int osize = strnlen(orig, 256);
+        for (int i = 0; i < nlength || (nsize <= osize && (orig[nsize] & 0xC0) == 0x80); nsize++) {
+            if (nsize > osize || (orig[nsize] & 0xC0) != 0x80) i++;
         }
-        snprintf(dest, UTF_BUFFER_BYTESIZE(nlength), "%*.*s", nsize, nsize, orig);
+        snprintf(dest, UTF_BUFFER_BYTESIZE(nlength), align_right ? "%*.*s" : "%-*.*s", nsize, nsize, orig);
     }
 }
 
@@ -625,20 +621,20 @@ void FormatNumber(char* str, u64 number) { // str should be 32 byte in size
     for (; number / (mag1000 * 1000) > 0; mag1000 *= 1000);
     for (; mag1000 > 0; mag1000 /= 1000) {
         u32 pos = strnlen(str, 31);
-        snprintf(str + pos, 31 - pos, "%0*llu%c", (pos) ? 3 : 1, (number / mag1000) % 1000, (mag1000 > 1) ? ',' : '\0');
+        snprintf(str + pos, 31 - pos, "%0*llu%s", (pos) ? 3 : 1, (number / mag1000) % 1000, (mag1000 > 1) ? STR_THOUSAND_SEPARATOR : "");
     }
 }
 
 void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just to be safe
-    const char* units[] = {" Byte", " kB", " MB", " GB"};
+    const char* units[] = {STR_BYTE, STR_KB, STR_MB, STR_GB};
 
-    if (bytes == (u64) -1) snprintf(str, 32, "INVALID");
+    if (bytes == (u64) -1) snprintf(str, 32, "%s", STR_INVALID);
     else if (bytes < 1024) snprintf(str, 32, "%llu%s", bytes, units[0]);
     else {
         u32 scale = 1;
         u64 bytes100 = (bytes * 100) >> 10;
         for(; (bytes100 >= 1024*100) && (scale < 3); scale++, bytes100 >>= 10);
-        snprintf(str, 32, "%llu.%llu%s", bytes100 / 100, (bytes100 % 100) / 10, units[scale]);
+        snprintf(str, 32, "%llu%s%llu%s", bytes100 / 100, STR_DECIMAL_SEPARATOR, (bytes100 % 100) / 10, units[scale]);
     }
 }
 
@@ -720,7 +716,7 @@ bool ShowPrompt(bool ask, const char *format, ...)
 
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s\n \n%s", str,
-        (ask) ? "(<A> yes, <B> no)" : "(<A> to continue)");
+        (ask) ? STR_A_YES_B_NO : STR_A_TO_CONTINUE);
 
     while (true) {
         u32 pad_state = InputWait(0);
@@ -775,7 +771,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
     ClearScreenF(true, false, color_bg);
     DrawStringF(MAIN_SCREEN, x, y, color_font, color_bg, "%s", str);
     #ifndef TIMER_UNLOCK
-    DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, enter this:");
+    DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "%s", STR_TO_PROCEED_ENTER_THIS);
 
     // generate sequence
     const char *dpad_symbols[] = { "→", "←", "↑", "↓" }; // R L U D
@@ -812,7 +808,7 @@ bool ShowUnlockSequence(u32 seqlvl, const char *format, ...) {
             lvl = 0;
     }
     #else
-    DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, "To proceed, hold <X>:");
+    DrawStringF(MAIN_SCREEN, x, y + str_height - 28, color_font, color_bg, STR_TO_PROCEED_HOLD_X);
 
     while (!CheckButton(BUTTON_B)) {
         for (u32 n = 0; n < seqlen; n++) {
@@ -865,7 +861,7 @@ u32 ShowSelectPrompt(int n, const char** options, const char *format, ...) {
 
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
-    DrawStringF(MAIN_SCREEN, x, yopt + (n_show*(line_height+2)) + line_height, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
+    DrawStringF(MAIN_SCREEN, x, yopt + (n_show*(line_height+2)) + line_height, COLOR_STD_FONT, COLOR_STD_BG, "%s", STR_A_SELECT_B_CANCEL);
     while (true) {
         for (int i = scroll; i < scroll+n_show; i++) {
             DrawStringF(MAIN_SCREEN, x, yopt + ((line_height+2)*(i-scroll)), (sel == i) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG, "%2.2s %s",
@@ -944,7 +940,7 @@ u32 ShowFileScrollPrompt(int n, const DirEntry** options, bool hide_ext, const c
 
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
-    DrawStringF(MAIN_SCREEN, x, yopt + (n_show*(line_height+2)) + line_height, COLOR_STD_FONT, COLOR_STD_BG, "(<A> select, <B> cancel)");
+    DrawStringF(MAIN_SCREEN, x, yopt + (n_show*(line_height+2)) + line_height, COLOR_STD_FONT, COLOR_STD_BG, "%s", STR_A_SELECT_B_CANCEL);
     while (true) {
         for (int i = scroll; i < scroll+n_show; i++) {
             char bytestr[16];
@@ -965,12 +961,12 @@ u32 ShowFileScrollPrompt(int n, const DirEntry** options, bool hide_ext, const c
 
             DrawStringF(MAIN_SCREEN, x + item_width - font_width * 11, yopt + ((line_height+2)*(i-scroll)),
                 (sel == i) ? COLOR_STD_FONT : COLOR_ENTRY(options[i]), COLOR_STD_BG, "%10.10s",
-                (options[i]->type == T_DIR) ? "(dir)" : (options[i]->type == T_DOTDOT) ? "(..)" : bytestr);
+                (options[i]->type == T_DIR) ? STR_DIR : (options[i]->type == T_DOTDOT) ? "(..)" : bytestr);
         }
         // show [n more]
         if (n - n_show - scroll > 0) {
             char more_str[UTF_BUFFER_BYTESIZE(item_width / font_width)], temp_str[64];
-            snprintf(temp_str, 64, "   [%d more]", (n - (n_show-1) - scroll));
+            snprintf(temp_str, 64, STR_N_MORE, (n - (n_show-1) - scroll));
             ResizeString(more_str, temp_str, item_width / font_width, 8, false);
             DrawString(MAIN_SCREEN, more_str, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG);
         }
@@ -1025,7 +1021,7 @@ u32 ShowHotkeyPrompt(u32 n, const char** options, const u32* keys, const char *f
         ButtonToString(keys[i], buttonstr);
         ptr += snprintf(ptr, STRBUF_SIZE - (ptr-str), "\n<%s> %s", buttonstr, options[i]);
     }
-    ptr += snprintf(ptr, STRBUF_SIZE - (ptr-str), "\n \n<%s> %s", "B", "cancel");
+    ptr += snprintf(ptr, STRBUF_SIZE - (ptr-str), "\n \n<%s> %s", "B", STR_CANCEL);
 
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringCenter(MAIN_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
@@ -1074,7 +1070,7 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
     ClearScreenF(true, false, COLOR_STD_BG);
     DrawStringF(MAIN_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%s", str);
     DrawStringF(MAIN_SCREEN, x + 8, y + str_height - 40, COLOR_STD_FONT, COLOR_STD_BG,
-        "R - (↑↓) fast scroll\nL - clear data%s", resize ? "\nX - remove char\nY - insert char" : "");
+        "%s\n%s", STR_R_FAST_SCROLL_L_CLEAR_DATA, resize ? STR_X_REMOVE_CHAR_Y_INSERT_CHAR : "");
 
     // wait for all keys released
     while (HID_ReadState() & BUTTON_ANY);
@@ -1423,12 +1419,12 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
     DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     if (sec_elapsed >= 1) {
-        snprintf(tempstr, 16, "ETA %02llum%02llus", sec_remain / 60, sec_remain % 60);
+        snprintf(tempstr, 16, STR_ETA_N_MIN_N_SEC, sec_remain / 60, sec_remain % 60);
         ResizeString(progstr, tempstr, 16, 8, true);
         DrawString(MAIN_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
             bar_pos_y - line_height - 1, COLOR_STD_FONT, COLOR_STD_BG);
     }
-    DrawString(MAIN_SCREEN, "(hold B to cancel)", bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
+    DrawString(MAIN_SCREEN, STR_HOLD_B_TO_CANCEL, bar_pos_x + 2, text_pos_y + 14, COLOR_STD_FONT, COLOR_STD_BG);
 
     last_prog_width = prog_width;
 
@@ -1441,13 +1437,7 @@ int ShowBrightnessConfig(int set_brightness)
     u32 btn_input, bar_count;
     int bar_x_pos, bar_y_pos, bar_width, bar_height;
 
-    const char *brightness_str =
-        "[←] Decrease brightness\n"
-        "[→] Increase brightness\n"
-        " \n"
-        "[X] Use volume slider control\n"
-        "[A] Set current brightness\n"
-        "[B] Cancel";
+    const char *brightness_str = STR_BRIGHTNESS_CONTROLS;
     static const u16 brightness_slider_colmasks[] = {
         COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE
     };
