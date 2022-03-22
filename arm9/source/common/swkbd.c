@@ -1,5 +1,6 @@
 #include <stdarg.h>
 
+#include "language.h"
 #include "swkbd.h"
 #include "timer.h"
 #include "hid.h"
@@ -253,7 +254,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     TouchBox* textbox = swkbd_alphabet; // always use this textbox
 
     static bool show_instr = true;
-    static const char* instr = "Keyboard Controls:\n \n←/→ - Move cursor\nR - Caps / Capslock\nX - Delete char\nY - Insert char\nA - Submit\nB - Cancel\n \nSELECT switches to\nclassic prompt";
+    const char* instr = STR_KEYBOARD_CONTROLS_DETAILS;
     if (show_instr) {
         ShowPrompt(false, "%s", instr);
         show_instr = false;

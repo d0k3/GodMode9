@@ -3,6 +3,7 @@
 #include "png.h"
 #include "hid.h"
 #include "ui.h"
+#include "language.h"
 
 
 #define PAINT9_BRUSH_SIZE       15  // don't change!
@@ -103,7 +104,7 @@ u32 Paint9(void) {
     u32 brush_id = 0;
 
     // clear screens, draw logo
-    const char* snapstr = "(use L+R to save)";
+    const char* snapstr = STR_USE_L_R_TO_SAVE;
     u64 logo_size;
     u8* logo = FindVTarFileInfo(VRAM0_EASTER_BIN, &logo_size);
     ClearScreenF(true, true, COLOR_STD_BG);
@@ -114,7 +115,7 @@ u32 Paint9(void) {
             DrawBitmap(TOP_SCREEN, -1, -1, logo_width, logo_height, bitmap);
             free(bitmap);
         }
-    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_EASTER_BIN " not found)");
+    } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, STR_EASTER_NOT_FOUND, VRAM0_EASTER_BIN);
     DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(snapstr),
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(snapstr), COLOR_STD_FONT, COLOR_TRANSPARENT, "%s", snapstr);
 

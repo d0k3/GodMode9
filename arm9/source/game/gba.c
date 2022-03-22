@@ -87,3 +87,17 @@ u32 ValidateAgbHeader(AgbHeader* agb) {
 
     return 0;
 } */
+
+// see: http://problemkaputt.de/gbatek.htm#gbacartridgeheader
+const char* AgbDestStr(const char* code) {
+    switch(code[3]) {
+        case 'J': return STR_REGION_JAPAN;
+        case 'E': return STR_REGION_AMERICAS;
+        case 'P': return STR_REGION_EUROPE;
+        case 'D': return STR_REGION_GERMANY;
+        case 'F': return STR_REGION_FRANCE;
+        case 'I': return STR_REGION_ITALY;
+        case 'S': return STR_REGION_SPAIN;
+        default:  return STR_REGION_UNKNOWN;
+    }
+}

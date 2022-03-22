@@ -4,6 +4,7 @@
 #include "image.h"
 #include "unittype.h"
 #include "essentials.h"
+#include "language.h"
 #include "ui.h"
 #include "sdmmc.h"
 
@@ -40,7 +41,7 @@ bool CheckWritePermissions(const char* path) {
 
     // SD card write protection check
     if ((drvtype & (DRV_SDCARD | DRV_EMUNAND | DRV_ALIAS)) && SD_WRITE_PROTECTED) {
-        ShowPrompt(false, "SD card is write protected!\nCan't continue.");
+        ShowPrompt(false, "%s", STR_SD_WRITE_PROTECTED_CANT_CONTINUE);
         return false;
     }
 
@@ -63,7 +64,7 @@ bool CheckWritePermissions(const char* path) {
             if ((drvtype & DRV_CTRNAND) || (lvl == 2)) lvl = 3;
         }
         perm = perms[lvl];
-        snprintf(area_name, 16, "SysNAND (lvl%lu)", lvl);
+        snprintf(area_name, 16, STR_SYSNAND_LVL_N, lvl);
     } else if (drvtype & DRV_EMUNAND) {
         static const u32 perms[] = { PERM_EMU_LVL0, PERM_EMU_LVL1 };
         u32 lvl = (drvtype & (DRV_ALIAS|DRV_CTRNAND)) ? 1 : 0;
@@ -73,13 +74,13 @@ bool CheckWritePermissions(const char* path) {
                 if (strncasecmp(path_f, path_lvl1[i], 256) == 0) lvl = 1;
         }
         perm = perms[lvl];
-        snprintf(area_name, 16, "EmuNAND (lvl%lu)", lvl);
+        snprintf(area_name, 16, STR_EMUNAND_LVL_N, lvl);
     } else if (drvtype & DRV_GAME) {
         perm = PERM_GAME;
-        snprintf(area_name, 16, "game images");
+        snprintf(area_name, 16, "%s", STR_GAME_IMAGES);
     } else if (drvtype & DRV_CART) {
         perm = PERM_CART;
-        snprintf(area_name, 16, "gamecart saves");
+        snprintf(area_name, 16, "%s", STR_GAMECART_SAVES);
     } else if (drvtype & DRV_VRAM) {
         perm = PERM_VRAM;
         snprintf(area_name, 16, "vram0");
@@ -88,19 +89,19 @@ bool CheckWritePermissions(const char* path) {
         snprintf(area_name, 16, "XORpads");
     } else if (drvtype & DRV_IMAGE) {
         perm = PERM_IMAGE;
-        snprintf(area_name, 16, "images");
+        snprintf(area_name, 16, "%s", STR_IMAGES);
     } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
-        snprintf(area_name, 16, "memory areas");
+        snprintf(area_name, 16, "%s", STR_MEMORY_AREAS);
     } else if (strncasecmp(path_f, "0:/Nintendo 3DS", 15) == 0) { // this check could be better
         perm = PERM_SDDATA;
-        snprintf(area_name, 16, "SD system data");
+        snprintf(area_name, 16, "%s", STR_SD_SYSTEM_DATA);
     } else if (drvtype & DRV_SDCARD) {
         perm = PERM_SDCARD;
-        snprintf(area_name, 16, "SD card");
+        snprintf(area_name, 16, "%s", STR_SD_CARD);
     } else if (drvtype & DRV_RAMDRIVE) {
         perm = PERM_RAMDRIVE;
-        snprintf(area_name, 16, "RAM drive");
+        snprintf(area_name, 16, "%s", STR_RAM_DRIVE);
     } else {
         return false;
     }
@@ -112,14 +113,14 @@ bool CheckWritePermissions(const char* path) {
     // offer unlock if possible
     if (!(perm & (PERM_VRAM|PERM_GAME|PERM_XORPAD))) {
         // ask the user
-        if (!ShowPrompt(true, "Writing to %s is locked!\nUnlock it now?", area_name))
+        if (!ShowPrompt(true, STR_WRITING_TO_DRIVE_IS_LOCKED_UNLOCK_NOW, area_name))
             return false;
 
         return SetWritePermissions(perm, true);
     }
 
     // unlock not possible
-    ShowPrompt(false, "Unlock write permission for\n%s is not allowed.", area_name);
+    ShowPrompt(false, STR_UNLOCK_WRITE_FOR_DRIVE_NOT_ALLOWED, area_name);
     return false;
 }
 
@@ -144,65 +145,65 @@ bool SetWritePermissions(u32 perm, bool add_perm) {
 
     switch (perm) {
         case PERM_BASE:
-            if (!ShowUnlockSequence(1, "You want to enable base\nwriting permissions."))
+            if (!ShowUnlockSequence(1, "%s", STR_ENABLE_BASE_WRITE))
                 return false;
             break;
         case PERM_SDCARD:
-            if (!ShowUnlockSequence(1, "You want to enable SD card\nwriting permissions."))
+            if (!ShowUnlockSequence(1, "%s", STR_ENABLE_SD_WRITE))
                 return false;
             break;
         case PERM_IMAGE:
-            if (!ShowUnlockSequence(1, "You want to enable image\nwriting permissions."))
+            if (!ShowUnlockSequence(1, "%s", STR_ENABLE_IMAGE_WRITE))
                 return false;
             break;
         case PERM_RAMDRIVE:
-            if (!ShowUnlockSequence(1, "You want to enable RAM drive\nwriting permissions."))
+            if (!ShowUnlockSequence(1, "%s", STR_ENABLE_RAM_DRIVE_WRITE))
                 return false;
             break;
         case PERM_EMU_LVL0:
-            if (!ShowUnlockSequence(1, "You want to enable EmuNAND\nlvl0 writing permissions."))
+            if (!ShowUnlockSequence(1, "%s", STR_ENABLE_EMUNAND_0_WRITE))
                 return false;
             break;
         case PERM_SYS_LVL0:
-            if (!ShowUnlockSequence(1, "You want to enable SysNAND\nlvl0 writing permissions."))
+            if (!ShowUnlockSequence(1, "%s", STR_ENABLE_SYSNAND_0_WRITE))
                 return false;
             break;
         case PERM_EMU_LVL1:
-            if (!ShowUnlockSequence(2, "You want to enable EmuNAND\nlvl1 writing permissions.\n \nThis enables you to modify\nrecoverable system data,\nuser data & savegames."))
+            if (!ShowUnlockSequence(2, "%s", STR_ENABLE_EMUNAND_1_WRITE))
                 return false;
             break;
         case PERM_SYS_LVL1:
-            if (!ShowUnlockSequence(2, "You want to enable SysNAND\nlvl1 writing permissions.\n \nThis enables you to modify\nsystem data, installations,\nuser data & savegames."))
+            if (!ShowUnlockSequence(2, "%s", STR_ENABLE_SYSNAND_1_WRITE))
                 return false;
             break;
         case PERM_CART:
-            if (!ShowUnlockSequence(2, "You want to enable gamecart\nsave writing permissions."))
+            if (!ShowUnlockSequence(2, "%s", STR_ENABLE_GAMECART_SAVE_WRITE))
                 return false;
             break;
         #ifndef SAFEMODE
         case PERM_SYS_LVL2:
-            if (!ShowUnlockSequence(3, "!Better be careful!\n \nYou want to enable SysNAND\nlvl2 writing permissions.\n \nThis enables you to modify\nirrecoverable system data!"))
+            if (!ShowUnlockSequence(3, "%s", STR_ENABLE_SYSNAND_2_WRITE))
                 return false;
             break;
         case PERM_MEMORY:
-            if (!ShowUnlockSequence(4, "!Better be careful!\n \nYou want to enable memory\nwriting permissions.\n \nWriting to certain areas may\nlead to unexpected results."))
+            if (!ShowUnlockSequence(4, "%s", STR_ENABLE_MEMORY_WRITE))
                 return false;
             break;
         case PERM_SDDATA:
-            if (!ShowUnlockSequence(5, "!THIS IS NOT RECOMMENDED!\n \nYou want to enable SD data\nwriting permissions.\n \nEverything here is encrypted.\nIt is recommended to use the\nA:/B: drives for modification\nof installations, user data &\nsavegames instead."))
+            if (!ShowUnlockSequence(5, "%s", STR_ENABLE_SD_DATA_WRITE))
                 return false;
             break;
         case PERM_SYS_LVL3:
-            if (!ShowUnlockSequence(6, "!THIS IS YOUR ONLY WARNING!\n \nYou want to enable SysNAND\nlvl3 writing permissions.\n \nThis enables you to OVERWRITE\nyour bootloader installation,\nessential system files and/or\nBRICK your console!"))
+            if (!ShowUnlockSequence(6, "%s", STR_ENABLE_SYSNAND_3_WRITE))
                 return false;
             break;
         default:
-            ShowPrompt(false, "Unlock write permission is not allowed.");
+            ShowPrompt(false, "%s", STR_UNLOCK_WRITE_NOT_ALLOWED);
             return false;
             break;
         #else
         default:
-            ShowPrompt(false, "Can't unlock write permission.\nTry GodMode9 instead!");
+            ShowPrompt(false, "%s", STR_CANT_UNLOCK_WRITE_TRY_GODMODE9);
             return false;
             break;
         #endif

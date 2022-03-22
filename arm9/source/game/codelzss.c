@@ -1,4 +1,5 @@
 #include "codelzss.h"
+#include "language.h"
 #include "ui.h"
 
 #define CODE_COMP_SIZE(f)   ((f)->off_size_comp & 0xFFFFFF)
@@ -45,10 +46,10 @@ u32 DecompressCodeLzss(u8* code, u32* code_size, u32 max_size) {
 
     // main decompression loop
     while ((ptr_in > comp_start) && (ptr_out > comp_start)) {
-        if (!ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code...")) {
-            if (ShowPrompt(true, "Decompressing .code...\nB button detected. Cancel?")) return 1;
-            ShowProgress(0, data_end - data_start, "Decompressing .code...");
-            ShowProgress(data_end - ptr_out, data_end - data_start, "Decompressing .code...");
+        if (!ShowProgress(data_end - ptr_out, data_end - data_start, STR_DECOMPRESSING_DOT_CODE)) {
+            if (ShowPrompt(true, "%s", STR_DECOMPRESSING_DOT_CODE_B_DETECTED_CANCEL)) return 1;
+            ShowProgress(0, data_end - data_start, STR_DECOMPRESSING_DOT_CODE);
+            ShowProgress(data_end - ptr_out, data_end - data_start, STR_DECOMPRESSING_DOT_CODE);
         }
 
         // sanity check
@@ -242,13 +243,13 @@ bool CompressCodeLzss(const u8* a_pUncompressed, u32 a_uUncompressedSize, u8* a_
             u8* pDest = a_pCompressed + a_uUncompressedSize;
 
             while (pSrc - a_pUncompressed > 0 && pDest - a_pCompressed > 0) {
-                if (!ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code...")) {
-                    if (ShowPrompt(true, "Compressing .code...\nB button detected. Cancel?")) {
+                if (!ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, STR_COMPRESSING_DOT_CODE)) {
+                    if (ShowPrompt(true, "%s", STR_COMPRESSING_DOT_CODE_B_DETECTED_CANCEL)) {
                         bResult = false;
                         break;
                     }
-                    ShowProgress(0, a_uUncompressedSize, "Compressing .code...");
-                    ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, "Compressing .code...");
+                    ShowProgress(0, a_uUncompressedSize, STR_COMPRESSING_DOT_CODE);
+                    ShowProgress((u32)(a_pUncompressed + a_uUncompressedSize - pSrc), a_uUncompressedSize, STR_COMPRESSING_DOT_CODE);
                 }
 
                 u8* pFlag = --pDest;

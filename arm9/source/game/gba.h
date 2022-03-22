@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "language.h"
 
 #define GBAVC_MAGIC         '.', 'C', 'A', 'A'
 #define AGBSAVE_MAGIC       '.', 'S', 'A', 'V'
@@ -27,16 +28,6 @@
     ((size) == GBASAVE_SRAM_32K)   || \
     ((size) == GBASAVE_FLASH_64K)  || \
     ((size) == GBASAVE_FLASH_128K))
-
-// see: http://problemkaputt.de/gbatek.htm#gbacartridgeheader
-#define AGB_DESTSTR(code) \
-   (((code)[3] == 'J') ? "Japan"            : \
-    ((code)[3] == 'E') ? "USA/English"      : \
-    ((code)[3] == 'P') ? "Europe/Elsewhere" : \
-    ((code)[3] == 'D') ? "German"           : \
-    ((code)[3] == 'F') ? "French"           : \
-    ((code)[3] == 'I') ? "Italian"          : \
-    ((code)[3] == 'S') ? "Spanish" : "Unknown")
 
 
 // see: http://3dbrew.org/wiki/3DS_Virtual_Console#Footer
@@ -89,5 +80,8 @@ typedef struct {
 } __attribute__((packed, aligned(16))) AgbHeader;
 
 
+
 u32 ValidateAgbSaveHeader(AgbSaveHeader* header);
 u32 ValidateAgbHeader(AgbHeader* agb);
+
+const char* AgbDestStr(const char* code);

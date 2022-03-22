@@ -571,11 +571,11 @@ cmd_id get_cmd_id(char* cmd, u32 len, u32 flags, u32 argc, char* err_str) {
     }
 
     if (!cmd_entry) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown cmd");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_UNKNOWN_CMD);
     } else if (cmd_entry->n_args != argc) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "bad # of args");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_BAD_NUMBER_OF_ARGS);
     } else if (~(cmd_entry->allowed_flags|_FLG('o')|_FLG('s')) & flags) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "unrecognized flags");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_UNRECOGNIZED_FLAGS);
     } else return cmd_entry->id;
 
     return CMD_ID_NONE;
@@ -608,7 +608,7 @@ u32 get_flag(char* str, u32 len, char* err_str) {
     else if (strncmp(str, "--explorer", len) == 0) flag_char = 'x';
 
     if (((flag_char < 'a') || (flag_char > 'z')) && ((flag_char < '0') || (flag_char > '5'))) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "illegal flag");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ILLEGAL_FLAG);
         return 0;
     }
 
@@ -628,7 +628,7 @@ char* get_string(char* ptr, const char* line_end, u32* len, char** next, char* e
         str = ++ptr;
         for (; ((*ptr != '\"') || (*(ptr-1) == '\\')) && (ptr < line_end); ptr++, (*len)++);
         if (ptr >= line_end) { // failed if unresolved quotes
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "unresolved quotes");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_UNRESOLVED_QUOTES);
             return NULL;
         }
         *next = ptr + 1;
@@ -650,29 +650,29 @@ char* skip_block(char* ptr, bool ignore_else, bool stop_after_end) {
 
         // grab first string
         char* str = NULL;
-        u32 str_len = 0;
-        if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL)) || (str >= line_end)) {
+        u32 STR_SCRIPTERR_len = 0;
+        if (!(str = get_string(ptr, line_end, &STR_SCRIPTERR_len, &ptr, NULL)) || (str >= line_end)) {
             // string error or empty line
             ptr = line_end + 1;
             continue;
         }
 
         // check string
-        if (MATCH_STR(str, str_len, _CMD_END)) { // stop at end
+        if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_END)) { // stop at end
             return line_start; // end of block found
-        } else if (!ignore_else && MATCH_STR(str, str_len, _CMD_ELSE)) { // stop at else
+        } else if (!ignore_else && MATCH_STR(str, STR_SCRIPTERR_len, _CMD_ELSE)) { // stop at else
             return line_start; // end of block found
-        } else if (!ignore_else && MATCH_STR(str, str_len, _CMD_ELIF)) { // stop at elif
+        } else if (!ignore_else && MATCH_STR(str, STR_SCRIPTERR_len, _CMD_ELIF)) { // stop at elif
             return line_start; // end of block found
-        } else if (MATCH_STR(str, str_len, _CMD_IF)) {
+        } else if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_IF)) {
             ptr = line_start = skip_block(line_end + 1, true, false);
             if (ptr == NULL) return NULL;
 
             line_end = strchr(ptr, '\n');
             if (!line_end) line_end = ptr + strlen(ptr);
 
-            str = get_string(ptr, line_end, &str_len, &ptr, NULL);
-            if (!(MATCH_STR(str, str_len, _CMD_END))) return NULL;
+            str = get_string(ptr, line_end, &STR_SCRIPTERR_len, &ptr, NULL);
+            if (!(MATCH_STR(str, STR_SCRIPTERR_len, _CMD_END))) return NULL;
             if (stop_after_end) return line_end + 1;
         }
 
@@ -693,19 +693,19 @@ char* find_next(char* ptr) {
 
         // grab first string
         char* str = NULL;
-        u32 str_len = 0;
-        if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL)) || (str >= line_end)) {
+        u32 STR_SCRIPTERR_len = 0;
+        if (!(str = get_string(ptr, line_end, &STR_SCRIPTERR_len, &ptr, NULL)) || (str >= line_end)) {
             // string error or empty line
             ptr = line_end + 1;
             continue;
         }
 
         // check string
-        if (MATCH_STR(str, str_len, _CMD_IF)) { // skip 'if' blocks
+        if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_IF)) { // skip 'if' blocks
             ptr = skip_block(ptr, true, true);
-        } else if (MATCH_STR(str, str_len, _CMD_END) || MATCH_STR(str, str_len, _CMD_FOR)) {
+        } else if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_END) || MATCH_STR(str, STR_SCRIPTERR_len, _CMD_FOR)) {
             ptr = NULL; // this should not happen here
-        } else if (MATCH_STR(str, str_len, _CMD_NEXT)) {
+        } else if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_NEXT)) {
             return line_start;
         }
 
@@ -738,28 +738,28 @@ char* find_label(const char* label, const char* last_found) {
 
         // search for label
         char* str = NULL;
-        u32 str_len = 0;
-        if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL))) continue; // string error, ignore line
+        u32 STR_SCRIPTERR_len = 0;
+        if (!(str = get_string(ptr, line_end, &STR_SCRIPTERR_len, &ptr, NULL))) continue; // string error, ignore line
         else if (str >= line_end) continue; // empty line
 
         if (*str == '@') {
             // label found
-            str++; str_len--;
+            str++; STR_SCRIPTERR_len--;
 
             // compare it manually (also check for '*' at end)
             u32 pdiff = 0;
-            for (; (pdiff < str_len) && (label[pdiff] == str[pdiff]); pdiff++);
+            for (; (pdiff < STR_SCRIPTERR_len) && (label[pdiff] == str[pdiff]); pdiff++);
             if ((pdiff < label_len) && (label[pdiff] != '*')) continue; // no match
             // otherwise: potential regular or wildcard match
 
             // may be a match, see if there are more strings after it
-            if (!(str = get_string(ptr, line_end, &str_len, &ptr, NULL))) continue; // string error, ignore line
+            if (!(str = get_string(ptr, line_end, &STR_SCRIPTERR_len, &ptr, NULL))) continue; // string error, ignore line
             else if ((str < line_end) && (*str != '#')) continue; // neither end of line nor comment
 
             return line_start; // match found
-        } else if (MATCH_STR(str, str_len, _CMD_IF)) {
+        } else if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_IF)) {
             next = skip_block(line_start, true, true);
-        } else if (MATCH_STR(str, str_len, _CMD_FOR)) {
+        } else if (MATCH_STR(str, STR_SCRIPTERR_len, _CMD_FOR)) {
             next = find_next(line_start);
         } // otherwise: irrelevant line
     }
@@ -847,10 +847,10 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
             if (!flag_add) return false; // not a proper flag
             *flags |= flag_add;
         } else if (*argc >= _MAX_ARGS) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "too many arguments");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_TOO_MANY_ARGUMENTS);
             return false; // too many arguments
         } else if (!expand_arg(argv[(*argc)++], str, len)) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "argument expand failed");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ARGUMENT_EXPAND_FAILED);
             return false; // arg expand failed
         }
     }
@@ -881,7 +881,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         // check the argument
         // "not true" or "not false"
         ret = (strncmp(argv[0], _ARG_FALSE, _ARG_MAX_LEN) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "'not' an error");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_QUOTE_NOT_AN_ERROR);
     }
     else if (id == CMD_ID_IF) {
         // check the argument
@@ -890,13 +890,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         ifcnt++;
 
         if (syntax_error && err_str)
-            snprintf(err_str, _ERR_STR_LEN, "syntax error after 'if'");
+            snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SYNTAX_ERROR_AFTER_IF);
         ret = !syntax_error;
     }
     else if (id == CMD_ID_ELIF) {
         // check syntax errors
         if (ifcnt == 0) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'elif' without 'if'");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ELIF_WITHOUT_IF);
             syntax_error = true;
             return false;
         }
@@ -907,13 +907,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             ((strncmp(argv[0], _ARG_TRUE, _ARG_MAX_LEN) == 0) ? 0 : _SKIP_BLOCK);
 
         if (syntax_error && err_str)
-            snprintf(err_str, _ERR_STR_LEN, "syntax error after 'elif'");
+            snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SYNTAX_ERROR_AFTER_ELIF);
         ret = !syntax_error;
     }
     else if (id == CMD_ID_ELSE) {
         // check syntax errors
         if (ifcnt == 0) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'else' without 'if'");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ELSE_WITHOUT_IF);
             syntax_error = true;
             return false;
         }
@@ -926,7 +926,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_END) {
         // check syntax errors
         if (ifcnt == 0){
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'end' without 'if'");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_END_WITHOUT_IF);
             syntax_error = true;
             return false;
         }
@@ -941,11 +941,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         // cheating alert(!): actually this does nothing much
         // just sets up the for_handler and skips to 'next'
         if (for_ptr) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'for' inside 'for'");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FOR_INSIDE_FOR);
             syntax_error = true;
             return false;
         } else if (!for_handler(NULL, argv[0], argv[1], flags & _FLG('r'))) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "dir not found");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_DIR_NOT_FOUND);
             skip_state = _SKIP_TO_NEXT;
             ret = false;
         } else {
@@ -958,11 +958,11 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char* var = set_var(_VAR_FORPATH, "");
         ret = true;
         if (!for_ptr) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "'next' without 'for'");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_NEXT_WITHOUT_FOR);
             syntax_error = true;
             return false;
         } else if (!var) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "forpath error");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FORPATH_ERROR);
             ret = false;
         } else {
             if (!for_handler(var, NULL, NULL, false)) *var = '\0';
@@ -980,7 +980,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         jump_ptr = find_label(argv[0], NULL);
         if (!jump_ptr) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "label not found");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_LABEL_NOT_FOUND);
         }
     }
     else if (id == CMD_ID_LABELSEL) {
@@ -1021,12 +1021,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
 
         if (!result) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_USER_ABORT);
         } else jump_ptr = options_jmp[result-1];
     }
     else if (id == CMD_ID_KEYCHK) {
         ret = CheckButton(StringToButton(argv[0]));
-        if (!ret && err_str) snprintf(err_str, _ERR_STR_LEN, "key not pressed");
+        if (!ret && err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_KEY_NOT_PRESSED);
     }
     else if (id == CMD_ID_ECHO) {
         ShowPrompt(false, "%s", argv[0]);
@@ -1043,12 +1043,12 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             DrawQrCode(ALT_SCREEN, qrcode);
             ShowPrompt(false, "%s", argv[0]);
             memcpy(ALT_SCREEN, screen_copy, screen_size);
-        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
+        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_OUT_OF_MEMORY);
         free(screen_copy);
     }
     else if (id == CMD_ID_ASK) {
         ret = ShowPrompt(true, "%s", argv[0]);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_USER_ABORT);
     }
     else if (id == CMD_ID_INPUT) {
         char input[_VAR_CNT_LEN] = { 0 };
@@ -1057,10 +1057,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         input[_VAR_CNT_LEN - 1] = '\0';
         ret = ShowKeyboardOrPrompt(input, _VAR_CNT_LEN, "%s", argv[0]);
         if (ret) set_var(argv[1], "");
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_USER_ABORT);
         if (ret) {
             ret = set_var(argv[1], input);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
         }
     }
     else if ((id == CMD_ID_FILESEL) || (id == CMD_ID_DIRSEL)) {
@@ -1074,31 +1074,31 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         path[_VAR_CNT_LEN - 1] = '\0';
         if (strncmp(path, "Z:", 2) == 0) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "forbidden drive");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FORBIDDEN_DRIVE);
         } else if (id == CMD_ID_FILESEL) {
             char* npattern = strrchr(path, '/');
             if (!npattern) {
                 ret = false;
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid path");
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_INVALID_PATH);
             } else {
                 u32 flags_ext = (flags & _FLG('d')) ? 0 : NO_DIRS;
                 *(npattern++) = '\0';
                 ret = FileSelector(choice, argv[0], path, npattern, flags_ext, (flags & _FLG('x')));
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "fileselect abort");
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FILESELECT_ABORT);
             }
         } else {
             ret = FileSelector(choice, argv[0], path, NULL, NO_FILES | SELECT_DIRS, (flags & _FLG('x')));
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "dirselect abort");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_DIRSELECT_ABORT);
         }
 
         if (ret) {
             ret = set_var(argv[2], choice);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
         }
     }
     else if (id == CMD_ID_SET) {
         ret = set_var(argv[0], argv[1]);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "set fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SET_FAIL);
     }
     else if (id == CMD_ID_STRSPLIT) {
         char str[_ARG_MAX_LEN];
@@ -1110,16 +1110,16 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             char* found;
             if (flags & _FLG('f')) found = strchr(str, *argv[2]);
             else found = strrchr(str, *argv[2]);
-            if (!found && err_str) snprintf(err_str, _ERR_STR_LEN, "char not found");
+            if (!found && err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_CHAR_NOT_FOUND);
 
             if (found) {
                 if (flags & _FLG('b')) {
                     *found = '\0';
                     ret = set_var(argv[0], str);
                 } else ret = set_var(argv[0], found+1);
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
             }
-        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] is not a char");
+        } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ARGV_2_IS_NOT_CHAR);
     }
     else if (id == CMD_ID_STRREP) {
         char str[_ARG_MAX_LEN];
@@ -1127,29 +1127,29 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         str[_ARG_MAX_LEN - 1] = '\0';
 
         if (strnlen(argv[2], _ARG_MAX_LEN) != 2) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "argv[2] must be 2 chars");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ARGV_2_MUST_BE_2_CHARS);
             ret = false;
         } else {
             for (u32 i = 0; (i < _ARG_MAX_LEN) && str[i]; i++) {
                 if (str[i] == argv[2][0]) str[i] = argv[2][1];
             }
             ret = set_var(argv[0], str);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
         }
     }
     else if (id == CMD_ID_CHK) {
         if (flags & _FLG('u')) {
             ret = (strncasecmp(argv[0], argv[1], _VAR_CNT_LEN) != 0);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "arg match");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ARG_MATCH);
         } else {
             ret = (strncasecmp(argv[0], argv[1], _VAR_CNT_LEN) == 0);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "no arg match");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_NO_ARG_MATCH);
         }
     }
     else if (id == CMD_ID_ALLOW) {
         if (flags & _FLG('a')) ret = CheckDirWritePermissions(argv[0]);
         else ret = CheckWritePermissions(argv[0]);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "permission fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_PERMISSION_FAIL);
     }
     else if (id == CMD_ID_CP) {
         u32 flags_ext = BUILD_PATH;
@@ -1161,7 +1161,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
         else if (flags & _FLG('p')) flags_ext |= APPEND_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, false);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "copy fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_COPY_FAIL);
     }
     else if (id == CMD_ID_MV) {
         u32 flags_ext = BUILD_PATH;
@@ -1170,7 +1170,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (flags & _FLG('w')) flags_ext |= OVERWRITE_ALL;
         else if (flags & _FLG('k')) flags_ext |= SKIP_ALL;
         ret = PathMoveCopy(argv[1], argv[0], &flags_ext, true);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "move fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_MOVE_FAIL);
     }
     else if (id == CMD_ID_INJECT) {
         char* atstr_dst = strrchr(argv[1], '@');
@@ -1182,7 +1182,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         u32 flags_ext = ALLOW_EXPAND;
         if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
         ret = FileInjectFile(argv[1], argv[0], at_dst, at_org, sz_org, &flags_ext);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "inject fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_INJECT_FAIL);
     }
     else if (id == CMD_ID_FILL) {
         u32 flags_ext = ALLOW_EXPAND;
@@ -1190,21 +1190,21 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         u8 fillbyte = 0;
         if ((strnlen(argv[1], _ARG_MAX_LEN) != 2) || !strntohex(argv[1], &fillbyte, 1)) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "fillbyte fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FILLBYTE_FAIL);
         } else {
             if (flags & _FLG('n')) flags_ext |= NO_CANCEL;
             ret = FileSetByte(argv[0], at_org, sz_org, fillbyte, &flags_ext);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "fill fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FILL_FAIL);
         }
     }
     else if (id == CMD_ID_FDUMMY) {
         u32 fsize;
         if (sscanf(argv[1], "%lX", &fsize) != 1) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "bad filesize");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_BAD_FILESIZE);
         } else {
             ret = FileCreateDummy(argv[0], NULL, fsize);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "create dummy fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_CREATE_DUMMY_FILE);
         }
     }
     else if (id == CMD_ID_RM) {
@@ -1212,15 +1212,15 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         TruncateString(pathstr, argv[0], 24, 8);
         ShowString("Deleting %s...", pathstr);
         ret = PathDelete(argv[0]);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "remove fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_REMOVE_FAIL);
     }
     else if (id == CMD_ID_MKDIR) {
         ret = (CheckWritePermissions(argv[0])) && (fvx_rmkdir(argv[0]) == FR_OK);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "makedir fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_MAKEDIR_FAIL);
     }
     else if (id == CMD_ID_MOUNT) {
         ret = InitImgFS(argv[0]);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "mount fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_MOUNT_FAIL);
     }
     else if (id == CMD_ID_UMOUNT) {
         InitImgFS(NULL);
@@ -1229,37 +1229,37 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char path[_VAR_CNT_LEN];
         u8 mode = (flags & _FLG('f')) ? FN_LOWEST : FN_HIGHEST;
         ret = (fvx_findpath(path, argv[0], mode) == FR_OK);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "find fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FIND_FAIL);
         if (ret) {
             ret = set_var(argv[1], path);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
         }
     }
     else if (id == CMD_ID_FINDNOT) {
         char path[_VAR_CNT_LEN];
         ret = (fvx_findnopath(path, argv[0]) == FR_OK);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "findnot fail");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FINDNOT_FAIL);
         if (ret) {
             ret = set_var(argv[1], path);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
         }
     }
     else if (id == CMD_ID_FGET) {
         u8 data[(_VAR_CNT_LEN-1)/2];
         if (sz_org == 0) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "no size given");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_NO_SIZE_GIVEN);
         } else if (sz_org > (_VAR_CNT_LEN-1)/2) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "size too big");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_FIRM_TOO_BIG);
         } else if (FileGetData(argv[0], data, sz_org, at_org) != sz_org) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "read fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_READ_FAIL);
         } else {
             char* var = set_var(argv[1], "");
             if (!var) {
                 ret = false;
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
             } else {
                 if (flags & _FLG('e')) { // flip data
                     for (u32 i = 0; i < (sz_org >> 1); i++) {
@@ -1269,7 +1269,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                     }
                 }
                 ret = hexntostr(data, var, sz_org);
-                if (!ret && err_str) snprintf(err_str, _ERR_STR_LEN, "conversion fail");
+                if (!ret && err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_CONVERSION_FAIL);
             }
         }
     }
@@ -1286,13 +1286,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
         if (!len) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "invalid data");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_INVALID_DATA);
         } else if (sz_org > len) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "size too big");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SIZE_TOO_BIG);
         } else if (!FileSetData(argv[0], data, sz_org, at_org, false)) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "write fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_WRITE_FAIL);
         }
     }
     else if (id == CMD_ID_SHA) {
@@ -1301,20 +1301,20 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         u8 hash_cmp[0x20];
         if (!FileGetSha(argv[0], hash_fil, at_org, sz_org, flags & _FLG('1'))) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SHA_ARG0_FAIL);
         } else if ((FileGetData(argv[1], hash_cmp, hashlen, 0) != hashlen) && !strntohex(argv[1], hash_cmp, hashlen)) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg1 fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SHA_ARG1_FAIL);
         } else {
             ret = (memcmp(hash_fil, hash_cmp, hashlen) == 0);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha does not match");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SHA_DOES_NOT_MATCH);
         }
     }
     else if (id == CMD_ID_SHAGET) {
         const u8 hashlen = (flags & _FLG('1')) ? 20 : 32;
         u8 hash_fil[0x20];
         if (!(ret = FileGetSha(argv[0], hash_fil, at_org, sz_org, flags & _FLG('1')))) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha arg0 fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SHA_ARG0_FAIL);
         } else if (!strchr(argv[1], ':')) {
             char hash_str[64+1];
             if (flags & _FLG('1'))
@@ -1324,9 +1324,9 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 snprintf(hash_str, 64+1, "%016llX%016llX%016llX%016llX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
                 getbe64(hash_fil + 16), getbe64(hash_fil + 24));
             ret = set_var(argv[1], hash_str);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "var fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
         } else if (!(ret = FileSetData(argv[1], hash_fil, hashlen, 0, true))) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "sha write fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SHA_WRITE_FAIL);
         }
     }
     else if (id == CMD_ID_DUMPTXT) {
@@ -1335,65 +1335,65 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (flags & _FLG('p')) offset = FileGetSize(argv[0]);
         if (!(ret = FileSetData(argv[0], argv[1], len, offset, offset == 0)) ||
             !(ret = FileSetData(argv[0], "\n", 1, offset + len, false))) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "file write fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_WRITE_FAIL);
         }
     }
     else if (id == CMD_ID_FIXCMAC) {
-        ShowString("Fixing CMACs...");
+        ShowString("%s", STR_FIXING_CMACS_PLEASE_WAIT);
         ret = (RecursiveFixFileCmac(argv[0]) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "fixcmac failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FIXCMAC_FAILED);
     }
     else if (id == CMD_ID_VERIFY) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
         else ret = (VerifyGameFile(argv[0]) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "verification failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_VERIFICATION_FAILED);
     }
     else if (id == CMD_ID_DECRYPT) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
         else ret = (CryptGameFile(argv[0], true, false) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "decrypt failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_DECRYPT_FAILED);
     }
     else if (id == CMD_ID_ENCRYPT) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
         else ret = (CryptGameFile(argv[0], true, true) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "encrypt failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ENCRYPT_FAILED);
     }
     else if (id == CMD_ID_BUILDCIA) {
         ret = (BuildCiaFromGameFile(argv[0], (flags & _FLG('l'))) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "build CIA failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_BUILD_CIA_FAILED);
     }
     else if (id == CMD_ID_INSTALL) {
         ret = (InstallGameFile(argv[0], (flags & _FLG('e'))) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "install game failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_INSTALL_GAME_FAILED);
     }
     else if (id == CMD_ID_EXTRCODE) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (!FTYPE_HASCODE(filetype)) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "does not contain .code");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_DOES_NOT_CONTAIN_DOT_CODE);
         } else {
-            ShowString("Extracting .code, please wait...");
+            ShowString("%s", STR_EXTRACTING_DOT_CODE);
             ret = (ExtractCodeFromCxiFile(argv[0], argv[1], NULL) == 0);
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "extract .code failed");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_EXTRACT_DOT_CODE_FAILED);
         }
     }
     else if (id == CMD_ID_CMPRCODE) {
-        ShowString("Compressing .code, please wait...");
+        ShowString("%s", STR_COMPRESSING_DOT_CODE);
         ret = (CompressCode(argv[0], argv[1]) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "compress .code failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_COMPRESS_DOT_CODE_FAILED);
     }
     else if (id == CMD_ID_SDUMP) {
         ret = false;
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "build failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_BUILD_FAILED);
         if ((strncasecmp(argv[0], TIKDB_NAME_ENC, _ARG_MAX_LEN) == 0) ||
             (strncasecmp(argv[0], TIKDB_NAME_DEC, _ARG_MAX_LEN) == 0)) {
             bool tik_dec = (strncasecmp(argv[0], TIKDB_NAME_DEC, _ARG_MAX_LEN) == 0);
             if (flags & _FLG('w')) fvx_unlink(tik_dec ? OUTPUT_PATH "/" TIKDB_NAME_DEC : OUTPUT_PATH "/" TIKDB_NAME_ENC);
             if (BuildTitleKeyInfo(NULL, tik_dec, false) == 0) {
-                ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
+                ShowString(STR_BUILDING_TO_OUT_ARG, OUTPUT_PATH, argv[0]);
                 if (((BuildTitleKeyInfo("1:/dbs/ticket.db", tik_dec, false) == 0) ||
                      (BuildTitleKeyInfo("4:/dbs/ticket.db", tik_dec, false) == 0)) &&
                     (BuildTitleKeyInfo(NULL, tik_dec, true) == 0))
@@ -1402,31 +1402,31 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         } else if (strncasecmp(argv[0], SEEDINFO_NAME, _ARG_MAX_LEN) == 0) {
             if (flags & _FLG('w')) fvx_unlink(OUTPUT_PATH "/" SEEDINFO_NAME);
             if (BuildSeedInfo(NULL, false) == 0) {
-                ShowString("Building to " OUTPUT_PATH ":\n%s ...", argv[0]);
+                ShowString(STR_BUILDING_TO_OUT_ARG, OUTPUT_PATH, argv[0]);
                 if (((BuildSeedInfo("1:", false) == 0) ||
                      (BuildSeedInfo("4:", false) == 0)) &&
                     (BuildSeedInfo(NULL, true) == 0))
                     ret = true;
             }
         } else {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown file");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_UNKNOWN_FILE);
         }
     }
     else if (id == CMD_ID_APPLYIPS) {
         ret = (ApplyIPSPatch(argv[0], argv[1], argv[2]) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply IPS failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_APPLY_IPS_FAILD);
     }
     else if (id == CMD_ID_APPLYBPS) {
         ret = (ApplyBPSPatch(argv[0], argv[1], argv[2]) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply BPS failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_APPLY_BPS_FAILED);
     }
     else if (id == CMD_ID_APPLYBPM) {
         ret = (ApplyBPMPatch(argv[0], argv[1], argv[2]) == 0);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "apply BPM failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_APPLY_BPM_FAILED);
     }
     else if (id == CMD_ID_TEXTVIEW) {
         ret = FileTextViewer(argv[0], false);
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "textviewer failed");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_TEXTVIEWER_FAILED);
     }
     else if (id == CMD_ID_CARTDUMP) {
         CartData* cdata = (CartData*) malloc(sizeof(CartData));
@@ -1434,16 +1434,16 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         u64 fsize;
         ret = false;
         if (!cdata || !buf) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_OUT_OF_MEMORY);
         } else if (sscanf(argv[1], "%llX", &fsize) != 1) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "bad dumpsize");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_BAD_DUMPSIZE);
         } else if (InitCartRead(cdata) != 0){
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "cart init fail");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_CART_INIT_FAIL);
         } else {
             SetSecureAreaEncryption(flags & _FLG('e'));
             fvx_unlink(argv[0]);
             ret = true;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "cart dump failed");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_CART_DUMP_FAILED);
             for (u64 p = 0; p < fsize; p += STD_BUFFER_SIZE) {
                 u64 len = min((fsize - p), STD_BUFFER_SIZE);
                 ShowProgress(p, fsize, argv[0]);
@@ -1464,7 +1464,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             fvx_closedir(&fdir);
             ret = true;
         } else {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a dir");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_NOT_A_DIR);
             ret = false;
         }
     }
@@ -1472,7 +1472,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         if (fvx_stat(argv[0], NULL) == FR_OK) {
             ret = true;
         } else {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "file not found");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FILE_NOT_FOUND);
             ret = false;
         }
     }
@@ -1480,7 +1480,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         u8* firm = (u8*) malloc(FIRM_MAX_SIZE);
         if (!firm) {
             ret = false;
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "out of memory");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_OUT_OF_MEMORY);
         } else {
             size_t firm_size = FileGetData(argv[0], firm, FIRM_MAX_SIZE, 0);
             ret = firm_size && IsBootableFirm(firm, firm_size);
@@ -1496,26 +1496,26 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
                 PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
                 BootFirm((FirmHeader*)(void*)firm, fixpath);
                 while(1);
-            } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "not a bootable firm");
+            } else if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_NOT_A_BOOTABLE_FIRM);
             free(firm);
         }
     }
     else if (id == CMD_ID_SWITCHSD) {
         DeinitExtFS();
         if (!(ret = CheckSDMountState())) {
-            if (err_str) snprintf(err_str, _ERR_STR_LEN, "SD not mounted");
+            if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SD_NOT_MOUNTED);
         } else {
             u32 pad_state;
             DeinitSDCardFS();
-            ShowString("%s\n \nEject SD card...", argv[0]);
+            ShowString("%s\n \n%s", argv[0], STR_EJECT_SD_CARD);
             while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_EJECT)));
             if (pad_state & SD_EJECT) {
-                ShowString("%s\n \nInsert SD card...", argv[0]);
+                ShowString("%s\n \n%s", argv[0], STR_INSERT_SD_CARD);
                 while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_INSERT)));
             }
             if (pad_state & BUTTON_B) {
                 ret = false;
-                if (err_str) snprintf(err_str, _ERR_STR_LEN, "user abort");
+                if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_USER_ABORT);
             }
         }
         InitSDCardFS();
@@ -1543,10 +1543,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     }
     else { // command not recognized / bad number of arguments
         ret = false;
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "unknown error");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_UNKNOWN_ERROR);
     }
 
-    if (ret && err_str) snprintf(err_str, _ERR_STR_LEN, "command success");
+    if (ret && err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_COMMAND_SUCCESS);
     return ret;
 }
 
@@ -1574,7 +1574,7 @@ bool run_line(const char* line_start, const char* line_end, u32* flags, char* er
     // control flow command handling
     // block out of control flow commands
     if (if_cond && IS_CTRLFLOW_CMD(cmdid)) {
-        if (err_str) snprintf(err_str, _ERR_STR_LEN, "control flow error");
+        if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_CONTROL_FLOW_ERROR);
         syntax_error = true;
         return false;
     }
@@ -1693,7 +1693,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
 
     // check if this really is text
     if (!ValidateText(text, len)) {
-        ShowPrompt(false, "Error: Invalid text data");
+        ShowPrompt(false, "%s", STR_ERROR_INVALID_TEXT_DATA);
         return false;
     }
 
@@ -1701,8 +1701,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
     ClearScreenF(true, true, COLOR_STD_BG);
 
     // instructions
-    static const char* instr = "Textviewer Controls:\n \n↑↓→←(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
-    ShowString("%s", instr);
+    ShowString("%s", STR_TEXTVIEWER_CONTROLS_DETAILS);
 
     // set script colors
     if (as_script) {
@@ -1741,9 +1740,9 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
         else if (pad_state & BUTTON_RIGHT) off_disp += step_lr;
         else if (pad_state & BUTTON_LEFT) off_disp -= step_lr;
         else if (switched && (pad_state & BUTTON_X)) {
-            u64 lnext64 = ShowNumberPrompt(lcurr, "Current line: %i\nEnter new line below.", lcurr);
+            u64 lnext64 = ShowNumberPrompt(lcurr, STR_CURRENT_LINE_N_ENTER_NEW_LINE_BELOW, lcurr);
             if (lnext64 && (lnext64 != (u64) -1)) line0_next = line_seek(text, len, 0, line0, (int) lnext64 - lcurr);
-            ShowString("%s", instr);
+            ShowString("%s", STR_TEXTVIEWER_CONTROLS_DETAILS);
         } else if (switched && (pad_state & BUTTON_Y)) {
             ww = ww ? 0 : TV_LLEN_DISP;
             line0_next = line_seek(text, len, ww, line0, 0);
@@ -1779,7 +1778,7 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
 
     // check if this really is text
     if (!ValidateText(text, len)) {
-        ShowPrompt(false, "Error: Invalid text data");
+        ShowPrompt(false, "%s", STR_ERROR_INVALID_TEXT_DATA);
         return false;
     }
 
@@ -1886,7 +1885,7 @@ bool ExecuteGM9Script(const char* path_script) {
     if (!var_buffer || !script_buffer) {
         if (var_buffer) free(var_buffer);
         if (script_buffer) free(script_buffer);
-        ShowPrompt(false, "Out of memory.");
+        ShowPrompt(false, "%s", STR_OUT_OF_MEMORY);
         return false;
     }
 
@@ -1930,7 +1929,7 @@ bool ExecuteGM9Script(const char* path_script) {
                 if (!preview_mode || (preview_mode > 2) || !preview_mode_local)
                     ClearScreen(TOP_SCREEN, COLOR_STD_BG);
                 if (preview_mode > 2) {
-                    char* preview_str = get_var("PREVIEW_MODE", NULL);
+                    const char* preview_str = get_var("PREVIEW_MODE", NULL);
                     u32 bitmap_width, bitmap_height;
                     u16* bitmap = NULL;
 
@@ -1946,7 +1945,7 @@ bool ExecuteGM9Script(const char* path_script) {
                         DrawBitmap(TOP_SCREEN, -1, -1, bitmap_width, bitmap_height, bitmap);
                         free(bitmap);
                     } else if (ShowGameFileIcon(preview_str, TOP_SCREEN) != 0) {
-                        if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = "(preview disabled)";
+                        if (strncmp(preview_str, "off", _VAR_CNT_LEN) == 0) preview_str = STR_PREVIEW_DISABLED;
                         DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", preview_str);
                     }
 
@@ -1986,14 +1985,14 @@ bool ExecuteGM9Script(const char* path_script) {
         if ((skip_state == _SKIP_BLOCK) || (skip_state == _SKIP_TILL_END)) {
             skip_ptr = skip_block(line_end + 1, (skip_state == _SKIP_TILL_END), false);
             if (!skip_ptr) {
-                snprintf(err_str, _ERR_STR_LEN, "unclosed conditional");
+                snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_UNCLOSED_CONDITIONAL);
                 result = false;
                 syntax_error = true;
             }
         } else if (skip_state == _SKIP_TO_NEXT) {
             skip_ptr = find_next(ptr);
             if (!skip_ptr) {
-                snprintf(err_str, _ERR_STR_LEN, "'for' without 'next'");
+                snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_FOR_WITHOUT_NEXT);
                 result = false;
                 syntax_error = true;
             }
@@ -2001,7 +2000,7 @@ bool ExecuteGM9Script(const char* path_script) {
         } else if (skip_state == _SKIP_TO_FOR) {
             skip_ptr = for_ptr;
             if (!skip_ptr) {
-                snprintf(err_str, _ERR_STR_LEN, "'next' without 'for'");
+                snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_NEXT_WITHOUT_FOR);
                 result = false;
                 syntax_error = true;
             }
@@ -2017,7 +2016,7 @@ bool ExecuteGM9Script(const char* path_script) {
                 if (!*err_str) {
                     char* msg_fail = get_var("ERRORMSG", NULL);
                     if (msg_fail && *msg_fail) ShowPrompt(false, "%s", msg_fail);
-                    else snprintf(err_str, _ERR_STR_LEN, "error message fail");
+                    else snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ERROR_MESSAGE_FAIL);
                 }
                 if (*err_str) {
                     char line_str[32+1];
@@ -2027,7 +2026,7 @@ bool ExecuteGM9Script(const char* path_script) {
                     if ((lptr1 > lptr0) && (*(lptr1-1) == '\r')) lptr1--; // handle \r
                     if (lptr1 - lptr0 > 32) snprintf(line_str, 32+1, "%.29s...", lptr0);
                     else snprintf(line_str, 32+1, "%.*s", lptr1 - lptr0, lptr0);
-                    ShowPrompt(false, "%s\nline %lu: %s\n%s", path_str, lno, err_str, line_str);
+                    ShowPrompt(false, STR_PATH_LINE_N_ERR_LINE, path_str, lno, err_str, line_str);
                 }
             }
             if (!(flags & _FLG('o'))) { // failed if not optional
@@ -2056,11 +2055,11 @@ bool ExecuteGM9Script(const char* path_script) {
 
     if (result) { // all fine(?) up to this point
         if (ifcnt) { // check for unresolved 'if'
-            ShowPrompt(false, "%s\nend of script: unresolved 'if'", path_str);
+            ShowPrompt(false, "%s\n%s", path_str, STR_END_OF_SCRIPT_UNRESOLVED_IF);
             result = false;
         }
         if (for_ptr) { // check for unresolved 'for'
-            ShowPrompt(false, "%s\nend of script: unresolved 'for'", path_str);
+            ShowPrompt(false, "%s\n%s", path_str, STR_END_OF_SCRIPT_UNRESOLVED_FOR);
             for_handler(NULL, NULL, NULL, false);
             result = false;
         }

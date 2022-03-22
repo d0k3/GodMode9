@@ -159,7 +159,7 @@ u32 DumpGbaVcSavegameBuffered(const char* path, void* buffer) {
 u32 DumpGbaVcSavegame(const char* path) {
     u8* buffer = (u8*) malloc(AGBSAVE_MAX_SIZE);
     if (!buffer) {
-        ShowPrompt(false, "Out of memory.");
+        ShowPrompt(false, "%s", STR_OUT_OF_MEMORY);
         return 1;
     }
 
@@ -234,7 +234,7 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
 u32 InjectGbaVcSavegame(const char* path, const char* path_vcsave) {
     u8* buffer = (u8*) malloc(AGBSAVE_MAX_SIZE);
     if (!buffer) {
-        ShowPrompt(false, "Out of memory.");
+        ShowPrompt(false, "%s", STR_OUT_OF_MEMORY);
         return 1;
     }
 
@@ -328,21 +328,20 @@ u32 ValidateNandDump(const char* path) {
     // check NAND header
     NandNcsdHeader ncsd;
     if ((ReadNandFile(&file, &ncsd, 0, 1, 0xFF) != 0) || (ValidateNandNcsdHeader(&ncsd) != 0)) {
-        ShowPrompt(false, "%s\nNCSD header is not valid", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_NCSD_HEADER_IS_NOT_VALID);
         fvx_close(&file);
         return 1;
     }
 
     // check size
     if (fvx_size(&file) < (GetNandNcsdMinSizeSectors(&ncsd) * 0x200)) {
-        ShowPrompt(false, "%s\nNAND dump misses data", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_NAND_DUMP_MISSING_DATA);
         fvx_close(&file);
         return 1;
     }
 
     // check TWL & CTR FAT partitions
     for (u32 i = 0; i < 2; i++) {
-        char* section_type = (i) ? "CTR" : "TWL";
         if (i == 0) { // check TWL first, then CTR
             if (GetNandNcsdPartitionInfo(&info, NP_TYPE_STD, NP_SUBTYPE_TWL, 0, &ncsd) != 0) return 1;
         } else if ((GetNandNcsdPartitionInfo(&info, NP_TYPE_STD, NP_SUBTYPE_CTR, 0, &ncsd) != 0) &&
@@ -350,7 +349,7 @@ u32 ValidateNandDump(const char* path) {
         MbrHeader mbr;
         if ((ReadNandFile(&file, &mbr, info.sector, 1, info.keyslot) != 0) ||
             (ValidateMbrHeader(&mbr) != 0)) {
-            ShowPrompt(false, "%s\nError: %s MBR is corrupt", pathstr, section_type);
+            ShowPrompt(false, "%s\n%s", pathstr, i ? STR_ERROR_CTR_MBR_IS_CORRUPT : STR_ERROR_TWL_MBR_IS_CORRUPT);
             fvx_close(&file);
             return 1; // impossible to happen
         }
@@ -360,7 +359,7 @@ u32 ValidateNandDump(const char* path) {
             if (!p_sector) continue;
             if ((ReadNandFile(&file, fat, info.sector + p_sector, 1, info.keyslot) != 0) ||
                 (ValidateFatHeader(fat) != 0)) {
-                ShowPrompt(false, "%s\nError: %s partition%lu is corrupt", pathstr, section_type, p);
+                ShowPrompt(false, i ? STR_PATH_ERROR_CTR_PARTITION_N_IS_CORRUPT : STR_PATH_ERROR_TWL_PARTITION_N_IS_CORRUPT, pathstr, p);
                 fvx_close(&file);
                 return 1;
             }
@@ -374,7 +373,7 @@ u32 ValidateNandDump(const char* path) {
     // check all 8 firms, also check if ARM9 & ARM11 entrypoints are available
     for (u32 f = 0; f <= 8; f++) {
         if (GetNandNcsdPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, f, &ncsd) != 0) {
-            ShowPrompt(false, "%s\nNo valid FIRM found", pathstr);
+            ShowPrompt(false, "%s\n%s", pathstr, STR_NO_VALID_FIRM_FOUND);
             fvx_close(&file);
             free(firm);
             return 1;
@@ -395,19 +394,19 @@ u32 ValidateNandDump(const char* path) {
 
 u32 SafeRestoreNandDump(const char* path) {
     if ((ValidateNandDump(path) != 0) && // NAND dump validation
-        !ShowPrompt(true, "Error: NAND dump is corrupt.\nStill continue?"))
+        !ShowPrompt(true, "%s", STR_ERROR_NAND_DUMP_IS_CORRUPT_STILL_CONTINUE))
         return 1;
     if (!IS_UNLOCKED) {
-        ShowPrompt(false, "Error: System is locked.");
+        ShowPrompt(false, "%s", STR_ERROR_SYSTEM_IS_LOCKED);
         return 1;
     }
     if (fvx_stat("S:/essential.exefs", NULL) != FR_OK) {
-        if (ShowPrompt(true, "Essential files backup is required.\nCreate one now?"))
+        if (ShowPrompt(true, "%s", STR_ESSENTIAL_FILES_BACKUP_IS_REQUIRED_CREATE_ONE_NOW))
             EmbedEssentialBackup("S:/nand.bin");
         else return 1;
     }
 
-    if (!ShowUnlockSequence(5, "!WARNING!\n \nProceeding will overwrite the\nSysNAND with the provided dump.\n \n(B9S/A9LH will be left intact.)"))
+    if (!ShowUnlockSequence(5, "%s", STR_WARNING_PROCEEDING_WILL_OVERWRITE_SYSNAND_WITH_DUMP))
         return 1;
     if (!SetWritePermissions(PERM_SYS_LVL1, true)) return 1;
 
@@ -447,7 +446,7 @@ u32 SafeRestoreNandDump(const char* path) {
                 break;
         }
         if (!header_inject || (ValidateNandNcsdHeader(&ncsd_img) != 0) || (ValidateMbrHeader(&twl_mbr_img) != 0)) {
-            ShowPrompt(false, "Image NCSD corrupt or customized,\nsafe restore is not possible!");
+            ShowPrompt(false, "%s", STR_IMAGE_NCSD_CORRUPT_OR_CUSTOMIZED_SAFE_RESTORE_NOT_POSSIBLE);
             fvx_close(&file);
             return 1;
         }
@@ -455,7 +454,7 @@ u32 SafeRestoreNandDump(const char* path) {
 
     // additional warning for elevated write permissions
     if (header_inject) {
-        if (!ShowPrompt(true, "!WARNING!\n \nNCSD differs between image and local,\nelevated write permissions required\n \nProceed on your own risk?") ||
+        if (!ShowPrompt(true, "%s", STR_WARNING_NCSD_DIFFERS_BETWEEN_IMAGE_AND_LOCAL_ELEVATED_WRITE_PERMISSIONS_REQUIRED) ||
             !SetWritePermissions(PERM_SYS_LVL3, true)) {
             fvx_close(&file);
             return 1;
@@ -508,8 +507,8 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     UINT firm_size;
     if ((fvx_qread(path, firm, 0, bufsiz, &firm_size) != FR_OK) ||
         !firm_size || !IsInstallableFirm(firm, firm_size)) {
-        ShowPrompt(false, IsBootableFirm(firm, firm_size) ?
-            "%s\nNot a installable FIRM." : "%s\nFIRM load/verify error.", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, IsBootableFirm(firm, firm_size) ?
+            STR_NOT_AN_INSTALLABLE_FIRM : STR_FIRM_LOAD_VERIFY_ERROR);
         return 1;
     }
 
@@ -524,7 +523,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
         if (!((slots>>s)&0x1)) continue;
         if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
             ((info.count * 0x200) < firm_size)) {
-            ShowPrompt(false, "%s\nFIRM%lu not found or too small.", pathstr, s);
+            ShowPrompt(false, STR_PATH_FIRM_N_NOT_FOUND_OR_TOO_SMALL, pathstr, s);
             return 1;
         }
     }
@@ -534,7 +533,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     bool fix_sector0x96 = false;
     ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND);
     if (!IS_O3DS && !CheckSector0x96Crypto()) {
-        ShowPrompt(false, "%s\nSector 0x96 crypto fail.", pathstr);
+        ShowPrompt(false, "%s\n%s", pathstr, STR_SECTOR_0X96_CRYPTO_FAIL);
         return 1;
     }
     if (!IS_O3DS && (ValidateSecretSector(sector0x96) != 0)) {
@@ -546,21 +545,21 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
         else *path_sector = '\0';
         if ((fvx_qread(path_sector, sector0x96, 0, 0x200, NULL) != FR_OK) ||
             (ValidateSecretSector(sector0x96) != 0)) {
-            ShowPrompt(false, "%s\nSector 0x96 is corrupted.\n \nProvide \"secret_sector.bin\"\nto fix sector 0x96.", pathstr);
+            ShowPrompt(false, "%s\n%s", pathstr, STR_SECTOR_0X96_CORRUPTED_PROVIDE_SECRET_SECTOR_BIN_TO_FIX);
             return 1;
-        } else if (ShowPrompt(true, "%s\nSector 0x96 is corrupted.\n \nFix sector 0x96 during\nthe installation?", pathstr)) {
+        } else if (ShowPrompt(true, "%s\n%s", pathstr, STR_SECTOR_0X96_CORRUPTED_FIX_DURING_INSTALLATION)) {
             fix_sector0x96 = true;
         } else return 1;
     }
 
     // all checked, ready to go
-    if (!ShowUnlockSequence(6, "!WARNING!\n \nProceeding will install the\nprovided FIRM to the SysNAND\nand inject sighax.\n \nInstalling an unsupported FIRM\nwill BRICK your console!")) return 1;
+    if (!ShowUnlockSequence(6, "%s", STR_WARNING_PROCEEDING_WILL_INSTALL_FIRM_TO_SYSNAND_AND_INJECT_SIGHAX_UNSUPPORTED_FIRM_WILL_BRICK)) return 1;
     // if (!SetWritePermissions(PERM_SYS_LVL3, true)) return 1; // one unlock sequence is enough
 
     // point of no return
-    ShowString("Installing FIRM, please wait...");
+    ShowString("%s", STR_INSTALLING_FIRM_PLEASE_WAIT);
     if (fix_sector0x96 && (WriteNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0)) {
-        ShowPrompt(false, "!THIS IS BAD!\n \nFailed writing sector 0x96.\nTry to fix before reboot!");
+        ShowPrompt(false, "%s", STR_THIS_IS_BAD_FAILED_WRITING_SECTOR_0X96_TRY_FIX_BEFORE_REBOOT);
         return 1;
     }
     for (u32 s = 0; s < 8; s++) {
@@ -568,16 +567,16 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
         if (!((slots>>s)&0x1)) continue;
         if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
             (WriteNandBytes(firm, info.sector*0x200, firm_size, info.keyslot, NAND_SYSNAND) != 0)) {
-            ShowPrompt(false, "!THIS IS BAD!\n \nFailed writing FIRM%lu.\nTry to fix before reboot!", s);
+            ShowPrompt(false, STR_THIS_IS_BAD_FAILED_WRITING_FIRM_N_TRY_FIX_BEFORE_REBOOT, s);
             return 1;
         }
     }
 
     // done, now check the installation
-    ShowString("Checking installation, please wait...");
+    ShowString("%s", STR_CHECKING_INSTALLATION_PLEASE_WAIT);
     if (fix_sector0x96 && ((ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0) ||
         (ValidateSecretSector(sector0x96) != 0))) {
-        ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying sector 0x96.\nTry to fix before reboot!");
+        ShowPrompt(false, "%s", STR_THIS_IS_BAD_FAILED_VERIFYING_SECTOR_0X96_TRY_FIX_BEFORE_REBOOT);
         return 1;
     }
     for (u32 s = 0; s < 8; s++) {
@@ -586,7 +585,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
         if ((GetNandPartitionInfo(&info, NP_TYPE_FIRM, NP_SUBTYPE_CTR, s, NAND_SYSNAND) != 0) ||
             (ReadNandBytes(firm, info.sector*0x200, firm_size, info.keyslot, NAND_SYSNAND) != 0) ||
             (sha_cmp(firm_sha, firm, firm_size, SHA256_MODE) != 0)) {
-            ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying FIRM%lu.\nTry to fix before reboot!", s);
+            ShowPrompt(false, STR_THIS_IS_BAD_FAILED_VERIFYING_FIRM_N_TRY_FIX_BEFORE_REBOOT, s);
             return 1;
         }
     }
@@ -597,7 +596,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
 u32 SafeInstallFirm(const char* path, u32 slots) {
     u8* buffer = (u8*) malloc(FIRM_MAX_SIZE);
     if (!buffer) {
-        ShowPrompt(false, "Out of memory.");
+        ShowPrompt(false, "%s", STR_OUT_OF_MEMORY);
         return 1;
     }
 
@@ -616,20 +615,20 @@ u32 SafeInstallKeyDb(const char* path) {
     // already installed?
     if ((ReadNandBytes(keydb, SECTOR_KEYDB*0x200, KEYDB_PERFECT_SIZE, 0xFF, NAND_SYSNAND) == 0) &&
         (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) == 0)) {
-        ShowPrompt(false, "Perfect " KEYDB_NAME " is already installed!");
+        ShowPrompt(false, STR_PERFECT_KEYDB_IS_ALREADY_INSTALLED, KEYDB_NAME);
         return 1;
     }
 
     // check input path...
     if ((fvx_qread(path, keydb, 0, KEYDB_PERFECT_SIZE, NULL) != FR_OK) ||
         (sha_cmp(perfect_sha, keydb, KEYDB_PERFECT_SIZE, SHA256_MODE) != 0)) {
-        ShowPrompt(false, "%s\nNot a perfect " KEYDB_NAME " image.\nCannot install to NAND!", pathstr);
+        ShowPrompt(false, STR_PATH_NOT_PERFECT_KEYDB_IMAGE_CANNOT_INSTALL_TO_NAND, pathstr, KEYDB_NAME);
         return 1;
     }
 
     // point of no return, install key database
     if (WriteNandBytes(keydb, SECTOR_KEYDB*0x200, KEYDB_PERFECT_SIZE, 0xFF, NAND_SYSNAND) != 0) {
-        ShowPrompt(false, "%s\nFailed writing " KEYDB_NAME " to NAND!", pathstr);
+        ShowPrompt(false, STR_PATH_FAILED_WRITING_KEYDB_TO_NAND, pathstr, KEYDB_NAME);
         return 1;
     }
 

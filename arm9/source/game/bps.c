@@ -18,6 +18,7 @@
 
 #include <libgen.h>
 
+#include "language.h"
 #include "common.h"
 #include "timer.h"
 #include "crc32.h"
@@ -143,18 +144,18 @@ static bool BEAT_UpdateProgress(const BEAT_Context *ctx)
 static const char *BEAT_ErrString(int error)
 { // Get an error description string
 	switch(error) {
-		case BEAT_OK: return "No error";
-		case BEAT_EOAL: return "End of action list";
-		case BEAT_ABORTED: return "Aborted by user";
-		case BEAT_IO_ERROR: return "Failed to read/write file";
-		case BEAT_OVERFLOW: return "Attempted to write beyond end of file";
-		case BEAT_BADPATCH: return "Invalid patch file";
-		case BEAT_BADINPUT: return "Invalid input file";
-		case BEAT_BADOUTPUT: return "Output file checksum mismatch";
-		case BEAT_BADCHKSUM: return "File checksum failed";
-		case BEAT_PATCH_EXPECT: return "Expected more patch data";
-		case BEAT_OUT_OF_MEMORY: return "Out of memory";
-		default: return "Unknown error";
+		case BEAT_OK: return STR_BEAT_NO_ERROR;
+		case BEAT_EOAL: return STR_BEAT_END_OF_ACTION_LIST;
+		case BEAT_ABORTED: return STR_BEAT_ABORTED_BY_USER;
+		case BEAT_IO_ERROR: return STR_BEAT_FAILED_TO_READ_WRITE_FILE;
+		case BEAT_OVERFLOW: return STR_BEAT_ATTEMPTED_TO_WRITE_BEYOND_EOF;
+		case BEAT_BADPATCH: return STR_BEAT_INVALID_PATCH_FILE;
+		case BEAT_BADINPUT: return STR_BEAT_INVALID_INPUT_FILE;
+		case BEAT_BADOUTPUT: return STR_BEAT_OUTPUT_FILE_CHECKSUM_MISMATCH;
+		case BEAT_BADCHKSUM: return STR_BEAT_FILE_CHECKSUM_FAILED;
+		case BEAT_PATCH_EXPECT: return STR_BEAT_EXPECTED_MORE_PATCH_DATA;
+		case BEAT_OUT_OF_MEMORY: return STR_BEAT_OUT_OF_MEMORY;
+		default: return STR_BEAT_UNKNOWN_ERROR;
 	}
 }
 
@@ -221,7 +222,7 @@ static s32 BEAT_DecodeSigned(u32 val) // Extract the signed number
 static int BEAT_RunActions(BEAT_Context *ctx, const BEAT_Action *acts)
 { // Parses an action list and runs commands specified in `acts`
 	u32 vli, len;
-	int cmd, res;
+	int cmd, res = BEAT_OK;
 
 	while((res == BEAT_OK) &&
 		(ctx->foff[BEAT_PF] < (BEAT_RANGE(ctx, BEAT_PF) - ctx->eoal_offset))) {
@@ -660,19 +661,18 @@ static int BEAT_Run(const char *p, const char *s, const char *d, bool bpm)
 	progress_timer = timer_start();
 	res = (bpm ? BPM_InitCTX : BPS_InitCTX)(&ctx, p, s, d);
 	if (res != BEAT_OK) {
-		ShowPrompt(false, "Failed to initialize %s file:\n%s",
-			bpm ? "BPM" : "BPS", BEAT_ErrString(res));
+		ShowPrompt(false, bpm ? STR_FAILED_TO_INITIALIZE_BPM_FILE : STR_FAILED_TO_INITIALIZE_BPS_FILE, BEAT_ErrString(res));
 	} else {
 		res = (bpm ? BPM_RunActions : BPS_RunActions)(&ctx);
 		switch(res) {
 			case BEAT_OK:
-				ShowPrompt(false, "Patch successfully applied");
+				ShowPrompt(false, "%s", STR_PATCH_SUCCESSFULLY_APPLIED);
 				break;
 			case BEAT_ABORTED:
-				ShowPrompt(false, "Patching aborted by user");
+				ShowPrompt(false, "%s", STR_PATCHING_ABORTED_BY_USER);
 				break;
 			default:
-				ShowPrompt(false, "Failed to run patch:\n%s", BEAT_ErrString(res));
+				ShowPrompt(false, STR_FAILED_TO_RUN_PATCH, BEAT_ErrString(res));
 				break;
 		}
 	}
