@@ -744,7 +744,7 @@ u32 VerifyNcsdFile(const char* path) {
         if (!size) continue;
         if (VerifyNcchFile(path, offset, size) != 0) {
             ShowPrompt(false, "%s\nContent%lu (%08lX@%08lX):\nVerification failed",
-                pathstr, i, size, offset, i);
+                pathstr, i, size, offset);
             return 1;
         }
     }
@@ -789,7 +789,7 @@ u32 VerifyCiaFile(const char* path) {
         if (!(cnt_index[index/8] & (1 << (7-(index%8))))) continue; // don't check missing contents
         if (VerifyTmdContent(path, next_offset, chunk, titlekey) != 0) {
             ShowPrompt(false, "%s\nID %08lX (%08llX@%08llX)\nVerification failed",
-                pathstr, getbe32(chunk->id), getbe64(chunk->size), next_offset, i);
+                pathstr, getbe32(chunk->id), getbe64(chunk->size), next_offset);
             free(cia);
             return 1;
         }
@@ -927,7 +927,7 @@ u32 VerifyFirmFile(const char* path) {
         void* section = ((u8*) firm_buffer) + sct->offset;
         if (!(sct->size)) continue;
         if (sha_cmp(sct->hash, section, sct->size, SHA256_MODE) != 0) {
-            ShowPrompt(false, "%s\nSection %u hash mismatch", pathstr, i);
+            ShowPrompt(false, "%s\nSection %lu hash mismatch", pathstr, i);
             free(firm_buffer);
             return 1;
         }
@@ -3589,7 +3589,7 @@ u32 ShowGameCheckerInfo(const char* path) {
         if (!ShowPrompt(state_verify < 0,
                 "%s\n%s %s Title\n \n"
                 "Title ID: %016llX\n"
-                "Title version: %u.%u.%u\n"
+                "Title version: %lu.%lu.%lu\n"
                 "Contents size: %s\n"
                 "%s\n%s \n"
                 "Ticket/TMD: %s/%s\n"

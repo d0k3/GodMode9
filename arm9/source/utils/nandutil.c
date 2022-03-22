@@ -360,7 +360,7 @@ u32 ValidateNandDump(const char* path) {
             if (!p_sector) continue;
             if ((ReadNandFile(&file, fat, info.sector + p_sector, 1, info.keyslot) != 0) ||
                 (ValidateFatHeader(fat) != 0)) {
-                ShowPrompt(false, "%s\nError: %s partition%u is corrupt", pathstr, section_type, p);
+                ShowPrompt(false, "%s\nError: %s partition%lu is corrupt", pathstr, section_type, p);
                 fvx_close(&file);
                 return 1;
             }
@@ -558,7 +558,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     // if (!SetWritePermissions(PERM_SYS_LVL3, true)) return 1; // one unlock sequence is enough
 
     // point of no return
-    ShowString(false, "Installing FIRM, please wait...");
+    ShowString("Installing FIRM, please wait...");
     if (fix_sector0x96 && (WriteNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0)) {
         ShowPrompt(false, "!THIS IS BAD!\n \nFailed writing sector 0x96.\nTry to fix before reboot!");
         return 1;
@@ -574,7 +574,7 @@ u32 SafeInstallFirmBuffered(const char* path, u32 slots, u8* buffer, u32 bufsiz)
     }
 
     // done, now check the installation
-    ShowString(false, "Checking installation, please wait...");
+    ShowString("Checking installation, please wait...");
     if (fix_sector0x96 && ((ReadNandSectors(sector0x96, 0x96, 1, 0x11, NAND_SYSNAND) != 0) ||
         (ValidateSecretSector(sector0x96) != 0))) {
         ShowPrompt(false, "!THIS IS BAD!\n \nFailed verifying sector 0x96.\nTry to fix before reboot!");

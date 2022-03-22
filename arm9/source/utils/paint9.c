@@ -116,7 +116,7 @@ u32 Paint9(void) {
         }
     } else DrawStringF(TOP_SCREEN, 10, 10, COLOR_STD_FONT, COLOR_TRANSPARENT, "(" VRAM0_EASTER_BIN " not found)");
     DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(snapstr),
-        SCREEN_HEIGHT - 10 - GetDrawStringHeight(snapstr), COLOR_STD_FONT, COLOR_TRANSPARENT, snapstr);
+        SCREEN_HEIGHT - 10 - GetDrawStringHeight(snapstr), COLOR_STD_FONT, COLOR_TRANSPARENT, "%s", snapstr);
 
     // outline canvas
     DrawRectangle(BOT_SCREEN, 0, 0, 30, SCREEN_HEIGHT, outline_bg);

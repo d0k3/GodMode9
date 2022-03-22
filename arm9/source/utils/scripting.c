@@ -1679,8 +1679,8 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         }
 
         // colorize arrows
-        if (al) DrawStringF(TOP_SCREEN, x_al, y, COLOR_TVOFFS, COLOR_TRANSPARENT, al_str);
-        if (ar) DrawStringF(TOP_SCREEN, x_ar, y, COLOR_TVOFFS, COLOR_TRANSPARENT, ar_str);
+        if (al) DrawStringF(TOP_SCREEN, x_al, y, COLOR_TVOFFS, COLOR_TRANSPARENT, "%s", al_str);
+        if (ar) DrawStringF(TOP_SCREEN, x_ar, y, COLOR_TVOFFS, COLOR_TRANSPARENT, "%s", ar_str);
 
         // advance pointer / line number
         for (char* c = ptr; c < ptr_next; c++) if (*c == '\n') ++nln;
@@ -1702,7 +1702,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
 
     // instructions
     static const char* instr = "Textviewer Controls:\n \n↑↓→←(+R) - Scroll\nR+Y - Toggle wordwrap\nR+X - Goto line #\nB - Exit\n";
-    ShowString(instr);
+    ShowString("%s", instr);
 
     // set script colors
     if (as_script) {
@@ -1743,7 +1743,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script) {
         else if (switched && (pad_state & BUTTON_X)) {
             u64 lnext64 = ShowNumberPrompt(lcurr, "Current line: %i\nEnter new line below.", lcurr);
             if (lnext64 && (lnext64 != (u64) -1)) line0_next = line_seek(text, len, 0, line0, (int) lnext64 - lcurr);
-            ShowString(instr);
+            ShowString("%s", instr);
         } else if (switched && (pad_state & BUTTON_Y)) {
             ww = ww ? 0 : TV_LLEN_DISP;
             line0_next = line_seek(text, len, ww, line0, 0);
@@ -1818,7 +1818,7 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
             for (; IS_WHITESPACE(*caption); caption++);
             for (; caption[len] != '\n' && caption[len] != '\r'; len++);
             DrawStringF(BOT_SCREEN, x0 + (lvl-1) * (FONT_WIDTH_EXT/2), y0, text_color, COLOR_STD_BG,
-                "%*.*s", len, len, caption);
+                "%*.*s", (int) len, (int) len, caption);
             y0 += FONT_HEIGHT_EXT + (2*TV_VPAD);
         }
 

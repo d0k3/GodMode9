@@ -94,7 +94,7 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
     u32 draw_y_upd = draw_y + draw_height - 10;
 
     ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
-    DrawStringF(MAIN_SCREEN, draw_x, draw_y, COLOR_STD_FONT, COLOR_STD_BG, dumpstr);
+    DrawStringF(MAIN_SCREEN, draw_x, draw_y, COLOR_STD_FONT, COLOR_STD_BG, "%s", dumpstr);
 
     /* Dump STACK */
     sp = regs[13] & ~0xF;

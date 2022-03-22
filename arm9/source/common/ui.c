@@ -705,7 +705,7 @@ void ShowIconString(u16* icon, int w, int h, const char *format, ...)
     vsnprintf(str, STRBUF_SIZE, format, va);
     va_end(va);
 
-    ShowIconStringF(MAIN_SCREEN, icon, w, h, str);
+    ShowIconStringF(MAIN_SCREEN, icon, w, h, "%s", str);
 }
 
 bool ShowPrompt(bool ask, const char *format, ...)
@@ -936,7 +936,8 @@ u32 ShowFileScrollPrompt(u32 n, const DirEntry** options, bool hide_ext, const c
         if (n - n_show - scroll) {
             char more_str[64 + 1];
             snprintf(more_str, 64, "   [%d more]", (int)(n - (n_show-1) - scroll));
-            DrawStringF(MAIN_SCREEN, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG, "%-*s", item_width / font_width, more_str);
+            DrawStringF(MAIN_SCREEN, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG,
+                    "%-*s", (int) (item_width / font_width), more_str);
         }
         // show scroll bar
         u32 bar_x = x + item_width + 2;
@@ -1076,15 +1077,15 @@ bool ShowInputPrompt(char* inputstr, u32 max_size, u32 resize, const char* alpha
 
         DrawStringF(MAIN_SCREEN, x, y + str_height - 76, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c\n%-*.*s^%-*.*s",
             (scroll) ? '<' : '|',
-            input_shown_size,
-            input_shown_size,
+            (int) input_shown_size,
+            (int) input_shown_size,
             (scroll > inputstr_size) ? "" : inputstr + scroll,
             (inputstr_size - (s32) scroll > input_shown_size) ? '>' : '|',
-            1 + cpos,
-            1 + cpos,
+            (int) 1 + cpos,
+            (int) 1 + cpos,
             "",
-            input_shown_length - cpos,
-            input_shown_length - cpos,
+            (int) input_shown_length - cpos,
+            (int) input_shown_length - cpos,
             ""
         );
 
@@ -1432,7 +1433,7 @@ int ShowBrightnessConfig(int set_brightness)
     // draw initial UI stuff
     DrawStringF(MAIN_SCREEN,
         (SCREEN_WIDTH_MAIN - GetDrawStringWidth(brightness_str)) / 2,
-        (SCREEN_HEIGHT / 4) * 2, COLOR_STD_FONT, COLOR_STD_BG, brightness_str);
+        (SCREEN_HEIGHT / 4) * 2, COLOR_STD_FONT, COLOR_STD_BG, "%s", brightness_str);
 
     // draw all color gradient bars
     for (int x = 0; x < bar_width; x++) {

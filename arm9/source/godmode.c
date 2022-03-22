@@ -144,14 +144,14 @@ u32 SplashInit(const char* modestr) {
     }
 
     if (modestr) DrawStringF(TOP_SCREEN, SCREEN_WIDTH_TOP - 10 - GetDrawStringWidth(modestr),
-        SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, modestr);
+        SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, "%s", modestr);
 
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
         namestr, strnlen(namestr, 64), strnlen(namestr, 64),
         "--------------------------------", "https://github.com/d0k3/GodMode9",
         "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
         "Hourlies:", "https://d0k3.secretalgorithm.com/");
-    DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, loadstr);
+    DrawStringF(BOT_SCREEN, pos_xu, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "%s", loadstr);
     DrawStringF(BOT_SCREEN, pos_xb, pos_yu, COLOR_STD_FONT, COLOR_STD_BG, "built: " DBUILTL);
 
     return 0;
@@ -330,7 +330,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         snprintf(bytestr, 31, "%s Byte", numstr);
         ResizeString(tempstr, bytestr, str_len_info, 8, false);
     }
-    DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, tempstr);
+    DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, "%s", tempstr);
     // path of file (if in search results)
     if ((DriveType(curr_path) & DRV_SEARCH) && strrchr(curr_entry->path, '/')) {
         char dirstr[256];
@@ -345,7 +345,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
 
     // right top - clipboard
     DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info, info_start, COLOR_STD_FONT, COLOR_STD_BG, "%*s",
-        len_info / FONT_WIDTH_EXT, (clipboard->n_entries) ? "[CLIPBOARD]" : "");
+        (int) (len_info / FONT_WIDTH_EXT), (clipboard->n_entries) ? "[CLIPBOARD]" : "");
     for (u32 c = 0; c < n_cb_show; c++) {
         u32 color_cb = COLOR_ENTRY(&(clipboard->entry[c]));
         ResizeString(tempstr, (clipboard->n_entries > c) ? clipboard->entry[c].name : "", str_len_info, 8, true);
@@ -354,7 +354,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     *tempstr = '\0';
     if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, "+ %lu more", clipboard->n_entries - n_cb_show);
     DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG,
-        "%*s", len_info / FONT_WIDTH_EXT, tempstr);
+        "%*s", (int) (len_info / FONT_WIDTH_EXT), tempstr);
 
     // bottom: instruction block
     char instr[512];
@@ -370,7 +370,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         "R+←→ - Switch to prev/next pane\n",
         (clipboard->n_entries) ? "SELECT - Clear Clipboard\n" : "SELECT - Restore Clipboard\n", // only if clipboard is full
         "START - Reboot / [+R] Poweroff\nHOME button for HOME menu"); // generic end part
-    DrawStringF(MAIN_SCREEN, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, instr);
+    DrawStringF(MAIN_SCREEN, instr_x, SCREEN_HEIGHT - 4 - GetDrawStringHeight(instr), COLOR_STD_FONT, COLOR_STD_BG, "%s", instr);
 }
 
 void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
@@ -573,11 +573,11 @@ u32 FileHexViewer(const char* path) {
     static bool show_instr = true;
     static const char* instr = "Hexeditor Controls:\n \n↑↓→←(+R) - Scroll\nR+Y - Switch view\nX - Search / goto...\nA - Enter edit mode\nA+↑↓→← - Edit value\nB - Exit\n";
     if (show_instr) { // show one time instructions
-        ShowPrompt(false, instr);
+        ShowPrompt(false, "%s", instr);
         show_instr = false;
     }
 
-    if (MAIN_SCREEN != TOP_SCREEN) ShowString(instr);
+    if (MAIN_SCREEN != TOP_SCREEN) ShowString("%s", instr);
     memcpy(bottom_cpy, BOT_SCREEN, SCREEN_SIZE_BOT);
 
     data = buffer;
@@ -708,7 +708,7 @@ u32 FileHexViewer(const char* path) {
 
             // draw offset / ASCII representation
             if (x_off >= 0) DrawStringF(screen, x_off - x0, y, cutoff ? COLOR_HVOFFS : COLOR_HVOFFSI,
-                COLOR_STD_BG, "%08X", (unsigned int) offset + curr_pos);
+                COLOR_STD_BG, "%08X", (unsigned int) (offset + curr_pos));
             if (x_ascii >= 0) {
                 for (u32 i = 0; i < cols; i++)
                     DrawCharacter(screen, ascii[i], x_ascii - x0 + (FONT_WIDTH_EXT * i), y, COLOR_HVASCII, COLOR_STD_BG);
@@ -799,7 +799,7 @@ u32 FileHexViewer(const char* path) {
                 // check for user edits
                 u32 diffs = 0;
                 for (u32 i = 0; i < edit_bsize; i++) if (buffer[i] != buffer_cpy[i]) diffs++;
-                if (diffs && ShowPrompt(true, "You made edits in %i place(s).\nWrite changes to file?", diffs))
+                if (diffs && ShowPrompt(true, "You made edits in %lu place(s).\nWrite changes to file?", diffs))
                     if (!FileSetData(path, buffer, min(edit_bsize, (fsize - edit_start)), edit_start, false))
                         ShowPrompt(false, "Failed writing to file!");
                 data = buffer;
@@ -1295,8 +1295,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (searchdrv > 0) optionstr[searchdrv-1] = "Open containing folder";
     if (titleman > 0) optionstr[titleman-1] = "Open title folder";
 
-    int user_select = ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
-        "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
+    int user_select = (int) ((n_marked > 1) ?
+        ShowSelectPrompt(n_opt, optionstr, "%s\n(%lu files selected)", pathstr, n_marked) :
+        ShowSelectPrompt(n_opt, optionstr, "%s%s", pathstr, tidstr));
     if (user_select == hexviewer) { // -> show in hex viewer
         FileHexViewer(file_path);
         GetDirContents(current_dir, current_path);
@@ -1484,8 +1485,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (setup > 0) optionstr[setup-1] = "Set as default";
 
     // auto select when there is only one option
-    user_select = (n_opt <= 1) ? n_opt : (int) ShowSelectPrompt(n_opt, optionstr, (n_marked > 1) ?
-        "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
+    user_select = (n_opt <= 1) ? n_opt : (int) ((n_marked > 1) ?
+        ShowSelectPrompt(n_opt, optionstr, "%s\n(%lu files selected)", pathstr, n_marked) :
+        ShowSelectPrompt(n_opt, optionstr, "%s%s", pathstr, tidstr));
     if (user_select == mount) { // -> mount file as image
         const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:", "D:" }; // maybe move that to fsdrive.h
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
@@ -1523,8 +1525,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         if (cryptable_inplace) {
             optionstr[0] = "Decrypt to " OUTPUT_PATH;
             optionstr[1] = "Decrypt inplace";
-            user_select = (int) ShowSelectPrompt(2, optionstr, (n_marked > 1) ?
-                "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
+            user_select = (int) ((n_marked > 1) ?
+                ShowSelectPrompt(2, optionstr, "%s\n(%lu files selected)", pathstr, n_marked) :
+                ShowSelectPrompt(2, optionstr, "%s%s", pathstr, tidstr));
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
@@ -1577,8 +1580,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         if (cryptable_inplace) {
             optionstr[0] = "Encrypt to " OUTPUT_PATH;
             optionstr[1] = "Encrypt inplace";
-            user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
-                "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
+            user_select = (int) ((n_marked > 1) ?
+                ShowSelectPrompt(2, optionstr, "%s\n(%lu files selected)", pathstr, n_marked) :
+                ShowSelectPrompt(2, optionstr, "%s%s", pathstr, tidstr));
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
@@ -1677,8 +1681,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         if (CheckVirtualDrive("E:")) {
             optionstr[0] = "Install to SysNAND";
             optionstr[1] = "Install to EmuNAND";
-            user_select = (int) ShowSelectPrompt(2, optionstr,  (n_marked > 1) ?
-                "%s%0.0s\n(%lu files selected)" : "%s%s", pathstr, tidstr, n_marked);
+            user_select = (int) ((n_marked > 1) ?
+                ShowSelectPrompt(2, optionstr, "%s\n(%lu files selected)", pathstr, n_marked) :
+                ShowSelectPrompt(2, optionstr, "%s%s", pathstr, tidstr));
             if (!user_select) return 0;
             else to_emunand = (user_select == 2);
         }
@@ -2195,7 +2200,7 @@ u32 HomeMoreMenu(char* current_path) {
     if (sysinfo > 0) optionstr[sysinfo - 1] = "System info";
     if (readme > 0) optionstr[readme - 1] = "Show ReadMe";
 
-    int user_select = ShowSelectPrompt(n_opt, optionstr, promptstr);
+    int user_select = ShowSelectPrompt(n_opt, optionstr, "%s", promptstr);
     if (user_select == sdformat) { // format SD card
         bool sd_state = CheckSDMountState();
         char slabel[DRV_LABEL_LEN] = { '\0' };
@@ -2223,7 +2228,7 @@ u32 HomeMoreMenu(char* current_path) {
         return 0;
     }
     else if (user_select == multi) { // switch EmuNAND offset
-        while (ShowPrompt(true, "Current EmuNAND offset is %06X.\nSwitch to next offset?", GetEmuNandBase())) {
+        while (ShowPrompt(true, "Current EmuNAND offset is %06lX.\nSwitch to next offset?", GetEmuNandBase())) {
             if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_EMUNAND))
                 clipboard->n_entries = 0; // remove EmuNAND clipboard entries
             DismountDriveType(DRV_EMUNAND);
@@ -2264,7 +2269,7 @@ u32 HomeMoreMenu(char* current_path) {
             if (!seed_sys || BuildSeedInfo(NULL, true) != 0)
                 seed_sys = seed_emu = false;
         }
-        ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%18.18-s %s\n%18.18-s %s\n%18.18-s %s",
+        ShowPrompt(false, "Built in " OUTPUT_PATH ":\n \n%-18.18s %s\n%-18.18s %s\n%-18.18s %s",
             TIKDB_NAME_ENC, tik_enc_sys ? tik_enc_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
             TIKDB_NAME_DEC, tik_dec_sys ? tik_dec_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed",
             SEEDINFO_NAME, seed_sys ? seed_emu ? "OK (Sys&Emu)" : "OK (Sys)" : "Failed");
@@ -2277,7 +2282,7 @@ u32 HomeMoreMenu(char* current_path) {
         int emu = (CheckHealthAndSafetyInject("4:") == 0) ? (int) ++n_opt : -1;
         if (sys > 0) optionstr[sys - 1] = "Restore H&S (SysNAND)";
         if (emu > 0) optionstr[emu - 1] = "Restore H&S (EmuNAND)";
-        user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, promptstr) : n_opt;
+        user_select = (n_opt > 1) ? ShowSelectPrompt(n_opt, optionstr, "%s", promptstr) : n_opt;
         if (user_select > 0) {
             InjectHealthAndSafety(NULL, (user_select == sys) ? "1:" : "4:");
             GetDirContents(current_dir, current_path);
@@ -2719,14 +2724,14 @@ u32 GodMode(int entrypoint) {
                         if (current_dir->entry[c].marked) n_marked++;
                 }
                 if (n_marked) {
-                    if (ShowPrompt(true, "Delete %u path(s)?", n_marked)) {
+                    if (ShowPrompt(true, "Delete %lu path(s)?", n_marked)) {
                         u32 n_errors = 0;
                         ShowString("Deleting files, please wait...");
                         for (u32 c = 0; c < current_dir->n_entries; c++)
                             if (current_dir->entry[c].marked && !PathDelete(current_dir->entry[c].path))
                                 n_errors++;
                         ClearScreenF(true, false, COLOR_STD_BG);
-                        if (n_errors) ShowPrompt(false, "Failed deleting %u/%u path(s)", n_errors, n_marked);
+                        if (n_errors) ShowPrompt(false, "Failed deleting %lu/%lu path(s)", n_errors, n_marked);
                     }
                 } else if (curr_entry->type != T_DOTDOT) {
                     char namestr[UTF_BUFFER_BYTESIZE(28)];
@@ -2881,7 +2886,7 @@ u32 GodMode(int entrypoint) {
                     u32 tmnum = 2;
                     if (!CheckSDMountState() || (tmnum = ShowSelectPrompt(
                         (CheckVirtualDrive("E:")) ? 4 : 2, tmoptionstr,
-                        "Title manager menu.\nSelect titles source:", buttonstr))) {
+                        "Title manager menu.\nSelect titles source:"))) {
                         const char* tpath = tmpaths[tmnum-1];
                         if (InitImgFS(tpath)) {
                             SetTitleManagerMode(true);

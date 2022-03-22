@@ -146,8 +146,8 @@ static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 
     // draw input string
     DrawStringF(BOT_SCREEN, x, y, COLOR_STD_FONT, COLOR_STD_BG, "%c%-*.*s%c",
         (*scroll) ? '<' : '|',
-        input_shown_size,
-        input_shown_size,
+        (int) input_shown_size,
+        (int) input_shown_size,
         (*scroll > inputstr_size) ? "" : inputstr + *scroll,
         (inputstr_size - (s32) *scroll > input_shown_size) ? '>' : '|'
     );
@@ -159,11 +159,11 @@ static void DrawTextBox(const TouchBox* txtbox, const char* inputstr, const u32 
     }
 
     DrawStringF(BOT_SCREEN, x-(FONT_WIDTH_EXT/2), y+10, COLOR_STD_FONT, COLOR_STD_BG, "%-*.*s^%-*.*s",
-        1 + cpos,
-        1 + cpos,
+        (int) (1 + cpos),
+        (int) (1 + cpos),
         "",
-        input_shown_length - cpos,
-        input_shown_length - cpos,
+        (int) (input_shown_length - cpos),
+        (int) (input_shown_length - cpos),
         ""
     );
 }
@@ -255,7 +255,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     static bool show_instr = true;
     static const char* instr = "Keyboard Controls:\n \n←/→ - Move cursor\nR - Caps / Capslock\nX - Delete char\nY - Insert char\nA - Submit\nB - Cancel\n \nSELECT switches to\nclassic prompt";
     if (show_instr) {
-        ShowPrompt(false, instr);
+        ShowPrompt(false, "%s", instr);
         show_instr = false;
     }
 
@@ -332,7 +332,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
             swkbd = swkbd_numpad;
         } else if (key == KEY_SWITCH) {
             ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-            return ShowStringPrompt(inputstr, max_size, str);
+            return ShowStringPrompt(inputstr, max_size, "%s", str);
         } else if (key == KEY_UNICODE) {
             if (cursor > 3 && cursor <= inputstr_size) {
                 u16 codepoint = 0;
