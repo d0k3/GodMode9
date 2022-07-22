@@ -64,6 +64,11 @@ u32 GetCartName(char* name, CartData* cdata) {
 
 u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
     size_t info_index = 0;
+    u8 padding;
+
+    // read the last byte of the cart storage, but ignore the result
+    ReadCartBytes(&padding, cdata->cart_size - 1, 1, cdata, false);
+
     if (cdata->cart_type & CART_CTR) {
         CartDataCtr* cdata_i = (CartDataCtr*)cdata;
         NcsdHeader* ncsd = &(cdata_i->ncsd);
@@ -107,8 +112,10 @@ u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
         "Save chip ID : <none>\n");
 
     info_index += snprintf(info + info_index, info_size - info_index,
+        "Padding Byte : %02X\n"
         "Timestamp    : 20%02X-%02X-%02X %02X:%02X:%02X\n"
         "GM9 Version  : %s\n",
+        padding,
         init_time.bcd_Y, init_time.bcd_M, init_time.bcd_D,
         init_time.bcd_h, init_time.bcd_m, init_time.bcd_s,
         VERSION);
