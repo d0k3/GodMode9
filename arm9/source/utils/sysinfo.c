@@ -44,6 +44,7 @@ static const struct {
     { 'U', "United Kingdom" },
     { 'S', "Middle East" }, // "S" = Saudi Arabia?  Singapore?  (Southeast Asia included.)
     { 'A', "Australia" },
+    { 'B', "Brazil" },
 };
 
 // Structure of system information.
