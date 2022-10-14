@@ -1185,6 +1185,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool keyinstallable = (FTYPE_KEYINSTALL(filetype)) && !((drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool scriptable = (FTYPE_SCRIPT(filetype));
     bool fontable = (FTYPE_FONT(filetype));
+    bool translationable = (FTYPE_TRANSLATION(filetype));
     bool viewable = (FTYPE_GFX(filetype));
     bool setable = (FTYPE_SETABLE(filetype));
     bool bootable = (FTYPE_BOOTABLE(filetype));
@@ -1205,8 +1206,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         mountable || verificable || decryptable || encryptable || cia_buildable || cia_buildable_legit ||
         cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable ||
         hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable ||
-        keyinstallable || bootable || scriptable || fontable || viewable || installable || agbexportable ||
-        agbimportable || cia_installable || tik_installable || tik_dumpable || cif_installable;
+        keyinstallable || bootable || scriptable || fontable || translationable || viewable || installable ||
+        agbexportable || agbimportable || cia_installable || tik_installable || tik_dumpable || cif_installable;
 
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1290,6 +1291,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & BIN_NCCHNFO)? STR_NCCHINFO_OPTIONS     :
         (filetype & TXT_SCRIPT) ? STR_EXECUTE_GM9_SCRIPT   :
         (FTYPE_FONT(filetype))  ? STR_FONT_OPTIONS         :
+        (filetype & TRANSLATION)? STR_LANGUAGE_OPTIONS     :
         (filetype & GFX_PNG)    ? STR_VIEW_PNG_FILE        :
         (filetype & HDR_NAND)   ? STR_REBUILD_NCSD_HEADER  :
         (filetype & NOIMG_NAND) ? STR_REBUILD_NCSD_HEADER  : "???";
@@ -1452,6 +1454,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
     int font = (fontable) ? ++n_opt : -1;
+    int translation = (translationable) ? ++n_opt : -1;
     int view = (viewable) ? ++n_opt : -1;
     int agbexport = (agbexportable) ? ++n_opt : -1;
     int agbimport = (agbimportable) ? ++n_opt : -1;
@@ -1489,6 +1492,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (script > 0) optionstr[script-1] = STR_EXECUTE_GM9_SCRIPT;
     if (view > 0) optionstr[view-1] = STR_VIEW_PNG_FILE;
     if (font > 0) optionstr[font-1] = STR_SET_AS_ACTIVE_FONT;
+    if (translation > 0) optionstr[translation-1] = STR_SET_AS_ACTIVE_LANGUAGE;
     if (agbexport > 0) optionstr[agbexport-1] = STR_DUMP_BA_VC_SAVE;
     if (agbimport > 0) optionstr[agbimport-1] = STR_INJECT_GBA_VC_SAVE;
     if (setup > 0) optionstr[setup-1] = STR_SET_AS_DEFAULT;
@@ -2143,6 +2147,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         free(font);
         return 0;
     }
+    else if (user_select == translation) { // set translation
+        u8* translation = (u8*) malloc(0x20000); // arbitrary, should be enough by far
+        if (!translation) return 1;
+        u32 translation_size = FileGetData(file_path, translation, 0x20000, 0);
+        if (translation_size) SetLanguage(translation, translation_size);
+        ClearScreenF(true, true, COLOR_STD_BG);
+        free(translation);
+        return 0;
+    }
     else if (user_select == view) { // view gfx
         if (FileGraphicsViewer(file_path) != 0)
             ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_CANNOT_VIEW_FILE);
@@ -2171,6 +2184,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         } else if (filetype & FONT_PBM) {
             if (SetAsSupportFile("font.pbm", file_path))
                 ShowPrompt(false, "%s\n%s", pathstr, STR_FONT_WILL_BE_ACTIVE_ON_NEXT_BOOT);
+        } else if (filetype & TRANSLATION) {
+            if (SetAsSupportFile("language.trf", file_path))
+                ShowPrompt(false, "%s\n%s", pathstr, STR_LANGUAGE_WILL_BE_ACTIVE_ON_NEXT_BOOT);
         }
         return 0;
     }
@@ -2415,6 +2431,21 @@ u32 GodMode(int entrypoint) {
             if (pbm_size) SetFont(pbm, pbm_size);
             free(pbm);
         }
+    }
+
+    // language handling
+    bool language_loaded = false;
+    if (CheckSupportFile("language.trf")) {
+        char* translation = (char*) malloc(0x20000); // arbitrary, should be enough by far
+        if (translation) {
+            u32 translation_size = LoadSupportFile("language.trf", translation, 0x20000);
+            if (translation_size) language_loaded = SetLanguage(translation, translation_size);
+            free(translation);
+        }
+    }
+
+    if (!language_loaded) {
+        SetLanguage(NULL, 0);
     }
 
     // check for embedded essential backup

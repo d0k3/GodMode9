@@ -22,6 +22,17 @@
 #define FONT_MAX_HEIGHT 10
 #define PROGRESS_REFRESH_RATE 30 // the progress bar is only allowed to draw to screen every X milliseconds
 
+typedef struct {
+    char chunk_id[4]; // NOT null terminated
+    u32 size;
+} RiffChunkHeader;
+
+typedef struct {
+    u8 width;
+    u8 height;
+    u16 count;
+} FontMeta;
+
 static u32 font_width = 0;
 static u32 font_height = 0;
 static u32 font_count = 0;
@@ -130,8 +141,8 @@ u32 GetCharacter(const char** str)
     return c;
 }
 
-u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
-    char* hdr = (char*) pbm;
+const u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
+    const char* hdr = (const char*) pbm;
     u32 hdr_max_size = min(512, pbm_size);
     u32 pbm_w = 0;
     u32 pbm_h = 0;
@@ -192,40 +203,43 @@ u8* GetFontFromPbm(const void* pbm, const u32 pbm_size, u32* w, u32* h) {
     return (u8*) pbm + p;
 }
 
-u8* GetFontFromRiff(const void* riff, const u32 riff_size, u32* w, u32* h, u16* count) {
-    u8 *ptr = (u8*) riff;
-    u8 riff_w = 0;
-    u8 riff_h = 0;
-    u16 riff_count = 0;
+const u8* GetFontFromRiff(const void* riff, const u32 riff_size, u32* w, u32* h, u16* count) {
+    const void* ptr = riff;
+    const RiffChunkHeader* riff_header;
+    const RiffChunkHeader* chunk_header;
 
-    // check header magic, then skip over
-    if (memcmp(ptr, "RIFF", 4) != 0) return NULL;
+    // check header magic and load size
+    if (!ptr) return NULL;
+    riff_header = ptr;
+    if (memcmp(riff_header->chunk_id, "RIFF", 4) != 0) return NULL;
 
     // ensure enough space is allocated
-    u32 data_size;
-    memcpy(&data_size, ptr + 4, sizeof(u32));
-    if (data_size > riff_size) return NULL;
+    if (riff_header->size > riff_size) return NULL;
 
-    ptr += 8;
+    ptr += sizeof(RiffChunkHeader);
 
-    // check for and load META section
-    if (memcmp(ptr, "META", 4) == 0) {
-        riff_w = ptr[8];
-        riff_h = ptr[9];
-        memcpy(&riff_count, ptr + 10, sizeof(u16));
+    while ((u32)(ptr - riff) < riff_header->size + sizeof(RiffChunkHeader)) {
+        chunk_header = ptr;
 
-        u32 section_size;
-        memcpy(&section_size, ptr + 4, sizeof(u32));
-        ptr += 8 + section_size;
+        // check for and load META section
+        if (memcmp(chunk_header->chunk_id, "META", 4) == 0) {
 
-        if (riff_w > FONT_MAX_WIDTH || riff_h > FONT_MAX_HEIGHT) return NULL;
-    } else return NULL;
+            if (chunk_header->size != 4) return NULL;
 
-    // all good
-    if (w) *w = riff_w;
-    if (h) *h = riff_h;
-    if (count) *count = riff_count;
-    return ptr;
+            const FontMeta *meta = ptr + sizeof(RiffChunkHeader);
+            if (meta->width > FONT_MAX_WIDTH || meta->height > FONT_MAX_HEIGHT) return NULL;
+
+            // all good
+            if (w) *w = meta->width;
+            if (h) *h = meta->height;
+            if (count) *count = meta->count;
+            return ptr;
+        }
+
+        ptr += sizeof(RiffChunkHeader) + chunk_header->size;
+    }
+
+    return NULL;
 }
 
 // sets the font from a given RIFF or PBM
@@ -233,7 +247,7 @@ u8* GetFontFromRiff(const void* riff, const u32 riff_size, u32* w, u32* h, u16* 
 bool SetFont(const void* font, u32 font_size) {
     u32 w, h;
     u16 count;
-    u8* ptr = NULL;
+    const u8* ptr = NULL;
 
     if (!font) {
         u64 font_size64 = 0;
@@ -249,33 +263,31 @@ bool SetFont(const void* font, u32 font_size) {
         font_height = h;
         font_count = count;
 
-        // character data
-        if (memcmp(ptr, "CDAT", 4) == 0) {
-            u32 section_size;
-            memcpy(&section_size, ptr + 4, sizeof(u32));
+        const RiffChunkHeader* riff_header;
+        const RiffChunkHeader* chunk_header;
 
-            if (font_bin) free(font_bin);
-            font_bin = malloc(font_height * font_count);
-            if (!font_bin) return NULL;
+        // load total size
+        riff_header = font;
 
-            memcpy(font_bin, ptr + 8, font_height * font_count);
+        while (((u32)ptr - (u32)font) < riff_header->size + sizeof(RiffChunkHeader)) {
+            chunk_header = (const void *)ptr;
 
-            ptr += 8 + section_size;
-        } else return NULL;
+            if (memcmp(chunk_header->chunk_id, "CDAT", 4) == 0) { // character data
+                if (font_bin) free(font_bin);
+                font_bin = malloc(font_height * font_count);
+                if (!font_bin) return NULL;
 
-        // character map
-        if (memcmp(ptr, "CMAP", 4) == 0) {
-            u32 section_size;
-            memcpy(&section_size, ptr + 4, sizeof(u32));
+                memcpy(font_bin, ptr + sizeof(RiffChunkHeader), font_height * font_count);
+            } else if (memcmp(chunk_header->chunk_id, "CMAP", 4) == 0) { // character map
+                if (font_map) free(font_map);
+                font_map = malloc(sizeof(u16) * font_count);
+                if (!font_map) return NULL;
 
-            if (font_map) free(font_map);
-            font_map = malloc(sizeof(u16) * font_count);
-            if (!font_map) return NULL;
+                memcpy(font_map, ptr + sizeof(RiffChunkHeader), sizeof(u16) * font_count);
+            }
 
-            memcpy(font_map, ptr + 8, sizeof(u16) * font_count);
-
-            ptr += 8 + section_size;
-        } else return NULL;
+            ptr += sizeof(RiffChunkHeader) + chunk_header->size;
+        }
     } else if ((ptr = GetFontFromPbm(font, font_size, &w, &h))) {
         font_count = 0x100;
 
