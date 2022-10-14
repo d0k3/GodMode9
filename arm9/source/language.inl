@@ -1,3 +1,7 @@
+// This is to be incremented every time the order changes
+// New strings added to the end will not cause issues
+#define TRANSLATION_VER 1
+
 STRING(DATE_TIME_FORMAT, "%1$s%2$02lX-%3$02lX-%4$02lX %5$02lX:%6$02lX")
 STRING(DECIMAL_SEPARATOR, ".")
 STRING(THOUSAND_SEPARATOR, ",")
@@ -180,6 +184,7 @@ STRING(BUILD_X, "Build %s")
 STRING(NCCHINFO_OPTIONS, "NCCHinfo options...")
 STRING(EXECUTE_GM9_SCRIPT, "Execute GM9 script")
 STRING(FONT_OPTIONS, "Font options...")
+STRING(LANGUAGE_OPTIONS, "Language options...")
 STRING(VIEW_PNG_FILE, "View PNG file")
 STRING(REBUILD_NCSD_HEADER, "Rebuild NCSD header")
 STRING(SHOW_IN_HEXEDITOR, "Show in Hexeditor")
@@ -234,6 +239,7 @@ STRING(INSTALL_X, "Install %s")
 STRING(INSTALL_FIRM, "Install FIRM")
 STRING(BOOT_FIRM, "Boot FIRM")
 STRING(SET_AS_ACTIVE_FONT, "Set as active font")
+STRING(SET_AS_ACTIVE_LANGUAGE, "Set as active language")
 STRING(DUMP_BA_VC_SAVE, "Dump GBA VC save")
 STRING(INJECT_GBA_VC_SAVE, "Inject GBA VC save")
 STRING(SET_AS_DEFAULT, "Set as default")
@@ -367,6 +373,7 @@ STRING(GBA_SAVEGAME_MUST_BE_IN_CLIPBOARD, "GBA VC savegame has to\nbe in the cli
 STRING(SAVEGAME_INJECT_SUCCESS, "Savegame inject success.")
 STRING(SAVEGAME_INJECT_FAILED, "Savegame inject failed!")
 STRING(FONT_WILL_BE_ACTIVE_ON_NEXT_BOOT, "Font will be active on next boot")
+STRING(LANGUAGE_WILL_BE_ACTIVE_ON_NEXT_BOOT, "Language will be active on next boot")
 STRING(HOME_MORE_MENU_SELECT_ACTION, "HOME more... menu.\nSelect action:")
 STRING(SD_FORMAT_MENU, "SD format menu")
 STRING(BONUS_DRIVE_MENU, "Bonus drive setup")

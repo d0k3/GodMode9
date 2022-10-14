@@ -1,0 +1,7 @@
+project_id_env: GM9_CROWDIN_ID
+api_token_env: CROWDIN_TOKEN
+preserve_hierarchy: true
+
+files:
+  - source: /resources/languages/source.json
+    translation: /resources/languages/%two_letters_code%.json

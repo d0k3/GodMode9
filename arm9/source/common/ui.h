@@ -50,8 +50,8 @@ bool PRINTF_ARGS(2) ShowUnlockSequence(u32 seqlvl, const char *format, ...);
 #define ShowUnlockSequence ShowPrompt
 #endif
 
-u8* GetFontFromPbm(const void* pbm, const u32 riff_size, u32* w, u32* h);
-u8* GetFontFromRiff(const void* riff, const u32 riff_size, u32* w, u32* h, u16* count);
+const u8* GetFontFromPbm(const void* pbm, const u32 riff_size, u32* w, u32* h);
+const u8* GetFontFromRiff(const void* riff, const u32 riff_size, u32* w, u32* h, u16* count);
 bool SetFont(const void* font, const u32 font_size);
 
 u16 GetColor(const u16 *screen, int x, int y);
