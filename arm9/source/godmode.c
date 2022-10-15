@@ -2446,6 +2446,34 @@ u32 GodMode(int entrypoint) {
 
     if (!language_loaded) {
         SetLanguage(NULL, 0);
+
+        char loadpath[256];
+        if (LanguageMenu(loadpath, "Select Language for GodMode9:")) {
+            size_t fsize = FileGetSize(loadpath);
+            if (fsize > 0) {
+                char* data = (char*)malloc(fsize);
+                if (data) {
+                    FileGetData(loadpath, data, fsize, 0);
+                    SaveSupportFile("language.trf", data, fsize);
+                    SetLanguage(data, fsize);
+                    free(data);
+                }
+            }
+
+            // Try load font with the same name
+            char *ext = strstr(loadpath, ".trf");
+            strcpy(ext, ".frf");
+            fsize = FileGetSize(loadpath);
+            if (fsize > 0) {
+                char* data = (char*)malloc(fsize);
+                if (data) {
+                    FileGetData(loadpath, data, fsize, 0);
+                    SaveSupportFile("font.frf", data, fsize);
+                    SetFont(data, fsize);
+                    free(data);
+                }
+            }
+        }
     }
 
     // check for embedded essential backup
@@ -2888,6 +2916,7 @@ u32 GodMode(int entrypoint) {
             u32 n_opt = 0;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
+            int language = ++n_opt;
             int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : 0;
             int titleman = ++n_opt;
             int scripts = ++n_opt;
@@ -2896,6 +2925,7 @@ u32 GodMode(int entrypoint) {
             if (poweroff > 0) optionstr[poweroff - 1] = STR_POWEROFF_SYSTEM;
             if (reboot > 0) optionstr[reboot - 1] = STR_REBOOT_SYSTEM;
             if (titleman > 0) optionstr[titleman - 1] = STR_TITLE_MANAGER;
+            if (language > 0) optionstr[language - 1] = STR_LANGUAGE;
             if (brick > 0) optionstr[brick - 1] = STR_BRICK_MY_3DS;
             if (scripts > 0) optionstr[scripts - 1] = STR_SCRIPTS;
             if (payloads > 0) optionstr[payloads - 1] = STR_PAYLOADS;
@@ -2933,6 +2963,38 @@ u32 GodMode(int entrypoint) {
                             scroll = 0;
                             break;
                         } else ShowPrompt(false, "%s", STR_FAILED_SETTING_UP_TITLE_MANAGER);
+                    }
+                } else if (user_select == language) {
+                    if (!CheckSupportDir(LANGUAGES_DIR)) {
+                        ShowPrompt(false, STR_LANGUAGES_DIRECTORY_NOT_FOUND, LANGUAGES_DIR);
+                    } else if (LanguageMenu(loadpath, STR_HOME_LANGUAGE_MENU_SELECT_LANGUAGE)) {
+                        size_t fsize = FileGetSize(loadpath);
+                        if (fsize > 0) {
+                            char* data = (char*)malloc(fsize);
+                            if (data) {
+                                FileGetData(loadpath, data, fsize, 0);
+                                SaveSupportFile("language.trf", data, fsize);
+                                SetLanguage(data, fsize);
+                                free(data);
+                            }
+
+                            // Try load font with the same name
+                            char *ext = strstr(loadpath, ".trf");
+                            strcpy(ext, ".frf");
+                            fsize = FileGetSize(loadpath);
+                            if (fsize > 0) {
+                                char* data = (char*)malloc(fsize);
+                                if (data) {
+                                    FileGetData(loadpath, data, fsize, 0);
+                                    SaveSupportFile("font.frf", data, fsize);
+                                    SetFont(data, fsize);
+                                    free(data);
+                                }
+                            }
+                        }
+                        GetDirContents(current_dir, current_path);
+                        ClearScreenF(true, true, COLOR_STD_BG);
+                        break;
                     }
                 } else if (user_select == scripts) {
                     if (!CheckSupportDir(SCRIPTS_DIR)) {
