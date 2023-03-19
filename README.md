@@ -65,6 +65,10 @@ For certain functionality, GodMode9 may need 'support files'. Support files shou
 * __`seeddb.bin`__: This file is optional and required to decrypt and mount seed-encrypted NCCHs and CIAs (if the seed in question is not installed to your NAND). Note that your seeddb.bin must also contain the seed for the specific game you need to decrypt.
 * __`encTitleKeys.bin`__ / __`decTitleKeys.bin`__: These files are optional and provide titlekeys, which are required to decrypt and install contents downloaded from CDN (for DSi and 3DS content).
 
+### Fonts and translations
+GodMode9 also supports custom fonts and translations as support files. These both use custom formats, fonts use FRF (Font RIFF) files which can be created using the `fontriff.py` Python script in the 'utils' folder. Translations use TRF (Translation RIFF) files from the `transriff.py` script. Examples of the inputs to these scripts can be found in the 'fonts' and 'languages' folders of the 'resources' folder respectively.
+
+TRF files can be placed in `0:/gm9/languages` to show in the language menu accessible from the HOME menu and shown on first load. Official translations are provided from the community via the [GodMode9 Crowdin](https://crowdin.com/project/GodMode9). Languages can use a special font by having an FRF with the same name, for example `en.trf` and `en.frf`.
 
 ## Drives in GodMode9
 GodMode9 provides access to system data via drives, a listing of what each drive contains and additional info follows below. Some of these drives are removable (such as drive `7:`), some will only turn up if they are available (drive `8:` and everything associated with EmuNAND, f.e.). Information on the 3DS console file system is also found on [3Dbrew.org](https://3dbrew.org/wiki/Flash_Filesystem).
@@ -182,6 +186,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **ihaveamac** for first developing the simple CIA generation method and for being of great help in porting it
 * **wwylele** and **aspargas2** for documenting and implementing the DISA, DIFF, and BDRI formats
 * **dratini0** for savefile management, based on [TWLSaveTool](https://github.com/TuxSH/TWLSaveTool/)
+* **Pk11** for unicode and translation support
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
