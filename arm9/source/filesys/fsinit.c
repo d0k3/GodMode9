@@ -21,7 +21,7 @@ bool InitExtFS() {
 
     for (u32 i = 1; i < NORM_FS; i++) {
         char fsname[8];
-        snprintf(fsname, 7, "%lu:", i);
+        snprintf(fsname, sizeof(fsname), "%lu:", i);
         if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
         if ((!fs_mounted[i] || !ramdrv_ready) && (i == NORM_FS - 1) && !(GetMountState() & IMG_NAND)) {
@@ -44,7 +44,7 @@ bool InitImgFS(const char* path) {
     u32 drv_i = NORM_FS - IMGN_FS;
     char fsname[8];
     for (; drv_i < NORM_FS; drv_i++) {
-        snprintf(fsname, 7, "%lu:", drv_i);
+        snprintf(fsname, sizeof(fsname), "%lu:", drv_i);
         if (!(DriveType(fsname)&DRV_IMAGE)) break;
     }
     // deinit virtual filesystem
@@ -58,7 +58,7 @@ bool InitImgFS(const char* path) {
     else if ((type&IMG_FAT) && (drv_i < NORM_FS - IMGN_FS + 1)) drv_i = NORM_FS - IMGN_FS + 1;
     // reinit image filesystem
     for (u32 i = NORM_FS - IMGN_FS; i < drv_i; i++) {
-        snprintf(fsname, 7, "%lu:", i);
+        snprintf(fsname, sizeof(fsname), "%lu:", i);
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
     }
     return GetMountState();
@@ -71,7 +71,7 @@ void DeinitExtFS() {
     for (u32 i = NORM_FS - 1; i > 0; i--) {
         if (fs_mounted[i]) {
             char fsname[8];
-            snprintf(fsname, 7, "%lu:", i);
+            snprintf(fsname, sizeof(fsname), "%lu:", i);
             f_mount(NULL, fsname, 1);
             fs_mounted[i] = false;
         }
@@ -91,7 +91,7 @@ void DismountDriveType(u32 type) { // careful with this - no safety checks
     }
     for (u32 i = 0; i < NORM_FS; i++) {
         char fsname[8];
-        snprintf(fsname, 7, "%lu:", i);
+        snprintf(fsname, sizeof(fsname), "%lu:", i);
         if (!fs_mounted[i] || !(type & DriveType(fsname)))
             continue;
         f_mount(NULL, fsname, 1);

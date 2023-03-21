@@ -64,11 +64,11 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     char path_tickdb[32];
     char path_tickdb_bak[32];
 
-    snprintf(path_secnfo_a, 32, "%s/rw/sys/SecureInfo_A", drv);
-    snprintf(path_secnfo_b, 32, "%s/rw/sys/SecureInfo_B", drv);
-    snprintf(path_secnfo_c, 32, "%s/rw/sys/SecureInfo_C", drv);
-    snprintf(path_tickdb, 32, "%s/dbs/ticket.db", drv);
-    snprintf(path_tickdb_bak, 32, "%s/dbs/ticket.bak", drv);
+    snprintf(path_secnfo_a, sizeof(path_secnfo_a), "%s/rw/sys/SecureInfo_A", drv);
+    snprintf(path_secnfo_b, sizeof(path_secnfo_b), "%s/rw/sys/SecureInfo_B", drv);
+    snprintf(path_secnfo_c, sizeof(path_secnfo_c), "%s/rw/sys/SecureInfo_C", drv);
+    snprintf(path_tickdb, sizeof(path_tickdb), "%s/dbs/ticket.db", drv);
+    snprintf(path_tickdb_bak, sizeof(path_tickdb_bak), "%s/dbs/ticket.bak", drv);
 
     // special handling for out of region images (create SecureInfo_C)
     PathDelete(path_secnfo_c); // not required when transfering back to original region
@@ -88,11 +88,11 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     char path_movable[32];
     char path_asr[96];
     u8 sd_keyy[0x10] __attribute__((aligned(4)));
-    snprintf(path_movable, 32, "%s/private/movable.sed", drv);
+    snprintf(path_movable, sizeof(path_movable), "%s/private/movable.sed", drv);
     if (FileGetData(path_movable, sd_keyy, 0x10, 0x110) == 0x10) {
         u32 sha256sum[8];
         sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
-        snprintf(path_asr, 96, "%s/data/%08lx%08lx%08lx%08lx/sysdata/00010011/00000000",
+        snprintf(path_asr, sizeof(path_asr), "%s/data/%08lx%08lx%08lx%08lx/sysdata/00010011/00000000",
             drv, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
         PathDelete(path_asr);
     }
@@ -103,17 +103,17 @@ u32 TransferCtrNandImage(const char* path_img, const char* drv) {
     char path_from[32];
     char path_dbs[32];
     u32 flags = OVERWRITE_ALL;
-    snprintf(path_dbs, 32, "%s/dbs", drv);
+    snprintf(path_dbs, sizeof(path_dbs), "%s/dbs", drv);
     for (u32 i = 0; i < sizeof(dbnames) / sizeof(char*); i++) {
-        snprintf(path_to, 32, "%s/dbs/%s", drv, dbnames[i]);
-        snprintf(path_from, 32, "7:/dbs/%s", dbnames[i]);
+        snprintf(path_to, sizeof(path_to), "%s/dbs/%s", drv, dbnames[i]);
+        snprintf(path_from, sizeof(path_from), "7:/dbs/%s", dbnames[i]);
         PathDelete(path_to);
         PathCopy(path_dbs, path_from, &flags);
         FixFileCmac(path_to, true);
     }
     ShowString("%s", STR_CLEANING_UP_TITLES_PLEASE_WAIT);
-    snprintf(path_to, 32, "%s/title", drv);
-    snprintf(path_from, 32, "7:/title");
+    snprintf(path_to, sizeof(path_to), "%s/title", drv);
+    snprintf(path_from, sizeof(path_from), "7:/title");
     PathDelete(path_to);
     PathCopy(drv, path_from, &flags);
 

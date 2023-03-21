@@ -363,8 +363,8 @@ bool FileSetByte(const char* dest, u64 offset, u64 size, u8 fillbyte, u32* flags
 bool FileCreateDummy(const char* cpath, const char* filename, u64 size) {
     char npath[256]; // 256 is the maximum length of a full path
     if (!CheckWritePermissions(cpath)) return false;
-    if (filename) snprintf(npath, 255, "%s/%s", cpath, filename);
-    else snprintf(npath, 255, "%s", cpath);
+    if (filename) snprintf(npath, sizeof(npath), "%s/%s", cpath, filename);
+    else snprintf(npath, sizeof(npath), "%s", cpath);
 
     // create dummy file (fail if already existing)
     // then, expand the file size via cluster preallocation
@@ -381,7 +381,7 @@ bool FileCreateDummy(const char* cpath, const char* filename, u64 size) {
 bool DirCreate(const char* cpath, const char* dirname) {
     char npath[256]; // 256 is the maximum length of a full path
     if (!CheckWritePermissions(cpath)) return false;
-    snprintf(npath, 255, "%s/%s", cpath, dirname);
+    snprintf(npath, sizeof(npath), "%s/%s", cpath, dirname);
     if (fa_mkdir(npath) != FR_OK) return false;
     return (fa_stat(npath, NULL) == FR_OK);
 }
@@ -731,7 +731,7 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
     char dest[256]; // maximum path name length in FAT
     char* oname = strrchr(orig, '/');
     if (oname == NULL) return false; // not a proper origin path
-    snprintf(dest, 255, "%s/%s", destdir, (++oname));
+    snprintf(dest, sizeof(dest), "%s/%s", destdir, (++oname));
 
     // virtual destination special handling
     if (GetVirtualSource(destdir) & ~VRT_BDRI) {
@@ -747,7 +747,7 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
             }
             if (!ShowPrompt(true, STR_ENTRY_NOT_FOUND_PATH_INJECT_INTO_PATH_INSTEAD, dest, dvfile.name))
                 return false;
-            snprintf(dest, 255, "%s/%s", destdir, dvfile.name);
+            snprintf(dest, sizeof(dest), "%s/%s", destdir, dvfile.name);
         } else if (osize < dvfile.size) { // if origin is smaller than destination...
             char deststr[UTF_BUFFER_BYTESIZE(36)];
             char origstr[UTF_BUFFER_BYTESIZE(36)];
@@ -772,7 +772,7 @@ bool PathMove(const char* destdir, const char* orig, u32* flags) {
     char dest[256]; // maximum path name length in FAT
     char* oname = strrchr(orig, '/');
     if (oname == NULL) return false; // not a proper origin path
-    snprintf(dest, 255, "%s/%s", destdir, (++oname));
+    snprintf(dest, sizeof(dest), "%s/%s", destdir, (++oname));
 
     return PathMoveCopy(dest, orig, flags, true);
 }
@@ -838,7 +838,7 @@ bool FileSelectorWorker(char* result, const char* text, const char* path, const 
 
                 if (!new_style) {
                     char temp_str[256];
-                    snprintf(temp_str, 256, "%s", entry->name);
+                    snprintf(temp_str, sizeof(temp_str), "%s", entry->name);
                     if (hide_ext && (entry->type == T_FILE)) {
                         char* dot = strrchr(temp_str, '.');
                         if (dot) *dot = '\0';

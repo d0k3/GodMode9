@@ -113,7 +113,7 @@ UINT read24() {
 int ApplyIPSPatch(const char* patchName, const char* inName, const char* outName) {
     int error = IPS_INVALID;
     UINT outlen_min, outlen_max, outlen_min_mem;
-    snprintf(errName, 256, "%s", patchName);
+    snprintf(errName, sizeof(errName), "%s", patchName);
 
     if (fvx_open(&patchFile, patchName, FA_READ) != FR_OK) return displayError(IPS_INVALID_FILE_PATH);
     patchSize = fvx_size(&patchFile);

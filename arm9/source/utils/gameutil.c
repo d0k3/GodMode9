@@ -294,7 +294,7 @@ u32 LoadCdnTicketFile(Ticket** ticket, const char* path_cnt) {
     char* name_cetk = strrchr(path_cetk, '/');
     if (!name_cetk) return 1; // will not happen
     name_cetk++;
-    snprintf(name_cetk, 256 - (name_cetk - path_cetk), "cetk");
+    snprintf(name_cetk, sizeof(path_cetk) - (name_cetk - path_cetk), "cetk");
     // ticket is loaded and validated here
     return LoadTicketFile(ticket, path_cetk);
 }
@@ -335,7 +335,7 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
 
     // content path string
     char* name_content;
-    snprintf(path_content, 255, "%s", path_tmd);
+    snprintf(path_content, 256, "%s", path_tmd);
     path_content[255] = '\0';
     name_content = strrchr(path_content, '/');
     if (!name_content) return 1; // will not happen
@@ -352,7 +352,7 @@ u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
         free(tmd);
         return 1;
     }
-    snprintf(name_content, 255 - (name_content - path_content), cdn ? "%08lx" :
+    snprintf(name_content, 256 - (name_content - path_content), cdn ? "%08lx" :
         (memcmp(tmd->title_id, dlc_tid_high, sizeof(dlc_tid_high)) == 0) ? "00000000/%08lx.app" : "%08lx.app", getbe32(chunk->id));
 
     free(tmd);
@@ -418,7 +418,7 @@ u32 GetTitleIdTmdPath(char* path_tmd, const u64 title_id, bool from_emunand) {
     if (tid_high & 0x8000) tid_high = 0x00030000 | (tid_high&0xFF);
 
     char path_pat[64];
-    snprintf(path_pat, 64, "%2.2s/title/%08lX/%08lX/content/*.tmd",
+    snprintf(path_pat, sizeof(path_pat), "%2.2s/title/%08lX/%08lX/content/*.tmd",
         drv, tid_high, tid_low);
 
     if (fvx_findpath(path_tmd, path_pat, FN_HIGHEST) != FR_OK)

@@ -53,11 +53,11 @@ bool ReadVKeyDbDir(VirtualFile* vfile, VirtualDir* vdir) {
     if (++vdir->index < (int) n_keys) {
         AesKeyInfo* key_entry = key_info + vdir->index;
         u32 keyslot = key_entry->slot;
-        char typestr[16] = { 0 };
+        char typestr[16];
         char* unitext =
             (key_entry->keyUnitType == KEYS_DEVKIT) ? ".dev" :
             (key_entry->keyUnitType == KEYS_RETAIL) ? ".ret" : "";
-        snprintf(typestr, 12 + 1, "%s%.10s", (key_entry->type == 'I') ? "IV" :
+        snprintf(typestr, sizeof(typestr), "%s%.10s", (key_entry->type == 'I') ? "IV" :
             (key_entry->type == 'X') ? "X" : (key_entry->type == 'Y') ? "Y" : "", key_entry->id);
 
         memset(vfile, 0, sizeof(VirtualFile));

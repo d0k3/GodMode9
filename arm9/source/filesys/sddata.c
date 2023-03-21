@@ -276,7 +276,7 @@ bool SetupNandSdDrive(const char* path, const char* sd_path, const char* movable
     // build the alias path (id0)
     u32 sha256sum[8];
     sha_quick(sha256sum, sd_keyy[num], 0x10, SHA256_MODE);
-    snprintf(alias, 127, "%s/Nintendo 3DS/%08lX%08lX%08lX%08lX",
+    snprintf(alias, sizeof(alias), "%s/Nintendo 3DS/%08lX%08lX%08lX%08lX",
         sd_path, sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
 
     // find the alias path (id1)

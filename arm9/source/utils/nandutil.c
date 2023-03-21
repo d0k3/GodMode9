@@ -150,7 +150,7 @@ u32 DumpGbaVcSavegameBuffered(const char* path, void* buffer) {
 
     // generate output path
     char path_vcsav[64];
-    snprintf(path_vcsav, 64, OUTPUT_PATH "/%016llX.gbavc.sav", agbsave->title_id);
+    snprintf(path_vcsav, sizeof(path_vcsav), OUTPUT_PATH "/%016llX.gbavc.sav", agbsave->title_id);
     if (fvx_qwrite(path_vcsav, savegame, 0, agbsave->save_size, NULL) != FR_OK) return 1; // write fail
 
     return 0;
@@ -207,7 +207,7 @@ u32 InjectGbaVcSavegameBuffered(const char* path, const char* path_vcsave, void*
         u32 slot = 0;
 
         // get the SD save path, check SD save size
-        snprintf(path_sd, 64, "A:/title/%08lx/%08lx/data/00000001.sav",
+        snprintf(path_sd, sizeof(path_sd), "A:/title/%08lx/%08lx/data/00000001.sav",
             getle32((u8*) &(agbsave->title_id) + 4), getle32((u8*) &(agbsave->title_id)));
         if ((fvx_stat(path_sd, &fno) != FR_OK) || (fno.fsize != max(AGBSAVE_MAX_SIZE, 2 * data_size)))
             return 1; // invalid / non-existant SD save
