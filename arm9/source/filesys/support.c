@@ -17,7 +17,7 @@ bool CheckSupportFile(const char* fname)
     const char* base_paths[] = { SUPPORT_FILE_PATHS };
     for (u32 i = 0; i < countof(base_paths); i++) {
         char path[256];
-        snprintf(path, 256, "%s/%s", base_paths[i], fname);
+        snprintf(path, sizeof(path), "%s/%s", base_paths[i], fname);
         if (fvx_stat(path, NULL) == FR_OK)
             return true;
     }
@@ -40,7 +40,7 @@ size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len)
     for (u32 i = 0; i < countof(base_paths); i++) {
         UINT len32;
         char path[256];
-        snprintf(path, 256, "%s/%s", base_paths[i], fname);
+        snprintf(path, sizeof(path), "%s/%s", base_paths[i], fname);
         if (fvx_qread(path, buffer, 0, max_len, &len32) == FR_OK)
             return len32;
     }
@@ -68,7 +68,7 @@ bool SaveSupportFile(const char* fname, void* buffer, size_t len)
     // write support file
     if (idx >= 0) {
         char path[256];
-        snprintf(path, 256, "%s/%s", base_paths[idx], fname);
+        snprintf(path, sizeof(path), "%s/%s", base_paths[idx], fname);
         fvx_unlink(path);
         if (fvx_qwrite(path, buffer, 0, len, NULL) == FR_OK)
             return true;

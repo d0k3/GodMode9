@@ -422,7 +422,7 @@ void upd_var(const char* name) {
             if (FileGetData(path, sd_keyy, 0x10, 0x110) == 0x10) {
                 u32 sha256sum[8];
                 sha_quick(sha256sum, sd_keyy, 0x10, SHA256_MODE);
-                snprintf(env_id0, 32+1, "%08lx%08lx%08lx%08lx",
+                snprintf(env_id0, sizeof(env_id0), "%08lx%08lx%08lx%08lx",
                     sha256sum[0], sha256sum[1], sha256sum[2], sha256sum[3]);
             } else snprintf(env_id0, 0xF, "UNKNOWN");
             set_var(env_id0_name, env_id0);
@@ -435,8 +435,8 @@ void upd_var(const char* name) {
         get_dstime(&dstime);
         char env_date[16+1];
         char env_time[16+1];
-        snprintf(env_date, 16, "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
-        snprintf(env_time, 16, "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
+        snprintf(env_date, sizeof(env_date), "%02lX%02lX%02lX", (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D);
+        snprintf(env_time, sizeof(env_time), "%02lX%02lX%02lX", (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
         if (!name || (strncmp(name, "DATESTAMP", _VAR_NAME_LEN) == 0)) set_var("DATESTAMP", env_date);
         if (!name || (strncmp(name, "TIMESTAMP", _VAR_NAME_LEN) == 0)) set_var("TIMESTAMP", env_time);
     }
@@ -445,7 +445,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "EMUBASE", _VAR_NAME_LEN) == 0)) {
         u32 emu_base = GetEmuNandBase();
         char emu_base_str[8+1];
-        snprintf(emu_base_str, 8+1, "%08lX", emu_base);
+        snprintf(emu_base_str, sizeof(emu_base_str), "%08lX", emu_base);
         set_var("EMUBASE", emu_base_str);
     }
 
@@ -781,8 +781,8 @@ bool for_handler(char* path, const char* dir, const char* pattern, bool recursiv
     }
 
     if (dir) { // open a dir
-        snprintf(lpattern, 64, "%s", pattern);
-        snprintf(ldir, 256, "%s", dir);
+        snprintf(lpattern, sizeof(lpattern), "%s", pattern);
+        snprintf(ldir, sizeof(ldir), "%s", dir);
         if (dp) return false; // <- this should never happen
         if (fvx_opendir(&fdir[0], dir) != FR_OK)
             return false;
@@ -1318,10 +1318,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         } else if (!strchr(argv[1], ':')) {
             char hash_str[64+1];
             if (flags & _FLG('1'))
-                snprintf(hash_str, 64+1, "%016llX%016llX%08lX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
+                snprintf(hash_str, sizeof(hash_str), "%016llX%016llX%08lX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
                 getbe32(hash_fil + 16));
             else
-                snprintf(hash_str, 64+1, "%016llX%016llX%016llX%016llX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
+                snprintf(hash_str, sizeof(hash_str), "%016llX%016llX%016llX%016llX", getbe64(hash_fil + 0), getbe64(hash_fil + 8),
                 getbe64(hash_fil + 16), getbe64(hash_fil + 24));
             ret = set_var(argv[1], hash_str);
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_VAR_FAIL);
@@ -1487,7 +1487,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             if (ret) {
                 char fixpath[256] = { 0 };
                 if ((*argv[0] == '0') || (*argv[0] == '1'))
-                    snprintf(fixpath, 256, "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
+                    snprintf(fixpath, sizeof(fixpath), "%s%s", (*argv[0] == '0') ? "sdmc" : "nand", argv[0] + 1);
                 else strncpy(fixpath, argv[0], 256);
                 fixpath[255] = '\0';
                 DeinitExtFS();
@@ -1658,7 +1658,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         if (cmt_start <= 0) color_text = script_color_comment;
 
         // build text string
-        snprintf(txtstr, TV_LLEN_DISP + 1, "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
+        snprintf(txtstr, sizeof(txtstr), "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
         if (ncpy) memcpy(txtstr, ptr + off_disp, ncpy);
         for (char* d = txtstr; *d; d++) if (*d < ' ') *d = ' ';
         if (al) memcpy(txtstr + p_al, al_str, strnlen(al_str, 16));
@@ -2024,8 +2024,8 @@ bool ExecuteGM9Script(const char* path_script) {
                     char* lptr1 = line_end;
                     for (; IS_WHITESPACE(*lptr0) && (lptr0 < lptr1); lptr0++); // skip whitespaces
                     if ((lptr1 > lptr0) && (*(lptr1-1) == '\r')) lptr1--; // handle \r
-                    if (lptr1 - lptr0 > 32) snprintf(line_str, 32+1, "%.29s...", lptr0);
-                    else snprintf(line_str, 32+1, "%.*s", lptr1 - lptr0, lptr0);
+                    if (lptr1 - lptr0 > 32) snprintf(line_str, sizeof(line_str), "%.29s...", lptr0);
+                    else snprintf(line_str, sizeof(line_str), "%.*s", lptr1 - lptr0, lptr0);
                     ShowPrompt(false, STR_PATH_LINE_N_ERR_LINE, path_str, lno, err_str, line_str);
                 }
             }

@@ -81,7 +81,7 @@ static void DrawKey(const TouchBox* key, const bool pressed, const u32 uppercase
     if (key->id == KEY_TXTBOX) return;
 
     char keystr[16];
-    if (key->id >= 0x80) snprintf(keystr, 16, "%s", keystrs[key->id - 0x80]);
+    if (key->id >= 0x80) snprintf(keystr, sizeof(keystr), "%s", keystrs[key->id - 0x80]);
     else {
         keystr[0] = (uppercase) ? to_uppercase(key->id) : key->id;
         keystr[1] = 0;
@@ -269,7 +269,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     char str[512]; // arbitrary limit, should be more than enough
     va_list va;
     va_start(va, format);
-    vsnprintf(str, 512, format, va);
+    vsnprintf(str, sizeof(str), format, va);
     va_end(va);
     u32 str_width = GetDrawStringWidth(str);
     if (str_width < (24 * FONT_WIDTH_EXT)) str_width = 24 * FONT_WIDTH_EXT;

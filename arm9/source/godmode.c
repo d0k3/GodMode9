@@ -90,8 +90,8 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
     // unsupported location handling
     char fixpath[256] = { 0 };
     if (verbose && (*bootpath != '0') && (*bootpath != '1')) {
-        char str[256];
-        snprintf(str, 256, STR_MAKE_COPY_AT_OUT_TEMP_FIRM, OUTPUT_PATH);
+        char str[UTF_BUFFER_BYTESIZE(256)];
+        snprintf(str, sizeof(str), STR_MAKE_COPY_AT_OUT_TEMP_FIRM, OUTPUT_PATH);
         const char* optionstr[2] = { str, STR_TRY_BOOT_ANYWAYS };
         u32 user_select = ShowSelectPrompt(2, optionstr, "%s\n%s", pathstr, STR_WARNING_BOOT_UNSUPPORTED_LOCATION);
         if (user_select == 1) {
@@ -102,7 +102,7 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
 
     // fix the boot path ("sdmc"/"nand" for Luma et al, hacky af)
     if ((*bootpath == '0') || (*bootpath == '1'))
-        snprintf(fixpath, 256, "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
+        snprintf(fixpath, sizeof(fixpath), "%s%s", (*bootpath == '0') ? "sdmc" : "nand", bootpath + 1);
     else strncpy(fixpath, bootpath, 256);
     fixpath[255] = '\0';
 
@@ -164,7 +164,7 @@ static DirStruct* current_dir = NULL;
 static DirStruct* clipboard   = NULL;
 static PaneData* panedata     = NULL;
 
-void GetTimeString(char* timestr, bool forced_update, bool full_year) {
+void GetTimeString(char* timestr, bool forced_update, bool full_year) { // timestr should be 32 bytes
     static DsTime dstime;
     static u64 timer = (u64) -1; // this ensures we don't check the time too often
     if (forced_update || (timer == (u64) -1) || (timer_sec(timer) > 30)) {
@@ -239,7 +239,7 @@ void DrawTopBar(const char* curr_path) {
     // top bar - current path
     DrawRectangle(TOP_SCREEN, 0, 0, SCREEN_WIDTH_TOP, 12, COLOR_TOP_BAR);
     if (*curr_path) TruncateString(tempstr, curr_path, min(63, len_path / FONT_WIDTH_EXT), 8);
-    else snprintf(tempstr, 16, "%s", STR_ROOT);
+    else snprintf(tempstr, sizeof(tempstr), "%s", STR_ROOT);
     DrawStringF(TOP_SCREEN, bartxt_x, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%s", tempstr);
     bool show_time = true;
 
@@ -253,7 +253,7 @@ void DrawTopBar(const char* curr_path) {
         DrawString(TOP_SCREEN, tempstr, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR);
         FormatBytes(bytestr0, GetFreeSpace(curr_path));
         FormatBytes(bytestr1, GetTotalSpace(curr_path));
-        snprintf(tempstr, 64, "%s/%s", bytestr0, bytestr1);
+        snprintf(tempstr, sizeof(tempstr), "%s/%s", bytestr0, bytestr1);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
         show_time = false;
     }
@@ -305,8 +305,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     }
 
     // left top - current file info
-    if (curr_pane) snprintf(tempstr, 63, STR_PANE_N, curr_pane);
-    else snprintf(tempstr, 63, "%s", STR_CURRENT);
+    if (curr_pane) snprintf(tempstr, sizeof(tempstr), STR_PANE_N, curr_pane);
+    else snprintf(tempstr, sizeof(tempstr), "%s", STR_CURRENT);
     DrawStringF(MAIN_SCREEN, 2, info_start, COLOR_STD_FONT, COLOR_STD_BG, "[%s]", tempstr);
     // file / entry name
     ResizeString(tempstr, curr_entry->name, str_len_info, 8, false);
@@ -316,7 +316,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     if (curr_entry->type == T_DIR) {
         ResizeString(tempstr, STR_DIR, str_len_info, 8, false);
     } else if (curr_entry->type == T_DOTDOT) {
-        snprintf(tempstr, 21, "%20s", "");
+        snprintf(tempstr, sizeof(tempstr), "%20s", "");
     } else if (curr_entry->type == T_ROOT) {
         int drvtype = DriveType(curr_entry->path);
         const char* drvstr =
@@ -331,7 +331,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         char numstr[UTF_BUFFER_BYTESIZE(32)];
         char bytestr[UTF_BUFFER_BYTESIZE(32)];
         FormatNumber(numstr, curr_entry->size);
-        snprintf(bytestr, 31, STR_N_BYTE, numstr);
+        snprintf(bytestr, sizeof(bytestr), STR_N_BYTE, numstr);
         ResizeString(tempstr, bytestr, str_len_info, 8, false);
     }
     DrawStringF(MAIN_SCREEN, 4, info_start + 12 + 10, color_current, COLOR_STD_BG, "%s", tempstr);
@@ -356,13 +356,13 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (c*10), color_cb, COLOR_STD_BG, "%s", tempstr);
     }
     *tempstr = '\0';
-    if (clipboard->n_entries > n_cb_show) snprintf(tempstr, 60, STR_PLUS_N_MORE, clipboard->n_entries - n_cb_show);
+    if (clipboard->n_entries > n_cb_show) snprintf(tempstr, sizeof(tempstr), STR_PLUS_N_MORE, clipboard->n_entries - n_cb_show);
     DrawStringF(MAIN_SCREEN, SCREEN_WIDTH_MAIN - len_info - 4, info_start + 12 + (n_cb_show*10), COLOR_DARKGREY, COLOR_STD_BG,
         "%*s", (int) (len_info / FONT_WIDTH_EXT), tempstr);
 
     // bottom: instruction block
-    char instr[512];
-    snprintf(instr, 512, "%s\n%s%s%s%s%s%s%s%s",
+    char instr[UTF_BUFFER_BYTESIZE(512)];
+    snprintf(instr, sizeof(instr), "%s\n%s%s%s%s%s%s%s%s",
         FLAVOR " " VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? STR_MARK_DELETE_COPY : STR_MARK_DELETE_PASTE) :
         ((GetWritePermissions() > PERM_BASE) ? STR_RELOCK_WRITE_PERMISSION : ""),
@@ -401,8 +401,8 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
             FormatBytes(rawbytestr, curr_entry->size);
             ResizeString(bytestr, (curr_entry->type == T_DIR) ? STR_DIR : (curr_entry->type == T_DOTDOT) ? "(..)" : rawbytestr, 10, 10, true);
             ResizeString(namestr, curr_entry->name, str_width - 10, str_width - 20, false);
-            snprintf(tempstr, UTF_BUFFER_BYTESIZE(str_width), "%s%s", namestr, bytestr);
-        } else snprintf(tempstr, str_width + 1, "%-*.*s", str_width, str_width, "");
+            snprintf(tempstr, sizeof(tempstr), "%s%s", namestr, bytestr);
+        } else snprintf(tempstr, sizeof(tempstr), "%-*.*s", str_width, str_width, "");
         DrawString(ALT_SCREEN, tempstr, pos_x, pos_y, color_font, COLOR_STD_BG);
         pos_y += stp_y;
     }
@@ -459,7 +459,7 @@ u32 SdFormatMenu(const char* slabel) {
     if (!user_select) return 1;
     else cluster_size = cluster_size_table[user_select];
 
-    snprintf(label, DRV_LABEL_LEN + 4, "0:%s", (slabel && *slabel) ? slabel : "GM9SD");
+    snprintf(label, sizeof(label), "0:%s", (slabel && *slabel) ? slabel : "GM9SD");
     if (!ShowKeyboardOrPrompt(label + 2, 11 + 1, STR_FORMAT_SD_ENTER_LABEL, sdcard_size_mb))
         return 1;
 
@@ -860,17 +860,17 @@ u32 ShaCalculator(const char* path, bool sha1) {
         char sha_path[256];
         u8 sha_file[32];
 
-        snprintf(sha_path, 256, "%s.sha%c", path, sha1 ? '1' : '\0');
+        snprintf(sha_path, sizeof(sha_path), "%s.sha%c", path, sha1 ? '1' : '\0');
         bool have_sha = (FileGetData(sha_path, sha_file, hashlen, 0) == hashlen);
         bool match_sha = have_sha && (memcmp(hash, sha_file, hashlen) == 0);
         bool match_prev = (memcmp(hash, hash_prev, hashlen) == 0);
         bool write_sha = (!have_sha || !match_sha) && (drvtype & DRV_SDCARD); // writing only on SD
         char hash_str[32+1+32+1];
         if (sha1)
-            snprintf(hash_str, 20+1+20+1, "%016llX%04X\n%016llX%04X", getbe64(hash + 0), getbe16(hash + 8),
+            snprintf(hash_str, sizeof(hash_str), "%016llX%04X\n%016llX%04X", getbe64(hash + 0), getbe16(hash + 8),
             getbe64(hash + 10), getbe16(hash + 18));
         else
-            snprintf(hash_str, 32+1+32+1, "%016llX%016llX\n%016llX%016llX", getbe64(hash + 0), getbe64(hash + 8),
+            snprintf(hash_str, sizeof(hash_str), "%016llX%016llX\n%016llX%016llX", getbe64(hash + 0), getbe64(hash + 8),
             getbe64(hash + 16), getbe64(hash + 24));
         if (ShowPrompt(write_sha, "%s\n%s%s%s%s%s",
             pathstr, hash_str,
@@ -987,7 +987,7 @@ u32 CartRawDump(void) {
             !ShowPrompt(true, STR_NDS_CART_DECRYPT_SECURE_AREA, cname));
 
     // destination path
-    snprintf(dest, 256, "%s/%s_%08llX.%s",
+    snprintf(dest, sizeof(dest), "%s/%s_%08llX.%s",
         OUTPUT_PATH, cname, dsize, (cdata->cart_type & CART_CTR) ? "3ds" : "nds");
 
     // buffer allocation
@@ -1023,7 +1023,7 @@ u32 CartRawDump(void) {
 u32 DirFileAttrMenu(const char* path, const char *name) {
     bool drv = (path[2] == '\0');
     bool vrt = (!drv); // will be checked below
-    char namestr[128], datestr[32], attrstr[128], sizestr[192];
+    char namestr[UTF_BUFFER_BYTESIZE(128)], datestr[UTF_BUFFER_BYTESIZE(32)], attrstr[UTF_BUFFER_BYTESIZE(128)], sizestr[UTF_BUFFER_BYTESIZE(192)];
     FILINFO fno;
     u8 new_attrib;
 
@@ -1035,7 +1035,7 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         if (fvx_stat(path, &fno) != FR_OK) return 1;
         vrt = (fno.fattrib & AM_VRT);
         new_attrib = fno.fattrib;
-        snprintf(datestr, 32, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
+        snprintf(datestr, sizeof(datestr), "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
             (fno.fattrib & AM_DIR) ? STR_CREATED : STR_MODIFIED,
             1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0xF, fno.fdate & 0x1F,
             (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, (fno.ftime & 0x1F) << 1);
@@ -1063,20 +1063,20 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
             FormatBytes(freestr, GetFreeSpace(path));
             FormatBytes(drvsstr, GetTotalSpace(path));
             FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path));
-            snprintf(sizestr, 192, STR_N_FILES_N_SUBDIRS_TOTAL_SIZE_FREE_USED_TOTAL,
+            snprintf(sizestr, sizeof(sizestr), STR_N_FILES_N_SUBDIRS_TOTAL_SIZE_FREE_USED_TOTAL,
                 tfiles, tdirs, bytestr, freestr, usedstr, drvsstr);
         } else { // dir specific
-            snprintf(sizestr, 192, STR_N_FILES_N_SUBDIRS_TOTAL_SIZE, tfiles, tdirs, bytestr);
+            snprintf(sizestr, sizeof(sizestr), STR_N_FILES_N_SUBDIRS_TOTAL_SIZE, tfiles, tdirs, bytestr);
         }
     } else { // for files
         char bytestr[32];
         FormatBytes(bytestr, fno.fsize);
-        snprintf(sizestr, 64, STR_FILESIZE_X, bytestr);
+        snprintf(sizestr, sizeof(sizestr), STR_FILESIZE_X, bytestr);
     }
 
     while(true) {
         if (!drv) {
-            snprintf(attrstr, 128,
+            snprintf(attrstr, sizeof(attrstr),
                 STR_READONLY_HIDDEN_SYSTEM_ARCHIVE_VIRTUAL,
                 (new_attrib & AM_RDO) ? 'X' : ' ', vrt ? "" : "↑",
                 (new_attrib & AM_HID) ? 'X' : ' ', vrt ? "" : "↓",
@@ -1213,7 +1213,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     TruncateString(pathstr, file_path, 32, 8);
 
     char tidstr[32] = { 0 };
-    if (tid) snprintf(tidstr, 32, "\ntid: <%016llX>", tid);
+    if (tid) snprintf(tidstr, sizeof(tidstr), "\ntid: <%016llX>", tid);
 
     u32 n_marked = 0;
     if ((&(current_dir->entry[*cursor]))->marked) {
@@ -1536,8 +1536,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == decrypt) { // -> decrypt game file
         if (cryptable_inplace) {
-            char decryptToOut[64];
-            snprintf(decryptToOut, 64, STR_DECRYPT_TO_OUT, OUTPUT_PATH);
+            char decryptToOut[UTF_BUFFER_BYTESIZE(64)];
+            snprintf(decryptToOut, sizeof(decryptToOut), STR_DECRYPT_TO_OUT, OUTPUT_PATH);
             optionstr[0] = decryptToOut;
             optionstr[1] = STR_DECRYPT_INPLACE;
             user_select = (int) ((n_marked > 1) ?
@@ -1593,14 +1593,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     }
     else if (user_select == encrypt) { // -> encrypt game file
         if (cryptable_inplace) {
-            char* encryptToOut = (char*)malloc(64);
-            snprintf(encryptToOut, 64, STR_ENCRYPT_TO_OUT, OUTPUT_PATH);
+            char encryptToOut[UTF_BUFFER_BYTESIZE(64)];
+            snprintf(encryptToOut, sizeof(encryptToOut), STR_ENCRYPT_TO_OUT, OUTPUT_PATH);
             optionstr[0] = encryptToOut;
             optionstr[1] = STR_ENCRYPT_INPLACE;
             user_select = (int) ((n_marked > 1) ?
                 ShowSelectPrompt(2, optionstr, STR_PATH_N_FILES_SELECTED, pathstr, n_marked) :
                 ShowSelectPrompt(2, optionstr, "%s%s", pathstr, tidstr));
-            free(encryptToOut);
         } else user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
@@ -2609,10 +2608,10 @@ u32 GodMode(int entrypoint) {
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & (DRV_SEARCH|DRV_TITLEMAN))) { // exclude Y/Z
                 const char* optionstr[8] = { NULL };
-                char tpath[16] = { 0 }, copyToOut[64] = { 0 }, dumpToOut[64] = { 0 };
-                snprintf(tpath, 16, "%2.2s/dbs/title.db", curr_entry->path);
-                snprintf(copyToOut, 64, STR_COPY_TO_OUT, OUTPUT_PATH);
-                snprintf(dumpToOut, 64, STR_DUMP_TO_OUT, OUTPUT_PATH);
+                char tpath[16], copyToOut[UTF_BUFFER_BYTESIZE(64)], dumpToOut[UTF_BUFFER_BYTESIZE(64)];
+                snprintf(tpath, sizeof(tpath), "%2.2s/dbs/title.db", curr_entry->path);
+                snprintf(copyToOut, sizeof(copyToOut), STR_COPY_TO_OUT, OUTPUT_PATH);
+                snprintf(dumpToOut, sizeof(dumpToOut), STR_DUMP_TO_OUT, OUTPUT_PATH);
                 int n_opt = 0;
                 int tman = (!(DriveType(curr_entry->path) & DRV_IMAGE) &&
                     ((strncmp(curr_entry->path, tpath, 16) == 0) ||
@@ -2635,18 +2634,18 @@ u32 GodMode(int entrypoint) {
                 if (user_select == tman) {
                     if (InitImgFS(tpath)) {
                         SetTitleManagerMode(true);
-                        snprintf(current_path, 256, "Y:");
+                        snprintf(current_path, sizeof(current_path), "Y:");
                         GetDirContents(current_dir, current_path);
                         cursor = 1;
                         scroll = 0;
                     } else ShowPrompt(false, "%s", STR_FAILED_SETTING_UP_TITLE_MANAGER);
                 } else if (user_select == srch_f) {
                     char searchstr[256];
-                    snprintf(searchstr, 256, "*");
+                    snprintf(searchstr, sizeof(searchstr), "*");
                     TruncateString(namestr, curr_entry->name, 20, 8);
                     if (ShowKeyboardOrPrompt(searchstr, 256, STR_SEARCH_FILE_ENTER_SEARCH_BELOW, namestr)) {
                         SetFSSearch(searchstr, curr_entry->path);
-                        snprintf(current_path, 256, "Z:");
+                        snprintf(current_path, sizeof(current_path), "Z:");
                         GetDirContents(current_dir, current_path);
                         if (current_dir->n_entries) ShowPrompt(false, STR_FOUND_N_RESULTS, current_dir->n_entries - 1);
                         cursor = 1;
@@ -2833,14 +2832,14 @@ u32 GodMode(int entrypoint) {
                 ShowPrompt(false, "%s", STR_NOT_ALLOWED_IN_GAMECART_DRIVE);
             } else if (pad_state & BUTTON_Y) { // paste files
                 const char* optionstr[2] = { STR_COPY_PATHS, STR_MOVE_PATHS };
-                char promptstr[64];
+                char promptstr[UTF_BUFFER_BYTESIZE(64)];
                 u32 flags = 0;
                 u32 user_select;
                 if (clipboard->n_entries == 1) {
                     char namestr[UTF_BUFFER_BYTESIZE(20)];
                     TruncateString(namestr, clipboard->entry[0].name, 20, 12);
-                    snprintf(promptstr, 64, STR_PASTE_FILE_HERE, namestr);
-                } else snprintf(promptstr, 64, STR_PASTE_N_PATHS_HERE, clipboard->n_entries);
+                    snprintf(promptstr, sizeof(promptstr), STR_PASTE_FILE_HERE, namestr);
+                } else snprintf(promptstr, sizeof(promptstr), STR_PASTE_N_PATHS_HERE, clipboard->n_entries);
                 user_select = ((DriveType(clipboard->entry[0].path) & curr_drvtype & DRV_STDFAT)) ?
                     ShowSelectPrompt(2, optionstr, "%s", promptstr) : (ShowPrompt(true, "%s", promptstr) ? 1 : 0);
                 if (user_select) {
@@ -2873,7 +2872,7 @@ u32 GodMode(int entrypoint) {
                 char newname[256];
                 char namestr[UTF_BUFFER_BYTESIZE(20)];
                 TruncateString(namestr, curr_entry->name, 20, 12);
-                snprintf(newname, 255, "%s", curr_entry->name);
+                snprintf(newname, sizeof(newname), "%s", curr_entry->name);
                 if (ShowKeyboardOrPrompt(newname, 256, STR_RENAME_FILE_ENTER_NEW_NAME_BELOW, namestr)) {
                     if (!PathRename(curr_entry->path, newname))
                         ShowPrompt(false, STR_FAILED_RENAMING_PATH, namestr);
@@ -2889,7 +2888,7 @@ u32 GodMode(int entrypoint) {
                 if (type) {
                     char ename[256];
                     u64 fsize = 0;
-                    snprintf(ename, 255, (type == 1) ? "newdir" : "dummy.bin");
+                    snprintf(ename, sizeof(ename), (type == 1) ? "newdir" : "dummy.bin");
                     if ((ShowKeyboardOrPrompt(ename, 256, "%s", (type == 1) ? STR_CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW : STR_CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW)) &&
                         ((type != 2) || ((fsize = ShowNumberPrompt(0, "%s", STR_CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW)) != (u64) -1))) {
                         if (((type == 1) && !DirCreate(current_path, ename)) ||
@@ -2956,7 +2955,7 @@ u32 GodMode(int entrypoint) {
                         const char* tpath = tmpaths[tmnum-1];
                         if (InitImgFS(tpath)) {
                             SetTitleManagerMode(true);
-                            snprintf(current_path, 256, "Y:");
+                            snprintf(current_path, sizeof(current_path), "Y:");
                             GetDirContents(current_dir, current_path);
                             ClearScreenF(true, true, COLOR_STD_BG);
                             cursor = 1;
@@ -3090,7 +3089,7 @@ u32 ScriptRunner(int entrypoint) {
     } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
         char loadpath[256];
         char title[256];
-        snprintf(title, 256, STR_FLAVOR_SCRIPTS_MENU_SELECT_SCRIPT, FLAVOR);
+        snprintf(title, sizeof(title), STR_FLAVOR_SCRIPTS_MENU_SELECT_SCRIPT, FLAVOR);
         if (FileSelector(loadpath, title, "V:/" VRAM0_SCRIPTS, "*.gm9", HIDE_EXT, false))
             ExecuteGM9Script(loadpath);
     } else ShowPrompt(false, STR_COMPILED_AS_SCRIPT_AUTORUNNER_BUT_NO_SCRIPT_DERP);

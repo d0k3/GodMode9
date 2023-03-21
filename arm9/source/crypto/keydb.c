@@ -152,7 +152,7 @@ u32 LoadKeyFromFile(void* key, u32 keyslot, char type, char* id)
     // load legacy slot0x??Key?.bin file instead
     if (!found && (type != 'I')) {
         char fname[64];
-        snprintf(fname, 64, "slot0x%02lXKey%s%s.bin", keyslot,
+        snprintf(fname, sizeof(fname), "slot0x%02lXKey%s%s.bin", keyslot,
             (type == 'X') ? "X" : (type == 'Y') ? "Y" : (type == 'I') ? "IV" : "", (id) ? id : "");
         found = (LoadSupportFile(fname, key, 16) == 16);
     }

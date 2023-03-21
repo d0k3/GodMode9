@@ -21,7 +21,7 @@
 static u32 write_permissions = PERM_BASE;
 
 bool CheckWritePermissions(const char* path) {
-    char area_name[16];
+    char area_name[UTF_BUFFER_BYTESIZE(16)];
     int drvtype = DriveType(path);
     u32 perm;
 
@@ -64,7 +64,7 @@ bool CheckWritePermissions(const char* path) {
             if ((drvtype & DRV_CTRNAND) || (lvl == 2)) lvl = 3;
         }
         perm = perms[lvl];
-        snprintf(area_name, 16, STR_SYSNAND_LVL_N, lvl);
+        snprintf(area_name, sizeof(area_name), STR_SYSNAND_LVL_N, lvl);
     } else if (drvtype & DRV_EMUNAND) {
         static const u32 perms[] = { PERM_EMU_LVL0, PERM_EMU_LVL1 };
         u32 lvl = (drvtype & (DRV_ALIAS|DRV_CTRNAND)) ? 1 : 0;
@@ -74,34 +74,34 @@ bool CheckWritePermissions(const char* path) {
                 if (strncasecmp(path_f, path_lvl1[i], 256) == 0) lvl = 1;
         }
         perm = perms[lvl];
-        snprintf(area_name, 16, STR_EMUNAND_LVL_N, lvl);
+        snprintf(area_name, sizeof(area_name), STR_EMUNAND_LVL_N, lvl);
     } else if (drvtype & DRV_GAME) {
         perm = PERM_GAME;
-        snprintf(area_name, 16, "%s", STR_GAME_IMAGES);
+        snprintf(area_name, sizeof(area_name), "%s", STR_GAME_IMAGES);
     } else if (drvtype & DRV_CART) {
         perm = PERM_CART;
-        snprintf(area_name, 16, "%s", STR_GAMECART_SAVES);
+        snprintf(area_name, sizeof(area_name), "%s", STR_GAMECART_SAVES);
     } else if (drvtype & DRV_VRAM) {
         perm = PERM_VRAM;
-        snprintf(area_name, 16, "vram0");
+        snprintf(area_name, sizeof(area_name), "vram0");
     } else if (drvtype & DRV_XORPAD) {
         perm = PERM_XORPAD;
-        snprintf(area_name, 16, "XORpads");
+        snprintf(area_name, sizeof(area_name), "XORpads");
     } else if (drvtype & DRV_IMAGE) {
         perm = PERM_IMAGE;
-        snprintf(area_name, 16, "%s", STR_IMAGES);
+        snprintf(area_name, sizeof(area_name), "%s", STR_IMAGES);
     } else if (drvtype & DRV_MEMORY) {
         perm = PERM_MEMORY;
-        snprintf(area_name, 16, "%s", STR_MEMORY_AREAS);
+        snprintf(area_name, sizeof(area_name), "%s", STR_MEMORY_AREAS);
     } else if (strncasecmp(path_f, "0:/Nintendo 3DS", 15) == 0) { // this check could be better
         perm = PERM_SDDATA;
-        snprintf(area_name, 16, "%s", STR_SD_SYSTEM_DATA);
+        snprintf(area_name, sizeof(area_name), "%s", STR_SD_SYSTEM_DATA);
     } else if (drvtype & DRV_SDCARD) {
         perm = PERM_SDCARD;
-        snprintf(area_name, 16, "%s", STR_SD_CARD);
+        snprintf(area_name, sizeof(area_name), "%s", STR_SD_CARD);
     } else if (drvtype & DRV_RAMDRIVE) {
         perm = PERM_RAMDRIVE;
-        snprintf(area_name, 16, "%s", STR_RAM_DRIVE);
+        snprintf(area_name, sizeof(area_name), "%s", STR_RAM_DRIVE);
     } else {
         return false;
     }

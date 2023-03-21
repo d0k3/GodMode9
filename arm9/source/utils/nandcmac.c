@@ -59,7 +59,7 @@ u32 SetupSlot0x30(char drv) {
     if ((drv == 'A') || (drv == 'S')) drv = '1';
     else if ((drv == 'B') || (drv == 'E')) drv = '4';
 
-    snprintf(movable_path, 32, "%c:/private/movable.sed", drv);
+    snprintf(movable_path, sizeof(movable_path), "%c:/private/movable.sed", drv);
     if (fvx_qread(movable_path, keyy, 0x110, 0x10, NULL) != FR_OK) return 1;
     setup_aeskeyY(0x30, keyy);
     use_aeskey(0x30);

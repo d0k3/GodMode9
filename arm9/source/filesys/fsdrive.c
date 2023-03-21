@@ -232,7 +232,7 @@ uint64_t GetFreeSpace(const char* path)
     FATFS* fsobj = GetMountedFSObject(path);
     if ((pdrv < 0) || !fsobj) return 0;
 
-    snprintf(fsname, 3, "%i:", pdrv);
+    snprintf(fsname, sizeof(fsname), "%i:", pdrv);
     if (f_getfree(fsname, &free_clusters, &fsptr) != FR_OK)
         return 0;
 

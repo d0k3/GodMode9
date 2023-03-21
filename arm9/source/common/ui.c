@@ -882,8 +882,8 @@ u32 ShowSelectPrompt(int n, const char** options, const char *format, ...) {
 
         // show [n more]
         if (n - n_show - scroll > 0) {
-            char more_str[UTF_BUFFER_BYTESIZE(str_width / font_width)], temp_str[64];
-            snprintf(temp_str, 64, "   [%d more]", (n - (n_show-1) - scroll));
+            char more_str[UTF_BUFFER_BYTESIZE(str_width / font_width)], temp_str[UTF_BUFFER_BYTESIZE(64)];
+            snprintf(temp_str, sizeof(temp_str), STR_N_MORE, (n - (n_show-1) - scroll));
             ResizeString(more_str, temp_str, str_width / font_width, 8, false);
             DrawString(MAIN_SCREEN, more_str, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG);
         }
@@ -977,8 +977,8 @@ u32 ShowFileScrollPrompt(int n, const DirEntry** options, bool hide_ext, const c
         }
         // show [n more]
         if (n - n_show - scroll > 0) {
-            char more_str[UTF_BUFFER_BYTESIZE(item_width / font_width)], temp_str[64];
-            snprintf(temp_str, 64, STR_N_MORE, (n - (n_show-1) - scroll));
+            char more_str[UTF_BUFFER_BYTESIZE(item_width / font_width)], temp_str[UTF_BUFFER_BYTESIZE(64)];
+            snprintf(temp_str, sizeof(temp_str), STR_N_MORE, (n - (n_show-1) - scroll));
             ResizeString(more_str, temp_str, item_width / font_width, 8, false);
             DrawString(MAIN_SCREEN, more_str, x, yopt + (line_height+2)*(n_show-1), COLOR_LIGHTGREY, COLOR_STD_BG);
         }
@@ -1265,7 +1265,7 @@ u64 ShowHexPrompt(u64 start_val, u32 n_digits, const char *format, ...) {
     va_list va;
 
     if (n_digits > 16) n_digits = 16;
-    snprintf(inputstr, 16 + 1, "%0*llX", (int) n_digits, start_val);
+    snprintf(inputstr, sizeof(inputstr), "%0*llX", (int) n_digits, start_val);
 
     va_start(va, format);
     if (ShowInputPrompt(inputstr, n_digits + 1, 0, alphabet, format, va)) {
@@ -1282,7 +1282,7 @@ u64 ShowNumberPrompt(u64 start_val, const char *format, ...) {
     u64 ret = 0;
     va_list va;
 
-    snprintf(inputstr, 20 + 1, "%llu", start_val);
+    snprintf(inputstr, sizeof(inputstr), "%llu", start_val);
 
     va_start(va, format);
     if (ShowInputPrompt(inputstr, 20 + 1, 1, alphabet, format, va)) {
@@ -1402,7 +1402,7 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     const u32 text_pos_y = bar_pos_y + bar_height + 2;
     u32 prog_width = ((total > 0) && (current <= total)) ? (current * (bar_width-4)) / total : 0;
     u32 prog_percent = ((total > 0) && (current <= total)) ? (current * 100) / total : 0;
-    char tempstr[64];
+    char tempstr[UTF_BUFFER_BYTESIZE(64)];
     char progstr[UTF_BUFFER_BYTESIZE(64)];
 
     static u64 last_msec_elapsed = 0;
@@ -1427,11 +1427,11 @@ bool ShowProgress(u64 current, u64 total, const char* opstr)
     DrawRectangle(MAIN_SCREEN, bar_pos_x + 2 + prog_width, bar_pos_y + 2, (bar_width-4) - prog_width, bar_height - 4, COLOR_STD_BG);
 
     TruncateString(progstr, opstr, min(63, (bar_width / FONT_WIDTH_EXT) - 7), 8);
-    snprintf(tempstr, 64, "%s (%lu%%)", progstr, prog_percent);
+    snprintf(tempstr, sizeof(tempstr), "%s (%lu%%)", progstr, prog_percent);
     ResizeString(progstr, tempstr, bar_width / FONT_WIDTH_EXT, 8, false);
     DrawString(MAIN_SCREEN, progstr, bar_pos_x, text_pos_y, COLOR_STD_FONT, COLOR_STD_BG);
     if (sec_elapsed >= 1) {
-        snprintf(tempstr, 16, STR_ETA_N_MIN_N_SEC, sec_remain / 60, sec_remain % 60);
+        snprintf(tempstr, sizeof(tempstr), STR_ETA_N_MIN_N_SEC, sec_remain / 60, sec_remain % 60);
         ResizeString(progstr, tempstr, 16, 8, true);
         DrawString(MAIN_SCREEN, progstr, bar_pos_x + bar_width - 1 - (FONT_WIDTH_EXT * 16),
             bar_pos_y - line_height - 1, COLOR_STD_FONT, COLOR_STD_BG);

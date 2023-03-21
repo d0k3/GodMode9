@@ -138,7 +138,7 @@ void XRQ_DumpRegisters(u32 xrq, u32 *regs)
 
     /* Dump to SD */
     char path[64];
-    snprintf(path, 64, "%s/exception_dump_%02lX%02lX%02lX%02lX%02lX%02lX.txt", OUTPUT_PATH,
+    snprintf(path, sizeof(path), "%s/exception_dump_%02lX%02lX%02lX%02lX%02lX%02lX.txt", OUTPUT_PATH,
         (u32) dstime.bcd_Y, (u32) dstime.bcd_M, (u32) dstime.bcd_D,
         (u32) dstime.bcd_h, (u32) dstime.bcd_m, (u32) dstime.bcd_s);
     ResizeString(tempstr, STR_DUMPING_STATE_TO_SD_CARD, 29, 29, false);

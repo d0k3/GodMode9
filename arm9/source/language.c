@@ -138,10 +138,10 @@ const void* GetLanguage(const void* riff, const u32 riff_size, u32* version, u32
     return NULL;
 }
 
-int compLanguage(const void *e1, const void *e2) {
-	const Language *entry2 = (const Language *) e2;
-	const Language *entry1 = (const Language *) e1;
-	return strncasecmp(entry1->name, entry2->name, 256);
+int compLanguage(const void* e1, const void* e2) {
+    const Language* entry2 = (const Language*) e2;
+    const Language* entry1 = (const Language*) e1;
+    return strncasecmp(entry1->name, entry2->name, 32);
 }
 
 bool LanguageMenu(char* result, const char* title) {
