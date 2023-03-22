@@ -1317,12 +1317,18 @@ u32 CryptCiaFile(const char* orig, const char* dest, u16 crypto) {
 
     // if not inplace: take over CIA metadata
     if (!inplace && (info.size_meta == CIA_META_SIZE)) {
-        CiaMeta* meta = (CiaMeta*) (void*) (cia + 1);
-        if ((fvx_qread(orig, meta, info.offset_meta, CIA_META_SIZE, NULL) != FR_OK) ||
-            (fvx_qwrite(dest, meta, info.offset_meta, CIA_META_SIZE, NULL) != FR_OK)) {
+        CiaMeta* meta = (CiaMeta*) malloc(sizeof(CiaMeta));
+        if (!meta) {
             free(cia);
             return 1;
         }
+        if ((fvx_qread(orig, meta, info.offset_meta, CIA_META_SIZE, NULL) != FR_OK) ||
+            (fvx_qwrite(dest, meta, info.offset_meta, CIA_META_SIZE, NULL) != FR_OK)) {
+            free(cia);
+            free(meta);
+            return 1;
+        }
+        free(meta);
     }
 
     // fix TMD hashes, write CIA stub to destination
