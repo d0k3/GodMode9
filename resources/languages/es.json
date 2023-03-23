@@ -1,5 +1,8 @@
 {
 	"GM9_LANGUAGE": "Español",
+	"DATE_TIME_FORMAT": "%1$s%2$02lX-%3$02lX-%4$02lX %5$02lX:%6$02lX",
+	"DECIMAL_SEPARATOR": ".",
+	"THOUSAND_SEPARATOR": ",",
 	"FIRM_TOO_BIG": "FIRM muy grande, imposible ejecutar",
 	"PATH_DO_NOT_BOOT_UNTRUSTED": "%s (%dkB)\nADVERTENCIA: No ejecutes FIRMs\nde fuentes no confiables\n \n¿Ejecutar FIRM?",
 	"NOT_BOOTABLE_FIRM": "No es un FIRM ejecutable.",

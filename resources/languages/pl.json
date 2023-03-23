@@ -1,5 +1,8 @@
 {
 	"GM9_LANGUAGE": "Polski",
+	"DATE_TIME_FORMAT": "%1$s%2$02lX-%3$02lX-%4$02lX %5$02lX:%6$02lX",
+	"DECIMAL_SEPARATOR": ".",
+	"THOUSAND_SEPARATOR": ",",
 	"FIRM_TOO_BIG": "FIRM za duży, nie można uruchomić",
 	"PATH_DO_NOT_BOOT_UNTRUSTED": "%s (%dkB)\nOstrzeżenie: Nie uruchamiaj FIRM-ów\nz niezaufanych źródeł.\n \nUruchomić FIRM?",
 	"NOT_BOOTABLE_FIRM": "Nie bootowalny FIRM.",
