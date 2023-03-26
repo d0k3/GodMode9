@@ -3296,12 +3296,21 @@ u64 GetGameFileTrimmedSize(const char* path) {
         trimsize = GetAnyFileTrimmedSize(path);
     } else if (filetype & GAME_NDS) {
         TwlHeader hdr;
-        if (fvx_qread(path, &hdr, 0, sizeof(TwlHeader), NULL) != FR_OK)
+        if (fvx_qread(path, &hdr, 0, sizeof(TwlHeader), NULL) != FR_OK) {
             return 0;
-        if (hdr.unit_code != 0x00) // DSi or NDS+DSi
+        } if (hdr.unit_code != 0x00) { // DSi or NDS+DSi
             trimsize = hdr.ntr_twl_rom_size;
-        else if (hdr.ntr_rom_size) // regular NDS
-            trimsize = hdr.ntr_rom_size + 0x88;
+        } else if (hdr.ntr_rom_size) { // regular NDS
+            trimsize = hdr.ntr_rom_size;
+
+            // Check if immediately after the reported cart size
+            // is the magic number string 'ac' (auth code).
+            // If found, add 0x88 bytes for the download play RSA key.
+            u16 rsaMagic;
+            if(fvx_qread(path, &rsaMagic, trimsize, 2, NULL) == FR_OK && rsaMagic == 0x6361) {
+                trimsize += 0x88;
+            }
+        }
     } else {
         u8 hdr[0x200];
         if (fvx_qread(path, &hdr, 0, 0x200, NULL) != FR_OK)
