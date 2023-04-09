@@ -1024,7 +1024,7 @@ u32 CartRawDump(void) {
 u32 DirFileAttrMenu(const char* path, const char *name) {
     bool drv = (path[2] == '\0');
     bool vrt = (!drv); // will be checked below
-    char namestr[128], datestr[32], attrstr[128], sizestr[192];
+    char namestr[128], mod_datestr[32], crt_datestr[32], lac_datestr[32], attrstr[128], sizestr[192];
     FILINFO fno;
     u8 new_attrib;
 
@@ -1036,12 +1036,21 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         if (fvx_stat(path, &fno) != FR_OK) return 1;
         vrt = (fno.fattrib & AM_VRT);
         new_attrib = fno.fattrib;
-        snprintf(datestr, 32, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
-            (fno.fattrib & AM_DIR) ? "created" : "modified",
-            1980 + ((fno.fdate >> 9) & 0x7F), (fno.fdate >> 5) & 0xF, fno.fdate & 0x1F,
-            (fno.ftime >> 11) & 0x1F, (fno.ftime >> 5) & 0x3F, (fno.ftime & 0x1F) << 1);
+        snprintf(mod_datestr, 32, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
+            "modified",
+            1980 + ((fno.mod_fdate >> 9) & 0x7F), (fno.mod_fdate >> 5) & 0xF, fno.mod_fdate & 0x1F,
+            (fno.mod_ftime >> 11) & 0x1F, (fno.mod_ftime >> 5) & 0x3F, (fno.mod_ftime & 0x1F) << 1);
+        snprintf(crt_datestr, 32, "%s: %04d-%02d-%02d %02d:%02d:%02d\n",
+            "created ",
+            1980 + ((fno.crt_fdate >> 9) & 0x7F), (fno.crt_fdate >> 5) & 0xF, fno.crt_fdate & 0x1F,
+            (fno.crt_ftime >> 11) & 0x1F, (fno.crt_ftime >> 5) & 0x3F, (fno.crt_ftime & 0x1F) << 1);
+        snprintf(lac_datestr, 32, "%s: %04d-%02d-%02d\n",
+            "accessed",
+            1980 + ((fno.lac_fdate >> 9) & 0x7F), (fno.lac_fdate >> 5) & 0xF, fno.lac_fdate & 0x1F);
     } else {
-        *datestr = '\0';
+        *mod_datestr = '\0';
+        *crt_datestr = '\0';
+        *lac_datestr = '\0';
         *attrstr = '\0';
         new_attrib = 0;
     }
@@ -1095,11 +1104,13 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
 
         ShowString(
             "%s\n \n"   // name
-            "%s"        // date (not for drives)
+            "%s"        // modified date (not for drives)
+            "%s"        // created date (not for drives)
+            "%s\n \n"        // accessed date (not for drives)
             "%s\n"      // size
             "%s \n"     // attr (not for drives)
             "%s\n",     // options
-            namestr, datestr, sizestr, attrstr,
+            namestr, mod_datestr, crt_datestr, lac_datestr, sizestr, attrstr,
             (drv || vrt || (new_attrib == fno.fattrib)) ? "(<A> to continue)" : "(<A> to apply, <B> to cancel)"
         );
 
