@@ -254,7 +254,7 @@ u32 InitCartRead(CartData* cdata) {
         if (nds_header->device_capacity >= 15) return 1; // too big, not valid
         if (cdata->cart_size == 0)
             cdata->cart_size = (128 * 1024) << nds_header->device_capacity;
-        cdata->data_size = nds_header->ntr_rom_size + 0x88;
+        cdata->data_size = nds_header->ntr_rom_size;
         cdata->arm9i_rom_offset = 0;
 
         // TWL header
@@ -272,6 +272,15 @@ u32 InitCartRead(CartData* cdata) {
                 Cart_Init();
                 NTR_CmdReadHeader(cdata->storage);
                 if (!NTR_Secure_Init(cdata->storage, NULL, Cart_GetID(), 1)) return 1;
+            }
+        } else {
+            // Check if immediately after the reported cart size
+            // is the magic number string 'ac' (auth code).
+            // If found, add 0x88 bytes for the download play RSA key.
+            u16 rsaMagic;
+            ReadCartBytes(&rsaMagic, cdata->data_size, 2, cdata, false);
+            if(rsaMagic == 0x6361) {
+                cdata->data_size += 0x88;
             }
         }
 
