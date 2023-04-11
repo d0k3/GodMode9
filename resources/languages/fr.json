@@ -1,8 +1,8 @@
 {
 	"GM9_LANGUAGE": "Français",
-	"DATE_TIME_FORMAT": "%1$s%2$02lX-%3$02lX-%4$02lX %5$02lX:%6$02lX",
-	"DECIMAL_SEPARATOR": ".",
-	"THOUSAND_SEPARATOR": ",",
+	"DATE_TIME_FORMAT": "%4$02lX/%3$02lX/%1$s%2$02lX %5$02lX:%6$02lX",
+	"DECIMAL_SEPARATOR": ",",
+	"THOUSAND_SEPARATOR": " ",
 	"FIRM_TOO_BIG": "FIRM trop grand, impossible de démarrer",
 	"PATH_DO_NOT_BOOT_UNTRUSTED": "%s (%dkB)\nAttention : Ne démarrez pas\nles FIRMs provenant\nde sources non fiables.\n \nDémarrer le FIRM ?",
 	"NOT_BOOTABLE_FIRM": "N'est pas un FIRM démarrable.",
