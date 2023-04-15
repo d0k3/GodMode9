@@ -22,6 +22,8 @@
 
 #include <stdatomic.h>
 
+#include "common.h"
+
 #include "arm/timer.h"
 
 #include "hw/gpio.h"
@@ -116,16 +118,13 @@ u32 mcuGetSpecialHID(void)
 
 void mcuSetStatusLED(u32 period_ms, u32 color)
 {
-	u32 r, g, b;
+	u32 r, g, b, delay;
 	mcuStatusLED ledState;
 
-	// handle proper non-zero periods
-	// so small the hardware can't handle it
-	if (period_ms != 0 && period_ms < 63)
-		period_ms = 63;
+	delay = clamp((period_ms * 0x200) / 1000, 1, 0xFF);
 
-	ledState.delay = (period_ms * 0x10) / 1000;
-	ledState.smoothing = 0x40;
+	ledState.delay = delay;
+	ledState.smoothing = delay;
 	ledState.loop_delay = 0x10;
 	ledState.unk = 0;
 
