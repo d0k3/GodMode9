@@ -125,8 +125,8 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
 u32 SplashInit(const char* modestr) {
     u64 splash_size;
     u8* splash = FindVTarFileInfo(VRAM0_SPLASH_PNG, &splash_size);
-    const char *namestr = FLAVOR " " VERSION;
-    const char *loadstr = "booting...";
+    const char* namestr = FLAVOR " " VERSION;
+    const char* loadstr = "booting...";
     const u32 pos_xb = 10;
     const u32 pos_yb = 10;
     const u32 pos_xu = SCREEN_WIDTH_BOT - 10 - GetDrawStringWidth(loadstr);
