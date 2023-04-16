@@ -1631,7 +1631,7 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
     u32 x_txt = (TV_LNOS >= 0) ? TV_HPAD + ((TV_LNOS+1)*FONT_WIDTH_EXT) : TV_HPAD;
     u32 x_lno = TV_HPAD;
     u32 p_al = 0;
-    u32 p_ar = TV_LLEN_DISP - strnlen(ar_str, 16);
+    u32 p_ar = TV_LLEN_DISP - strlen(ar_str);
     u32 x_al = x_txt + (p_al * FONT_WIDTH_EXT);
     u32 x_ar = x_txt + (p_ar * FONT_WIDTH_EXT);
 
@@ -1661,8 +1661,8 @@ void MemTextView(const char* text, u32 len, char* line0, int off_disp, int lno, 
         snprintf(txtstr, sizeof(txtstr), "%-*.*s", (int) TV_LLEN_DISP, (int) TV_LLEN_DISP, "");
         if (ncpy) memcpy(txtstr, ptr + off_disp, ncpy);
         for (char* d = txtstr; *d; d++) if (*d < ' ') *d = ' ';
-        if (al) memcpy(txtstr + p_al, al_str, strnlen(al_str, 16));
-        if (ar) memcpy(txtstr + p_ar, ar_str, strnlen(ar_str, 16));
+        if (al) memcpy(txtstr + p_al, al_str, strlen(al_str));
+        if (ar) memcpy(txtstr + p_ar, ar_str, strlen(ar_str));
 
         // draw line number & text
         DrawString(TOP_SCREEN, txtstr, x_txt, y, color_text, COLOR_STD_BG);
