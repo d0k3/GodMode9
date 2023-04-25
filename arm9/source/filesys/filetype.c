@@ -163,7 +163,7 @@ u64 IdentifyFileType(const char* path) {
         return BIN_CIFNSH;
     } else if (ValidateText((char*) data, (fsize > 0x200) ? 0x200 : fsize)) {
         u64 type = 0;
-        if ((fsize < SCRIPT_MAX_SIZE) && (strncasecmp(ext, SCRIPT_EXT, strnlen(SCRIPT_EXT, 16) + 1) == 0))
+        if ((fsize < SCRIPT_MAX_SIZE) && (strcasecmp(ext, SCRIPT_EXT) == 0))
             type |= TXT_SCRIPT; // should be a script (which is also generic text)
         if (fsize < STD_BUFFER_SIZE) type |= TXT_GENERIC;
         return type;

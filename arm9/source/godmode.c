@@ -149,7 +149,7 @@ u32 SplashInit(const char* modestr) {
         SCREEN_HEIGHT - 10 - GetDrawStringHeight(modestr), COLOR_STD_FONT, COLOR_TRANSPARENT, "%s", modestr);
 
     DrawStringF(BOT_SCREEN, pos_xb, pos_yb, COLOR_STD_FONT, COLOR_STD_BG, "%s\n%*.*s\n%s\n \n \n%s\n%s\n \n%s\n%s",
-        namestr, strnlen(namestr, 64), strnlen(namestr, 64),
+        namestr, strlen(namestr), strlen(namestr),
         "--------------------------------", "https://github.com/d0k3/GodMode9",
         "Releases:", "https://github.com/d0k3/GodMode9/releases/", // this won't fit with a 8px width font
         "Hourlies:", "https://d0k3.secretalgorithm.com/");
