@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 
-""" Create an TRF translation for GodMode9 from a translation JSON. """
-
-from __future__ import annotations
+""" Create a TRF translation for GodMode9 from a translation JSON. """
 
 import argparse
-import dataclasses
 import json
 import math
 import pathlib
@@ -14,36 +11,6 @@ import sys
 
 
 LANGUAGE_NAME = "GM9_LANGUAGE"
-
-
-def read_args() -> argparse.Namespace:
-    """
-    Parse command-line args.
-
-    Returns:
-        The parsed command-line args.
-    """
-    parser = argparse.ArgumentParser(
-            description="Create an TRF translation for GodMode9 from a translation JSON."
-    )
-
-    parser.add_argument(
-            "source",
-            type=pathlib.Path,
-            help="JSON to convert from"
-    )
-    parser.add_argument(
-            "dest",
-            type=pathlib.Path,
-            help="TRF file to write"
-    )
-    parser.add_argument(
-            "version",
-            type=int,
-            help="translation version, from language.yml"
-    )
-
-    return parser.parse_args()
 
 
 def ceil_to_multiple(num: int, base: int) -> int:
@@ -75,7 +42,7 @@ def get_language(data: dict) -> bytes:
     """
     try:
         return data[LANGUAGE_NAME].encode("utf-8")
-    except AttributeError as exception:
+    except KeyError as exception:
         raise ValueError("invalid language data") from exception
 
 
@@ -96,180 +63,60 @@ def load_translations(data: dict) -> dict[str, bytearray]:
     }
 
 
-@dataclasses.dataclass
-class TRFMetadata:
+def strings_to_trf(mapping: dict[str, bytearray], version: int, language: str) -> bytearray:
     """
-    A TRF file's metadata section.
+    Create a TRF file from translated strings.
 
     Args:
+        mapping: Mapping between labels and translated strings.
         version: Translation version.
-        nstrings: Total strings in the translation.
         language: Translation language.
+
+    Returns:
+        The translation strings as TRF data.
     """
-    version: int
-    nstrings: int
-    language: bytes
+    # File header.
+    trfdata = bytearray(b"RIFF\0\0\0\0")
 
-    def as_bytearray(self) -> bytearray:
-        """
-        Return a bytearray representation of this TRF section.
+    # Metadata section.
+    trfdata += (
+            b"META"
+            + struct.pack("<LLL32s", 40, version, len(mapping), language)
+    )
 
-        Returns:
-            The TRF metadata section as a bytearray.
-        """
-        return (
-                bytearray(b"META")
-                + struct.pack("<LLL32s", 40, self.version, self.nstrings, self.language)
-        )
+    # String data section.
+    data = bytearray().join(mapping.values())
+    size = ceil_to_multiple(len(data), 4)
+    padding = size - len(data)
 
-    def __len__(self) -> int:
-        return len(self.as_bytearray())
+    trfdata += (
+            b"SDAT"
+            + struct.pack("<L", size)
+            + data
+            + b"\0" * padding
+    )
 
+    # String map section.
+    data = bytearray()
+    offset = 0
+    for item in mapping.values():
+        data += struct.pack("<H", offset)
+        offset += len(item)
 
-@dataclasses.dataclass
-class TRFCharacterData:
-    """
-    A TRF file's character data section.
+    size = ceil_to_multiple(len(data), 4)
+    padding = size - len(data)
 
-    Args:
-        data: Translation strings.
-    """
-    data: bytearray
+    trfdata += (
+            b"SMAP"
+            + struct.pack("<L", size)
+            + data
+            + b"\0" * padding
+    )
 
-    @classmethod
-    def from_mapping(cls, mapping: dict[str, bytearray]) -> TRFCharacterData:
-        """
-        Construct an instance of this class from a translation mapping.
+    # Fill in cumulative section size.
+    trfdata[4:8] = struct.pack("<L", len(trfdata) - 8)
 
-        Args:
-            mapping: Mapping between translation labels and strings.
-
-        Returns:
-            An instance of TRFCharacterData.
-        """
-        return cls(bytearray().join(mapping.values()))
-
-    def as_bytearray(self) -> bytearray:
-        """
-        Return a bytearray representation of this TRF section.
-
-        Returns:
-            This TRF character data section as a bytearray.
-        """
-        size = ceil_to_multiple(len(self.data), 4)
-        padding = size - len(self.data)
-
-        return (
-                bytearray(b"SDAT")
-                + struct.pack("<L", size)
-                + self.data
-                + b"\0" * padding
-        )
-
-    def __len__(self) -> int:
-        return len(self.as_bytearray())
-
-
-@dataclasses.dataclass
-class TRFCharacterMap:
-    """
-    A TRF file's character map section.
-
-    Args:
-        data: Translation strings' offsets.
-    """
-    data: bytearray
-
-    @classmethod
-    def from_mapping(cls, mapping: dict[str, bytearray]) -> TRFCharacterMap:
-        """
-        Construct an instance of this class from a translation mapping.
-
-        Args:
-            mapping: Mapping between translation labels and strings.
-
-        Returns:
-            An instance of TRFCharacterMap.
-        """
-        data = bytearray()
-        offset = 0
-
-        for item in mapping.values():
-            data.extend(struct.pack("<H", offset))
-            offset += len(item)
-
-        return cls(data)
-
-    def as_bytearray(self) -> bytearray:
-        """
-        Return a bytearray representation of this TRF section.
-
-        Returns:
-            This TRF character map section as a bytearray.
-        """
-        size = ceil_to_multiple(len(self.data), 4)
-        padding = size - len(self.data)
-
-        return (
-                bytearray(b"SMAP")
-                + struct.pack("<L", size)
-                + self.data
-                + b"\0" * padding
-        )
-
-    def __len__(self) -> int:
-        return len(self.as_bytearray())
-
-
-@dataclasses.dataclass
-class TRFFile:
-    """
-    A TRF file.
-
-    Args:
-        metadata: The TRF META section.
-        chardata: The TRF SDAT section.
-        charmap: The TRF SMAP section.
-    """
-    metadata: TRFMetadata
-    chardata: TRFCharacterData
-    charmap: TRFCharacterMap
-
-    @classmethod
-    def new(cls, version: int, mapping: dict, language: bytes) -> TRFFile:
-        """
-        Construct an instance of this class and its attributes.
-
-        Args:
-            version: Translation version.
-            mapping: Mapping between translation labels and strings.
-            language: Translation language.
-
-        Returns:
-            An instance of TRFFile.
-        """
-        return cls(
-                TRFMetadata(version, len(mapping), language),
-                TRFCharacterData.from_mapping(mapping),
-                TRFCharacterMap.from_mapping(mapping)
-        )
-
-    def as_bytearray(self) -> bytearray:
-        """
-        Return a bytearray representation of this TRF file.
-
-        Returns:
-            This TRF file as a bytearray.
-        """
-        size = len(self.metadata) + len(self.chardata) + len(self.charmap)
-
-        return (
-                bytearray(b"RIFF")
-                + struct.pack("<L", size)
-                + self.metadata.as_bytearray()
-                + self.chardata.as_bytearray()
-                + self.charmap.as_bytearray()
-        )
+    return trfdata
 
 
 def main(source: pathlib.Path, dest: pathlib.Path, version: int) -> None:
@@ -287,14 +134,35 @@ def main(source: pathlib.Path, dest: pathlib.Path, version: int) -> None:
         language = get_language(data)
     except ValueError as exception:
         sys.exit(f"Fatal: {exception}.")
-    strings = load_translations(data)
+    mapping = load_translations(data)
 
-    trf_file = TRFFile.new(version, strings, language)
+    trf_file = strings_to_trf(mapping, version, language)
 
-    dest.write_bytes(trf_file.as_bytearray())
-    print(f"Info: {dest.as_posix()} created with {len(strings)} strings.")
+    dest.write_bytes(trf_file)
+    print(f"Info: {dest.as_posix()} created with {len(mapping)} strings.")
 
 
 if __name__ == "__main__":
-    args = read_args()
+    parser = argparse.ArgumentParser(
+            description="Create an TRF translation for GodMode9 from a translation JSON."
+    )
+
+    parser.add_argument(
+            "source",
+            type=pathlib.Path,
+            help="JSON to convert from"
+    )
+    parser.add_argument(
+            "dest",
+            type=pathlib.Path,
+            help="TRF file to write"
+    )
+    parser.add_argument(
+            "version",
+            type=int,
+            help="translation version, from language.yml"
+    )
+
+    args = parser.parse_args()
+
     main(args.source, args.dest, args.version)
