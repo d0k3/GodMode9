@@ -144,7 +144,7 @@ def main(source: pathlib.Path, dest: pathlib.Path, version: int) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-            description="Create an TRF translation for GodMode9 from a translation JSON."
+            description="Create a TRF translation for GodMode9 from a translation JSON."
     )
 
     parser.add_argument(
