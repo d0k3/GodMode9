@@ -12,18 +12,19 @@
 // valid addresses for FIRM section loading
 // pairs of start / end address, provided by Wolfvak
 #define FIRM_VALID_ADDRESS  \
-    0x08000040, 0x08100000, \
     0x18000000, 0x18600000, \
     0x1FF00000, 0x1FFFFC00
 
 // valid addresses (installable) for FIRM section loading
 #define FIRM_VALID_ADDRESS_INSTALL  \
     FIRM_VALID_ADDRESS, \
+    0x08000040, 0x080F7FFF, \
     0x10000000, 0x10200000
 
 // valid addresses (bootable) for FIRM section loading
 #define FIRM_VALID_ADDRESS_BOOT \
     FIRM_VALID_ADDRESS, \
+    0x08000040, 0x08100000, \
     0x20000000, 0x27FFFA00
 
 static const u32 whitelist_boot[] = { FIRM_VALID_ADDRESS_BOOT };
