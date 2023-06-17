@@ -18,7 +18,7 @@ export COMMON_DIR := ../common
 # Definitions for initial RAM disk
 VRAM_OUT    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
-VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 262144
+VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 228864
 ifeq ($(NTRBOOT),1)
 	VRAM_SCRIPTS := resources/gm9/scripts
 endif
@@ -90,7 +90,7 @@ vram0:
 	@$(MAKE) --no-print-directory -C $(@D)
 
 firm: $(ELF) vram0
-	@test `wc -c <$(VRAM_OUT)` -le 262144
+	@test `wc -c <$(VRAM_OUT)` -le 228864
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
