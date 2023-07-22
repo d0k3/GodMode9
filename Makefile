@@ -89,7 +89,9 @@ $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 	@echo "Building $@"
 	@$(MAKE) --no-print-directory -C $(@D)
 
-firm: $(ELF) $(VRAM_TAR)
+arm9/arm9.elf: $(VRAM_TAR)
+
+firm: $(ELF)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
