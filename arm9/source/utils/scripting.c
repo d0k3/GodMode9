@@ -1557,7 +1557,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         while(1);
     }
     else if (id == CMD_ID_LUARUN) {
-	    luaL_Reg loadedlibs[] = {
+        luaL_Reg loadedlibs[] = {
             {LUA_GNAME, luaopen_base},
             //{LUA_LOADLIBNAME, luaopen_package},
             //{LUA_COLIBNAME, luaopen_coroutine},
@@ -1575,7 +1575,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         lua_State *L = luaL_newstate();
         // NOTE most libs will most likely not work right away because GM9 is a very weird environment
         //luaL_openlibs(L);
-	
+
         // this will require a bunch of other funcs defined
         const luaL_Reg *lib;
         /* "require" functions from 'loadedlibs' and set results to global table */
@@ -1601,6 +1601,8 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             lua_pop(L, lua_gettop(L));
             //ShowPrompt(false, "Success");
         } else {
+            ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+            DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", lua_tostring(L, -1));
             ShowPrompt(false, "%s", lua_tostring(L, -1));
         }
 
