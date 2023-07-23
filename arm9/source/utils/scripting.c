@@ -866,8 +866,10 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
 
 int Thingy(lua_State *L) {
     const char* mystr = luaL_checkstring(L, 1);
-    set_var("PREVIEW_MODE", mystr);
-    set_preview("PREVIEW_MODE", mystr);
+    // so this would normally be done when a loop in ExecuteGM9Script continues,
+    // but because of how i made this luarun command, i need to manually update the top screen
+    ClearScreen(TOP_SCREEN, COLOR_STD_BG);
+    DrawStringCenter(TOP_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", mystr);
     ShowPrompt(false, "thingy called: %s\n", mystr);
     return 0;
 }
@@ -1569,7 +1571,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
             {NULL, NULL}
         };
         // this code is awful
-        ShowPrompt(false, "Make lua state");
+        //ShowPrompt(false, "Make lua state");
         lua_State *L = luaL_newstate();
         // NOTE most libs will most likely not work right away because GM9 is a very weird environment
         //luaL_openlibs(L);
@@ -1578,7 +1580,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         const luaL_Reg *lib;
         /* "require" functions from 'loadedlibs' and set results to global table */
         for (lib = loadedlibs; lib->func; lib++) {
-            ShowPrompt(false, "Loading %s", lib->name);
+            //ShowPrompt(false, "Loading %s", lib->name);
             luaL_requiref(L, lib->name, lib->func, 1);
             lua_pop(L, 1);  /* remove lib */
         }
@@ -1589,20 +1591,20 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         char* text = calloc(1, STD_BUFFER_SIZE);
         if (!text) return false;
 
-        ShowPrompt(false, "Reading data...");
+        //ShowPrompt(false, "Reading data...");
 
         size_t flen = FileGetData(argv[0], text, STD_BUFFER_SIZE - 1, 0);
 
-        ShowPrompt(false, "Read %s size %zu", argv[0], flen);
+        //ShowPrompt(false, "Read %s size %zu", argv[0], flen);
 
         if (luaL_dostring(L, text) == LUA_OK) {
             lua_pop(L, lua_gettop(L));
-            ShowPrompt(false, "Success");
+            //ShowPrompt(false, "Success");
         } else {
             ShowPrompt(false, "%s", lua_tostring(L, -1));
         }
 
-        ShowPrompt(false, "Closing lua");
+        //ShowPrompt(false, "Closing lua");
 
         lua_close(L);
         free(text);
