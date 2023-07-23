@@ -1,4 +1,6 @@
 
+LIBS ?= 
+
 OBJECTS := $(patsubst $(SOURCE)/%.s, $(BUILD)/%.o, \
           $(patsubst $(SOURCE)/%.c, $(BUILD)/%.o, \
           $(call rwildcard, $(SOURCE), *.s *.c)))
@@ -15,7 +17,7 @@ clean:
 
 $(TARGET).elf: $(OBJECTS) $(OBJECTS_COMMON)
 	@mkdir -p "$(@D)"
-	@$(CC) $(LDFLAGS) $^ -o $@
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 $(BUILD)/%.cmn.o: $(COMMON_DIR)/%.c
 	@mkdir -p "$(@D)"

@@ -18,6 +18,9 @@
 #include "ips.h"
 #include "bps.h"
 #include "pxi.h"
+#include "lua.h"
+#include "lauxlib.h"
+#include "lualib.h"
 
 
 #define _MAX_ARGS       4
@@ -127,7 +130,8 @@ typedef enum {
     CMD_ID_NEXTEMU,
     CMD_ID_REBOOT,
     CMD_ID_POWEROFF,
-    CMD_ID_BKPT
+    CMD_ID_BKPT,
+    CMD_ID_LUARUN
 } cmd_id;
 
 typedef struct {
@@ -202,7 +206,8 @@ static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_NEXTEMU , "nextemu" , 0, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
     { CMD_ID_POWEROFF, "poweroff", 0, 0 },
-    { CMD_ID_BKPT    , "bkpt"    , 0, 0 }
+    { CMD_ID_BKPT    , "bkpt"    , 0, 0 },
+    { CMD_ID_LUARUN  , "luarun"  , 1, 0 }
 };
 
 // global vars for preview
@@ -857,6 +862,14 @@ bool parse_line(const char* line_start, const char* line_end, cmd_id* cmdid, u32
 
     // end reached with a failed get_string()
     return false;
+}
+
+int Thingy(lua_State *L) {
+    const char* mystr = luaL_checkstring(L, 1);
+    set_var("PREVIEW_MODE", mystr);
+    set_preview("PREVIEW_MODE", mystr);
+    ShowPrompt(false, "thingy called: %s\n", mystr);
+    return 0;
 }
 
 bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
@@ -1540,6 +1553,59 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_BKPT) {
         bkpt;
         while(1);
+    }
+    else if (id == CMD_ID_LUARUN) {
+	    luaL_Reg loadedlibs[] = {
+            {LUA_GNAME, luaopen_base},
+            //{LUA_LOADLIBNAME, luaopen_package},
+            //{LUA_COLIBNAME, luaopen_coroutine},
+            //{LUA_TABLIBNAME, luaopen_table},
+            //{LUA_IOLIBNAME, luaopen_io},
+            //{LUA_OSLIBNAME, luaopen_os},
+            //{LUA_STRLIBNAME, luaopen_string},
+            {LUA_MATHLIBNAME, luaopen_math},
+            //{LUA_UTF8LIBNAME, luaopen_utf8},
+            //{LUA_DBLIBNAME, luaopen_debug},
+            {NULL, NULL}
+        };
+        // this code is awful
+        ShowPrompt(false, "Make lua state");
+        lua_State *L = luaL_newstate();
+        // NOTE most libs will most likely not work right away because GM9 is a very weird environment
+        //luaL_openlibs(L);
+	
+        // this will require a bunch of other funcs defined
+        const luaL_Reg *lib;
+        /* "require" functions from 'loadedlibs' and set results to global table */
+        for (lib = loadedlibs; lib->func; lib++) {
+            ShowPrompt(false, "Loading %s", lib->name);
+            luaL_requiref(L, lib->name, lib->func, 1);
+            lua_pop(L, 1);  /* remove lib */
+        }
+
+        lua_pushcfunction(L, Thingy);
+        lua_setglobal(L, "thingy");
+
+        char* text = calloc(1, STD_BUFFER_SIZE);
+        if (!text) return false;
+
+        ShowPrompt(false, "Reading data...");
+
+        size_t flen = FileGetData(argv[0], text, STD_BUFFER_SIZE - 1, 0);
+
+        ShowPrompt(false, "Read %s size %zu", argv[0], flen);
+
+        if (luaL_dostring(L, text) == LUA_OK) {
+            lua_pop(L, lua_gettop(L));
+            ShowPrompt(false, "Success");
+        } else {
+            ShowPrompt(false, "%s", lua_tostring(L, -1));
+        }
+
+        ShowPrompt(false, "Closing lua");
+
+        lua_close(L);
+        free(text);
     }
     else { // command not recognized / bad number of arguments
         ret = false;

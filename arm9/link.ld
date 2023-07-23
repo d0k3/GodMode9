@@ -4,7 +4,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    AHBWRAM (RWX) : ORIGIN = 0x08006000, LENGTH = 512K
+    AHBWRAM (RWX) : ORIGIN = 0x08006000, LENGTH = 744K
     VECTORS (RX) : ORIGIN = 0x08000000, LENGTH = 64
 }
 
@@ -28,6 +28,10 @@ SECTIONS
 
     .rodata : ALIGN(4) {
         *(.rodata*);
+        . = ALIGN(4);
+        __exidx_start = .;
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        __exidx_end = .;
         . = ALIGN(4);
     } >AHBWRAM
 
