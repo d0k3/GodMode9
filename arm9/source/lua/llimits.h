@@ -133,7 +133,8 @@ typedef LUAI_UACINT l_uacInt;
 
 
 /* type casts (a macro highlights casts in the code) */
-#define cast(t, exp)	((t)(exp))
+#define cast(t, exp)  ((t)(exp))
+#define castp(t, exp)	((t)(void *)(exp))
 
 #define cast_void(i)	cast(void, (i))
 #define cast_voidp(i)	cast(void *, (i))
@@ -143,7 +144,7 @@ typedef LUAI_UACINT l_uacInt;
 #define cast_byte(i)	cast(lu_byte, (i))
 #define cast_uchar(i)	cast(unsigned char, (i))
 #define cast_char(i)	cast(char, (i))
-#define cast_charp(i)	cast(char *, (i))
+#define cast_charp(i)	castp(char *, (i))
 #define cast_sizet(i)	cast(size_t, (i))
 
 

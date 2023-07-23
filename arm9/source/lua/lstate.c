@@ -48,7 +48,7 @@ typedef struct LG {
 
 
 
-#define fromstate(L)	(cast(LX *, cast(lu_byte *, (L)) - offsetof(LX, l)))
+#define fromstate(L)	(castp(LX *, cast(lu_byte *, (L)) - offsetof(LX, l)))
 
 
 /*

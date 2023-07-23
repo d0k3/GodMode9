@@ -34,7 +34,7 @@
 
 
 #define savestack(L,pt)		(cast_charp(pt) - cast_charp(L->stack.p))
-#define restorestack(L,n)	cast(StkId, cast_charp(L->stack.p) + (n))
+#define restorestack(L,n)	castp(StkId, cast_charp(L->stack.p) + (n))
 
 
 /* macro to check stack size, preserving 'p' */

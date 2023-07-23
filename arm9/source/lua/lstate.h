@@ -367,7 +367,7 @@ union GCUnion {
 ** "A pointer to a union object, suitably converted, points to each of
 ** its members [...], and vice versa."
 */
-#define cast_u(o)	cast(union GCUnion *, (o))
+#define cast_u(o)	castp(union GCUnion *, (o))
 
 /* macros to convert a GCObject into a specific value */
 #define gco2ts(o)  \
