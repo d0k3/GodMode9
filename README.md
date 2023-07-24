@@ -10,8 +10,8 @@ A simple test... Includes Lua 5.4.6 with a few changes for compile-time warnings
 
 Copy init.lua to the SD card and select it. There is now an "Execute Lua script" option.
 
+The main lua stuff is at `arm9/source/lua`. Custom stuff is `gm9lua` and `gm9ui`.
+
 This has one custom library so far, "UI", that exposes two functions:
 * UI.ShowPrompt(ask, text)
 * UI.ShowSelectPrompt(optionstable, text)
-
-Before you think about using this: it doesn't even have an API or a proper way to run the code. This is currenetly ONLY a test to see if Lua can be used at all.
