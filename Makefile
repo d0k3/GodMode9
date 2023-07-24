@@ -16,9 +16,9 @@ export RELDIR := release
 export COMMON_DIR := ../common
 
 # Definitions for initial RAM disk
-VRAM_OUT    := $(OUTDIR)/vram0.tar
+VRAM_TAR    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data
-VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 228864
+VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 262144
 ifeq ($(NTRBOOT),1)
 	VRAM_SCRIPTS := resources/gm9/scripts
 endif
@@ -44,14 +44,14 @@ export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSIO
 export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=4096
 ELF := arm9/arm9.elf arm11/arm11.elf
 
-.PHONY: all firm vram0 elf release clean
+.PHONY: all firm $(VRAM_TAR) elf release clean
 all: firm
 
 clean:
 	@set -e; for elf in $(ELF); do \
 	    $(MAKE) --no-print-directory -C $$(dirname $$elf) clean; \
 	done
-	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_OUT)
+	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR)
 
 unmarked_readme: .FORCE
 	@$(PY3) utils/unmark.py -f README.md data/README_internal.md
@@ -80,24 +80,27 @@ release: clean unmarked_readme
 
 	@-7za a $(RELDIR)/$(FLAVOR)-$(VERSION)-$(DBUILTS).zip ./$(RELDIR)/*
 
-vram0:
-	@mkdir -p "$(OUTDIR)"
-	@echo "Creating $(VRAM_OUT)"
-	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_OUT) $(shell ls -d $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA)/* $(VRAM_SCRIPTS))
+$(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
+	@mkdir -p "$(@D)"
+	@echo "Creating $@"
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell find $^ -type f)
 
 %.elf: .FORCE
 	@echo "Building $@"
 	@$(MAKE) --no-print-directory -C $(@D)
 
-firm: $(ELF) vram0
-	@test `wc -c <$(VRAM_OUT)` -le 228864
+arm9/arm9.elf: $(VRAM_TAR)
+
+firm: $(ELF)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
-	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -A 0x80C0000 -D $(ELF) $(VRAM_OUT) -C NDMA XDMA memcpy
+	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(ELF) -C NDMA XDMA
 	@echo "[FIRM] $(FIRMD)"
-	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -A 0x80C0000 -D $(ELF) $(VRAM_OUT)  -C NDMA XDMA memcpy
+	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(ELF) -C NDMA XDMA
+
+vram0: $(VRAM_TAR) .FORCE # legacy target name
 
 .FORCE:
