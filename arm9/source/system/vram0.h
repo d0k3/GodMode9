@@ -19,10 +19,10 @@
 
 
 extern const char vram_data[];
-extern const u32 vram_data_size;
+extern const char vram_data_end[];
 
 #define VRAM0_OFFSET    (uintptr_t)(vram_data)
-#define VRAM0_LIMIT     vram_data_size
+#define VRAM0_LIMIT     (uintptr_t)(vram_data_end - vram_data)
 
 #define TARDATA         ((void*) VRAM0_OFFSET)
 #define TARDATA_(off)   ((void*) (u32) (VRAM0_OFFSET + (off)))
