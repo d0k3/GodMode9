@@ -26,6 +26,7 @@
 #include "i2c.h"
 #include "pxi.h"
 #include "language.h"
+#include "gm9lua.h"
 
 #ifndef N_PANES
 #define N_PANES 3
@@ -1192,6 +1193,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool installable = (FTYPE_INSTALLABLE(filetype));
     bool agbexportable = (FTYPE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
     bool agbimportable = (FTYPE_AGBSAVE(filetype) && (drvtype & DRV_VIRTUAL) && (drvtype & DRV_SYSNAND));
+    bool luascriptable = (FTYPE_LUA(filetype));
 
     char cxi_path[256] = { 0 }; // special options for TMD
     if ((filetype & GAME_TMD) &&
@@ -1207,7 +1209,8 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         cxi_dumpable || tik_buildable || key_buildable || titleinfo || renamable || trimable || transferable ||
         hsinjectable || restorable || xorpadable || ebackupable || ncsdfixable || extrcodeable || keyinitable ||
         keyinstallable || bootable || scriptable || fontable || translationable || viewable || installable ||
-        agbexportable || agbimportable || cia_installable || tik_installable || tik_dumpable || cif_installable;
+        agbexportable || agbimportable || cia_installable || tik_installable || tik_dumpable || cif_installable ||
+	luascriptable;
 
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, file_path, 32, 8);
@@ -1290,6 +1293,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         (filetype & BIN_LEGKEY) ? buildkeydb_str           :
         (filetype & BIN_NCCHNFO)? STR_NCCHINFO_OPTIONS     :
         (filetype & TXT_SCRIPT) ? STR_EXECUTE_GM9_SCRIPT   :
+        (filetype & TXT_LUA)    ? STR_EXECUTE_LUA_SCRIPT   :
         (FTYPE_FONT(filetype))  ? STR_FONT_OPTIONS         :
         (filetype & TRANSLATION)? STR_LANGUAGE_OPTIONS     :
         (filetype & GFX_PNG)    ? STR_VIEW_PNG_FILE        :
@@ -1453,6 +1457,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     int install = (installable) ? ++n_opt : -1;
     int boot = (bootable) ? ++n_opt : -1;
     int script = (scriptable) ? ++n_opt : -1;
+    int luascript = (luascriptable) ? ++n_opt : -1;
     int font = (fontable) ? ++n_opt : -1;
     int translation = (translationable) ? ++n_opt : -1;
     int view = (viewable) ? ++n_opt : -1;
@@ -1490,6 +1495,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     if (install > 0) optionstr[install-1] = STR_INSTALL_FIRM;
     if (boot > 0) optionstr[boot-1] = STR_BOOT_FIRM;
     if (script > 0) optionstr[script-1] = STR_EXECUTE_GM9_SCRIPT;
+    if (luascript > 0) optionstr[luascript-1] = STR_EXECUTE_LUA_SCRIPT;
     if (view > 0) optionstr[view-1] = STR_VIEW_PNG_FILE;
     if (font > 0) optionstr[font-1] = STR_SET_AS_ACTIVE_FONT;
     if (translation > 0) optionstr[translation-1] = STR_SET_AS_ACTIVE_LANGUAGE;
@@ -2133,6 +2139,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     else if (user_select == script) { // execute script
         if (ShowPrompt(true, "%s\n%s", pathstr, STR_WARNING_DO_NOT_RUN_UNTRUSTED_SCRIPTS))
             ShowPrompt(false, "%s\n%s", pathstr, ExecuteGM9Script(file_path) ? STR_SCRIPT_EXECUTE_SUCCESS : STR_SCRIPT_EXECUTE_FAILURE);
+        GetDirContents(current_dir, current_path);
+        ClearScreenF(true, true, COLOR_STD_BG);
+        return 0;
+    }
+    else if (user_select == luascript) { // execute lua script
+        if (ShowPrompt(true, "%s\n%s", pathstr, STR_WARNING_DO_NOT_RUN_UNTRUSTED_SCRIPTS))
+            ShowPrompt(false, "%s\n%s", pathstr, ExecuteLuaScript(file_path) ? STR_SCRIPT_EXECUTE_SUCCESS : STR_SCRIPT_EXECUTE_FAILURE);
         GetDirContents(current_dir, current_path);
         ClearScreenF(true, true, COLOR_STD_BG);
         return 0;
