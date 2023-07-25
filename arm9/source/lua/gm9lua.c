@@ -4,6 +4,7 @@
 #include "vff.h"
 #include "fsutil.h"
 #include "gm9ui.h"
+#include "gm9fs.h"
 
 #define DEBUGSP ShowPrompt
 
@@ -37,12 +38,6 @@ static int ErrFile(lua_State* L, const char* what, int fnameindex, FRESULT res) 
     lua_pushfstring(L, "cannot %s %s:\nfatfs error %d", what, filename, res);
     lua_remove(L, fnameindex);
     return LUA_ERRFILE;
-}
-
-void CheckLuaArgCount(lua_State* L, int argcount, const char* cmd) {
-    if (lua_gettop(L) != argcount) {
-        luaL_error(L, "bad number of arguments passed to '%s' (expected %d, got %d)", cmd, argcount);
-    }
 }
 
 int LoadLuaFile(lua_State* L, const char *filename) {
@@ -79,6 +74,7 @@ static const luaL_Reg gm9lualibs[] = {
 
     // gm9 custom
     {GM9LUA_UILIBNAME, gm9lua_open_UI},
+    {GM9LUA_FSLIBNAME, gm9lua_open_FS},
 
     {NULL, NULL}
 };
@@ -111,13 +107,19 @@ bool ExecuteLuaScript(const char* path_script) {
     int result = LoadLuaFile(L, path_script);
     //free(script_buffer);
     if (result != LUA_OK) {
-        ShowPrompt(false, "Error during loading:\n%s", lua_tostring(L, -1));
+        char errstr[BUFSIZ] = {0};
+        strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);
+        WordWrapString(errstr, 0);
+        ShowPrompt(false, "Error during loading:\n%s", errstr);
         lua_close(L);
         return false;
     }
 
     if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK) {
-        ShowPrompt(false, "Error during execution:\n%s", lua_tostring(L, -1));
+        char errstr[BUFSIZ] = {0};
+        strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);
+        WordWrapString(errstr, 0);
+        ShowPrompt(false, "Error during execution:\n%s", errstr);
         lua_close(L);
         return false;
     }
