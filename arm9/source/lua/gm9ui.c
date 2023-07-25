@@ -15,7 +15,7 @@ static int UI_ShowPrompt(lua_State* L) {
 
 static int UI_ShowString(lua_State* L) {
     CheckLuaArgCount(L, 1, "ShowString");
-    const char *text = lua_tostring(L, 1);
+    const char* text = lua_tostring(L, 1);
 
     ShowString("%s", text);
     return 0;
@@ -24,7 +24,7 @@ static int UI_ShowString(lua_State* L) {
 static int UI_WordWrapString(lua_State* L) {
     size_t len;
     int isnum;
-    const char *text = lua_tolstring(L, 1, &len);
+    const char* text = lua_tolstring(L, 1, &len);
     int llen = lua_tointegerx(L, 2, &isnum);
     // i should check arg 2 if it's a number (but only if it was provided at all)
     char* buf = malloc(len + 1);

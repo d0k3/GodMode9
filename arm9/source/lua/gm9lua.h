@@ -16,5 +16,5 @@ static inline void CheckLuaArgCount(lua_State* L, int argcount, const char* cmd)
     }
 }
 
-int LoadLuaFile(lua_State* L, const char *filename);
+int LoadLuaFile(lua_State* L, const char* filename);
 bool ExecuteLuaScript(const char* path_script);

@@ -16,7 +16,7 @@ typedef struct GM9LuaLoadF {
 } GM9LuaLoadF;
 
 // similar to "getF" in lauxlib.c
-static const char* GetF(lua_State* L, void* ud, size_t *size) {
+static const char* GetF(lua_State* L, void* ud, size_t* size) {
     GM9LuaLoadF* lf = (GM9LuaLoadF*)ud;
     UINT br = 0;
     (void)L; // unused
@@ -40,7 +40,7 @@ static int ErrFile(lua_State* L, const char* what, int fnameindex, FRESULT res) 
     return LUA_ERRFILE;
 }
 
-int LoadLuaFile(lua_State* L, const char *filename) {
+int LoadLuaFile(lua_State* L, const char* filename) {
     GM9LuaLoadF lf;
     lf.n = 0;
     int status;
