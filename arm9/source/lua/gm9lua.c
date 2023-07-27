@@ -5,6 +5,7 @@
 #include "fsutil.h"
 #include "gm9ui.h"
 #include "gm9fs.h"
+#include "gm9loader.h"
 
 #define DEBUGSP ShowPrompt
 
@@ -100,8 +101,7 @@ bool ExecuteLuaScript(const char* path_script) {
     lua_State* L = luaL_newstate();
     loadlibs(L);
 
-    lua_pushcfunction(L, LuaShowPrompt);
-    lua_setglobal(L, "ShowPrompt");
+    ResetPackageSearchersAndPath(L);
 
     //int result = luaL_loadbuffer(L, script_buffer, script_size, path_script);
     int result = LoadLuaFile(L, path_script);
