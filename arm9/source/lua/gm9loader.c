@@ -115,14 +115,6 @@ void ResetPackageSearchersAndPath(lua_State* L) {
     lua_setfield(L, -2, "cpath");
 
     // the default package searchers only make sense on a full OS
-    /*lua_createtable(L, 1, 0);
-    lua_pushvalue(L, -2); // set 'package' as upvalue for all searchers
-    lua_pushcclosure(L, PackageSearcher, 1);
-    lua_rawseti(L, -2, 1);
-    lua_setfield(L, -2, "searchers"); // replace the default 'package.searchers' with our own
-    */
-
-    // the default package searchers only make sense on a full OS
     // so here we replace the lua loader with a custom one, and remove the C/Croot loaders
     // leaving the initial one (preload)
     lua_getfield(L, -1, "searchers");

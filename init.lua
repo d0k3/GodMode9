@@ -4,8 +4,10 @@ UI.ShowPrompt(false, "3 ^ 2: "..(3 ^ 2))
 local options = {'Dustbowl', 'Granary', 'Gravel Pit', 'Well', '2Fort', 'Hydro'}
 local result = UI.ShowSelectPrompt(options, "Choose one...")
 if result then
+    print("Chosen: "..options[result])
     UI.ShowPrompt(false, "You chose: "..result..", or "..options[result])
 else
+    print("Chosen: none")
     UI.ShowPrompt(false,  "Oh you don't like any of them?")
 end
 
@@ -14,6 +16,9 @@ UI.ShowPrompt(false, "I got: "..tostring(res))
 
 local max = 1000000
 for i = 0, max do
+    if i % 5000 == 0 then
+        print("i = "..i.."/max")
+    end
     if not UI.ShowProgress(i, max, "Pushing the Payload...") then break end
 end
 local max = 500000

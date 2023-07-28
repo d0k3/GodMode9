@@ -102,6 +102,7 @@ bool ExecuteLuaScript(const char* path_script) {
     loadlibs(L);
 
     ResetPackageSearchersAndPath(L);
+    ClearOutputBuffer();
 
     //int result = luaL_loadbuffer(L, script_buffer, script_size, path_script);
     int result = LoadLuaFile(L, path_script);

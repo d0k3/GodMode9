@@ -2923,7 +2923,7 @@ u32 GodMode(int entrypoint) {
             exit_mode = (switched || (pad_state & BUTTON_LEFT)) ? GODMODE_EXIT_POWEROFF : GODMODE_EXIT_REBOOT;
             break;
         } else if (pad_state & (BUTTON_HOME|BUTTON_POWER)) { // Home menu
-            const char* optionstr[8];
+            const char* optionstr[9];
             bool buttonhome = (pad_state & BUTTON_HOME);
             u32 n_opt = 0;
             int poweroff = ++n_opt;
@@ -2932,6 +2932,7 @@ u32 GodMode(int entrypoint) {
             int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : 0;
             int titleman = ++n_opt;
             int scripts = ++n_opt;
+            int luascripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = STR_POWEROFF_SYSTEM;
@@ -2940,6 +2941,7 @@ u32 GodMode(int entrypoint) {
             if (language > 0) optionstr[language - 1] = STR_LANGUAGE;
             if (brick > 0) optionstr[brick - 1] = STR_BRICK_MY_3DS;
             if (scripts > 0) optionstr[scripts - 1] = STR_SCRIPTS;
+            if (luascripts > 0) optionstr[luascripts - 1] = STR_LUA_SCRIPTS;
             if (payloads > 0) optionstr[payloads - 1] = STR_PAYLOADS;
             if (more > 0) optionstr[more - 1] = STR_MORE;
 
@@ -3013,6 +3015,15 @@ u32 GodMode(int entrypoint) {
                         ShowPrompt(false, STR_SCRIPTS_DIRECTORY_NOT_FOUND, SCRIPTS_DIR);
                     } else if (FileSelectorSupport(loadpath, STR_HOME_SCRIPTS_MENU_SELECT_SCRIPT, SCRIPTS_DIR, "*.gm9")) {
                         ExecuteGM9Script(loadpath);
+                        GetDirContents(current_dir, current_path);
+                        ClearScreenF(true, true, COLOR_STD_BG);
+                        break;
+                    }
+                } else if (user_select == luascripts) {
+                    if (!CheckSupportDir(LUASCRIPTS_DIR)) {
+                        ShowPrompt(false, STR_LUA_SCRIPTS_DIRECTORY_NOT_FOUND, LUASCRIPTS_DIR);
+                    } else if (FileSelectorSupport(loadpath, STR_HOME_LUA_SCRIPTS_MENU_SELECT_SCRIPT, LUASCRIPTS_DIR, "*.lua")) {
+                        ExecuteLuaScript(loadpath);
                         GetDirContents(current_dir, current_path);
                         ClearScreenF(true, true, COLOR_STD_BG);
                         break;
