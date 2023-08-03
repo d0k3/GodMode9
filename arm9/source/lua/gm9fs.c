@@ -35,7 +35,7 @@ static int FS_FileGetData(lua_State* L) {
     UINT br;
     FRESULT res = fvx_qread(path, buf, size, offset, &br);
     if (res != FR_OK) {
-        lua_pushfail(L);
+        luaL_pushfail(L);
         return 1;
     }
     lua_pushlstring(L, buf, br);
