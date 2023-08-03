@@ -12,7 +12,7 @@ Copy init.lua to the SD card and select it. There is now an "Execute Lua script"
 
 Or put your script at `0:/gm9/luascripts/*.lua`. Then press HOME or POWER and choose "Lua scripts...".
 
-The main lua stuff is at `arm9/source/lua`. Custom stuff is `gm9lua` and `gm9ui`.
+The main lua stuff is at `arm9/source/lua`. Custom files are prefixed with `gm9`.
 
 The API here is not at all stable. But there are currently two libraries to play with. This is not set in stone!
 * print(...)
@@ -30,4 +30,5 @@ The API here is not at all stable. But there are currently two libraries to play
     * 1 = alt screen
     * 2 = top screen
     * 3 = bottom screen
-* bool FS.InitImgFS(path)
+* bool FS.InitImgFS(string path)
+* string FS.FileGetData(string path, int size, int offset)

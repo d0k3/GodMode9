@@ -1,4 +1,7 @@
 #include "gm9fs.h"
+#include "fsinit.h"
+#include "fsutil.h"
+#include "vff.h"
 
 static int FS_InitImgFS(lua_State* L) {
     CheckLuaArgCount(L, 1, "InitImgFS");
@@ -16,8 +19,26 @@ static int FS_InitImgFS(lua_State* L) {
     return 1;
 }
 
+static int FS_FileGetData(lua_State* L) {
+    CheckLuaArgCount(L, 3, "FileGetData");
+    const char* path = luaL_checkstring(L, 1);
+    lua_Integer size = lua_tointeger(L, 2);
+    lua_Integer offset = lua_tointeger(L, 3);
+    if (size == -1) size = STD_BUFFER_SIZE;
+    else if (size == 0) return luaL_error(L, "size cannot be 0");
+    else if (size > STD_BUFFER_SIZE) return luaL_error(L, "size cannot be above %I (STD_BUFFER_SIZE)", STD_BUFFER_SIZE);
+
+    void* buf = malloc(size);
+    if (!buf) return luaL_error(L, "could not allocate buffer");
+    size_t read = FileGetData(path, buf, size, offset);
+    lua_pushlstring(L, buf, read);
+    free(buf);
+    return 1;
+}
+
 static const luaL_Reg FSlib[] = {
     {"InitImgFS", FS_InitImgFS},
+    {"FileGetData", FS_FileGetData},
     {NULL, NULL}
 };
 
