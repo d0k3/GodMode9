@@ -30,8 +30,15 @@ static int FS_FileGetData(lua_State* L) {
 
     void* buf = malloc(size);
     if (!buf) return luaL_error(L, "could not allocate buffer");
-    size_t read = FileGetData(path, buf, size, offset);
-    lua_pushlstring(L, buf, read);
+    // instead of using FileGetData directly we can use fvx_qread and handle the result
+    // and return a nil if it works (and an empty string if it really is empty)
+    UINT br;
+    FRESULT res = fvx_qread(path, buf, size, offset, &br);
+    if (res != FR_OK) {
+        lua_pushfail(L);
+        return 1;
+    }
+    lua_pushlstring(L, buf, br);
     free(buf);
     return 1;
 }
