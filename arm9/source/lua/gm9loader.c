@@ -1,3 +1,4 @@
+#include "gm9loader.h"
 #include "gm9lua.h"
 #include "vff.h"
 #include "ui.h"
@@ -102,12 +103,7 @@ void ResetPackageSearchersAndPath(lua_State* L) {
     
     // the default package.path only makes sense on a full OS
     // maybe this should include the lua script's current directory somehow...
-    lua_pushliteral(L,
-        "0:/gm9/luapackages/"LUA_PATH_MARK".lua" LUA_PATH_SEP
-        "0:/gm9/luapackages/"LUA_PATH_MARK"/init.lua" LUA_PATH_SEP
-        "V:/luapackages/"LUA_PATH_MARK".lua" LUA_PATH_SEP
-        "V:/luapackages/"LUA_PATH_MARK"/init.lua"
-    );
+    lua_pushliteral(L, GM9LUA_DEFAULT_PATH);
     lua_setfield(L, -2, "path");
 
     // package.cpath is for loading binary modules, useless on GM9
