@@ -166,8 +166,8 @@ u64 IdentifyFileType(const char* path) {
         u64 type = 0;
         if ((fsize < SCRIPT_MAX_SIZE) && (strcasecmp(ext, SCRIPT_EXT) == 0))
             type |= TXT_SCRIPT; // should be a script (which is also generic text)
-	// this should check if it's compiled lua bytecode (done with luac), which is NOT text
-	else if ((fsize < LUASCRIPT_MAX_SIZE) && (strcasecmp(ext, LUASCRIPT_EXT) == 0))
+	    // this should check if it's compiled lua bytecode (done with luac), which is NOT text
+	    else if ((fsize < LUASCRIPT_MAX_SIZE) && (strcasecmp(ext, LUASCRIPT_EXT) == 0))
             type |= TXT_LUA;
         if (fsize < STD_BUFFER_SIZE) type |= TXT_GENERIC;
         return type;

@@ -80,15 +80,6 @@ static const luaL_Reg gm9lualibs[] = {
     {NULL, NULL}
 };
 
-static int LuaShowPrompt(lua_State* L) {
-    bool ask = lua_toboolean(L, 1);
-    const char* text = lua_tostring(L, 2);
-
-    bool ret = ShowPrompt(ask, "%s", text);
-    lua_pushboolean(L, ret);
-    return 1;
-}
-
 static void loadlibs(lua_State* L) {
     const luaL_Reg* lib;
     for (lib = gm9lualibs; lib->func; lib++) {
@@ -104,9 +95,10 @@ bool ExecuteLuaScript(const char* path_script) {
     ResetPackageSearchersAndPath(L);
     ClearOutputBuffer();
 
-    //int result = luaL_loadbuffer(L, script_buffer, script_size, path_script);
+    lua_pushliteral(L, VERSION);
+    lua_setglobal(L, "GM9VERSION");
+
     int result = LoadLuaFile(L, path_script);
-    //free(script_buffer);
     if (result != LUA_OK) {
         char errstr[BUFSIZ] = {0};
         strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);

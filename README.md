@@ -1,5 +1,7 @@
 # GodMode9 but with lua
 
+Fork of [d0k3/GodMode9](https://github.com/d0k3/GodMode9) with super experimental Lua support.
+
 A simple test... Includes Lua 5.4.6 with a few changes for compile-time warnings
 
 * Makefile.build edited to support a LIBS variable on build
