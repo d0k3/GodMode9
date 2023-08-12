@@ -137,7 +137,14 @@ static int UIGlobal_Print(lua_State* L) {
     char buf[OUTPUTMAXCHARSPERLINE] = {0};
     int argcount = lua_gettop(L);
     for (int i = 0; i < lua_gettop(L); i++) {
-        strlcat(buf, luaL_tolstring(L, i+1, NULL), OUTPUTMAXCHARSPERLINE);
+        const char* str = luaL_tolstring(L, i+1, NULL);
+        if (str) {
+            strlcat(buf, str, OUTPUTMAXCHARSPERLINE);
+            lua_pop(L, 1);
+        } else {
+            // idk
+            strlcat(buf, "(unknown)", OUTPUTMAXCHARSPERLINE);
+        }
         if (i < argcount) strlcat(buf, " ", OUTPUTMAXCHARSPERLINE);
     }
     ShiftOutputBufferUp();
