@@ -32,8 +32,8 @@ static int FS_FileGetData(lua_State* L) {
     if (!buf) return luaL_error(L, "could not allocate buffer");
     // instead of using FileGetData directly we can use fvx_qread and handle the result
     // and return a nil if it works (and an empty string if it really is empty)
-    UINT br;
-    FRESULT res = fvx_qread(path, buf, size, offset, &br);
+    UINT br = 0;
+    FRESULT res = fvx_qread(path, buf, offset, size, &br);
     if (res != FR_OK) {
         luaL_pushfail(L);
         return 1;
