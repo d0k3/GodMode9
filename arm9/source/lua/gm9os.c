@@ -526,7 +526,6 @@ static int os_date(lua_State *L) {
 }
 
 static int os_clock(lua_State *L) {
-    ShowPrompt(false, "%lld", osclock);
     lua_pushinteger(L, timer_ticks(osclock));
     return 1;
 }
@@ -541,6 +540,5 @@ static const luaL_Reg os[] = {
 int gm9lua_open_os(lua_State* L) {
     luaL_newlib(L, os);
     osclock = timer_start();
-    ShowPrompt(false, "HUMMMMMM %lld", osclock);
     return 1;
 }
