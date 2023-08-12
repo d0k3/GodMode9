@@ -3,13 +3,13 @@ function PrintTable(tbl)
     print(k, v)
   end
 end
-print("First clock" .. os.clock())
+print("First clock " .. string.format("%.8f", os.clock()))
 print(os.time())
 print(os.time({10, 10, 10, 10, 10, 10}))
 print(os.date())
 print(os.date("%x - %I:%M%p"))
 
-print("Second clock" .. os.clock())
+print("Second clock " .. string.format("%.8f", os.clock()))
 
 
 PrintTable(os.date("*t"))

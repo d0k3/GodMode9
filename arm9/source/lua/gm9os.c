@@ -209,7 +209,7 @@ u64 getUnixTimeFromRtc(DsTime *dstime) {
 }
 
 u64 timer_usec( u64 start_time ) {
-    return timer_ticks( start_time ) / (TICKS_PER_SEC/1000*1000);
+    return timer_ticks( start_time ) / (TICKS_PER_SEC/1000000);
 }
 
 void weekdayfix(DsTime *dstime) {
@@ -626,6 +626,9 @@ static int os_date(lua_State *L) {
                 return 1;
             }
         case 2:
+            if (lua_tointeger(L, 2) < 946684800) { //unix timestamp is 01.01.2000 00:00:00, so everything before is previous century and not supported
+                return luaL_error(L, "unix timestamp from before 2000 is not supported");
+            }
             const char* str2 = lua_tostring(L, 1);
             if ((strcmp(str2, "*t") == 0 || strcmp(str2, "!*t") == 0)) {
                 unixtodstime( lua_tointeger(L, 2) , &dstime);
