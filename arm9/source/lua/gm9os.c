@@ -30,6 +30,7 @@ size_t getWeekday(bool abbreviated, char* out, u8 weekday) {
             case 6:
                 strcat(out, "Sat");
                 break;
+            case 0:
             case 7:
                 strcat(out, "Sun");
                 break;
@@ -59,6 +60,7 @@ size_t getWeekday(bool abbreviated, char* out, u8 weekday) {
             strcat(out, "Saturday");
             return 8;
         case 7:
+        case 0:
             strcat(out, "Sunday");
             return 6;
         default: 
@@ -167,7 +169,107 @@ u16 getDaysMonths(u32 months, u8 years) {
     return ret;
 }
 
-bool my_strftime(char* _out, size_t _maxsize, char* str, DsTime *dstime) { //my refers to github.com/Gruetzig
+u64 calcUnixTime(u8 years, u8 months, u8 days, u8 hours, u8 minutes, u8 seconds) {
+    u8 daysInMonth[12] = {31, isLeapYear(2000 + years) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}; //is this ?: bad practice?
+    u32 curdays;
+    u64 ret = 0;
+
+    ret += seconds;
+    ret += minutes * 60;
+    ret += hours * 60 * 60;
+    ret += (days - 1) * 24 * 60 * 60;
+
+    for (u16 year = 0; year < years + 30; year++) { //+30 because unix time starting in 1970 but rtc starts in 2000
+        if (isLeapYear(2000 + year)) {
+            curdays = 366;
+        } else {
+            curdays = 365;
+        }
+        ret += curdays * 24 * 60 * 60;
+    }
+
+    for (u16 month = 0; month < months - 1; month++) {
+        ret += daysInMonth[month] * 24 * 60 * 60;
+    }
+
+    return ret;
+}
+
+u64 getUnixTimeFromRtc(DsTime *dstime) {
+
+    u8
+    seconds = DSTIMEGET(dstime, bcd_s),
+    minutes = DSTIMEGET(dstime, bcd_m),
+    hours = DSTIMEGET(dstime, bcd_h),
+    days = DSTIMEGET(dstime, bcd_D),
+    months = DSTIMEGET(dstime, bcd_M),
+    years = DSTIMEGET(dstime, bcd_Y);
+    return calcUnixTime(years, months, days, hours, minutes, seconds);
+    
+}
+
+u64 timer_usec( u64 start_time ) {
+    return timer_ticks( start_time ) / (TICKS_PER_SEC/1000*1000);
+}
+
+void weekdayfix(DsTime *dstime) {
+    int days = getUnixTimeFromRtc(dstime) / 86400; //days since thursday 1 1 1970
+    u8 weekday = (days + 5) % 7;
+    dstime->weekday = NUM2BCD(weekday);
+}
+
+void unixtodstime(u64 unixtime, DsTime *dstime) {
+    u32 seconds, minutes, hours, days, year, month;
+    seconds = unixtime;
+    minutes = seconds / 60;
+    seconds %= 60;
+    hours = minutes / 60;
+    minutes %= 60;
+    days = hours / 24;
+    hours %= 24;
+    year = 1970;
+
+    while(true)
+    {
+        bool leapYear = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+        u16 daysInYear = leapYear ? 366 : 365;
+        if(days >= daysInYear)
+        {
+            days -= daysInYear;
+            ++year;
+        }
+        else
+        {
+            static const u8 daysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            for(month = 0; month < 12; ++month)
+            {
+                u8 dim = daysInMonth[month];
+
+                if (month == 1 && leapYear)
+                    ++dim;
+
+                if (days >= dim)
+                    days -= dim;
+                else
+                    break;
+            }
+            break;
+        }
+    }
+    days++;
+    month++;
+    u8 bcd_year = year-2000;
+    dstime->bcd_Y = NUM2BCD(bcd_year);
+    dstime->bcd_M = NUM2BCD(month);
+    dstime->bcd_D = NUM2BCD(days);
+    dstime->bcd_h = NUM2BCD(hours);
+    dstime->bcd_m = NUM2BCD(minutes);
+    dstime->bcd_s = NUM2BCD(seconds);
+    dstime->weekday = 0;
+}
+
+bool my_strftime(char* _out, size_t _maxsize, const char* str, DsTime *dstime) { //my refers to github.com/Gruetzig
+    weekdayfix(dstime);
     size_t strl = strlen(str);
     size_t outpos = 0;
     char out[_maxsize+10];
@@ -269,6 +371,7 @@ bool my_strftime(char* _out, size_t _maxsize, char* str, DsTime *dstime) { //my 
                     outpos += 2;
                     break;
                 case 'p':
+                    hour = DSTIMEGET(dstime, bcd_h);
                     if (hour >= 12) {
                         strcat(out, "PM");
                     } else {
@@ -413,46 +516,6 @@ bool my_strftime(char* _out, size_t _maxsize, char* str, DsTime *dstime) { //my 
     return true;
 }
 
-u64 calcUnixTime(u8 years, u8 months, u8 days, u8 hours, u8 minutes, u8 seconds) {
-
-    u8 daysInMonth[12] = {31, isLeapYear(2000 + years) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}; //is this ?: bad practice?
-    u32 curdays;
-    u64 ret = 0;
-
-    ret += seconds;
-    ret += minutes * 60;
-    ret += hours * 60 * 60;
-    ret += (days - 1) * 24 * 60 * 60;
-
-    for (u16 year = 0; year < years + 30; year++) { //+30 because unix time starting in 1970 but rtc starts in 2000
-        if (isLeapYear(2000 + year)) {
-            curdays = 366;
-        } else {
-            curdays = 365;
-        }
-        ret += curdays * 24 * 60 * 60;
-    }
-
-    for (u16 month = 0; month < months - 1; month++) {
-        ret += daysInMonth[month] * 24 * 60 * 60;
-    }
-
-    return ret;
-}
-
-u64 getUnixTimeFromRtc(DsTime *dstime) {
-
-    u8
-    seconds = DSTIMEGET(dstime, bcd_s),
-    minutes = DSTIMEGET(dstime, bcd_m),
-    hours = DSTIMEGET(dstime, bcd_h),
-    days = DSTIMEGET(dstime, bcd_D),
-    months = DSTIMEGET(dstime, bcd_M),
-    years = DSTIMEGET(dstime, bcd_Y);
-    return calcUnixTime(years, months, days, hours, minutes, seconds);
-    
-}
-
 static int os_time(lua_State *L) {
     int args = lua_gettop(L);
     u64 unixtime;
@@ -461,10 +524,9 @@ static int os_time(lua_State *L) {
             DsTime dstime;
             get_dstime(&dstime);
             unixtime = getUnixTimeFromRtc(&dstime);
-            ShowPrompt(false, "%lld", unixtime);
             lua_pushinteger(L, unixtime);
             return 1;
-        case 6:
+        case 1:
             lua_pushinteger(L, 1);
             lua_gettable(L, 1);
             int year = lua_tointeger(L, -1);
@@ -508,17 +570,108 @@ static int os_time(lua_State *L) {
 }
 
 static int os_date(lua_State *L) {
+    DsTime dstime;
+    
+    get_dstime(&dstime);
+    char retbuf[100];
+    memset(retbuf, 0, 100);
     int args = lua_gettop(L);
     switch(args) {
         case 0:
-            DsTime dstime;
-            get_dstime(&dstime);
-            char retbuf[100];
-            memset(retbuf, 0, 100);
             my_strftime(retbuf, 100, "%c", &dstime);
             lua_pushstring(L, retbuf);
             return 1;
+        case 1:
+            const char* str = lua_tostring(L, 1);
+            if ((strcmp(str, "*t") == 0 || strcmp(str, "!*t") == 0)) {
+                weekdayfix(&dstime);
+                //return table with date values
+                lua_newtable(L);
+                //year
+                lua_pushstring(L, "year");
+                lua_pushinteger(L, 2000+DSTIMEGET(&dstime, bcd_Y));
+                lua_settable(L, -3);
+                //month
+                lua_pushstring(L, "month");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_M));
+                lua_settable(L, -3);
+                //wday (weekday)
+                lua_pushstring(L, "wday");
+                lua_pushinteger(L, DSTIMEGET(&dstime, weekday));
+                lua_settable(L, -3);
+                //yday (yearday)
+                lua_pushstring(L, "yday");
+                lua_pushinteger(L, getDaysMonths(DSTIMEGET(&dstime, bcd_M), DSTIMEGET(&dstime, bcd_Y))+DSTIMEGET(&dstime, bcd_D));
+                lua_settable(L, -3);
+                //day
+                lua_pushstring(L, "day");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_D));
+                lua_settable(L, -3);
+                //hour
+                lua_pushstring(L, "hour");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_h));
+                lua_settable(L, -3);
+                //minute
+                lua_pushstring(L, "min");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_m));
+                lua_settable(L, -3);
+                //second
+                lua_pushstring(L, "sec");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_s));
+                lua_settable(L, -3);
+                return 1;
+            } else {
+                my_strftime(retbuf, 100, lua_tostring(L, 1), &dstime);
+                lua_pushstring(L, retbuf);
+                return 1;
+            }
+        case 2:
+            const char* str2 = lua_tostring(L, 1);
+            if ((strcmp(str2, "*t") == 0 || strcmp(str2, "!*t") == 0)) {
+                unixtodstime( lua_tointeger(L, 2) , &dstime);
+                weekdayfix(&dstime);
+                //return table with date values
+                lua_newtable(L);
 
+                //year
+                lua_pushstring(L, "year");
+                lua_pushinteger(L, 2000+DSTIMEGET(&dstime, bcd_Y));
+                lua_settable(L, -3);
+                //month
+                lua_pushstring(L, "month");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_M));
+                lua_settable(L, -3);
+                //wday (weekday)
+                lua_pushstring(L, "wday");
+                lua_pushinteger(L, DSTIMEGET(&dstime, weekday));
+                lua_settable(L, -3);
+                //yday (yearday)
+                lua_pushstring(L, "yday");
+                lua_pushinteger(L, getDaysMonths(DSTIMEGET(&dstime, bcd_M), DSTIMEGET(&dstime, bcd_Y))+DSTIMEGET(&dstime, bcd_D));
+                lua_settable(L, -3);
+                //day
+                lua_pushstring(L, "day");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_D));
+                lua_settable(L, -3);
+                //hour
+                lua_pushstring(L, "hour");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_h));
+                lua_settable(L, -3);
+                //minute
+                lua_pushstring(L, "min");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_m));
+                lua_settable(L, -3);
+                //second
+                lua_pushstring(L, "sec");
+                lua_pushinteger(L, DSTIMEGET(&dstime, bcd_s));
+                lua_settable(L, -3);
+                return 1;
+            } else {
+                unixtodstime( lua_tointeger(L, 2) , &dstime);
+                my_strftime(retbuf, 100, str2, &dstime);
+                lua_pushstring(L, retbuf);
+                return 1;
+            }
             
         default:
             return luaL_error(L, "not a valid amount of arguments");
@@ -526,7 +679,7 @@ static int os_date(lua_State *L) {
 }
 
 static int os_clock(lua_State *L) {
-    lua_pushnumber(L, (double)timer_msec(osclock)/1000);
+    lua_pushnumber(L, timer_usec(osclock)/10000000.0);
     return 1;
 }
 

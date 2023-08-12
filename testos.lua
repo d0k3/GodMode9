@@ -1,15 +1,18 @@
 function PrintTable(tbl)
-    for k, v in pairs(tbl) do
-      print(k, v)
-    end
+  for k, v in pairs(tbl) do
+    print(k, v)
+  end
 end
--- time = os.date()
--- print(time)
--- UI.ShowPrompt(false, "press A")
--- unix = os.time()
--- print(unix)
-UI.ShowPrompt(false, "press A")
-print(os.clock())
-UI.ShowPrompt(false, "press A")
-print(os.clock())
-UI.ShowPrompt(false, "press A")
+print("First clock" .. os.clock())
+print(os.time())
+print(os.time({10, 10, 10, 10, 10, 10}))
+print(os.date())
+print(os.date("%x - %I:%M%p"))
+
+print("Second clock" .. os.clock())
+
+
+PrintTable(os.date("*t"))
+PrintTable(os.date("*t", 1286705410))
+print(os.date("%c hehe", 1286705410))
+UI.ShowPrompt(false, "Press A")
