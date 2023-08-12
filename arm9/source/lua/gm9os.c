@@ -526,7 +526,14 @@ static int os_date(lua_State *L) {
 }
 
 static int os_clock(lua_State *L) {
-    lua_pushinteger(L, timer_ticks(osclock));
+    lua_pushnumber(L, (double)timer_msec(osclock)/1000);
+    return 1;
+}
+
+static int os_difftime(lua_State *L) {
+    u64 t2 = lua_tointeger(L, 1);
+    u64 t1 = lua_tointeger(L, 2);
+    lua_pushinteger(L, t2-t1);
     return 1;
 }
 
@@ -534,6 +541,7 @@ static const luaL_Reg os[] = {
     {"clock", os_clock},
     {"time", os_time},
     {"date", os_date},
+    {"difftime", os_difftime},
     {NULL, NULL}
 };
 
