@@ -527,36 +527,28 @@ static int os_time(lua_State *L) {
             lua_pushinteger(L, unixtime);
             return 1;
         case 1:
-            lua_pushinteger(L, 1);
-            lua_gettable(L, 1);
+            lua_geti(L, 1, 1);
             int year = lua_tointeger(L, -1);
-            if (year >= 2000) {
-                year -= 2000;
-            }
             lua_pop(L, 1);
+            if (year >= 2000) year -= 2000;
 
-            lua_pushinteger(L, 2);
-            lua_gettable(L, 1);
+            lua_geti(L, 1, 2);
             int month = lua_tointeger(L, -1);
             lua_pop(L, 1);
 
-            lua_pushinteger(L, 3);
-            lua_gettable(L, 1);
+            lua_geti(L, 1, 3);
             int day = lua_tointeger(L, -1);
             lua_pop(L, 1);
 
-            lua_pushinteger(L, 4);
-            lua_gettable(L, 1);
+            lua_geti(L, 1, 4);
             int hour = lua_tointeger(L, -1);
             lua_pop(L, 1);
 
-            lua_pushinteger(L, 5);
-            lua_gettable(L, 1);
+            lua_geti(L, 1, 5);
             int minute = lua_tointeger(L, -1);
             lua_pop(L, 1);
             
-            lua_pushinteger(L, 6);
-            lua_gettable(L, 1);
+            lua_geti(L, 1, 6);
             int second = lua_tointeger(L, -1);
             lua_pop(L, 1);
             
@@ -588,37 +580,29 @@ static int os_date(lua_State *L) {
                 //return table with date values
                 lua_newtable(L);
                 //year
-                lua_pushstring(L, "year");
                 lua_pushinteger(L, 2000+DSTIMEGET(&dstime, bcd_Y));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "year");
                 //month
-                lua_pushstring(L, "month");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_M));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "month");
                 //wday (weekday)
-                lua_pushstring(L, "wday");
                 lua_pushinteger(L, DSTIMEGET(&dstime, weekday));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "wday");
                 //yday (yearday)
-                lua_pushstring(L, "yday");
                 lua_pushinteger(L, getDaysMonths(DSTIMEGET(&dstime, bcd_M), DSTIMEGET(&dstime, bcd_Y))+DSTIMEGET(&dstime, bcd_D));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "yday");
                 //day
-                lua_pushstring(L, "day");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_D));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "day");
                 //hour
-                lua_pushstring(L, "hour");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_h));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "hour");
                 //minute
-                lua_pushstring(L, "min");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_m));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "min");
                 //second
-                lua_pushstring(L, "sec");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_s));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "sec");
                 return 1;
             } else {
                 my_strftime(retbuf, 100, lua_tostring(L, 1), &dstime);
@@ -635,39 +619,30 @@ static int os_date(lua_State *L) {
                 weekdayfix(&dstime);
                 //return table with date values
                 lua_newtable(L);
-
                 //year
-                lua_pushstring(L, "year");
                 lua_pushinteger(L, 2000+DSTIMEGET(&dstime, bcd_Y));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "year");
                 //month
-                lua_pushstring(L, "month");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_M));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "month");
                 //wday (weekday)
-                lua_pushstring(L, "wday");
                 lua_pushinteger(L, DSTIMEGET(&dstime, weekday));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "wday");
                 //yday (yearday)
-                lua_pushstring(L, "yday");
                 lua_pushinteger(L, getDaysMonths(DSTIMEGET(&dstime, bcd_M), DSTIMEGET(&dstime, bcd_Y))+DSTIMEGET(&dstime, bcd_D));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "yday");
                 //day
-                lua_pushstring(L, "day");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_D));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "day");
                 //hour
-                lua_pushstring(L, "hour");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_h));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "hour");
                 //minute
-                lua_pushstring(L, "min");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_m));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "min");
                 //second
-                lua_pushstring(L, "sec");
                 lua_pushinteger(L, DSTIMEGET(&dstime, bcd_s));
-                lua_settable(L, -3);
+                lua_setfield(L, -2, "sec");
                 return 1;
             } else {
                 unixtodstime( lua_tointeger(L, 2) , &dstime);
