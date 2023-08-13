@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "timer.h": "c",
-        "chrono": "c"
-    }
-}
