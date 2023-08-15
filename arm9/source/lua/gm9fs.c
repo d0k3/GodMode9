@@ -1,7 +1,7 @@
 #include "gm9fs.h"
-#include "fsinit.h"
-#include "fsutil.h"
+#include "fs.h"
 #include "vff.h"
+#include "gm9enum.h"
 
 static int FS_InitImgFS(lua_State* L) {
     CheckLuaArgCount(L, 1, "InitImgFS");
@@ -49,7 +49,32 @@ static const luaL_Reg FSlib[] = {
     {NULL, NULL}
 };
 
+static const EnumItem Enum_FS[] = {
+    GLENUMITEM(T_ROOT),
+    GLENUMITEM(T_DIR),
+    GLENUMITEM(T_FILE),
+    GLENUMITEM(T_DOTDOT),
+    GLENUMITEM(PERM_SDCARD),
+    GLENUMITEM(PERM_IMAGE),
+    GLENUMITEM(PERM_RAMDRIVE),
+    GLENUMITEM(PERM_EMU_LVL0),
+    GLENUMITEM(PERM_EMU_LVL1),
+    GLENUMITEM(PERM_SYS_LVL0),
+    GLENUMITEM(PERM_SYS_LVL1),
+    GLENUMITEM(PERM_SYS_LVL2),
+    GLENUMITEM(PERM_SYS_LVL3),
+    GLENUMITEM(PERM_SDDATA),
+    GLENUMITEM(PERM_MEMORY),
+    GLENUMITEM(PERM_GAME),
+    GLENUMITEM(PERM_XORPAD),
+    GLENUMITEM(PERM_CART),
+    GLENUMITEM(PERM_VRAM),
+    GLENUMITEM(PERM_BASE),
+    {NULL, 0}
+};
+
 int gm9lua_open_FS(lua_State* L) {
     luaL_newlib(L, FSlib);
+    AddLuaEnumItems(L, "FS", Enum_FS);
     return 1;
 }
