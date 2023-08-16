@@ -1,5 +1,6 @@
 #include "gm9lua.h"
 #include "ui.h"
+#ifndef NO_LUA
 #include "ff.h"
 #include "vff.h"
 #include "fsutil.h"
@@ -126,3 +127,12 @@ bool ExecuteLuaScript(const char* path_script) {
     lua_close(L);
     return true;
 }
+#else
+// No-Lua version
+bool ExecuteLuaScript(const char* path_script) {
+    (void)path_script; // unused
+    ShowPrompt(false, "This build of GodMode9 was\n"
+                      "compiled without Lua support.");
+    return false;
+}
+#endif

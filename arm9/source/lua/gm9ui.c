@@ -1,3 +1,4 @@
+#ifndef NO_LUA
 #include "gm9ui.h"
 
 #define MAXOPTIONS     256
@@ -176,3 +177,4 @@ int gm9lua_open_UI(lua_State* L) {
     lua_pop(L, 1); // pop global table from stack
     return 1;
 }
+#endif

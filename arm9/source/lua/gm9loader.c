@@ -1,3 +1,4 @@
+#ifndef NO_LUA
 #include "gm9loader.h"
 #include "gm9lua.h"
 #include "vff.h"
@@ -124,3 +125,4 @@ void ResetPackageSearchersAndPath(lua_State* L) {
     lua_pop(L, 1); // remove "searchers"
     lua_pop(L, 1); // remove "packages"
 }
+#endif

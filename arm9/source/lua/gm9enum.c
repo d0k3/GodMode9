@@ -1,3 +1,4 @@
+#ifndef NO_LUA
 #include "gm9enum.h"
 
 void AddLuaEnumItems(lua_State* L, const char* name, const EnumItem* items) {
@@ -17,3 +18,4 @@ int gm9lua_open_Enum(lua_State* L) {
     lua_newtable(L);
     return 1;
 }
+#endif

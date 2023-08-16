@@ -1,3 +1,4 @@
+#ifndef NO_LUA
 #include "gm9fs.h"
 #include "fs.h"
 #include "vff.h"
@@ -78,3 +79,4 @@ int gm9lua_open_FS(lua_State* L) {
     AddLuaEnumItems(L, "FS", Enum_FS);
     return 1;
 }
+#endif

@@ -1,3 +1,4 @@
+#ifndef NO_LUA
 #include "gm9os.h"
 #include "timer.h"
 #include "rtc.h"
@@ -681,3 +682,4 @@ int gm9lua_open_os(lua_State* L) {
     osclock = timer_start();
     return 1;
 }
+#endif
