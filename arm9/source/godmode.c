@@ -2144,8 +2144,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == luascript) { // execute lua script
+#ifndef NO_LUA
         if (ShowPrompt(true, "%s\n%s", pathstr, STR_WARNING_DO_NOT_RUN_UNTRUSTED_SCRIPTS))
             ShowPrompt(false, "%s\n%s", pathstr, ExecuteLuaScript(file_path) ? STR_SCRIPT_EXECUTE_SUCCESS : STR_SCRIPT_EXECUTE_FAILURE);
+#else
+	// instead of outright removing the option, i think
+	// having it display an error would be useful
+	// so the user knows their issue exactly
+	ShowPrompt(false, "%s", STR_LUA_NOT_INCLUDED);
+#endif
         GetDirContents(current_dir, current_path);
         ClearScreenF(true, true, COLOR_STD_BG);
         return 0;
@@ -2932,7 +2939,9 @@ u32 GodMode(int entrypoint) {
             int brick = (HID_ReadState() & BUTTON_R1) ? ++n_opt : 0;
             int titleman = ++n_opt;
             int scripts = ++n_opt;
+#ifndef NO_LUA
             int luascripts = ++n_opt;
+#endif
             int payloads = ++n_opt;
             int more = ++n_opt;
             if (poweroff > 0) optionstr[poweroff - 1] = STR_POWEROFF_SYSTEM;
@@ -2941,7 +2950,9 @@ u32 GodMode(int entrypoint) {
             if (language > 0) optionstr[language - 1] = STR_LANGUAGE;
             if (brick > 0) optionstr[brick - 1] = STR_BRICK_MY_3DS;
             if (scripts > 0) optionstr[scripts - 1] = STR_SCRIPTS;
+#ifndef NO_LUA
             if (luascripts > 0) optionstr[luascripts - 1] = STR_LUA_SCRIPTS;
+#endif
             if (payloads > 0) optionstr[payloads - 1] = STR_PAYLOADS;
             if (more > 0) optionstr[more - 1] = STR_MORE;
 
@@ -3019,6 +3030,7 @@ u32 GodMode(int entrypoint) {
                         ClearScreenF(true, true, COLOR_STD_BG);
                         break;
                     }
+#ifndef NO_LUA
                 } else if (user_select == luascripts) {
                     if (!CheckSupportDir(LUASCRIPTS_DIR)) {
                         ShowPrompt(false, STR_LUA_SCRIPTS_DIRECTORY_NOT_FOUND, LUASCRIPTS_DIR);
@@ -3028,6 +3040,7 @@ u32 GodMode(int entrypoint) {
                         ClearScreenF(true, true, COLOR_STD_BG);
                         break;
                     }
+#endif
                 } else if (user_select == payloads) {
                     if (!CheckSupportDir(PAYLOADS_DIR)) ShowPrompt(false, STR_PAYLOADS_DIRECTORY_NOT_FOUND, PAYLOADS_DIR);
                     else if (FileSelectorSupport(loadpath, STR_HOME_PAYLOADS_MENU_SELECT_PAYLOAD, PAYLOADS_DIR, "*.firm"))

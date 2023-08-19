@@ -805,5 +805,6 @@
 	"SYSINFO_SD_CID": "SD CID: %s\r\n",
 	"SYSINFO_SYSTEM_ID0": "System ID0: %s\r\n",
 	"SYSINFO_SYSTEM_ID1": "System ID1: %s\r\n",
-	"SORTING_TICKETS_PLEASE_WAIT": "Sorting tickets, please wait ..."
+	"SORTING_TICKETS_PLEASE_WAIT": "Sorting tickets, please wait ...",
+	"LUA_NOT_INCLUDED": "Sorting tickets, please wait ..."
 }
