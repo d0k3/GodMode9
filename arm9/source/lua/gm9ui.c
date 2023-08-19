@@ -1,5 +1,6 @@
 #ifndef NO_LUA
 #include "gm9ui.h"
+#include "gm9enum.h"
 
 #define MAXOPTIONS     256
 #define MAXOPTIONS_STR "256"
@@ -32,30 +33,59 @@ void RenderOutputBuffer(void) {
     }
 }
 
+static u16* GetScreenFromIndex(int index) {
+    switch (index) {
+        case 0: return MAIN_SCREEN;
+        case 1: return ALT_SCREEN;
+        case 2: return TOP_SCREEN;
+        case 3: return BOT_SCREEN;
+        default: return MAIN_SCREEN;
+    }
+}
+
 static int UI_ShowPrompt(lua_State* L) {
-    CheckLuaArgCount(L, 2, "ShowPrompt");
-    bool ask = lua_toboolean(L, 1);
+    CheckLuaArgCount(L, 1, "ShowPrompt");
+    const char* text = lua_tostring(L, 1);
+
+    ShowPrompt(false, "%s", text);
+    return 0;
+}
+
+static int UI_AskPrompt(lua_State* L) {
+    CheckLuaArgCount(L, 2, "AskPrompt");
     const char* text = lua_tostring(L, 2);
 
-    bool ret = ShowPrompt(ask, "%s", text);
+    bool ret = ShowPrompt(true, "%s", text);
     lua_pushboolean(L, ret);
     return 1;
 }
 
 static int UI_ShowString(lua_State* L) {
-    CheckLuaArgCount(L, 1, "ShowString");
-    const char* text = lua_tostring(L, 1);
+    CheckLuaArgCount(L, 2, "ShowString");
+    lua_Integer screen = luaL_checknumber(L, 1);
+    const char* text = lua_tostring(L, 2);
 
-    ShowString("%s", text);
+    ShowStringF(GetScreenFromIndex(screen), "%s", text);
     return 0;
 }
 
 static int UI_WordWrapString(lua_State* L) {
     size_t len;
     int isnum;
+    int llen;
+    int top = lua_gettop(L);
+    if (top == 1) {
+        llen = 0; // WordWrapString will automatically wrap it for the main screen
+    } else if (top == 2) {
+        llen = lua_tointegerx(L, 2, &isnum);
+        if (llen == -1) {
+            // special case for "word wrap for alt screen"
+            llen = (SCREEN_WIDTH_ALT / GetFontWidth());
+        }
+    } else {
+        return luaL_error(L, "bad number of arguments passed to WordWrapString (expected 1 or 2, got %d", top);
+    }
     const char* text = lua_tolstring(L, 1, &len);
-    int llen = lua_tointegerx(L, 2, &isnum);
-    // i should check arg 2 if it's a number (but only if it was provided at all)
     char* buf = malloc(len + 1);
     strlcpy(buf, text, len + 1);
     WordWrapString(buf, llen);
@@ -64,11 +94,10 @@ static int UI_WordWrapString(lua_State* L) {
     return 1;
 }
 
-static int UI_ClearScreenF(lua_State* L) {
-    bool clear_main = lua_toboolean(L, 1);
-    bool clear_alt = lua_toboolean(L, 2);
-    u32 color = lua_tointeger(L, 3);
-    ClearScreenF(clear_main, clear_alt, color);
+static int UI_ClearScreen(lua_State* L) {
+    bool which_screen = luaL_checknumber(L, 1);
+    u32 color = lua_tointeger(L, 2);
+    ClearScreen(GetScreenFromIndex(which_screen), color);
     return 0;
 }
 
@@ -121,14 +150,7 @@ static int UI_DrawString(lua_State* L) {
     int y = lua_tointeger(L, 4);
     u32 color = lua_tointeger(L, 5);
     u32 bgcolor = lua_tointeger(L, 6);
-    u16* screen;
-    switch (which_screen) {
-        case 0: screen = MAIN_SCREEN; break;
-        case 1: screen = ALT_SCREEN; break;
-        case 2: screen = TOP_SCREEN; break;
-        case 3: screen = BOT_SCREEN; break;
-        default: screen = MAIN_SCREEN;
-    }
+    u16* screen = GetScreenFromIndex(which_screen);
     DrawString(screen, text, x, y, color, bgcolor);
     return 0;
 }
@@ -156,9 +178,10 @@ static int UIGlobal_Print(lua_State* L) {
 
 static const luaL_Reg UIlib[] = {
     {"ShowPrompt", UI_ShowPrompt},
+    {"AskPrompt", UI_AskPrompt},
     {"ShowString", UI_ShowString},
     {"WordWrapString", UI_WordWrapString},
-    {"ClearScreenF", UI_ClearScreenF},
+    {"ClearScreen", UI_ClearScreen},
     {"ShowSelectPrompt", UI_ShowSelectPrompt},
     {"ShowProgress", UI_ShowProgress},
     {"DrawString", UI_DrawString},
@@ -170,8 +193,17 @@ static const luaL_Reg UIGlobalLib[] = {
     {NULL, NULL}
 };
 
+static const EnumItem Enum_UI[] = {
+    {"MainScreen", 0},
+    {"AltScreen", 1},
+    {"TopScreen", 2},
+    {"BottomScreen", 3},
+    {NULL, 0}
+};
+
 int gm9lua_open_UI(lua_State* L) {
     luaL_newlib(L, UIlib);
+    AddLuaEnumItems(L, "UI", Enum_UI);
     lua_pushglobaltable(L); // push global table to stack
     luaL_setfuncs(L, UIGlobalLib, 0); // set global funcs
     lua_pop(L, 1); // pop global table from stack

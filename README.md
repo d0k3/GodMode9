@@ -17,12 +17,20 @@ Or put your script at `0:/gm9/luascripts/*.lua`. Then press HOME or POWER and ch
 The main lua stuff is at `arm9/source/lua`. Custom files are prefixed with `gm9`.
 
 The API here is not at all stable. But there are currently two libraries to play with. This is not set in stone!
+
+## Global
+
 * print(...)
   * Calling this will replace the alt screen with an output buffer. It doesn't support newlines or word wrapping properly yet
-* bool UI.ShowPrompt(bool ask, string text)
+
+## UI
+
+* void UI.ShowPrompt(string text)
+* bool UI.AskPrompt(string text)
 * void UI.ShowString(string text)
 * string UI.WordWrapString(string text[, int llen])
-* void UI.ClearScreenF(bool clear\_main, bool clear\_alt, u32 color)
+  * llen == -1 means alt screen
+* void UI.ClearScreen(number screen, u32 color)
 * number UI.ShowSelectPrompt(table optionstable, string text)
 * bool UI.ShowProgress(u32 current, u32 total, text text)
   * returns true if B is pressed
@@ -32,5 +40,8 @@ The API here is not at all stable. But there are currently two libraries to play
     * 1 = alt screen
     * 2 = top screen
     * 3 = bottom screen
+
+## FS
+
 * bool FS.InitImgFS(string path)
 * string FS.FileGetData(string path, int size, int offset)

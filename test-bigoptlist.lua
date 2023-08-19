@@ -299,6 +299,7 @@ while true do
     curmaps = maps[gameresult]
     mapresult = UI.ShowSelectPrompt(curmaps, "Choose a map!")
     if mapresult then
-        UI.ShowPrompt(false, UI.WordWrapString("You chose the game "..games[gameresult].." and the map "..curmaps[mapresult]))
+        UI.ShowPrompt(UI.WordWrapString("You chose the game "..games[gameresult].." and the map "..curmaps[mapresult]))
+	print(games[gameresult]..' - '..curmaps[mapresult])
     end
 end
