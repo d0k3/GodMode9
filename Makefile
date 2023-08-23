@@ -18,7 +18,7 @@ export COMMON_DIR := ../common
 # Definitions for initial RAM disk
 VRAM_TAR    := $(OUTDIR)/vram0.tar
 VRAM_DATA   := data/*
-VRAM_FLAGS  := --make-new --path-limit 99 --size-limit 262144
+VRAM_FLAGS  := --make-new --path-limit 99
 ifeq ($(NTRBOOT),1)
 	VRAM_SCRIPTS := resources/gm9/scripts/*
 endif
