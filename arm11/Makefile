@@ -1,6 +1,6 @@
 PROCESSOR := ARM11
 
-TARGET := $(shell basename $(CURDIR))
+TARGET := $(shell basename "$(CURDIR)")
 
 SOURCE := source
 BUILD  := build
