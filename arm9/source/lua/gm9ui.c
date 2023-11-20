@@ -224,7 +224,7 @@ static const luaL_Reg UIlib[] = {
     {"ShowSelectPrompt", UI_ShowSelectPrompt},
     {"ShowProgress", UI_ShowProgress},
     {"DrawString", UI_DrawString},
-    {"DrawPNG", UI_ShowPNG},
+    {"ShowPNG", UI_ShowPNG},
     {NULL, NULL}
 };
 
