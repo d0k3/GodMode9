@@ -65,19 +65,67 @@ static int UI_ShowPNG(lua_State* L) {
             }
         }
         free(png);
-        if (bitmap) {
+        if (!bitmap) {
+            return luaL_error(L, "PNG too large");
+        } else if ((SCREEN_WIDTH(screen) < bitmap_width) || (SCREEN_HEIGHT < bitmap_height)) {
+            free(bitmap);
+            return luaL_error(L, "PNG too large");
+        } else {
             DrawBitmap(
-                screen,                                 // screen
-                (SCREEN_WIDTH(screen)-bitmap_width)/2,  // x coordinate calculated to be centered
-                (SCREEN_HEIGHT-bitmap_height)/2,        // y coordinate calculated to be centered
-                bitmap_width,                           // width
-                bitmap_height,                          // height
-                bitmap                                  // bitmap
+                screen,        // screen
+                -1,       // x coordinate from argument
+                -1,       // y coordinate from argument
+                bitmap_width,  // width
+                bitmap_height, // height
+                bitmap         // bitmap
                 );
             free(bitmap);
-        } else {
-            return luaL_error(L, "PNG too large for console screen");
         }
+    }
+    return 0;
+}
+
+static int UI_DrawPNG(lua_State* L) {
+    CheckLuaArgCount(L, 4, "DrawPNG");
+    lua_Integer which_screen = luaL_checknumber(L, 1);
+    int bitmapx = lua_tointeger(L, 2);
+    int bitmapy = lua_tointeger(L, 3);
+    const char* path = lua_tostring(L, 4);
+    u16* screen = GetScreenFromIndex(which_screen);
+    u16 *bitmap = NULL;
+    u8* png = (u8*) malloc(SCREEN_SIZE(screen));
+    u32 bitmap_width, bitmap_height;
+    if (png) {
+        u32 png_size = FileGetData(path, png, SCREEN_SIZE(screen), 0);
+        if (!png_size) {
+            free(png);
+            return luaL_error(L, "Could not read %s", path);
+        }
+        if (png_size && png_size < SCREEN_SIZE(screen)) {
+            bitmap = PNG_Decompress(png, png_size, &bitmap_width, &bitmap_height);
+            if (!bitmap) {
+                free(png);
+                return luaL_error(L, "Invalid PNG file");
+            }
+        }
+        free(png);
+        if (!bitmap) {
+            return luaL_error(L, "PNG too large");
+        } else if ((SCREEN_WIDTH(screen) < bitmapx + bitmap_width) || (SCREEN_HEIGHT < bitmapy + bitmap_height)) {
+            free(bitmap);
+            return luaL_error(L, "PNG too large");
+        } else {
+            DrawBitmap(
+                screen,        // screen
+                bitmapx,       // x coordinate from argument
+                bitmapy,       // y coordinate from argument
+                bitmap_width,  // width
+                bitmap_height, // height
+                bitmap         // bitmap
+                );
+            free(bitmap);
+        }
+        
     }
     return 0;
 }
@@ -225,6 +273,7 @@ static const luaL_Reg UIlib[] = {
     {"ShowProgress", UI_ShowProgress},
     {"DrawString", UI_DrawString},
     {"ShowPNG", UI_ShowPNG},
+    {"DrawPNG", UI_DrawPNG},
     {NULL, NULL}
 };
 
