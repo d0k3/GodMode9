@@ -91,15 +91,25 @@ $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 
 arm9/arm9.elf: $(VRAM_TAR)
 
-firm: $(ELF)
+$(OUTDIR)/AHBWRAM.bin: $(ELF)
+	@$(OBJCOPY) -O binary arm9/arm9.elf --only-section=AHBWRAM $@
+
+$(OUTDIR)/AHBWRAM2.bin: $(ELF)
+	@$(OBJCOPY) -O binary arm9/arm9.elf --only-section=AHBWRAM2 $@
+
+BINS := $(OUTDIR)/AHBWRAM.bin $(OUTDIR)/AHBWRAM2.bin
+
+firm: $(ELF) $(BINS)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
-	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(ELF) -C NDMA XDMA
+	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(BINS) arm11/arm11.elf \
+		-A 0x08000000 0x080a0000 -C NDMA NDMA XDMA -n 0x08000040
 	@echo "[FIRM] $(FIRMD)"
-	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(ELF) -C NDMA XDMA
+	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(BINS) arm11/arm11.elf \
+		-A 0x08000000 0x080a0000 -C NDMA NDMA XDMA -n 0x08000040
 
 vram0: $(VRAM_TAR) .FORCE # legacy target name
 
