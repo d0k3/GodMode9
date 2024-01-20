@@ -4,7 +4,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    AHBWRAM (RWX) : ORIGIN = 0x08000000, LENGTH = 512K
+    AHBWRAM (RWX) : ORIGIN = 0x08000040, LENGTH = 512K - 64
     AHBWRAM2 (RWX) : ORIGIN = 0x080a0000, LENGTH = 384K
 }
 
@@ -30,8 +30,9 @@ SECTIONS
     } >AHBWRAM2
 
 
+
+    __vectors_lma = 0x08000000;
     AHBWRAM : ALIGN(4) {
-        __vectors_lma = .;
         /* this needs to be absolute otherwise GM9 won't boot */
         __vectors_vma = ABSOLUTE(.);
         KEEP(*(.vectors));

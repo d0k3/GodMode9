@@ -106,10 +106,10 @@ firm: $(ELF) $(BINS)
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
 	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(BINS) arm11/arm11.elf \
-		-A 0x08000000 0x080a0000 -C NDMA NDMA XDMA -n 0x08000040
+		-A 0x08000040 0x080a0000 -C NDMA NDMA XDMA -n 0x08000080
 	@echo "[FIRM] $(FIRMD)"
 	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(BINS) arm11/arm11.elf \
-		-A 0x08000000 0x080a0000 -C NDMA NDMA XDMA -n 0x08000040
+		-A 0x08000040 0x080a0000 -C NDMA NDMA XDMA -n 0x08000080
 
 vram0: $(VRAM_TAR) .FORCE # legacy target name
 
