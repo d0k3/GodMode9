@@ -18,7 +18,6 @@
 
 #define PC_DUMPRAD (0x10)
 #define SP_DUMPLEN (0x80)
-extern u32 __text_s, __text_e;
 
 static bool sp_dumpable(u32 sp, u32 *sp_lower, u32 *sp_upper)
 {
@@ -31,7 +30,7 @@ static bool sp_dumpable(u32 sp, u32 *sp_lower, u32 *sp_upper)
 
 static bool pc_dumpable(u32 pc, u32 *pc_lower, u32 *pc_upper)
 {
-    u32 code_start = (u32)(&__text_s), code_end = (u32)(&__text_e);
+    u32 code_start = __A9RAM0_ADDR, code_end = __A9RAM0_ADDR + __A9RAM0_LEN;
 
     if ((pc >= code_end) || (pc < code_start))
         return false;

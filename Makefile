@@ -91,13 +91,13 @@ $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 
 arm9/arm9.elf: $(VRAM_TAR)
 
-$(OUTDIR)/AHBWRAM.bin: $(ELF)
-	@$(OBJCOPY) -O binary arm9/arm9.elf --only-section=AHBWRAM $@
+$(OUTDIR)/AHBWRAM_LO.elf: $(ELF)
+	@$(OBJCOPY) arm9/arm9.elf -j AHBWRAM_LO $@
 
-$(OUTDIR)/AHBWRAM2.bin: $(ELF)
-	@$(OBJCOPY) -O binary arm9/arm9.elf --only-section=AHBWRAM2 $@
+$(OUTDIR)/AHBWRAM_HI.elf: $(ELF)
+	@$(OBJCOPY) arm9/arm9.elf -j AHBWRAM_HI $@
 
-BINS := $(OUTDIR)/AHBWRAM.bin $(OUTDIR)/AHBWRAM2.bin
+BINS := $(OUTDIR)/AHBWRAM_LO.elf $(OUTDIR)/AHBWRAM_HI.elf
 
 firm: $(ELF) $(BINS)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
@@ -106,10 +106,10 @@ firm: $(ELF) $(BINS)
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
 	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(BINS) arm11/arm11.elf \
-		-A 0x08000040 0x080a0000 -C NDMA NDMA XDMA -n 0x08000080
+		-C NDMA NDMA XDMA
 	@echo "[FIRM] $(FIRMD)"
 	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(BINS) arm11/arm11.elf \
-		-A 0x08000040 0x080a0000 -C NDMA NDMA XDMA -n 0x08000080
+		-C NDMA NDMA XDMA
 
 vram0: $(VRAM_TAR) .FORCE # legacy target name
 
