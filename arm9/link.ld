@@ -37,7 +37,6 @@ SECTIONS
         KEEP(*(.vectors));
         . = ALIGN(4);
         __vectors_len = . - __vectors_vma;
-        . = . + 0x10;
 
         . = ALIGN(4);
         *(.text.start);
