@@ -13,20 +13,9 @@ SECTIONS
     /* this must come *first* so it picks up lua */
     AHBWRAM_HI : ALIGN(4) {
         *build/lua*(.text*);
+        libm*(.text*);
+		*(.rodata.vram_data);
 
-        . = ALIGN(4);
-        *(.rodata*);
-
-        /* .data */
-        . = ALIGN(4);
-        *(.data*);
-
-        . = ALIGN(4);
-        __bss_start = .;
-        *(.bss*);
-        __bss_end = .;
-
-        __end__ = .;
     } >AHBWRAM_HI
 
 
@@ -47,6 +36,20 @@ SECTIONS
         __exidx_start = .;
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
         __exidx_end = .;
+
+        . = ALIGN(4);
+        *(.rodata*);
+
+        /* .data */
+        . = ALIGN(4);
+        *(.data*);
+
+        . = ALIGN(4);
+        __bss_start = .;
+        *(.bss*);
+        __bss_end = .;
+
+        __end__ = .;
     } >AHBWRAM_LO
 
 }
