@@ -19,13 +19,13 @@ SECTIONS
     } >AHBWRAM_HI
 
 
-    __vectors_lma = 0x08000000;
+    __vectors_vma = 0x08000000;
     AHBWRAM_LO : ALIGN(4) {
         /* this needs to be absolute otherwise GM9 won't boot */
-        __vectors_vma = ABSOLUTE(.);
+        __vectors_lma = ABSOLUTE(.);
         KEEP(*(.vectors));
         . = ALIGN(4);
-        __vectors_len = . - __vectors_vma;
+        __vectors_len = . - __vectors_lma;
 
         . = ALIGN(4);
         *(.text.start);
