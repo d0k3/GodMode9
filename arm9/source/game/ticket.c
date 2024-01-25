@@ -120,7 +120,7 @@ u32 BuildVariableFakeTicket(Ticket** ticket, u32* ticket_size, const u8* title_i
 }
 
 u32 BuildFakeTicket(Ticket* ticket, const u8* title_id) {
-    Ticket* tik;
+    Ticket* tik = NULL;
     u32 ticket_size = sizeof(TicketCommon);
     u32 res = BuildVariableFakeTicket(&tik, &ticket_size, title_id, TICKET_MAX_CONTENTS);
     if (res != 0) return res;
