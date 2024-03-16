@@ -138,9 +138,47 @@ static int UI_ShowPrompt(lua_State* L) {
     return 0;
 }
 
-static int UI_AskPrompt(lua_State* L) {
-    CheckLuaArgCount(L, 2, "AskPrompt");
+static int UI_ShowHexPrompt(lua_State* L) {
+    CheckLuaArgCount(L, 3, "ShowHexPrompt");
+    const char* text = lua_tostring(L, 3);
+    u64 start_val = lua_tonumber(L, 1);
+    u32 n_digits = lua_tonumber(L, 2);
+
+    u64 ret = ShowHexPrompt(start_val, n_digits, "%s", text);
+    lua_pushnumber(L, ret);
+    return 1;
+}
+
+static int UI_ShowNumberPrompt(lua_State* L) {
+    CheckLuaArgCount(L, 2, "ShowNumberPrompt");
     const char* text = lua_tostring(L, 2);
+    u64 start_val = lua_tonumber(L, 1);
+
+    u64 ret = ShowNumberPrompt(start_val, "%s", text);
+    lua_pushnumber(L, ret);
+    return 1;
+
+}
+
+static int UI_ShowKeyboardOrPrompt(lua_State* L) {
+    CheckLuaArgCount(L, 3, "ShowKeyboardOrPrompt");
+    const char* text = lua_tostring(L, 3);
+    const char* _start_val = lua_tostring(L, 1);
+    u32 start_val_size = strlen(_start_val)+1;
+    char start_val[start_val_size];
+    snprintf(start_val, start_val_size, "%s", _start_val);
+    u32 max_size = lua_tonumber(L, 2);
+    bool result = ShowKeyboardOrPrompt(start_val, max_size, "%s", text);
+    if (result)
+        lua_pushstring(L, start_val);
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
+static int UI_AskPrompt(lua_State* L) {
+    CheckLuaArgCount(L, 1, "AskPrompt");
+    const char* text = lua_tostring(L, 1);
 
     bool ret = ShowPrompt(true, "%s", text);
     lua_pushboolean(L, ret);
@@ -270,6 +308,9 @@ static const luaL_Reg UIlib[] = {
     {"WordWrapString", UI_WordWrapString},
     {"ClearScreen", UI_ClearScreen},
     {"ShowSelectPrompt", UI_ShowSelectPrompt},
+    {"ShowKeyboardOrPrompt", UI_ShowKeyboardOrPrompt},
+    {"ShowNumberPrompt", UI_ShowNumberPrompt},
+    {"ShowHexPrompt", UI_ShowHexPrompt},
     {"ShowProgress", UI_ShowProgress},
     {"DrawString", UI_DrawString},
     {"ShowPNG", UI_ShowPNG},
