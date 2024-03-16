@@ -27,6 +27,9 @@ The API here is not at all stable. But there are currently two libraries to play
 
 * void UI.ShowPrompt(string text)
 * bool UI.AskPrompt(string text)
+* bool UI.ShowKeyboardOrPrompt(string start\_val, number max\_size, string text)
+* number UI.ShowNumberPrompt(number start\_val, string text)
+* number UI.ShowHexPrompt(number start\_val, number max_size, string text)
 * void UI.ShowString(string text)
 * string UI.WordWrapString(string text[, int llen])
   * llen == -1 means alt screen
