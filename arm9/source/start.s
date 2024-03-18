@@ -83,7 +83,7 @@ _start:
     @ Install exception handlers
     ldr r0, =__vectors_lma
     ldr r1, =__vectors_len
-    ldr r2, =XRQ_Start
+    ldr r2, =__vectors_vma
     add r1, r0, r1
     .LXRQ_Install:
         cmp r0, r1
