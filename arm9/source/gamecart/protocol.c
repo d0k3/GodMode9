@@ -85,7 +85,7 @@ u32 Cart_GetID(void)
     return CartID;
 }
 
-u32 Cart_GetID(void)
+u32 Cart_GetID2(void)
 {
     return CartID2;
 }
