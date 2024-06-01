@@ -217,7 +217,7 @@ u32 InitCartRead(CartData* cdata) {
         u8* priv_header = cdata->header + 0x4000;
         CTR_CmdReadUniqueID(priv_header);
         memcpy(priv_header + 0x40, &(cdata->cart_id), 4);
-        memset(priv_header + 0x44, &(cdata->cart_id2), 4);
+        memcpy(priv_header + 0x44, &(cdata->cart_id2), 4);
         memset(priv_header + 0x48, 0xFF, 8);
 
         // save data
