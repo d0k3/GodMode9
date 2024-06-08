@@ -3056,6 +3056,7 @@ u32 GodMode(int entrypoint) {
     if (current_dir) free(current_dir);
     if (clipboard) free(clipboard);
     if (panedata) free(panedata);
+    ClearScreenF(true, true, COLOR_STD_BG);
 
     return exit_mode;
 }
