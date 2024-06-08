@@ -111,8 +111,10 @@ u32 BootFirmHandler(const char* bootpath, bool verbose, bool delete) {
         if (delete) PathDelete(bootpath);
         DeinitExtFS();
         DeinitSDCardFS();
+        ARM_WbDC();
         PXI_DoCMD(PXICMD_LEGACY_BOOT, NULL, 0);
         PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
+        ARM_DSB();
         BootFirm((FirmHeader*) firm, fixpath);
         while(1);
     }
@@ -2541,8 +2543,10 @@ u32 GodMode(int entrypoint) {
         if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) {
             DeinitExtFS();
             DeinitSDCardFS();
+            ARM_WbDC();
             PXI_DoCMD(PXICMD_LEGACY_BOOT, NULL, 0);
             PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
+            ARM_DSB();
             BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         }
         for (u32 i = 0; i < sizeof(bootfirm_paths) / sizeof(char*); i++) {
