@@ -20,7 +20,7 @@
 
 #include <types.h>
 
-#define DEF_SECT_(n)	extern u32 __##n##_pa, __##n##_va, __##n##_len;
+#define DEF_SECT_(n)	extern u32 __##n##_pa, __##n##_va, __##n##_va_end;
 DEF_SECT_(text)
 DEF_SECT_(data)
 DEF_SECT_(rodata)
@@ -30,6 +30,6 @@ DEF_SECT_(shared)
 
 #define SECTION_VA(n)	((u32)&__##n##_va)
 #define SECTION_PA(n)	((u32)&__##n##_pa)
-#define SECTION_LEN(n)	((u32)&__##n##_len)
+#define SECTION_LEN(n)	(((u32)(&__##n##_va_end) - (u32)(&__##n##_va)))
 
 #define SECTION_TRI(n)	SECTION_VA(n), SECTION_PA(n), SECTION_LEN(n)
