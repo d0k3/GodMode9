@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "hid.h"
 #include "ui.h"
 #include "touchcal.h"
 
@@ -20,11 +21,15 @@ enum {
     KEY_ESCAPE  = 0x8A,
     KEY_SWITCH  = 0x8B,
     KEY_UNICODE = 0x8C,
+    KEY_UP      = 0x8D,
+    KEY_DOWN    = 0x8E,
     KEY_TXTBOX  = 0xFF
 };
 
 // special key strings
-#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "←", "→", "ESC", "SWITCH", "U+"
+#define SWKBD_KEYSTR "", "DEL", "INS", "SUBMIT", "CAPS", "#$@", "123", "ABC", "←", "→", "ESC", "SWITCH", "U+", "↑", "↓"
+// multiline special key stings
+#define SWKBD_ML_KEYSTR "", "DEL", "INS", "ENTER", "CAPS", "#$@", "123", "ABC", "←", "→", "ESC", "SWITCH", "U+", "↑", "↓"
 
 #define COLOR_SWKBD_NORMAL  COLOR_GREY
 #define COLOR_SWKBD_PRESSED COLOR_LIGHTGREY
@@ -45,6 +50,13 @@ enum {
     'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '_', '#', '!', \
     KEY_CAPS, ' ', KEY_NUMPAD, KEY_SPECIAL, KEY_LEFT, KEY_RIGHT
 
+#define SWKBD_KEYS_ML_ALPHABET \
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '+', '-', KEY_BKSPC, \
+    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '&', KEY_ENTER, \
+    'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '(', ')', '[', ']', \
+    'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '_', '#', '!', \
+    KEY_CAPS, ' ', KEY_NUMPAD, KEY_SPECIAL, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN
+
 #define SWKBD_KEYS_SPECIAL \
     '(', ')', '{', '}', '[', ']', \
     '.', ',', '?', '!', '`', '\'', \
@@ -53,9 +65,9 @@ enum {
     KEY_ALPHA, ' ', KEY_BKSPC
 
 #define SWKBD_KEYS_NUMPAD \
-    '7', '8', '9', 'F', 'E', \
-    '4', '5', '6', 'D', 'C', \
-    '3', '2', '1', 'B', 'A', \
+    '7', '8', '9', 'E', 'F', \
+    '4', '5', '6', 'C', 'D', \
+    '1', '2', '3', 'A', 'B', \
     '0', '.', '_', KEY_LEFT, KEY_RIGHT, \
     KEY_ALPHA, KEY_UNICODE, ' ', KEY_BKSPC
 
@@ -68,12 +80,20 @@ enum {
     6, 32, 123, 32, 32, 18, 18, 0, \
     0
 
+#define SWKBD_LAYOUT_ML_ALPHABET \
+    13, 32, 0, \
+    12, 51, 0, \
+    13, 0, \
+    12, 0, \
+    8, 32, 85, 32, 32, 18, 18, 18, 18, 0, \
+    0
+
 #define SWKBD_LAYOUT_SPECIAL \
     6, 0, \
     6, 0, \
     6, 0, \
     6, 0, \
-    3, 32, 46, 32, 0, \
+    3, 32, 47, 32, 0, \
     0
 
 #define SWKBD_LAYOUT_NUMPAD \
@@ -87,3 +107,5 @@ enum {
 
 #define ShowKeyboardOrPrompt (TouchIsCalibrated() ? ShowKeyboard : ShowStringPrompt)
 bool PRINTF_ARGS(3) ShowKeyboard(char* inputstr, u32 max_size, const char *format, ...);
+bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout, bool multi_line);
+char ShowMultiLineKeyboard(TouchBox* swkbd_alphabet, TouchBox* swkbd_special, TouchBox* swkbd_numpad, TouchBox** swkbd, TouchBox** swkbd_prev, u32* uppercase);
