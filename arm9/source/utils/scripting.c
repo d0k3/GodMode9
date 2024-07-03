@@ -335,7 +335,7 @@ static inline u32 line_len_chars(const char* text, u32 len, u32 ww, const char* 
 static inline const char* line_seek_chars(const char* text, u32 len, u32 ww, const char* line, int add) {
     // safety check
     if ((line <= text && add <= 0) || (line >= text + len && add >= 0)) return line;
-    
+
     const char* l0 = line;
 
     if (!ww) { // non wordwrapped mode
@@ -1669,7 +1669,7 @@ bool ValidateText(const char* text, u32 len) {
     return true;
 }
 
-void MemTextView(const char* text, u32 len, const char* line0, int off_disp_chars, int lno, u32 ww, u32 mno, bool is_script, const char* cursor) {
+void MemTextView(const char* text, u32 len, const char* line0, int off_disp_chars, int lno, u32 ww, u32 mno, bool is_script, const char* cursor, const char* cursor_end) {
     // block placements
     u32 x_txt = (TV_LNOS >= 0) ? TV_HPAD + ((TV_LNOS+1)*FONT_WIDTH_EXT) : TV_HPAD;
     u32 x_lno = TV_HPAD;
@@ -1736,7 +1736,97 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
             else DrawStringF(TOP_SCREEN, x_lno, y, COLOR_TVOFFSL, COLOR_STD_BG, "%*.*s", TV_LNOS, TV_LNOS, " ");
         }
 
-        if (cursor) {
+        const int x_txt_end = x_txt + TV_LLEN_DISP * FONT_WIDTH_EXT;
+        bool draw_ar_select = false, draw_al_select = false;
+
+        // account for selections drawn across lines
+        DrawPixel(TOP_SCREEN, x_txt, y - 1, COLOR_STD_BG);
+        DrawPixel(TOP_SCREEN, x_txt_end - 1, y - 1, COLOR_STD_BG);
+        DrawPixel(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT, COLOR_STD_BG);
+        DrawPixel(TOP_SCREEN, x_txt_end - 1, y + FONT_HEIGHT_EXT, COLOR_STD_BG);
+
+        // draw cursor / selection
+        if (cursor_end) {
+            int x_hline_start = -1, x_hline_end = -1;
+
+            u32 cursor_line_offset_chars = chars_between_pointers(ptr + off_disp_bytes, cursor);
+            bool draw_cursor = cursor >= ptr + off_disp_bytes && cursor <= ptr + off_disp_bytes + ncpy_bytes && cursor_line_offset_chars < TV_LLEN_DISP
+                && (cursor != ptr + off_disp_bytes + ncpy_bytes || is_newline(cursor) || cursor == text + len);
+            if (draw_cursor) {
+                x_hline_start = x_txt + cursor_line_offset_chars * FONT_WIDTH_EXT;
+                DrawRectangle(TOP_SCREEN, x_hline_start, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+            } else if (cursor < ptr + off_disp_bytes) x_hline_start = x_txt;
+
+            const char* cursor_end_prev = GetPrevChar(cursor_end);
+            u32 cursor_end_line_offset_chars = chars_between_pointers(ptr + off_disp_bytes, cursor_end_prev);
+            bool draw_cursor_end = cursor_end_prev >= ptr + off_disp_bytes && cursor_end_prev <= ptr + off_disp_bytes + ncpy_bytes && cursor_end_line_offset_chars < TV_LLEN_DISP
+                && (!ww || cursor_end_prev != ptr + off_disp_bytes + ncpy_bytes || is_newline(cursor_end_prev));
+            if (draw_cursor_end) {
+                x_hline_end = x_txt + (cursor_end_line_offset_chars + 1) * FONT_WIDTH_EXT;
+                DrawRectangle(TOP_SCREEN, x_hline_end - ((cursor_end_line_offset_chars == TV_LLEN_DISP - 1) ? 1 : 0), y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                cursor_end = NULL; // prevent cursor from being drawn multiple times at the end of the screen
+            } else if (cursor_end_prev >= ptr + off_disp_bytes + ncpy_bytes) x_hline_end = x_txt_end;
+
+            if (draw_cursor && draw_cursor_end) {
+                DrawRectangle(TOP_SCREEN, x_hline_start, y, x_hline_end - x_hline_start, 1, COLOR_YELLOW);
+                DrawRectangle(TOP_SCREEN, x_hline_start, y + FONT_HEIGHT_EXT - 1, x_hline_end - x_hline_start, 1, COLOR_YELLOW);
+            } else if (draw_cursor) {
+                DrawRectangle(TOP_SCREEN, x_hline_start, y, x_txt_end - x_hline_start, 1, COLOR_YELLOW);
+                if (cursor_end > ptr_next) {
+                    DrawRectangle(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT - 1, x_hline_start - x_txt, 1, COLOR_YELLOW);
+                    DrawPixel(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT, COLOR_YELLOW);
+                    DrawPixel(TOP_SCREEN, x_txt_end - 1, y + FONT_HEIGHT_EXT, COLOR_YELLOW);
+                } else {
+                    DrawRectangle(TOP_SCREEN, x_hline_start, y + FONT_HEIGHT_EXT - 1, x_txt_end - x_hline_start, 1, COLOR_YELLOW);
+                    cursor_end = NULL;
+                }
+                DrawRectangle(TOP_SCREEN, x_txt_end - 1, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                draw_ar_select = true;
+            } else if (draw_cursor_end) {
+                if (cursor < ptr) {
+                    DrawRectangle(TOP_SCREEN, x_hline_end, y, x_txt_end - x_hline_end, 1, COLOR_YELLOW);
+                    DrawPixel(TOP_SCREEN, x_txt, y - 1, COLOR_YELLOW);
+                    DrawPixel(TOP_SCREEN, x_txt_end - 1, y - 1, COLOR_YELLOW);
+                } else {
+                    DrawRectangle(TOP_SCREEN, x_txt, y, x_hline_end - x_txt, 1, COLOR_YELLOW);
+                }
+                DrawRectangle(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT - 1, x_hline_end - x_txt, 1, COLOR_YELLOW);
+                DrawRectangle(TOP_SCREEN, x_txt, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                draw_al_select = true;
+            } else if (cursor < ptr_next) {
+                if (cursor < ptr + off_disp_bytes) {
+                    DrawRectangle(TOP_SCREEN, x_txt, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                    if (cursor >= ptr) DrawRectangle(TOP_SCREEN, x_txt, y, x_txt_end - x_txt, 1, COLOR_YELLOW);
+                    else {
+                        DrawPixel(TOP_SCREEN, x_txt, y - 1, COLOR_YELLOW);
+                        DrawPixel(TOP_SCREEN, x_txt_end - 1, y - 1, COLOR_YELLOW);
+                    }
+                    draw_al_select = true;
+                } else if (cursor >= ptr + off_disp_bytes + ncpy_bytes) {
+                    DrawRectangle(TOP_SCREEN, x_txt_end - 1, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                    DrawRectangle(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT - 1, x_txt_end - x_txt, 1, COLOR_YELLOW);
+                    draw_ar_select = true;
+                }
+                if (cursor_end_prev < ptr + off_disp_bytes) {
+                    DrawRectangle(TOP_SCREEN, x_txt, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                    DrawRectangle(TOP_SCREEN, x_txt, y, x_txt_end - x_txt, 1, COLOR_YELLOW);
+                    cursor_end = NULL;
+                    draw_al_select = true;
+                } else if (cursor_end_prev >= ptr + off_disp_bytes + ncpy_bytes) {
+                    DrawRectangle(TOP_SCREEN, x_txt_end - 1, y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
+                    if (cursor_end_prev < ptr_next) {
+                        DrawRectangle(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT - 1, x_txt_end - x_txt, 1, COLOR_YELLOW);
+                        cursor_end = NULL;
+                    } else {
+                        DrawPixel(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT, COLOR_YELLOW);
+                        DrawPixel(TOP_SCREEN, x_txt_end - 1, y + FONT_HEIGHT_EXT, COLOR_YELLOW);
+                    }
+                    draw_ar_select = true;
+                }
+            }
+
+            if (!cursor_end) cursor = NULL;
+        } else if (cursor) {
             u32 cursor_line_offset_chars = chars_between_pointers(ptr + off_disp_bytes, cursor);
             if (cursor >= ptr + off_disp_bytes && cursor <= ptr + off_disp_bytes + ncpy_bytes && cursor_line_offset_chars < TV_LLEN_DISP
                     && (cursor != ptr + off_disp_bytes + ncpy_bytes || is_newline(cursor) || cursor == text + len)) {
@@ -1756,8 +1846,8 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
         }
 
         // colorize arrows
-        if (al) DrawStringF(TOP_SCREEN, x_al, y, COLOR_TVOFFS, COLOR_TRANSPARENT, "%s", al_str);
-        if (ar) DrawStringF(TOP_SCREEN, x_ar, y, COLOR_TVOFFS, COLOR_TRANSPARENT, "%s", ar_str);
+        if (al) DrawStringF(TOP_SCREEN, x_al, y, draw_al_select ? COLOR_TINTEDYELLOW : COLOR_TVOFFS, COLOR_TRANSPARENT, "%s", al_str);
+        if (ar) DrawStringF(TOP_SCREEN, x_ar, y, draw_ar_select ? COLOR_TINTEDYELLOW : COLOR_TVOFFS, COLOR_TRANSPARENT, "%s", ar_str);
 
         // advance pointer / line number
         for (const char* c = ptr; c < ptr_next; c++) if (*c == '\n') ++nln;
@@ -1816,13 +1906,17 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
     bool crlf = is_crlf(text);
     bool display_view_instructions = true;
     const char* cursor = NULL;
+    const char* cursor_end = NULL;
+    const char** last_cursor = &cursor;
+    char* clipboard = NULL;
+    const char* instructions = NULL;
     const char* line0 = text;
     int lcurr = 1; // Current line number
     int off_disp_chars = 0; // non-word-wrapped offset
     for (; lcurr < (int) start; line0 = line_seek_chars(text, len, 0, line0, 1), lcurr++);
     while (true) {
         // display text on screen
-        MemTextView(text, len, line0, off_disp_chars, lcurr, ww, 0, as_script, cursor);
+        MemTextView(text, len, line0, off_disp_chars, lcurr, ww, 0, as_script, cursor, cursor_end);
 
         const char* line0_next = line0;
 
@@ -1846,8 +1940,9 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
                 cursor = line0;
                 off_disp_chars = 0;
                 uppercase = 0;
-                swkbd = NULL;
+                swkbd = swkbd_alphabet;
                 swkbd_prev = NULL;
+                instructions = clipboard ? STR_TEXTEDITOR_CONTROLS_CLIPBOARD : STR_TEXTEDITOR_CONTROLS_KEYBOARD;
             }
             else if (switched && pad_state & BUTTON_X) {
                 u64 lnext64 = ShowNumberPrompt(lcurr, STR_CURRENT_LINE_N_ENTER_NEW_LINE_BELOW, lcurr);
@@ -1859,48 +1954,73 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
                 line0_next = line_start(text, len, ww, line0);
             } else if (pad_state & (BUTTON_B|BUTTON_START)) break;
         } else { // edit mode
-            char key_pressed = ShowMultiLineKeyboard(swkbd_alphabet, swkbd_special, swkbd_numpad, &swkbd, &swkbd_prev, &uppercase);
+            char key_pressed = ShowMultiLineKeyboard(instructions, swkbd_alphabet, swkbd_special, swkbd_numpad, &swkbd, &swkbd_prev, &uppercase);
+            instructions = NULL;
             char key_character = 0;
-            bool switched = HID_ReadState() & BUTTON_R1;
+            u32 pad_state = HID_ReadState();
+            bool switched = pad_state & BUTTON_R1;
+            bool selected = pad_state & BUTTON_L1 || (cursor_end && switched);
+            const char** prev_last_cursor = last_cursor;
+            last_cursor = &cursor;
             if (key_pressed == KEY_ESCAPE) {
                 cursor = NULL;
+                cursor_end = NULL;
                 display_view_instructions = true;
             } else if (key_pressed == KEY_DOWN) {
-                const char* cursor_line_start = line_start(text, len, ww, cursor);
-                u32 cursor_chars_from_line_start = chars_between_pointers(cursor_line_start, cursor);
-                cursor = line_seek_chars(text, len, ww, cursor_line_start, switched ? TV_NLIN_DISP : 1);
-                cursor = line_start(text, len, ww, cursor);
-                const char* next_line_start = line_seek_chars(text, len, ww, cursor, 1);
-                for (u32 i = 0; GetNextChar(cursor) < next_line_start && i < cursor_chars_from_line_start; IncChar(&cursor), ++i);
+                const char** down_cursor = selected ? last_cursor = &cursor_end : &cursor;
+                if (!*down_cursor) *down_cursor = cursor;
+                const char* down_cursor_char = down_cursor == &cursor_end && cursor_end > cursor ? GetPrevChar(*down_cursor) : *down_cursor;
+                const char* cursor_line_start = line_start(text, len, ww, down_cursor_char);
+                u32 cursor_chars_from_line_start = chars_between_pointers(cursor_line_start, down_cursor_char);
+                *down_cursor = line_seek_chars(text, len, ww, cursor_line_start, switched ? TV_NLIN_DISP : 1);
+                *down_cursor = line_start(text, len, ww, *down_cursor);
+                const char* next_line_start = line_seek_chars(text, len, ww, *down_cursor, 1);
+                if (down_cursor == &cursor_end) for (u32 i = 0; *down_cursor < next_line_start && i <= cursor_chars_from_line_start; IncChar(down_cursor), ++i);
+                else for (u32 i = 0; GetNextChar(*down_cursor) < next_line_start && i < cursor_chars_from_line_start; IncChar(down_cursor), ++i);
+                if (!selected) cursor_end = NULL;
             } else if (key_pressed == KEY_UP) {
+                if (selected && !cursor_end) cursor_end = cursor;
                 const char* cursor_line_start = line_start(text, len, ww, cursor);
                 u32 cursor_chars_from_line_start = chars_between_pointers(cursor_line_start, cursor);
                 cursor = line_seek_chars(text, len, ww, cursor_line_start, -(switched ? TV_NLIN_DISP : 1));
                 const char* next_line_start = line_seek_chars(text, len, ww, cursor, 1);
                 for (u32 i = 0; GetNextChar(cursor) < next_line_start && i < cursor_chars_from_line_start; IncChar(&cursor), ++i);
+                if (!selected) cursor_end = NULL;
             } else if (key_pressed == KEY_RIGHT) {
+                const char** right_cursor = selected ? last_cursor = &cursor_end : &cursor;
+                if (!*right_cursor) *right_cursor = cursor;
                 if (switched) {
-                    const char* cursor_line_start = line_start(text, len, ww, cursor);
+                    const char* cursor_line_start = line_start(text, len, ww, right_cursor == &cursor_end && cursor_end > cursor ? GetPrevChar(*right_cursor) : *right_cursor);
                     const char* next_line_start = line_seek_chars(text, len, ww, cursor_line_start, 1);
-                    if (next_line_start == text + len && (!ww || chars_between_pointers(cursor_line_start, next_line_start) != TV_LLEN_DISP)) IncChar(&next_line_start); 
-                    while (GetNextChar(cursor) < next_line_start && !is_newline(cursor)) IncChar(&cursor);
+                    if (right_cursor == &cursor && next_line_start == text + len && (!ww || chars_between_pointers(cursor_line_start, next_line_start) != TV_LLEN_DISP))
+                        IncChar(&next_line_start); 
+                    if (right_cursor == &cursor_end) for (u32 chars = 0; *right_cursor < next_line_start && chars < TV_LLEN_DISP; ++chars) IncChar(right_cursor);
+                    else for (u32 chars = 0; GetNextChar(*right_cursor) < next_line_start && !is_newline(*right_cursor) && chars < TV_LLEN_DISP; ++chars) IncChar(right_cursor);
                 }
-                else if (cursor < text + len) IncChar(&cursor);
+                else if (*right_cursor < text + len) IncChar(right_cursor);
+                if (!selected) cursor_end = NULL;
             } else if (key_pressed == KEY_LEFT) {
+                if (selected && !cursor_end) cursor_end = cursor;
                 if (switched) {
                     const char* cursor_line_start = line_start(text, len, ww, cursor);
                     while (cursor > cursor_line_start) DecChar(&cursor);
                 }
                 else if (cursor > text) DecChar(&cursor);
+                if (!selected) cursor_end = NULL;
             } else if (key_pressed == KEY_BKSPC) {
-                if (cursor > text) {
+                if (cursor_end && cursor_end > cursor) {
+                    memmove((char *) cursor, cursor_end, text + len - cursor_end + 1);
+                    len -= cursor_end - cursor;
+                    cursor_end = NULL;
+                } else if (cursor > text) {
                     u32 size = GetPrevCharSize(cursor);
                     memmove((char *) cursor - size, cursor, text + len - cursor + 1);
                     len -= size;
                     cursor -= size;
                 }
             } else if (key_pressed == KEY_UNICODE) {
-                if (cursor >= text + 4 && cursor <= text + len) {
+                if (cursor_end) last_cursor = prev_last_cursor;
+                else if (cursor >= text + 4 && cursor <= text + len) {
                     u16 codepoint = 0;
                     for (const char *c = cursor - 4; c < cursor; c++) {
                         if ((*c >= '0' && *c <= '9') || (*c >= 'A' && *c <= 'F') || (*c >= 'a' && *c <= 'f')) {
@@ -1924,9 +2044,52 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
                         len -= 4 - char_size;
                     }
                 }
+            } else if (key_pressed == KEY_CLIP) { // clipboard
+                if (clipboard) {
+                    if (switched) { // clear
+                        free(clipboard);
+                        clipboard = NULL;
+                        instructions = STR_TEXTEDITOR_CONTROLS_KEYBOARD;
+                        last_cursor = prev_last_cursor;
+                    } else { // paste
+                        int clip_size = strlen(clipboard);
+                        int select_size = cursor_end ? cursor_end - cursor : 0;
+                        if (clip_size && len - select_size + clip_size <= max_len) {
+                            if (clip_size != select_size) {
+                                const char* select_end = cursor_end ? cursor_end : cursor;
+                                memmove((char *) cursor + clip_size, select_end, text + len - select_end + 1);
+                            }
+                            memcpy((char *) cursor, clipboard, clip_size);
+                            cursor += clip_size;
+                            cursor_end = NULL;
+                            len += clip_size - select_size;
+                        }
+                    }
+                } else if (cursor_end && cursor_end > cursor) { // copy
+                    int select_size = cursor_end - cursor;
+                    clipboard = malloc(select_size + 1);
+                    if (clipboard) {
+                        memcpy(clipboard, cursor, select_size);
+                        clipboard[select_size] = '\0';
+                        if (switched) { // cut
+                            memmove((char *) cursor, cursor_end, text + len - cursor_end + 1);
+                            len -= select_size;
+                            cursor_end = NULL;
+                        } else last_cursor = prev_last_cursor;
+                        instructions = STR_TEXTEDITOR_CONTROLS_CLIPBOARD;
+                    }
+                }
             } else if (key_pressed == KEY_ENTER) key_character = crlf ? '\r' : '\n';
             else if (key_pressed < 0x80) key_character = key_pressed;
 
+            // delete selection if typing standard char
+            if (key_character && cursor_end && cursor_end > cursor) {
+                memmove((char *) cursor, cursor_end, text + len - cursor_end + 1);
+                len -= cursor_end - cursor;
+                cursor_end = NULL;
+            }
+
+            // type standard char
             if (key_character && len + (key_character == '\r' ? 1 : 0) < max_len) {
                 if (uppercase == 1) {
                     uppercase = 0;
@@ -1939,14 +2102,18 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
                 }
             }
 
-            if (cursor && !ww) {
-                const char* cursor_line_start = line_start(text, len, ww, cursor);
-                u32 cursor_chars_from_line_start = chars_between_pointers(cursor_line_start, cursor);
+            if (cursor_end <= cursor) cursor_end = NULL;
+
+            // adjust screen to view last cursor moved
+            const char* last_cursor_value = cursor_end && last_cursor == &cursor_end ? GetPrevChar(cursor_end) : cursor;
+            if (last_cursor_value && !ww) {
+                const char* cursor_line_start = line_start(text, len, ww, last_cursor_value);
+                u32 cursor_chars_from_line_start = chars_between_pointers(cursor_line_start, last_cursor_value);
                 if (cursor_chars_from_line_start < off_disp_chars + strlen(al_str)) off_disp_chars = cursor_chars_from_line_start - strlen(al_str);
                 if (cursor_chars_from_line_start >= off_disp_chars + TV_LLEN_DISP - strlen(ar_str)) off_disp_chars = cursor_chars_from_line_start + strlen(ar_str) - TV_LLEN_DISP + 1;
             }
-            while (cursor && cursor < line0_next) line0_next = line_seek_chars(text, len, ww, line0_next, -1);
-            while (cursor && line0_next < line_seek_chars(text, len, ww, GetNextChar(cursor), -TV_NLIN_DISP)) line0_next = line_seek_chars(text, len, ww, line0_next, 1);
+            while (last_cursor_value && last_cursor_value < line0_next) line0_next = line_seek_chars(text, len, ww, line0_next, -1);
+            while (last_cursor_value && line0_next < line_seek_chars(text, len, ww, GetNextChar(last_cursor_value), -TV_NLIN_DISP)) line0_next = line_seek_chars(text, len, ww, line0_next, 1);
         }
 
         // find last allowed lines (ww and nonww)
@@ -1976,6 +2143,8 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
         if (off_disp_chars + TV_LLEN_DISP > llen_max) off_disp_chars = llen_max - TV_LLEN_DISP;
         if (off_disp_chars < 0 || ww) off_disp_chars = 0;
     }
+
+    if (clipboard) free(clipboard);
 
     // check for user edits
     if (text_cpy) {
@@ -2012,7 +2181,7 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
 
     // clear screens / view start of readme on top
     ClearScreenF(true, true, COLOR_STD_BG);
-    MemTextView(text, len, text, 0, 1, ww, 0, false, NULL);
+    MemTextView(text, len, text, 0, 1, ww, 0, false, NULL, NULL);
 
     // parse text for markdown captions
     u32 n_captions = 0;
@@ -2053,15 +2222,15 @@ bool MemToCViewer(const char* text, u32 len, const char* title) {
         u32 pad_state = InputWait(0);
         if ((cursor >= 0) && (pad_state & BUTTON_A)) {
             if (!MemTextViewer(text, len, lineno[cursor], false, 0, NULL)) return false;
-            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false, NULL);
+            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false, NULL, NULL);
         } else if (pad_state & BUTTON_B) {
             break;
         } else if (pad_state & BUTTON_UP) {
             cursor = (cursor <= 0) ? ((int) n_captions - 1) : cursor - 1;
-            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false, NULL);
+            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false, NULL, NULL);
         } else if (pad_state & BUTTON_DOWN) {
             if (++cursor >= (int) n_captions) cursor = 0;
-            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false, NULL);
+            MemTextView(text, len, captions[cursor], 0, lineno[cursor], ww, 0, false, NULL, NULL);
         }
     }
 
@@ -2196,11 +2365,11 @@ bool ExecuteGM9Script(const char* path_script) {
             }
             if (show_preview) {
                 if (lno <= (TV_NLIN_DISP/2)) {
-                    MemTextView(script, script_size, script, 0, 1, 0, lno, true, NULL);
+                    MemTextView(script, script_size, script, 0, 1, 0, lno, true, NULL, NULL);
                 } else {
                     const char* ptr_view = line_seek_chars(script, script_size, 0, ptr, -(TV_NLIN_DISP/2));
                     u32 lno_view = lno - (TV_NLIN_DISP/2);
-                    MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true, NULL);
+                    MemTextView(script, script_size, ptr_view, 0, lno_view, 0, lno, true, NULL, NULL);
                 }
             }
         }

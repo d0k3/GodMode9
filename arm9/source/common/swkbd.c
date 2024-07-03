@@ -222,7 +222,7 @@ static char KeyboardWait(TouchBox* swkbd, bool uppercase, const bool multi_line)
         else if (pressed & BUTTON_B) return KEY_ESCAPE;
         else if (pressed & BUTTON_A) return KEY_ENTER;
         else if (pressed & BUTTON_X) return KEY_BKSPC;
-        else if (pressed & BUTTON_Y) return multi_line ? KEY_CAPS : KEY_INSERT;
+        else if (pressed & BUTTON_Y) return multi_line ? KEY_CLIP : KEY_INSERT;
         else if (!multi_line && pressed & BUTTON_R1) return KEY_CAPS;
         else if (pressed & BUTTON_RIGHT) return KEY_RIGHT;
         else if (pressed & BUTTON_LEFT) return KEY_LEFT;
@@ -392,14 +392,14 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     return ret;
 }
 
-char ShowMultiLineKeyboard(TouchBox* swkbd_alphabet, TouchBox* swkbd_special, TouchBox* swkbd_numpad, TouchBox** swkbd, TouchBox** swkbd_prev, u32* uppercase) {
-    if (!*swkbd) {
-        u32 str_width = GetDrawStringWidth(STR_TEXTEDITOR_CONTROLS_KEYBOARD);
+char ShowMultiLineKeyboard(const char* instructions, TouchBox* swkbd_alphabet, TouchBox* swkbd_special, TouchBox* swkbd_numpad, TouchBox** swkbd, TouchBox** swkbd_prev, u32* uppercase) {
+    if (instructions) {
+        u32 str_width = GetDrawStringWidth(instructions);
         if (str_width < (24 * FONT_WIDTH_EXT)) str_width = 24 * FONT_WIDTH_EXT;
         u32 str_x = (str_width >= SCREEN_WIDTH_BOT) ? 0 : (SCREEN_WIDTH_BOT - str_width) / 2;
         ClearScreen(BOT_SCREEN, COLOR_STD_BG);
-        DrawStringF(BOT_SCREEN, str_x, 20, COLOR_STD_FONT, COLOR_STD_BG, "%s", STR_TEXTEDITOR_CONTROLS_KEYBOARD);
-        *swkbd = swkbd_alphabet;
+        DrawStringF(BOT_SCREEN, str_x, 20, COLOR_STD_FONT, COLOR_STD_BG, "%s", instructions);
+        *swkbd_prev = NULL; // Force keyboard redraw
     }
 
     // handle keyboard
