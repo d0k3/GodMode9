@@ -23,6 +23,7 @@ enum {
     KEY_UNICODE = 0x8C,
     KEY_UP      = 0x8D,
     KEY_DOWN    = 0x8E,
+    KEY_CLIP    = 0x8F,
     KEY_TXTBOX  = 0xFF
 };
 
@@ -108,4 +109,4 @@ enum {
 #define ShowKeyboardOrPrompt (TouchIsCalibrated() ? ShowKeyboard : ShowStringPrompt)
 bool PRINTF_ARGS(3) ShowKeyboard(char* inputstr, u32 max_size, const char *format, ...);
 bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout, bool multi_line);
-char ShowMultiLineKeyboard(TouchBox* swkbd_alphabet, TouchBox* swkbd_special, TouchBox* swkbd_numpad, TouchBox** swkbd, TouchBox** swkbd_prev, u32* uppercase);
+char ShowMultiLineKeyboard(const char* instructions, TouchBox* swkbd_alphabet, TouchBox* swkbd_special, TouchBox* swkbd_numpad, TouchBox** swkbd, TouchBox** swkbd_prev, u32* uppercase);
