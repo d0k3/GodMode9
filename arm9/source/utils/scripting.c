@@ -265,6 +265,8 @@ static inline u32 hexntostr(const u8* hex, char* str, u32 len) {
     return len;
 }
 
+// we determine the line endings of a text file by simple majority;
+// correcting mixed line endings is outside the scope of this program.
 static inline bool is_crlf(const char* str) {
     u32 crlf = 0, lf = 0;
     do if (str[0] == '\n') ++lf; else if (str[0] == '\r' && str[1] == '\n') ++crlf, ++str;
@@ -276,6 +278,7 @@ static inline bool is_newline(const char* chr) {
     return chr[0] == '\n' || (chr[0] == '\r' && chr[1] == '\n');
 }
 
+// to ease calculations related to supporting mutlibyte UTF-8 characters
 static inline u32 bytes_in_chars_u32(const char* str, u32 nchars) {
     u32 bytes = 0;
     for (u32 i = 0; str[bytes] && i < nchars; bytes += GetCharSize(str + bytes), ++i);
@@ -1682,6 +1685,7 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
     u32 nln = lno;
     bool last_empty_line_drawn = false;
     for (u32 y = TV_VPAD; y < SCREEN_HEIGHT; y += FONT_HEIGHT_EXT + (2*TV_VPAD)) {
+        // account for multibyte chacters and word wrap when drawing lines
         int off_disp_bytes = bytes_in_chars_int(ptr, off_disp_chars);
         const char* ptr_next = line_seek_chars(text, len, ww, ptr, 1);
         u32 llen_chars = line_len_chars(text, len, ww, ptr, NULL);
@@ -1727,8 +1731,9 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
         // draw line number & text
         DrawString(TOP_SCREEN, txtstr, x_txt, y, color_text, COLOR_STD_BG);
         if (TV_LNOS > 0) { // line number
+            // edge case to draw line number when the last null-byte character is word-wrapped onto its own line...
             bool prev_ww_line_full = ww && ww == chars_between_pointers(line_seek_chars(text, len, ww, ptr, -1), ptr);
-            bool last_line_empty = (ptr == text + len && (!len || ptr[-1] == '\n' || prev_ww_line_full) && !last_empty_line_drawn);
+            bool last_line_empty = ptr == text + len && (!len || ptr[-1] == '\n' || prev_ww_line_full) && !last_empty_line_drawn;
             if (ptr != ptr_next || last_line_empty) {
                 DrawStringF(TOP_SCREEN, x_lno, y, ((ptr == text) || (ptr[-1] == '\n')) ? COLOR_TVOFFS : COLOR_TVOFFSL, COLOR_STD_BG, "%0*lu", TV_LNOS, nln);
                 if (last_line_empty) last_empty_line_drawn = true;
@@ -1745,7 +1750,7 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
         DrawPixel(TOP_SCREEN, x_txt, y + FONT_HEIGHT_EXT, COLOR_STD_BG);
         DrawPixel(TOP_SCREEN, x_txt_end - 1, y + FONT_HEIGHT_EXT, COLOR_STD_BG);
 
-        // draw cursor / selection
+        // draw selection
         if (cursor_end) {
             int x_hline_start = -1, x_hline_end = -1;
 
@@ -1763,10 +1768,12 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
                 && (!ww || cursor_end_prev != ptr + off_disp_bytes + ncpy_bytes || is_newline(cursor_end_prev));
             if (draw_cursor_end) {
                 x_hline_end = x_txt + (cursor_end_line_offset_chars + 1) * FONT_WIDTH_EXT;
+                // account for selections drawn at the end of the screen; they should be one pixel thinner so that they are drawn over by text on the next screen redraw
                 DrawRectangle(TOP_SCREEN, x_hline_end - ((cursor_end_line_offset_chars == TV_LLEN_DISP - 1) ? 1 : 0), y, 1, FONT_HEIGHT_EXT, COLOR_YELLOW);
                 cursor_end = NULL; // prevent cursor from being drawn multiple times at the end of the screen
             } else if (cursor_end_prev >= ptr + off_disp_bytes + ncpy_bytes) x_hline_end = x_txt_end;
 
+            // edge cases related to drawing multi-line selections
             if (draw_cursor && draw_cursor_end) {
                 DrawRectangle(TOP_SCREEN, x_hline_start, y, x_hline_end - x_hline_start, 1, COLOR_YELLOW);
                 DrawRectangle(TOP_SCREEN, x_hline_start, y + FONT_HEIGHT_EXT - 1, x_hline_end - x_hline_start, 1, COLOR_YELLOW);
@@ -1826,11 +1833,12 @@ void MemTextView(const char* text, u32 len, const char* line0, int off_disp_char
             }
 
             if (!cursor_end) cursor = NULL;
-        } else if (cursor) {
+        } else if (cursor) { // draw cursor
             u32 cursor_line_offset_chars = chars_between_pointers(ptr + off_disp_bytes, cursor);
             if (cursor >= ptr + off_disp_bytes && cursor <= ptr + off_disp_bytes + ncpy_bytes && cursor_line_offset_chars < TV_LLEN_DISP
                     && (cursor != ptr + off_disp_bytes + ncpy_bytes || is_newline(cursor) || cursor == text + len)) {
                 DrawRectangle(TOP_SCREEN, x_txt + cursor_line_offset_chars * FONT_WIDTH_EXT, y, FONT_WIDTH_EXT, 1, COLOR_RED);
+                // account for cursors drawn at the end of the screen; they should be one pixel thinner so that they are drawn over by text on the next screen redraw
                 DrawRectangle(TOP_SCREEN, x_txt + (cursor_line_offset_chars + 1) * FONT_WIDTH_EXT - ((cursor_line_offset_chars == TV_LLEN_DISP - 1) ? 1 : 0), y, 1, FONT_HEIGHT_EXT, COLOR_RED);
                 DrawRectangle(TOP_SCREEN, x_txt + cursor_line_offset_chars * FONT_WIDTH_EXT, y, 1, FONT_HEIGHT_EXT, COLOR_RED);
                 DrawRectangle(TOP_SCREEN, x_txt + cursor_line_offset_chars * FONT_WIDTH_EXT, y + FONT_HEIGHT_EXT - 1, FONT_WIDTH_EXT, 1, COLOR_RED);

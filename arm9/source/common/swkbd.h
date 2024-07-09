@@ -108,5 +108,7 @@ enum {
 
 #define ShowKeyboardOrPrompt (TouchIsCalibrated() ? ShowKeyboard : ShowStringPrompt)
 bool PRINTF_ARGS(3) ShowKeyboard(char* inputstr, u32 max_size, const char *format, ...);
+
+// Exposing this to prevent rebuilds between keypresses in the ShowMultiLineKeyboard calling functions.
 bool BuildKeyboard(TouchBox* swkbd, const char* keys, const u8* layout, bool multi_line);
 char ShowMultiLineKeyboard(const char* instructions, TouchBox* swkbd_alphabet, TouchBox* swkbd_special, TouchBox* swkbd_numpad, TouchBox** swkbd, TouchBox** swkbd_prev, u32* uppercase);
