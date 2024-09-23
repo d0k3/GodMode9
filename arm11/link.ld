@@ -16,7 +16,7 @@ SECTIONS
         __text_va = ABSOLUTE(.);
         *(.text*)
         . = ALIGN(4K);
-        __text_len = . - __text_va;
+        __text_va_end = .;
     } >AXIWRAM
 
     .data : ALIGN(4K)
@@ -25,7 +25,7 @@ SECTIONS
         __data_va = ABSOLUTE(.);
         *(.data*)
         . = ALIGN(4K);
-        __data_len = . - __data_va;
+        __data_va_end = .;
     } >AXIWRAM
 
     .rodata : ALIGN(4K)
@@ -34,7 +34,7 @@ SECTIONS
         __rodata_va = ABSOLUTE(.);
         *(.rodata*)
         . = ALIGN(4K);
-        __rodata_len = . - __rodata_va;
+        __rodata_va_end = .;
     } >AXIWRAM
 
     .shared (NOLOAD) : ALIGN(4K)
@@ -43,7 +43,7 @@ SECTIONS
         __shared_va = ABSOLUTE(.);
         *(.shared*)
         . = ALIGN(4K);
-        __shared_len = . - __shared_va;
+        __shared_va_end = .;
     } >AXIWRAM
 
     .bss (NOLOAD) : ALIGN(4K)
@@ -52,6 +52,6 @@ SECTIONS
         __bss_va = ABSOLUTE(.);
         *(.bss*)
         . = ALIGN(4K);
-        __bss_len = . - __bss_va;
+        __bss_va_end = .;
     } >AXIWRAM
 }

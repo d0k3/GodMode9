@@ -2559,6 +2559,9 @@ u32 GodMode(int entrypoint) {
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
         if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) {
+            DeinitExtFS();
+            DeinitSDCardFS();
+            PXI_DoCMD(PXICMD_LEGACY_BOOT, NULL, 0);
             PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
             BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         }
@@ -3098,6 +3101,7 @@ u32 GodMode(int entrypoint) {
 u32 ScriptRunner(int entrypoint) {
     // init font and show splash
     if (!SetFont(NULL, 0)) return GODMODE_EXIT_POWEROFF;
+    SetLanguage(NULL, 0);
     SplashInit("scriptrunner mode");
     u64 timer = timer_start();
 
