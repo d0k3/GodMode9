@@ -42,7 +42,7 @@ export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSIO
                   -fomit-frame-pointer -ffast-math -std=gnu11 -MMD -MP \
                   -Wno-unused-function -Wno-format-truncation -Wno-format-nonliteral $(INCLUDE) -ffunction-sections -fdata-sections
 export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=4096
-ELF := arm9/arm9.elf arm11/arm11.elf
+ELF := arm9/arm9_code.elf arm9/arm9_data.elf arm11/arm11.elf
 
 .PHONY: all firm $(VRAM_TAR) elf release clean
 all: firm
@@ -87,9 +87,13 @@ $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 
 %.elf: .FORCE
 	@echo "Building $@"
-	@$(MAKE) --no-print-directory -C $(@D)
+	@$(MAKE) --no-print-directory -C $(@D) $(@F)
 
-arm9/arm9.elf: $(VRAM_TAR)
+# Indicate a few explicit dependencies:
+# The ARM9 data section depends on the VRAM drive
+arm9/arm9_data.elf: $(VRAM_TAR)
+# And the code section depends on the data section being built already
+arm9/arm9_code.elf: arm9/arm9_data.elf
 
 firm: $(ELF)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
@@ -97,9 +101,9 @@ firm: $(ELF)
 	@echo "[VERSION] $(VERSION)"
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
-	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(ELF) -C NDMA XDMA
+	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(ELF) -C NDMA NDMA XDMA
 	@echo "[FIRM] $(FIRMD)"
-	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(ELF) -C NDMA XDMA
+	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(ELF) -C NDMA NDMA XDMA
 
 vram0: $(VRAM_TAR) .FORCE # legacy target name
 
