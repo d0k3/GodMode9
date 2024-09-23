@@ -76,10 +76,12 @@ __boot:
     b 1b
 
 corezero_start:
-    @ assume __bss_len is 128 byte aligned
+    @ assumes the .bss section size is 128 byte aligned (or zero)
     ldr r0, =__bss_pa
-    ldr r1, =__bss_len
-    add r1, r0, r1
+    ldr r1, =__bss_va_end   @ calculate the length of .bss using the VA start and end
+    ldr r2, =__bss_va
+    sub r1, r1, r2
+    add r1, r0, r1          @ fixup to be PA start and end
     mov r2, #0
     mov r3, #0
     mov r4, #0

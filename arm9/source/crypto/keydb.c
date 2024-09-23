@@ -40,10 +40,13 @@ u32 GetUnitKeysType(void)
 }
 
 void CryptAesKeyInfo(AesKeyInfo* info) {
-    static u8 zeroes[16] = { 0 };
+    static const u8 zeros[16] = { 0 };
+    static const u8 keyY_dev[16] = {
+        0xA2, 0x32, 0x4A, 0x7E, 0x7C, 0xE6, 0x1A, 0x9A, 0x45, 0x4A, 0x52, 0x19, 0xB3, 0x5B, 0xE9, 0x3B };
+    const u8* aeskeyY = GetUnitKeysType() == KEYS_DEVKIT ? &keyY_dev[0] : &zeros[0];
     u8 ctr[16] = { 0 };
     memcpy(ctr, (void*) info, 12); // CTR -> slot + type + id + zeroes
-    setup_aeskeyY(0x2C, zeroes);
+    setup_aeskeyY(0x2C, aeskeyY);
     use_aeskey(0x2C);
     set_ctr(ctr);
     aes_decrypt(info->key, info->key, 1, AES_CNT_CTRNAND_MODE);
