@@ -133,7 +133,7 @@ typedef LUAI_UACINT l_uacInt;
 
 
 /* type casts (a macro highlights casts in the code) */
-#define cast(t, exp)  ((t)(exp))
+#define cast(t, exp)	((t)(exp))
 #define castp(t, exp)	((t)(void *)(exp))
 
 #define cast_void(i)	cast(void, (i))
