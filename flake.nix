@@ -5,6 +5,18 @@
   };
 
   outputs = { self, nixpkgs, devkitNix }: {
+    devShells.x86_64-linux.default = let
+      pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ devkitNix.overlays.default ]; };
+    in pkgs.mkShell {
+      packages = with pkgs; [
+        pkgs.devkitNix.devkitARM
+        python3Packages.python
+        ( python3Packages.callPackage ./firmtool.nix { } )
+      ];
+
+      inherit (pkgs.devkitNix.devkitARM) shellHook;
+    };
+
     packages.x86_64-linux = let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ devkitNix.overlays.default ]; };
     in rec {
@@ -13,9 +25,9 @@
         version = "unstable";
         src = builtins.path { path = ./.; name = "GodMode9"; };
 
-        nativeBuildInputs = with pkgs.python3Packages; [
-          python
-          ( callPackage ./firmtool.nix { } )
+        nativeBuildInputs = with pkgs; [
+          python3Packages.python
+          ( python3Packages.callPackage ./firmtool.nix { } )
         ];
 
         preBuild = pkgs.devkitNix.devkitARM.shellHook;
