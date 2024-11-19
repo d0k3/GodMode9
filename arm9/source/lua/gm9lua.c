@@ -8,6 +8,8 @@
 #include "gm9enum.h"
 #include "gm9loader.h"
 #include "gm9os.h"
+#include "gm9sys.h"
+#include "gm9ui.h"
 
 #define DEBUGSP ShowPrompt
 
@@ -80,6 +82,8 @@ static const luaL_Reg gm9lualibs[] = {
 
     // gm9 custom
     {GM9LUA_OSLIBNAME, gm9lua_open_os},
+    {GM9LUA_SYSLIBNAME, gm9lua_open_sys},
+    {GM9LUA_UILIBNAME, gm9lua_open_ui},
 
     {NULL, NULL}
 };
