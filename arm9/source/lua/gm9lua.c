@@ -7,6 +7,7 @@
 #include "fsutil.h"
 #include "gm9enum.h"
 #include "gm9loader.h"
+#include "gm9fs.h"
 #include "gm9os.h"
 #include "gm9sys.h"
 #include "gm9ui.h"
@@ -81,6 +82,7 @@ static const luaL_Reg gm9lualibs[] = {
     {LUA_DBLIBNAME, luaopen_debug},
 
     // gm9 custom
+    {GM9LUA_FSLIBNAME, gm9lua_open_fs},
     {GM9LUA_OSLIBNAME, gm9lua_open_os},
     {GM9LUA_SYSLIBNAME, gm9lua_open_sys},
     {GM9LUA_UILIBNAME, gm9lua_open_ui},
@@ -105,6 +107,9 @@ bool ExecuteLuaScript(const char* path_script) {
 
     lua_pushliteral(L, VERSION);
     lua_setglobal(L, "GM9VERSION");
+
+    lua_pushstring(L, path_script);
+    lua_setglobal(L, "SCRIPT");
 
     int result = LoadLuaFile(L, path_script);
     if (result != LUA_OK) {

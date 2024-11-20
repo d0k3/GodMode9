@@ -51,22 +51,30 @@ static int ui_ask(lua_State* L) {
 
 static int ui_ask_hex(lua_State* L) {
     CheckLuaArgCount(L, 3, "ui.ask_hex");
-    const char* text = lua_tostring(L, 3);
-    u64 initial_hex = lua_tonumber(L, 1);
-    u32 n_digits = lua_tonumber(L, 2);
+    const char* text = lua_tostring(L, 1);
+    u64 initial_hex = lua_tonumber(L, 2);
+    u32 n_digits = lua_tonumber(L, 3);
 
     u64 ret = ShowHexPrompt(initial_hex, n_digits, "%s", text);
-    lua_pushnumber(L, ret);
+    if (ret == (u64) -1) {
+        lua_pushnil(L);
+    } else {
+        lua_pushnumber(L, ret);
+    }
     return 1;
 }
 
 static int ui_ask_number(lua_State* L) {
     CheckLuaArgCount(L, 2, "ui.ask_number");
-    const char* text = lua_tostring(L, 2);
-    u64 initial_num = lua_tonumber(L, 1);
+    const char* text = lua_tostring(L, 1);
+    u64 initial_num = lua_tonumber(L, 2);
 
     u64 ret = ShowNumberPrompt(initial_num, "%s", text);
-    lua_pushnumber(L, ret);
+    if (ret == (u64) -1) {
+        lua_pushnil(L);
+    } else {
+        lua_pushnumber(L, ret);
+    }
     return 1;
 
 }
@@ -90,7 +98,7 @@ static int ui_ask_text(lua_State* L) {
 static int ui_show_png(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_png");
     const char* path = lua_tostring(L, 1);
-    u16 *screen = MAIN_SCREEN;
+    u16 *screen = ALT_SCREEN;
     u16 *bitmap = NULL;
     u8* png = (u8*) malloc(SCREEN_SIZE(screen));
     u32 bitmap_width, bitmap_height;
@@ -138,18 +146,18 @@ static int ui_show_text(lua_State* L) {
 
 static int ui_ask_selection(lua_State* L) {
     CheckLuaArgCount(L, 2, "ui.ask_selection");
-    const char* text = lua_tostring(L, 2);
+    const char* text = lua_tostring(L, 1);
     char* options[MAXOPTIONS];
     const char* tmpstr;
     size_t len;
     int i;
     
-    luaL_argcheck(L, lua_istable(L, 1), 1, "table expected");
+    luaL_argcheck(L, lua_istable(L, 2), 2, "table expected");
 
-    lua_Integer opttablesize = luaL_len(L, 1);
-    luaL_argcheck(L, opttablesize <= MAXOPTIONS, 1, "more than " MAXOPTIONS_STR " options given");
+    lua_Integer opttablesize = luaL_len(L, 2);
+    luaL_argcheck(L, opttablesize <= MAXOPTIONS, 2, "more than " MAXOPTIONS_STR " options given");
     for (i = 0; i < opttablesize; i++) {
-        lua_geti(L, 1, i + 1);
+        lua_geti(L, 2, i + 1);
         tmpstr = lua_tolstring(L, -1, &len);
         options[i] = malloc(len + 1);
         strlcpy(options[i], tmpstr, len + 1);
