@@ -4,6 +4,7 @@
 #include "fs.h"
 #include "pxi.h"
 #include "game.h"
+#include "power.h"
 
 static int sys_boot(lua_State* L) {
     CheckLuaArgCount(L, 1, "sys.boot");
@@ -32,8 +33,24 @@ static int sys_boot(lua_State* L) {
     while(1);
 }
 
+static int sys_reboot(lua_State* L) {
+    CheckLuaArgCount(L, 0, "sys.reboot");
+    DeinitExtFS();
+    DeinitSDCardFS();
+    Reboot();
+}
+
+static int sys_power_off(lua_State* L) {
+    CheckLuaArgCount(L, 0, "sys.power_off");
+    DeinitExtFS();
+    DeinitSDCardFS();
+    PowerOff();
+}
+
 static const luaL_Reg sys_lib[] = {
     {"boot", sys_boot},
+    {"reboot", sys_reboot},
+    {"power_off", sys_power_off},
     {NULL, NULL}
 };
 

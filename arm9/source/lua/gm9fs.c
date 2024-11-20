@@ -14,6 +14,21 @@ static void CreateStatTable(lua_State* L, FILINFO* fno) {
     // ... and leave this table on the stack for the caller to deal with
 }
 
+static u32 GetFlagsFromTable(lua_State* L, int pos, u32 flags_ext_starter, u32 allowed_flags) {
+    char types[8][14] = {"no_cancel", "silent", "hash", "sha1", "skip", "overwrite", "append_all", "all"};
+    int types_int[8] = {NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL};
+    u32 flags_ext = flags_ext_starter;
+
+    for (int i = 0; i < 8; i++) {
+        if (!(allowed_flags & types_int[i])) continue;
+        lua_getfield(L, pos, types[i]);
+        if (lua_toboolean(L, -1)) flags_ext |= types_int[i];
+        lua_pop(L, 1);
+    }
+
+    return flags_ext;
+}
+
 static int fs_list_dir(lua_State* L) {
     CheckLuaArgCount(L, 1, "fs.list_dir");
     const char* path = luaL_checkstring(L, 1);
@@ -52,6 +67,44 @@ static int fs_stat(lua_State* L) {
         return luaL_error(L, "could not stat %s (%d)", path, res);
     }
     CreateStatTable(L, &fno);
+    return 1;
+}
+
+static int fs_exists(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.exists");
+    const char* path = luaL_checkstring(L, 1);
+    FILINFO fno;
+
+    FRESULT res = fvx_stat(path, &fno);
+    lua_pushboolean(L, res == FR_OK);
+    return 1;
+}
+
+static int fs_is_dir(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.is_dir");
+    const char* path = luaL_checkstring(L, 1);
+    FILINFO fno;
+
+    FRESULT res = fvx_stat(path, &fno);
+    if (res != FR_OK) {
+        lua_pushboolean(L, false);
+    } else {
+        lua_pushboolean(L, fno.fattrib & AM_DIR);
+    }
+    return 1;
+}
+
+static int fs_is_file(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.is_file");
+    const char* path = luaL_checkstring(L, 1);
+    FILINFO fno;
+
+    FRESULT res = fvx_stat(path, &fno);
+    if (res != FR_OK) {
+        lua_pushboolean(L, false);
+    } else {
+        lua_pushboolean(L, !(fno.fattrib & AM_DIR));
+    }
     return 1;
 }
 
@@ -134,17 +187,42 @@ static int fs_get_img_mount(lua_State* L) {
 }
 
 static int fs_allow(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.img_mount");
+    int extra = CheckLuaArgCountPlusExtra(L, 1, "fs.img_mount");
     const char* path = luaL_checkstring(L, 1);
+    u32 flags = 0;
+    bool allowed;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, 0, ASK_ALL);
+    }
 
-    bool allowed = CheckWritePermissions(path);
+    if (flags & ASK_ALL) {
+        allowed = CheckDirWritePermissions(path);
+    } else {
+        allowed = CheckWritePermissions(path);
+    }
     lua_pushboolean(L, allowed);
     return 1;
 };
 
+static int fs_verify(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.verify");
+    const char* path = luaL_checkstring(L, 1);
+    bool res = true;
+
+    u64 filetype = IdentifyFileType(path);
+    if (filetype & IMG_NAND) res = (ValidateNandDump(path) == 0);
+    else res = (VerifyGameFile(path) == 0);
+
+    lua_pushboolean(L, res);
+    return 1;
+}
+
 static const luaL_Reg fs_lib[] = {
     {"list_dir", fs_list_dir},
     {"stat", fs_stat},
+    {"exists", fs_exists},
+    {"is_dir", fs_is_dir},
+    {"is_file", fs_is_file},
     {"read_file", fs_read_file},
     {"write_file", fs_write_file},
     {"img_mount", fs_img_mount},

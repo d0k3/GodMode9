@@ -140,7 +140,7 @@ static int ui_show_text(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_text");
     const char* text = lua_tostring(L, 1);
 
-    ShowStringF(MAIN_SCREEN, "%s", text);
+    ShowStringF(ALT_SCREEN, "%s", text);
     return 0;
 }
 
