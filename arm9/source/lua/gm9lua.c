@@ -98,6 +98,27 @@ static void loadlibs(lua_State* L) {
     }
 }
 
+static bool RunFile(lua_State* L, const char* file) {
+    int result = LoadLuaFile(L, file);
+    if (result != LUA_OK) {
+        char errstr[BUFSIZ] = {0};
+        strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);
+        WordWrapString(errstr, 0);
+        ShowPrompt(false, "Error during loading:\n%s", errstr);
+        return false;
+    }
+
+    if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK) {
+        char errstr[BUFSIZ] = {0};
+        strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);
+        WordWrapString(errstr, 0);
+        ShowPrompt(false, "Error during execution:\n%s", errstr);
+        return false;
+    }
+
+    return true;
+}
+
 bool ExecuteLuaScript(const char* path_script) {
     lua_State* L = luaL_newstate();
     loadlibs(L);
@@ -111,24 +132,14 @@ bool ExecuteLuaScript(const char* path_script) {
     lua_pushstring(L, path_script);
     lua_setglobal(L, "SCRIPT");
 
-    int result = LoadLuaFile(L, path_script);
-    if (result != LUA_OK) {
-        char errstr[BUFSIZ] = {0};
-        strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);
-        WordWrapString(errstr, 0);
-        ShowPrompt(false, "Error during loading:\n%s", errstr);
+    bool result = RunFile(L, "V:/preload.lua");
+    if (!result) {
+        ShowPrompt(false, "A fatal error happened in GodMode9's preload script.\n\nThis is not an error with your code, but with\nGodMode9. Please report it on GitHub.");
         lua_close(L);
         return false;
     }
 
-    if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK) {
-        char errstr[BUFSIZ] = {0};
-        strlcpy(errstr, lua_tostring(L, -1), BUFSIZ);
-        WordWrapString(errstr, 0);
-        ShowPrompt(false, "Error during execution:\n%s", errstr);
-        lua_close(L);
-        return false;
-    }
+    RunFile(L, path_script);
 
     lua_close(L);
     return true;

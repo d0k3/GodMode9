@@ -25,14 +25,14 @@ static int fs_list_dir(lua_State* L) {
     FRESULT res = fvx_opendir(&dir, path);
     if (res != FR_OK) {
         lua_pop(L, 1); // remove final table from stack
-        return luaL_error(L, "could not opendir %s (%u)", path, res);
+        return luaL_error(L, "could not opendir %s (%d)", path, res);
     }
 
     for (int i = 1; true; i++) {
         res = fvx_readdir(&dir, &fno);
         if (res != FR_OK) {
             lua_pop(L, 1); // remove final table from stack
-            return luaL_error(L, "could not readdir %s (%u)", path, res);
+            return luaL_error(L, "could not readdir %s (%d)", path, res);
         }
         if (fno.fname[0] == 0) break;
         CreateStatTable(L, &fno);
@@ -49,7 +49,7 @@ static int fs_stat(lua_State* L) {
 
     FRESULT res = fvx_stat(path, &fno);
     if (res != FR_OK) {
-        return luaL_error(L, "could not stat %s (%u)", path, res);
+        return luaL_error(L, "could not stat %s (%d)", path, res);
     }
     CreateStatTable(L, &fno);
     return 1;
@@ -69,7 +69,7 @@ static int fs_read_file(lua_State* L) {
     FRESULT res = fvx_qread(path, buf, offset, size, &bytes_read);
     if (res != FR_OK) {
         free(buf);
-        return luaL_error(L, "could not read %s (%u)", path, res);
+        return luaL_error(L, "could not read %s (%d)", path, res);
     }
     lua_pushlstring(L, buf, bytes_read);
     free(buf);
@@ -91,7 +91,7 @@ static int fs_write_file(lua_State* L) {
     UINT bytes_written = 0;
     FRESULT res = fvx_qwrite(path, data, offset, data_length, &bytes_written);
     if (res != FR_OK) {
-        return luaL_error(L, "error writing %s (%u)", path, res);
+        return luaL_error(L, "error writing %s (%d)", path, res);
     }
 
     lua_pushinteger(L, bytes_written);
@@ -133,6 +133,15 @@ static int fs_get_img_mount(lua_State* L) {
     return 1;
 }
 
+static int fs_allow(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.img_mount");
+    const char* path = luaL_checkstring(L, 1);
+
+    bool allowed = CheckWritePermissions(path);
+    lua_pushboolean(L, allowed);
+    return 1;
+};
+
 static const luaL_Reg fs_lib[] = {
     {"list_dir", fs_list_dir},
     {"stat", fs_stat},
@@ -141,6 +150,7 @@ static const luaL_Reg fs_lib[] = {
     {"img_mount", fs_img_mount},
     {"img_umount", fs_img_umount},
     {"get_img_mount", fs_get_img_mount},
+    {"allow", fs_allow},
     {NULL, NULL}
 };
 
