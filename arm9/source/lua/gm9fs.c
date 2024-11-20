@@ -1,5 +1,8 @@
 #ifndef NO_LUA
 #include "gm9fs.h"
+#include "fs.h"
+#include "ui.h"
+#include "utils.h"
 
 static void CreateStatTable(lua_State* L, FILINFO* fno) {
     lua_createtable(L, 0, 4); // create nested table
@@ -67,6 +70,47 @@ static int fs_stat(lua_State* L) {
         return luaL_error(L, "could not stat %s (%d)", path, res);
     }
     CreateStatTable(L, &fno);
+    return 1;
+}
+
+static int fs_stat_fs(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.stat_fs");
+    const char* path = luaL_checkstring(L, 1);
+
+    u64 freespace = GetFreeSpace(path);
+    u64 totalspace = GetTotalSpace(path);
+    u64 usedspace = totalspace - freespace;
+
+    lua_createtable(L, 0, 3);
+    lua_pushinteger(L, freespace);
+    lua_setfield(L, -2, "free");
+    lua_pushinteger(L, totalspace);
+    lua_setfield(L, -2, "total");
+    lua_pushinteger(L, usedspace);
+    lua_setfield(L, -2, "used");
+
+    return 1;
+}
+
+static int fs_dir_info(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.stat_fs");
+    const char* path = luaL_checkstring(L, 1);
+
+    u64 tsize = 0;
+    u32 tdirs = 0;
+    u32 tfiles = 0;
+    if (!DirInfo(path, &tsize, &tdirs, &tfiles)) {
+        return luaL_error(L, "error when running DirInfo");
+    }
+
+    lua_createtable(L, 0, 3);
+    lua_pushinteger(L, tsize);
+    lua_setfield(L, -2, "size");
+    lua_pushinteger(L, tdirs);
+    lua_setfield(L, -2, "dirs");
+    lua_pushinteger(L, tfiles);
+    lua_setfield(L, -2, "files");
+
     return 1;
 }
 
@@ -220,6 +264,8 @@ static int fs_verify(lua_State* L) {
 static const luaL_Reg fs_lib[] = {
     {"list_dir", fs_list_dir},
     {"stat", fs_stat},
+    {"stat_fs", fs_stat_fs},
+    {"dir_info", fs_dir_info},
     {"exists", fs_exists},
     {"is_dir", fs_is_dir},
     {"is_file", fs_is_file},

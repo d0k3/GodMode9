@@ -175,6 +175,17 @@ static int ui_ask_selection(lua_State* L) {
     return 1;
 }
 
+static int ui_format_bytes(lua_State* L) {
+    CheckLuaArgCount(L, 1, "ui.format_bytes");
+    lua_Integer size = luaL_checkinteger(L, 1);
+
+    char bytesstr[32] = { 0 };
+    FormatBytes(bytesstr, (u64)size);
+
+    lua_pushstring(L, bytesstr);
+    return 1;
+}
+
 static int ui_global_print(lua_State* L) {
     //const char* text = lua_tostring(L, 1);
     char buf[OUTPUTMAXCHARSPERLINE] = {0};
@@ -205,6 +216,7 @@ static const luaL_Reg ui_lib[] = {
     {"show_png", ui_show_png},
     {"show_text", ui_show_text},
     {"ask_selection", ui_ask_selection},
+    {"format_bytes", ui_format_bytes},
     {NULL, NULL}
 };
 
