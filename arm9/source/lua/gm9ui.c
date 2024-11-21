@@ -5,7 +5,7 @@
 #define MAXOPTIONS_STR "256"
 
 #define OUTPUTMAXLINES 24
-#define OUTPUTMAXCHARSPERLINE 51 // make sure this includes space for '\0'
+#define OUTPUTMAXCHARSPERLINE 80 // make sure this includes space for '\0'
 
 // this output buffer stuff is especially a test, it needs to take into account newlines and fonts that are not 8x10
 
@@ -122,6 +122,7 @@ static int ui_show_png(lua_State* L) {
             free(bitmap);
             return luaL_error(L, "PNG too large");
         } else {
+            ClearScreen(ALT_SCREEN, COLOR_STD_BG);
             DrawBitmap(
                 screen,        // screen
                 -1,       // x coordinate from argument
@@ -140,7 +141,54 @@ static int ui_show_text(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_text");
     const char* text = lua_tostring(L, 1);
 
+    ClearScreen(ALT_SCREEN, COLOR_STD_BG);
     ShowStringF(ALT_SCREEN, "%s", text);
+    return 0;
+}
+
+static int ui_show_text_viewer(lua_State* L) {
+    CheckLuaArgCount(L, 1, "ui.show_text_viewer");
+    size_t len = 0;
+    const char* text = luaL_tolstring(L, 1, &len);
+
+    // validate text ourselves so we can return a better error
+    // MemTextViewer calls ShowPrompt if it's bad, and i don't want that
+    
+    if (!(ValidateText(text, len))) {
+        return luaL_error(L, "text validation failed");
+    }
+
+    if (!(MemTextViewer(text, len, 1, false))) {
+        return luaL_error(L, "failed to run MemTextViewer");
+    }
+
+    return 0;
+}
+
+static int ui_show_file_text_viewer(lua_State* L) {
+    CheckLuaArgCount(L, 1, "ui.show_file_text_viewer");
+    const char* path = lua_tostring(L, 1);
+
+    // validate text ourselves so we can return a better error
+    // MemTextViewer calls ShowPrompt if it's bad, and i don't want that
+    // and FileTextViewer calls the above function
+    
+    char* text = malloc(STD_BUFFER_SIZE);
+    if (!text) return false;
+
+    u32 flen = FileGetData(path, text, STD_BUFFER_SIZE - 1, 0);
+
+    text[flen] = '\0';
+    u32 len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
+    
+    if (!(ValidateText(text, len))) {
+        return luaL_error(L, "text validation failed");
+    }
+
+    if (!(MemTextViewer(text, len, 1, false))) {
+        return luaL_error(L, "failed to run MemTextViewer");
+    }
+
     return 0;
 }
 
@@ -209,13 +257,15 @@ static int ui_global_print(lua_State* L) {
 
 static const luaL_Reg ui_lib[] = {
     {"echo", ui_echo},
+    {"ask", ui_ask},
     {"ask_hex", ui_ask_hex},
     {"ask_number", ui_ask_number},
     {"ask_text", ui_ask_text},
-    {"ask", ui_ask},
+    {"ask_selection", ui_ask_selection},
     {"show_png", ui_show_png},
     {"show_text", ui_show_text},
-    {"ask_selection", ui_ask_selection},
+    {"show_text_viewer", ui_show_text_viewer},
+    {"show_file_text_viewer", ui_show_file_text_viewer},
     {"format_bytes", ui_format_bytes},
     {NULL, NULL}
 };

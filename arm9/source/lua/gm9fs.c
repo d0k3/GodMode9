@@ -18,11 +18,11 @@ static void CreateStatTable(lua_State* L, FILINFO* fno) {
 }
 
 static u32 GetFlagsFromTable(lua_State* L, int pos, u32 flags_ext_starter, u32 allowed_flags) {
-    char types[8][14] = {"no_cancel", "silent", "hash", "sha1", "skip", "overwrite", "append_all", "all"};
-    int types_int[8] = {NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL};
+    char types[FLAGS_COUNT][14] = { FLAGS_STR };
+    int types_int[FLAGS_COUNT] = { FLAGS_CONSTS };
     u32 flags_ext = flags_ext_starter;
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < FLAGS_COUNT; i++) {
         if (!(allowed_flags & types_int[i])) continue;
         lua_getfield(L, pos, types[i]);
         if (lua_toboolean(L, -1)) flags_ext |= types_int[i];
@@ -195,6 +195,41 @@ static int fs_write_file(lua_State* L) {
     return 1;
 }
 
+static int fs_truncate(lua_State* L) {
+    CheckLuaArgCount(L, 2, "fs.write_file");
+    const char* path = luaL_checkstring(L, 1);
+    lua_Integer size = luaL_checkinteger(L, 2);
+    FIL fp;
+    FRESULT res;
+
+    res = f_open(&fp, path, FA_READ | FA_WRITE);
+    if (res != FR_OK) {
+        return luaL_error(L, "failed to open %s (note: this only works on FAT filesystems, not virtual)", path);
+    }
+
+    // this check is *after* opening so the error happens on virtual filesystems sooner
+    bool allowed = CheckWritePermissions(path);
+    if (!allowed) {
+        f_close(&fp);
+        return luaL_error(L, "writing not allowed: %s", path);
+    }
+
+    res = f_lseek(&fp, size);
+    if (res != FR_OK) {
+        f_close(&fp);
+        return luaL_error(L, "failed to seek on %s", path);
+    }
+
+    res = f_truncate(&fp);
+    if (res != FR_OK) {
+        f_close(&fp);
+        return luaL_error(L, "failed to truncate %s", path);
+    }
+
+    f_close(&fp);
+    return 0;
+}
+
 static int fs_img_mount(lua_State* L) {
     CheckLuaArgCount(L, 1, "fs.img_mount");
     const char* path = luaL_checkstring(L, 1);
@@ -230,8 +265,47 @@ static int fs_get_img_mount(lua_State* L) {
     return 1;
 }
 
+static int fs_hash_file(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 3, "fs.hash_file");
+    const char* path = luaL_checkstring(L, 1);
+    lua_Integer offset = luaL_checkinteger(L, 2);
+    lua_Integer size = luaL_checkinteger(L, 3);
+    FRESULT res;
+    FILINFO fno;
+
+    u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
+    u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
+
+    if (size == 0) {
+        res = fvx_stat(path, &fno);
+        if (res != FR_OK) {
+            return luaL_error(L, "failed to stat %s", path);
+        }
+
+        size = fno.fsize;
+    }
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 4, flags, USE_SHA1);
+    }
+
+    const u8 hashlen = (flags & USE_SHA1) ? 20 : 32;
+    u8 hash_fil[0x20];
+
+    if (size == 0) {
+        // shortcut by just returning the hash of empty data
+        memcpy(hash_fil, (flags & USE_SHA1) ? no_data_hash_1 : no_data_hash_256, hashlen);
+    } else if (!(FileGetSha(path, hash_fil, offset, size, (flags & USE_SHA1)))) {
+        return luaL_error(L, "FileGetSha failed on %s", path);
+    }
+
+    lua_pushlstring(L, (char*)hash_fil, hashlen);
+    return 1;
+}
+
 static int fs_allow(lua_State* L) {
-    int extra = CheckLuaArgCountPlusExtra(L, 1, "fs.img_mount");
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.img_mount");
     const char* path = luaL_checkstring(L, 1);
     u32 flags = 0;
     bool allowed;
@@ -271,9 +345,11 @@ static const luaL_Reg fs_lib[] = {
     {"is_file", fs_is_file},
     {"read_file", fs_read_file},
     {"write_file", fs_write_file},
+    {"truncate", fs_truncate},
     {"img_mount", fs_img_mount},
     {"img_umount", fs_img_umount},
     {"get_img_mount", fs_get_img_mount},
+    {"hash_file", fs_hash_file},
     {"allow", fs_allow},
     {NULL, NULL}
 };

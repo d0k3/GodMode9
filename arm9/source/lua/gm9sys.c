@@ -38,6 +38,7 @@ static int sys_reboot(lua_State* L) {
     DeinitExtFS();
     DeinitSDCardFS();
     Reboot();
+    return 0;
 }
 
 static int sys_power_off(lua_State* L) {
@@ -45,6 +46,7 @@ static int sys_power_off(lua_State* L) {
     DeinitExtFS();
     DeinitSDCardFS();
     PowerOff();
+    return 0;
 }
 
 static const luaL_Reg sys_lib[] = {
