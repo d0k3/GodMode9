@@ -1,6 +1,8 @@
 -- This module has not been fully tested against Lua's built-in module.
 -- Functionality might be incorrect.
 
+-- TODO: set up __gc in files so they can clean up properly
+
 local io = {}
 
 local file = {}
@@ -38,7 +40,7 @@ function file.new(filename, mode)
         allowed = fs.allow(filename)
         debugf("allowed:", allowed)
         if not allowed then return nil end
-        success, stat = fs.stat(filename)
+        success, stat = pcall(fs.stat, filename)
         debugf("stat success:", success)
         if success then
             debugf("type:", stat.type)
@@ -49,6 +51,8 @@ function file.new(filename, mode)
             of._stat = {}
             of._size = 0
         end
+    elseif string.find(mode, "a") then
+        error("append mode is not yet functional")
     else
         debugf("opening", filename, "for reading")
         -- check if file exists first
@@ -131,7 +135,9 @@ function file:write(...)
         to_write = to_write..tostring(v)
     end
     local len = string.len(to_write)
+    debugf("attempting to write "..tostring(len).." bytes to "..self._filename)
     local br = fs.write_file(self._filename, self._seek, to_write)
+    debugf("wrote "..tostring(br).." bytes to "..self._filename)
     self._seek = self._seek + br
     if self._seek > self._size then
         self._size = self._seek
