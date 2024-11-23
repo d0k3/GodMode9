@@ -4,6 +4,9 @@
 #include "ui.h"
 #include "utils.h"
 #include "sha.h"
+#include "nand.h"
+#include "language.h"
+#include "hid.h"
 
 static u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
 static u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
@@ -183,6 +186,18 @@ static int fs_stat(lua_State* L) {
     }
     CreateStatTable(L, &fno);
     return 1;
+}
+
+static int fs_fix_cmacs(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.fix_cmacs");
+    const char* path = luaL_checkstring(L, 1);
+
+    ShowString("%s", STR_FIXING_CMACS_PLEASE_WAIT);
+    if (RecursiveFixFileCmac(path) != 0) {
+        return luaL_error(L, "%s", STR_SCRIPTERR_FIXCMAC_FAILED);
+    }
+
+    return 0;
 }
 
 static int fs_stat_fs(lua_State* L) {
@@ -451,7 +466,7 @@ static int fs_allow(lua_State* L) {
 static int fs_verify(lua_State* L) {
     CheckLuaArgCount(L, 1, "fs.verify");
     const char* path = luaL_checkstring(L, 1);
-    bool res = true;
+    bool res;
 
     u64 filetype = IdentifyFileType(path);
     if (filetype & IMG_NAND) res = (ValidateNandDump(path) == 0);
@@ -459,6 +474,49 @@ static int fs_verify(lua_State* L) {
 
     lua_pushboolean(L, res);
     return 1;
+}
+
+static int fs_sd_is_mounted(lua_State* L) {
+    CheckLuaArgCount(L, 0, "fs.sd_is_mounted");
+
+    lua_pushboolean(L, CheckSDMountState());
+    return 1;
+}
+
+static int fs_sd_switch(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 0, "fs.sd_switch");
+    const char* message;
+
+    if (extra) {
+        message = luaL_checkstring(L, 1);
+    } else {
+        message = "Please switch the SD card now.";
+    }
+
+    bool ret;
+
+    DeinitExtFS();
+    if (!(ret = CheckSDMountState())) {
+        return luaL_error(L, "%s", STR_SCRIPTERR_SD_NOT_MOUNTED);
+    }
+
+    u32 pad_state;
+    DeinitSDCardFS();
+    ShowString("%s\n \n%s", message, STR_EJECT_SD_CARD);
+    while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_EJECT)));
+    if (pad_state & SD_EJECT) {
+        ShowString("%s\n \n%s", message, STR_INSERT_SD_CARD);
+        while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_INSERT)));
+    }
+    if (pad_state & BUTTON_B) {
+        return luaL_error(L, "%s", STR_SCRIPTERR_USER_ABORT);
+    }
+
+    InitSDCardFS();
+    AutoEmuNandBase(true);
+    InitExtFS();
+
+    return 0;
 }
 
 static const luaL_Reg fs_lib[] = {
@@ -481,7 +539,11 @@ static const luaL_Reg fs_lib[] = {
     {"get_img_mount", fs_get_img_mount},
     {"hash_file", fs_hash_file},
     {"hash_data", fs_hash_data},
+    {"verify", fs_verify},
     {"allow", fs_allow},
+    {"sd_is_mounted", fs_sd_is_mounted},
+    {"sd_switch", fs_sd_switch},
+    {"fix_cmacs", fs_fix_cmacs},
     {NULL, NULL}
 };
 
