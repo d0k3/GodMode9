@@ -3,6 +3,20 @@
 #include "fs.h"
 #include "ui.h"
 #include "utils.h"
+#include "sha.h"
+
+static u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
+static u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
+
+static bool PathIsDirectory(const char* path) {
+    DIR fdir;
+    if (fvx_opendir(&fdir, path) == FR_OK) {
+        fvx_closedir(&fdir);
+        return true;
+    } else {
+        return false;
+    }
+}
 
 static void CreateStatTable(lua_State* L, FILINFO* fno) {
     lua_createtable(L, 0, 4); // create nested table
@@ -30,6 +44,104 @@ static u32 GetFlagsFromTable(lua_State* L, int pos, u32 flags_ext_starter, u32 a
     }
 
     return flags_ext;
+}
+
+static int fs_move(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "fs.rename");
+    const char* path_src = luaL_checkstring(L, 1);
+    const char* path_dst = luaL_checkstring(L, 2);
+    FILINFO fno;
+
+    u32 flags = BUILD_PATH;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 3, flags, NO_CANCEL | SILENT | OVERWRITE_ALL | SKIP_ALL);
+    }
+
+    if (!(flags & OVERWRITE_ALL) && (fvx_stat(path_dst, &fno) == FR_OK)) {
+        return luaL_error(L, "destination already exists on %s -> %s and {overwrite_all=true} was not used", path_src, path_dst);
+    }
+
+    if (!(PathMoveCopy(path_dst, path_src, &flags, true))) {
+        return luaL_error(L, "PathMoveCopy failed on %s -> %s", path_src, path_dst);
+    }
+    return 0;
+}
+
+static int fs_remove(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.remove");
+    const char* path = luaL_checkstring(L, 1);
+
+    bool allowed = CheckWritePermissions(path);
+    if (!allowed) {
+        return luaL_error(L, "writing not allowed: %s", path);
+    }
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, RECURSIVE);
+    }
+
+    if (!(flags & RECURSIVE)) {
+        if (PathIsDirectory(path)) {
+            return luaL_error(L, "requested directory remove without {recursive=true} on %s", path);
+        }
+    }
+
+    if (!(PathDelete(path))) {
+        return luaL_error(L, "PathDelete failed on %s", path);
+    }
+    
+    return 0;
+}
+
+static int fs_copy(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "fs.copy");
+    const char* path_src = luaL_checkstring(L, 1);
+    const char* path_dst = luaL_checkstring(L, 2);
+    FILINFO fno;
+
+    bool allowed = CheckWritePermissions(path_dst);
+    if (!allowed) {
+        return luaL_error(L, "writing not allowed: %s", path_dst);
+    }
+
+    u32 flags = BUILD_PATH;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 3, flags, CALC_SHA | USE_SHA1 | NO_CANCEL | SILENT | OVERWRITE_ALL | SKIP_ALL | APPEND_ALL | RECURSIVE);
+    }
+
+    if (!(flags & RECURSIVE)) {
+        if (PathIsDirectory(path_src)) {
+            return luaL_error(L, "requested directory copy without {recursive=true} on %s -> %s", path_src, path_dst);
+        }
+    }
+
+    if (!(flags & OVERWRITE_ALL) && (fvx_stat(path_dst, &fno) == FR_OK)) {
+        return luaL_error(L, "destination already exists on %s -> %s and {overwrite_all=true} was not used", path_src, path_dst);
+    }
+
+    if (!(PathMoveCopy(path_dst, path_src, &flags, false))) {
+        return luaL_error(L, "PathMoveCopy failed on %s -> %s", path_src, path_dst);
+    }
+
+    return 0;
+}
+
+static int fs_mkdir(lua_State* L) {
+    CheckLuaArgCount(L, 1, "fs.mkdir");
+    const char* path = luaL_checkstring(L, 1);
+
+    bool allowed = CheckWritePermissions(path);
+    if (!allowed) {
+        return luaL_error(L, "writing not allowed: %s", path);
+    }
+
+    FRESULT res = fvx_rmkdir(path);
+    if (res != FR_OK) {
+        return luaL_error(L, "could not mkdir (%d)", path, res);
+    }
+
+    return 0;
 }
 
 static int fs_list_dir(lua_State* L) {
@@ -119,22 +231,15 @@ static int fs_exists(lua_State* L) {
     const char* path = luaL_checkstring(L, 1);
     FILINFO fno;
 
-    FRESULT res = fvx_stat(path, &fno);
-    lua_pushboolean(L, res == FR_OK);
+    lua_pushboolean(L, (fvx_stat(path, &fno) == FR_OK));
     return 1;
 }
 
 static int fs_is_dir(lua_State* L) {
     CheckLuaArgCount(L, 1, "fs.is_dir");
     const char* path = luaL_checkstring(L, 1);
-    FILINFO fno;
 
-    FRESULT res = fvx_stat(path, &fno);
-    if (res != FR_OK) {
-        lua_pushboolean(L, false);
-    } else {
-        lua_pushboolean(L, fno.fattrib & AM_DIR);
-    }
+    lua_pushboolean(L, PathIsDirectory(path));
     return 1;
 }
 
@@ -273,9 +378,6 @@ static int fs_hash_file(lua_State* L) {
     FRESULT res;
     FILINFO fno;
 
-    u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
-    u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
-
     if (size == 0) {
         res = fvx_stat(path, &fno);
         if (res != FR_OK) {
@@ -298,6 +400,30 @@ static int fs_hash_file(lua_State* L) {
         memcpy(hash_fil, (flags & USE_SHA1) ? no_data_hash_1 : no_data_hash_256, hashlen);
     } else if (!(FileGetSha(path, hash_fil, offset, size, (flags & USE_SHA1)))) {
         return luaL_error(L, "FileGetSha failed on %s", path);
+    }
+
+    lua_pushlstring(L, (char*)hash_fil, hashlen);
+    return 1;
+}
+
+static int fs_hash_data(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.hash_data");
+    size_t data_length = 0;
+    const char* data = luaL_checklstring(L, 1, &data_length);
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, USE_SHA1);
+    }
+
+    const u8 hashlen = (flags & USE_SHA1) ? 20 : 32;
+    u8 hash_fil[0x20];
+
+    if (data_length == 0) {
+        // shortcut by just returning the hash of empty data
+        memcpy(hash_fil, (flags & USE_SHA1) ? no_data_hash_1 : no_data_hash_256, hashlen);
+    } else {
+        sha_quick(hash_fil, data, data_length, (flags & USE_SHA1) ? SHA1_MODE : SHA256_MODE);
     }
 
     lua_pushlstring(L, (char*)hash_fil, hashlen);
@@ -336,6 +462,10 @@ static int fs_verify(lua_State* L) {
 }
 
 static const luaL_Reg fs_lib[] = {
+    {"move", fs_move},
+    {"remove", fs_remove},
+    {"copy", fs_copy},
+    {"mkdir", fs_mkdir},
     {"list_dir", fs_list_dir},
     {"stat", fs_stat},
     {"stat_fs", fs_stat_fs},
@@ -350,6 +480,7 @@ static const luaL_Reg fs_lib[] = {
     {"img_umount", fs_img_umount},
     {"get_img_mount", fs_get_img_mount},
     {"hash_file", fs_hash_file},
+    {"hash_data", fs_hash_data},
     {"allow", fs_allow},
     {NULL, NULL}
 };
