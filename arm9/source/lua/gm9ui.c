@@ -142,7 +142,7 @@ static int ui_show_text(lua_State* L) {
     const char* text = lua_tostring(L, 1);
 
     ClearScreen(ALT_SCREEN, COLOR_STD_BG);
-    ShowStringF(ALT_SCREEN, "%s", text);
+    DrawStringCenter(ALT_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", text);
     return 0;
 }
 
