@@ -23,6 +23,10 @@ ifeq ($(NTRBOOT),1)
 	VRAM_SCRIPTS := resources/gm9/scripts
 endif
 
+# Definitions for translation files
+SOURCE_JSON  := resources/languages/source.json
+LANGUAGE_INL := arm9/source/language.inl
+
 ifeq ($(OS),Windows_NT)
 	ifeq ($(TERM),cygwin)
 		PY3 := py -3 # Windows / CMD/PowerShell
@@ -51,7 +55,7 @@ clean:
 	@set -e; for elf in $(ELF); do \
 	    $(MAKE) --no-print-directory -C $$(dirname $$elf) clean; \
 	done
-	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR)
+	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR) $(LANGUAGE_INL)
 
 unmarked_readme: .FORCE
 	@$(PY3) utils/unmark.py -f README.md data/README_internal.md
@@ -85,11 +89,15 @@ $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 	@echo "Creating $@"
 	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell find $^ -type f)
 
+$(LANGUAGE_INL): $(SOURCE_JSON)
+	@echo "Creating $@"
+	@$(PY3) utils/transcp.py $< $@
+
 %.elf: .FORCE
 	@echo "Building $@"
 	@$(MAKE) --no-print-directory -C $(@D)
 
-arm9/arm9.elf: $(VRAM_TAR)
+arm9/arm9.elf: $(VRAM_TAR) $(LANGUAGE_INL)
 
 firm: $(ELF)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
