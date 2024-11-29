@@ -3,24 +3,23 @@
 from argparse import ArgumentParser, FileType
 import json
 
-# This is to be incremented every time the order changes
-# New strings added to the end will not cause issues
-TRANSLATION_VER = 1
-
-# This is the language name key in the JSON, which is to be deleted
+# Special keys
 LANGUAGE_NAME = "GM9_LANGUAGE"
+VERSION = "GM9_TRANS_VER"
 
 parser = ArgumentParser(description="Creates the language.inl file from source.json")
 parser.add_argument("source", type=FileType("r"), help="source.json")
 parser.add_argument("inl", type=FileType("w"), help="language.inl")
 args = parser.parse_args()
 
-# Load the JSON and remove the language name
+# Load the JSON and handle the meta values
 source = json.load(args.source)
+version = source[VERSION]
+del source[VERSION]
 del source[LANGUAGE_NAME]
 
 # Create the header file
-args.inl.write("#define TRANSLATION_VER %d\n\n" % TRANSLATION_VER)
+args.inl.write("#define TRANSLATION_VER %d\n\n" % version)
 for key in source:
     # Escape \r, \n, and quotes
     val = source[key].replace("\r", "\\r").replace("\n", "\\n").replace('"', '\\"')

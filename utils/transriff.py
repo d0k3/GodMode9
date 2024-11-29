@@ -10,7 +10,9 @@ import struct
 import sys
 
 
+# Special keys
 LANGUAGE_NAME = "GM9_LANGUAGE"
+VERSION = "GM9_TRANS_VER"
 
 
 def ceil_to_multiple(num: int, base: int) -> int:
@@ -43,7 +45,25 @@ def get_language(data: dict) -> bytes:
     try:
         return data[LANGUAGE_NAME].encode("utf-8")
     except KeyError as exception:
-        raise ValueError("invalid language data") from exception
+        raise ValueError("missing language name") from exception
+
+def get_version(data: dict) -> int:
+    """
+    Get translation version from JSON data.
+
+    Args:
+        data: JSON translation data.
+
+    Returns:
+        The translation's version.
+
+    Raises:
+        ValueError: If no version exists.
+    """
+    try:
+        return data[VERSION]
+    except KeyError as exception:
+        raise ValueError("missing verison number") from exception
 
 
 def load_translations(data: dict) -> dict[str, bytearray]:
@@ -59,7 +79,7 @@ def load_translations(data: dict) -> dict[str, bytearray]:
     return {
             key: bytearray(value, "utf-8") + b"\0"
             for key, value in data.items()
-            if key != LANGUAGE_NAME
+            if key not in (LANGUAGE_NAME, VERSION)
     }
 
 
@@ -119,19 +139,19 @@ def strings_to_trf(mapping: dict[str, bytearray], version: int, language: str) -
     return trfdata
 
 
-def main(source: pathlib.Path, dest: pathlib.Path, version: int) -> None:
+def main(source: pathlib.Path, dest: pathlib.Path) -> None:
     """
     Entrypoint of transriff.
 
     Args:
         source: JSON to convert from.
         dest: TRF file to write.
-        version: Translation version.
     """
     data = json.loads(source.read_text())
 
     try:
         language = get_language(data)
+        version = get_version(data)
     except ValueError as exception:
         sys.exit(f"Fatal: {exception}.")
     mapping = load_translations(data)
@@ -157,12 +177,7 @@ if __name__ == "__main__":
             type=pathlib.Path,
             help="TRF file to write"
     )
-    parser.add_argument(
-            "version",
-            type=int,
-            help="translation version, from language.yml"
-    )
 
     args = parser.parse_args()
 
-    main(args.source, args.dest, args.version)
+    main(args.source, args.dest)

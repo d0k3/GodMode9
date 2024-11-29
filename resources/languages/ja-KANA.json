@@ -1,5 +1,6 @@
 {
 	"GM9_LANGUAGE": "にほんご",
+	"GM9_TRANS_VER": 1,
 	"DATE_TIME_FORMAT": "%1$s%2$02lXねん%3$02lXがつ%4$02lXにち %5$02lX:%6$02lX",
 	"DECIMAL_SEPARATOR": ".",
 	"THOUSAND_SEPARATOR": ",",
