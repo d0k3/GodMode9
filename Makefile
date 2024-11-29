@@ -24,8 +24,14 @@ ifeq ($(NTRBOOT),1)
 endif
 
 # Definitions for translation files
-SOURCE_JSON  := resources/languages/source.json
-LANGUAGE_INL := arm9/source/language.inl
+JSON_FOLDER    := resources/languages
+TRF_FOLDER     := resources/gm9/languages
+
+SOURCE_JSON    := $(JSON_FOLDER)/source.json
+LANGUAGE_INL   := arm9/source/language.inl
+
+JSON_FILES     := $(filter-out $(SOURCE_JSON),$(wildcard $(JSON_FOLDER)/*.json))
+TRF_FILES      := $(subst $(JSON_FOLDER),$(TRF_FOLDER),$(JSON_FILES:.json=.trf))
 
 ifeq ($(OS),Windows_NT)
 	ifeq ($(TERM),cygwin)
@@ -55,7 +61,7 @@ clean:
 	@set -e; for elf in $(ELF); do \
 	    $(MAKE) --no-print-directory -C $$(dirname $$elf) clean; \
 	done
-	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR) $(LANGUAGE_INL)
+	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR) $(LANGUAGE_INL) $(TRF_FILES)
 
 unmarked_readme: .FORCE
 	@$(PY3) utils/unmark.py -f README.md data/README_internal.md
@@ -93,13 +99,16 @@ $(LANGUAGE_INL): $(SOURCE_JSON)
 	@echo "Creating $@"
 	@$(PY3) utils/transcp.py $< $@
 
+$(TRF_FOLDER)/%.trf: $(JSON_FOLDER)/%.json
+	@$(PY3) utils/transriff.py $< $@
+
 %.elf: .FORCE
 	@echo "Building $@"
 	@$(MAKE) --no-print-directory -C $(@D)
 
 arm9/arm9.elf: $(VRAM_TAR) $(LANGUAGE_INL)
 
-firm: $(ELF)
+firm: $(ELF) $(TRF_FILES)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"

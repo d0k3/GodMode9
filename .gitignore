@@ -50,3 +50,4 @@ desktop.ini
 # User additions
 /zzz_backup
 /arm9/source/language.inl
+*.trf
