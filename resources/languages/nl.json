@@ -1,5 +1,6 @@
 {
 	"GM9_LANGUAGE": "Nederlands",
+	"GM9_TRANS_VER": 1,
 	"DATE_TIME_FORMAT": "%4$02lX-%3$02lX-%1$s%2$02lX %5$02lX:%6$02lX",
 	"DECIMAL_SEPARATOR": ",",
 	"THOUSAND_SEPARATOR": ".",

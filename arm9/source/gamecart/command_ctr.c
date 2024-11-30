@@ -27,7 +27,7 @@ void CTR_CmdReadData(u32 sector, u32 length, u32 blocks, void* buffer)
         (u32)((sector << 9) & 0xFFFFFFFF),
         0x00000000, 0x00000000
     };
-    CTR_SendCommand(read_cmd, length, blocks, 0x704822C, buffer);
+    CTR_SendCommand(read_cmd, length, blocks, 0x104822C, buffer); // Clock divider 5 (13.4 MHz). Same as Process9.
 }
 
 void CTR_CmdReadHeader(void* buffer)

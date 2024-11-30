@@ -434,7 +434,7 @@ u32 SdFormatMenu(const char* slabel) {
     u32 cluster_size = 0;
     u64 sdcard_size_mb = 0;
     u64 emunand_size_mb = (u64) -1;
-    u32 user_select;
+    u32 user_select = 0;
 
     // check actual SD card size
     sdcard_size_mb = GetSDCardSize() / 0x100000;
@@ -471,18 +471,24 @@ u32 SdFormatMenu(const char* slabel) {
     if (emunand_size_mb >= sysnand_min_size_mb) {
         u32 emunand_offset = 1;
         u32 n_emunands = 1;
-        if (emunand_size_mb >= 2 * sysnand_size_mb) {
-            const char* option_emunand_type[4] = { STR_REDNAND_TYPE_MULTI, STR_REDNAND_TYPE_SINGLE, STR_GW_EMUNAND_TYPE, STR_DONT_SET_UP };
-            user_select = ShowSelectPrompt(4, option_emunand_type, "%s", STR_CHOOSE_EMUNAND_TYPE);
-            if (user_select > 3) return 0;
-            emunand_offset = (user_select == 3) ? 0 : 1;
+        if (emunand_size_mb >= 2 * sysnand_multi_size_mb) { /* space can fit single/multi RedNAND or GW type */
+            const char* option_emunand_type[4] = { STR_REDNAND_TYPE_MULTI, STR_REDNAND_TYPE_SINGLE, STR_DONT_SET_UP, 0 };
+            u32 n_opt = 3;
+            if (emunand_size_mb >= sysnand_size_mb) {
+                option_emunand_type[2] = STR_GW_EMUNAND_TYPE;
+                option_emunand_type[3] = STR_DONT_SET_UP;
+                n_opt++;
+            }
+            user_select = ShowSelectPrompt(n_opt, option_emunand_type, "%s", STR_CHOOSE_EMUNAND_TYPE);
+            if (user_select == n_opt) return 0;
+            emunand_offset = (n_opt == 4 && user_select == 3) ? 0 : 1;
             if (user_select == 1) n_emunands = 4;
-        } else if (emunand_size_mb >= sysnand_size_mb) {
+        } else if (emunand_size_mb >= sysnand_size_mb) { /* space can fit single RedNAND or GW type, but not multi RedNAND */
             const char* option_emunand_type[3] = { STR_REDNAND_TYPE, STR_GW_EMUNAND_TYPE, STR_DONT_SET_UP };
             user_select = ShowSelectPrompt(3, option_emunand_type, "%s", STR_CHOOSE_EMUNAND_TYPE);
             if (user_select > 2) return 0;
             emunand_offset = (user_select == 2) ? 0 : 1; // 0 -> GW EmuNAND
-        } else user_select = ShowPrompt(true, "%s", STR_CLONE_SYSNAND_TO_REDNAND) ? 1 : 0;
+        } else user_select = ShowPrompt(true, "%s", STR_CLONE_SYSNAND_TO_REDNAND) ? 1 : 0; /* space can only fit a single RedNAND */
         if (!user_select) return 0;
 
         u8 ncsd[0x200];
@@ -2539,6 +2545,9 @@ u32 GodMode(int entrypoint) {
     if (bootloader) {
         const char* bootfirm_paths[] = { BOOTFIRM_PATHS };
         if (IsBootableFirm(firm_in_mem, FIRM_MAX_SIZE)) {
+            DeinitExtFS();
+            DeinitSDCardFS();
+            PXI_DoCMD(PXICMD_LEGACY_BOOT, NULL, 0);
             PXI_Barrier(PXI_FIRMLAUNCH_BARRIER);
             BootFirm(firm_in_mem, "sdmc:/bootonce.firm");
         }
