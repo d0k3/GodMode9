@@ -1,5 +1,6 @@
 {
 	"GM9_LANGUAGE": "日本語",
+	"GM9_TRANS_VER": 1,
 	"DATE_TIME_FORMAT": "%1$s%2$02lX年%3$02lX月%4$02lX日 %5$02lX:%6$02lX",
 	"DECIMAL_SEPARATOR": ".",
 	"THOUSAND_SEPARATOR": ",",
