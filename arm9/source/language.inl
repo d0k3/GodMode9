@@ -1,5 +1,3 @@
-// This is to be incremented every time the order changes
-// New strings added to the end will not cause issues
 #define TRANSLATION_VER 1
 
 STRING(DATE_TIME_FORMAT, "%1$s%2$02lX-%3$02lX-%4$02lX %5$02lX:%6$02lX")

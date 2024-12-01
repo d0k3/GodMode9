@@ -23,6 +23,16 @@ ifeq ($(NTRBOOT),1)
 	VRAM_SCRIPTS := resources/gm9/scripts/*
 endif
 
+# Definitions for translation files
+JSON_FOLDER    := resources/languages
+TRF_FOLDER     := resources/gm9/languages
+
+SOURCE_JSON    := $(JSON_FOLDER)/source.json
+LANGUAGE_INL   := arm9/source/language.inl
+
+JSON_FILES     := $(filter-out $(SOURCE_JSON),$(wildcard $(JSON_FOLDER)/*.json))
+TRF_FILES      := $(subst $(JSON_FOLDER),$(TRF_FOLDER),$(JSON_FILES:.json=.trf))
+
 ifeq ($(OS),Windows_NT)
 	ifeq ($(TERM),cygwin)
 		PY3 := py -3 # Windows / CMD/PowerShell
@@ -51,7 +61,7 @@ clean:
 	@set -e; for elf in $(ELF); do \
 	    $(MAKE) --no-print-directory -C $$(dirname $$elf) clean; \
 	done
-	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR)
+	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR) $(LANGUAGE_INL) $(TRF_FILES)
 
 unmarked_readme: .FORCE
 	@$(PY3) utils/unmark.py -f README.md data/README_internal.md
@@ -85,17 +95,24 @@ $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 	@echo "Creating $@"
 	$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell ls -d -1 $^)
 
+$(LANGUAGE_INL): $(SOURCE_JSON)
+	@echo "Creating $@"
+	@$(PY3) utils/transcp.py $< $@
+
+$(TRF_FOLDER)/%.trf: $(JSON_FOLDER)/%.json
+	@$(PY3) utils/transriff.py $< $@
+
 %.elf: .FORCE
 	@echo "Building $@"
 	@$(MAKE) --no-print-directory -C $(@D) $(@F)
 
 # Indicate a few explicit dependencies:
 # The ARM9 data section depends on the VRAM drive
-arm9/arm9_data.elf: $(VRAM_TAR)
+arm9/arm9_data.elf: $(VRAM_TAR) $(LANGUAGE_INL)
 # And the code section depends on the data section being built already
 arm9/arm9_code.elf: arm9/arm9_data.elf
 
-firm: $(ELF)
+firm: $(ELF) $(TRF_FILES)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"

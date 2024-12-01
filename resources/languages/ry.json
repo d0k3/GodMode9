@@ -1,5 +1,6 @@
 {
 	"GM9_LANGUAGE": "琉球諸語（うちなーぐちー）",
+	"GM9_TRANS_VER": 1,
 	"DATE_TIME_FORMAT": "%1$s%2$02lXとぅし%3$02lXちち%4$02lX日 %5$02lX:%6$02lX",
 	"DECIMAL_SEPARATOR": ".",
 	"THOUSAND_SEPARATOR": ",",
