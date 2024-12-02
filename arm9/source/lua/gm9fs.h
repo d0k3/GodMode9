@@ -3,13 +3,6 @@
 
 #define GM9LUA_FSLIBNAME "fs"
 
-// this should probably go in filesys/fsutil.h
-#define RECURSIVE       (1UL<<11)
-
-#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite_all", "append_all", "all", "recursive"
-#define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE
-#define FLAGS_COUNT     9
-
 #define SHA256_EMPTY_HASH \
     0xE3, 0xB0, 0xC4, 0x42, \
     0x98, 0xFC, 0x1C, 0x14, \

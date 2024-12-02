@@ -34,21 +34,6 @@ static void CreateStatTable(lua_State* L, FILINFO* fno) {
     // ... and leave this table on the stack for the caller to deal with
 }
 
-static u32 GetFlagsFromTable(lua_State* L, int pos, u32 flags_ext_starter, u32 allowed_flags) {
-    char types[FLAGS_COUNT][14] = { FLAGS_STR };
-    int types_int[FLAGS_COUNT] = { FLAGS_CONSTS };
-    u32 flags_ext = flags_ext_starter;
-
-    for (int i = 0; i < FLAGS_COUNT; i++) {
-        if (!(allowed_flags & types_int[i])) continue;
-        lua_getfield(L, pos, types[i]);
-        if (lua_toboolean(L, -1)) flags_ext |= types_int[i];
-        lua_pop(L, 1);
-    }
-
-    return flags_ext;
-}
-
 static int fs_move(lua_State* L) {
     bool extra = CheckLuaArgCountPlusExtra(L, 2, "fs.rename");
     const char* path_src = luaL_checkstring(L, 1);

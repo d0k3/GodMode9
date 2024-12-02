@@ -13,6 +13,7 @@
 #include "gm9os.h"
 #include "gm9internalsys.h"
 #include "gm9ui.h"
+#include "gm9title.h"
 
 #define DEBUGSP(x) ShowPrompt(false, (x))
 // this is taken from scripting.c
@@ -69,6 +70,27 @@ int LoadLuaFile(lua_State* L, const char* filename) {
     return status;
 }
 
+u32 GetFlagsFromTable(lua_State* L, int pos, u32 flags_ext_starter, u32 allowed_flags) {
+    char types[FLAGS_COUNT][14] = { FLAGS_STR };
+    int types_int[FLAGS_COUNT] = { FLAGS_CONSTS };
+    u32 flags_ext = flags_ext_starter;
+
+    for (int i = 0; i < FLAGS_COUNT; i++) {
+        if (!(allowed_flags & types_int[i])) continue;
+        lua_getfield(L, pos, types[i]);
+        if (lua_toboolean(L, -1)) flags_ext |= types_int[i];
+        lua_pop(L, 1);
+    }
+
+    return flags_ext;
+}
+
+void CheckWritePermissionsLuaError(lua_State* L, const char* path) {
+    if (!CheckWritePermissions(path)) {
+        luaL_error(L, "writing not allowed: %s", path);
+    }
+}
+
 static const luaL_Reg gm9lualibs[] = {
     // enum is special so we load it first
     {GM9LUA_ENUMLIBNAME, gm9lua_open_Enum},
@@ -78,8 +100,6 @@ static const luaL_Reg gm9lualibs[] = {
     {LUA_LOADLIBNAME, luaopen_package},
     {LUA_COLIBNAME, luaopen_coroutine},
     {LUA_TABLIBNAME, luaopen_table},
-    //{LUA_IOLIBNAME, luaopen_io},
-    //{LUA_OSLIBNAME, luaopen_os},
     {LUA_STRLIBNAME, luaopen_string},
     {LUA_MATHLIBNAME, luaopen_math},
     {LUA_UTF8LIBNAME, luaopen_utf8},
@@ -89,6 +109,7 @@ static const luaL_Reg gm9lualibs[] = {
     {GM9LUA_FSLIBNAME, gm9lua_open_fs},
     {GM9LUA_OSLIBNAME, gm9lua_open_os},
     {GM9LUA_UILIBNAME, gm9lua_open_ui},
+    {GM9LUA_TITLELIBNAME, gm9lua_open_title},
 
     // gm9 custom internals (usually wrapped by a pure lua module)
     {GM9LUA_INTERNALSYSLIBNAME, gm9lua_open_internalsys},
