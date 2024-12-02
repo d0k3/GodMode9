@@ -6,7 +6,7 @@ MEMORY
 {
     VECTORS (RX) : ORIGIN = 0x08000000, LENGTH = 64
     CODEMEM (RX) : ORIGIN = 0x08000040, LENGTH = 512K - 64
-    BOOTMIR (R)  : ORIGIN = 0x08080000, LENGTH = 128K /* BootROM mirrors, don't touch! */
+    BOOTROM (R)  : ORIGIN = 0x08080000, LENGTH = 128K /* BootROM mirrors, don't touch! */
     DATAMEM (RW) : ORIGIN = 0x080A0000, LENGTH = 384K
 }
 

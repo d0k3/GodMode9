@@ -18,7 +18,7 @@ include ../Makefile.common
 include ../Makefile.build
 
 arm9_data.elf: arm9.elf
-	arm-none-eabi-objcopy -O elf32-littlearm -j .rodata* -j .data* -j .bss* $< $@
+	$(OBJCOPY) -O elf32-littlearm -j .rodata* -j .data* -j .bss* $< $@
 
 arm9_code.elf: arm9.elf
-	arm-none-eabi-objcopy -O elf32-littlearm -j .text* -j .vectors* $< $@
+	$(OBJCOPY) -O elf32-littlearm -j .text* -j .vectors* $< $@
