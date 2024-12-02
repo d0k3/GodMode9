@@ -172,16 +172,18 @@ bool ExecuteLuaScript(const char* path_script) {
         curr_dir[_VAR_CNT_LEN-1] = '\0';
         char* slash = strrchr(curr_dir, '/');
         if (slash) *slash = '\0';
-    } else strncpy(curr_dir, "(null)",  _VAR_CNT_LEN - 1);
+
+        lua_pushstring(L, curr_dir);
+    } else {
+        lua_pushnil(L);
+    }
+    lua_setglobal(L, "CURRDIR");
 
     lua_pushliteral(L, VERSION);
     lua_setglobal(L, "GM9VER");
 
     lua_pushstring(L, path_script);
     lua_setglobal(L, "SCRIPT");
-
-    lua_pushstring(L, curr_dir);
-    lua_setglobal(L, "CURRDIR");
 
     lua_pushliteral(L, OUTPUT_PATH);
     lua_setglobal(L, "GM9OUT");
