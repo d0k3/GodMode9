@@ -9,6 +9,7 @@
 #define RECURSIVE       (1UL<<11)
 #define TO_EMUNAND      (1UL<<12)
 #define LEGIT           (1UL<<13)
+#define FIND_FIRST      (1UL<<14)
 
 #define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite_all", "append_all", "all", "recursive", "to_emunand", "legit", "first"
 #define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE, TO_EMUNAND, LEGIT, FIND_FIRST
