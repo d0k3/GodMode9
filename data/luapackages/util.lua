@@ -19,4 +19,14 @@ function util.hex_to_bytes(hexstring)
     end))
 end
 
+-- returns something like "241202"
+function util.get_datestamp()
+    return os.date("%y%m%d")
+end
+
+-- returns something like "010828"
+function util.get_timestamp()
+    return os.date("%H%M%S")
+end
+
 return util

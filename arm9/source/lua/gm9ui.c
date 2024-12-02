@@ -1,5 +1,11 @@
 #ifndef NO_LUA
 #include "gm9ui.h"
+#include "ui.h"
+#include "fs.h"
+#include "png.h"
+#include "swkbd.h"
+#include "qrcodegen.h"
+#include "utils.h"
 
 #define MAXOPTIONS     256
 #define MAXOPTIONS_STR "256"
@@ -95,9 +101,17 @@ static int ui_ask_text(lua_State* L) {
     return 1;
 }
 
+static int ui_clear(lua_State* L) {
+    CheckLuaArgCount(L, 0, "ui.clear");
+
+    ClearScreen(ALT_SCREEN, COLOR_STD_BG);
+
+    return 0;
+}
+
 static int ui_show_png(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_png");
-    const char* path = lua_tostring(L, 1);
+    const char* path = luaL_checkstring(L, 1);
     u16 *screen = ALT_SCREEN;
     u16 *bitmap = NULL;
     u8* png = (u8*) malloc(SCREEN_SIZE(screen));
@@ -139,10 +153,48 @@ static int ui_show_png(lua_State* L) {
 
 static int ui_show_text(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_text");
+
     const char* text = lua_tostring(L, 1);
 
     ClearScreen(ALT_SCREEN, COLOR_STD_BG);
     DrawStringCenter(ALT_SCREEN, COLOR_STD_FONT, COLOR_STD_BG, "%s", text);
+    return 0;
+}
+
+static int ui_show_game_info(lua_State* L) {
+    CheckLuaArgCount(L, 1, "ui.show_game_info");
+    const char* path = luaL_checkstring(L, 1);
+
+    bool ret = (ShowGameFileIcon(path, ALT_SCREEN) == 0);
+    if (!ret) {
+        return luaL_error(L, "ShowGameFileIcon failed on %s", path);
+    }
+
+    return 0;
+}
+
+static int ui_show_qr(lua_State* L) {
+    CheckLuaArgCount(L, 2, "ui.show_qr");
+    size_t data_len;
+    const char* text = luaL_checkstring(L, 1);
+    const char* data = luaL_checklstring(L, 2, &data_len);
+
+    const u32 screen_size = SCREEN_SIZE(ALT_SCREEN);
+    u8* screen_copy = (u8*) malloc(screen_size);
+    u8 qrcode[qrcodegen_BUFFER_LEN_MAX];
+    u8 temp[qrcodegen_BUFFER_LEN_MAX];
+    bool ret = screen_copy && qrcodegen_encodeText(data, temp, qrcode, qrcodegen_Ecc_LOW,
+        qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
+    if (ret) {
+        memcpy(screen_copy, ALT_SCREEN, screen_size);
+        DrawQrCode(ALT_SCREEN, qrcode);
+        ShowPrompt(false, "%s", text);
+        memcpy(ALT_SCREEN, screen_copy, screen_size);
+    } else {
+        return luaL_error(L, "could not allocate memory");
+    }
+    free(screen_copy);
+
     return 0;
 }
 
@@ -167,7 +219,7 @@ static int ui_show_text_viewer(lua_State* L) {
 
 static int ui_show_file_text_viewer(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_file_text_viewer");
-    const char* path = lua_tostring(L, 1);
+    const char* path = luaL_checkstring(L, 1);
 
     // validate text ourselves so we can return a better error
     // MemTextViewer calls ShowPrompt if it's bad, and i don't want that
@@ -262,8 +314,11 @@ static const luaL_Reg ui_lib[] = {
     {"ask_number", ui_ask_number},
     {"ask_text", ui_ask_text},
     {"ask_selection", ui_ask_selection},
+    {"clear", ui_clear},
     {"show_png", ui_show_png},
     {"show_text", ui_show_text},
+    {"show_game_info", ui_show_game_info},
+    {"show_qr", ui_show_qr},
     {"show_text_viewer", ui_show_text_viewer},
     {"show_file_text_viewer", ui_show_file_text_viewer},
     {"format_bytes", ui_format_bytes},

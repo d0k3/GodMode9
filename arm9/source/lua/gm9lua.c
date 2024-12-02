@@ -2,6 +2,7 @@
 #include "ui.h"
 #include "language.h"
 #ifndef NO_LUA
+#include "fs.h"
 #include "ff.h"
 #include "vff.h"
 #include "fsutil.h"

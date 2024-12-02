@@ -59,10 +59,7 @@ static int fs_remove(lua_State* L) {
     bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.remove");
     const char* path = luaL_checkstring(L, 1);
 
-    bool allowed = CheckWritePermissions(path);
-    if (!allowed) {
-        return luaL_error(L, "writing not allowed: %s", path);
-    }
+    CheckWritePermissionsLuaError(L, path);
 
     u32 flags = 0;
     if (extra) {
@@ -88,10 +85,7 @@ static int fs_copy(lua_State* L) {
     const char* path_dst = luaL_checkstring(L, 2);
     FILINFO fno;
 
-    bool allowed = CheckWritePermissions(path_dst);
-    if (!allowed) {
-        return luaL_error(L, "writing not allowed: %s", path_dst);
-    }
+    CheckWritePermissionsLuaError(L, path_dst);
 
     u32 flags = BUILD_PATH;
     if (extra) {
@@ -119,10 +113,7 @@ static int fs_mkdir(lua_State* L) {
     CheckLuaArgCount(L, 1, "fs.mkdir");
     const char* path = luaL_checkstring(L, 1);
 
-    bool allowed = CheckWritePermissions(path);
-    if (!allowed) {
-        return luaL_error(L, "writing not allowed: %s", path);
-    }
+    CheckWritePermissionsLuaError(L, path);
 
     FRESULT res = fvx_rmkdir(path);
     if (res != FR_OK) {
@@ -285,10 +276,7 @@ static int fs_write_file(lua_State* L) {
     size_t data_length = 0;
     const char* data = luaL_checklstring(L, 3, &data_length);
 
-    bool allowed = CheckWritePermissions(path);
-    if (!allowed) {
-        return luaL_error(L, "writing not allowed: %s", path);
-    }
+    CheckWritePermissionsLuaError(L, path);
     
     UINT bytes_written = 0;
     FRESULT res = fvx_qwrite(path, data, offset, data_length, &bytes_written);
@@ -300,6 +288,47 @@ static int fs_write_file(lua_State* L) {
     return 1;
 }
 
+static int fs_fill_file(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 4, "fs.fill_file");
+    const char* path = luaL_checkstring(L, 1);
+    lua_Integer offset = luaL_checkinteger(L, 2);
+    lua_Integer size = luaL_checkinteger(L, 3);
+    lua_Integer byte = luaL_checkinteger(L, 4);
+
+    u8 real_byte = byte & 0xFF;
+
+    u32 flags = ALLOW_EXPAND;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 4, flags, NO_CANCEL);
+    };
+
+    if ((byte < 0) || (byte > 0xFF)) {
+        return luaL_error(L, "byte is not between 0x00 and 0xFF (got: %I)", byte);
+    }
+
+    CheckWritePermissionsLuaError(L, path);
+
+    if (!(FileSetByte(path, offset, size, real_byte, &flags))) {
+        return luaL_error(L, "FileSetByte failed on %s", path);
+    }
+
+    return 0;
+}
+
+static int fs_make_dummy_file(lua_State* L) {
+    CheckLuaArgCount(L, 2, "fs.make_dummy_file");
+    const char* path = luaL_checkstring(L, 1);
+    lua_Integer size = luaL_checkinteger(L, 2);
+
+    CheckWritePermissionsLuaError(L, path);
+
+    if (!(FileCreateDummy(path, NULL, size))) {
+        return luaL_error(L, "FileCreateDummy failed on %s");
+    }
+
+    return 0;
+}
+
 static int fs_truncate(lua_State* L) {
     CheckLuaArgCount(L, 2, "fs.write_file");
     const char* path = luaL_checkstring(L, 1);
@@ -307,16 +336,11 @@ static int fs_truncate(lua_State* L) {
     FIL fp;
     FRESULT res;
 
+    CheckWritePermissionsLuaError(L, path);
+
     res = f_open(&fp, path, FA_READ | FA_WRITE);
     if (res != FR_OK) {
         return luaL_error(L, "failed to open %s (note: this only works on FAT filesystems, not virtual)", path);
-    }
-
-    // this check is *after* opening so the error happens on virtual filesystems sooner
-    bool allowed = CheckWritePermissions(path);
-    if (!allowed) {
-        f_close(&fp);
-        return luaL_error(L, "writing not allowed: %s", path);
     }
 
     res = f_lseek(&fp, size);
@@ -518,6 +542,8 @@ static const luaL_Reg fs_lib[] = {
     {"is_file", fs_is_file},
     {"read_file", fs_read_file},
     {"write_file", fs_write_file},
+    {"fill_file", fs_fill_file},
+    {"make_dummy_file", fs_make_dummy_file},
     {"truncate", fs_truncate},
     {"img_mount", fs_img_mount},
     {"img_umount", fs_img_umount},

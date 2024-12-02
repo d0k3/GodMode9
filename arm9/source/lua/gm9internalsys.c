@@ -6,6 +6,9 @@
 #include "game.h"
 #include "power.h"
 #include "sha.h"
+#include "nand.h"
+
+#define UNUSED(x)   ((void)(x))
 
 static int internalsys_boot(lua_State* L) {
     CheckLuaArgCount(L, 1, "_sys.boot");
@@ -68,16 +71,41 @@ static int internalsys_get_id0(lua_State* L) {
     return 1;
 }
 
+static int internalsys_next_emu(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_sys.next_emu");
+
+    DismountDriveType(DRV_EMUNAND);
+    AutoEmuNandBase(false);
+    InitExtFS();
+
+    return 0;
+}
+
+static int internalsys_global_bkpt(lua_State* L) {
+    UNUSED(L);
+    bkpt;
+    while(1);
+}
+
 static const luaL_Reg internalsys_lib[] = {
     {"boot", internalsys_boot},
     {"reboot", internalsys_reboot},
     {"power_off", internalsys_power_off},
     {"get_id0", internalsys_get_id0},
+    {"next_emu", internalsys_next_emu},
+    {NULL, NULL}
+};
+
+static const luaL_Reg internalsys_global_lib[] = {
+    {"bkpt", internalsys_global_bkpt},
     {NULL, NULL}
 };
 
 int gm9lua_open_internalsys(lua_State* L) {
     luaL_newlib(L, internalsys_lib);
+    lua_pushglobaltable(L); // push global table to stack
+    luaL_setfuncs(L, internalsys_global_lib, 0); // set global funcs
+    lua_pop(L, 1); // pop global table from stack
     return 1;
 }
 #endif

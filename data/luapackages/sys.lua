@@ -49,6 +49,11 @@ function sys.refresh_info()
     refresh_id0()
 end
 
+function sys.next_emu()
+    _sys.next_emu()
+    pcall(sys.refresh_info())
+end
+
 -- in the preload scripts, we have to avoid possibilities of unhandled exceptions
 pcall(sys.refresh_info)
 
