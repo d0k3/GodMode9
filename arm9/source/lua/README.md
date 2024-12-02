@@ -1,6 +1,7 @@
 This is Lua 5.4.7 with a few modifications:
 * Patches made to silence warnings: https://github.com/ihaveamac/GodMode9/commit/9905b939b26aae3422c906c7858d8852764fa279
 * lua.c, luac.c, lua.hpp removed (not useful in GodMode9)
+* liolib.c, loslib.c removed (replaced with custom implementations)
 
 ## License of Lua 5.4.7
 
