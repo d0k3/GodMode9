@@ -8,7 +8,6 @@
 #include "fsutil.h"
 #include "unittype.h"
 #include "nand.h"
-#include "gm9enum.h"
 #include "gm9loader.h"
 #include "gm9fs.h"
 #include "gm9os.h"
@@ -93,9 +92,6 @@ void CheckWritePermissionsLuaError(lua_State* L, const char* path) {
 }
 
 static const luaL_Reg gm9lualibs[] = {
-    // enum is special so we load it first
-    {GM9LUA_ENUMLIBNAME, gm9lua_open_Enum},
-
     // built-ins
     {LUA_GNAME, luaopen_base},
     {LUA_LOADLIBNAME, luaopen_package},
