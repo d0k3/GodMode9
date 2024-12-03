@@ -1,5 +1,5 @@
 #ifndef NO_LUA
-#include "gm9fs.h"
+#include "gm9internalfs.h"
 #include "fs.h"
 #include "ui.h"
 #include "utils.h"
@@ -34,8 +34,8 @@ static void CreateStatTable(lua_State* L, FILINFO* fno) {
     // ... and leave this table on the stack for the caller to deal with
 }
 
-static int fs_move(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 2, "fs.rename");
+static int internalfs_move(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.rename");
     const char* path_src = luaL_checkstring(L, 1);
     const char* path_dst = luaL_checkstring(L, 2);
     FILINFO fno;
@@ -55,8 +55,8 @@ static int fs_move(lua_State* L) {
     return 0;
 }
 
-static int fs_remove(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.remove");
+static int internalfs_remove(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.remove");
     const char* path = luaL_checkstring(L, 1);
 
     CheckWritePermissionsLuaError(L, path);
@@ -79,8 +79,8 @@ static int fs_remove(lua_State* L) {
     return 0;
 }
 
-static int fs_copy(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 2, "fs.copy");
+static int internalfs_copy(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.copy");
     const char* path_src = luaL_checkstring(L, 1);
     const char* path_dst = luaL_checkstring(L, 2);
     FILINFO fno;
@@ -109,8 +109,8 @@ static int fs_copy(lua_State* L) {
     return 0;
 }
 
-static int fs_mkdir(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.mkdir");
+static int internalfs_mkdir(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.mkdir");
     const char* path = luaL_checkstring(L, 1);
 
     CheckWritePermissionsLuaError(L, path);
@@ -123,8 +123,8 @@ static int fs_mkdir(lua_State* L) {
     return 0;
 }
 
-static int fs_list_dir(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.list_dir");
+static int internalfs_list_dir(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.list_dir");
     const char* path = luaL_checkstring(L, 1);
     lua_newtable(L);
 
@@ -151,8 +151,8 @@ static int fs_list_dir(lua_State* L) {
     return 1;
 }
 
-static int fs_stat(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.stat");
+static int internalfs_stat(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.stat");
     const char* path = luaL_checkstring(L, 1);
     FILINFO fno;
 
@@ -164,8 +164,8 @@ static int fs_stat(lua_State* L) {
     return 1;
 }
 
-static int fs_fix_cmacs(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.fix_cmacs");
+static int internalfs_fix_cmacs(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.fix_cmacs");
     const char* path = luaL_checkstring(L, 1);
 
     ShowString("%s", STR_FIXING_CMACS_PLEASE_WAIT);
@@ -176,8 +176,8 @@ static int fs_fix_cmacs(lua_State* L) {
     return 0;
 }
 
-static int fs_stat_fs(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.stat_fs");
+static int internalfs_stat_fs(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.stat_fs");
     const char* path = luaL_checkstring(L, 1);
 
     u64 freespace = GetFreeSpace(path);
@@ -195,8 +195,8 @@ static int fs_stat_fs(lua_State* L) {
     return 1;
 }
 
-static int fs_dir_info(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.stat_fs");
+static int internalfs_dir_info(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.stat_fs");
     const char* path = luaL_checkstring(L, 1);
 
     u64 tsize = 0;
@@ -217,8 +217,8 @@ static int fs_dir_info(lua_State* L) {
     return 1;
 }
 
-static int fs_exists(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.exists");
+static int internalfs_exists(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.exists");
     const char* path = luaL_checkstring(L, 1);
     FILINFO fno;
 
@@ -226,16 +226,16 @@ static int fs_exists(lua_State* L) {
     return 1;
 }
 
-static int fs_is_dir(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.is_dir");
+static int internalfs_is_dir(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.is_dir");
     const char* path = luaL_checkstring(L, 1);
 
     lua_pushboolean(L, PathIsDirectory(path));
     return 1;
 }
 
-static int fs_is_file(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.is_file");
+static int internalfs_is_file(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.is_file");
     const char* path = luaL_checkstring(L, 1);
     FILINFO fno;
 
@@ -248,8 +248,8 @@ static int fs_is_file(lua_State* L) {
     return 1;
 }
 
-static int fs_read_file(lua_State* L) {
-    CheckLuaArgCount(L, 3, "fs.read_file");
+static int internalfs_read_file(lua_State* L) {
+    CheckLuaArgCount(L, 3, "_fs.read_file");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer offset = luaL_checkinteger(L, 2);
     lua_Integer size = luaL_checkinteger(L, 3);
@@ -269,8 +269,8 @@ static int fs_read_file(lua_State* L) {
     return 1;
 }
 
-static int fs_write_file(lua_State* L) {
-    CheckLuaArgCount(L, 3, "fs.write_file");
+static int internalfs_write_file(lua_State* L) {
+    CheckLuaArgCount(L, 3, "_fs.write_file");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer offset = luaL_checkinteger(L, 2);
     size_t data_length = 0;
@@ -288,8 +288,8 @@ static int fs_write_file(lua_State* L) {
     return 1;
 }
 
-static int fs_fill_file(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 4, "fs.fill_file");
+static int internalfs_fill_file(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 4, "_fs.fill_file");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer offset = luaL_checkinteger(L, 2);
     lua_Integer size = luaL_checkinteger(L, 3);
@@ -315,8 +315,8 @@ static int fs_fill_file(lua_State* L) {
     return 0;
 }
 
-static int fs_make_dummy_file(lua_State* L) {
-    CheckLuaArgCount(L, 2, "fs.make_dummy_file");
+static int internalfs_make_dummy_file(lua_State* L) {
+    CheckLuaArgCount(L, 2, "_fs.make_dummy_file");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer size = luaL_checkinteger(L, 2);
 
@@ -329,8 +329,8 @@ static int fs_make_dummy_file(lua_State* L) {
     return 0;
 }
 
-static int fs_truncate(lua_State* L) {
-    CheckLuaArgCount(L, 2, "fs.write_file");
+static int internalfs_truncate(lua_State* L) {
+    CheckLuaArgCount(L, 2, "_fs.write_file");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer size = luaL_checkinteger(L, 2);
     FIL fp;
@@ -359,8 +359,8 @@ static int fs_truncate(lua_State* L) {
     return 0;
 }
 
-static int fs_img_mount(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.img_mount");
+static int internalfs_img_mount(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.img_mount");
     const char* path = luaL_checkstring(L, 1);
 
     bool res = InitImgFS(path);
@@ -371,16 +371,16 @@ static int fs_img_mount(lua_State* L) {
     return 0;
 }
 
-static int fs_img_umount(lua_State* L) {
-    CheckLuaArgCount(L, 0, "fs.img_umount");
+static int internalfs_img_umount(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_fs.img_umount");
     
     InitImgFS(NULL);
     
     return 0;
 }
 
-static int fs_get_img_mount(lua_State* L) {
-    CheckLuaArgCount(L, 0, "fs.img_umount");
+static int internalfs_get_img_mount(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_fs.img_umount");
 
     char path[256] = { 0 };
     strncpy(path, GetMountPath(), 256);
@@ -394,8 +394,8 @@ static int fs_get_img_mount(lua_State* L) {
     return 1;
 }
 
-static int fs_hash_file(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 3, "fs.hash_file");
+static int internalfs_hash_file(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 3, "_fs.hash_file");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer offset = luaL_checkinteger(L, 2);
     lua_Integer size = luaL_checkinteger(L, 3);
@@ -430,8 +430,8 @@ static int fs_hash_file(lua_State* L) {
     return 1;
 }
 
-static int fs_hash_data(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.hash_data");
+static int internalfs_hash_data(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.hash_data");
     size_t data_length = 0;
     const char* data = luaL_checklstring(L, 1, &data_length);
 
@@ -454,8 +454,8 @@ static int fs_hash_data(lua_State* L) {
     return 1;
 }
 
-static int fs_allow(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 1, "fs.img_mount");
+static int internalfs_allow(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.img_mount");
     const char* path = luaL_checkstring(L, 1);
     u32 flags = 0;
     bool allowed;
@@ -472,8 +472,8 @@ static int fs_allow(lua_State* L) {
     return 1;
 };
 
-static int fs_verify(lua_State* L) {
-    CheckLuaArgCount(L, 1, "fs.verify");
+static int internalfs_verify(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.verify");
     const char* path = luaL_checkstring(L, 1);
     bool res;
 
@@ -485,15 +485,15 @@ static int fs_verify(lua_State* L) {
     return 1;
 }
 
-static int fs_sd_is_mounted(lua_State* L) {
-    CheckLuaArgCount(L, 0, "fs.sd_is_mounted");
+static int internalfs_sd_is_mounted(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_fs.sd_is_mounted");
 
     lua_pushboolean(L, CheckSDMountState());
     return 1;
 }
 
-static int fs_sd_switch(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 0, "fs.sd_switch");
+static int internalfs_sd_switch(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 0, "_fs.sd_switch");
     const char* message;
 
     if (extra) {
@@ -528,38 +528,38 @@ static int fs_sd_switch(lua_State* L) {
     return 0;
 }
 
-static const luaL_Reg fs_lib[] = {
-    {"move", fs_move},
-    {"remove", fs_remove},
-    {"copy", fs_copy},
-    {"mkdir", fs_mkdir},
-    {"list_dir", fs_list_dir},
-    {"stat", fs_stat},
-    {"stat_fs", fs_stat_fs},
-    {"dir_info", fs_dir_info},
-    {"exists", fs_exists},
-    {"is_dir", fs_is_dir},
-    {"is_file", fs_is_file},
-    {"read_file", fs_read_file},
-    {"write_file", fs_write_file},
-    {"fill_file", fs_fill_file},
-    {"make_dummy_file", fs_make_dummy_file},
-    {"truncate", fs_truncate},
-    {"img_mount", fs_img_mount},
-    {"img_umount", fs_img_umount},
-    {"get_img_mount", fs_get_img_mount},
-    {"hash_file", fs_hash_file},
-    {"hash_data", fs_hash_data},
-    {"verify", fs_verify},
-    {"allow", fs_allow},
-    {"sd_is_mounted", fs_sd_is_mounted},
-    {"sd_switch", fs_sd_switch},
-    {"fix_cmacs", fs_fix_cmacs},
+static const luaL_Reg internalfs_lib[] = {
+    {"move", internalfs_move},
+    {"remove", internalfs_remove},
+    {"copy", internalfs_copy},
+    {"mkdir", internalfs_mkdir},
+    {"list_dir", internalfs_list_dir},
+    {"stat", internalfs_stat},
+    {"stat_fs", internalfs_stat_fs},
+    {"dir_info", internalfs_dir_info},
+    {"exists", internalfs_exists},
+    {"is_dir", internalfs_is_dir},
+    {"is_file", internalfs_is_file},
+    {"read_file", internalfs_read_file},
+    {"write_file", internalfs_write_file},
+    {"fill_file", internalfs_fill_file},
+    {"make_dummy_file", internalfs_make_dummy_file},
+    {"truncate", internalfs_truncate},
+    {"img_mount", internalfs_img_mount},
+    {"img_umount", internalfs_img_umount},
+    {"get_img_mount", internalfs_get_img_mount},
+    {"hash_file", internalfs_hash_file},
+    {"hash_data", internalfs_hash_data},
+    {"verify", internalfs_verify},
+    {"allow", internalfs_allow},
+    {"sd_is_mounted", internalfs_sd_is_mounted},
+    {"sd_switch", internalfs_sd_switch},
+    {"fix_cmacs", internalfs_fix_cmacs},
     {NULL, NULL}
 };
 
-int gm9lua_open_fs(lua_State* L) {
-    luaL_newlib(L, fs_lib);
+int gm9lua_open_internalfs(lua_State* L) {
+    luaL_newlib(L, internalfs_lib);
     return 1;
 }
 #endif

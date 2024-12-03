@@ -1,7 +1,7 @@
 #pragma once
 #include "gm9lua.h"
 
-#define GM9LUA_FSLIBNAME "fs"
+#define GM9LUA_INTERNALFSLIBNAME "_fs"
 
 #define SHA256_EMPTY_HASH \
     0xE3, 0xB0, 0xC4, 0x42, \
@@ -20,4 +20,4 @@
     0x95, 0x60, 0x18, 0x90, \
     0xAF, 0xD8, 0x07, 0x09
 
-int gm9lua_open_fs(lua_State* L);
+int gm9lua_open_internalfs(lua_State* L);

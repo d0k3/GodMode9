@@ -9,11 +9,11 @@
 #include "unittype.h"
 #include "nand.h"
 #include "gm9loader.h"
-#include "gm9fs.h"
 #include "gm9os.h"
-#include "gm9internalsys.h"
 #include "gm9ui.h"
 #include "gm9title.h"
+#include "gm9internalfs.h"
+#include "gm9internalsys.h"
 
 #define DEBUGSP(x) ShowPrompt(false, (x))
 // this is taken from scripting.c
@@ -103,12 +103,12 @@ static const luaL_Reg gm9lualibs[] = {
     {LUA_DBLIBNAME, luaopen_debug},
 
     // gm9 custom
-    {GM9LUA_FSLIBNAME, gm9lua_open_fs},
     {GM9LUA_OSLIBNAME, gm9lua_open_os},
     {GM9LUA_UILIBNAME, gm9lua_open_ui},
     {GM9LUA_TITLELIBNAME, gm9lua_open_title},
 
     // gm9 custom internals (usually wrapped by a pure lua module)
+    {GM9LUA_INTERNALFSLIBNAME, gm9lua_open_internalfs},
     {GM9LUA_INTERNALSYSLIBNAME, gm9lua_open_internalsys},
 
     {NULL, NULL}
@@ -198,7 +198,7 @@ bool ExecuteLuaScript(const char* path_script) {
 
     bool result = RunFile(L, "V:/preload.lua");
     if (!result) {
-        ShowPrompt(false, "A fatal error happened in GodMode9's preload script.\n\nThis is not an error with your code, but with\nGodMode9. Please report it on GitHub.");
+        ShowPrompt(false, "A fatal error happened in GodMode9's preload script.\n \nThis is not an error with your code, but with\nGodMode9. Please report it on GitHub.");
         lua_close(L);
         return false;
     }
