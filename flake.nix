@@ -12,6 +12,7 @@
         pkgs.devkitNix.devkitARM
         python3Packages.python
         ( python3Packages.callPackage ./firmtool.nix { } )
+        lua54Packages.lua
       ];
 
       inherit (pkgs.devkitNix.devkitARM) shellHook;

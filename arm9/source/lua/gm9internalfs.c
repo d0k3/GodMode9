@@ -217,6 +217,59 @@ static int internalfs_dir_info(lua_State* L) {
     return 1;
 }
 
+static int FileDirSelector(lua_State* L, const char* path_orig, const char* prompt, bool is_dir, bool include_dirs, bool explorer) {
+    bool ret;
+    char path[_VAR_CNT_LEN] = { 0 };
+    char choice[_VAR_CNT_LEN] = { 0 };
+    strncpy(path, path_orig, _VAR_CNT_LEN);
+    if (strncmp(path, "Z:", 2) == 0) {
+        return luaL_error(L, "forbidden drive");
+    } else if (!is_dir) {
+        u32 flags_ext = include_dirs ? 0 : NO_DIRS;
+        char *npattern = strrchr(path, '/');
+        if (!npattern) {
+            return luaL_error(L, "invalid path");
+        }
+        *(npattern++) = '\0';
+        ret = FileSelector(choice, prompt, path, npattern, flags_ext, explorer);
+    } else {
+        ret = FileSelector(choice, prompt, path, NULL, NO_FILES | SELECT_DIRS, explorer);
+    }
+
+    if (ret) {
+        lua_pushstring(L, choice);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int internalfs_ask_select_file(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.ask_select_file");
+    const char* prompt = luaL_checkstring(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 3, flags, INCLUDE_DIRS | EXPLORER);
+    };
+
+    return FileDirSelector(L, path, prompt, false, (flags & INCLUDE_DIRS), (flags & EXPLORER));
+}
+
+static int internalfs_ask_select_dir(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.ask_select_dir");
+    const char* prompt = luaL_checkstring(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 3, flags, EXPLORER);
+    };
+
+    return FileDirSelector(L, path, prompt, true, true, (flags & EXPLORER));
+}
+
 static int internalfs_exists(lua_State* L) {
     CheckLuaArgCount(L, 1, "_fs.exists");
     const char* path = luaL_checkstring(L, 1);
@@ -537,6 +590,8 @@ static const luaL_Reg internalfs_lib[] = {
     {"stat", internalfs_stat},
     {"stat_fs", internalfs_stat_fs},
     {"dir_info", internalfs_dir_info},
+    {"ask_select_file", internalfs_ask_select_file},
+    {"ask_select_dir", internalfs_ask_select_dir},
     {"exists", internalfs_exists},
     {"is_dir", internalfs_is_dir},
     {"is_file", internalfs_is_file},

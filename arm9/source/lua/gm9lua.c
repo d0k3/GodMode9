@@ -16,8 +16,6 @@
 #include "gm9internalsys.h"
 
 #define DEBUGSP(x) ShowPrompt(false, (x))
-// this is taken from scripting.c
-#define _VAR_CNT_LEN    256
 
 typedef struct GM9LuaLoadF {
     int n; // pre-read characters
