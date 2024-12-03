@@ -10,6 +10,8 @@ fs.stat_fs = _fs.stat_fs
 fs.dir_info = _fs.dir_info
 fs.ask_select_file = _fs.ask_select_file
 fs.ask_select_dir = _fs.ask_select_dir
+fs.find = _fs.find
+fs.find_not = _fs.find_not
 fs.exists = _fs.exists
 fs.is_dir = _fs.is_dir
 fs.is_file = _fs.is_file
@@ -27,6 +29,7 @@ fs.allow = _fs.allow
 fs.sd_is_mounted = _fs.sd_is_mounted
 fs.sd_switch = _fs.sd_switch
 fs.fix_cmacs = _fs.fix_cmacs
+fs.key_dump = _fs.key_dump
 
 function fs.write_file(path, offset, data)
     local success, filestat

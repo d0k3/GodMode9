@@ -13,7 +13,7 @@
 #define INCLUDE_DIRS    (1UL<<15)
 #define EXPLORER        (1UL<<16)
 
-#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite_all", "append_all", "all", "recursive", "to_emunand", "legit", "first", "include_dirs", "explorer"
+#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite", "append", "all", "recursive", "to_emunand", "legit", "first", "include_dirs", "explorer"
 #define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE, TO_EMUNAND, LEGIT, FIND_FIRST, INCLUDE_DIRS, EXPLORER
 #define FLAGS_COUNT     14
 

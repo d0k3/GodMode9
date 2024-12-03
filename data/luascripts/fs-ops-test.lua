@@ -1,7 +1,7 @@
 print("fs.mkdir")
 fs.mkdir("9:/test")
 print("fs.copy")
-fs.copy("1:/private", "9:/test", {recursive=true, overwrite_all=true})
+fs.copy("1:/private", "9:/test", {recursive=true, overwrite=true})
 print("fs.move")
 fs.move("9:/test", "9:/test2")
 print("fs.remove")

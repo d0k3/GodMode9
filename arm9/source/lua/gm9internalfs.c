@@ -7,6 +7,7 @@
 #include "nand.h"
 #include "language.h"
 #include "hid.h"
+#include "game.h"
 
 static u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
 static u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
@@ -268,6 +269,40 @@ static int internalfs_ask_select_dir(lua_State* L) {
     };
 
     return FileDirSelector(L, path, prompt, true, true, (flags & EXPLORER));
+}
+
+static int internalfs_find(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.find");
+    const char* pattern = luaL_checkstring(L, 1);
+    char path[_VAR_CNT_LEN] = { 0 };
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, FIND_FIRST);
+    }
+
+    u8 mode = (flags & FIND_FIRST) ? FN_LOWEST : FN_HIGHEST;
+    FRESULT res = fvx_findpath(path, pattern, mode);
+    if (res != FR_OK) {
+        return luaL_error(L, "failed to find %s (%d)", path, res);
+    }
+
+    lua_pushstring(L, path);
+    return 1;
+}
+
+static int internalfs_find_not(lua_State* L) {
+    CheckLuaArgCount(L, 1, "_fs.find_not");
+    const char* pattern = luaL_checkstring(L, 1);
+    char path[_VAR_CNT_LEN] = { 0 };
+
+    FRESULT res = fvx_findnopath(path, pattern);
+    if (res != FR_OK) {
+        return luaL_error(L, "failed to find %s (%d)", path, res);
+    }
+
+    lua_pushstring(L, path);
+    return 1;
 }
 
 static int internalfs_exists(lua_State* L) {
@@ -581,6 +616,45 @@ static int internalfs_sd_switch(lua_State* L) {
     return 0;
 }
 
+static int internalfs_key_dump(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.key_dump");
+    const char* opts[] = {SEEDINFO_NAME, TIKDB_NAME_ENC, TIKDB_NAME_DEC, NULL};
+    int opt = luaL_checkoption(L, 1, NULL, opts);
+    bool ret = false;
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, 0, OVERWRITE_ALL);
+    }
+
+    if (opt == 1 || opt == 2) {
+        bool tik_dec = opt == 2;
+        if (flags & OVERWRITE_ALL) fvx_unlink(tik_dec ? OUTPUT_PATH "/" TIKDB_NAME_DEC : OUTPUT_PATH "/" TIKDB_NAME_ENC);
+        if (BuildTitleKeyInfo(NULL, tik_dec, false) == 0) {
+            ShowString(STR_BUILDING_TO_OUT_ARG, OUTPUT_PATH, opts[opt]);
+            if (((BuildTitleKeyInfo("1:/dbs/ticket.db", tik_dec, false) == 0) ||
+                 (BuildTitleKeyInfo("4:/dbs/ticket.db", tik_dec, false) == 0)) &&
+                (BuildTitleKeyInfo(NULL, tik_dec, true) == 0))
+                ret = true;
+        }
+    } else if (opt == 0) {
+        if (flags & OVERWRITE_ALL) fvx_unlink(OUTPUT_PATH "/" SEEDINFO_NAME);
+        if (BuildSeedInfo(NULL, false) == 0) {
+            ShowString(STR_BUILDING_TO_OUT_ARG, OUTPUT_PATH, opts[opt]);
+            if (((BuildSeedInfo("1:", false) == 0) ||
+                 (BuildSeedInfo("4:", false) == 0)) &&
+                (BuildSeedInfo(NULL, true) == 0))
+                ret = true;
+        }
+    }
+
+    if (!ret) {
+        return luaL_error(L, "building %s failed", opts[opt]);
+    }
+
+    return 0;
+};
+
 static const luaL_Reg internalfs_lib[] = {
     {"move", internalfs_move},
     {"remove", internalfs_remove},
@@ -592,6 +666,8 @@ static const luaL_Reg internalfs_lib[] = {
     {"dir_info", internalfs_dir_info},
     {"ask_select_file", internalfs_ask_select_file},
     {"ask_select_dir", internalfs_ask_select_dir},
+    {"find", internalfs_find},
+    {"find_not", internalfs_find_not},
     {"exists", internalfs_exists},
     {"is_dir", internalfs_is_dir},
     {"is_file", internalfs_is_file},
@@ -610,6 +686,7 @@ static const luaL_Reg internalfs_lib[] = {
     {"sd_is_mounted", internalfs_sd_is_mounted},
     {"sd_switch", internalfs_sd_switch},
     {"fix_cmacs", internalfs_fix_cmacs},
+    {"key_dump", internalfs_key_dump},
     {NULL, NULL}
 };
 

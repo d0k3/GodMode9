@@ -1,0 +1,4 @@
+sdump encTitleKeys.bin
+sdump decTitleKeys.bin
+sdump seeddb.bin
+echo done
