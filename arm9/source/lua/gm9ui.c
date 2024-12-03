@@ -6,6 +6,7 @@
 #include "swkbd.h"
 #include "qrcodegen.h"
 #include "utils.h"
+#include "hid.h"
 
 #define MAXOPTIONS     256
 #define MAXOPTIONS_STR "256"
@@ -307,6 +308,15 @@ static int ui_global_print(lua_State* L) {
     return 0;
 }
 
+static int ui_check_key(lua_State* L) {
+    CheckLuaArgCount(L, 1, "ui.check_key");
+    const char* key = luaL_checkstring(L, 1);
+
+    lua_pushboolean(L, CheckButton(StringToButton((char*)key)));
+
+    return 1;
+}
+
 static const luaL_Reg ui_lib[] = {
     {"echo", ui_echo},
     {"ask", ui_ask},
@@ -322,6 +332,7 @@ static const luaL_Reg ui_lib[] = {
     {"show_text_viewer", ui_show_text_viewer},
     {"show_file_text_viewer", ui_show_file_text_viewer},
     {"format_bytes", ui_format_bytes},
+    {"check_key", ui_check_key},
     {NULL, NULL}
 };
 
