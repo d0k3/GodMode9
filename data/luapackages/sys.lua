@@ -9,6 +9,7 @@ sys.region = nil
 sys.serial = nil
 sys.sys_id0 = nil
 sys.emu_id0 = nil
+sys.emu_base = nil
 
 local regions = {"JPN", "USA", "EUR", "AUS", "CHN", "KOR", "TWN"}
 
@@ -47,6 +48,7 @@ end
 function sys.refresh_info()
     refresh_secureinfo()
     refresh_id0()
+    sys.emu_base = _sys.get_emu_base()
 end
 
 function sys.next_emu()

@@ -30,6 +30,7 @@ fs.sd_is_mounted = _fs.sd_is_mounted
 fs.sd_switch = _fs.sd_switch
 fs.fix_cmacs = _fs.fix_cmacs
 fs.key_dump = _fs.key_dump
+fs.cart_dump = _fs.cart_dump
 
 function fs.write_file(path, offset, data)
     local success, filestat

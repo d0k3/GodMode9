@@ -8,6 +8,7 @@
 #include "language.h"
 #include "hid.h"
 #include "game.h"
+#include "gamecart.h"
 
 static u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
 static u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
@@ -653,7 +654,51 @@ static int internalfs_key_dump(lua_State* L) {
     }
 
     return 0;
-};
+}
+
+static int internalfs_cart_dump(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.cart_dump");
+    const char* path = luaL_checkstring(L, 1);
+    u64 fsize = (u64)luaL_checkinteger(L, 2);
+    bool ret = false;
+    const char* errstr = "";
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 3, flags, ENCRYPTED);
+    }
+
+    CartData* cdata = (CartData*) malloc(sizeof(CartData));
+    u8* buf = (u8*) malloc(STD_BUFFER_SIZE);
+    ret = false;
+    if (!cdata || !buf) {
+        errstr = "out of memory";
+    } else if (InitCartRead(cdata) != 0){
+        errstr = "cart init fail";
+    } else {
+        SetSecureAreaEncryption(flags & ENCRYPTED);
+        fvx_unlink(path);
+        ret = true;
+        errstr = "cart dump failed or canceled";
+        for (u64 p = 0; p < fsize; p += STD_BUFFER_SIZE) {
+            u64 len = min((fsize - p), STD_BUFFER_SIZE);
+            ShowProgress(p, fsize, path);
+            if (!ShowProgress(p, fsize, path) ||
+                (ReadCartBytes(buf, p, len, cdata, false) != 0) ||
+                (fvx_qwrite(path, buf, p, len, NULL) != FR_OK)) {
+                ret = false;
+                break;
+            }
+        }
+    }
+    free(buf);
+    free(cdata);
+
+    if (!ret) {
+        return luaL_error(L, "%s", errstr);
+    }
+    return 0;
+}
 
 static const luaL_Reg internalfs_lib[] = {
     {"move", internalfs_move},
@@ -687,6 +732,7 @@ static const luaL_Reg internalfs_lib[] = {
     {"sd_switch", internalfs_sd_switch},
     {"fix_cmacs", internalfs_fix_cmacs},
     {"key_dump", internalfs_key_dump},
+    {"cart_dump", internalfs_cart_dump},
     {NULL, NULL}
 };
 

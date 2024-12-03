@@ -81,6 +81,13 @@ static int internalsys_next_emu(lua_State* L) {
     return 0;
 }
 
+static int internalsys_get_emu_base(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_sys.get_emu_base");
+
+    lua_pushinteger(L, GetEmuNandBase());
+    return 1;
+}
+
 static int internalsys_global_bkpt(lua_State* L) {
     UNUSED(L);
     bkpt;
@@ -93,6 +100,7 @@ static const luaL_Reg internalsys_lib[] = {
     {"power_off", internalsys_power_off},
     {"get_id0", internalsys_get_id0},
     {"next_emu", internalsys_next_emu},
+    {"get_emu_base", internalsys_get_emu_base},
     {NULL, NULL}
 };
 

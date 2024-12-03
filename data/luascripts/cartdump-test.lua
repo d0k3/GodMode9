@@ -1,0 +1,5 @@
+print("Doing dec")
+fs.cart_dump("9:/test-dec.bin", 0x06000000)
+print("Doing enc")
+fs.cart_dump("9:/test-enc.bin", 0x06000000, {encrypted=true})
+ui.echo("Done")
