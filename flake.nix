@@ -2,9 +2,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     devkitNix.url = "github:ihaveamac/devkitNix";
+    hax-nur.url = "github:ihaveamac/nur-packages";
   };
 
-  outputs = { self, nixpkgs, devkitNix }: {
+  outputs = { self, nixpkgs, devkitNix, hax-nur }: {
     devShells.x86_64-linux.default = let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ devkitNix.overlays.default ]; };
     in pkgs.mkShell {
@@ -13,6 +14,7 @@
         python3Packages.python
         ( python3Packages.callPackage ./firmtool.nix { } )
         lua54Packages.lua
+        hax-nur.packages.x86_64-linux.ctrtool
       ];
 
       inherit (pkgs.devkitNix.devkitARM) shellHook;
