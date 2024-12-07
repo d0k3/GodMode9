@@ -32,6 +32,10 @@ fs.fix_cmacs = _fs.fix_cmacs
 fs.key_dump = _fs.key_dump
 fs.cart_dump = _fs.cart_dump
 
+-- compatibility
+os.remove = fs.remove
+os.rename = fs.move
+
 function fs.write_file(path, offset, data)
     local success, filestat
     if type(offset) == "string" then

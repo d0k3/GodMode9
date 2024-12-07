@@ -41,6 +41,9 @@ function file.new(filename, mode)
         allowed = fs.allow(filename)
         debugf("allowed:", allowed)
         if not allowed then return nil, filename..": Permission denied", 13 end
+        -- write mode truncates the file to 0 normally
+        success = pcall(fs.truncate, filename, 0)
+        if not success then return nil, filename..": Cannot truncate virtual files", 2001 end
         of._stat = {}
         of._size = 0
         of._readable = false
@@ -155,7 +158,7 @@ function file:seek(whence, offset)
         offset = 0
     end
     if type(offset) ~= "number" then
-        error("bad argument #2 to 'seek' (number expected, got '..type(offset)..')")
+        error("bad argument #2 to 'seek' (number expected, got "..type(offset)..")")
     end
 
     if whence == "set" then

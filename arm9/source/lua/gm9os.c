@@ -669,6 +669,7 @@ static int os_difftime(lua_State *L) {
     return 1;
 }
 
+// os.remove and os.rename are done in data/luapackages/fs.lua
 static const luaL_Reg os[] = {
     {"clock", os_clock},
     {"time", os_time},
