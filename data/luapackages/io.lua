@@ -18,6 +18,15 @@ local function not_impl(fnname)
     end
 end
 
+-- some errors should return nil, an error string, then an error number
+-- example:
+-- > io.open("/nix/abc.txt", "w")
+-- nil     /nix/abc.txt: Permission denied 13
+-- > io.open("/nix/abc.txt", "r")
+-- nil     /nix/abc.txt: No such file or directory 2
+-- > a = io.open("abc.txt", "w")
+-- > a:read()
+-- nil     Bad file descriptor     9
 function file.new(filename, mode)
     -- TODO: make this more accurate (disallow opening dirs as files)
     local success, stat, of, allowed
@@ -25,21 +34,22 @@ function file.new(filename, mode)
         mode = "r"
     end
     debugf("opening", filename, mode)
-    of = setmetatable({_filename=filename, _mode=mode, _seek=0, _open=true, _readonly=true}, file)
+    of = setmetatable({_filename=filename, _mode=mode, _seek=0, _open=true, _readable=false, _writable=false, _append_only=false}, file)
     if string.find(mode, "w") then
         debugf("opening", filename, "for writing")
         -- preemptively allow writing instead of having that prompt at file:write
         allowed = fs.allow(filename)
         debugf("allowed:", allowed)
-        if not allowed then return nil end
+        if not allowed then return nil, filename..": Permission denied", 13 end
         of._stat = {}
         of._size = 0
-        of._readonly = false
+        of._readable = false
+        of._writable = true
     elseif string.find(mode, "r+") then
         debugf("opening", filename, "for updating")
         allowed = fs.allow(filename)
         debugf("allowed:", allowed)
-        if not allowed then return nil end
+        if not allowed then return nil, filename..": Permission denied", 13 end
         success, stat = pcall(fs.stat, filename)
         debugf("stat success:", success)
         if success then
@@ -52,14 +62,38 @@ function file.new(filename, mode)
             of._size = 0
         end
     elseif string.find(mode, "a") then
-        error("append mode is not yet functional")
+        debugf("opening", filename, "for appending")
+        allowed = fs.allow(filename)
+        debugf("allowed:", allowed)
+        if not allowed then return nil, filename..": Permission denied", 13 end
+        of._append_only = true
+        of._writable = true
+        success, stat = pcall(fs.stat, filename)
+        debugf("stat success:", success)
+        if success then
+            debugf("type:", stat.type)
+            if stat.type == "dir" then return nil end
+            of._stat = stat
+            of._size = stat.size
+        else
+            of._stat = {}
+            of._size = 0
+        end
+        if string.find(mode, "+") then
+            debugf("append update mode")
+            of._readable = true
+        else
+            debugf("append only mode")
+            of._readable = false
+            of._seek = of._size
+        end
     else
         debugf("opening", filename, "for reading")
         -- check if file exists first
-        success, stat = fs.stat(filename)
+        success, stat = pcall(fs.stat, filename)
         debugf("stat success:", success)
         -- lua returns nil if it fails to open for some reason
-        if not success then return nil end
+        if not success then return nil, filename..": No such file or directory", 2 end
         debugf("type:", stat.type)
         if stat.type == "dir" then return nil end
         of._stat = stat
@@ -74,7 +108,14 @@ function file:_closed_check()
     if not self._open then error("attempt to use a closed file") end
 end
 
+function file:_bad_desc()
+    debugf("returning bad desc on file", self._filename)
+    return nil, "Bad file descriptor", 9
+end
+
 function file:close()
+    -- yes, this check and error happens even on a closed file
+    self:_closed_check()
     self._open = false
     return true
 end
@@ -86,6 +127,7 @@ end
 
 function file:read(...)
     self:_closed_check()
+    if not self._readable then return file:_bad_desc() end
     local to_return = {}
     for i, v in ipairs({...}) do
         if v == "n" or v == "l" or v == "L" then
@@ -130,12 +172,16 @@ function file:seek(whence, offset)
 end
 
 function file:write(...)
+    if not self._writable then return file:_bad_desc() end
     local to_write = ''
     for i, v in pairs({...}) do
         to_write = to_write..tostring(v)
     end
     local len = string.len(to_write)
     debugf("attempting to write "..tostring(len).." bytes to "..self._filename)
+    if self._append_only then
+        self:seek("end")
+    end
     local br = fs.write_file(self._filename, self._seek, to_write)
     debugf("wrote "..tostring(br).." bytes to "..self._filename)
     self._seek = self._seek + br
