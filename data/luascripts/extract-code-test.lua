@@ -1,0 +1,5 @@
+ui.echo("Testing extract code")
+title.extract_code("A:/title/00040000/0f800100/content/7926fc67.app", "9:/code.bin")
+ui.echo("Testing compress code")
+title.compress_code("9:/code.bin", "9:/code-blz.bin")
+ui.echo("Done")

@@ -1,0 +1,6 @@
+print("Writing trunctest")
+fs.write_file("9:/trunctest.bin", 0, "testing")
+print("Truncating trunctest")
+fs.truncate("9:/trunctest.bin", 4)
+print("Truncating vram (this should fail)")
+fs.truncate("M:/vram.mem", 6291456)
