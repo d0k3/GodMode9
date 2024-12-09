@@ -33,8 +33,48 @@ fs.key_dump = _fs.key_dump
 fs.cart_dump = _fs.cart_dump
 
 -- compatibility
-os.remove = fs.remove
-os.rename = fs.move
+function os.remove(path)
+    local success, allowed, stat, error
+    success, stat = pcall(fs.stat, path)
+    if not success then
+        return nil, path..": No such file or directory", 2
+    end
+    if stat.type == "dir" then
+        -- os.remove can remove an empty directory, so we gotta check
+        success, dir_list = pcall(fs.list_dir, path)
+        if not success then
+            return nil, "Error occurred listing directory: "..dir_list, 2001
+        end
+        if #dir_list ~= 0 then
+            return nil, path..": Directory not empty", 39
+        end
+    end
+    allowed = fs.allow(path)
+    if not allowed then
+        return nil, path..": Operation not permitted", 1
+    end
+    success, error = pcall(fs.remove, path, {recursive=true})
+    if success then
+        return true
+    else
+        return nil, "Error occurred removing item: "..error, 2001
+    end
+end
+
+-- compatibility
+function os.rename(src, dst)
+    error("os.rename is not implemented yet (try fs.move instead)")
+    --local success, drv_src, drv_dst, allowed
+    --drv_src = string.upper(string.sub(src, 1, 1))
+    --drv_dst = string.upper(string.sub(dst, 1, 1))
+    --if drv_src ~= drv_dst then
+    --    return nil, "Invalid cross-device link", 18
+    --end
+    --allowed = fs.allow(src) and fs.allow(dst)
+    --if not allowed then
+    --    return nil, "Permission denied", 13
+    --end
+end
 
 function fs.write_file(path, offset, data)
     local success, filestat
