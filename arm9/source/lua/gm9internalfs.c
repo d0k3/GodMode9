@@ -14,13 +14,11 @@ static u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
 static u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
 
 static bool PathIsDirectory(const char* path) {
-    DIR fdir;
-    if (fvx_opendir(&fdir, path) == FR_OK) {
-        fvx_closedir(&fdir);
-        return true;
-    } else {
-        return false;
-    }
+    FRESULT res;
+    FILINFO fno;
+    res = fvx_stat(path, &fno);
+    if (res != FR_OK) return false;
+    return fno.fattrib & AM_DIR;
 }
 
 static void CreateStatTable(lua_State* L, FILINFO* fno) {
