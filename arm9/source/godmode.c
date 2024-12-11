@@ -3133,12 +3133,21 @@ u32 ScriptRunner(int entrypoint) {
     if (PathExist("V:/" VRAM0_AUTORUN_GM9)) {
         ClearScreenF(true, true, COLOR_STD_BG); // clear splash
         ExecuteGM9Script("V:/" VRAM0_AUTORUN_GM9);
+    if (PathExist("V:/" VRAM0_AUTORUN_LUA)) {
+        ClearScreenF(true, true, COLOR_STD_BG); // clear splash
+        ExecuteLuaScript("V:/" VRAM0_AUTORUN_LUA);
     } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
         char loadpath[256];
         char title[256];
         snprintf(title, sizeof(title), STR_FLAVOR_SCRIPTS_MENU_SELECT_SCRIPT, FLAVOR);
         if (FileSelector(loadpath, title, "V:/" VRAM0_SCRIPTS, "*.gm9", HIDE_EXT, false))
             ExecuteGM9Script(loadpath);
+    } else if (PathExist("V:/" VRAM0_LUASCRIPTS)) {
+        char loadpath[256];
+        char title[256];
+        snprintf(title, sizeof(title), STR_FLAVOR_SCRIPTS_MENU_SELECT_SCRIPT, FLAVOR);
+        if (FileSelector(loadpath, title, "V:/" VRAM0_LUASCRIPTS, "*.lua", HIDE_EXT, false))
+            ExecuteLuaScript(loadpath);
     } else ShowPrompt(false, STR_COMPILED_AS_SCRIPT_AUTORUNNER_BUT_NO_SCRIPT_DERP);
 
     // deinit
