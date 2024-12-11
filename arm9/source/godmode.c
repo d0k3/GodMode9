@@ -3133,7 +3133,7 @@ u32 ScriptRunner(int entrypoint) {
     if (PathExist("V:/" VRAM0_AUTORUN_GM9)) {
         ClearScreenF(true, true, COLOR_STD_BG); // clear splash
         ExecuteGM9Script("V:/" VRAM0_AUTORUN_GM9);
-    if (PathExist("V:/" VRAM0_AUTORUN_LUA)) {
+    } else if (PathExist("V:/" VRAM0_AUTORUN_LUA)) {
         ClearScreenF(true, true, COLOR_STD_BG); // clear splash
         ExecuteLuaScript("V:/" VRAM0_AUTORUN_LUA);
     } else if (PathExist("V:/" VRAM0_SCRIPTS)) {
