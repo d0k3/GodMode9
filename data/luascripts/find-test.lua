@@ -1,5 +1,0 @@
-print("find:", fs.find("1:/rw/sys/SecureInfo_*"))
-print("find first:", fs.find("1:/rw/sys/SecureInfo_*", {first=true}))
-print("find not:", fs.find_not(GM9OUT.."/"..util.get_datestamp().."_"..sys.serial.."_essential_??.exefs"))
-pcall("find bad path:", pcall(fs.find, "S:/blah*"))
-ui.echo("Done")
