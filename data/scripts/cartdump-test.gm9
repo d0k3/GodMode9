@@ -1,3 +1,0 @@
-cartdump 9:/test-dec.bin 06000000
-cartdump 9:/test-enc.bin 06000000 -e
-echo done

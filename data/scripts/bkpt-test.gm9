@@ -1,3 +1,0 @@
-echo "Testing..."
-bkpt
-echo "Post-bkpt"
