@@ -2512,6 +2512,7 @@ u32 GodMode(int entrypoint) {
         }
     }
 
+    // note: this is kinda duplicated in arm9/source/lua/gm9internalsys.c as well
     // check internal clock
     if (IS_UNLOCKED) { // we could actually do this on any entrypoint
         DsTime dstime;

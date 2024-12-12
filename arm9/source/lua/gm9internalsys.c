@@ -9,6 +9,8 @@
 #include "nand.h"
 #include "utils.h"
 #include "ui.h"
+#include "rtc.h"
+#include "godmode.h"
 
 #define UNUSED(x)   ((void)(x))
 
@@ -123,6 +125,29 @@ static int internalsys_check_embedded_backup(lua_State* L) {
     return 1;
 }
 
+static int internalsys_check_raw_rtc(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_sys.check_raw_rtc");
+
+    bool result = false;
+
+    DsTime dstime;
+    get_dstime(&dstime);
+    if (DSTIMEGET(&dstime, bcd_Y) >= 18) {
+        result = true;
+    } else if (ShowPrompt(true, "%s", STR_RTC_DATE_TIME_SEEMS_TO_BE_WRONG_SET_NOW) &&
+         ShowRtcSetterPrompt(&dstime, "%s", STR_TITLE_SET_RTC_DATE_TIME)) {
+        //char timestr[UTF_BUFFER_BYTESIZE(32)];
+        set_dstime(&dstime);
+        // this is only in godmode.h
+        //GetTimeString(timestr, true, true);
+        // ShowPrompt(false, STR_NEW_RTC_DATE_TIME_IS_TIME, timestr);
+        result = true;
+    }
+
+    lua_pushboolean(L, result);
+    return 1;
+}
+
 static int internalsys_global_bkpt(lua_State* L) {
     UNUSED(L);
     bkpt;
@@ -137,6 +162,7 @@ static const luaL_Reg internalsys_lib[] = {
     {"next_emu", internalsys_next_emu},
     {"get_emu_base", internalsys_get_emu_base},
     {"check_embedded_backup", internalsys_check_embedded_backup},
+    {"check_raw_rtc", internalsys_check_raw_rtc},
     {NULL, NULL}
 };
 
