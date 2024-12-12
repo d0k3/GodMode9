@@ -3,6 +3,7 @@ local sys = {}
 sys.boot = _sys.boot
 sys.reboot = _sys.reboot
 sys.power_off = _sys.power_off
+sys.check_embedded_backup = _sys.check_embedded_backup
 
 sys.secureinfo_letter = nil
 sys.region = nil

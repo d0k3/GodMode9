@@ -7,6 +7,8 @@
 #include "power.h"
 #include "sha.h"
 #include "nand.h"
+#include "utils.h"
+#include "ui.h"
 
 #define UNUSED(x)   ((void)(x))
 
@@ -88,6 +90,39 @@ static int internalsys_get_emu_base(lua_State* L) {
     return 1;
 }
 
+static int internalsys_check_embedded_backup(lua_State* L) {
+    CheckLuaArgCount(L, 0, "_sys.check_embedded_backup");
+
+    if (PathExist("S:/essential.exefs")) {
+        lua_pushboolean(L, true);
+        return 1;
+    }
+
+    bool ncsd_check = CheckGenuineNandNcsd();
+    if (!ncsd_check) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    bool ret = false;
+
+    if (ncsd_check && ShowPrompt(true, "%s", STR_ESSENTIAL_BACKUP_NOT_FOUND_CREATE_NOW)) {
+        if (EmbedEssentialBackup("S:/nand.bin") == 0) {
+            u32 flags = BUILD_PATH | SKIP_ALL;
+            PathCopy(OUTPUT_PATH, "S:/essential.exefs", &flags);
+            ShowPrompt(false, STR_BACKUP_EMBEDDED_WRITTEN_TO_OUT, OUTPUT_PATH);
+            ret = true;
+        } else {
+            ret = false;
+        }
+    } else {
+        ret = false;
+    }
+
+    lua_pushboolean(L, ret);
+    return 1;
+}
+
 static int internalsys_global_bkpt(lua_State* L) {
     UNUSED(L);
     bkpt;
@@ -101,6 +136,7 @@ static const luaL_Reg internalsys_lib[] = {
     {"get_id0", internalsys_get_id0},
     {"next_emu", internalsys_next_emu},
     {"get_emu_base", internalsys_get_emu_base},
+    {"check_embedded_backup", internalsys_check_embedded_backup},
     {NULL, NULL}
 };
 
