@@ -227,7 +227,9 @@ static int ui_show_file_text_viewer(lua_State* L) {
     // and FileTextViewer calls the above function
     
     char* text = malloc(STD_BUFFER_SIZE);
-    if (!text) return false;
+    if (!text) {
+        return luaL_error(L, "could not allocate memory");
+    };
 
     u32 flen = FileGetData(path, text, STD_BUFFER_SIZE - 1, 0);
 
@@ -235,12 +237,16 @@ static int ui_show_file_text_viewer(lua_State* L) {
     u32 len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
     
     if (!(ValidateText(text, len))) {
+        free(text);
         return luaL_error(L, "text validation failed");
     }
 
     if (!(MemTextViewer(text, len, 1, false))) {
+        free(text);
         return luaL_error(L, "failed to run MemTextViewer");
     }
+
+    free(text);
 
     return 0;
 }
