@@ -147,6 +147,8 @@ These modules work differently:
 * [package](https://www.lua.org/manual/5.4/manual.html#6.3)
     * `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
 
+---
+
 ## API reference
 
 ### Constants
@@ -179,6 +181,8 @@ The string `"O3DS"` or `"N3DS"`.
 
 #### IS_DEVKIT
 `true` if the console is a developer unit.
+
+---
 
 ### `ui` module
 
