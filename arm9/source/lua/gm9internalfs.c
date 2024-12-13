@@ -470,7 +470,7 @@ static int internalfs_img_umount(lua_State* L) {
 }
 
 static int internalfs_get_img_mount(lua_State* L) {
-    CheckLuaArgCount(L, 0, "_fs.img_umount");
+    CheckLuaArgCount(L, 0, "_fs.get_img_mount");
 
     char path[256] = { 0 };
     strncpy(path, GetMountPath(), 256);
