@@ -12,7 +12,7 @@ There are four ways to run Lua scripts:
 * Select it in the file browser and choose "`Execute Lua script`"
 * Place it in `0:/gm9/luascripts`, then open the HOME menu, choose "`Lua scripts...`", then choose the script
 * Place it in `data/luascripts`, then build GodMode9 from source
-	  * This takes precedence over `0:/gm9/luascripts`
+	* This takes precedence over `0:/gm9/luascripts`
 * Place it at `data/autorun.lua`, then build GodMode9 from source with `SCRIPT_RUNNER=1` to automatically run it at launch
 
 ## Packages
@@ -127,8 +127,8 @@ GM9VER | GM9VER |  
 
 These original Lua 5.4 modules are fully available:
 * [Basic functions](https://www.lua.org/manual/5.4/manual.html#6.1)
-  * `print` will replace the top screen with an output log. Currently it does not implement some features such as line wrapping.
-  * dofile and loadfile don't work yet.
+	* `print` will replace the top screen with an output log. Currently it does not implement some features such as line wrapping.
+	* dofile and loadfile don't work yet.
 * [coroutine](https://www.lua.org/manual/5.4/manual.html#6.2)
 * [debug](https://www.lua.org/manual/5.4/manual.html#6.10)
 * [math](https://www.lua.org/manual/5.4/manual.html#6.7)
@@ -138,14 +138,14 @@ These original Lua 5.4 modules are fully available:
 
 These modules are partially available:
 * [os](https://www.lua.org/manual/5.4/manual.html#6.9)
-  * Only `os.clock`, `os.time`, `os.date`, `os.difftime`, and `os.remove`
+	* Only `os.clock`, `os.time`, `os.date`, `os.difftime`, and `os.remove`
 * [io](https://www.lua.org/manual/5.4/manual.html#6.8)
-  * Only `io.open`; for open files, all but `file:setvbuf` and `file:lines`
-  * This is a custom compatibility module that uses `fs` functions. If there are differences compared to the original `io` implementation, please report them as issues.
+	* Only `io.open`; for open files, all but `file:setvbuf` and `file:lines`
+	* This is a custom compatibility module that uses `fs` functions. If there are differences compared to the original `io` implementation, please report them as issues.
 
 These modules work differently:
 * [package](https://www.lua.org/manual/5.4/manual.html#6.3)
-  * `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
+	* `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
 
 ---
 
@@ -191,150 +191,150 @@ The string `"O3DS"` or `"N3DS"`.
 
 #### ui.echo
 
-`void ui.echo(string text)`
+* `void ui.echo(string text)`
 
 Display text on the bottom screen and wait for the user to press A.
 
 * **Arguments**
-  * `text` - Text to show the user
+	* `text` - Text to show the user
 
 #### ui.ask
 
-`bool ui.ask(string text)`
+* `bool ui.ask(string text)`
 
 Prompt the user with a yes/no question.
 
 * **Arguments**
-  * `text` - Text to ask the user
+	* `text` - Text to ask the user
 * **Returns:** `true` if the user accepts
 
 #### ui.ask_hex
 
-`int ui.ask_hex(string text, int initial, int n_digits)`
+* `int ui.ask_hex(string text, int initial, int n_digits)`
 
 Ask the user to input a hex number.
 
 * **Arguments**
-  * `text` - Text to ask the user
-  * `initial` - Starting value
-  * `n_digits` - Amount of hex digits allowed
+	* `text` - Text to ask the user
+	* `initial` - Starting value
+	* `n_digits` - Amount of hex digits allowed
 * **Returns:** the number the user entered, or `nil` if canceled
 
 #### ui.ask_number
 
-`int ui.ask_number(string text, int initial)`
+* `int ui.ask_number(string text, int initial)`
 
 Ask the user to input a number.
 
 * **Arguments**
-  * `text` - Text to ask the user
-  * `initial` - Starting value
+	* `text` - Text to ask the user
+	* `initial` - Starting value
 * **Returns:** the number the user entered, or `nil` if canceled
 
 #### ui.ask_text
 
-`string ui.ask_text(string prompt, string initial, int max_length)`
+* `string ui.ask_text(string prompt, string initial, int max_length)`
 
 Ask the user to input text.
 
 * **Arguments**
-  * `prompt` - Text to ask the user
-  * `initial` - Starting value
-  * `max_length` - Maximum length of the string
+	* `prompt` - Text to ask the user
+	* `initial` - Starting value
+	* `max_length` - Maximum length of the string
 * **Returns:** the text the user entered, or `nil` if canceled
 
 #### ui.ask_selection
 
-`int ui.ask_selection(string prompt, array options)`
+* `int ui.ask_selection(string prompt, array options)`
 
 Ask the user to choose an option from a list. A maximum of 256 options are allowed.
 
 * **Arguments**
-  * `prompt` - Text to ask the user
-  * `options` - Table of options
+	* `prompt` - Text to ask the user
+	* `options` - Table of options
 * **Returns:** index of selected option, or `nil` if canceled
 
 #### ui.clear
 
-`void ui.clear()`
+* `void ui.clear()`
 
 Clears the top screen.
 
 #### ui.show_png
 
-`void ui.show_png(string path)`
+* `void ui.show_png(string path)`
 
 Displays a PNG file on the top screen.
 
 The image must not be larger than 400 pixels horizontal or 240 pixels vertical. If `SWITCH_SCREENS=1` is used, it must not be larger than 320 pixels horizontal.
 
 * **Arguments**
-  * `path` - Path to PNG file
+	* `path` - Path to PNG file
 * **Throws** 
-  * `"Could not read (file)"` - file does not exist or there was another read error
-  * `"Invalid PNG file"` - file is not a valid PNG
-  * `"PNG too large"` - too large horizontal or vertical, or an out-of-memory error
+	* `"Could not read (file)"` - file does not exist or there was another read error
+	* `"Invalid PNG file"` - file is not a valid PNG
+	* `"PNG too large"` - too large horizontal or vertical, or an out-of-memory error
 
 #### ui.show_text
 
-`void ui.show_text(string text)`
+* `void ui.show_text(string text)`
 
 Displays text on the top screen.
 
 * **Arguments**
-  * `text` - Text to show the user
+	* `text` - Text to show the user
 
 #### ui.show_game_info
 
-`void ui.show_game_info(string path)`
+* `void ui.show_game_info(string path)`
 
 Shows game file info. Accepts any files that include an SMDH, a DS game file, or GBA file.
 
 * **Arguments**
-  * `path` - Path to game file (CIA, CCI/".3ds", SMDH, TMD, TIE (DSiWare export), Ticket, NDS, GBA)
+	* `path` - Path to game file (CIA, CCI/".3ds", SMDH, TMD, TIE (DSiWare export), Ticket, NDS, GBA)
 * **Throws**
-  * `"ShowGameFileIcon failed on <path>"` - failed to get game info from path
+	* `"ShowGameFileIcon failed on <path>"` - failed to get game info from path
 
 #### ui.show_qr
 
-`void ui.show_qr(string text, string data)`
+* `void ui.show_qr(string text, string data)`
 
 Displays a QR code on the top screen, and a prompt on the bottom screen, and waits for the user to press A.
 
 * **Arguments**
-  * `text` - Text to show the user
-  * `data` - Data to encode into the QR code
+	* `text` - Text to show the user
+	* `data` - Data to encode into the QR code
 * **Throws**
-  * `"could not allocate memory"` - out-of-memory error when attempting to generate the QR code
+	* `"could not allocate memory"` - out-of-memory error when attempting to generate the QR code
 
 #### ui.show_text_viewer
 
-`void ui.show_text_viewer(string text)`
+* `void ui.show_text_viewer(string text)`
 
 Display a scrollable text viewer.
 
 * **Arguments**
-  * `text` - Text to display
+	* `text` - Text to display
 * **Throws**
-  * `"text validation failed"` - given string contains invalid characters
-  * `"failed to run MemTextViewer"` - internal memory viewer error
+	* `"text validation failed"` - given string contains invalid characters
+	* `"failed to run MemTextViewer"` - internal memory viewer error
 
 #### ui.show_file_text_viewer
 
-`void ui.show_file_text_viewer(string path)`
+* `void ui.show_file_text_viewer(string path)`
 
 Display a scrollable text viewer from a text file.
 
 * **Arguments**
-  * `path` - Path to text file
+	* `path` - Path to text file
 * **Throws**
-  * `"could not allocate memory"` - out-of-memory error when attempting to create the text buffer
-  * `"text validation failed"` - text file contains invalid characters
-  * `"failed to run MemTextViewer"` - internal memory viewer error
+	* `"could not allocate memory"` - out-of-memory error when attempting to create the text buffer
+	* `"text validation failed"` - text file contains invalid characters
+	* `"failed to run MemTextViewer"` - internal memory viewer error
 
 #### ui.format_bytes
 
-`string ui.format_bytes(int bytes)`
+* `string ui.format_bytes(int bytes)`
 
 Format a number with `Byte`, `kB`, `MB`, or `GB`.
 
@@ -342,17 +342,17 @@ Format a number with `Byte`, `kB`, `MB`, or `GB`.
 > This is affected by localization and may return different text if the language is not English.
 
 * **Arguments**
-  * `bytes` - Size to format
+	* `bytes` - Size to format
 * **Returns:** formatted string
 
 #### ui.check_key
 
-`bool ui.check_key(string key)`
+* `bool ui.check_key(string key)`
 
 Checks if the user is holding down a key.
 
 * **Arguments**
-  * `key` - A button string: `"A"`, `"B"`, `"SELECT"`, `"START"`, `"RIGHT"`, `"LEFT"`, `"UP"`, `"DOWN"`, `"R"`, `"L"`, `"X"`, `"Y"`
+	* `key` - A button string: `"A"`, `"B"`, `"SELECT"`, `"START"`, `"RIGHT"`, `"LEFT"`, `"UP"`, `"DOWN"`, `"R"`, `"L"`, `"X"`, `"Y"`
 * **Returns:** `true` if currently held, `false` if not
 
 ---
@@ -361,7 +361,7 @@ Checks if the user is holding down a key.
 
 #### fs.move
 
-`void fs.move(string src, string dst[, table opts {bool no_cancel, bool silent, bool overwrite, bool skip_all}])`
+* `void fs.move(string src, string dst[, table opts {bool no_cancel, bool silent, bool overwrite, bool skip_all}])`
 
 Moves or renames a file or directory.
 
@@ -380,7 +380,7 @@ Moves or renames a file or directory.
 
 #### fs.remove
 
-`void fs.remove(string path[, table opts {bool recursive}])`
+* `void fs.remove(string path[, table opts {bool recursive}])`
 
 Delete a file or directory.
 
@@ -395,7 +395,7 @@ Delete a file or directory.
 
 #### fs.copy
 
-`void fs.copy(string src, string dst[, table opts {bool calc_sha, bool sha1, bool no_cancel, bool silent, bool overwrite, bool skip_all, bool append, bool recursive}])`
+* `void fs.copy(string src, string dst[, table opts {bool calc_sha, bool sha1, bool no_cancel, bool silent, bool overwrite, bool skip_all, bool append, bool recursive}])`
 
 Copy a file or directory.
 
@@ -419,7 +419,7 @@ Copy a file or directory.
 
 #### fs.mkdir
 
-`void fs.mkdir(string path)`
+* `void fs.mkdir(string path)`
 
 Create a directory. This creates intermediate directories as required, so `fs.mkdir("a/b/c")` would create `a`, then `b`, then `c`.
 
@@ -431,7 +431,7 @@ Create a directory. This creates intermediate directories as required, so `fs.mk
 
 #### fs.stat
 
-`array fs.stat(string path)`
+* `array fs.stat(string path)`
 
 Get information about a file or directory. The result is a stat table with these keys:
 
@@ -447,7 +447,7 @@ Get information about a file or directory. The result is a stat table with these
 
 #### fs.list_dir
 
-`array fs.list_dir(string path)`
+* `array fs.list_dir(string path)`
 
 Get the contents of a directory. The result is a list of stat tables with these keys:
 * `name` (string)
@@ -468,7 +468,7 @@ Get the contents of a directory. The result is a list of stat tables with these 
 
 #### fs.stat_fs
 
-`array fs.stat_fs(string path)`
+* `array fs.stat_fs(string path)`
 
 Get information about a filesystem.
 
@@ -484,7 +484,7 @@ Get information about a filesystem.
 
 #### fs.dir_info
 
-`array fs.dir_info(string path)`
+* `array fs.dir_info(string path)`
 
 Get information about a directory.
 
@@ -502,7 +502,7 @@ Get information about a directory.
 
 #### fs.ask_select_file
 
-`string fs.ask_select_file(string prompt, string path[, bool opts {bool include_dirs, bool explorer}])`
+* `string fs.ask_select_file(string prompt, string path[, bool opts {bool include_dirs, bool explorer}])`
 
 Prompt the user to select a file based on a pattern. Accepts a wildcard pattern like `"0:/gm9/in/*_ctrtransfer_n3ds.bin"`.
 
@@ -519,7 +519,7 @@ Prompt the user to select a file based on a pattern. Accepts a wildcard pattern 
 
 #### fs.ask_select_dir
 
-`string fs.ask_select_dir(string prompt, string path[, bool opts {bool explorer}])`
+* `string fs.ask_select_dir(string prompt, string path[, bool opts {bool explorer}])`
 
 Prompt the user to select a directory.
 
@@ -534,7 +534,7 @@ Prompt the user to select a directory.
 
 #### fs.find
 
-`string fs.find(string pattern[, bool opts {bool first}])`
+* `string fs.find(string pattern[, bool opts {bool first}])`
 
 Searches for a file based on a wildcard pattern. Returns the last result, unless `first` is specified.
 
@@ -550,7 +550,7 @@ Pattern can use `?` for search values, for example `00017?02` will match `000170
 
 #### fs.find_not
 
-`string fs.find(string pattern)`
+* `string fs.find(string pattern)`
 
 Searches for a free filename based on a pattern.
 
@@ -564,14 +564,14 @@ Pattern can use `?` for search values, for example `nand_??.bin` will check to s
 
 #### fs.find_all
 
-`string fs.find_all(string pattern)`
+* `string fs.find_all(string pattern)`
 
 > [!WARNING]
 > Not implemented.
 
 #### fs.allow
 
-`bool fs.allow(string path[, table flags {bool ask_all}])`
+* `bool fs.allow(string path[, table flags {bool ask_all}])`
 
 Check for and request permission to write to a sensitive path.
 
@@ -583,7 +583,7 @@ Check for and request permission to write to a sensitive path.
 
 #### fs.img_mount
 
-`void fs.img_mount(string path)`
+* `void fs.img_mount(string path)`
 
 Mount an image file. Can be anything mountable through the file browser.
 
@@ -594,13 +594,13 @@ Mount an image file. Can be anything mountable through the file browser.
 
 #### fs.img_umount
 
-`void fs.img_umount()`
+* `void fs.img_umount()`
 
 Unmount the currently mounted image file.
 
 #### fs.get_img_mount
 
-`string fs.get_img_mount()`
+* `string fs.get_img_mount()`
 
 Get the currently mounted image file.
 
@@ -608,7 +608,7 @@ Get the currently mounted image file.
 
 #### fs.hash_file
 
-`string fs.hash_file(string path, int offset, int size[, table opts {bool sha1}])`
+* `string fs.hash_file(string path, int offset, int size[, table opts {bool sha1}])`
 
 Calculate the hash for a file. Uses SHA-256 unless `sha1` is specified. To hash an entire file, `size` should be `0`.
 
@@ -632,7 +632,7 @@ Calculate the hash for a file. Uses SHA-256 unless `sha1` is specified. To hash 
 
 #### fs.hash_data
 
-`string fs.hash_data(string data[, table opts {bool sha1}])`
+* `string fs.hash_data(string data[, table opts {bool sha1}])`
 
 Calculate the hash for some data. Uses SHA-256 unless `sha1` is specified.
 
@@ -647,7 +647,7 @@ Calculate the hash for some data. Uses SHA-256 unless `sha1` is specified.
 
 #### fs.verify
 
-`bool fs.verify(string path)`
+* `bool fs.verify(string path)`
 
 Verify the integrity of a file.
 
@@ -660,7 +660,7 @@ Verify the integrity of a file.
 
 #### fs.verify_with_sha_file
 
-`bool fs.verify_with_sha_file(string path)`
+* `bool fs.verify_with_sha_file(string path)`
 
 Calculate the hash of a file and compare it with a corresponding `.sha` file.
 
@@ -678,7 +678,7 @@ TODO: add errors for fs.read_file here
 
 #### fs.exists
 
-`bool fs.exists(string path)`
+* `bool fs.exists(string path)`
 
 Check if an item exists.
 
@@ -688,7 +688,7 @@ Check if an item exists.
 
 #### fs.is_dir
 
-`bool fs.is_dir(string path)`
+* `bool fs.is_dir(string path)`
 
 Check if an item exists, and is a directory.
 
@@ -698,7 +698,7 @@ Check if an item exists, and is a directory.
 
 #### fs.is_file
 
-`bool fs.is_file(string path)`
+* `bool fs.is_file(string path)`
 
 Check if an item exists, and is a file.
 
@@ -708,7 +708,7 @@ Check if an item exists, and is a file.
 
 #### fs.sd_is_mounted
 
-`bool fs.sd_is_mounted()`
+* `bool fs.sd_is_mounted()`
 
 Check if the SD card is mounted.
 
@@ -716,7 +716,7 @@ Check if the SD card is mounted.
 
 #### fs.sd_switch
 
-`void fs.sd_switch([string message])`
+* `void fs.sd_switch([string message])`
 
 Prompt the user to remove and insert an SD card.
 
@@ -727,7 +727,7 @@ Prompt the user to remove and insert an SD card.
 
 #### fs.fix_cmacs
 
-`void fs.fix_cmacs(string path)`
+* `void fs.fix_cmacs(string path)`
 
 Fix CMACs for a directory.
 
@@ -738,7 +738,7 @@ Fix CMACs for a directory.
 
 #### fs.read_file
 
-`string fs.read_file(string path, int offset, int/string size)`
+* `string fs.read_file(string path, int offset, int/string size)`
 
 Read data from a file.
 
@@ -753,7 +753,7 @@ Read data from a file.
 
 #### fs.write_file
 
-`int fs.write_file(string path, int offset, string data)1
+* `int fs.write_file(string path, int offset, string data)1
 
 Write data to a file.
 
@@ -768,7 +768,7 @@ Write data to a file.
 
 #### fs.fill_file
 
-`void fs.fill_file(string path, int offset, int size, int byte)`
+* `void fs.fill_file(string path, int offset, int size, int byte)`
 
 Fill a file with a specified byte.
 
@@ -786,7 +786,7 @@ Fill a file with a specified byte.
 
 #### fs.make_dummy_file
 
-`void fs.make_dummy_file(string path, int size)`
+* `void fs.make_dummy_file(string path, int size)`
 
 Create a dummy file.
 
@@ -802,7 +802,7 @@ Create a dummy file.
 
 #### fs.truncate
 
-`void fs.truncate(string path, int size)`
+* `void fs.truncate(string path, int size)`
 
 Truncate a file to a specific size.
 
@@ -820,7 +820,7 @@ Truncate a file to a specific size.
 
 #### fs.key_dump
 
-`void fs.key_dump(string file[, table opts {bool overwrite}])`
+* `void fs.key_dump(string file[, table opts {bool overwrite}])`
 
 Dumps title keys or seeds. Taken from both SysNAND and EmuNAND. The resulting file is saved to `0:/gm9/out`.
 
@@ -833,7 +833,7 @@ Dumps title keys or seeds. Taken from both SysNAND and EmuNAND. The resulting fi
 
 #### fs.cart_dump
 
-`void fs.cart_dump(string path, int size[, table opts {bool encrypted}])`
+* `void fs.cart_dump(string path, int size[, table opts {bool encrypted}])`
 
 Dump the raw data from the inserted game card. No modifications are made to the data. This means for example, Card2 games will not have the save area cleared.
 
@@ -866,7 +866,7 @@ Decrypt or encrypt a title or key database, done in-place.
 
 #### title.install
 
-`void title.install(string path[, table opts {bool to_emunand}])`
+* `void title.install(string path[, table opts {bool to_emunand}])`
 
 Install a title.
 
@@ -879,7 +879,7 @@ Install a title.
 
 #### title.build_cia
 
-`void title.build_cia(string path[, table opts {bool legit}])`
+* `void title.build_cia(string path[, table opts {bool legit}])`
 
 Build title as a CIA. Resulting file is put in `0:/gm9/out`.
 
@@ -892,7 +892,7 @@ Build title as a CIA. Resulting file is put in `0:/gm9/out`.
 
 #### title.extract_code
 
-`void title.extract_code(string src, string dst)`
+* `void title.extract_code(string src, string dst)`
 
 Extracts the `.code` from a title and decompresses it.
 
@@ -906,7 +906,7 @@ Extracts the `.code` from a title and decompresses it.
 
 #### title.compress_code
 
-`void title.compress_code(string src, string dst)`
+* `void title.compress_code(string src, string dst)`
 
 Compress a `.code` file.
 
@@ -933,3 +933,120 @@ Apply an IPS, BPS, or BPM patch.
 	* `"ApplyIPSPatch failed"` - failed to apply IPS patch
 	* `"ApplyBPSPatch failed"` - failed to apply BPS patch
 	* `"ApplyBPMPatch failed"` - failed to apply BPM patch
+
+---
+
+### `sys` module
+
+#### sys.boot
+
+* `void sys.boot(string path)`
+
+Boot a FIRM file.
+
+* **Arguments**
+	* `path` - FIRM file
+* **Throws**
+	* `"out of memory"` - out-of-memory error when attempting to create the data buffer
+	* `"not a bootable firm"` - file cannot be booted
+
+#### sys.reboot
+
+* `void sys.reboot()`
+
+Reboots the console.
+
+#### sys.power_off
+
+* `void sys.power_off()`
+
+Powers off the console.
+
+#### sys.region
+
+* `string sys.region`
+
+System region, based on SysNAND's `SecureInfo_[AB]` file. Not affected by `SecureInfo_C`.
+
+Possible values: `"JPN"`, `"USA"`, `"EUR"`, `"AUS"`, `"CHN"`, `"KOR"`, `"TWN"`, `nil` (if it does not exist, or the region byte is invalid)
+
+#### sys.serial
+
+* `string sys.serial`
+
+Serial number, based on SysNAND's `SecureInfo_[AB]` file. Not affected by `SecureInfo_C`.
+
+Can be `nil` if the file does not exist.
+
+#### sys.secureinfo_letter
+
+* `string sys.secureinfo_letter`
+
+The letter at the end of the console's `SecureInfo_[AB]` file.
+
+Possible values: `"A"`, `"B"`, `nil` (if it does not exist)
+
+#### sys.sys_id0
+
+* `string sys.sys_id0`
+
+ID0 of SysNAND as a printable hex string.
+
+Can be `nil` if the file does not exist.
+
+#### sys.emu_id0
+
+* `string sys.emu_id0`
+
+ID0 of EmuNAND as a printable hex string.
+
+Can be `nil` if the file does not exist.
+
+#### sys.emu_base
+
+* `int sys.emu_base`
+
+Current EmuNAND base.
+
+#### sys.refresh_info
+
+* `void sys.refresh_info()`
+
+Refresh the following variables:
+
+* `sys.region`
+* `sys.serial`
+* `sys.secureinfo_letter`
+* `sys.sys_id0`
+* `sys.emu_id0`
+* `sys.emu_base`
+
+This function is automatically called at the beginning of Lua's execution, but errors are caught to prevent a premature exit. This could leave some of the variables at `nil`.
+
+* **Throws**
+	* `"could not read SecureInfo"` - `SecureInfo_[AB]` is missing
+	* `"SecureInfo region byte is invalid"` - `SecureInfo_[AB]` is not between 0 and 6 inclusive
+
+#### sys.next_emu
+
+* `void sys.next_emu()`
+
+Switch to the next available EmuNAND.
+
+This will automatically call `sys.refresh_info`.
+
+#### sys.check_embedded_backup
+
+* `bool sys.check_embedded_backup()`
+
+Check if `essential.exefs` is embedded into SysNAND, and prompts the user if it isn't. This is the same as the check that is done at boot for GodMode9, but this can be called in a build compiled with `SCRIPT_RUNNER=1` for autorun scripts that require `essential.exefs` to exist.
+
+* **Returns:** `true` if it exists or was created, `false` if user declines, `nil` if console fails genuine NCSD check (modified partition table)
+
+#### sys.check_raw_rtc
+
+* `bool sys.check_raw_rtc()`
+
+Check if the Raw RTC is set correctly, and prompts the user if it isn't. This is the same as the check that is done at boot for GodMode9, but this can be called in a build compiled with `SCRIPT_RUNNER=1` for autorun scripts that require `essential.exefs` to exist.
+
+* **Returns:** `true` if set, `false` if user declines

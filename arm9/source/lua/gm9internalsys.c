@@ -20,12 +20,12 @@ static int internalsys_boot(lua_State* L) {
 
     u8* firm = (u8*) malloc(FIRM_MAX_SIZE);
     if (!firm) {
-        return luaL_error(L, STR_SCRIPTERR_OUT_OF_MEMORY);
+        return luaL_error(L, "out of memory");
     }
 
     size_t firm_size = FileGetData(path, firm, FIRM_MAX_SIZE, 0);
     if (!(firm_size && IsBootableFirm(firm, firm_size))) {
-        return luaL_error(L, STR_SCRIPTERR_NOT_A_BOOTABLE_FIRM);
+        return luaL_error(L, "not a bootable firm");
     }
 
     char fixpath[256] = { 0 };
