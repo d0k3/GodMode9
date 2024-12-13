@@ -629,3 +629,218 @@ Calculate the hash for a file. Uses SHA-256 unless `sha1` is specified. To hash 
 * **Throws**
 	* `"failed to stat <path>"` - could not stat file to get size
 	* `"FileGetSha failed on <path>"` - could not read file or user canceled
+
+#### fs.hash_data
+
+`string fs.hash_data(string data[, table opts {bool sha1}])`
+
+Calculate the hash for some data. Uses SHA-256 unless `sha1` is specified.
+
+> [!TIP]
+> * Use `util.bytes_to_hex` to convert the result to printable hex characters.
+
+* **Arguments**
+	* `data` - Data to hash
+	* `opts` (optional) - Option flags
+		* `sha1` - Use SHA-1
+* **Returns:** SHA-256 or SHA-1 hash as byte string
+
+#### fs.verify
+
+`bool fs.verify(string path)`
+
+Verify the integrity of a file.
+
+> [!NOTE]
+> This is for files that have their own hashes built-in. For verifying against a corresponding `.sha` file, use `fs.verify_with_sha_file`.
+
+* **Arguments**
+	* `path` - File to verify
+* **Returns:** `true` if successful, `false` if failed or not verifiable
+
+#### fs.verify_with_sha_file
+
+`bool fs.verify_with_sha_file(string path)`
+
+Calculate the hash of a file and compare it with a corresponding `.sha` file.
+
+> [!IMPORTANT]
+> This currently assumes SHA-256. In the future this may automatically use SHA-1 when appropriate, based on the `.sha` file size.
+
+TODO: add errors for fs.read_file here
+
+* **Argumens**
+	* `path` - File to hash
+* **Returns:** `true` if successful, `false` if failed, `nil` if `.sha` file could not be read
+* **Throws**
+	* `"failed to stat <path>"` - could not stat file to get size
+	* `"FileGetSha failed on <path>"` - could not read file or user canceled
+
+#### fs.exists
+
+`bool fs.exists(string path)`
+
+Check if an item exists.
+
+* **Arguments**
+	* `path` - Path to file or directory
+* **Returns:** `true` if exists, `false` otherwise
+
+#### fs.is_dir
+
+`bool fs.is_dir(string path)`
+
+Check if an item exists, and is a directory.
+
+* **Arguments**
+	* `path` - Path to directory
+* **Returns:** `true` if exists and is a directory, `false` otherwise
+
+#### fs.is_file
+
+`bool fs.is_file(string path)`
+
+Check if an item exists, and is a file.
+
+* **Arguments**
+	* `path` - Path to file
+* **Returns:** `true` if exists and is a file, `false` otherwise
+
+#### fs.sd_is_mounted
+
+`bool fs.sd_is_mounted()`
+
+Check if the SD card is mounted.
+
+* **Returns:** `true` if SD card is mounted
+
+#### fs.sd_switch
+
+`void fs.sd_switch([string message])`
+
+Prompt the user to remove and insert an SD card.
+
+* **Arguments**
+	* `message` (optional) - Text to prompt the user, defaults to `"Please switch the SD card now."`
+* **Throws**
+	* `"user canceled"` - user canceled the switch
+
+#### fs.fix_cmacs
+
+`void fs.fix_cmacs(string path)`
+
+Fix CMACs for a directory.
+
+* **Arguments**
+	* `path` - Path to recursively fix CMACs for
+* **Throws**
+	* `fixcmac failed` - user denied permission, or fixing failed
+
+#### fs.read_file
+
+`string fs.read_file(string path, int offset, int/string size)`
+
+Read data from a file.
+
+* **Arguments**
+	* `path` - File to read
+	* `offset` - Data offset
+	* `size` - Amount of data to read
+* **Returns:** string of data
+* **Throws**
+	* `"could not allocate memory to read file"` - out-of-memory error when attempting to create the data buffer
+	* `"could not read <path> (##)"` - error when attempting to read file, with FatFs error number
+
+#### fs.write_file
+
+`int fs.write_file(string path, int offset, string data)1
+
+Write data to a file.
+
+* **Arguments**
+	* `path` - File to write
+	* `offset` - Offset to write to, or the string `"end"` to write at the end of file
+	* `data` - Data to write
+* **Returns:** amount of bytes written
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"error writing <path> (##)"` - error when attempting to write file, with FatFs error number
+
+#### fs.fill_file
+
+`void fs.fill_file(string path, int offset, int size, int byte)`
+
+Fill a file with a specified byte.
+
+* **Arguments**
+	* `path` - File to write
+	* `offset` - Offset to write to
+	* `size` - Amount of data to write
+	* `byte` - Number between `0x00` and `0xFF` (`0` and `255`) indicating the byte to write
+	* `opts` (optional) - Option flags
+		* `no_cancel` - Don’t allow user to cancel
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"byte is not between 0x00 and 0xFF (got: ##)"` - byte value is not a single byte
+	* `"FileSetByte failed on <path>"` - writing failed or user canceled
+
+#### fs.make_dummy_file
+
+`void fs.make_dummy_file(string path, int size)`
+
+Create a dummy file.
+
+> [!NOTE]
+> The file will contain data from the unused parts of the filesystem. If you need to ensure it's clean, use `fs.fill_file`.
+
+* **Arguments**
+	* `path` - File to create
+	* `size` - File size to set
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"FileCreateDummy failed on <path>"` - dummy creation failed
+
+#### fs.truncate
+
+`void fs.truncate(string path, int size)`
+
+Truncate a file to a specific size.
+
+> [!IMPORTANT]
+> Does not work for virtual filesystems.
+
+* **Arguments**
+	* `path` - File to create
+	* `size` - File size to set
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"failed to open <path> (note: this only works on FAT filesystems, not virtual)"` - opening file failed, or a virtual filesystem was used
+	* `"failed to seek on <path>"` - seeking file failed
+	* `"failed to truncate on <path>"` - truncating file failed
+
+#### fs.key_dump
+
+`void fs.key_dump(string file[, table opts {bool overwrite}])`
+
+Dumps title keys or seeds. Taken from both SysNAND and EmuNAND. The resulting file is saved to `0:/gm9/out`.
+
+* **Arguments**
+	* `file` - One of three supported filenames: `seeddb.bin`, `encTitleKeys.bin`, `decTitleKeys.bin`
+	* `opts` (optional) - Option flags
+		* `overwrite` - Overwrite files
+* **Throws**
+	* `"building <file> failed"` - building failed or file already exists and `overwrite` was not used
+
+#### fs.cart_dump
+
+`void fs.cart_dump(string path, int size[, table opts {bool encrypted}])`
+
+Dump the raw data from the inserted game card. No modifications are made to the data. This means for example, Card2 games will not have the save area cleared.
+
+* **Arguments**
+	* `path` - File to write data to
+	* `size` - Amount of data to read
+* **Throws**
+	* `"out of memory"` - out-of-memory error when attempting to create the data buffer
+	* `"cart init fail"` - card is not inserted or some other failure when attempting to initialize
+	* `"cart dump failed or canceled"` - cart read failed or used canceled

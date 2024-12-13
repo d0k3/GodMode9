@@ -167,13 +167,14 @@ static int internalfs_stat(lua_State* L) {
     return 1;
 }
 
+// TODO: make this manually check for permissions recursively
 static int internalfs_fix_cmacs(lua_State* L) {
     CheckLuaArgCount(L, 1, "_fs.fix_cmacs");
     const char* path = luaL_checkstring(L, 1);
 
     ShowString("%s", STR_FIXING_CMACS_PLEASE_WAIT);
     if (RecursiveFixFileCmac(path) != 0) {
-        return luaL_error(L, "%s", STR_SCRIPTERR_FIXCMAC_FAILED);
+        return luaL_error(L, "fixcmac failed");
     }
 
     return 0;
@@ -420,7 +421,7 @@ static int internalfs_make_dummy_file(lua_State* L) {
 }
 
 static int internalfs_truncate(lua_State* L) {
-    CheckLuaArgCount(L, 2, "_fs.write_file");
+    CheckLuaArgCount(L, 2, "_fs.truncate");
     const char* path = luaL_checkstring(L, 1);
     lua_Integer size = luaL_checkinteger(L, 2);
     FIL fp;
@@ -484,6 +485,7 @@ static int internalfs_get_img_mount(lua_State* L) {
     return 1;
 }
 
+// TODO: what if someone does offset != 0 but size = 0 (end of file)?
 static int internalfs_hash_file(lua_State* L) {
     bool extra = CheckLuaArgCountPlusExtra(L, 3, "_fs.hash_file");
     const char* path = luaL_checkstring(L, 1);
@@ -545,7 +547,7 @@ static int internalfs_hash_data(lua_State* L) {
 }
 
 static int internalfs_allow(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.img_mount");
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.allow");
     const char* path = luaL_checkstring(L, 1);
     u32 flags = 0;
     bool allowed;
@@ -608,7 +610,7 @@ static int internalfs_sd_switch(lua_State* L) {
         while (!((pad_state = InputWait(0)) & (BUTTON_B|SD_INSERT)));
     }
     if (pad_state & BUTTON_B) {
-        return luaL_error(L, "%s", STR_SCRIPTERR_USER_ABORT);
+        return luaL_error(L, "user canceled");
     }
 
     InitSDCardFS();
