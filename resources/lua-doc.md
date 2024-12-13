@@ -154,16 +154,16 @@ These modules work differently:
 ### Constants
 
 #### GM9VER
-The version such as `v2.1.1-159-gff2cb913`, the same string that is shown on the main screen.
+The version such as `"v2.1.1-159-gff2cb913"`, the same string that is shown on the main screen.
 
 #### SCRIPT
-Path to the executed script, such as `0:/gm9/luascripts/myscript.lua`.
+Path to the executed script, such as `"0:/gm9/luascripts/myscript.lua"`.
 
 #### CURRDIR
-Directory of the executed script, such as `0:/gm9/luascripts`.
+Directory of the executed script, such as `"0:/gm9/luascripts"`.
 
 #### GM9OUT
-The value `0:/gm9/out`.
+The value `"0:/gm9/out"`.
 
 #### HAX
 > [!WARNING]
@@ -846,3 +846,90 @@ Dump the raw data from the inserted game card. No modifications are made to the 
 	* `"out of memory"` - out-of-memory error when attempting to create the data buffer
 	* `"cart init fail"` - card is not inserted or some other failure when attempting to initialize
 	* `"cart dump failed or canceled"` - cart read failed or used canceled
+
+---
+
+### `title` module
+
+#### title.decrypt, title.encrypt
+
+* `void title.decrypt(string path)`
+* `void title.decrypt(string path)`
+
+Decrypt or encrypt a title or key database, done in-place.
+
+* **Arguments**
+	* `path` - Path to title or key database
+* **Throws**
+	* `"CryptAesKeyDb failed on <path>"` - could not crypt key database
+	* `"CryptGameFile failed on <path>"` - could not crypt title
+
+#### title.install
+
+`void title.install(string path[, table opts {bool to_emunand}])`
+
+Install a title.
+
+* **Arguments**
+	* `path` - File to install
+	* `opts` (optional) - Option flags
+		* `to_emunand` - Install to EmuNAND
+* **Throws**
+	* `"InstallGameFile failed on <path>"` - install failed or user canceled
+
+#### title.build_cia
+
+`void title.build_cia(string path[, table opts {bool legit}])`
+
+Build title as a CIA. Resulting file is put in `0:/gm9/out`.
+
+* **Arguments**
+	* `path` - File to build as CIA
+	* `opts` (optional) - Option flags
+		* `legit` - Build as legit CIA if possible
+* **Throws**
+	* `"BuildCiaFromGameFile failed on <path>"` - build failed or user canceled
+
+#### title.extract_code
+
+`void title.extract_code(string src, string dst)`
+
+Extracts the `.code` from a title and decompresses it.
+
+* **Arguments**
+	* `src` - File containing `.code`
+	* `dst` - Destination to write decompressed `.code`
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"<path> does not have code"` - invalid file type
+	* `"failed to extract code from <path>"` - extraction failed
+
+#### title.compress_code
+
+`void title.compress_code(string src, string dst)`
+
+Compress a `.code` file.
+
+* **Arguments**
+	* `src` - Extracted `.code`, like from `title.extract_code`
+	* `dst` - Destination to write compressed `.code`
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"failed to compress code from <path>"` - compression failed
+
+#### title.apply_ips, title.apply_bps, title.apply_bpm
+
+* `void title.apply_ips(string patch, string src, string target)`
+* `void title.apply_bps(string patch, string src, string target)`
+* `void title.apply_bpm(string patch, string src, string target)`
+
+Apply an IPS, BPS, or BPM patch.
+
+* **Arguments**
+	* `patch` - IPS, BPS, or BPM patch file
+	* `src` - File to patch
+	* `target` - Destination to write patched file to
+* **Throws**
+	* `"ApplyIPSPatch failed"` - failed to apply IPS patch
+	* `"ApplyBPSPatch failed"` - failed to apply BPS patch
+	* `"ApplyBPMPatch failed"` - failed to apply BPM patch
