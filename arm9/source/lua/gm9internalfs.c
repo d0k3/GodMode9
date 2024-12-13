@@ -199,7 +199,7 @@ static int internalfs_stat_fs(lua_State* L) {
 }
 
 static int internalfs_dir_info(lua_State* L) {
-    CheckLuaArgCount(L, 1, "_fs.stat_fs");
+    CheckLuaArgCount(L, 1, "_fs.dir_info");
     const char* path = luaL_checkstring(L, 1);
 
     u64 tsize = 0;
