@@ -40,6 +40,9 @@ static int internalfs_move(lua_State* L) {
     const char* path_dst = luaL_checkstring(L, 2);
     FILINFO fno;
 
+    CheckWritePermissionsLuaError(L, path_src);
+    CheckWritePermissionsLuaError(L, path_dst);
+
     u32 flags = BUILD_PATH;
     if (extra) {
         flags = GetFlagsFromTable(L, 3, flags, NO_CANCEL | SILENT | OVERWRITE_ALL | SKIP_ALL);
