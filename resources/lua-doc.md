@@ -12,7 +12,7 @@ There are four ways to run Lua scripts:
 * Select it in the file browser and choose "`Execute Lua script`"
 * Place it in `0:/gm9/luascripts`, then open the HOME menu, choose "`Lua scripts...`", then choose the script
 * Place it in `data/luascripts`, then build GodMode9 from source
-    * This takes precedence over `0:/gm9/luascripts`
+  * This takes precedence over `0:/gm9/luascripts`
 * Place it at `data/autorun.lua`, then build GodMode9 from source with `SCRIPT_RUNNER=1` to automatically run it at launch
 
 ## Packages
@@ -96,8 +96,8 @@ Unlike the `PREVIEW_MODE` GM9Script variable, this has been split into multiple 
 
 Setting | Lua
 -- | --
-“quick” and “full” | (There is no alternative to view a Lua script as it’s running.)
-“off” | ui.clear
+“quick" and “full" | (There is no alternative to view a Lua script as it’s running.)
+“off" | ui.clear
 text | ui.show_text
 png file | ui.show_png
 game icon | ui.show_game_info
@@ -106,8 +106,8 @@ game icon | ui.show_game_info
 
 GM9 | Lua | Notes
 -- | -- | --
-DATESTAMP | util.get_datestamp() | Formatted like “241202”, equivalent to os.date("%y%m%d")
-TIMESTAMP | util.get_timestamp() | Formatted like “010828”, equivalent to os.date("%H%M%S")
+DATESTAMP | util.get_datestamp() | Formatted like “241202", equivalent to os.date("%y%m%d")
+TIMESTAMP | util.get_timestamp() | Formatted like “010828", equivalent to os.date("%H%M%S")
 SYSID0 | sys.sys_id0 |  
 EMUID0 | sys.emu_id0 |  
 EMUBASE | sys.emu_base |  
@@ -117,8 +117,8 @@ SDSIZE | fs.stat_fs("0:/").total | int instead of string (use util.format_bytes 
 SDFREE | fs.stat_fs("0:/").free | int instead of string (use util.format_bytes to format it)
 NANDSIZE | NANDSIZE | int instead of string (use util.format_bytes to format it)
 GM9OUT | GM9OUT |  
-CURRDIR | CURRDIR | nil instead of “(null)” if it can’t be found
-ONTYPE | CONSOLE_TYPE | “O3DS” or “N3DS”
+CURRDIR | CURRDIR | nil instead of “(null)" if it can’t be found
+ONTYPE | CONSOLE_TYPE | “O3DS" or “N3DS"
 RDTYPE | IS_DEVKIT | boolean instead of a string
 HAX | HAX |  
 GM9VER | GM9VER |  
@@ -127,8 +127,8 @@ GM9VER | GM9VER |  
 
 These original Lua 5.4 modules are fully available:
 * [Basic functions](https://www.lua.org/manual/5.4/manual.html#6.1)
-    * `print` will replace the top screen with an output log. Currently it does not implement some features such as line wrapping.
-    * dofile and loadfile don't work yet.
+  * `print` will replace the top screen with an output log. Currently it does not implement some features such as line wrapping.
+  * dofile and loadfile don't work yet.
 * [coroutine](https://www.lua.org/manual/5.4/manual.html#6.2)
 * [debug](https://www.lua.org/manual/5.4/manual.html#6.10)
 * [math](https://www.lua.org/manual/5.4/manual.html#6.7)
@@ -138,14 +138,14 @@ These original Lua 5.4 modules are fully available:
 
 These modules are partially available:
 * [os](https://www.lua.org/manual/5.4/manual.html#6.9)
-    * Only `os.clock`, `os.time`, `os.date`, `os.difftime`, and `os.remove`
+  * Only `os.clock`, `os.time`, `os.date`, `os.difftime`, and `os.remove`
 * [io](https://www.lua.org/manual/5.4/manual.html#6.8)
-    * Only `io.open`; for open files, all but `file:setvbuf` and `file:lines`
-    * This is a custom compatibility module that uses `fs` functions. If there are differences compared to the original `io` implementation, please report them as issues.
+  * Only `io.open`; for open files, all but `file:setvbuf` and `file:lines`
+  * This is a custom compatibility module that uses `fs` functions. If there are differences compared to the original `io` implementation, please report them as issues.
 
 These modules work differently:
 * [package](https://www.lua.org/manual/5.4/manual.html#6.3)
-    * `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
+  * `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
 
 ---
 
@@ -196,7 +196,7 @@ The string `"O3DS"` or `"N3DS"`.
 Display text on the bottom screen and wait for the user to press A.
 
 * **Arguments**
-    * `text` - Text to show the user
+  * `text` - Text to show the user
 
 #### ui.ask
 
@@ -205,7 +205,7 @@ Display text on the bottom screen and wait for the user to press A.
 Prompt the user with a yes/no question.
 
 * **Arguments**
-    * `text` - Text to ask the user
+  * `text` - Text to ask the user
 * **Returns:** `true` if the user accepts
 
 #### ui.ask_hex
@@ -215,9 +215,9 @@ Prompt the user with a yes/no question.
 Ask the user to input a hex number.
 
 * **Arguments**
-    * `text` - Text to ask the user
-    * `initial` - Starting value
-    * `n_digits` - Amount of hex digits allowed
+  * `text` - Text to ask the user
+  * `initial` - Starting value
+  * `n_digits` - Amount of hex digits allowed
 * **Returns:** the number the user entered, or `nil` if canceled
 
 #### ui.ask_number
@@ -227,8 +227,8 @@ Ask the user to input a hex number.
 Ask the user to input a number.
 
 * **Arguments**
-    * `text` - Text to ask the user
-    * `initial` - Starting value
+  * `text` - Text to ask the user
+  * `initial` - Starting value
 * **Returns:** the number the user entered, or `nil` if canceled
 
 #### ui.ask_text
@@ -238,9 +238,9 @@ Ask the user to input a number.
 Ask the user to input text.
 
 * **Arguments**
-    * `prompt` - Text to ask the user
-    * `initial` - Starting value
-    * `max_length` - Maximum length of the string
+  * `prompt` - Text to ask the user
+  * `initial` - Starting value
+  * `max_length` - Maximum length of the string
 * **Returns:** the text the user entered, or `nil` if canceled
 
 #### ui.ask_selection
@@ -250,8 +250,8 @@ Ask the user to input text.
 Ask the user to choose an option from a list. A maximum of 256 options are allowed.
 
 * **Arguments**
-    * `prompt` - Text to ask the user
-    * `options` - Table of options
+  * `prompt` - Text to ask the user
+  * `options` - Table of options
 * **Returns:** index of selected option, or `nil` if canceled
 
 #### ui.clear
@@ -269,11 +269,11 @@ Displays a PNG file on the top screen.
 The image must not be larger than 400 pixels horizontal or 240 pixels vertical. If `SWITCH_SCREENS=1` is used, it must not be larger than 320 pixels horizontal.
 
 * **Arguments**
-    * `path` - Path to PNG file
+  * `path` - Path to PNG file
 * **Throws** 
-    * `"Could not read (file)"` - file does not exist or there was another read error
-    * `"Invalid PNG file"` - file is not a valid PNG
-    * `"PNG too large"` - too large horizontal or vertical, or an out-of-memory error
+  * `"Could not read (file)"` - file does not exist or there was another read error
+  * `"Invalid PNG file"` - file is not a valid PNG
+  * `"PNG too large"` - too large horizontal or vertical, or an out-of-memory error
 
 #### ui.show_text
 
@@ -282,7 +282,7 @@ The image must not be larger than 400 pixels horizontal or 240 pixels vertical. 
 Displays text on the top screen.
 
 * **Arguments**
-    * `text` - Text to show the user
+  * `text` - Text to show the user
 
 #### ui.show_game_info
 
@@ -291,9 +291,9 @@ Displays text on the top screen.
 Shows game file info. Accepts any files that include an SMDH, a DS game file, or GBA file.
 
 * **Arguments**
-    * `path` - Path to game file (CIA, CCI/".3ds", SMDH, TMD, TIE (DSiWare export), Ticket, NDS, GBA)
+  * `path` - Path to game file (CIA, CCI/".3ds", SMDH, TMD, TIE (DSiWare export), Ticket, NDS, GBA)
 * **Throws**
-    * `"ShowGameFileIcon failed on (path)"` - failed to get game info from path
+  * `"ShowGameFileIcon failed on <path>"` - failed to get game info from path
 
 #### ui.show_qr
 
@@ -302,10 +302,10 @@ Shows game file info. Accepts any files that include an SMDH, a DS game file, or
 Displays a QR code on the top screen, and a prompt on the bottom screen, and waits for the user to press A.
 
 * **Arguments**
-    * `text` - Text to show the user
-    * `data` - Data to encode into the QR code
+  * `text` - Text to show the user
+  * `data` - Data to encode into the QR code
 * **Throws**
-    * `"could not allocate memory"` - out-of-memory error when attempting to generate the QR code
+  * `"could not allocate memory"` - out-of-memory error when attempting to generate the QR code
 
 #### ui.show_text_viewer
 
@@ -314,10 +314,10 @@ Displays a QR code on the top screen, and a prompt on the bottom screen, and wai
 Display a scrollable text viewer.
 
 * **Arguments**
-    * `text` - Text to display
+  * `text` - Text to display
 * **Throws**
-    * `"text validation failed"` - given string contains invalid characters
-    * `"failed to run MemTextViewer"` - internal memory viewer error
+  * `"text validation failed"` - given string contains invalid characters
+  * `"failed to run MemTextViewer"` - internal memory viewer error
 
 #### ui.show_file_text_viewer
 
@@ -326,11 +326,11 @@ Display a scrollable text viewer.
 Display a scrollable text viewer from a text file.
 
 * **Arguments**
-    * `path` - Path to text file
+  * `path` - Path to text file
 * **Throws**
-    * `"could not allocate memory"` - out-of-memory error when attempting to create the text buffer
-    * `"text validation failed"` - text file contains invalid characters
-    * `"failed to run MemTextViewer"` - internal memory viewer error
+  * `"could not allocate memory"` - out-of-memory error when attempting to create the text buffer
+  * `"text validation failed"` - text file contains invalid characters
+  * `"failed to run MemTextViewer"` - internal memory viewer error
 
 #### ui.format_bytes
 
@@ -342,7 +342,7 @@ Format a number with `Byte`, `kB`, `MB`, or `GB`.
 > This is affected by localization and may return different text if the language is not English.
 
 * **Arguments**
-    * `bytes` - size to format
+  * `bytes` - Size to format
 * **Returns:** formatted string
 
 #### ui.check_key
@@ -352,5 +352,280 @@ Format a number with `Byte`, `kB`, `MB`, or `GB`.
 Checks if the user is holding down a key.
 
 * **Arguments**
-    * `key` - a button string: `"A"`, `"B"`, `"SELECT"`, `"START"`, `"RIGHT"`, `"LEFT"`, `"UP"`, `"DOWN"`, `"R"`, `"L"`, `"X"`, `"Y"`
+  * `key` - A button string: `"A"`, `"B"`, `"SELECT"`, `"START"`, `"RIGHT"`, `"LEFT"`, `"UP"`, `"DOWN"`, `"R"`, `"L"`, `"X"`, `"Y"`
 * **Returns:** `true` if currently held, `false` if not
+
+---
+
+### `fs` module
+
+#### fs.move
+
+`void fs.move(string src, string dst[, table opts {bool no_cancel, bool silent, bool overwrite, bool skip_all}])`
+
+Moves or renames a file or directory.
+
+* **Arguments**
+	* `src` - Item to move
+	* `dst` - Destination name
+	* `opts` (optional) - Option flags
+		* `no_cancel` - Don’t allow user to cancel
+		* `silent` - Don’t show progress
+		* `overwrite` - Overwrite files
+		* `skip_all` - Skip existing files
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"destination already exists on <src> -> <dst> and {overwrite=true} was not used"` - attempted to move an item over an existing one without using `overwrite`
+	* `"PathMoveCopy failed on <src> -> <dst>"` - error when moving, or user canceled
+
+#### fs.remove
+
+`void fs.remove(string path[, table opts {bool recursive}])`
+
+Delete a file or directory.
+
+* **Arguments**
+	* `path` - Path to delete
+	* `opts` (optional) - Option flags
+		* `recursive` - Remove directories recursively
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"requested directory remove without {recursive=true} on <path>"` - attempted to delete a directory without using `recursive`
+	* `"PathDelete failed on %s"` - error when deleting
+
+#### fs.copy
+
+`void fs.copy(string src, string dst[, table opts {bool calc_sha, bool sha1, bool no_cancel, bool silent, bool overwrite, bool skip_all, bool append, bool recursive}])`
+
+Copy a file or directory.
+
+* **Arguments**
+	* `src` - Item to copy
+	* `dst` - Destination name
+	* `opts` (optional) - Option flags
+		* `calc_sha` - Write `.sha` files containing a SHA-256 (default) or SHA-1 hash
+		* `sha1` - Use SHA-1
+		* `no_cancel` - Don’t allow user to cancel
+		* `silent` - Don’t show progress
+		* `overwrite` - Overwrite files
+		* `skip_all` - Skip existing files
+		* `append` - Append to the end of existing files instead of overwriting
+		* `recursive` - Copy directories recursively
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"requested directory copy without {recursive=true} on <src> -> <dst>"` - attempted to copy a directory without using `recursive`
+	* `"destination already exists on <src> -> <dst> and {overwrite=true} was not used"` - attempted to copy an item over an existing one without using `overwrite`
+	* `"PathMoveCopy failed on <src> -> <dst>"` - error when copying, or user canceled
+
+#### fs.mkdir
+
+`void fs.mkdir(string path)`
+
+Create a directory. This creates intermediate directories as required, so `fs.mkdir("a/b/c")` would create `a`, then `b`, then `c`.
+
+* **Arguments**
+	* `path` - Directory to create
+* **Throws**
+	* `"writing not allowed: <path>"` - user denied permission
+	* `"could not mkdir (<path>)"` - error when creating directories
+
+#### fs.stat
+
+`array fs.stat(string path)`
+
+Get information about a file or directory. The result is a stat table with these keys:
+
+* **Arguments**
+	* `path` - Directory to stat
+* **Returns:** A stat table with keys:
+	* `name` (string)
+	* `type` (string) - `"dir"` or `"file"`
+	* `size` (number)
+	* `read_only` (bool)
+* **Throws**
+	* `"could not stat <path> (##)"` - error when attempting to stat item, with FatFs error number
+
+#### fs.list_dir
+
+`array fs.list_dir(string path)`
+
+Get the contents of a directory. The result is a list of stat tables with these keys:
+* `name` (string)
+* `type` (string) - `"dir"` or `"file"`
+* `size` (number)
+* `read_only` (bool)
+
+* **Arguments**
+	* `path` - Directory to list
+* **Returns:** A list of stat tables, each with keys:
+	* `name` (string)
+	* `type` (string) - `"dir"` or `"file"`
+	* `size` (number)
+	* `read_only` (bool)
+* **Throws**
+	* `"could not opendir <path> (##)"` - error when attempting to open directory, with FatFs error number
+	* `"could not readdir <path> (##)"` - error when attempting to read directory, with FatFs error number
+
+#### fs.stat_fs
+
+`array fs.stat_fs(string path)`
+
+Get information about a filesystem.
+
+> [!NOTE]
+> This function can take several seconds before it returns an answer.
+
+* **Arguments**
+	* `path` - Filesystem to stat
+* **Returns:** A stat table with keys:
+	* `free` (number)
+	* `total` (number)
+	* `used` (number)
+
+#### fs.dir_info
+
+`array fs.dir_info(string path)`
+
+Get information about a directory.
+
+> [!NOTE]
+> This function can take several seconds before it returns an answer.
+
+* **Arguments**
+	* `path` - Directory to check
+* **Returns:** An info table with keys:
+	* `size` (number)
+	* `dirs` (number)
+	* `files` (number)
+* **Throws**
+	* `"error when running DirInfo"` - error when scanning directory
+
+#### fs.ask_select_file
+
+`string fs.ask_select_file(string prompt, string path[, bool opts {bool include_dirs, bool explorer}])`
+
+Prompt the user to select a file based on a pattern. Accepts a wildcard pattern like `"0:/gm9/in/*_ctrtransfer_n3ds.bin"`.
+
+* **Arguments**
+	* `prompt` - Text to ask the user
+	* `path` - Wildcard pattern to search for
+	* `opts` (optional) - Option flags
+		* `include_dirs` - Include directories in selection
+		* `explorer` - Use file explorer, including navigating subdirectories
+* **Returns:** path selected, or `nil` if user canceled
+* **Throws**
+	* `"forbidden drive"` - attempted search on `Z:`
+	* `"invalid path"` - could not find `/` in path
+
+#### fs.ask_select_dir
+
+`string fs.ask_select_dir(string prompt, string path[, bool opts {bool explorer}])`
+
+Prompt the user to select a directory.
+
+* **Arguments**
+	* `prompt` - Text to ask the user
+	* `path` - Directory to search
+	* `opts` (optional) - Option flags
+		* `explorer` - Use file explorer, including navigating subdirectories
+* **Returns:** path selected, or `nil` if user canceled
+* **Throws**
+	* `"forbidden drive"` - attempted search on `Z:`
+
+#### fs.find
+
+`string fs.find(string pattern[, bool opts {bool first}])`
+
+Searches for a file based on a wildcard pattern. Returns the last result, unless `first` is specified.
+
+Pattern can use `?` for search values, for example `00017?02` will match `00017002`, `00017102`, etc. Wildcards are also accepted.
+
+* **Arguments**
+	* `pattern` - Pattern to search for
+	* `opts` (optional) - Option flags
+		* `first` - Return first result instead of last
+* **Returns:** found file
+* **Throws**
+	* `"failed to find <path> (##)"` - error when attempting to find path, with FatFs error number
+
+#### fs.find_not
+
+`string fs.find(string pattern)`
+
+Searches for a free filename based on a pattern.
+
+Pattern can use `?` for search values, for example `nand_??.bin` will check to see if `nand_00.bin` exists. If it doesn't, it returns this string. Otherwise, it checks if `nand_01.bin` exists and keeps going until an unused filename can be found.
+
+* **Arguments**
+	* `pattern` - Pattern to search for
+* **Returns:** found file
+* **Throws**
+	* `"failed to find <path> (##)"` - error when attempting to find path, with FatFs error number
+
+#### fs.find_all
+
+`string fs.find_all(string pattern)`
+
+> [!WARNING]
+> Not implemented.
+
+#### fs.allow
+
+`bool fs.allow(string path[, table flags {bool ask_all}])`
+
+Check for and request permission to write to a sensitive path.
+
+* **Arguments**
+	* `path` - Path to request permission for
+	* `opts` (optional) - Option flags
+		* `ask_all` - Request to write to all files in directory
+* **Returns:** `true` if granted, `false` if user declines
+
+#### fs.img_mount
+
+`void fs.img_mount(string path)`
+
+Mount an image file. Can be anything mountable through the file browser.
+
+* **Arguments**
+	* `path` - Path to image file
+* **Throws**
+	* `"failed to mount <path>"` - not a valid image file
+
+#### fs.img_umount
+
+`void fs.img_umount()`
+
+Unmount the currently mounted image file.
+
+#### fs.get_img_mount
+
+`string fs.get_img_mount()`
+
+Get the currently mounted image file.
+
+* **Returns:** path to file, or `nil` if none is mounted
+
+#### fs.hash_file
+
+`string fs.hash_file(string path, int offset, int size[, table opts {bool sha1}])`
+
+Calculate the hash for a file. Uses SHA-256 unless `sha1` is specified. To hash an entire file, `size` should be `0`.
+
+> [!TIP]
+> * Use `fs.verify_with_sha_file` to compare with a corresponding `.sha` file.
+> * Use `util.bytes_to_hex` to convert the result to printable hex characters.
+
+> [!NOTE]
+> Using an offset that is not `0`, with a size of `0` (to hash to end of file), is currently undefined behavior. In the future this should work properly.
+
+* **Arguments**
+	* `path` - File to hash
+	* `offset` - Data offset
+	* `size` - Amount of data to hash, or `0` to hash to end of file
+	* `opts` (optional) - Option flags
+		* `sha1` - Use SHA-1
+* **Returns:** SHA-256 or SHA-1 hash as byte string
+* **Throws**
+	* `"failed to stat <path>"` - could not stat file to get size
+	* `"FileGetSha failed on <path>"` - could not read file or user canceled
