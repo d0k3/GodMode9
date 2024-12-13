@@ -5,7 +5,7 @@
 
 GodMode9 includes a Lua 5.4.7 implementation.
 
-# Running scripts
+## Running scripts
 
 There are four ways to run Lua scripts:
 
@@ -15,7 +15,7 @@ There are four ways to run Lua scripts:
     * This takes precedence over `0:/gm9/luascripts`
 * Place it at `data/autorun.lua`, then build GodMode9 from source with `SCRIPT_RUNNER=1` to automatically run it at launch
 
-# Packages
+## Packages
 
 Lua scripts can load custom modules. The default search path (defined as `package.path`) is:
 
@@ -30,11 +30,11 @@ For example, when a script calls `require("foobar")`, the package searcher will 
 * `V:/luapackages/foobar.lua`
 * `V:/luapackages/foobar/init.lua`
 
-# Comparison with GM9Script
+## Comparison with GM9Script
 
 These tables are provided to assist with converting from GM9Script to Lua.
 
-## Commands
+### Commands
 
 GM9 | Lua | Notes
 -- | -- | --
@@ -90,7 +90,7 @@ reboot | sys.reboot |  
 poweroff | sys.power_off |  
 bkpt | bkpt |  
 
-## PREVIEW_MODE variable
+### PREVIEW_MODE variable
 
 Unlike the `PREVIEW_MODE` GM9Script variable, this has been split into multiple functions.
 
@@ -102,7 +102,7 @@ text | ui.show_text
 png file | ui.show_png
 game icon | ui.show_game_info
 
-## Other constants
+### Other constants
 
 GM9 | Lua | Notes
 -- | -- | --
@@ -123,7 +123,7 @@ RDTYPE | IS_DEVKIT | boolean instead of a string
 HAX | HAX |  
 GM9VER | GM9VER |  
 
-# Comparisons with standard Lua
+## Comparisons with standard Lua
 
 These original Lua 5.4 modules are fully available:
 * [Basic functions](https://www.lua.org/manual/5.4/manual.html#6.1)
@@ -147,23 +147,23 @@ These modules work differently:
 * [package](https://www.lua.org/manual/5.4/manual.html#6.3)
     * `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
 
-# API reference
+## API reference
 
-## Constants
+### Constants
 
-### GM9VER
+#### GM9VER
 The version such as `v2.1.1-159-gff2cb913`, the same string that is shown on the main screen.
 
-### SCRIPT
+#### SCRIPT
 Path to the executed script, such as `0:/gm9/luascripts/myscript.lua`.
 
-### CURRDIR
+#### CURRDIR
 Directory of the executed script, such as `0:/gm9/luascripts`.
 
-### GM9OUT
+#### GM9OUT
 The value `0:/gm9/out`.
 
-### HAX
+#### HAX
 > [!WARNING]
 > This needs checking if it's accurate.
 One of three values:
@@ -171,21 +171,21 @@ One of three values:
 * "sighax" if booted directly from a FIRM partition
 * Empty string otherwise
 
-### NANDSIZE
+#### NANDSIZE
 Total size of SysNAND in bytes.
 
-### CONSOLE_TYPE
+#### CONSOLE_TYPE
 The string `"O3DS"` or `"N3DS"`.
 
-### IS_DEVKIT
+#### IS_DEVKIT
 `true` if the console is a developer unit.
 
-## `ui` module
+### `ui` module
 
 > [!NOTE]
 > This assumes the default build is used, where the bottom screen is the main screen. If GodMode9 is compiled with `SWITCH_SCREENS=1`, then every instance where something appears on the bottom screen will actually be on the top screen and vice versa.
 
-### ui.echo
+#### ui.echo
 
 `void ui.echo(string text)`
 
@@ -194,7 +194,7 @@ Display text on the bottom screen and wait for the user to press A.
 * **Arguments**
     * `text` - Text to show the user
 
-### ui.ask
+#### ui.ask
 
 `bool ui.ask(string text)`
 
@@ -204,7 +204,7 @@ Prompt the user with a yes/no question.
     * `text` - Text to ask the user
 * **Returns:** `true` if the user accepts
 
-### ui.ask_hex
+#### ui.ask_hex
 
 `int ui.ask_hex(string text, int initial, int n_digits)`
 
@@ -216,7 +216,7 @@ Ask the user to input a hex number.
     * `n_digits` - Amount of hex digits allowed
 * **Returns:** the number the user entered, or `nil` if canceled
 
-### ui.ask_number
+#### ui.ask_number
 
 `int ui.ask_number(string text, int initial)`
 
@@ -227,7 +227,7 @@ Ask the user to input a number.
     * `initial` - Starting value
 * **Returns:** the number the user entered, or `nil` if canceled
 
-### ui.ask_text
+#### ui.ask_text
 
 `string ui.ask_text(string prompt, string initial, int max_length)`
 
@@ -239,7 +239,7 @@ Ask the user to input text.
     * `max_length` - Maximum length of the string
 * **Returns:** the text the user entered, or `nil` if canceled
 
-### ui.ask_selection
+#### ui.ask_selection
 
 `int ui.ask_selection(string prompt, array options)`
 
@@ -250,13 +250,13 @@ Ask the user to choose an option from a list. A maximum of 256 options are allow
     * `options` - Table of options
 * **Returns:** index of selected option, or `nil` if canceled
 
-### ui.clear
+#### ui.clear
 
 `void ui.clear()`
 
 Clears the top screen.
 
-### ui.show_png
+#### ui.show_png
 
 `void ui.show_png(string path)`
 
@@ -271,7 +271,7 @@ The image must not be larger than 400 pixels horizontal or 240 pixels vertical. 
     * `"Invalid PNG file"` - file is not a valid PNG
     * `"PNG too large"` - too large horizontal or vertical, or an out-of-memory error
 
-### ui.show_text
+#### ui.show_text
 
 `void ui.show_text(string text)`
 
@@ -280,7 +280,7 @@ Displays text on the top screen.
 * **Arguments**
     * `text` - Text to show the user
 
-### ui.show_game_info
+#### ui.show_game_info
 
 `void ui.show_game_info(string path)`
 
@@ -291,7 +291,7 @@ Shows game file info. Accepts any files that include an SMDH, a DS game file, or
 * **Throws**
     * `"ShowGameFileIcon failed on (path)"` - failed to get game info from path
 
-### ui.show_qr
+#### ui.show_qr
 
 `void ui.show_qr(string text, string data)`
 
@@ -303,7 +303,7 @@ Displays a QR code on the top screen, and a prompt on the bottom screen, and wai
 * **Throws**
     * `"could not allocate memory"` - out-of-memory error when attempting to generate the QR code
 
-### ui.show_text_viewer
+#### ui.show_text_viewer
 
 `void ui.show_text_viewer(string text)`
 
@@ -315,7 +315,7 @@ Display a scrollable text viewer.
     * `"text validation failed"` - given string contains invalid characters
     * `"failed to run MemTextViewer"` - internal memory viewer error
 
-### ui.show_file_text_viewer
+#### ui.show_file_text_viewer
 
 `void ui.show_file_text_viewer(string path)`
 
@@ -328,7 +328,7 @@ Display a scrollable text viewer from a text file.
     * `"text validation failed"` - text file contains invalid characters
     * `"failed to run MemTextViewer"` - internal memory viewer error
 
-### ui.format_bytes
+#### ui.format_bytes
 
 `string ui.format_bytes(int bytes)`
 
@@ -341,7 +341,7 @@ Format a number with `Byte`, `kB`, `MB`, or `GB`.
     * `bytes` - size to format
 * **Returns:** formatted string
 
-### ui.check_key
+#### ui.check_key
 
 `bool ui.check_key(string key)`
 
