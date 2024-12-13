@@ -231,7 +231,8 @@ static int ui_show_file_text_viewer(lua_State* L) {
         return luaL_error(L, "could not allocate memory");
     };
 
-    u32 flen = FileGetData(path, text, STD_BUFFER_SIZE - 1, 0);
+    // TODO: replace this with something that can detect file read errors and actual 0-length files
+    size_t flen = FileGetData(path, text, STD_BUFFER_SIZE - 1, 0);
 
     text[flen] = '\0';
     u32 len = (ptrdiff_t)memchr(text, '\0', flen + 1) - (ptrdiff_t)text;
@@ -314,6 +315,8 @@ static int ui_global_print(lua_State* L) {
     return 0;
 }
 
+// TODO: use luaL_checkoption which will auto-raise an error
+// use BUTTON_STRINGS from common/hid_map.h
 static int ui_check_key(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.check_key");
     const char* key = luaL_checkstring(L, 1);
