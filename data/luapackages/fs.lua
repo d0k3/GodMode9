@@ -100,14 +100,11 @@ end
 function fs.verify_with_sha_file(path)
     local success, file_hash, sha_data, path_sha
     path_sha = path..".sha"
-    -- this error should be propagated if the main file cannot be read
-    stat = fs.stat(path)
     success, sha_data = pcall(fs.read_file, path_sha, 0, 0x20)
     if not success then
         return nil
     end
-    -- TODO: make hash_file accept an "end" parameter for size
-    file_hash = fs.hash_file(path, 0, stat.size)
+    file_hash = fs.hash_file(path, 0, 0)
     return file_hash == sha_data
 end
 

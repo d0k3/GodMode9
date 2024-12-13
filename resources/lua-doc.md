@@ -12,7 +12,7 @@ There are four ways to run Lua scripts:
 * Select it in the file browser and choose "`Execute Lua script`"
 * Place it in `0:/gm9/luascripts`, then open the HOME menu, choose "`Lua scripts...`", then choose the script
 * Place it in `data/luascripts`, then build GodMode9 from source
-  * This takes precedence over `0:/gm9/luascripts`
+	  * This takes precedence over `0:/gm9/luascripts`
 * Place it at `data/autorun.lua`, then build GodMode9 from source with `SCRIPT_RUNNER=1` to automatically run it at launch
 
 ## Packages
@@ -840,6 +840,8 @@ Dump the raw data from the inserted game card. No modifications are made to the 
 * **Arguments**
 	* `path` - File to write data to
 	* `size` - Amount of data to read
+	* `opts` (optional) - Option flags
+		* `encrypted` - Dump game encrypted, only for DS/DSi games?
 * **Throws**
 	* `"out of memory"` - out-of-memory error when attempting to create the data buffer
 	* `"cart init fail"` - card is not inserted or some other failure when attempting to initialize
