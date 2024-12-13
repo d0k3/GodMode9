@@ -90,7 +90,7 @@ reboot | sys.reboot |  
 poweroff | sys.power_off |  
 bkpt | bkpt |  
 
-#### PREVIEW_MODE variable
+### PREVIEW_MODE variable
 
 Unlike the `PREVIEW_MODE` GM9Script variable, this has been split into multiple functions.
 
@@ -102,7 +102,7 @@ text | ui.show_text
 png file | ui.show_png
 game icon | ui.show_game_info
 
-#### Other constants
+### Other constants
 
 GM9 | Lua | Notes
 -- | -- | --
