@@ -102,7 +102,7 @@ static int internalfs_copy(lua_State* L) {
     }
 
     if (!(flags & OVERWRITE_ALL) && (fvx_stat(path_dst, &fno) == FR_OK)) {
-        return luaL_error(L, "destination already exists on %s -> %s and {overwrite_all=true} was not used", path_src, path_dst);
+        return luaL_error(L, "destination already exists on %s -> %s and {overwrite=true} was not used", path_src, path_dst);
     }
 
     if (!(PathMoveCopy(path_dst, path_src, &flags, false))) {
