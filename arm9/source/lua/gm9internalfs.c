@@ -35,7 +35,7 @@ static void CreateStatTable(lua_State* L, FILINFO* fno) {
 }
 
 static int internalfs_move(lua_State* L) {
-    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.rename");
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.move");
     const char* path_src = luaL_checkstring(L, 1);
     const char* path_dst = luaL_checkstring(L, 2);
     FILINFO fno;
@@ -46,7 +46,7 @@ static int internalfs_move(lua_State* L) {
     }
 
     if (!(flags & OVERWRITE_ALL) && (fvx_stat(path_dst, &fno) == FR_OK)) {
-        return luaL_error(L, "destination already exists on %s -> %s and {overwrite_all=true} was not used", path_src, path_dst);
+        return luaL_error(L, "destination already exists on %s -> %s and {overwrite=true} was not used", path_src, path_dst);
     }
 
     if (!(PathMoveCopy(path_dst, path_src, &flags, true))) {
