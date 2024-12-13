@@ -1050,3 +1050,60 @@ Check if `essential.exefs` is embedded into SysNAND, and prompts the user if it 
 Check if the Raw RTC is set correctly, and prompts the user if it isn't. This is the same as the check that is done at boot for GodMode9, but this can be called in a build compiled with `SCRIPT_RUNNER=1` for autorun scripts that require `essential.exefs` to exist.
 
 * **Returns:** `true` if set, `false` if user declines
+
+---
+
+### `util` module
+
+#### util.bytes_to_hex
+
+* `string util.bytes_to_hex(string data)`
+
+Convert a byte string to printable hex characters.
+
+Example: `"test\xaa\xbb\xcc\xdd"` -> `"74657374aabbccdd"`
+
+* **Arguments**
+	* `data` - Data to convert
+* **Returns:** Hex characters
+
+#### util.hex_to_bytes
+
+* `string util.hex_to_bytes(string hexstring)`
+
+Convert hex characters to a byte string.
+
+Example: `"74657374aabbccdd"` -> `"test\xaa\xbb\xcc\xdd"`
+
+* **Arguments**
+	* `hexstring` - Hex characters to convert
+* **Returns:** Byte string
+* **Throws**
+	* `"bad argument #1 to 'char' (number expected, got nil)"` - invalid hex characters
+
+#### util.get_datestamp
+
+* `string util.get_datestamp()`
+
+Returns a date stamp formatted like "241202" for 2024 December 02. Equivalent to `os.date("%y%m%d")`.
+
+* **Returns:** Date stamp
+
+#### util.get_timestamp
+
+* `string util.get_timestamp()`
+
+Returns a date stamp formatted like "010828" for 01:08:28. Equivalent to `os.date("%H%M%S")`.
+
+* **Returns:** Time stamp
+
+#### util.running_as_module
+
+* `bool util.running_as_module()`
+
+Determines if the currently executing script was directly run, or was imported by another script. Useful for scripts that want to be usable directly, while also importable.
+
+> [!NOTE]
+> This is not well tested.
+
+* **Returns:** `true` if the current script was imported as a module
