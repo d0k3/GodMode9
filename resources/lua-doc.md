@@ -147,6 +147,14 @@ These modules work differently:
 * [package](https://www.lua.org/manual/5.4/manual.html#6.3)
 	* `package.cpath` and `package.loadlib` are nonfunctional due to GM9 having no ability to load dynamic libraries.
 
+## Third-party libraries
+
+rxi's [json.lua](https://github.com/rxi/json.lua) is pre-included. To use it, first load it:
+
+```lua
+local json = require("json")
+```
+
 ---
 
 ## API reference
