@@ -40,6 +40,7 @@ GM9 | Lua | Notes
 -- | -- | --
 goto | http://lua-users.org/wiki/GotoStatement |  
 labelsel | ui.ask_selection |  
+for | fs.find_all | Recursive searching does not work exactly the same, it will search for the filename in all directories
 keychk | ui.check_key |  
 echo | ui.echo |  
 qr | ui.show_qr |  
