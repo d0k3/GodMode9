@@ -10,6 +10,8 @@
 #include "game.h"
 #include "gamecart.h"
 
+#define _MAX_FOR_DEPTH  16
+
 static u8 no_data_hash_256[32] = { SHA256_EMPTY_HASH };
 static u8 no_data_hash_1[32] = { SHA1_EMPTY_HASH };
 
@@ -291,6 +293,45 @@ static int internalfs_find(lua_State* L) {
     }
 
     lua_pushstring(L, path);
+    return 1;
+}
+
+// this should probably be rewritten
+static int internalfs_find_all(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 2, "_fs.find_all");
+    const char* dir = luaL_checkstring(L, 1);
+    const char* pattern = luaL_checkstring(L, 2);
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 3, flags, RECURSIVE);
+    }
+
+    char forpath[_VAR_CNT_LEN] = { 0 };
+
+    bool forstatus = for_handler(NULL, dir, pattern, flags & RECURSIVE);
+    if (!forstatus) {
+        return luaL_error(L, "could not open directory");
+    }
+
+    lua_newtable(L);
+    int i = 1;
+
+    while (true) {
+        forstatus = for_handler(forpath, NULL, NULL, false);
+        if (!forstatus) {
+            forpath[0] = '\0';
+        }
+        if (!forpath[0]) {
+            // finish for_handler
+            for_handler(NULL, NULL, NULL, false);
+            break;
+        } else {
+            lua_pushstring(L, forpath);
+            lua_seti(L, -2, i++);
+        }
+    }
+
     return 1;
 }
 
@@ -715,6 +756,7 @@ static const luaL_Reg internalfs_lib[] = {
     {"ask_select_file", internalfs_ask_select_file},
     {"ask_select_dir", internalfs_ask_select_dir},
     {"find", internalfs_find},
+    {"find_all", internalfs_find_all},
     {"find_not", internalfs_find_not},
     {"exists", internalfs_exists},
     {"is_dir", internalfs_is_dir},

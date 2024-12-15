@@ -11,6 +11,7 @@ fs.dir_info = _fs.dir_info
 fs.ask_select_file = _fs.ask_select_file
 fs.ask_select_dir = _fs.ask_select_dir
 fs.find = _fs.find
+fs.find_all = _fs.find_all
 fs.find_not = _fs.find_not
 fs.exists = _fs.exists
 fs.is_dir = _fs.is_dir
