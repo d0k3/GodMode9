@@ -288,11 +288,13 @@ static int internalfs_find(lua_State* L) {
 
     u8 mode = (flags & FIND_FIRST) ? FN_LOWEST : FN_HIGHEST;
     FRESULT res = fvx_findpath(path, pattern, mode);
-    if (res != FR_OK) {
+    if (res == FR_NO_PATH) {
+        lua_pushnil(L);
+    } else if (res != FR_OK) {
         return luaL_error(L, "failed to find %s (%d)", pattern, res);
+    } else {
+        lua_pushstring(L, path);
     }
-
-    lua_pushstring(L, path);
     return 1;
 }
 

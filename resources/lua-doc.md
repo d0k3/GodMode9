@@ -545,7 +545,7 @@ Prompt the user to select a directory.
 
 * `string fs.find(string pattern[, bool opts {bool first}])`
 
-Searches for a file based on a wildcard pattern. Returns the last result, unless `first` is specified.
+Searches for a file based on a wildcard pattern. Returns the last result, unless `first` is specified, or `nil` if nothing was found.
 
 Pattern can use `?` for search values, for example `00017?02` will match `00017002`, `00017102`, etc. Wildcards are also accepted.
 
@@ -553,7 +553,7 @@ Pattern can use `?` for search values, for example `00017?02` will match `000170
 	* `pattern` - Pattern to search for
 	* `opts` (optional) - Option flags
 		* `first` - Return first result instead of last
-* **Returns:** found file
+* **Returns:** found file, or `nil` if nothing is found
 * **Throws**
 	* `"failed to find <path> (##)"` - error when attempting to find path, with FatFs error number
 
