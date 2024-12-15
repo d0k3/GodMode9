@@ -15,6 +15,7 @@
         ( python3Packages.callPackage ./firmtool.nix { } )
         lua54Packages.lua
         hax-nur.packages.x86_64-linux.ctrtool
+        hax-nur.packages.x86_64-linux._3dstool
       ];
 
       inherit (pkgs.devkitNix.devkitARM) shellHook;
