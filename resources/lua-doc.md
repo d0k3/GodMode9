@@ -572,10 +572,16 @@ Pattern can use `?` for search values, for example `nand_??.bin` will check to s
 
 #### fs.find_all
 
-* `string fs.find_all(string pattern)`
+* `string fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
 
-> [!WARNING]
-> Not implemented.
+Search for all files that match a pattern.
+* **Arguments**
+	* `dir` - Directory to search
+    * `pattern` - Filename pattern
+	* `opts` (optional) - Option flags
+		* `recursive` - Remove directories recursively
+* **Throws**
+	* `"could not open directory"` - failed to open directory
 
 #### fs.allow
 

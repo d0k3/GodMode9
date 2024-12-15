@@ -309,13 +309,17 @@ static int internalfs_find_all(lua_State* L) {
 
     char forpath[_VAR_CNT_LEN] = { 0 };
 
-    bool forstatus = for_handler(NULL, dir, pattern, flags & RECURSIVE);
+    // without re-implementing for_handler, i need to give it a "*" pattern
+    // and then manually compare each filename to see if it matches
+    // so that a recursive search actually works
+    bool forstatus = for_handler(NULL, dir, "*", flags & RECURSIVE);
     if (!forstatus) {
         return luaL_error(L, "could not open directory");
     }
 
     lua_newtable(L);
     int i = 1;
+    char* slash;
 
     while (true) {
         forstatus = for_handler(forpath, NULL, NULL, false);
@@ -327,8 +331,12 @@ static int internalfs_find_all(lua_State* L) {
             for_handler(NULL, NULL, NULL, false);
             break;
         } else {
-            lua_pushstring(L, forpath);
-            lua_seti(L, -2, i++);
+            slash = strrchr(forpath, '/');
+            if (!slash) bkpt; // this should never, ever happen
+            if (fvx_match_name(slash+1, pattern) == FR_OK) {
+                lua_pushstring(L, forpath);
+                lua_seti(L, -2, i++);
+            }
         }
     }
 
