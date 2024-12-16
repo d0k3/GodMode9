@@ -41,20 +41,9 @@ void RenderOutputBuffer(void) {
 
 static int ui_echo(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.echo");
-    size_t textlen = 0;
-    const char* text = lua_tolstring(L, 1, &textlen);
+    const char* text = lua_tostring(L, 1);
 
-    char* textbuf = malloc(textlen);
-    if (!textbuf) {
-        // huh???
-        return luaL_error(L, "out of memory");
-    }
-    strncpy(textbuf, text, textlen);
-
-    WordWrapString(textbuf, 0);
-
-    ShowPrompt(false, "%s", textbuf);
-    free(textbuf);
+    ShowPrompt(false, "%s", text);
     return 0;
 }
 

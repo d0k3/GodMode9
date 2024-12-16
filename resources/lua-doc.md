@@ -202,7 +202,7 @@ The string `"O3DS"` or `"N3DS"`.
 
 * `void ui.echo(string text)`
 
-Display text on the bottom screen and wait for the user to press A. Text is automatically wrapped.
+Display text on the bottom screen and wait for the user to press A.
 
 * **Arguments**
 	* `text` - Text to show the user
