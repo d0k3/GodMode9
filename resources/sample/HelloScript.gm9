@@ -324,6 +324,14 @@ verify S:/firm1.bin
 # Use this to allow the user to switch the SD card
 # switchsd "Please switch SD card."
 
+# 'sdmount' COMMAND
+# Use this to mount the SD card
+# sdmount
+
+# 'sdumount' COMMAND
+# Use this to unmount the SD card
+# sdumount
+
 # 'reboot' / 'poweroff' COMMAND
 # These are used to reboot or power off the 3DS console
 set ERRORMSG "Test script finished,\n(without reboot)\n \nIgnore the error message."
