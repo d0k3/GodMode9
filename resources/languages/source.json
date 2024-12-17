@@ -780,6 +780,7 @@
 	"SCRIPTERR_FILE_NOT_FOUND": "file not found",
 	"SCRIPTERR_NOT_A_BOOTABLE_FIRM": "not a bootable firm",
 	"SCRIPTERR_SD_NOT_MOUNTED": "SD not mounted",
+	"SCRIPTERR_SD_ALREADY_MOUNTED": "SD already mounted",
 	"SCRIPTERR_UNKNOWN_ERROR": "unknown error",
 	"SCRIPTERR_COMMAND_SUCCESS": "command success",
 	"SCRIPTERR_CONTROL_FLOW_ERROR": "control flow error",
