@@ -201,7 +201,7 @@ static const Gm9ScriptCmd cmd_list[] = {
     { CMD_ID_EXIST   , "exist"   , 1, 0 },
     { CMD_ID_BOOT    , "boot"    , 1, 0 },
     { CMD_ID_SWITCHSD, "switchsd", 1, 0 },
-    { CMD_ID_SDMOUNT, "sdmount", 0, 0 },
+    { CMD_ID_SDMOUNT , "sdmount" , 0, 0 },
     { CMD_ID_SDUMOUNT, "sdumount", 0, 0 },
     { CMD_ID_NEXTEMU , "nextemu" , 0, 0 },
     { CMD_ID_REBOOT  , "reboot"  , 0, 0 },
@@ -1536,10 +1536,10 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
         }
     }
     else if (id == CMD_ID_SDUMOUNT) {
-        DeinitExtFS();
         if (!(ret = CheckSDMountState())) {
             if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_SD_NOT_MOUNTED);
         } else {
+            DeinitExtFS();
             DeinitSDCardFS();
         }
     }
