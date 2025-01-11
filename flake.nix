@@ -1,7 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    devkitNix.url = "github:ihaveamac/devkitNix";
+    devkitNix.url = "github:bandithedoge/devkitNix";
     hax-nur.url = "github:ihaveamac/nur-packages";
   };
 
