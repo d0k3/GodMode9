@@ -17,8 +17,8 @@ clean:
 
 $(TARGET).elf: $(OBJECTS) $(OBJECTS_COMMON)
 	@mkdir -p "$(@D)"
-	@$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-	@$(OBJDUMP) -S $@ > $@.dis
+	@$(CC) $(LDFLAGS) $^ -o $@
+	@$(OBJDUMP) -S -h $@ > $@.dis
 
 $(BUILD)/%.cmn.o: $(COMMON_DIR)/%.c
 	@mkdir -p "$(@D)"
