@@ -41,6 +41,9 @@ desktop.ini
 # Sublime files
 *.sublime-*
 
+# Visual Studio Code files
+.vscode
+
 # Build directories
 /build
 /output
