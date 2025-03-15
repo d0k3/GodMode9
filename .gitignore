@@ -36,6 +36,7 @@
 
 # OS leftovers
 desktop.ini
+.DS_Store
 
 # Sublime files
 *.sublime-*

@@ -17,10 +17,10 @@ export COMMON_DIR := ../common
 
 # Definitions for initial RAM disk
 VRAM_TAR    := $(OUTDIR)/vram0.tar
-VRAM_DATA   := data
+VRAM_DATA   := data/*
 VRAM_FLAGS  := --make-new --path-limit 99
 ifeq ($(NTRBOOT),1)
-	VRAM_SCRIPTS := resources/gm9/scripts
+	VRAM_SCRIPTS := resources/gm9/scripts/*
 endif
 
 # Definitions for translation files
@@ -93,7 +93,7 @@ release: clean unmarked_readme
 $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 	@mkdir -p "$(@D)"
 	@echo "Creating $@"
-	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell find $^ -type f)
+	$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell ls -d -1 $^)
 
 $(LANGUAGE_INL): $(SOURCE_JSON)
 	@echo "Creating $@"
