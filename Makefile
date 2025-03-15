@@ -85,6 +85,7 @@ release: clean unmarked_readme
 	@cp $(OUTDIR)/$(FLAVOR)_dev.firm.sha $(RELDIR)/
 	@cp $(ELF) $(RELDIR)/elf
 	@cp $(CURDIR)/README.md $(RELDIR)
+	@cp $(CURDIR)/resources/lua-doc.md $(RELDIR)/lua-doc.md
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
 	@cp -R $(CURDIR)/resources/sample $(RELDIR)/sample
 
