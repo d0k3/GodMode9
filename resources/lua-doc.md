@@ -1,8 +1,5 @@
 # GodMode9 Lua documentation
 
-> [!IMPORTANT]
-> WORK IN PROGRESS! A list of functions is available at the [Lua support pull request](https://github.com/d0k3/GodMode9/pulls).
-
 GodMode9 includes a Lua 5.4.7 implementation.
 
 ## Running scripts
