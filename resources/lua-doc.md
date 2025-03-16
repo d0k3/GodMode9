@@ -768,7 +768,7 @@ Read data from a file.
 
 #### fs.write_file
 
-* `int fs.write_file(string path, int offset, string data)1
+* `int fs.write_file(string path, int offset, string data)`
 
 Write data to a file.
 
