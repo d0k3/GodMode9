@@ -182,6 +182,7 @@
 	"BUILD_X": "Build %s",
 	"NCCHINFO_OPTIONS": "NCCHinfo options...",
 	"EXECUTE_GM9_SCRIPT": "Execute GM9 script",
+	"EXECUTE_LUA_SCRIPT": "Execute Lua script",
 	"FONT_OPTIONS": "Font options...",
 	"LANGUAGE_OPTIONS": "Language options...",
 	"VIEW_PNG_FILE": "View PNG file",
