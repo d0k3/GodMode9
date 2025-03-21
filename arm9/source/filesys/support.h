@@ -8,7 +8,7 @@
 #define LUASCRIPTS_DIR  "luascripts"
 #define PAYLOADS_DIR    "payloads"
 
-bool CheckSupportFile(const char* fname);
+bool CheckSupportFile(const char* fname, size_t* fsize);
 size_t LoadSupportFile(const char* fname, void* buffer, size_t max_len);
 bool SaveSupportFile(const char* fname, void* buffer, size_t len);
 bool SetAsSupportFile(const char* fname, const char* source);

@@ -7,19 +7,25 @@
 #define SUPPORT_DIR_PATHS   "V:", "0:/gm9", "1:/gm9"
 
 
-bool CheckSupportFile(const char* fname)
+bool CheckSupportFile(const char* fname, size_t* fsize)
 {
     // try VRAM0 first
-    if (FindVTarFileInfo(fname, NULL))
+    u64 tar_fsize;
+    if (FindVTarFileInfo(fname, &tar_fsize)) {
+        if (fsize) *fsize = tar_fsize; // truncated but should be fine for vtar
         return true;
+    }
 
     // try support file paths
     const char* base_paths[] = { SUPPORT_FILE_PATHS };
     for (u32 i = 0; i < countof(base_paths); i++) {
         char path[256];
+        FILINFO fno;
         snprintf(path, sizeof(path), "%s/%s", base_paths[i], fname);
-        if (fvx_stat(path, NULL) == FR_OK)
+        if (fvx_stat(path, &fno) == FR_OK) {
+            if (fsize) *fsize = fno.fsize;
             return true;
+        }
     }
 
     return false;
