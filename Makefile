@@ -94,7 +94,7 @@ release: clean unmarked_readme
 $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 	@mkdir -p "$(@D)"
 	@echo "Creating $@"
-	$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell ls -d -1 $^)
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell ls -d -1 $^)
 
 $(LANGUAGE_INL): $(SOURCE_JSON)
 	@echo "Creating $@"
