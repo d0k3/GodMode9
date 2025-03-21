@@ -182,6 +182,7 @@
 	"BUILD_X": "%sをさくせい",
 	"NCCHINFO_OPTIONS": "NCCHinfoオプション…",
 	"EXECUTE_GM9_SCRIPT": "GM9スクリプトをじっこう",
+	"EXECUTE_LUA_SCRIPT": "Execute Lua script",
 	"FONT_OPTIONS": "フォントオプション…",
 	"LANGUAGE_OPTIONS": "言語オプション…",
 	"VIEW_PNG_FILE": "PNGファイルをひょうじ",
