@@ -68,6 +68,10 @@ ifdef SD_TIMEOUT
     CFLAGS += -DSD_TIMEOUT=$(SD_TIMEOUT)
 endif
 
+ifeq ($(NO_LUA),1)
+    CFLAGS += -DNO_LUA
+endif
+
 ifdef N_PANES
     CFLAGS += -DN_PANES=$(N_PANES)
 endif

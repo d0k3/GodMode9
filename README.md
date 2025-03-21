@@ -41,7 +41,7 @@ Build `GodMode9.firm` via `make firm`. This requires [firmtool](https://github.c
 
 You may run `make release` to get a nice, release-ready package of all required files. To build __SafeMode9__ (a bricksafe variant of GodMode9, with limited write permissions) instead of GodMode9, compile with `make FLAVOR=SafeMode9`. To switch screens, compile with `make SWITCH_SCREENS=1`. For additional customization, you may choose the internal font by replacing `font_default.frf` inside the `data` directory. You may also hardcode the brightness via `make FIXED_BRIGHTNESS=x`, whereas `x` is a value between 0...15.
 
-Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the `data` folder when compiling). All files put into the `data` folder will turn up in the `V:` drive, but keep in mind there's a hard 223.5KiB limit for all files inside, including overhead. A standalone script runner is compiled by providing `autorun.gm9` (again, in the `data` folder) and building with `make SCRIPT_RUNNER=1`. There's more possibility for customization, read the Makefiles to learn more.
+Further customization is possible by hardcoding `aeskeydb.bin` (just put the file into the `data` folder when compiling). All files put into the `data` folder will turn up in the `V:` drive, but keep in mind there's a hard 223.5KiB limit for all files inside, including overhead. A standalone script runner is compiled by providing `autorun.lua` or `autorun.gm9` (again, in the `data` folder) and building with `make SCRIPT_RUNNER=1`. There's more possibility for customization, read the Makefiles to learn more.
 
 To build a .firm signed with SPI boot keys (for ntrboot and the like), run `make NTRBOOT=1`. You may need to rename the output files if the ntrboot installer you use uses hardcoded filenames. Some features such as boot9 / boot11 access are not currently available from the ntrboot environment.
 
@@ -122,8 +122,9 @@ With the possibilites GodMode9 provides, not everything may be obvious at first 
 * __Inject a file to another file__: Put exactly one file (the file to be injected from) into the clipboard (via the Y button). Press A on the file to be injected to. There will be an option to inject the first file into it.
 
 ### Scripting functionality
-* __Run .gm9 scripts from anywhere on your SD card__: You can run scripts in .gm9 format via the A button menu. .gm9 scripts use a shell-like language and can be edited in any text editor. For an overview of usable commands have a look into the sample scripts included in the release archive. *Don't run scripts from untrusted sources.*
-* __Run .gm9 scripts via a neat menu__: Press the HOME button, select `More...` -> `Scripts...`. Any script you put into `0:/gm9/scripts` (subdirs included) will be found here. Scripts ran via this method won't have the confirmation at the beginning either.
+* __Run .lua scripts from anywhere on your SD card__: You can run Lua scripts via the A button menu. For an overview of usable commands have a look into the documentation and sample scripts included in the release archive. *Don't run scripts from untrusted sources.*
+* __Run Lua scripts via a neat menu__: Press the HOME button, select `More...` -> `Lua scripts...`. Any script you put into `0:/gm9/luascripts` (subdirs included) will be found here. Scripts ran via this method won't have the confirmation at the beginning either.
+* __Run legacy .gm9 scripts__: The old format of .gm9 scripts is still available, but is deprecated and will see no further development.
 
 ### SD card handling
 * __Format your SD card / setup an EmuNAND__: Press the HOME button, select `More...` -> `SD format menu`. This also allows to setup a RedNAND (single/multi) or GW type EmuNAND on your SD card. You will get a warning prompt and an unlock sequence before any operation starts.
@@ -183,7 +184,10 @@ This tool would not have been possible without the help of numerous people. Than
 * **Wolfvak** for ARM11 code, FIRM binary launcher, exception handlers, PCX code, Makefile and for help on countless other occasions
 * **SciresM** for helping me figure out RomFS and for boot9strap
 * **SciresM**, **Myria**, **Normmatt**, **TuxSH** and **hedgeberg** for figuring out sighax and giving us access to bootrom
-* **ihaveamac** for first developing the simple CIA generation method and for being of great help in porting it
+* **ihaveamac** for implementing Lua support, and first developing the simple CIA generation method and for being of great help in porting it
+* **DarkRTA** for linker support during the implementation of Lua
+* **luigoalma** for fixing Lua to compile without issues
+* **Gruetzig** for re-implementing the Lua os module
 * **wwylele** and **aspargas2** for documenting and implementing the DISA, DIFF, and BDRI formats
 * **dratini0** for savefile management, based on [TWLSaveTool](https://github.com/TuxSH/TWLSaveTool/)
 * **Pk11** for unicode and translation support
