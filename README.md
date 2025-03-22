@@ -190,7 +190,7 @@ This tool would not have been possible without the help of numerous people. Than
 * **Gruetzig** for re-implementing the Lua os module
 * **wwylele** and **aspargas2** for documenting and implementing the DISA, DIFF, and BDRI formats
 * **dratini0** for savefile management, based on [TWLSaveTool](https://github.com/TuxSH/TWLSaveTool/)
-* **Pk11** for unicode and translation support
+* **Pk11** for unicode support and her ongoing work on GodMode9 translations and translation support
 * **b1l1s** for helping me figure out A9LH compatibility
 * **Gelex** and **AuroraWright** for helping me figure out various things
 * **stuckpixel** for the new 6x10 font and help on various things
