@@ -2164,18 +2164,20 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == font) { // set font
-        u8* font = (u8*) malloc(0x20000); // arbitrary, should be enough by far
+        size_t fsize = FileGetSize(file_path);
+        u8* font = (u8*) malloc(fsize);
         if (!font) return 1;
-        u32 font_size = FileGetData(file_path, font, 0x20000, 0);
+        u32 font_size = FileGetData(file_path, font, fsize, 0);
         if (font_size) SetFont(font, font_size);
         ClearScreenF(true, true, COLOR_STD_BG);
         free(font);
         return 0;
     }
     else if (user_select == translation) { // set translation
-        u8* translation = (u8*) malloc(0x20000); // arbitrary, should be enough by far
+        size_t fsize = FileGetSize(file_path);
+        u8* translation = (u8*) malloc(fsize);
         if (!translation) return 1;
-        u32 translation_size = FileGetData(file_path, translation, 0x20000, 0);
+        u32 translation_size = FileGetData(file_path, translation, fsize, 0);
         if (translation_size) SetLanguage(translation, translation_size);
         ClearScreenF(true, true, COLOR_STD_BG);
         free(translation);
@@ -2442,17 +2444,18 @@ u32 GodMode(int entrypoint) {
         SetScreenBrightness(brightness);
 
     // custom font handling
-    if (CheckSupportFile("font.frf")) {
-        u8* riff = (u8*) malloc(0x20000); // arbitrary, should be enough by far
+    size_t support_size;
+    if (CheckSupportFile("font.frf", &support_size)) {
+        u8* riff = (u8*) malloc(support_size);
         if (riff) {
-            u32 riff_size = LoadSupportFile("font.frf", riff, 0x20000);
+            u32 riff_size = LoadSupportFile("font.frf", riff, support_size);
             if (riff_size) SetFont(riff, riff_size);
             free(riff);
         }
-    } else if (CheckSupportFile("font.pbm")) {
-        u8* pbm = (u8*) malloc(0x10000); // arbitrary, should be enough by far
+    } else if (CheckSupportFile("font.pbm", &support_size)) {
+        u8* pbm = (u8*) malloc(support_size);
         if (pbm) {
-            u32 pbm_size = LoadSupportFile("font.pbm", pbm, 0x10000);
+            u32 pbm_size = LoadSupportFile("font.pbm", pbm, support_size);
             if (pbm_size) SetFont(pbm, pbm_size);
             free(pbm);
         }
@@ -2460,10 +2463,10 @@ u32 GodMode(int entrypoint) {
 
     // language handling
     bool language_loaded = false;
-    if (CheckSupportFile("language.trf")) {
-        char* translation = (char*) malloc(0x20000); // arbitrary, should be enough by far
+    if (CheckSupportFile("language.trf", &support_size)) {
+        char* translation = (char*) malloc(support_size);
         if (translation) {
-            u32 translation_size = LoadSupportFile("language.trf", translation, 0x20000);
+            u32 translation_size = LoadSupportFile("language.trf", translation, support_size);
             if (translation_size) language_loaded = SetLanguage(translation, translation_size);
             free(translation);
         }
