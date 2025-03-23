@@ -61,7 +61,7 @@ fs.copy("M:/otp.mem", "9:/otp_copied_by_lua.mem", {overwrite=true})
 --   SCRIPT - the executed script, such as "0:/gm9/luascripts/HelloScript.lua"
 --   CURRDIR - the directory of the executed script, such as "0:/gm9/luascripts"
 --   GM9OUT - the standard output path "0:/gm9/out"
---   HAX - the hax the system is currently running from, whihc can be "ntrboot", "sighax", or an empty string
+--   HAX - the hax the system is currently running from, which can be "ntrboot", "sighax", or an empty string
 --   NANDSIZE - total size of SysNAND in bytes
 --   CONSOLE_TYPE - the string "O3DS" or "N3DS"
 --   IS_DEVKIT - true if the console is a developer unit
@@ -82,7 +82,7 @@ end
 ui.echo("Your GodMode9 version is "..GM9VER..
     "\nYour region is "..sys.region..
     "\nYour serial number is "..sys.serial..
-    "\nYour std out oath is "..GM9OUT..
+    "\nYour std out path is "..GM9OUT..
     "\nCurrent dir is "..CURRDIR..
     "\nCurrent hax is "..HAX..
     "\nYour system is a "..retail_or_devkit.. 
