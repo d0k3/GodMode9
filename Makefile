@@ -17,11 +17,21 @@ export COMMON_DIR := ../common
 
 # Definitions for initial RAM disk
 VRAM_TAR    := $(OUTDIR)/vram0.tar
-VRAM_DATA   := data
+VRAM_DATA   := data/*
 VRAM_FLAGS  := --make-new --path-limit 99
 ifeq ($(NTRBOOT),1)
-	VRAM_SCRIPTS := resources/gm9/scripts
+	VRAM_SCRIPTS := resources/gm9/scripts/*
 endif
+
+# Definitions for translation files
+JSON_FOLDER    := resources/languages
+TRF_FOLDER     := resources/gm9/languages
+
+SOURCE_JSON    := $(JSON_FOLDER)/source.json
+LANGUAGE_INL   := arm9/source/language.inl
+
+JSON_FILES     := $(filter-out $(SOURCE_JSON),$(wildcard $(JSON_FOLDER)/*.json))
+TRF_FILES      := $(subst $(JSON_FOLDER),$(TRF_FOLDER),$(JSON_FILES:.json=.trf))
 
 ifeq ($(OS),Windows_NT)
 	ifeq ($(TERM),cygwin)
@@ -42,7 +52,7 @@ export CFLAGS  := -DDBUILTS="\"$(DBUILTS)\"" -DDBUILTL="\"$(DBUILTL)\"" -DVERSIO
                   -fomit-frame-pointer -ffast-math -std=gnu11 -MMD -MP \
                   -Wno-unused-function -Wno-format-truncation -Wno-format-nonliteral $(INCLUDE) -ffunction-sections -fdata-sections
 export LDFLAGS := -Tlink.ld -nostartfiles -Wl,--gc-sections,-z,max-page-size=4096
-ELF := arm9/arm9.elf arm11/arm11.elf
+ELF := arm9/arm9_code.elf arm9/arm9_data.elf arm11/arm11.elf
 
 .PHONY: all firm $(VRAM_TAR) elf release clean
 all: firm
@@ -51,7 +61,7 @@ clean:
 	@set -e; for elf in $(ELF); do \
 	    $(MAKE) --no-print-directory -C $$(dirname $$elf) clean; \
 	done
-	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR)
+	@rm -rf $(OUTDIR) $(RELDIR) $(FIRM) $(FIRMD) $(VRAM_TAR) $(LANGUAGE_INL) $(TRF_FILES)
 
 unmarked_readme: .FORCE
 	@$(PY3) utils/unmark.py -f README.md data/README_internal.md
@@ -75,6 +85,7 @@ release: clean unmarked_readme
 	@cp $(OUTDIR)/$(FLAVOR)_dev.firm.sha $(RELDIR)/
 	@cp $(ELF) $(RELDIR)/elf
 	@cp $(CURDIR)/README.md $(RELDIR)
+	@cp $(CURDIR)/resources/lua-doc.md $(RELDIR)/lua-doc.md
 	@cp -R $(CURDIR)/resources/gm9 $(RELDIR)/gm9
 	@cp -R $(CURDIR)/resources/sample $(RELDIR)/sample
 
@@ -83,23 +94,34 @@ release: clean unmarked_readme
 $(VRAM_TAR): $(SPLASH) $(OVERRIDE_FONT) $(VRAM_DATA) $(VRAM_SCRIPTS)
 	@mkdir -p "$(@D)"
 	@echo "Creating $@"
-	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell find $^ -type f)
+	@$(PY3) utils/add2tar.py $(VRAM_FLAGS) $(VRAM_TAR) $(shell ls -d -1 $^)
+
+$(LANGUAGE_INL): $(SOURCE_JSON)
+	@echo "Creating $@"
+	@$(PY3) utils/transcp.py $< $@
+
+$(TRF_FOLDER)/%.trf: $(JSON_FOLDER)/%.json
+	@$(PY3) utils/transriff.py $< $@
 
 %.elf: .FORCE
 	@echo "Building $@"
-	@$(MAKE) --no-print-directory -C $(@D)
+	@$(MAKE) --no-print-directory -C $(@D) $(@F)
 
-arm9/arm9.elf: $(VRAM_TAR)
+# Indicate a few explicit dependencies:
+# The ARM9 data section depends on the VRAM drive
+arm9/arm9_data.elf: $(VRAM_TAR) $(LANGUAGE_INL)
+# And the code section depends on the data section being built already
+arm9/arm9_code.elf: arm9/arm9_data.elf
 
-firm: $(ELF)
+firm: $(ELF) $(TRF_FILES)
 	@mkdir -p $(call dirname,"$(FIRM)") $(call dirname,"$(FIRMD)")
 	@echo "[FLAVOR] $(FLAVOR)"
 	@echo "[VERSION] $(VERSION)"
 	@echo "[BUILD] $(DBUILTL)"
 	@echo "[FIRM] $(FIRM)"
-	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(ELF) -C NDMA XDMA
+	@$(PY3) -m firmtool build $(FIRM) $(FTFLAGS) -g -D $(ELF) -C NDMA NDMA XDMA
 	@echo "[FIRM] $(FIRMD)"
-	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(ELF) -C NDMA XDMA
+	@$(PY3) -m firmtool build $(FIRMD) $(FTDFLAGS) -g -D $(ELF) -C NDMA NDMA XDMA
 
 vram0: $(VRAM_TAR) .FORCE # legacy target name
 

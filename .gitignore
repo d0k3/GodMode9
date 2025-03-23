@@ -5,6 +5,7 @@
 *.obj
 *.elf
 *.map
+*.dis
 
 # Precompiled Headers
 *.gch
@@ -35,9 +36,13 @@
 
 # OS leftovers
 desktop.ini
+.DS_Store
 
 # Sublime files
 *.sublime-*
+
+# Visual Studio Code files
+.vscode
 
 # Build directories
 /build
@@ -49,3 +54,5 @@ desktop.ini
 
 # User additions
 /zzz_backup
+/arm9/source/language.inl
+*.trf

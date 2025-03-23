@@ -1,5 +1,6 @@
 {
 	"GM9_LANGUAGE": "にほんご",
+	"GM9_TRANS_VER": 1,
 	"DATE_TIME_FORMAT": "%1$s%2$02lXねん%3$02lXがつ%4$02lXにち %5$02lX:%6$02lX",
 	"DECIMAL_SEPARATOR": ".",
 	"THOUSAND_SEPARATOR": ",",
@@ -181,6 +182,7 @@
 	"BUILD_X": "%sをさくせい",
 	"NCCHINFO_OPTIONS": "NCCHinfoオプション…",
 	"EXECUTE_GM9_SCRIPT": "GM9スクリプトをじっこう",
+	"EXECUTE_LUA_SCRIPT": "Execute Lua script",
 	"FONT_OPTIONS": "フォントオプション…",
 	"LANGUAGE_OPTIONS": "言語オプション…",
 	"VIEW_PNG_FILE": "PNGファイルをひょうじ",
