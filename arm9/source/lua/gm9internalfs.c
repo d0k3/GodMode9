@@ -145,6 +145,7 @@ static int internalfs_list_dir(lua_State* L) {
     for (int i = 1; true; i++) {
         res = fvx_readdir(&dir, &fno);
         if (res != FR_OK) {
+            fvx_closedir(&dir);
             lua_pop(L, 1); // remove final table from stack
             return luaL_error(L, "could not readdir %s (%d)", path, res);
         }
@@ -152,6 +153,7 @@ static int internalfs_list_dir(lua_State* L) {
         CreateStatTable(L, &fno);
         lua_seti(L, -2, i); // add nested table to final table
     }
+    fvx_closedir(&dir);
 
     return 1;
 }
