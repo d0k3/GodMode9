@@ -60,7 +60,7 @@ mount | fs.img_mount |  
 umount | fs.img_umount |  
 find | fs.find |  
 findnot | fs.find_not |  
-fget | fs.write_file |  
+fget | fs.read_file |  
 fset | fs.write_file |  
 sha | fs.hash_file OR fs.verify_with_sha_file | hash_file simply returns a hash, verify_with_sha_file compares it with a corresponding .sha file
 shaget | fs.hash_file |  
