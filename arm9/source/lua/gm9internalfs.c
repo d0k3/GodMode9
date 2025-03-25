@@ -122,7 +122,7 @@ static int internalfs_mkdir(lua_State* L) {
 
     FRESULT res = fvx_rmkdir(path);
     if (res != FR_OK) {
-        return luaL_error(L, "could not mkdir (%d)", path, res);
+        return luaL_error(L, "could not mkdir %s (%d)", path, res);
     }
 
     return 0;
@@ -467,7 +467,7 @@ static int internalfs_make_dummy_file(lua_State* L) {
     CheckWritePermissionsLuaError(L, path);
 
     if (!(FileCreateDummy(path, NULL, size))) {
-        return luaL_error(L, "FileCreateDummy failed on %s");
+        return luaL_error(L, "FileCreateDummy failed on %s", path);
     }
 
     return 0;
