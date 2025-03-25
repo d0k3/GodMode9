@@ -35,7 +35,7 @@ static inline void CheckLuaArgCount(lua_State* L, int argcount, const char* cmd)
 static inline bool CheckLuaArgCountPlusExtra(lua_State* L, int argcount, const char* cmd) {
     int args = lua_gettop(L);
     if (args != argcount && args != argcount + 1) {
-        luaL_error(L, "bad number of arguments passed to '%s' (expected %d, got %d or %d)", cmd, argcount, args);
+        luaL_error(L, "bad number of arguments passed to '%s' (expected %d or %d, got %d)", cmd, argcount, argcount + 1, args);
     }
     return args == argcount + 1;
 }
