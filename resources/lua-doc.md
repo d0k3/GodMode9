@@ -251,7 +251,7 @@ Ask the user to input text.
 
 #### ui.ask_selection
 
-* `int ui.ask_selection(string prompt, array options)`
+* `int ui.ask_selection(string prompt, table options)`
 
 Ask the user to choose an option from a list. A maximum of 256 options are allowed.
 
@@ -437,7 +437,7 @@ Create a directory. This creates intermediate directories as required, so `fs.mk
 
 #### fs.stat
 
-* `array fs.stat(string path)`
+* `table fs.stat(string path)`
 
 Get information about a file or directory. The result is a stat table with these keys:
 
@@ -453,7 +453,7 @@ Get information about a file or directory. The result is a stat table with these
 
 #### fs.list_dir
 
-* `array fs.list_dir(string path)`
+* `table fs.list_dir(string path)`
 
 Get the contents of a directory. The result is a list of stat tables with these keys:
 * `name` (string)
@@ -474,7 +474,7 @@ Get the contents of a directory. The result is a list of stat tables with these 
 
 #### fs.stat_fs
 
-* `array fs.stat_fs(string path)`
+* `table fs.stat_fs(string path)`
 
 Get information about a filesystem.
 
@@ -490,7 +490,7 @@ Get information about a filesystem.
 
 #### fs.dir_info
 
-* `array fs.dir_info(string path)`
+* `table fs.dir_info(string path)`
 
 Get information about a directory.
 
@@ -570,7 +570,7 @@ Pattern can use `?` for search values, for example `nand_??.bin` will check to s
 
 #### fs.find_all
 
-* `array fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
+* `table fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
 
 Search for all files that match a pattern.
 * **Arguments**
