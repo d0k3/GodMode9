@@ -680,8 +680,6 @@ Calculate the hash of a file and compare it with a corresponding `.sha` file.
 > [!IMPORTANT]
 > This currently assumes SHA-256. In the future this may automatically use SHA-1 when appropriate, based on the `.sha` file size.
 
-TODO: add errors for fs.read_file here
-
 * **Argumens**
 	* `path` - File to hash
 * **Returns:** `true` if successful, `false` if failed, `nil` if `.sha` file could not be read
