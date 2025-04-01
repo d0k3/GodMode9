@@ -570,7 +570,7 @@ Pattern can use `?` for search values, for example `nand_??.bin` will check to s
 
 #### fs.find_all
 
-* `string fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
+* `array fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
 
 Search for all files that match a pattern.
 * **Arguments**
@@ -578,6 +578,7 @@ Search for all files that match a pattern.
     * `pattern` - Filename pattern
 	* `opts` (optional) - Option flags
 		* `recursive` - Remove directories recursively
+* **Returns:** table of found files
 * **Throws**
 	* `"could not open directory"` - failed to open directory
 
