@@ -111,9 +111,9 @@ EMUID0 | sys.emu_id0 |  
 EMUBASE | sys.emu_base |  
 SERIAL | sys.serial |  
 REGION | sys.region |  
-SDSIZE | fs.stat_fs("0:/").total | int instead of string (use util.format_bytes to format it)
-SDFREE | fs.stat_fs("0:/").free | int instead of string (use util.format_bytes to format it)
-NANDSIZE | NANDSIZE | int instead of string (use util.format_bytes to format it)
+SDSIZE | fs.stat_fs("0:/").total | int instead of string (use ui.format_bytes to format it)
+SDFREE | fs.stat_fs("0:/").free | int instead of string (use ui.format_bytes to format it)
+NANDSIZE | NANDSIZE | int instead of string (use ui.format_bytes to format it)
 GM9OUT | GM9OUT |  
 CURRDIR | CURRDIR | nil instead of “(null)" if it can’t be found
 ONTYPE | CONSOLE_TYPE | “O3DS" or “N3DS"
