@@ -34,7 +34,11 @@ JSON_FILES     := $(filter-out $(SOURCE_JSON),$(wildcard $(JSON_FOLDER)/*.json))
 TRF_FILES      := $(subst $(JSON_FOLDER),$(TRF_FOLDER),$(JSON_FILES:.json=.trf))
 
 ifeq ($(OS),Windows_NT)
-	PY3 := py -3 # Windows / CMD / PowerShell
+	ifeq ($(TERM),cygwin)
+		PY3 := py -3 # Windows / CMD/PowerShell
+	else
+		PY3 := py # Windows / MSYS2
+	endif
 else
 	PY3 := python3 # Unix-like
 endif
