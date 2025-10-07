@@ -147,7 +147,7 @@ def main(source: pathlib.Path, dest: pathlib.Path) -> None:
         source: JSON to convert from.
         dest: TRF file to write.
     """
-    data = json.loads(source.read_text())
+    data = json.loads(source.read_text(encoding="utf-8"))
 
     try:
         language = get_language(data)
