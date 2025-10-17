@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "空きファイルを作成",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "ここで新しいフォルダを作成しますか？\n以下に名前を入力してください。",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "ここで新しいファイルを作成しますか？\n以下に名前を入力してください。",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "ここで新しい%sを作成しますか？\n以下にファイルサイズを入力してください。",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "ここで新しいファイルを作成しますか？\n以下にファイルサイズを入力してください。",
 	"FAILED_CREATING_FOLDER_PATH": "%s\nフォルダの作成に失敗しました。",
 	"FAILED_CREATING_FILE_PATH": "%s\nファイルの作成に失敗しました。",
 	"TITLE_MANAGER": "タイトルマネージャー",

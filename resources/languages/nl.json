@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "Create a dummy file",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "Create a new folder here?\nEnter name below.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "Create a new file here?\nEnter name below.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Create a new %s here?\nEnter file size below.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Create a new file here?\nEnter file size below.",
 	"FAILED_CREATING_FOLDER_PATH": "Failed creating folder:\n%s",
 	"FAILED_CREATING_FILE_PATH": "Failed creating file:\n%s",
 	"TITLE_MANAGER": "Title manager",

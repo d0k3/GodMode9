@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "Créer un fichier vide",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "Créer un nouveau dossier ici ?\nSaisissez le nom ci-dessous.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "Créer un nouveau fichier ici ?\nSaisissez le nom ci-dessous.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Créez un nouveau %s ici ?\nEntrez sa taille ci-dessous.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Créez un nouveau fichier ici ?\nEntrez sa taille ci-dessous.",
 	"FAILED_CREATING_FOLDER_PATH": "Impossible de créer le dossier :\n%s",
 	"FAILED_CREATING_FILE_PATH": "Impossible de créer le fichier :\n%s",
 	"TITLE_MANAGER": "Gestionnaire d'applications",
