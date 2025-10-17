@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "Eine Platzhalterdatei erstellen",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "Hier ein neues Verzeichnis erstellen?\nGebe unten den Namen ein.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "Hier eine neue Datei erstellen?\nGebe unten den Namen ein.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Hier ein(e) neue(s) %s erstellen?\nGebe unten den Namen ein.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Hier ein(e) neue(s) Datei erstellen?\nGebe unten den Namen ein.",
 	"FAILED_CREATING_FOLDER_PATH": "Erstellen des Verzeichnisses fehlgeschlagen:\n%s",
 	"FAILED_CREATING_FILE_PATH": "Erstellen der Datei fehlgeschlagen:\n%s",
 	"TITLE_MANAGER": "Titel-Verwalter",

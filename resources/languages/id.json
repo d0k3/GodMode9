@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "Buat berkas kosong",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "Buat folder baru di sini?\nTulis namanya di bawah.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "Buat berkas baru di sini?\nTulis namanya di bawah.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Buat %s baru di sini?\nTulis ukuran berkasnya.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Buat berkas baru di sini?\nTulis ukuran berkasnya.",
 	"FAILED_CREATING_FOLDER_PATH": "Gagal membuat folder:\n%s",
 	"FAILED_CREATING_FILE_PATH": "Gagal membuat berkas:\n%s",
 	"TITLE_MANAGER": "Pengelola judul",

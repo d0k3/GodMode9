@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "创建空白文件",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "要在此新建文件夹吗？\n请在下放输入文件夹名称。",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "要在在此新建文件吗？\n请在下放输入文件名。",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "要在此新建 %s 吗？\n请在下方输入文件大小。",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "要在在此新建文件吗？\n请在下方输入文件大小。",
 	"FAILED_CREATING_FOLDER_PATH": "创建文件夹失败：\n%s",
 	"FAILED_CREATING_FILE_PATH": "创建文件失败：\n%s",
 	"TITLE_MANAGER": "Title 管理器",
