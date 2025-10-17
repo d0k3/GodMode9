@@ -3,7 +3,7 @@
 #include "common.h"
 
 typedef struct {
-    char name[8];
+    char name[8] __attribute__((nonstring));
     u32  offset;
     u32  size;
 } PACKED_STRUCT ExeFsFileHeader;
