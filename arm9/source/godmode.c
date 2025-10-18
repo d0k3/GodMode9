@@ -422,6 +422,56 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
     } else DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, start_y, bar_width, flist_height, COLOR_STD_BG);
 }
 
+u32 LoadLanguageAndFont(const bool setup_language) {
+    bool language_loaded = false;
+
+    // language loading
+    size_t support_size;
+    if (CheckSupportFile("language.trf", &support_size)) {
+        char* translation = (char*) malloc(support_size);
+        if (translation) {
+            u32 translation_size = LoadSupportFile("language.trf", translation, support_size);
+            if (translation_size) language_loaded = SetLanguage(translation, translation_size);
+            free(translation);
+        }
+    }
+
+    // language not found?
+    if (setup_language && !language_loaded) {
+        SetLanguage(NULL, 0);
+
+        char loadpath[256];
+        if (LanguageMenu(loadpath, "Select Language for GodMode9:")) {
+            if (SetAsSupportFile("language.trf", loadpath)) {
+                // try to load font with the same name
+                char *ext = strstr(loadpath, ".trf");
+                strcpy(ext, ".frf");
+                SetAsSupportFile("font.frf", loadpath);
+                return LoadLanguageAndFont(false);
+            }
+        }
+    }
+
+    // custom font loading
+    if (CheckSupportFile("font.frf", &support_size)) {
+        u8* riff = (u8*) malloc(support_size);
+        if (riff) {
+            u32 riff_size = LoadSupportFile("font.frf", riff, support_size);
+            if (riff_size) SetFont(riff, riff_size);
+            free(riff);
+        }
+    } else if (CheckSupportFile("font.pbm", &support_size)) {
+        u8* pbm = (u8*) malloc(support_size);
+        if (pbm) {
+            u32 pbm_size = LoadSupportFile("font.pbm", pbm, support_size);
+            if (pbm_size) SetFont(pbm, pbm_size);
+            free(pbm);
+        }
+    }
+
+    return 0;
+}
+
 u32 SdFormatMenu(const char* slabel) {
     static const u32 cluster_size_table[5] = { 0x0, 0x0, 0x4000, 0x8000, 0x10000 };
     const char* option_emunand_size[7] = { STR_NO_EMUNAND, STR_REDNAND_SIZE_MIN, STR_GW_EMUNAND_SIZE_FULL,
@@ -2443,66 +2493,8 @@ u32 GodMode(int entrypoint) {
     if (LoadSupportFile("gm9bright.cfg", &brightness, 0x4))
         SetScreenBrightness(brightness);
 
-    // custom font handling
-    size_t support_size;
-    if (CheckSupportFile("font.frf", &support_size)) {
-        u8* riff = (u8*) malloc(support_size);
-        if (riff) {
-            u32 riff_size = LoadSupportFile("font.frf", riff, support_size);
-            if (riff_size) SetFont(riff, riff_size);
-            free(riff);
-        }
-    } else if (CheckSupportFile("font.pbm", &support_size)) {
-        u8* pbm = (u8*) malloc(support_size);
-        if (pbm) {
-            u32 pbm_size = LoadSupportFile("font.pbm", pbm, support_size);
-            if (pbm_size) SetFont(pbm, pbm_size);
-            free(pbm);
-        }
-    }
-
-    // language handling
-    bool language_loaded = false;
-    if (CheckSupportFile("language.trf", &support_size)) {
-        char* translation = (char*) malloc(support_size);
-        if (translation) {
-            u32 translation_size = LoadSupportFile("language.trf", translation, support_size);
-            if (translation_size) language_loaded = SetLanguage(translation, translation_size);
-            free(translation);
-        }
-    }
-
-    if (!language_loaded) {
-        SetLanguage(NULL, 0);
-
-        char loadpath[256];
-        if (LanguageMenu(loadpath, "Select Language for GodMode9:")) {
-            size_t fsize = FileGetSize(loadpath);
-            if (fsize > 0) {
-                char* data = (char*)malloc(fsize);
-                if (data) {
-                    FileGetData(loadpath, data, fsize, 0);
-                    SaveSupportFile("language.trf", data, fsize);
-                    SetLanguage(data, fsize);
-                    free(data);
-                }
-            }
-
-            // Try load font with the same name
-            char *ext = strstr(loadpath, ".trf");
-            strcpy(ext, ".frf");
-            fsize = FileGetSize(loadpath);
-            if (fsize > 0) {
-                char* data = (char*)malloc(fsize);
-                if (data) {
-                    FileGetData(loadpath, data, fsize, 0);
-                    SaveSupportFile("font.frf", data, fsize);
-                    SetFont(data, fsize);
-                    free(data);
-                }
-            }
-        }
-    }
+    // load font and language, ask if language is not set up
+    LoadLanguageAndFont(true);
 
     // check for embedded essential backup
     if (((entrypoint == ENTRY_NANDBOOT) || (entrypoint == ENTRY_B9S)) &&
@@ -3006,29 +2998,18 @@ u32 GodMode(int entrypoint) {
                     if (!CheckSupportDir(LANGUAGES_DIR)) {
                         ShowPrompt(false, STR_LANGUAGES_DIRECTORY_NOT_FOUND, LANGUAGES_DIR);
                     } else if (LanguageMenu(loadpath, STR_HOME_LANGUAGE_MENU_SELECT_LANGUAGE)) {
-                        size_t fsize = FileGetSize(loadpath);
-                        if (fsize > 0) {
-                            char* data = (char*)malloc(fsize);
-                            if (data) {
-                                FileGetData(loadpath, data, fsize, 0);
-                                SaveSupportFile("language.trf", data, fsize);
-                                SetLanguage(data, fsize);
-                                free(data);
-                            }
-
-                            // Try load font with the same name
+                        if (SetAsSupportFile("language.trf", loadpath)) {
+                            // try to load font with the same name
                             char *ext = strstr(loadpath, ".trf");
                             strcpy(ext, ".frf");
-                            fsize = FileGetSize(loadpath);
-                            if (fsize > 0) {
-                                char* data = (char*)malloc(fsize);
-                                if (data) {
-                                    FileGetData(loadpath, data, fsize, 0);
-                                    SaveSupportFile("font.frf", data, fsize);
-                                    SetFont(data, fsize);
-                                    free(data);
-                                }
+                            if (!SetAsSupportFile("font.frf", loadpath)) {
+                                // if that fails, make sure we use the default font
+                                u64 font_size64;
+                                void* font = FindVTarFileInfo(VRAM0_FONT, &font_size64);
+                                SaveSupportFile("font.frf", font, (size_t) font_size64);
                             }
+                            // set language and font as current
+                            LoadLanguageAndFont(false);
                         }
                         GetDirContents(current_dir, current_path);
                         ClearScreenF(true, true, COLOR_STD_BG);
