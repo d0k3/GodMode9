@@ -84,6 +84,7 @@ typedef struct {
 } __attribute__((packed, aligned(16))) NcchHeader;
 
 u32 ValidateNcchHeader(NcchHeader* header);
+u32 ValidateNcchSignature(NcchHeader* header, NcchExtHeader* exthdr);
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid);
 u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to);
 u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);

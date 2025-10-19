@@ -624,7 +624,7 @@ static int internalfs_verify(lua_State* L) {
 
     u64 filetype = IdentifyFileType(path);
     if (filetype & IMG_NAND) res = (ValidateNandDump(path) == 0);
-    else res = (VerifyGameFile(path) == 0);
+    else res = (VerifyGameFile(path, false) == 0);
 
     lua_pushboolean(L, res);
     return 1;

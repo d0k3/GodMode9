@@ -519,7 +519,7 @@ u32 VerifyTmdContent(const char* path, u64 offset, TmdContentChunk* chunk, const
     return memcmp(hash, expected, 32);
 }
 
-u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
+u32 VerifyNcchFile(const char* path, u32 offset, u32 size, bool sig_check) {
     static bool cryptofix_always = false;
     bool cryptofix = false;
     NcchHeader ncch;
@@ -579,6 +579,13 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     fvx_lseek(&file, offset);
     if (ncch.size_exthdr && (GetNcchHeaders(&ncch, &exthdr, NULL, &file, cryptofix) != 0)) {
         if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_MISSING_EXTHEADER);
+        fvx_close(&file);
+        return 1;
+    }
+
+    // signature verification
+    if (sig_check && ValidateNcchSignature(&ncch, ncch.size_exthdr ? &exthdr : NULL) != 0) {
+        if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_SIGNATURE_CHECK_FAILED);
         fvx_close(&file);
         return 1;
     }
@@ -723,7 +730,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size) {
     return ver_exthdr|ver_exefs|ver_romfs;
 }
 
-u32 VerifyNcsdFile(const char* path) {
+u32 VerifyNcsdFile(const char* path, bool sig_check) {
     NcsdHeader ncsd;
 
     // path string
@@ -736,13 +743,19 @@ u32 VerifyNcsdFile(const char* path) {
         return 1;
     }
 
+    // signature verification
+    if (sig_check && ValidateNcsdSignature(&ncsd) != 0) {
+        ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_SIGNATURE_CHECK_FAILED);
+        return 1;
+    }
+
     // validate NCSD contents
     for (u32 i = 0; i < 8; i++) {
         NcchPartition* partition = ncsd.partitions + i;
         u32 offset = partition->offset * NCSD_MEDIA_UNIT;
         u32 size = partition->size * NCSD_MEDIA_UNIT;
         if (!size) continue;
-        if (VerifyNcchFile(path, offset, size) != 0) {
+        if (VerifyNcchFile(path, offset, size, sig_check) != 0) {
             ShowPrompt(false, STR_PATH_CONTENT_N_SIZE_AT_OFFSET_VERIFICATION_FAILED,
                 pathstr, i, size, offset);
             return 1;
@@ -1032,14 +1045,14 @@ u32 VerifyTicketFile(const char* path) {
     return res;
 }
 
-u32 VerifyGameFile(const char* path) {
+u32 VerifyGameFile(const char* path, bool sig_check) {
     u64 filetype = IdentifyFileType(path);
     if (filetype & GAME_CIA)
         return VerifyCiaFile(path);
     else if (filetype & GAME_NCSD)
-        return VerifyNcsdFile(path);
+        return VerifyNcsdFile(path, sig_check);
     else if (filetype & GAME_NCCH)
-        return VerifyNcchFile(path, 0, 0);
+        return VerifyNcchFile(path, 0, 0, sig_check);
     else if (filetype & (GAME_TMD|GAME_CDNTMD|GAME_TWLTMD))
         return VerifyTmdFile(path, filetype & (GAME_CDNTMD|GAME_TWLTMD));
     else if (filetype & GAME_TIE)
@@ -3617,7 +3630,7 @@ u32 ShowGameCheckerInfo(const char* path) {
             (state_tmd == 0) ? STR_STATE_INVALID : (state_tmd == 2) ? STR_STATE_LEGIT : STR_STATE_ILLEGIT,
             (state_verify < 0) ? STR_STATE_PENDING_PROCEED_WITH_VERIFICATION : (state_verify == 0) ? STR_STATE_PASSED : STR_STATE_FAILED) ||
             (state_verify >= 0)) break;
-        state_verify = VerifyGameFile(path);
+        state_verify = VerifyGameFile(path, false);
     }
 
     if (tmd) free(tmd);

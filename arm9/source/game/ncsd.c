@@ -1,5 +1,7 @@
 #include "ncsd.h"
 #include "ncch.h"
+#include "rsa.h"
+#include "itcm.h"
 
 u32 ValidateNcsdHeader(NcsdHeader* header) {
     static const u8 zeroes[16] = { 0 };
@@ -19,6 +21,15 @@ u32 ValidateNcsdHeader(NcsdHeader* header) {
     if (data_units > header->size)
         return 1;
 
+    return 0;
+}
+
+u32 ValidateNcsdSignature(NcsdHeader* header) {
+    u8 exp[4] = { 0x00, 0x01, 0x00, 0x01 };
+    // this will fail for non-cart NCSDs anyways, so we don't need to check
+    if (!RSA_setKey2048(3, (const u32*)(const void*)&ARM9_ITCM->rsaModulusCartNCSD[0], getle32(exp)) ||
+        !RSA_verify2048((const u32*)(const void*)&header->signature[0], (const u32*)(const void*)&((u8*)header)[0x100], 0x100))
+        return 1;
     return 0;
 }
 

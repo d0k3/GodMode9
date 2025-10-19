@@ -162,6 +162,8 @@ typedef struct _Arm9Itcm {
 
 // Sanity checking.
 STATIC_ASSERT(offsetof(Arm9Itcm, otp) == 0x3800);
+STATIC_ASSERT(offsetof(Arm9Itcm, rsaModulusCartNCSD) == 0x4900);
+STATIC_ASSERT(offsetof(Arm9Itcm, rsaModulusAccessDesc) == 0x4A00);
 STATIC_ASSERT(offsetof(Arm9Itcm, twlNANDKeyY) == 0x53C8);
 STATIC_ASSERT(offsetof(Arm9Itcm, twlBlowfishCartKey) == 0x53E0);
 STATIC_ASSERT(offsetof(Arm9Itcm, ntrBlowfishCartKey) == 0x6428);

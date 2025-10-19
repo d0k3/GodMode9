@@ -2,6 +2,8 @@
 #include "keydb.h"
 #include "aes.h"
 #include "sha.h"
+#include "rsa.h"
+#include "itcm.h"
 
 #define EXEFS_KEYID(name) (((strncmp(name, "banner", 8) == 0) || (strncmp(name, "icon", 8) == 0)) ? 0 : 1)
 
@@ -25,6 +27,26 @@ u32 ValidateNcchHeader(NcchHeader* header) {
     // size check
     if (ncch_units > header->size) return 1;
 
+    return 0;
+}
+
+u32 ValidateNcchSignature(NcchHeader* header, NcchExtHeader* exthdr)
+{
+    u8 exp[4] = { 0x00, 0x01, 0x00, 0x01 };
+    u8* pubkey = ARM9_ITCM->rsaModulusCartNCSD;
+
+    if (exthdr) {
+        // check extheader signature
+        if (!RSA_setKey2048(3, (const u32*)(const void*)ARM9_ITCM->rsaModulusAccessDesc, getle32(exp)) ||
+            !RSA_verify2048((const u32*)(const void*)&exthdr->signature[0], (const u32*)(const void*)&exthdr->public_key[0], 0x300))
+            return 1;
+        pubkey = exthdr->public_key;
+    }
+
+    // check NCCH header signature
+    if (!RSA_setKey2048(3, (const u32*)(const void*)&pubkey[0], getle32(exp)) ||
+        !RSA_verify2048((const u32*)(const void*)&header->signature[0], (const u32*)(const void*)&((u8*)header)[0x100], 0x100))
+        return 1;
     return 0;
 }
 
