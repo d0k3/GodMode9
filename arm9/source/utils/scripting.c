@@ -1346,7 +1346,7 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_VERIFY) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
-        else ret = (VerifyGameFile(argv[0]) == 0);
+        else ret = (VerifyGameFile(argv[0], false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_VERIFICATION_FAILED);
     }
     else if (id == CMD_ID_DECRYPT) {

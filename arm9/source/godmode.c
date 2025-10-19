@@ -1744,7 +1744,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 ShowPrompt(false, STR_PATH_TYPE_BUILD_FAILED, pathstr, type);
                 if ((filetype & (GAME_NCCH|GAME_NCSD)) &&
                     ShowPrompt(true, "%s\n%s", pathstr, STR_FILE_FAILED_CONVERSION_VERIFY_NOW)) {
-                    ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
+                    ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path, false) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
                 }
             }
         }
@@ -1797,7 +1797,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowPrompt(false, "%s\n%s", pathstr, (ret == 0) ? STR_INSTALL_SUCCESS : STR_INSTALL_FAILED);
             if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
                 ShowPrompt(true, "%s\n%s", pathstr, STR_FILE_FAILED_INSTALL_VERIFY_NOW)) {
-                ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
+                ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path, false) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
             }
         }
         return 0;
@@ -1841,10 +1841,24 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == verify) { // -> verify game / nand file
-        if ((n_marked > 1) && ShowPrompt(true, STR_TRY_TO_VERIFY_N_SELECTED_FILES, n_marked)) {
+        bool sig_check = false;
+
+        // check signatures?
+        if (filetype & (GAME_NCSD|GAME_NCCH)) {
+            optionstr[0] = STR_IGNORE_SIGNATURES;
+            optionstr[1] = STR_VERIFY_SIGNATURES;
+            user_select = ShowSelectPrompt(2, optionstr, "%s", STR_USE_SIGNATURE_VERIFICATION);
+            if (!user_select) return 1;
+            sig_check = (user_select == 2);
+        }
+
+        // file verification
+        if (n_marked > 1) {
             u32 n_success = 0;
             u32 n_other = 0;
             u32 n_processed = 0;
+            if (!ShowPrompt(true, STR_TRY_TO_VERIFY_N_SELECTED_FILES, n_marked)) // confirmation
+                return 1;
             for (u32 i = 0; i < current_dir->n_entries; i++) {
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked)
@@ -1857,7 +1871,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if ((filetype & IMG_NAND) && (ValidateNandDump(path) == 0)) n_success++;
-                else if (VerifyGameFile(path) == 0) n_success++;
+                else if (VerifyGameFile(path, sig_check) == 0) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
@@ -1876,7 +1890,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowString("%s\n%s", pathstr, STR_VERIFYING_FILE_PLEASE_WAIT);
             if (filetype & IMG_NAND) {
                 ShowPrompt(false, "%s\n%s", pathstr, (ValidateNandDump(file_path) == 0) ? STR_NAND_VALIDATION_SUCCESS : STR_NAND_VALIDATION_FAILED);
-            } else ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
+            } else ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path, sig_check) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
         }
         return 0;
     }

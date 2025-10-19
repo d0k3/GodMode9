@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-u32 VerifyGameFile(const char* path);
+u32 VerifyGameFile(const char* path, bool sig_check);
 u32 CheckEncryptedGameFile(const char* path);
 u32 CryptGameFile(const char* path, bool inplace, bool encrypt);
 u32 BuildCiaFromGameFile(const char* path, bool force_legit);

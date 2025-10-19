@@ -812,5 +812,9 @@
 	"SYSINFO_SYSTEM_ID0": "System ID0: %s\r\n",
 	"SYSINFO_SYSTEM_ID1": "System ID1: %s\r\n",
 	"SORTING_TICKETS_PLEASE_WAIT": "Sorting tickets, please wait ...",
-	"LUA_NOT_INCLUDED": "This build of GodMode9 was\ncompiled without Lua support."
+	"LUA_NOT_INCLUDED": "This build of GodMode9 was\ncompiled without Lua support.",
+	"ERROR_SIGNATURE_CHECK_FAILED": "Error: Signature check failed",
+	"USE_SIGNATURE_VERIFICATION": "Use signature verification?",
+	"IGNORE_SIGNATURES": "Ignore signatures",
+	"VERIFY_SIGNATURES": "Verify signatures"
 }
