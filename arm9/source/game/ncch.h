@@ -16,6 +16,7 @@
 
 #define NCCH_NOCRYPTO  0x0004
 #define NCCH_STDCRYPTO 0x0000
+#define NCCH_BFCRYPTO  0xFFFF
 #define NCCH_GET_CRYPTO(ncch) (!NCCH_ENCRYPTED(ncch) ? NCCH_NOCRYPTO : (((ncch)->flags[3] << 8) | ((ncch)->flags[7]&(0x01|0x20))))
 
 // wrapper defines
@@ -87,7 +88,7 @@ u32 ValidateNcchHeader(NcchHeader* header);
 u32 ValidateNcchSignature(NcchHeader* header, NcchExtHeader* exthdr);
 u32 SetNcchKey(NcchHeader* ncch, u16 crypto, u32 keyid);
 u32 SetupNcchCrypto(NcchHeader* ncch, u16 crypt_to);
-u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypto);
+u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* exefs, u16 crypt_to);
 u32 CryptNcchSequential(void* data, u32 offset, u32 size, u16 crypto);
 u32 SetNcchSdFlag(void* data);
 u32 SetupSystemForNcch(NcchHeader* ncch, bool to_emunand);

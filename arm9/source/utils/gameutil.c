@@ -15,6 +15,7 @@
 // use NCCH crypto defines for everything
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
 #define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
+#define CRYPTO_RESTORE  NCCH_BFCRYPTO
 
 // partitionA path
 #define PART_PATH       "D:/partitionA.bin"
@@ -1462,12 +1463,15 @@ u32 CryptCdnFile(const char* orig, const char* dest, u16 crypto) {
     return ret;
 }
 
-u32 CryptGameFile(const char* path, bool inplace, bool encrypt) {
+u32 CryptGameFile(const char* path, bool inplace, bool encrypt, bool restore) {
     u64 filetype = IdentifyFileType(path);
     u16 crypto = encrypt ? CRYPTO_ENCRYPT : CRYPTO_DECRYPT;
     char dest[256];
     char* destptr = (char*) path;
     u32 ret = 0;
+
+    if (restore && (filetype & (GAME_NCCH|GAME_NCSD)))
+        crypto = CRYPTO_RESTORE;
 
     if (!inplace) { // build output name
         // build output name

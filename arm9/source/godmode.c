@@ -1213,6 +1213,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool verificable = (FTYPE_VERIFICABLE(filetype));
     bool decryptable = (FTYPE_DECRYPTABLE(filetype));
     bool encryptable = (FTYPE_ENCRYPTABLE(filetype));
+    bool crypto_fixable = (FTYPE_CRYPTOFIXABLE(filetype));
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (*current_path == '0'));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
@@ -1626,7 +1627,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false) == 0)) n_success++;
+                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false, false) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, false) == 0)) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
@@ -1646,7 +1647,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 ShowPrompt(false, "%s\n%s", pathstr, STR_FILE_NOT_ENCRYPTED);
             } else {
                 u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(file_path, inplace, false) :
-                    CryptGameFile(file_path, inplace, false);
+                    CryptGameFile(file_path, inplace, false, false);
                 if (inplace || (ret != 0)) ShowPrompt(false, "%s\n%s", pathstr, (ret == 0) ? STR_DECRYPTION_SUCCESS : STR_DECRYPTION_FAILED);
                 else ShowPrompt(false, STR_PATH_DECRYPTED_TO_OUT, pathstr, OUTPUT_PATH);
             }
@@ -1654,7 +1655,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == encrypt) { // -> encrypt game file
-        if (cryptable_inplace) {
+        if (crypto_fixable) {
+            optionstr[0] = STR_STANDARD_CRYPTO;
+            optionstr[1] = STR_ORIGINAL_CRYPTO;
+            user_select = (int) ShowSelectPrompt(2, optionstr, "%s", STR_SELECT_TYPE_OF_ENCRYPTION);
+        } else (user_select = 1);
+        bool restore = (user_select == 2);
+        if (user_select && cryptable_inplace) {
             char encryptToOut[UTF_BUFFER_BYTESIZE(64)];
             snprintf(encryptToOut, sizeof(encryptToOut), STR_ENCRYPT_TO_OUT, OUTPUT_PATH);
             optionstr[0] = encryptToOut;
@@ -1662,7 +1669,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             user_select = (int) ((n_marked > 1) ?
                 ShowSelectPrompt(2, optionstr, STR_PATH_N_FILES_SELECTED, pathstr, n_marked) :
                 ShowSelectPrompt(2, optionstr, "%s%s", pathstr, tidstr));
-        } else user_select = 1;
+        } else if (user_select) user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
         } else if ((n_marked > 1) && ShowPrompt(true, STR_TRY_TO_ENCRYPT_N_SELECTED_FILES, n_marked)) {
@@ -1678,7 +1685,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true) == 0)) n_success++;
+                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true, restore) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, true) == 0)) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
@@ -1695,7 +1702,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             if (!inplace && n_success) ShowPrompt(false, STR_N_FILES_WRITTEN_TO_OUT, n_success, OUTPUT_PATH);
         } else {
             u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(file_path, inplace, true) :
-                CryptGameFile(file_path, inplace, true);
+                CryptGameFile(file_path, inplace, true, restore);
             if (inplace || (ret != 0)) ShowPrompt(false, "%s\n%s", pathstr, (ret == 0) ? STR_ENCRYPTION_SUCCESS : STR_ENCRYPTION_FAILED);
             else ShowPrompt(false, STR_PATH_ENCRYPTED_TO_OUT, pathstr, OUTPUT_PATH);
         }

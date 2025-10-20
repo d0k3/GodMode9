@@ -19,7 +19,7 @@ static int title_decrypt(lua_State* L) {
         ret = (CryptAesKeyDb(path, true, false) == 0);
         whichfailed = "CryptAesKeyDb";
     } else {
-        ret = (CryptGameFile(path, true, false) == 0);
+        ret = (CryptGameFile(path, true, false, false) == 0);
         whichfailed = "CryptGameFile";
     }
 
@@ -41,7 +41,7 @@ static int title_encrypt(lua_State* L) {
         ret = (CryptAesKeyDb(path, true, true) == 0);
         whichfailed = "CryptAesKeyDb";
     } else {
-        ret = (CryptGameFile(path, true, true) == 0);
+        ret = (CryptGameFile(path, true, true, false) == 0);
         whichfailed = "CryptGameFile";
     }
 

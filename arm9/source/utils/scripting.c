@@ -1352,13 +1352,13 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_DECRYPT) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
-        else ret = (CryptGameFile(argv[0], true, false) == 0);
+        else ret = (CryptGameFile(argv[0], true, false, false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_DECRYPT_FAILED);
     }
     else if (id == CMD_ID_ENCRYPT) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
-        else ret = (CryptGameFile(argv[0], true, true) == 0);
+        else ret = (CryptGameFile(argv[0], true, true, false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ENCRYPT_FAILED);
     }
     else if (id == CMD_ID_BUILDCIA) {
