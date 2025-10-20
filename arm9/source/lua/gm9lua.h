@@ -13,10 +13,11 @@
 #define INCLUDE_DIRS    (1UL<<15)
 #define EXPLORER        (1UL<<16)
 #define ENCRYPTED       (1UL<<17)
+#define SIG_CHECK       (1UL<<18)
 
-#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite", "append", "all", "recursive", "to_emunand", "legit", "first", "include_dirs", "explorer", "encrypted"
-#define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE, TO_EMUNAND, LEGIT, FIND_FIRST, INCLUDE_DIRS, EXPLORER, ENCRYPTED
-#define FLAGS_COUNT     15
+#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite", "append", "all", "recursive", "to_emunand", "legit", "first", "include_dirs", "explorer", "encrypted", "sig_check"
+#define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE, TO_EMUNAND, LEGIT, FIND_FIRST, INCLUDE_DIRS, EXPLORER, ENCRYPTED, SIG_CHECK
+#define FLAGS_COUNT     16
 
 #define LUASCRIPT_EXT      "lua"
 #define LUASCRIPT_MAX_SIZE STD_BUFFER_SIZE
