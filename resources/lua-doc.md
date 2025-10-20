@@ -660,7 +660,7 @@ Calculate the hash for some data. Uses SHA-256 unless `sha1` is specified.
 
 #### fs.verify
 
-* `bool fs.verify(string path)`
+* `bool fs.verify(string path[, table opts {bool sig_check}])`
 
 Verify the integrity of a file.
 
@@ -669,6 +669,8 @@ Verify the integrity of a file.
 
 * **Arguments**
 	* `path` - File to verify
+	* `opts` (optional) - Option flags
+		* `sig_check` - Verify NCSD/NCCH signature
 * **Returns:** `true` if successful, `false` if failed or not verifiable
 
 #### fs.verify_with_sha_file
