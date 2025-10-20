@@ -618,13 +618,18 @@ static int internalfs_allow(lua_State* L) {
 };
 
 static int internalfs_verify(lua_State* L) {
-    CheckLuaArgCount(L, 1, "_fs.verify");
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.verify");
     const char* path = luaL_checkstring(L, 1);
     bool res;
 
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, SIG_CHECK);
+    }
+
     u64 filetype = IdentifyFileType(path);
     if (filetype & IMG_NAND) res = (ValidateNandDump(path) == 0);
-    else res = (VerifyGameFile(path, false) == 0);
+    else res = (VerifyGameFile(path, flags & SIG_CHECK) == 0);
 
     lua_pushboolean(L, res);
     return 1;
