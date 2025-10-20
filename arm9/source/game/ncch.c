@@ -228,14 +228,58 @@ u32 CryptNcch(void* data, u32 offset, u32 size, NcchHeader* ncch, ExeFsHeader* e
     return 0;
 }
 
+u32 BruteForceNcchCrypto(void* data, u16* crypto) {
+    // data must contain NCCH header and (if available) ExtHeader (0xA00 byte total)
+    NcchHeader ncch;
+    NcchExtHeader exthdr;
+
+    memcpy(&ncch, data, sizeof(NcchHeader));
+    if (ValidateNcchHeader(&ncch))
+        return 1; // not an NCCH header
+
+    if (ncch.size_exthdr) {
+        memcpy(&exthdr, ((u8*)data + NCCH_EXTHDR_OFFSET), sizeof(NcchExtHeader));
+        if ((NCCH_ENCRYPTED(&ncch)) &&
+            (DecryptNcch((u8*) &exthdr, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), &ncch, NULL) != 0))
+            return 1; // could not decrypt the extHeader
+    }
+
+    // the brute forcing part..
+    for (u32 i = 0x00; i < 0x20; i++) {
+        const u8 flag3_settings[4] = { 0x00, 0x01, 0x0A, 0x0B };
+        const u8 flag7_mask = 0b11011010;
+        ncch.flags[3] = flag3_settings[i & 0b11];
+        ncch.flags[7] =
+            (ncch.flags[7] & flag7_mask) |
+            (((i>>2)&0b1)<<5) | // seed crypto flag
+            (((i>>3)&0b1)<<0) | // fixed crypto flag
+            (((i>>4)&0b1)<<2);  // no crypto flag
+        if (ValidateNcchSignature(&ncch, (ncch.size_exthdr) ? &exthdr : NULL) == 0) {
+            *crypto = NCCH_GET_CRYPTO(&ncch);
+            return 0;
+        }
+    }
+
+    // if we get here, we didn't find a the crypto flags
+    return 1;
+}
+
 // on the fly de- / encryptor for NCCH - sequential
-u32 CryptNcchSequential(void* data, u32 offset, u32 size, u16 crypt_to) {
+u32 CryptNcchSequential(void* data, u32 offset, u32 size, u16 crypto) {
     // warning: this will only work for sequential processing
     // unexpected results otherwise
     static NcchHeader ncch = { 0 };
     static ExeFsHeader exefs = { 0 };
     static NcchHeader* ncchptr = NULL;
     static ExeFsHeader* exefsptr = NULL;
+    static u16 crypt_to = NCCH_NOCRYPTO;
+
+    // brute force original crypto
+    if (crypto == NCCH_BFCRYPTO) {
+        if ((offset == 0) &&
+            ((size < 0xA00) || (BruteForceNcchCrypto(data, &crypt_to) != 0)))
+            return 1;
+    } else crypt_to = crypto;
 
     // fetch ncch header from data
     if ((offset == 0) && (size >= sizeof(NcchHeader))) {

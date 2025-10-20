@@ -816,5 +816,8 @@
 	"ERROR_SIGNATURE_CHECK_FAILED": "Error: Signature check failed",
 	"USE_SIGNATURE_VERIFICATION": "Use signature verification?",
 	"IGNORE_SIGNATURES": "Ignore signatures",
-	"VERIFY_SIGNATURES": "Verify signatures"
+	"VERIFY_SIGNATURES": "Verify signatures",
+	"STANDARD_CRYPTO": "Standard encryption",
+	"ORIGINAL_CRYPTO": "Original encryption",
+	"SELECT_TYPE_OF_ENCRYPTION": "Select type of encryption"
 }
