@@ -90,6 +90,12 @@ void CheckWritePermissionsLuaError(lua_State* L, const char* path) {
     }
 }
 
+void SetWritePermissionsLuaError(lua_State* L, u32 perm) {
+    if (!SetWritePermissions(perm, true)) {
+        luaL_error(L, "failed to set write permissions");
+    }
+}
+
 static const luaL_Reg gm9lualibs[] = {
     // built-ins
     {LUA_GNAME, luaopen_base},

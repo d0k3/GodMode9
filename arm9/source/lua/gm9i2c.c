@@ -1,5 +1,6 @@
 #ifndef NO_LUA
 #include "gm9i2c.h"
+#include "fsperm.h"
 #include "system/i2c.h"
 
 static int i2c_read(lua_State *L) {
@@ -7,7 +8,7 @@ static int i2c_read(lua_State *L) {
     int reg_addr = luaL_checkinteger(L, 2);
     int length = luaL_checkinteger(L, 3);
 
-    if (dev_id >= 0 && dev_id <= 17) {
+    if (dev_id < 0 || dev_id > 17) {
         return luaL_error(L, "Invalid device ID: %d (must be 0-17)", dev_id);
     }
 
@@ -45,8 +46,7 @@ static int i2c_read(lua_State *L) {
 }
 
 static int i2c_write(lua_State *L) {
-    // Temporary check for write permissions
-    CheckWritePermissionsLuaError(L, "M:/mcu_3ds_regs.mem");
+    SetWritePermissionsLuaError(L, PERM_MEMORY);
 
     int dev_id = luaL_checkinteger(L, 1);
     int reg_addr = luaL_checkinteger(L, 2);
@@ -57,7 +57,7 @@ static int i2c_write(lua_State *L) {
 
     int length = lua_rawlen(L, 3);
 
-    if (dev_id >= 0 && dev_id <= 17) {
+    if (dev_id < 0 || dev_id > 17) {
         return luaL_error(L, "Invalid device ID: %d (must be 0-17)", dev_id);
     }
 
