@@ -2,37 +2,15 @@
 #include "gm9i2c.h"
 #include "system/i2c.h"
 
-// Helper function to validate I2C device ID against enum values
-static bool IsValidI2CDevice(int dev_id) {
-    switch (dev_id) {
-        case I2C_DEV_POWER:
-        case I2C_DEV_CAMERA:
-        case I2C_DEV_CAMERA2:
-        case I2C_DEV_MCU:
-        case I2C_DEV_GYRO:
-        case I2C_DEV_DEBUG_PAD:
-        case I2C_DEV_IR:
-        case I2C_DEV_EEPROM:
-        case I2C_DEV_NFC:
-        case I2C_DEV_QTM:
-        case I2C_DEV_N3DS_HID:
-            return true;
-        default:
-            return false;
-    }
-}
-
 static int i2c_read(lua_State *L) {
     int dev_id = luaL_checkinteger(L, 1);
     int reg_addr = luaL_checkinteger(L, 2);
     int length = luaL_checkinteger(L, 3);
 
-    // Validate device ID against I2cDevice enum
-    if (!IsValidI2CDevice(dev_id)) {
-        return luaL_error(L, "Invalid device ID: %d (valid IDs: 0-3, 10, 12-17)", dev_id);
+    if (dev_id >= 0 && dev_id <= 17) {
+        return luaL_error(L, "Invalid device ID: %d (must be 0-17)", dev_id);
     }
 
-    // Validate parameters
     if (length <= 0 || length > 1024) {
         return luaL_error(L, "Invalid length: %d (must be 1-1024)", length);
     }
@@ -55,16 +33,14 @@ static int i2c_read(lua_State *L) {
         // Fill the table with byte values as integers
         for (int i = 0; i < length; i++) {
             lua_pushinteger(L, buffer[i]);  // Push byte value as integer
-            lua_rawseti(L, -2, i + 1);     // Set table[i+1] = byte
+            lua_rawseti(L, -2, i + 1);      // Set table[i+1] = byte
         }
 
         free(buffer);
         return 1;
     } else {
         free(buffer);
-        lua_pushnil(L);
-        lua_pushstring(L, "I2C read failed");
-        return 2;
+        return luaL_error(L, "I2C read failed");
     }
 }
 
@@ -81,8 +57,8 @@ static int i2c_write(lua_State *L) {
 
     int length = lua_rawlen(L, 3);
 
-    if (!IsValidI2CDevice(dev_id)) {
-        return luaL_error(L, "Invalid device ID: %d (valid IDs: 0-3, 10, 12-17)", dev_id);
+    if (dev_id >= 0 && dev_id <= 17) {
+        return luaL_error(L, "Invalid device ID: %d (must be 0-17)", dev_id);
     }
 
     if (length <= 0 || length > 1024) {
