@@ -44,5 +44,6 @@ static inline bool CheckLuaArgCountPlusExtra(lua_State* L, int argcount, const c
 int LoadLuaFile(lua_State* L, const char* filename);
 u32 GetFlagsFromTable(lua_State* L, int pos, u32 flags_ext_starter, u32 allowed_flags);
 void CheckWritePermissionsLuaError(lua_State* L, const char* path);
+void SetWritePermissionsLuaError(lua_State* L, u32 perm);
 #endif
 bool ExecuteLuaScript(const char* path_script);
