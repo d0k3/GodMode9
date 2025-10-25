@@ -99,8 +99,7 @@ static int i2c_write(lua_State *L) {
     free(buffer);
 
     if (success) {
-        lua_pushboolean(L, 1);
-        return 1;
+        return 0;
     } else {
         return luaL_error(L, "I2C write failed");
     }
