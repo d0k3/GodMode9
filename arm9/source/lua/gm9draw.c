@@ -47,7 +47,7 @@ static int draw_box(lua_State *L) {
 }
 
 static int draw_text(lua_State *L) {
-    CheckLuaArgCount(L, 6, "draw.text");
+    CheckLuaArgCount(L, 5, "draw.text");
     u16* screen;
     
     int screenID = lua_tonumber(L, 1);
