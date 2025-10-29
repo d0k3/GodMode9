@@ -74,7 +74,8 @@ static int draw_rgb(lua_State *L) {
     u32 g = lua_tonumber(L, 2);
     u32 b = lua_tonumber(L, 3);
 
-    return (int)RGB(r,g,b);
+    lua_pushinteger(L, (int)RGB(r,g,b));
+    return 1;
 }
 
 static const luaL_Reg draw[] = {
