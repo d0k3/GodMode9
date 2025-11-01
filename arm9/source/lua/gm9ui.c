@@ -110,6 +110,14 @@ static int ui_clear(lua_State* L) {
     return 0;
 }
 
+static int ui_clear_full(lua_State* L) {
+    CheckLuaArgCount(L, 0, "ui.clear_full");
+
+    ClearScreenF(true, true, COLOR_STD_BG);
+
+    return 0;
+}
+
 static int ui_show_png(lua_State* L) {
     CheckLuaArgCount(L, 1, "ui.show_png");
     const char* path = luaL_checkstring(L, 1);
@@ -334,6 +342,7 @@ static const luaL_Reg ui_lib[] = {
     {"ask_text", ui_ask_text},
     {"ask_selection", ui_ask_selection},
     {"clear", ui_clear},
+    {"clear_full", ui_clear_full},
     {"show_png", ui_show_png},
     {"show_text", ui_show_text},
     {"show_game_info", ui_show_game_info},
