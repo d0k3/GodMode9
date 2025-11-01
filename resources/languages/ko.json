@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "더미 파일 만들기",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "여기에 새 폴더를 생성할까요?\n아래에 이름을 입력하세요.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "여기에 새 파일을 생성할까요?\n아래에 이름을 입력하세요.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Create a new file here?\nEnter file size below.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "여기에 새 파일을 생성할까요?\n아래에 파일 크기를 입력하세요.",
 	"FAILED_CREATING_FOLDER_PATH": "폴더 생성 실패:\n%s",
 	"FAILED_CREATING_FILE_PATH": "파일 생성 실패:\n%s",
 	"TITLE_MANAGER": "타이틀 관리자",
@@ -813,11 +813,11 @@
 	"SYSINFO_SYSTEM_ID1": "시스템 ID1: %s\n",
 	"SORTING_TICKETS_PLEASE_WAIT": "티켓 분류 중, 잠시만 기다려주세요...",
 	"LUA_NOT_INCLUDED": "이 GodMode9 빌드는 Lua 스크립트\n지원 없이 컴파일되었습니다.",
-	"ERROR_SIGNATURE_CHECK_FAILED": "Error: Signature check failed",
-	"USE_SIGNATURE_VERIFICATION": "Use signature verification?",
-	"IGNORE_SIGNATURES": "Ignore signatures",
-	"VERIFY_SIGNATURES": "Verify signatures",
-	"STANDARD_CRYPTO": "Standard encryption",
-	"ORIGINAL_CRYPTO": "Original encryption",
-	"SELECT_TYPE_OF_ENCRYPTION": "Select type of encryption"
+	"ERROR_SIGNATURE_CHECK_FAILED": "오류: 서명 확인 실패",
+	"USE_SIGNATURE_VERIFICATION": "서명 인증을 사용할까요?",
+	"IGNORE_SIGNATURES": "서명 무시",
+	"VERIFY_SIGNATURES": "서명 검증",
+	"STANDARD_CRYPTO": "스탠다드 암호화",
+	"ORIGINAL_CRYPTO": "원본 암호화",
+	"SELECT_TYPE_OF_ENCRYPTION": "암호화 유형을 선택하세요"
 }
