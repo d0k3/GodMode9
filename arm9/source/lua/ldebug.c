@@ -40,6 +40,7 @@ static const char *funcnamefromcall (lua_State *L, CallInfo *ci,
 static const char strlocal[] = "local";
 static const char strupval[] = "upvalue";
 
+
 static int currentpc (CallInfo *ci) {
   lua_assert(isLua(ci));
   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
