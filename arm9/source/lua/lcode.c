@@ -35,6 +35,7 @@
 #define MAXREGS		255
 
 
+/* (note that expressions VJMP also have jumps.) */
 #define hasjumps(e)	((e)->t != (e)->f)
 
 
