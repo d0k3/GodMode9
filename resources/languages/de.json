@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "Eine Platzhalterdatei erstellen",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "Hier ein neues Verzeichnis erstellen?\nGebe unten den Namen ein.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "Hier eine neue Datei erstellen?\nGebe unten den Namen ein.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Create a new file here?\nEnter file size below.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Hier eine neue Datei erstellen?\nGebe unten die Größe ein.",
 	"FAILED_CREATING_FOLDER_PATH": "Erstellen des Verzeichnisses fehlgeschlagen:\n%s",
 	"FAILED_CREATING_FILE_PATH": "Erstellen der Datei fehlgeschlagen:\n%s",
 	"TITLE_MANAGER": "Titel-Verwalter",
@@ -813,11 +813,11 @@
 	"SYSINFO_SYSTEM_ID1": "System ID1: %s\n",
 	"SORTING_TICKETS_PLEASE_WAIT": "Tickets werden sortiert, bitte warten...",
 	"LUA_NOT_INCLUDED": "Dieser Build von GodMode9 wurde\nohne Lua-Unterstützung kompiliert.",
-	"ERROR_SIGNATURE_CHECK_FAILED": "Error: Signature check failed",
-	"USE_SIGNATURE_VERIFICATION": "Use signature verification?",
-	"IGNORE_SIGNATURES": "Ignore signatures",
-	"VERIFY_SIGNATURES": "Verify signatures",
-	"STANDARD_CRYPTO": "Standard encryption",
-	"ORIGINAL_CRYPTO": "Original encryption",
-	"SELECT_TYPE_OF_ENCRYPTION": "Select type of encryption"
+	"ERROR_SIGNATURE_CHECK_FAILED": "Fehler: Signaturprüfung fehlgeschlagen",
+	"USE_SIGNATURE_VERIFICATION": "Signaturüberprüfung verwenden?",
+	"IGNORE_SIGNATURES": "Signaturen ignorieren",
+	"VERIFY_SIGNATURES": "Signaturen überprüfen",
+	"STANDARD_CRYPTO": "Standardverschlüsselung",
+	"ORIGINAL_CRYPTO": "Original Verschlüsselung",
+	"SELECT_TYPE_OF_ENCRYPTION": "Art der Verschlüsselung auswählen"
 }
