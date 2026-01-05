@@ -17,8 +17,9 @@ local regions = {"JPN", "USA", "EUR", "AUS", "CHN", "KOR", "TWN"}
 
 local function refresh_secureinfo()
     local letter = nil
-    if fs.exists("1:/rw/sys/SecureInfo_A") then letter = "A"
+    if fs.exists("1:/rw/sys/SecureInfo_C") then letter = "C"
     elseif fs.exists("1:rw/sys/SecureInfo_B") then letter = "B"
+    elseif fs.exists("1:rw/sys/SecureInfo_A") then letter = "A"
     else error("could not read SecureInfo") end
 
     local secinfo = fs.read_file("1:/rw/sys/SecureInfo_"..letter, 0, 0x111)
