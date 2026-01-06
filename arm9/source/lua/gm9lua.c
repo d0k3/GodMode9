@@ -14,6 +14,7 @@
 #include "gm9title.h"
 #include "gm9internalfs.h"
 #include "gm9internalsys.h"
+#include "gm9draw.h"
 
 #define DEBUGSP(x) ShowPrompt(false, (x))
 
@@ -104,6 +105,7 @@ static const luaL_Reg gm9lualibs[] = {
     {GM9LUA_OSLIBNAME, gm9lua_open_os},
     {GM9LUA_UILIBNAME, gm9lua_open_ui},
     {GM9LUA_TITLELIBNAME, gm9lua_open_title},
+    {GM9LUA_DRAWLIBNAME, gm9lua_open_draw},
 
     // gm9 custom internals (usually wrapped by a pure lua module)
     {GM9LUA_INTERNALFSLIBNAME, gm9lua_open_internalfs},
