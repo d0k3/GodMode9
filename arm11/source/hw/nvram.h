@@ -20,15 +20,11 @@
 
 #include <types.h>
 
-#include <spi.h>
-
-#define NVRAM_SR_WIP	BIT(0) // work in progress / busy
-#define NVRAM_SR_WEL	BIT(1) // write enable latch
-
 u32 NVRAM_Status(void);
 u32 NVRAM_ReadID(void);
 
-void NVRAM_Read(u32 offset, u32 *buffer, u32 len);
+bool NVRAM_Read(u32 offset, u32 *buffer, u32 len);
+bool NVRAM_Write(u32 address, const u32 *buffer, u32 len);
 
 void NVRAM_DeepStandby(void);
 void NVRAM_Wakeup(void);

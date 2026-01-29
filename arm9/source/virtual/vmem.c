@@ -82,7 +82,7 @@ static const VirtualFile vMemFileTemplates[] = {
     { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
     { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
     { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "nvram.mem"        , VMEM_CALLBACK_NVRAM        , NVRAM_SIZE, 0x00, VFLAG_CALLBACK | VFLAG_READONLY }
+    { "nvram.mem"        , VMEM_CALLBACK_NVRAM        , 0x00000000, 0x00, VFLAG_CALLBACK | VFLAG_READONLY }
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
@@ -92,6 +92,11 @@ bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir 
     while (++vdir->index < n_templates) {
         // copy current template to vfile
         memcpy(vfile, templates + vdir->index, sizeof(VirtualFile));
+
+        // special case for the NVRAM as it can have a variable size
+        if (vfile->offset == VMEM_CALLBACK_NVRAM) {
+            vfile->size = spiflash_size();
+        }
 
         // process special flags
         if (((vfile->flags & VFLAG_N3DS_EXT) && (IS_O3DS))   || // this is not on O3DS consoles and locked by sighax
@@ -158,17 +163,13 @@ int ReadVMemFlashCID(const VirtualFile* vfile, void* buffer, u64 offset, u64 cou
 
 // Read NVRAM.
 int ReadVMemNVRAM(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
-    static bool wififlash_initialized = false;
     (void) vfile;
+    return spiflash_read((u32) offset, (u32) count, buffer) ? 0 : 1;
+}
 
-    if (!wififlash_initialized) {
-        wififlash_initialized = spiflash_get_status();
-        if (!wififlash_initialized) return 1;
-    }
-
-    if (!spiflash_read((u32) offset, (u32) count, buffer))
-        return 1;
-    return 0;
+int WriteVMemNVRAM(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
+    (void) vfile;
+    return spiflash_write((u32) offset, (u32) count, buffer) ? 0 : 1;
 }
 
 int ReadVMemFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
@@ -184,7 +185,10 @@ int ReadVMemFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) 
 }
 
 int WriteVMemFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
-    if (vfile->flags & (VFLAG_READONLY|VFLAG_CALLBACK)) {
+    if (vfile->offset == VMEM_CALLBACK_NVRAM) {
+        // special case the NVRAM, nobody else needs to write
+        return WriteVMemNVRAM(vfile, buffer, offset, count);
+    } else if (vfile->flags & (VFLAG_READONLY|VFLAG_CALLBACK)) {
         return 1; // not writable / writes blocked
     } else {
         u32 foffset = vfile->offset + offset;
