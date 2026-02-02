@@ -72,7 +72,7 @@ bool spiflash_read(u32 offset, u32 size, u8 *buf)
 
 		int result = PXI_DoCMD(PXICMD_NVRAM_READ, args, 2);
 		if (result != 0) {
-			ShowPrompt(false, "SPI flash read failed at offset 0x%08lx size 0x%08lx (%d)", offset, blksz, result);
+			ShowPrompt(false, "SPI flash read failed at offset\n0x%08lx size 0x%08lx (%d)", offset, blksz, result);
 			return false;
 		}
 
@@ -112,7 +112,7 @@ bool spiflash_write(u32 offset, u32 size, const u8 *buf)
 
 		int result = PXI_DoCMD(PXICMD_NVRAM_WRITE, args, 2);
 		if (result != 0) {
-			ShowPrompt(false, "SPI flash write failed at offset 0x%08lx size 0x%08lx (%d)", offset, blksz, result);
+			ShowPrompt(false, "SPI flash write failed at offset\n0x%08lx size 0x%08lx (%d)", offset, blksz, result);
 			return false;
 		}
 
