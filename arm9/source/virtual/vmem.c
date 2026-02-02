@@ -82,7 +82,7 @@ static const VirtualFile vMemFileTemplates[] = {
     { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
     { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
     { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "nvram.mem"        , VMEM_CALLBACK_NVRAM        , 0x00000000, 0x00, VFLAG_CALLBACK | VFLAG_READONLY }
+    { "nvram.mem"        , VMEM_CALLBACK_NVRAM        , 0x00000000, 0x00, VFLAG_CALLBACK }
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
@@ -185,11 +185,11 @@ int ReadVMemFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) 
 }
 
 int WriteVMemFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
-    if (vfile->offset == VMEM_CALLBACK_NVRAM) {
-        // special case the NVRAM, nobody else needs to write
+    if (vfile->flags & VFLAG_READONLY) {
+        return 1; // read-only file, don't even try
+    } else if (vfile->flags & VFLAG_CALLBACK) {
+        // assume the only callback-capable writable file is NVRAM for now
         return WriteVMemNVRAM(vfile, buffer, offset, count);
-    } else if (vfile->flags & (VFLAG_READONLY|VFLAG_CALLBACK)) {
-        return 1; // not writable / writes blocked
     } else {
         u32 foffset = vfile->offset + offset;
         memcpy((u8*) foffset, buffer, count);

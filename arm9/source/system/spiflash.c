@@ -48,11 +48,6 @@ static const spiflash_chip_t *spiflash_initialize(void) {
 	return &spiflash_chip;
 }
 
-bool spiflash_get_status(void)
-{
-	return true;
-}
-
 u32 spiflash_size(void)
 {
 	return spiflash_initialize()->size;
