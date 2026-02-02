@@ -154,7 +154,7 @@ static int NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 	}
 	NVRAM_SetWriteEnable(false);
 
-	return true;
+	return 0;
 }
 
 int NVRAM_Write(u32 address, const u32 *buffer, u32 len)
