@@ -3,6 +3,8 @@
 #include "pxi.h"
 #include "shmem.h"
 
+#include "ui.h"
+
 typedef struct {
 	u32 id;
 	u32 size;
@@ -73,8 +75,11 @@ bool spiflash_read(u32 offset, u32 size, u8 *buf)
 		args[0] = offset;
 		args[1] = blksz;
 
-		if (!PXI_DoCMD(PXICMD_NVRAM_READ, args, 2))
+		int result = PXI_DoCMD(PXICMD_NVRAM_READ, args, 2);
+		if (result != 0) {
+			ShowPrompt(false, "SPI flash read failed at offset 0x%08lx size 0x%08lx (%d)", offset, blksz, result);
 			return false;
+		}
 
 		ARM_InvDC_Range(dataBuffer, blksz);
 		ARM_DSB();
@@ -110,8 +115,11 @@ bool spiflash_write(u32 offset, u32 size, const u8 *buf)
 		ARM_WbInvDC_Range(dataBuffer, blksz);
 		ARM_DSB();
 
-		if (!PXI_DoCMD(PXICMD_NVRAM_WRITE, args, 2))
+		int result = PXI_DoCMD(PXICMD_NVRAM_WRITE, args, 2);
+		if (result != 0) {
+			ShowPrompt(false, "SPI flash write failed at offset 0x%08lx size 0x%08lx (%d)", offset, blksz, result);
 			return false;
+		}
 
 		buf += blksz;
 		size -= blksz;

@@ -23,8 +23,8 @@
 u32 NVRAM_Status(void);
 u32 NVRAM_ReadID(void);
 
-bool NVRAM_Read(u32 offset, u32 *buffer, u32 len);
-bool NVRAM_Write(u32 address, const u32 *buffer, u32 len);
+int NVRAM_Read(u32 offset, u32 *buffer, u32 len);
+int NVRAM_Write(u32 address, const u32 *buffer, u32 len);
 
 void NVRAM_DeepStandby(void);
 void NVRAM_Wakeup(void);

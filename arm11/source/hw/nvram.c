@@ -92,13 +92,13 @@ u32 NVRAM_ReadID(void)
 	return NVRAM_SendStatusCommand(CMD_RDID, 3);
 }
 
-bool NVRAM_Read(u32 address, u32 *buffer, u32 len)
+int NVRAM_Read(u32 address, u32 *buffer, u32 len)
 {
 	SPI_XferInfo xfer[2];
 	u32 cmd;
 
 	if (address >= NVRAM_ADDR_MAX || len >= NVRAM_ADDR_MAX || (address + len) > NVRAM_ADDR_MAX)
-		return false;
+		return -1;
 
 	address &= NVRAM_ADDR_MASK;
 	cmd = __builtin_bswap32(address) | CMD_READ;
@@ -112,16 +112,16 @@ bool NVRAM_Read(u32 address, u32 *buffer, u32 len)
 	xfer[1].read = true;
 
 	SPI_DoXfer(SPI_DEV_NVRAM, xfer, 2, true);
-	return true;
+	return 0;
 }
 
-static bool NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
+static int NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 {
 	SPI_XferInfo xfer[2];
 	u32 cmd, i;
 
 	if (address >= NVRAM_ADDR_MAX || len >= NVRAM_PAGE_SIZE || (address + len) > NVRAM_ADDR_MAX)
-		return false;
+		return -1;
 
 	address &= NVRAM_ADDR_MASK;
 	cmd = __builtin_bswap32(address) | CMD_WRITE;
@@ -137,8 +137,8 @@ static bool NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 	// enable the write latch
 	NVRAM_SetWriteEnable(true);
 	// make sure it's enabled
-	for (i = 0; i <= 25; i++) {
-		if (i == 25) return false;
+	for (i = 0; i <= 1000; i++) {
+		if (i == 1000) return -2;
 		if (NVRAM_Status() & NVRAM_SR_WEL) break;
 		TIMER_WaitMS(1);
 	}
@@ -147,8 +147,8 @@ static bool NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 	SPI_DoXfer(SPI_DEV_NVRAM, xfer, 2, true);
 
 	// wait until it's done, disable the write latch
-	for (i = 0; i <= 25; i++) {
-		if (i == 25) return false;
+	for (i = 0; i <= 1000; i++) {
+		if (i == 1000) return -3;
 		if (!(NVRAM_Status() & NVRAM_SR_WIP)) break;
 		TIMER_WaitMS(1);
 	}
@@ -157,18 +157,19 @@ static bool NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 	return true;
 }
 
-bool NVRAM_Write(u32 address, const u32 *buffer, u32 len)
+int NVRAM_Write(u32 address, const u32 *buffer, u32 len)
 {
 	while(len) {
 		u32 blksz = len < NVRAM_PAGE_SIZE ? len : NVRAM_PAGE_SIZE;
 
-		if (!NVRAM_WritePage(address, buffer, blksz))
-			return false;
+		int result = NVRAM_WritePage(address, buffer, blksz);
+		if (result != 0)
+			return result;
 
 		address += blksz;
 		buffer += (blksz / 4);
 		len -= blksz;
 	}
 
-	return true;
+	return 0;
 }
