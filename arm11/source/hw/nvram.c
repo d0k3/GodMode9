@@ -97,10 +97,9 @@ int NVRAM_Read(u32 address, u32 *buffer, u32 len)
 	SPI_XferInfo xfer[2];
 	u32 cmd;
 
-	if (address >= NVRAM_ADDR_MAX || len >= NVRAM_ADDR_MAX || (address + len) > NVRAM_ADDR_MAX)
+	if (address >= NVRAM_ADDR_MAX || len > NVRAM_PAGE_SIZE || (address + len) > NVRAM_ADDR_MAX)
 		return -1;
 
-	address &= NVRAM_ADDR_MASK;
 	cmd = __builtin_bswap32(address) | CMD_READ;
 
 	xfer[0].buf = &cmd;
@@ -120,10 +119,9 @@ static int NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 	SPI_XferInfo xfer[2];
 	u32 cmd, i;
 
-	if (address >= NVRAM_ADDR_MAX || len >= NVRAM_PAGE_SIZE || (address + len) > NVRAM_ADDR_MAX)
+	if (address >= NVRAM_ADDR_MAX || len > NVRAM_PAGE_SIZE || (address + len) > NVRAM_ADDR_MAX)
 		return -1;
 
-	address &= NVRAM_ADDR_MASK;
 	cmd = __builtin_bswap32(address) | CMD_WRITE;
 
 	xfer[0].buf = &cmd;
@@ -159,7 +157,7 @@ static int NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 
 int NVRAM_Write(u32 address, const u32 *buffer, u32 len)
 {
-	while(len) {
+	while(len > 0) {
 		u32 blksz = len < NVRAM_PAGE_SIZE ? len : NVRAM_PAGE_SIZE;
 
 		int result = NVRAM_WritePage(address, buffer, blksz);
