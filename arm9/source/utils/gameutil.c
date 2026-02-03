@@ -3578,7 +3578,7 @@ u32 ShowGameCheckerInfo(const char* path) {
         for (u32 i = 0; i < content_count; i++, chunk++)
             content_size += getbe64(chunk->size);
     }
-    FormatBytes(bytestr, content_size);
+    FormatBytes(bytestr, content_size, true);
 
     // check ticket
     if (ticket && ValidateTicket(ticket) == 0)

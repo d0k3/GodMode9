@@ -288,7 +288,7 @@ static int ui_format_bytes(lua_State* L) {
     lua_Integer size = luaL_checkinteger(L, 1);
 
     char bytesstr[32] = { 0 };
-    FormatBytes(bytesstr, (u64)size);
+    FormatBytes(bytesstr, (u64)size, false);
 
     lua_pushstring(L, bytesstr);
     return 1;

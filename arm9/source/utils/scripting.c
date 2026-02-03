@@ -453,7 +453,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "SDSIZE", _VAR_NAME_LEN) == 0)) {
         u64 sdsize = GetTotalSpace("0:");
         char sdsize_str[32+1];
-        FormatBytes(sdsize_str, sdsize);
+        FormatBytes(sdsize_str, sdsize, false);
         set_var("SDSIZE", sdsize_str);
     }
 
@@ -461,7 +461,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "SDFREE", _VAR_NAME_LEN) == 0)) {
         u64 sdfree = GetFreeSpace("0:");
         char sdfree_str[32+1];
-        FormatBytes(sdfree_str, sdfree);
+        FormatBytes(sdfree_str, sdfree, false);
         set_var("SDFREE", sdfree_str);
     }
 
@@ -469,7 +469,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "NANDSIZE", _VAR_NAME_LEN) == 0)) {
         u64 nandsize = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
         char nandsize_str[32+1];
-        FormatBytes(nandsize_str, nandsize);
+        FormatBytes(nandsize_str, nandsize, false);
         set_var("NANDSIZE", nandsize_str);
     }
 }
