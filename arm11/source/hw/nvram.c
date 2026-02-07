@@ -130,7 +130,7 @@ static int NVRAM_WritePage(u32 address, const u32 *buffer, u32 len)
 
 	xfer[1].buf = (void*)buffer;
 	xfer[1].len = len;
-	xfer[1].read = true;
+	xfer[1].read = false;
 
 	// enable the write latch
 	NVRAM_SetWriteEnable(true);
