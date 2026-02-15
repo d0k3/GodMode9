@@ -35,6 +35,7 @@
 #define MAXREGS		255
 
 
+/* (note that expressions VJMP also have jumps.) */
 #define hasjumps(e)	((e)->t != (e)->f)
 
 
@@ -54,7 +55,7 @@ l_noret luaK_semerror (LexState *ls, const char *msg) {
 ** and returns 1. Otherwise, returns 0.
 */
 static int tonumeral (const expdesc *e, TValue *v) {
-  if (hasjumps(e))
+  if (e->k == VJMP || hasjumps(e))
     return 0;  /* not a numeral */
   switch (e->k) {
     case VKINT:

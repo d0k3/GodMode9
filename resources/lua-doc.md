@@ -1,6 +1,6 @@
 # GodMode9 Lua documentation
 
-GodMode9 includes a Lua 5.4.7 implementation.
+GodMode9 includes a Lua 5.4.8 implementation.
 
 ## Running scripts
 
