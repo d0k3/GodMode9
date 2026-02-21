@@ -22,9 +22,6 @@
 #include "arm.h"
 #include "pxi.h"
 
-#define NVRAM_SIZE  0x20000 // 1 Mbit (128kiB)
-
-// true if spiflash is installed, false otherwise
-bool spiflash_get_status(void);
-
+u32 spiflash_size(void);
 bool spiflash_read(u32 offset, u32 size, u8 *buf);
+bool spiflash_write(u32 offset, u32 size, const u8 *buf);
