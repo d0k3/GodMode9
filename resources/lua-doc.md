@@ -1120,3 +1120,55 @@ Determines if the currently executing script was directly run, or was imported b
 > This is not well tested.
 
 * **Returns:** `true` if the current script was imported as a module
+
+---
+
+### `i2c` module
+
+#### i2c.read
+
+* `table i2c.read(int device_id, int register_address, int length)`
+
+Read data from an I²C device register. Returns the data as a table of integers (0-255) for direct math operations.
+
+* **Arguments**
+    * `device_id` - I²C device ID (0-17).
+    * `register_address` - Register address to read from (0-255)
+    * `length` - Number of bytes to read (1-1024)
+* **Returns:** Table of byte values as integers
+* **Throws**
+    * `"Invalid device ID: ## (must be 0-17)"` - device ID is outside valid range
+    * `"Invalid register address: ## (must be 0-255)"` - register address is outside valid range
+    * `"Invalid length: ## (must be 1-1024)"` - length is outside valid range
+    * `"I2C read failed"` - hardware I²C operation failed
+
+Example:
+```lua
+-- Read voltage from MCU device
+local voltage_raw = i2c.read(3, 0x0D, 1)
+local voltage = voltage_raw[1] * 5 / 256.0
+print("System voltage:", voltage, "V")
+```
+
+#### i2c.write
+
+* `void i2c.write(int device_id, int register_address, table data)`
+
+> [!WARNING]
+> Writing data to random registers can lead to bricking!.
+
+Write data to an I²C device register. Requires memory write permissions.
+
+* **Arguments**
+    * `device_id` - I²C device ID (0-17).
+    * `register_address` - Register address to write to (0-255)
+    * `data` - Table of byte values to write (each value must be 0-255)
+* **Throws**
+    * `"Invalid device ID: ## (must be 0-17)"` - device ID is outside valid range
+    * `"Invalid register address: ## (must be 0-255)"` - register address is outside valid range
+    * `"Third parameter must be a table of byte values"` - data parameter is not a table
+    * `"Invalid data length: ## (must be 1-1024)"` - data table length is outside valid range
+    * `"Table element ## is not an integer"` - data table contains non-integer values
+    * `"Table element ## is out of range: ## (must be 0-255)"` - data table contains values outside byte range
+    * `"I2C write failed"` - hardware I²C operation failed
+    * Permission errors if memory write access is denied
