@@ -340,15 +340,14 @@ Display a scrollable text viewer from a text file.
 
 #### ui.format_bytes
 
-* `string ui.format_bytes(int bytes)`
+* `string ui.format_bytes(int bytes[, table opts {bool use_locale}])`
 
-Format a number with `Byte`, `kB`, `MB`, or `GB`.
-
-> [!NOTE]
-> This is affected by localization and may return different text if the language is not English.
+Format a number with `Byte`, `kB`, `MB`, or `GB`. By default this will always use English style formatting. Enable `use_locale` to format in the user's selected language.
 
 * **Arguments**
 	* `bytes` - Size to format
+	* `opts` (optional) - Option flags
+		* `use_locale` - Format in the user's selected locale
 * **Returns:** formatted string
 
 #### ui.check_key
