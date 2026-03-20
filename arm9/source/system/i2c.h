@@ -26,7 +26,9 @@ typedef enum
 	I2C_DEV_CAMERA    = 1, 	// Unconfirmed
 	I2C_DEV_CAMERA2   = 2, 	// Unconfirmed
 	I2C_DEV_MCU       = 3,
+	I2C_DEV_GYRO3     = 9,
 	I2C_DEV_GYRO      = 10,
+	I2C_DEV_GYRO2     = 11,
 	I2C_DEV_DEBUG_PAD = 12,
 	I2C_DEV_IR        = 13,
 	I2C_DEV_EEPROM    = 14, // Unconfirmed

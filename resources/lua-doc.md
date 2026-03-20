@@ -120,6 +120,7 @@ ONTYPE | CONSOLE_TYPE | “O3DS" or “N3DS"
 RDTYPE | IS_DEVKIT | boolean instead of a string
 HAX | HAX |  
 GM9VER | GM9VER |  
+GYROMODEL | GYROMODEL | int instead of string
 
 ## Comparisons with standard Lua
 
@@ -161,6 +162,13 @@ local json = require("json")
 
 #### GM9VER
 The version such as `"v2.1.1-159-gff2cb913"`, the same string that is shown on the main screen.
+
+#### GYROMODEL
+The type of Gyro sensor present
+* `1`: ITG-3270, used in O3DS and some O2DS
+* `2`: ITG-1010, used in late model O2DS and N3DS
+* `3`: Unknown name, used in late model N3DS
+* `nil`: Unknown model
 
 #### SCRIPT
 Path to the executed script, such as `"0:/gm9/luascripts/myscript.lua"`.

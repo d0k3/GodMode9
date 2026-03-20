@@ -18,6 +18,7 @@
 #include "ips.h"
 #include "bps.h"
 #include "pxi.h"
+#include "gyro.h"
 
 
 #define _MAX_ARGS       4
@@ -525,6 +526,7 @@ bool init_vars(const char* path_script) {
     set_var("HAX", IS_UNLOCKED ? (isntrboot() ? "ntrboot" : "sighax") : ""); // type of hax running from
     set_var("ONTYPE", IS_O3DS ? "O3DS" : "N3DS"); // type of the console
     set_var("RDTYPE", IS_DEVKIT ? "devkit" : "retail"); // devkit / retail
+    set_var("GYROMODEL", GetGyroModelString()); // gyro model
     char* ptr = set_var("GM9VER", VERSION); // GodMode9 version, truncated below
     while (*(ptr++) != '\0') if (*ptr == '-') *ptr = '\0';
 
