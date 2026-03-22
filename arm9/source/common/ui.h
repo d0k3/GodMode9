@@ -81,7 +81,7 @@ void WordWrapString(char* str, int llen);
 void ResizeString(char* dest, const char* orig, int nlength, int tpos, bool align_right);
 void TruncateString(char* dest, const char* orig, int nlength, int tpos);
 void FormatNumber(char* str, u64 number);
-void FormatBytes(char* str, u64 bytes);
+void FormatBytes(char* str, u64 bytes, bool useLocale);
 
 void PRINTF_ARGS(1) ShowString(const char *format, ...);
 void PRINTF_ARGS(2) ShowStringF(u16* screen, const char *format, ...);

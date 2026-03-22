@@ -637,8 +637,12 @@ void FormatNumber(char* str, u64 number) { // str should be 32 byte in size
     }
 }
 
-void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just to be safe
-    const char* units[] = {STR_BYTE, STR_KB, STR_MB, STR_GB};
+void FormatBytes(char* str, u64 bytes, bool useLocale) { // str should be 32 byte in size, just to be safe
+    static const char* normalizedUnits[] = {" Byte", " kB", " MB", " GB"};
+    const char* localizedUnits[] = {STR_BYTE, STR_KB, STR_MB, STR_GB};
+
+    const char** units = useLocale ? localizedUnits : normalizedUnits;
+    const char *separator = useLocale ? STR_DECIMAL_SEPARATOR : ".";
 
     if (bytes == (u64) -1) snprintf(str, 32, "%s", STR_INVALID);
     else if (bytes < 1024) snprintf(str, 32, "%llu%s", bytes, units[0]);
@@ -646,7 +650,7 @@ void FormatBytes(char* str, u64 bytes) { // str should be 32 byte in size, just 
         u32 scale = 1;
         u64 bytes100 = (bytes * 100) >> 10;
         for(; (bytes100 >= 1024*100) && (scale < 3); scale++, bytes100 >>= 10);
-        snprintf(str, 32, "%llu%s%llu%s", bytes100 / 100, STR_DECIMAL_SEPARATOR, (bytes100 % 100) / 10, units[scale]);
+        snprintf(str, 32, "%llu%s%llu%s", bytes100 / 100, separator, (bytes100 % 100) / 10, units[scale]);
     }
 }
 
@@ -956,7 +960,7 @@ u32 ShowFileScrollPrompt(int n, const DirEntry** options, bool hide_ext, const c
     while (true) {
         for (int i = scroll; i < scroll+n_show; i++) {
             char bytestr[16];
-            FormatBytes(bytestr, options[i]->size);
+            FormatBytes(bytestr, options[i]->size, true);
 
             char content_str[UTF_BUFFER_BYTESIZE(fname_len)];
             char temp_str[256];

@@ -755,8 +755,8 @@ bool PathCopy(const char* destdir, const char* orig, u32* flags) {
             char dsizestr[32];
             TruncateString(deststr, dest, 36, 8);
             TruncateString(origstr, orig, 36, 8);
-            FormatBytes(osizestr, osize);
-            FormatBytes(dsizestr, dvfile.size);
+            FormatBytes(osizestr, osize, true);
+            FormatBytes(dsizestr, dvfile.size, true);
             if (dvfile.size > osize) {
                 if (!ShowPrompt(true, STR_FILE_SMALLER_THAN_SPACE_SIZES_CONTINUE, origstr, osizestr, deststr, dsizestr))
                     return false;

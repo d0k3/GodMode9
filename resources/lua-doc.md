@@ -120,6 +120,7 @@ ONTYPE | CONSOLE_TYPE | “O3DS" or “N3DS"
 RDTYPE | IS_DEVKIT | boolean instead of a string
 HAX | HAX |  
 GM9VER | GM9VER |  
+GYROMODEL | GYROMODEL | int instead of string
 
 ## Comparisons with standard Lua
 
@@ -161,6 +162,13 @@ local json = require("json")
 
 #### GM9VER
 The version such as `"v2.1.1-159-gff2cb913"`, the same string that is shown on the main screen.
+
+#### GYROMODEL
+The type of Gyro sensor present
+* `1`: ITG-3270, used in O3DS and some O2DS
+* `2`: ITG-1010, used in late model O2DS and N3DS
+* `3`: Unknown name, used in late model N3DS
+* `nil`: Unknown model
 
 #### SCRIPT
 Path to the executed script, such as `"0:/gm9/luascripts/myscript.lua"`.
@@ -340,15 +348,14 @@ Display a scrollable text viewer from a text file.
 
 #### ui.format_bytes
 
-* `string ui.format_bytes(int bytes)`
+* `string ui.format_bytes(int bytes[, table opts {bool use_locale}])`
 
-Format a number with `Byte`, `kB`, `MB`, or `GB`.
-
-> [!NOTE]
-> This is affected by localization and may return different text if the language is not English.
+Format a number with `Byte`, `kB`, `MB`, or `GB`. By default this will always use English style formatting. Enable `use_locale` to format in the user's selected language.
 
 * **Arguments**
 	* `bytes` - Size to format
+	* `opts` (optional) - Option flags
+		* `use_locale` - Format in the user's selected locale
 * **Returns:** formatted string
 
 #### ui.check_key

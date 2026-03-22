@@ -800,6 +800,7 @@
 	"END_OF_SCRIPT_UNRESOLVED_FOR": "end of script: unresolved 'for'",
 	"SYSINFO_MODEL": "Model: %s (%s)\r\n",
 	"SYSINFO_SERIAL": "Serial: %s\r\n",
+	"SYSINFO_GYRO_MODEL": "Gyro model: %u\r\n",
 	"SYSINFO_REGION_SYSTEM": "Region (system): %s\r\n",
 	"SYSINFO_REGION_SALES": "Region (sales): %s\r\n",
 	"SYSINFO_SOC_MANUFACTURING_DATE": "SoC manufacturing date: %s\r\n",

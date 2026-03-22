@@ -8,6 +8,7 @@
 #include "sdmmc.h" // for NAND / SD CID
 #include "vff.h"
 #include "sha.h"
+#include "gyro.h"
 #include <ctype.h>
 #include <limits.h>
 #include <string.h>
@@ -56,6 +57,8 @@ typedef struct _SysInfo {
     // From hardware information.
     char model[15 + 1];
     char product_code[3 + 1];
+    // From Gyro I2C
+    uint8_t gyro_model;
     // From OTP.
     char soc_date[19 + 1];
     // From SecureInfo_A/B
@@ -98,6 +101,12 @@ void GetSysInfo_Hardware(SysInfo* info, char nand_drive) {
             info->product_code[countof(info->product_code) - 1] = '\0';
         }
     }
+}
+
+void GetSysInfo_Gyro(SysInfo* info, char nand_drive) {
+    (void) nand_drive;
+
+    info->gyro_model = GetGyroModel();
 }
 
 
@@ -588,6 +597,7 @@ void MeowSprintf(char** text, const char* format, ...)
 void MyriaSysinfo(char* sysinfo_txt) {
     SysInfo info;
     GetSysInfo_Hardware(&info, '1');
+    GetSysInfo_Gyro(&info, '1');
     GetSysInfo_OTP(&info, '1');
     GetSysInfo_SecureInfo(&info, '1');
     GetSysInfo_Movable(&info, '1');
@@ -602,6 +612,7 @@ void MyriaSysinfo(char* sysinfo_txt) {
     MeowSprintf(meow, STR_SYSINFO_SOC_MANUFACTURING_DATE, info.soc_date);
     MeowSprintf(meow, STR_SYSINFO_SYSTEM_ASSEMBLY_DATE, info.assembly_date);
     MeowSprintf(meow, STR_SYSINFO_ORIGINAL_FIRMWARE, info.original_firmware);
+    MeowSprintf(meow, STR_SYSINFO_GYRO_MODEL, info.gyro_model);
     MeowSprintf(meow, "\r\n");
     MeowSprintf(meow, STR_SYSINFO_FRIENDCODE_SEED, info.friendcodeseed);
     MeowSprintf(meow, STR_SYSINFO_SD_KEYY, info.movablekeyy);

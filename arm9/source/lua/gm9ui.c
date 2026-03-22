@@ -284,11 +284,16 @@ static int ui_ask_selection(lua_State* L) {
 }
 
 static int ui_format_bytes(lua_State* L) {
-    CheckLuaArgCount(L, 1, "ui.format_bytes");
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "ui.format_bytes");
     lua_Integer size = luaL_checkinteger(L, 1);
 
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, USE_LOCALE);
+    }
+
     char bytesstr[32] = { 0 };
-    FormatBytes(bytesstr, (u64)size);
+    FormatBytes(bytesstr, (u64)size, flags & USE_LOCALE);
 
     lua_pushstring(L, bytesstr);
     return 1;

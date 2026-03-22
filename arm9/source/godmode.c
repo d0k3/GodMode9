@@ -252,8 +252,8 @@ void DrawTopBar(const char* curr_path) {
         char tempstr[UTF_BUFFER_BYTESIZE(19)];
         ResizeString(tempstr, STR_LOADING, 19, 19, true);
         DrawString(TOP_SCREEN, tempstr, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR);
-        FormatBytes(bytestr0, GetFreeSpace(curr_path));
-        FormatBytes(bytestr1, GetTotalSpace(curr_path));
+        FormatBytes(bytestr0, GetFreeSpace(curr_path), true);
+        FormatBytes(bytestr1, GetTotalSpace(curr_path), true);
         snprintf(tempstr, sizeof(tempstr), "%s/%s", bytestr0, bytestr1);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
         show_time = false;
@@ -262,7 +262,7 @@ void DrawTopBar(const char* curr_path) {
     if (true) { // allocated mem
         const u32 bartxt_rx = SCREEN_WIDTH_TOP - (9*FONT_WIDTH_EXT) - bartxt_x;
         char bytestr[32];
-        FormatBytes(bytestr, mem_allocated());
+        FormatBytes(bytestr, mem_allocated(), true);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%9.9s", bytestr);
         show_time = false;
     }
@@ -399,7 +399,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
             char namestr[UTF_BUFFER_BYTESIZE(str_width - 10)];
             char rawbytestr[32], bytestr[UTF_BUFFER_BYTESIZE(10)];
             color_font = (cursor != offset_i) ? COLOR_ENTRY(curr_entry) : COLOR_STD_FONT;
-            FormatBytes(rawbytestr, curr_entry->size);
+            FormatBytes(rawbytestr, curr_entry->size, true);
             ResizeString(bytestr, (curr_entry->type == T_DIR) ? STR_DIR : (curr_entry->type == T_DOTDOT) ? "(..)" : rawbytestr, 10, 10, true);
             ResizeString(namestr, curr_entry->name, str_width - 10, str_width - 20, false);
             snprintf(tempstr, sizeof(tempstr), "%s%s", namestr, bytestr);
@@ -1031,7 +1031,7 @@ u32 CartRawDump(void) {
 
     // input dump size
     dsize = cdata->cart_size;
-    FormatBytes(bytestr, dsize);
+    FormatBytes(bytestr, dsize, true);
     dsize = ShowHexPrompt(dsize, 8, STR_CART_DETECTED_SIZE_INPUT_BELOW, cname, bytestr);
     if (!dsize || (dsize == (u64) -1)) {
         free(cdata);
@@ -1113,13 +1113,13 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         ShowString("%s", drv ? STR_ANALYZING_DRIVE : STR_ANALYZING_DIR);
         if (!DirInfo(path, &tsize, &tdirs, &tfiles))
             return 1;
-        FormatBytes(bytestr, tsize);
+        FormatBytes(bytestr, tsize, true);
 
         if (drv) { // drive specific
             char freestr[32], drvsstr[32], usedstr[32];
-            FormatBytes(freestr, GetFreeSpace(path));
-            FormatBytes(drvsstr, GetTotalSpace(path));
-            FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path));
+            FormatBytes(freestr, GetFreeSpace(path), true);
+            FormatBytes(drvsstr, GetTotalSpace(path), true);
+            FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path), true);
             snprintf(sizestr, sizeof(sizestr), STR_N_FILES_N_SUBDIRS_TOTAL_SIZE_FREE_USED_TOTAL,
                 tfiles, tdirs, bytestr, freestr, usedstr, drvsstr);
         } else { // dir specific
@@ -1127,7 +1127,7 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         }
     } else { // for files
         char bytestr[32];
-        FormatBytes(bytestr, fno.fsize);
+        FormatBytes(bytestr, fno.fsize, true);
         snprintf(sizestr, sizeof(sizestr), STR_FILESIZE_X, bytestr);
     }
 
@@ -2018,7 +2018,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 }
                 current_dir->entry[i].marked = false;
             }
-            FormatBytes(savingsstr, savings);
+            FormatBytes(savingsstr, savings, true);
             if (n_other) ShowPrompt(false, STR_N_OF_N_FILES_TRIMMED_N_OF_N_NOT_OF_SAME_TYPE_X_SAVED,
                 n_success, n_marked, n_other, n_marked, savingsstr);
             else ShowPrompt(false, STR_N_OF_N_FILES_TRIMMED_X_SAVED, n_success, n_marked, savingsstr);
@@ -2029,9 +2029,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             char tsizestr[32];
             char csizestr[32];
             char dsizestr[32];
-            FormatBytes(tsizestr, trimsize);
-            FormatBytes(csizestr, currentsize);
-            FormatBytes(dsizestr, currentsize - trimsize);
+            FormatBytes(tsizestr, trimsize, true);
+            FormatBytes(csizestr, currentsize, true);
+            FormatBytes(dsizestr, currentsize - trimsize, true);
 
             if (!trimsize || trimsize > currentsize) {
                 ShowPrompt(false, "%s\n%s", pathstr, STR_FILE_CANT_BE_TRIMMED);
