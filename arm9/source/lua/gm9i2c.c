@@ -3,6 +3,31 @@
 #include "fsperm.h"
 #include "system/i2c.h"
 
+typedef struct {
+    uint8_t dev_id;
+    uint8_t reg_addr_start;
+    uint8_t reg_addr_end;
+} WhiteListPair;
+
+static const WhiteListPair WriteWhitelist[] = {
+    // Device_id, Register_address, Register_address_end
+    { I2C_DEV_MCU, 0x15, 0x17 },
+    { I2C_DEV_MCU, 0x1c, 0x1f },
+    { I2C_DEV_MCU, 0x28, 0x29 },
+    { I2C_DEV_MCU, 0x2a, 0x2d },
+};
+
+static bool IsWriteAllowed(uint8_t dev_id, uint8_t reg_addr)
+{
+    for (unsigned i = 0; i < sizeof(WriteWhitelist)/sizeof(WriteWhitelist[0]); i++) {
+        if (WriteWhitelist[i].dev_id == dev_id &&
+            reg_addr >= WriteWhitelist[i].reg_addr_start &&
+            reg_addr <= WriteWhitelist[i].reg_addr_end)
+            return true;
+    }
+    return false;
+}
+
 static int i2c_read(lua_State *L) {
     int dev_id = luaL_checkinteger(L, 1);
     int reg_addr = luaL_checkinteger(L, 2);
@@ -67,6 +92,10 @@ static int i2c_write(lua_State *L) {
 
     if (reg_addr < 0 || reg_addr > 255) {
         return luaL_error(L, "Invalid register address: %d (must be 0-255)", reg_addr);
+    }
+
+    if (!IsWriteAllowed(dev_id, reg_addr)) {
+        return luaL_error(L, "Write to device %d, register 0x%02X is not allowed", dev_id, reg_addr);
     }
 
     // Create a buffer for the write data
