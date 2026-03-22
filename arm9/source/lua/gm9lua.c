@@ -12,8 +12,8 @@
 #include "gm9loader.h"
 #include "gm9os.h"
 #include "gm9ui.h"
-#include "gm9i2c.h"
 #include "gm9title.h"
+#include "gm9internali2c.h"
 #include "gm9internalfs.h"
 #include "gm9internalsys.h"
 
@@ -112,11 +112,11 @@ static const luaL_Reg gm9lualibs[] = {
     {GM9LUA_OSLIBNAME, gm9lua_open_os},
     {GM9LUA_UILIBNAME, gm9lua_open_ui},
     {GM9LUA_TITLELIBNAME, gm9lua_open_title},
-    {GM9LUA_I2CLIBNAME, gm9lua_open_i2c},
 
     // gm9 custom internals (usually wrapped by a pure lua module)
     {GM9LUA_INTERNALFSLIBNAME, gm9lua_open_internalfs},
     {GM9LUA_INTERNALSYSLIBNAME, gm9lua_open_internalsys},
+    {GM9LUA_I2CLIBNAME, gm9lua_open_internali2c},
 
     {NULL, NULL}
 };

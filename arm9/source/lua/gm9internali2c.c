@@ -1,5 +1,5 @@
 #ifndef NO_LUA
-#include "gm9i2c.h"
+#include "gm9internali2c.h"
 #include "fsperm.h"
 #include "system/i2c.h"
 
@@ -140,7 +140,7 @@ static const luaL_Reg i2c[] = {
     {NULL, NULL}
 };
 
-int gm9lua_open_i2c(lua_State* L) {
+int gm9lua_open_internali2c(lua_State* L) {
     luaL_newlib(L, i2c);
     return 1;
 }
