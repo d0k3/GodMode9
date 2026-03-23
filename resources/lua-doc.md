@@ -1177,6 +1177,7 @@ BATTERY_PCB_TEMPERATURE | 0xA | Temperature of the battery, measured on a sensor
 BATTERY_PERCENTAGE_INT | 0xB | Integer part of the battery percentage.
 BATTERY_PERCENTAGE_FRAC | 0xC | Fractional part of the battery percentage.
 BATTERY_VOLTAGE | 0xD | Voltage of the battery, in units of 20 mV.
+HW_STATUS | 0xE | Hardware status bits
 POWER_STATUS | 0xF | @ref mcu.power_status_flags
 LEGACY_VERSION_HIGH | 0xF | (Old MCU_FIRM only) Major firmware version.
 LEGACY_VERSION_LOW | 0x10 | (Old MCU_FIRM only) Minor firmware version.
@@ -1185,20 +1186,25 @@ RECEIVED_IRQS_1 | 0x10 | Bitmask of received IRQs. @ref mcu.interrupt_1
 RECEIVED_IRQS_2 | 0x11 | Bitmask of received IRQs. @ref mcu.interrupt_2
 RECEIVED_IRQS_3 | 0x12 | Bitmask of received IRQs. @ref mcu.interrupt_3
 RECEIVED_IRQS_4 | 0x13 | Bitmask of received IRQs. @ref mcu.interrupt_4
+UNUSED_RO_14 | 0x14 | Unused read-only register.
 USERDATA_RAM_15 | 0x15 | Unused register, supports writing
 USERDATA_RAM_16 | 0x16 | Unused register, supports writing
 USERDATA_RAM_17 | 0x17 | Unused register, supports writing
-IRQ_MASK | 0x18 | Bitmask of enabled IRQs.  @ref mcu.interrupt_1 - 4
+IRQ_MASK_1 | 0x18 | Bitmask of enabled IRQs.  @ref mcu.interrupt_1
+IRQ_MASK_2 | 0x19 | Bitmask of enabled IRQs.  @ref mcu.interrupt_2
+IRQ_MASK_3 | 0x1A | Bitmask of enabled IRQs.  @ref mcu.interrupt_3
+IRQ_MASK_4 | 0x1B | Bitmask of enabled IRQs.  @ref mcu.interrupt_4
 USERDATA_RAM_1C | 0x1C | Unused register, supports writing
 USERDATA_RAM_1D | 0x1D | Unused register, supports writing
 USERDATA_RAM_1E | 0x1E | Unused register, supports writing
 USERDATA_RAM_1F | 0x1F | Unused register, supports writing
 PWR_CTL | 0x20 | @ref mcu.power_trigger
-LCD_PWR_CTL | 0x22 | @ref mcu.power_status_flags
+LCD_PWR_CTL | 0x22 | LCD Power control
 MCU_RESET_CTL | 0x23 | Writing 'r' to this register resets the MCU. Stubbed on retail.
 FORCE_SHUTDOWN_DELAY | 0x24 | The amount of time, in units of 0.125s, for which the power button needs to be held to trigger a hard shutdown.
 VOLUME_UNK_25 | 0x25 | Unknown register. Used in mcu::SND
 UNK_26 | 0x26 | Unknown register. Used in mcu::CDC
+VOLUME_SLIDER_RAW | 0x27 | Raw value of the volume slider, in the range of 0-255
 LED_BRIGHTNESS_STATE | 0x28 | Brightness of the status LEDs.
 POWER_LED_STATE | 0x29 | @ref mcu.power_led_state
 WLAN_LED_STATE | 0x2A | Controls the WiFi LED.
@@ -1221,6 +1227,7 @@ RTC_ALARM_MONTH | 0x3B | RTC alarm month.
 RTC_ALARM_YEAR | 0x3C | RTC alarm year.
 TICK_COUNTER_LSB | 0x3D | MCU tick counter value (low byte).
 TICK_COUNTER_MSB | 0x3E | MCU tick counter value (high byte).
+UNK_3F | 0x3F | Unknown register
 SENSOR_CONFIG | 0x40 | @ref mcu.sensor_config
 ACCELEROMETER_MANUAL_REGID_R | 0x41 | Hardware register ID for use in manual accelerometer I²C reads.
 ACCELEROMETER_MANUAL_REGID_W | 0x43 | Hardware reigster ID for use in manual accelerometer I²C writes.
