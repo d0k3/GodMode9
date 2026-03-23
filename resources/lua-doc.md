@@ -1316,7 +1316,7 @@ Bitmasks for the pedometer control
 Lua | Bit | Notes
 -- | -- | --
 CLEAR | 0 | Clear the step history.
-STEPS_FULL | 4  -- Set when the step history is full.
+STEPS_FULL | 4 | Set when the step history is full.
 
 ##### i2c.mcu.power_trigger #####
 Bitmasks for the power signal triggers
