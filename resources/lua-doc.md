@@ -1392,10 +1392,10 @@ print("System voltage:", voltage, "V")
 
 -- Read Power status
 local power_state = i2c.read(i2c.dev.MCU, i2c.mcu.reg.POWER_STATUS, 1)
-if power_state[1] & i2c.mcu.power_status_flags.SHELL_OPEN
+if power_state[1] & i2c.mcu.power_status_flags.SHELL_OPEN ~= 0 then
   print("Shell is open")
 end
-if power_state[1] & i2c.mcu.power_status_flags.CHARGING
+if power_state[1] & i2c.mcu.power_status_flags.CHARGING ~= 0 then
   print("Charging")
 end
 ```
