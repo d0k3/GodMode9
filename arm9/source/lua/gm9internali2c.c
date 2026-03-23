@@ -95,7 +95,7 @@ static int i2c_write(lua_State *L) {
     }
 
     if (!IsWriteAllowed(dev_id, reg_addr)) {
-        return luaL_error(L, "Write to device %d, register 0x%02X is not allowed", dev_id, reg_addr);
+        return luaL_error(L, "Write to device %d, register %d is not allowed", dev_id, reg_addr);
     }
 
     // Create a buffer for the write data
