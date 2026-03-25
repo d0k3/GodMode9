@@ -1,0 +1,77 @@
+name: "Crowdin: Import translations"
+
+on:
+  schedule:
+    - cron: "0 0 1,15 * *"
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Setup environment
+        run: git config --global safe.directory '*'
+
+      - name: Install tools
+        run: |
+          apt-get update
+          apt-get install python3 python3-pip -y
+          python3 -m pip install --upgrade pip setuptools --break-system-packages
+          python3 -m pip install cryptography git+https://github.com/TuxSH/firmtool.git --break-system-packages
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup Crowdin CLI
+        run: |
+          npm i -g @crowdin/cli
+
+      - name: Pull from Crowdin
+        shell: bash
+        env:
+          CROWDIN_TOKEN: ${{ secrets.CROWDIN_TOKEN }}
+        run: |
+          crowdin pull
+
+          set +e # continue on errors, we're using the exit code
+          for item in resources/languages/*.json; do
+            if ! [[ $item =~ (source|en).json$ ]]; then
+              # Check if the translation is over 30% translated
+              utils/transcheck.py resources/languages/source.json $item 30
+              if [[ $? -ne 0 ]]; then
+                  rm $item
+              fi
+            fi
+          done
+
+      - name: Pull origin
+        run: git pull origin master --ff-only # Pull origin in case a commit has been done while updating
+
+      # This makes sure that the app actually builds before pushing to master
+      - name: Build test
+        run: |
+          make release -j$(nproc)
+
+      - name: Commit changes
+        continue-on-error: true
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+
+          git checkout master
+          git stage resources/languages
+          git commit -m "Automatic translation import"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: master
+          github_token: ${{ secrets.GITHUB_TOKEN }}

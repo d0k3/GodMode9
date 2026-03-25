@@ -122,7 +122,7 @@ static int internalfs_mkdir(lua_State* L) {
 
     FRESULT res = fvx_rmkdir(path);
     if (res != FR_OK) {
-        return luaL_error(L, "could not mkdir (%d)", path, res);
+        return luaL_error(L, "could not mkdir %s (%d)", path, res);
     }
 
     return 0;
@@ -145,6 +145,7 @@ static int internalfs_list_dir(lua_State* L) {
     for (int i = 1; true; i++) {
         res = fvx_readdir(&dir, &fno);
         if (res != FR_OK) {
+            fvx_closedir(&dir);
             lua_pop(L, 1); // remove final table from stack
             return luaL_error(L, "could not readdir %s (%d)", path, res);
         }
@@ -152,6 +153,7 @@ static int internalfs_list_dir(lua_State* L) {
         CreateStatTable(L, &fno);
         lua_seti(L, -2, i); // add nested table to final table
     }
+    fvx_closedir(&dir);
 
     return 1;
 }
@@ -465,7 +467,7 @@ static int internalfs_make_dummy_file(lua_State* L) {
     CheckWritePermissionsLuaError(L, path);
 
     if (!(FileCreateDummy(path, NULL, size))) {
-        return luaL_error(L, "FileCreateDummy failed on %s");
+        return luaL_error(L, "FileCreateDummy failed on %s", path);
     }
 
     return 0;
@@ -616,13 +618,18 @@ static int internalfs_allow(lua_State* L) {
 };
 
 static int internalfs_verify(lua_State* L) {
-    CheckLuaArgCount(L, 1, "_fs.verify");
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.verify");
     const char* path = luaL_checkstring(L, 1);
     bool res;
 
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, SIG_CHECK);
+    }
+
     u64 filetype = IdentifyFileType(path);
     if (filetype & IMG_NAND) res = (ValidateNandDump(path) == 0);
-    else res = (VerifyGameFile(path) == 0);
+    else res = (VerifyGameFile(path, flags & SIG_CHECK) == 0);
 
     lua_pushboolean(L, res);
     return 1;

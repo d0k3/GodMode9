@@ -167,15 +167,19 @@ void __attribute__((noreturn)) MainLoop(void)
 				break;
 			}
 
-			// checks whether the NVRAM chip is online (not doing any work)
-			case PXICMD_NVRAM_ONLINE:
-				pxiReply = (NVRAM_Status() & NVRAM_SR_WIP) == 0;
+			// gets the NVRAM chip ID
+			case PXICMD_NVRAM_ID:
+				pxiReply = NVRAM_ReadID();
 				break;
 
 			// reads data from the NVRAM chip
 			case PXICMD_NVRAM_READ:
-				NVRAM_Read(args[0], sharedMem.dataBuffer.w, args[1]);
-				pxiReply = 0;
+				pxiReply = NVRAM_Read(args[0], sharedMem.dataBuffer.w, args[1]);
+				break;
+
+			// writes data to the NVRAM chip
+			case PXICMD_NVRAM_WRITE:
+				pxiReply = NVRAM_Write(args[0], sharedMem.dataBuffer.w, args[1]);
 				break;
 
 			// sets the notification LED with the given color and period

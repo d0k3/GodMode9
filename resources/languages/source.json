@@ -454,7 +454,7 @@
 	"CREATE_A_DUMMY_FILE": "Create a dummy file",
 	"CREATE_NEW_FOLDER_HERE_ENTER_NAME_BELOW": "Create a new folder here?\nEnter name below.",
 	"CREATE_NEW_FILE_HERE_ENTER_NAME_BELOW": "Create a new file here?\nEnter name below.",
-	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Create a new %s here?\nEnter file size below.",
+	"CREATE_NEW_FILE_HERE_ENTER_SIZE_BELOW": "Create a new file here?\nEnter file size below.",
 	"FAILED_CREATING_FOLDER_PATH": "Failed creating folder:\n%s",
 	"FAILED_CREATING_FILE_PATH": "Failed creating file:\n%s",
 	"TITLE_MANAGER": "Title manager",
@@ -805,6 +805,7 @@
 	"END_OF_SCRIPT_UNRESOLVED_FOR": "end of script: unresolved 'for'",
 	"SYSINFO_MODEL": "Model: %s (%s)\r\n",
 	"SYSINFO_SERIAL": "Serial: %s\r\n",
+	"SYSINFO_GYRO_MODEL": "Gyro model: %u\r\n",
 	"SYSINFO_REGION_SYSTEM": "Region (system): %s\r\n",
 	"SYSINFO_REGION_SALES": "Region (sales): %s\r\n",
 	"SYSINFO_SOC_MANUFACTURING_DATE": "SoC manufacturing date: %s\r\n",
@@ -817,5 +818,12 @@
 	"SYSINFO_SYSTEM_ID0": "System ID0: %s\r\n",
 	"SYSINFO_SYSTEM_ID1": "System ID1: %s\r\n",
 	"SORTING_TICKETS_PLEASE_WAIT": "Sorting tickets, please wait ...",
-	"LUA_NOT_INCLUDED": "This build of GodMode9 was\ncompiled without Lua support."
+	"LUA_NOT_INCLUDED": "This build of GodMode9 was\ncompiled without Lua support.",
+	"ERROR_SIGNATURE_CHECK_FAILED": "Error: Signature check failed",
+	"USE_SIGNATURE_VERIFICATION": "Use signature verification?",
+	"IGNORE_SIGNATURES": "Ignore signatures",
+	"VERIFY_SIGNATURES": "Verify signatures",
+	"STANDARD_CRYPTO": "Standard encryption",
+	"ORIGINAL_CRYPTO": "Original encryption",
+	"SELECT_TYPE_OF_ENCRYPTION": "Select type of encryption"
 }

@@ -252,8 +252,8 @@ void DrawTopBar(const char* curr_path) {
         char tempstr[UTF_BUFFER_BYTESIZE(19)];
         ResizeString(tempstr, STR_LOADING, 19, 19, true);
         DrawString(TOP_SCREEN, tempstr, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR);
-        FormatBytes(bytestr0, GetFreeSpace(curr_path));
-        FormatBytes(bytestr1, GetTotalSpace(curr_path));
+        FormatBytes(bytestr0, GetFreeSpace(curr_path), true);
+        FormatBytes(bytestr1, GetTotalSpace(curr_path), true);
         snprintf(tempstr, sizeof(tempstr), "%s/%s", bytestr0, bytestr1);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%19.19s", tempstr);
         show_time = false;
@@ -262,7 +262,7 @@ void DrawTopBar(const char* curr_path) {
     if (true) { // allocated mem
         const u32 bartxt_rx = SCREEN_WIDTH_TOP - (9*FONT_WIDTH_EXT) - bartxt_x;
         char bytestr[32];
-        FormatBytes(bytestr, mem_allocated());
+        FormatBytes(bytestr, mem_allocated(), true);
         DrawStringF(TOP_SCREEN, bartxt_rx, bartxt_start, COLOR_STD_BG, COLOR_TOP_BAR, "%9.9s", bytestr);
         show_time = false;
     }
@@ -399,7 +399,7 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
             char namestr[UTF_BUFFER_BYTESIZE(str_width - 10)];
             char rawbytestr[32], bytestr[UTF_BUFFER_BYTESIZE(10)];
             color_font = (cursor != offset_i) ? COLOR_ENTRY(curr_entry) : COLOR_STD_FONT;
-            FormatBytes(rawbytestr, curr_entry->size);
+            FormatBytes(rawbytestr, curr_entry->size, true);
             ResizeString(bytestr, (curr_entry->type == T_DIR) ? STR_DIR : (curr_entry->type == T_DOTDOT) ? "(..)" : rawbytestr, 10, 10, true);
             ResizeString(namestr, curr_entry->name, str_width - 10, str_width - 20, false);
             snprintf(tempstr, sizeof(tempstr), "%s%s", namestr, bytestr);
@@ -420,6 +420,56 @@ void DrawDirContents(DirStruct* contents, u32 cursor, u32* scroll) {
         DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, bar_pos + bar_height, bar_width, SCREEN_HEIGHT - (bar_pos + bar_height), COLOR_STD_BG);
         DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, bar_pos, bar_width, bar_height, COLOR_SIDE_BAR);
     } else DrawRectangle(ALT_SCREEN, SCREEN_WIDTH_ALT - bar_width, start_y, bar_width, flist_height, COLOR_STD_BG);
+}
+
+u32 LoadLanguageAndFont(const bool setup_language) {
+    bool language_loaded = false;
+
+    // language loading
+    size_t support_size;
+    if (CheckSupportFile("language.trf", &support_size)) {
+        char* translation = (char*) malloc(support_size);
+        if (translation) {
+            u32 translation_size = LoadSupportFile("language.trf", translation, support_size);
+            if (translation_size) language_loaded = SetLanguage(translation, translation_size);
+            free(translation);
+        }
+    }
+
+    // language not found?
+    if (setup_language && !language_loaded) {
+        SetLanguage(NULL, 0);
+
+        char loadpath[256];
+        if (LanguageMenu(loadpath, "Select Language for GodMode9:")) {
+            if (SetAsSupportFile("language.trf", loadpath)) {
+                // try to load font with the same name
+                char *ext = strstr(loadpath, ".trf");
+                strcpy(ext, ".frf");
+                SetAsSupportFile("font.frf", loadpath);
+                return LoadLanguageAndFont(false);
+            }
+        }
+    }
+
+    // custom font loading
+    if (CheckSupportFile("font.frf", &support_size)) {
+        u8* riff = (u8*) malloc(support_size);
+        if (riff) {
+            u32 riff_size = LoadSupportFile("font.frf", riff, support_size);
+            if (riff_size) SetFont(riff, riff_size);
+            free(riff);
+        }
+    } else if (CheckSupportFile("font.pbm", &support_size)) {
+        u8* pbm = (u8*) malloc(support_size);
+        if (pbm) {
+            u32 pbm_size = LoadSupportFile("font.pbm", pbm, support_size);
+            if (pbm_size) SetFont(pbm, pbm_size);
+            free(pbm);
+        }
+    }
+
+    return 0;
 }
 
 u32 SdFormatMenu(const char* slabel) {
@@ -981,7 +1031,7 @@ u32 CartRawDump(void) {
 
     // input dump size
     dsize = cdata->cart_size;
-    FormatBytes(bytestr, dsize);
+    FormatBytes(bytestr, dsize, true);
     dsize = ShowHexPrompt(dsize, 8, STR_CART_DETECTED_SIZE_INPUT_BELOW, cname, bytestr);
     if (!dsize || (dsize == (u64) -1)) {
         free(cdata);
@@ -1063,13 +1113,13 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         ShowString("%s", drv ? STR_ANALYZING_DRIVE : STR_ANALYZING_DIR);
         if (!DirInfo(path, &tsize, &tdirs, &tfiles))
             return 1;
-        FormatBytes(bytestr, tsize);
+        FormatBytes(bytestr, tsize, true);
 
         if (drv) { // drive specific
             char freestr[32], drvsstr[32], usedstr[32];
-            FormatBytes(freestr, GetFreeSpace(path));
-            FormatBytes(drvsstr, GetTotalSpace(path));
-            FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path));
+            FormatBytes(freestr, GetFreeSpace(path), true);
+            FormatBytes(drvsstr, GetTotalSpace(path), true);
+            FormatBytes(usedstr, GetTotalSpace(path) - GetFreeSpace(path), true);
             snprintf(sizestr, sizeof(sizestr), STR_N_FILES_N_SUBDIRS_TOTAL_SIZE_FREE_USED_TOTAL,
                 tfiles, tdirs, bytestr, freestr, usedstr, drvsstr);
         } else { // dir specific
@@ -1077,7 +1127,7 @@ u32 DirFileAttrMenu(const char* path, const char *name) {
         }
     } else { // for files
         char bytestr[32];
-        FormatBytes(bytestr, fno.fsize);
+        FormatBytes(bytestr, fno.fsize, true);
         snprintf(sizestr, sizeof(sizestr), STR_FILESIZE_X, bytestr);
     }
 
@@ -1163,6 +1213,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
     bool verificable = (FTYPE_VERIFICABLE(filetype));
     bool decryptable = (FTYPE_DECRYPTABLE(filetype));
     bool encryptable = (FTYPE_ENCRYPTABLE(filetype));
+    bool crypto_fixable = (FTYPE_CRYPTOFIXABLE(filetype));
     bool cryptable_inplace = ((encryptable||decryptable) && !in_output_path && (*current_path == '0'));
     bool cia_buildable = (FTYPE_CIABUILD(filetype));
     bool cia_buildable_legit = (FTYPE_CIABUILD_L(filetype));
@@ -1577,7 +1628,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false) == 0)) n_success++;
+                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, false, false) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, false) == 0)) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
@@ -1597,7 +1648,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 ShowPrompt(false, "%s\n%s", pathstr, STR_FILE_NOT_ENCRYPTED);
             } else {
                 u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(file_path, inplace, false) :
-                    CryptGameFile(file_path, inplace, false);
+                    CryptGameFile(file_path, inplace, false, false);
                 if (inplace || (ret != 0)) ShowPrompt(false, "%s\n%s", pathstr, (ret == 0) ? STR_DECRYPTION_SUCCESS : STR_DECRYPTION_FAILED);
                 else ShowPrompt(false, STR_PATH_DECRYPTED_TO_OUT, pathstr, OUTPUT_PATH);
             }
@@ -1605,7 +1656,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == encrypt) { // -> encrypt game file
-        if (cryptable_inplace) {
+        if (crypto_fixable) {
+            optionstr[0] = STR_STANDARD_CRYPTO;
+            optionstr[1] = STR_ORIGINAL_CRYPTO;
+            user_select = (int) ShowSelectPrompt(2, optionstr, "%s", STR_SELECT_TYPE_OF_ENCRYPTION);
+        } else (user_select = 1);
+        bool restore = (user_select == 2);
+        if (user_select && cryptable_inplace) {
             char encryptToOut[UTF_BUFFER_BYTESIZE(64)];
             snprintf(encryptToOut, sizeof(encryptToOut), STR_ENCRYPT_TO_OUT, OUTPUT_PATH);
             optionstr[0] = encryptToOut;
@@ -1613,7 +1670,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             user_select = (int) ((n_marked > 1) ?
                 ShowSelectPrompt(2, optionstr, STR_PATH_N_FILES_SELECTED, pathstr, n_marked) :
                 ShowSelectPrompt(2, optionstr, "%s%s", pathstr, tidstr));
-        } else user_select = 1;
+        } else if (user_select) user_select = 1;
         bool inplace = (user_select == 2);
         if (!user_select) { // do nothing when no choice is made
         } else if ((n_marked > 1) && ShowPrompt(true, STR_TRY_TO_ENCRYPT_N_SELECTED_FILES, n_marked)) {
@@ -1629,7 +1686,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                     continue;
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
-                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true) == 0)) n_success++;
+                if (!(filetype & BIN_KEYDB) && (CryptGameFile(path, inplace, true, restore) == 0)) n_success++;
                 else if ((filetype & BIN_KEYDB) && (CryptAesKeyDb(path, inplace, true) == 0)) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
@@ -1646,7 +1703,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             if (!inplace && n_success) ShowPrompt(false, STR_N_FILES_WRITTEN_TO_OUT, n_success, OUTPUT_PATH);
         } else {
             u32 ret = (filetype & BIN_KEYDB) ? CryptAesKeyDb(file_path, inplace, true) :
-                CryptGameFile(file_path, inplace, true);
+                CryptGameFile(file_path, inplace, true, restore);
             if (inplace || (ret != 0)) ShowPrompt(false, "%s\n%s", pathstr, (ret == 0) ? STR_ENCRYPTION_SUCCESS : STR_ENCRYPTION_FAILED);
             else ShowPrompt(false, STR_PATH_ENCRYPTED_TO_OUT, pathstr, OUTPUT_PATH);
         }
@@ -1695,7 +1752,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 ShowPrompt(false, STR_PATH_TYPE_BUILD_FAILED, pathstr, type);
                 if ((filetype & (GAME_NCCH|GAME_NCSD)) &&
                     ShowPrompt(true, "%s\n%s", pathstr, STR_FILE_FAILED_CONVERSION_VERIFY_NOW)) {
-                    ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
+                    ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path, false) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
                 }
             }
         }
@@ -1748,7 +1805,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowPrompt(false, "%s\n%s", pathstr, (ret == 0) ? STR_INSTALL_SUCCESS : STR_INSTALL_FAILED);
             if ((ret != 0) && (filetype & (GAME_NCCH|GAME_NCSD)) &&
                 ShowPrompt(true, "%s\n%s", pathstr, STR_FILE_FAILED_INSTALL_VERIFY_NOW)) {
-                ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
+                ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path, false) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
             }
         }
         return 0;
@@ -1792,10 +1849,24 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == verify) { // -> verify game / nand file
-        if ((n_marked > 1) && ShowPrompt(true, STR_TRY_TO_VERIFY_N_SELECTED_FILES, n_marked)) {
+        bool sig_check = false;
+
+        // check signatures?
+        if (filetype & (GAME_NCSD|GAME_NCCH)) {
+            optionstr[0] = STR_IGNORE_SIGNATURES;
+            optionstr[1] = STR_VERIFY_SIGNATURES;
+            user_select = ShowSelectPrompt(2, optionstr, "%s", STR_USE_SIGNATURE_VERIFICATION);
+            if (!user_select) return 1;
+            sig_check = (user_select == 2);
+        }
+
+        // file verification
+        if (n_marked > 1) {
             u32 n_success = 0;
             u32 n_other = 0;
             u32 n_processed = 0;
+            if (!ShowPrompt(true, STR_TRY_TO_VERIFY_N_SELECTED_FILES, n_marked)) // confirmation
+                return 1;
             for (u32 i = 0; i < current_dir->n_entries; i++) {
                 const char* path = current_dir->entry[i].path;
                 if (!current_dir->entry[i].marked)
@@ -1808,7 +1879,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 }
                 DrawDirContents(current_dir, (*cursor = i), scroll);
                 if ((filetype & IMG_NAND) && (ValidateNandDump(path) == 0)) n_success++;
-                else if (VerifyGameFile(path) == 0) n_success++;
+                else if (VerifyGameFile(path, sig_check) == 0) n_success++;
                 else { // on failure: show error, continue
                     char lpathstr[UTF_BUFFER_BYTESIZE(32)];
                     TruncateString(lpathstr, path, 32, 8);
@@ -1827,7 +1898,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             ShowString("%s\n%s", pathstr, STR_VERIFYING_FILE_PLEASE_WAIT);
             if (filetype & IMG_NAND) {
                 ShowPrompt(false, "%s\n%s", pathstr, (ValidateNandDump(file_path) == 0) ? STR_NAND_VALIDATION_SUCCESS : STR_NAND_VALIDATION_FAILED);
-            } else ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
+            } else ShowPrompt(false, "%s\n%s", pathstr, (VerifyGameFile(file_path, sig_check) == 0) ? STR_VERIFICATION_SUCCESS : STR_VERIFICATION_FAILED);
         }
         return 0;
     }
@@ -1948,7 +2019,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 }
                 current_dir->entry[i].marked = false;
             }
-            FormatBytes(savingsstr, savings);
+            FormatBytes(savingsstr, savings, true);
             if (n_other) ShowPrompt(false, STR_N_OF_N_FILES_TRIMMED_N_OF_N_NOT_OF_SAME_TYPE_X_SAVED,
                 n_success, n_marked, n_other, n_marked, savingsstr);
             else ShowPrompt(false, STR_N_OF_N_FILES_TRIMMED_X_SAVED, n_success, n_marked, savingsstr);
@@ -1959,9 +2030,9 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             char tsizestr[32];
             char csizestr[32];
             char dsizestr[32];
-            FormatBytes(tsizestr, trimsize);
-            FormatBytes(csizestr, currentsize);
-            FormatBytes(dsizestr, currentsize - trimsize);
+            FormatBytes(tsizestr, trimsize, true);
+            FormatBytes(csizestr, currentsize, true);
+            FormatBytes(dsizestr, currentsize - trimsize, true);
 
             if (!trimsize || trimsize > currentsize) {
                 ShowPrompt(false, "%s\n%s", pathstr, STR_FILE_CANT_BE_TRIMMED);
@@ -2165,18 +2236,20 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         return 0;
     }
     else if (user_select == font) { // set font
-        u8* font = (u8*) malloc(0x20000); // arbitrary, should be enough by far
+        size_t fsize = FileGetSize(file_path);
+        u8* font = (u8*) malloc(fsize);
         if (!font) return 1;
-        u32 font_size = FileGetData(file_path, font, 0x20000, 0);
+        u32 font_size = FileGetData(file_path, font, fsize, 0);
         if (font_size) SetFont(font, font_size);
         ClearScreenF(true, true, COLOR_STD_BG);
         free(font);
         return 0;
     }
     else if (user_select == translation) { // set translation
-        u8* translation = (u8*) malloc(0x20000); // arbitrary, should be enough by far
+        size_t fsize = FileGetSize(file_path);
+        u8* translation = (u8*) malloc(fsize);
         if (!translation) return 1;
-        u32 translation_size = FileGetData(file_path, translation, 0x20000, 0);
+        u32 translation_size = FileGetData(file_path, translation, fsize, 0);
         if (translation_size) SetLanguage(translation, translation_size);
         ClearScreenF(true, true, COLOR_STD_BG);
         free(translation);
@@ -2442,65 +2515,8 @@ u32 GodMode(int entrypoint) {
     if (LoadSupportFile("gm9bright.cfg", &brightness, 0x4))
         SetScreenBrightness(brightness);
 
-    // custom font handling
-    if (CheckSupportFile("font.frf")) {
-        u8* riff = (u8*) malloc(0x20000); // arbitrary, should be enough by far
-        if (riff) {
-            u32 riff_size = LoadSupportFile("font.frf", riff, 0x20000);
-            if (riff_size) SetFont(riff, riff_size);
-            free(riff);
-        }
-    } else if (CheckSupportFile("font.pbm")) {
-        u8* pbm = (u8*) malloc(0x10000); // arbitrary, should be enough by far
-        if (pbm) {
-            u32 pbm_size = LoadSupportFile("font.pbm", pbm, 0x10000);
-            if (pbm_size) SetFont(pbm, pbm_size);
-            free(pbm);
-        }
-    }
-
-    // language handling
-    bool language_loaded = false;
-    if (CheckSupportFile("language.trf")) {
-        char* translation = (char*) malloc(0x20000); // arbitrary, should be enough by far
-        if (translation) {
-            u32 translation_size = LoadSupportFile("language.trf", translation, 0x20000);
-            if (translation_size) language_loaded = SetLanguage(translation, translation_size);
-            free(translation);
-        }
-    }
-
-    if (!language_loaded) {
-        SetLanguage(NULL, 0);
-
-        char loadpath[256];
-        if (LanguageMenu(loadpath, "Select Language for GodMode9:")) {
-            size_t fsize = FileGetSize(loadpath);
-            if (fsize > 0) {
-                char* data = (char*)malloc(fsize);
-                if (data) {
-                    FileGetData(loadpath, data, fsize, 0);
-                    SaveSupportFile("language.trf", data, fsize);
-                    SetLanguage(data, fsize);
-                    free(data);
-                }
-            }
-
-            // Try load font with the same name
-            char *ext = strstr(loadpath, ".trf");
-            strcpy(ext, ".frf");
-            fsize = FileGetSize(loadpath);
-            if (fsize > 0) {
-                char* data = (char*)malloc(fsize);
-                if (data) {
-                    FileGetData(loadpath, data, fsize, 0);
-                    SaveSupportFile("font.frf", data, fsize);
-                    SetFont(data, fsize);
-                    free(data);
-                }
-            }
-        }
-    }
+    // load font and language, ask if language is not set up
+    LoadLanguageAndFont(true);
 
     // check for embedded essential backup
     if (((entrypoint == ENTRY_NANDBOOT) || (entrypoint == ENTRY_B9S)) &&
@@ -3004,29 +3020,18 @@ u32 GodMode(int entrypoint) {
                     if (!CheckSupportDir(LANGUAGES_DIR)) {
                         ShowPrompt(false, STR_LANGUAGES_DIRECTORY_NOT_FOUND, LANGUAGES_DIR);
                     } else if (LanguageMenu(loadpath, STR_HOME_LANGUAGE_MENU_SELECT_LANGUAGE)) {
-                        size_t fsize = FileGetSize(loadpath);
-                        if (fsize > 0) {
-                            char* data = (char*)malloc(fsize);
-                            if (data) {
-                                FileGetData(loadpath, data, fsize, 0);
-                                SaveSupportFile("language.trf", data, fsize);
-                                SetLanguage(data, fsize);
-                                free(data);
-                            }
-
-                            // Try load font with the same name
+                        if (SetAsSupportFile("language.trf", loadpath)) {
+                            // try to load font with the same name
                             char *ext = strstr(loadpath, ".trf");
                             strcpy(ext, ".frf");
-                            fsize = FileGetSize(loadpath);
-                            if (fsize > 0) {
-                                char* data = (char*)malloc(fsize);
-                                if (data) {
-                                    FileGetData(loadpath, data, fsize, 0);
-                                    SaveSupportFile("font.frf", data, fsize);
-                                    SetFont(data, fsize);
-                                    free(data);
-                                }
+                            if (!SetAsSupportFile("font.frf", loadpath)) {
+                                // if that fails, make sure we use the default font
+                                u64 font_size64;
+                                void* font = FindVTarFileInfo(VRAM0_FONT, &font_size64);
+                                SaveSupportFile("font.frf", font, (size_t) font_size64);
                             }
+                            // set language and font as current
+                            LoadLanguageAndFont(false);
                         }
                         GetDirContents(current_dir, current_path);
                         ClearScreenF(true, true, COLOR_STD_BG);

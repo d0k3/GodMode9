@@ -19,6 +19,7 @@
 #include "bps.h"
 #include "pxi.h"
 #include "utf.h"
+#include "gyro.h"
 
 
 #define _MAX_ARGS       4
@@ -501,7 +502,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "SDSIZE", _VAR_NAME_LEN) == 0)) {
         u64 sdsize = GetTotalSpace("0:");
         char sdsize_str[32+1];
-        FormatBytes(sdsize_str, sdsize);
+        FormatBytes(sdsize_str, sdsize, false);
         set_var("SDSIZE", sdsize_str);
     }
 
@@ -509,7 +510,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "SDFREE", _VAR_NAME_LEN) == 0)) {
         u64 sdfree = GetFreeSpace("0:");
         char sdfree_str[32+1];
-        FormatBytes(sdfree_str, sdfree);
+        FormatBytes(sdfree_str, sdfree, false);
         set_var("SDFREE", sdfree_str);
     }
 
@@ -517,7 +518,7 @@ void upd_var(const char* name) {
     if (!name || (strncmp(name, "NANDSIZE", _VAR_NAME_LEN) == 0)) {
         u64 nandsize = GetNandSizeSectors(NAND_SYSNAND) * 0x200;
         char nandsize_str[32+1];
-        FormatBytes(nandsize_str, nandsize);
+        FormatBytes(nandsize_str, nandsize, false);
         set_var("NANDSIZE", nandsize_str);
     }
 }
@@ -573,6 +574,7 @@ bool init_vars(const char* path_script) {
     set_var("HAX", IS_UNLOCKED ? (isntrboot() ? "ntrboot" : "sighax") : ""); // type of hax running from
     set_var("ONTYPE", IS_O3DS ? "O3DS" : "N3DS"); // type of the console
     set_var("RDTYPE", IS_DEVKIT ? "devkit" : "retail"); // devkit / retail
+    set_var("GYROMODEL", GetGyroModelString()); // gyro model
     char* ptr = set_var("GM9VER", VERSION); // GodMode9 version, truncated below
     while (*(ptr++) != '\0') if (*ptr == '-') *ptr = '\0';
 
@@ -1394,19 +1396,19 @@ bool run_cmd(cmd_id id, u32 flags, char** argv, char* err_str) {
     else if (id == CMD_ID_VERIFY) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & IMG_NAND) ret = (ValidateNandDump(argv[0]) == 0);
-        else ret = (VerifyGameFile(argv[0]) == 0);
+        else ret = (VerifyGameFile(argv[0], false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_VERIFICATION_FAILED);
     }
     else if (id == CMD_ID_DECRYPT) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, false) == 0);
-        else ret = (CryptGameFile(argv[0], true, false) == 0);
+        else ret = (CryptGameFile(argv[0], true, false, false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_DECRYPT_FAILED);
     }
     else if (id == CMD_ID_ENCRYPT) {
         u64 filetype = IdentifyFileType(argv[0]);
         if (filetype & BIN_KEYDB) ret = (CryptAesKeyDb(argv[0], true, true) == 0);
-        else ret = (CryptGameFile(argv[0], true, true) == 0);
+        else ret = (CryptGameFile(argv[0], true, true, false) == 0);
         if (err_str) snprintf(err_str, _ERR_STR_LEN, "%s", STR_SCRIPTERR_ENCRYPT_FAILED);
     }
     else if (id == CMD_ID_BUILDCIA) {

@@ -37,5 +37,6 @@ typedef struct {
 } PACKED_STRUCT NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);
+u32 ValidateNcsdSignature(NcsdHeader* header);
 u64 GetNcsdTrimmedSize(NcsdHeader* header);
 u32 CryptNcsdSequential(void* data, u32 offset_data, u32 size_data, u16 crypto);

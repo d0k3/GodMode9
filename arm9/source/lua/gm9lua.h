@@ -13,10 +13,12 @@
 #define INCLUDE_DIRS    (1UL<<15)
 #define EXPLORER        (1UL<<16)
 #define ENCRYPTED       (1UL<<17)
+#define SIG_CHECK       (1UL<<18)
+#define USE_LOCALE      (1UL<<19)
 
-#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite", "append", "all", "recursive", "to_emunand", "legit", "first", "include_dirs", "explorer", "encrypted"
-#define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE, TO_EMUNAND, LEGIT, FIND_FIRST, INCLUDE_DIRS, EXPLORER, ENCRYPTED
-#define FLAGS_COUNT     15
+#define FLAGS_STR       "no_cancel", "silent", "calc_sha", "sha1", "skip", "overwrite", "append", "all", "recursive", "to_emunand", "legit", "first", "include_dirs", "explorer", "encrypted", "sig_check", "use_locale"
+#define FLAGS_CONSTS    NO_CANCEL, SILENT, CALC_SHA, USE_SHA1, SKIP_ALL, OVERWRITE_ALL, APPEND_ALL, ASK_ALL, RECURSIVE, TO_EMUNAND, LEGIT, FIND_FIRST, INCLUDE_DIRS, EXPLORER, ENCRYPTED, SIG_CHECK, USE_LOCALE
+#define FLAGS_COUNT     17
 
 #define LUASCRIPT_EXT      "lua"
 #define LUASCRIPT_MAX_SIZE STD_BUFFER_SIZE
@@ -35,7 +37,7 @@ static inline void CheckLuaArgCount(lua_State* L, int argcount, const char* cmd)
 static inline bool CheckLuaArgCountPlusExtra(lua_State* L, int argcount, const char* cmd) {
     int args = lua_gettop(L);
     if (args != argcount && args != argcount + 1) {
-        luaL_error(L, "bad number of arguments passed to '%s' (expected %d, got %d or %d)", cmd, argcount, args);
+        luaL_error(L, "bad number of arguments passed to '%s' (expected %d or %d, got %d)", cmd, argcount, argcount + 1, args);
     }
     return args == argcount + 1;
 }

@@ -1,6 +1,6 @@
 # GodMode9 Lua documentation
 
-GodMode9 includes a Lua 5.4.7 implementation.
+GodMode9 includes a Lua 5.4.8 implementation.
 
 ## Running scripts
 
@@ -60,7 +60,7 @@ mount | fs.img_mount |  
 umount | fs.img_umount |  
 find | fs.find |  
 findnot | fs.find_not |  
-fget | fs.write_file |  
+fget | fs.read_file |  
 fset | fs.write_file |  
 sha | fs.hash_file OR fs.verify_with_sha_file | hash_file simply returns a hash, verify_with_sha_file compares it with a corresponding .sha file
 shaget | fs.hash_file |  
@@ -111,15 +111,16 @@ EMUID0 | sys.emu_id0 |  
 EMUBASE | sys.emu_base |  
 SERIAL | sys.serial |  
 REGION | sys.region |  
-SDSIZE | fs.stat_fs("0:/").total | int instead of string (use util.format_bytes to format it)
-SDFREE | fs.stat_fs("0:/").free | int instead of string (use util.format_bytes to format it)
-NANDSIZE | NANDSIZE | int instead of string (use util.format_bytes to format it)
+SDSIZE | fs.stat_fs("0:/").total | int instead of string (use ui.format_bytes to format it)
+SDFREE | fs.stat_fs("0:/").free | int instead of string (use ui.format_bytes to format it)
+NANDSIZE | NANDSIZE | int instead of string (use ui.format_bytes to format it)
 GM9OUT | GM9OUT |  
 CURRDIR | CURRDIR | nil instead of “(null)" if it can’t be found
 ONTYPE | CONSOLE_TYPE | “O3DS" or “N3DS"
 RDTYPE | IS_DEVKIT | boolean instead of a string
 HAX | HAX |  
 GM9VER | GM9VER |  
+GYROMODEL | GYROMODEL | int instead of string
 
 ## Comparisons with standard Lua
 
@@ -161,6 +162,13 @@ local json = require("json")
 
 #### GM9VER
 The version such as `"v2.1.1-159-gff2cb913"`, the same string that is shown on the main screen.
+
+#### GYROMODEL
+The type of Gyro sensor present
+* `1`: ITG-3270, used in O3DS and some O2DS
+* `2`: ITG-1010, used in late model O2DS and N3DS
+* `3`: Unknown name, used in late model N3DS
+* `nil`: Unknown model
 
 #### SCRIPT
 Path to the executed script, such as `"0:/gm9/luascripts/myscript.lua"`.
@@ -251,7 +259,7 @@ Ask the user to input text.
 
 #### ui.ask_selection
 
-* `int ui.ask_selection(string prompt, array options)`
+* `int ui.ask_selection(string prompt, table options)`
 
 Ask the user to choose an option from a list. A maximum of 256 options are allowed.
 
@@ -340,15 +348,14 @@ Display a scrollable text viewer from a text file.
 
 #### ui.format_bytes
 
-* `string ui.format_bytes(int bytes)`
+* `string ui.format_bytes(int bytes[, table opts {bool use_locale}])`
 
-Format a number with `Byte`, `kB`, `MB`, or `GB`.
-
-> [!NOTE]
-> This is affected by localization and may return different text if the language is not English.
+Format a number with `Byte`, `kB`, `MB`, or `GB`. By default this will always use English style formatting. Enable `use_locale` to format in the user's selected language.
 
 * **Arguments**
 	* `bytes` - Size to format
+	* `opts` (optional) - Option flags
+		* `use_locale` - Format in the user's selected locale
 * **Returns:** formatted string
 
 #### ui.check_key
@@ -437,7 +444,7 @@ Create a directory. This creates intermediate directories as required, so `fs.mk
 
 #### fs.stat
 
-* `array fs.stat(string path)`
+* `table fs.stat(string path)`
 
 Get information about a file or directory. The result is a stat table with these keys:
 
@@ -453,7 +460,7 @@ Get information about a file or directory. The result is a stat table with these
 
 #### fs.list_dir
 
-* `array fs.list_dir(string path)`
+* `table fs.list_dir(string path)`
 
 Get the contents of a directory. The result is a list of stat tables with these keys:
 * `name` (string)
@@ -474,7 +481,7 @@ Get the contents of a directory. The result is a list of stat tables with these 
 
 #### fs.stat_fs
 
-* `array fs.stat_fs(string path)`
+* `table fs.stat_fs(string path)`
 
 Get information about a filesystem.
 
@@ -490,7 +497,7 @@ Get information about a filesystem.
 
 #### fs.dir_info
 
-* `array fs.dir_info(string path)`
+* `table fs.dir_info(string path)`
 
 Get information about a directory.
 
@@ -570,7 +577,7 @@ Pattern can use `?` for search values, for example `nand_??.bin` will check to s
 
 #### fs.find_all
 
-* `string fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
+* `table fs.find_all(string dir, string pattern[, table opts {bool recursive}])`
 
 Search for all files that match a pattern.
 * **Arguments**
@@ -578,6 +585,7 @@ Search for all files that match a pattern.
     * `pattern` - Filename pattern
 	* `opts` (optional) - Option flags
 		* `recursive` - Remove directories recursively
+* **Returns:** table of found files
 * **Throws**
 	* `"could not open directory"` - failed to open directory
 
@@ -659,7 +667,7 @@ Calculate the hash for some data. Uses SHA-256 unless `sha1` is specified.
 
 #### fs.verify
 
-* `bool fs.verify(string path)`
+* `bool fs.verify(string path[, table opts {bool sig_check}])`
 
 Verify the integrity of a file.
 
@@ -668,6 +676,8 @@ Verify the integrity of a file.
 
 * **Arguments**
 	* `path` - File to verify
+	* `opts` (optional) - Option flags
+		* `sig_check` - Verify NCSD/NCCH signature
 * **Returns:** `true` if successful, `false` if failed or not verifiable
 
 #### fs.verify_with_sha_file
@@ -678,8 +688,6 @@ Calculate the hash of a file and compare it with a corresponding `.sha` file.
 
 > [!IMPORTANT]
 > This currently assumes SHA-256. In the future this may automatically use SHA-1 when appropriate, based on the `.sha` file size.
-
-TODO: add errors for fs.read_file here
 
 * **Argumens**
 	* `path` - File to hash

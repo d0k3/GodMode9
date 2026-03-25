@@ -8,8 +8,8 @@ LANGUAGE_NAME = "GM9_LANGUAGE"
 VERSION = "GM9_TRANS_VER"
 
 parser = ArgumentParser(description="Creates the language.inl file from source.json")
-parser.add_argument("source", type=FileType("r"), help="source.json")
-parser.add_argument("inl", type=FileType("w"), help="language.inl")
+parser.add_argument("source", type=FileType("r", encoding="utf-8"), help="source.json")
+parser.add_argument("inl", type=FileType("w", encoding="utf-8"), help="language.inl")
 args = parser.parse_args()
 
 # Load the JSON and handle the meta values

@@ -101,10 +101,6 @@ bool CalibrateTouchFromFlash(void) {
     // set calibration defaults
     SetCalibrationDefaults();
 
-    // check SPIflash status
-    if (!spiflash_get_status())
-        return false;
-
     // check NVRAM console ID
     u32 console_id = 0;
     if (!spiflash_read(0x001C, 4, (u8*)&console_id))
