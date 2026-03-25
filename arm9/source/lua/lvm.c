@@ -339,7 +339,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       lua_assert(isempty(slot));  /* slot must be empty */
       tm = fasttm(L, h->metatable, TM_NEWINDEX);  /* get metamethod */
       if (tm == NULL) {  /* no metamethod? */
-		sethvalue2s(L, L->top.p, h);  /* anchor 't' */
+        sethvalue2s(L, L->top.p, h);  /* anchor 't' */
         L->top.p++;  /* assume EXTRA_STACK */
         luaH_finishset(L, h, key, slot, val);  /* set new value */
 		L->top.p--;
