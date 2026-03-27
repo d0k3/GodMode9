@@ -66,13 +66,10 @@ function file.new(filename, mode)
     if mode == nil then
         mode = "r"
     end
-    debugf("opening", filename, mode)
     of = setmetatable({_filename=filename, _mode=mode, _seek=0, _open=true, _readable=false, _writable=false, _append_only=false}, file)
     if string.find(mode, "w", 1, true) then
-        debugf("opening", filename, "for writing")
         -- preemptively allow writing instead of having that prompt at file:write
         allowed = fs.allow(filename)
-        debugf("allowed:", allowed)
         if not allowed then return nil, filename..": Permission denied", 13 end
         -- write mode truncates the file to 0 normally
         success = pcall(fs.truncate, filename, 0)
@@ -82,14 +79,10 @@ function file.new(filename, mode)
         of._readable = false
         of._writable = true
     elseif string.find(mode, "r+", 1, true) then
-        debugf("opening", filename, "for updating")
         allowed = fs.allow(filename)
-        debugf("allowed:", allowed)
         if not allowed then return nil, filename..": Permission denied", 13 end
         success, stat = pcall(fs.stat, filename)
-        debugf("stat success:", success)
         if success then
-            debugf("type:", stat.type)
             if stat.type == "dir" then return nil end
             of._stat = stat
             of._size = stat.size
@@ -98,16 +91,12 @@ function file.new(filename, mode)
             of._size = 0
         end
     elseif string.find(mode, "a", 1, true) then
-        debugf("opening", filename, "for appending")
         allowed = fs.allow(filename)
-        debugf("allowed:", allowed)
         if not allowed then return nil, filename..": Permission denied", 13 end
         of._append_only = true
         of._writable = true
         success, stat = pcall(fs.stat, filename)
-        debugf("stat success:", success)
         if success then
-            debugf("type:", stat.type)
             if stat.type == "dir" then return nil end
             of._stat = stat
             of._size = stat.size
@@ -116,28 +105,22 @@ function file.new(filename, mode)
             of._size = 0
         end
         if string.find(mode, "+", 1, true) then
-            debugf("append update mode")
             of._readable = true
         else
-            debugf("append only mode")
             of._readable = false
             of._seek = of._size
         end
     else
-        debugf("opening", filename, "for reading")
         -- check if file exists first
         success, stat = pcall(fs.stat, filename)
-        debugf("stat success:", success)
         -- lua returns nil if it fails to open for some reason
         if not success then return nil, filename..": No such file or directory", 2 end
-        debugf("type:", stat.type)
         if stat.type == "dir" then return nil end
         of._stat = stat
         -- this is so i can adjust the size when data is written
         of._size = stat.size
         of._readable = true
     end
-    debugf("returning of")
     return of
 end
 
@@ -146,7 +129,6 @@ function file:_closed_check()
 end
 
 function file:_bad_desc()
-    debugf("returning bad desc on file", self._filename)
     return nil, "Bad file descriptor", 9
 end
 
@@ -238,12 +220,10 @@ function file:write(...)
         to_write = to_write..tostring(v)
     end
     local len = string.len(to_write)
-    debugf("attempting to write "..tostring(len).." bytes to "..self._filename)
     if self._append_only then
         self:seek("end")
     end
     local br = fs.write_file(self._filename, self._seek, to_write)
-    debugf("wrote "..tostring(br).." bytes to "..self._filename)
     self._seek = self._seek + br
     if self._seek > self._size then
         self._size = self._seek
