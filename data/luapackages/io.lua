@@ -8,6 +8,9 @@ local io = {}
 local file = {}
 file.__index = file
 
+-- readline buffer size
+local bufsize = 512
+
 local function debugf(...)
     print("DEBUG:", table.unpack({...}))
 end
@@ -16,6 +19,36 @@ local function not_impl(fnname)
     return function (...)
         error(fnname.." is not implemented")
     end
+end
+
+local function readline(file, keepnewline)
+    local result = {}
+    local buf, baseseek, chr
+    local dobreak = false
+    while true do
+        baseseek = file:seek()
+        buf = file:read(bufsize)
+        -- returns nil if nothing was read
+        if not buf then break end
+        for i = 1, #buf do
+            chr = string.sub(buf, i, i)
+            if chr == '\n' then
+                table.insert(result, string.sub(buf, 1, i - 1))
+                file:seek('set', baseseek + i)
+                if keepnewline then
+                    table.insert(result, '\n')
+                end
+                dobreak = true
+                break
+            end
+        end
+        if dobreak then break end
+        table.insert(result, buf)
+    end
+    if #result == 0 then
+        return nil
+    end
+    return table.concat(result)
 end
 
 -- some errors should return nil, an error string, then an error number
@@ -133,9 +166,16 @@ function file:read(...)
     self:_closed_check()
     if not self._readable then return file:_bad_desc() end
     local to_return = {}
-    for i, v in ipairs({...}) do
-        if v == "n" or v == "l" or v == "L" then
+    local args = {...}
+    if #args == 0 then
+        args = {"l"}
+    end
+    for i, v in ipairs(args) do
+        if v == "n" then
             error('mode "'..v..'" is not implemented')
+        elseif v == "l" or v == "L" then
+            -- "L" will keep the newline, if present
+            return readline(self, v == "L")
         elseif v == "a" then
             local btr = self._size - self._seek
             local data = fs.read_file(self._filename, self._seek, btr)
@@ -152,6 +192,19 @@ function file:read(...)
         end
     end
     return table.unpack(to_return)
+end
+
+function file:lines(...)
+    local args = {...}
+    if #args == 0 then
+        args = {"l"}
+    end
+
+    local function generator()
+        return self:read(table.unpack(args))
+    end
+
+    return generator
 end
 
 function file:seek(whence, offset)
@@ -198,7 +251,6 @@ function file:write(...)
     return self
 end
 
-file.lines = not_impl("file:lines")
 file.setvbuf = not_impl("file:setvbuf")
 
 function io.open(filename, mode)
