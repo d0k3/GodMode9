@@ -138,7 +138,7 @@ These modules are partially available:
 * [os](https://www.lua.org/manual/5.4/manual.html#6.9)
 	* Only `os.clock`, `os.time`, `os.date`, `os.difftime`, and `os.remove`
 * [io](https://www.lua.org/manual/5.4/manual.html#6.8)
-	* Only `io.open`; for open files, all but `file:setvbuf` and `file:lines`
+	* Only `io.open`; for open files, all but `file:setvbuf`
 	* This is a custom compatibility module that uses `fs` functions. If there are differences compared to the original `io` implementation, please report them as issues.
 
 These modules work differently:
