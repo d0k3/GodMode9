@@ -143,6 +143,9 @@ function file:read(...)
             table.insert(to_return, data)
         else
             -- assuming this is a number...
+            if self._seek >= self._size then
+                return nil
+            end
             local data = fs.read_file(self._filename, self._seek, v)
             self._seek = self._seek + string.len(data)
             table.insert(to_return, data)
