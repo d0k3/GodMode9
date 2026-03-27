@@ -102,6 +102,7 @@ function file.new(filename, mode)
         of._stat = stat
         -- this is so i can adjust the size when data is written
         of._size = stat.size
+        of._readable = true
     end
     debugf("returning of")
     return of
