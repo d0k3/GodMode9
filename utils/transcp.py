@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser, FileType
+from os import path
 import json
 
 # Special keys
@@ -24,3 +25,14 @@ for key in source:
     # Escape \r, \n, and quotes
     val = source[key].replace("\r", "\\r").replace("\n", "\\n").replace('"', '\\"')
     args.inl.write('STRING(%s, "%s")\n' % (key, val))
+
+# Create the English stub
+english = {
+    "GM9_LANGUAGE": "English",
+    "GM9_TRANS_VER": version
+}
+
+enJson = path.join(path.dirname(args.source.name), "en.json")
+with open(enJson, "wt") as file:
+    json.dump(english, file, indent="\t")
+
