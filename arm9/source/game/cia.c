@@ -61,7 +61,7 @@ u32 BuildCiaCert(u8* ciacert) {
     };
 
     static const char* const retail_issuers[] = {"Root-CA00000003", "Root-CA00000003-XS0000000c", "Root-CA00000003-CP0000000b"};
-    static const char* const dev_issuers[] = {"Root-CA00000004", "Root-CA00000004-XS00000009", "Root-CA00000004-CP0000000a"};
+    static const char* const dev_issuers[] = {"Root-CA00000004", "Root-CA00000004-CP0000000a", "Root-CA00000004-XS00000009"};
 
     size_t size = CIA_CERT_SIZE;
     if (BuildRawCertBundleFromCertDb(ciacert, &size, !IS_DEVKIT ? retail_issuers : dev_issuers, 3) ||
