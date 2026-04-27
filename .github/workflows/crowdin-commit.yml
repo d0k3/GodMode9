@@ -22,7 +22,7 @@ jobs:
       - name: Install tools
         run: |
           apt-get update
-          apt-get install python3 python3-pip -y
+          apt-get install python3 python3-pip p7zip-full -y
           python3 -m pip install --upgrade pip setuptools --break-system-packages
           python3 -m pip install cryptography git+https://github.com/TuxSH/firmtool.git --break-system-packages
 
