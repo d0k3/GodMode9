@@ -37,7 +37,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     vfile->flags = VFLAG_READONLY;
     
     CartDataCtr *ctr_cdata = (CartDataCtr *)cdata;
-    bool ctr_dec_save_supported = (cdata->cart_type & CART_CTR) && cdata->save_crypto_type != CARD_SAVE_CRYPTO_INVALID &&
+    bool ctr_dec_save_supported = (cdata->cart_type & CART_CTR) && ctr_cdata->save_crypto_type != CARD_SAVE_CRYPTO_INVALID &&
         (ctr_cdata->wear_leveling.type == CARD_SAVE_WEAR_LEVELING_NONE || ctr_cdata->wear_leveling.initialized);
 
     while (++vdir->index <= 10) {

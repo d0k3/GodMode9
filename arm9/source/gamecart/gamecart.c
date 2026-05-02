@@ -12,8 +12,7 @@
 #include "ncsd.h"
 #include "rtc.h"
 #include "sha.h"
-#include "ui.h"
-#include "virtual.h"
+#include "unittype.h"
 
 #define CART_INSERTED (!(REG_CARDSTATUS & 0x1))
 
@@ -131,6 +130,7 @@ static u32 GetCtrCartSaveSize(CartData* cdata) {
         return 0;
     }
 }
+
 static uint16_t blockmap_crc16( const u8 *buf, unsigned int len )
 {
 	static const uint16_t table[16] = {
@@ -224,7 +224,8 @@ void InitCtrCardSaveCryptoKey(NcsdHeader *ncsd, CartData *cdata) {
         return;
     }
     
-    ctr_cdata->wear_leveling.repeating_ctr = (save_media_old == 0 && save_media_new == 0 && !is_card2);
+    if (save_media_old == 0 && save_media_new == 0 && !is_card2)
+        ctr_cdata->save_crypto_repeating_ctr = true;
 
     if (is_card2)
         save_crypto_keysel = save_crypto_keysel_base + save_crypto_keysel_extra;
@@ -247,30 +248,36 @@ void InitCtrCardSaveCryptoKey(NcsdHeader *ncsd, CartData *cdata) {
     ReadCartBytes(&hdrs, ncsd->partitions[0].offset * NCSD_MEDIA_UNIT, sizeof(hdrs), cdata, false);
     DecryptNcch(&hdrs.exthdr, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), &hdrs.ncch, NULL);
     u8 *cart_unique_id = cdata->header + 0x4000;
-    
+
     switch (save_crypto_keysel) {
-        case 0:
+        case 0: // "backup security version" -1
             memcpy(save_key_y, hdrs.exthdr.signature, 8);
             memcpy(&save_key_y[8], &cdata->cart_id, 4);
             memcpy(&save_key_y[12], &cdata->cart_id2, 4);
             ctr_cdata->save_crypto_type = CARD_SAVE_CRYPTO_V0;
             break;
 
-        case 1:
-        case 11:
+        case 1: // "backup security version" 0
+        case 11: // "backup security version" 10
         {
+            // this type is not supported on O3DS
+            if (IS_O3DS && save_crypto_keysel == 11) {
+                ctr_cdata->save_crypto_type = CARD_SAVE_CRYPTO_INVALID;
+                return;
+            }
+
             u8 tmpbuf[0x48];
             u8 hash[0x20];
             memcpy(tmpbuf, hdrs.exthdr.signature, 8);
             memcpy(&tmpbuf[8], cart_unique_id, 0x40);
-            
+
             sha_quick(hash, tmpbuf, 0x48, SHA256_MODE);
             memcpy(save_key_y, hash, 16);
-            ctr_cdata->save_crypto_type = CARD_SAVE_CRYPTO_V1;
+            ctr_cdata->save_crypto_type = save_crypto_keysel == 11 ? CARD_SAVE_CRYPTO_V1_N3DS : CARD_SAVE_CRYPTO_V1;
             break;
         }
-            
-        case 2:
+
+        case 2: // "backup security version" 1
         {
             static bool save60KeyYSetup = false;
             
@@ -303,8 +310,11 @@ void InitCtrCardSaveCryptoKey(NcsdHeader *ncsd, CartData *cdata) {
             return;
     };
     
-    setup_aeskeyY(0x33, save_key_y); // savedata CMAC key
-    setup_aeskeyY(0x37, save_key_y); // savedata crypto key
+    u32 cmac_keyslot = ctr_cdata->save_crypto_type == CARD_SAVE_CRYPTO_V1_N3DS ? CARD_SAVE_CMAC_KEYSLOT_N3DS : CARD_SAVE_CMAC_KEYSLOT_O3DS;
+    u32 crypto_keyslot = ctr_cdata->save_crypto_type == CARD_SAVE_CRYPTO_V1_N3DS ? CARD_SAVE_CRYPTO_KEYSLOT_N3DS : CARD_SAVE_CRYPTO_KEYSLOT_O3DS;
+
+    setup_aeskeyY(cmac_keyslot, save_key_y); // savedata CMAC key
+    setup_aeskeyY(crypto_keyslot, save_key_y); // savedata crypto key
 }
 
 void InitCtrCardSaveWearLeveling(CartData *cdata) {
@@ -709,7 +719,9 @@ static u32 ReadDecryptedCard1Save(u8 *buffer, u64 offset, u64 count, CartData* c
     u8 sectorbuf[0x1000];
     u8 ctr[16];
     memset(ctr, 0, sizeof(ctr));
-    use_aeskey(0x37);
+
+    u32 crypto_keyslot = ctr_cdata->save_crypto_type == CARD_SAVE_CRYPTO_V1_N3DS ? CARD_SAVE_CRYPTO_KEYSLOT_N3DS : CARD_SAVE_CRYPTO_KEYSLOT_O3DS;
+    use_aeskey(crypto_keyslot);
     
     // the minimum one can read from the flash is 4K sectors anyway, and blockmap scatters it, so we do it sector by sector
     for (u32 cur_sector = first_sector; cur_sector < last_sector + 1; cur_sector++) {
@@ -729,7 +741,7 @@ static u32 ReadDecryptedCard1Save(u8 *buffer, u64 offset, u64 count, CartData* c
                 return 1;
         }
         
-        if (ctr_cdata->wear_leveling.repeating_ctr) {
+        if (ctr_cdata->save_crypto_repeating_ctr) {
             for (u32 cursect = 0; cursect < 8; cursect++) {
                 memset(ctr, 0, sizeof(ctr));
                 ctr_decrypt_byte(&sectorbuf[0x200 * cursect], &sectorbuf[0x200 * cursect], 0x200, 0, AES_CNT_CART_SAVE_MODE, ctr);

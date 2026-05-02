@@ -22,12 +22,20 @@ typedef enum CardSaveType {
 } CardSaveType;
 
 typedef enum CardSaveCryptoType {
-    CARD_SAVE_CRYPTO_V0 = 0,
-    CARD_SAVE_CRYPTO_V1 = 1,
-    CARD_SAVE_CRYPTO_V2 = 2,
+    CARD_SAVE_CRYPTO_V0      = 0,
+    CARD_SAVE_CRYPTO_V1      = 1,
+    CARD_SAVE_CRYPTO_V1_N3DS = 2,
+    CARD_SAVE_CRYPTO_V2      = 3,
 
-    CARD_SAVE_CRYPTO_INVALID = -1,
+    CARD_SAVE_CRYPTO_INVALID = 0x7FFFFFFF,
 } CardSaveCryptoType;
+
+typedef enum CardSaveCryptoKeyslot {
+    CARD_SAVE_CMAC_KEYSLOT_O3DS   = 0x33,
+    CARD_SAVE_CMAC_KEYSLOT_N3DS   = 0x19,
+    CARD_SAVE_CRYPTO_KEYSLOT_O3DS = 0x37,
+    CARD_SAVE_CRYPTO_KEYSLOT_N3DS = 0x1A,
+} CardSaveCryptoKeyslot;
 
 typedef enum CardSaveWearLevelingType {
     CARD_SAVE_WEAR_LEVELING_V1   = 10,
@@ -47,10 +55,7 @@ typedef struct {
     u32 save_size;
     CardSaveType save_type;
     CardSPIType spi_save_type; // Specific data for SPI save 
-    union {
-        u32 arm9i_rom_offset; // TWL specific
-        CardSaveCryptoType save_crypto_type; // CTR specific
-    };
+    u32 arm9i_rom_offset; // TWL specific
 } PACKED_ALIGN(16) CartData;
 
 typedef struct SaveBlockmapHeader {
@@ -113,7 +118,6 @@ typedef struct CartWearLevelingData {
     CardSaveWearLevelingType type;
     u32 logical_sectors;
     u32 logical_size;
-    bool repeating_ctr;
     bool initialized;
     u8 unused[0x28];
 } CartWearLevelingData;
@@ -136,7 +140,11 @@ typedef struct CartDataCtr {
     u64 data_size;
     u32 save_size;
     CardSPIType save_type;
-    CardSaveCryptoType save_crypto_type;
+    struct {
+        u32 save_crypto_type : 31;
+        u32 save_crypto_repeating_ctr : 1;
+    };
+    u32 pad;
 } PACKED_ALIGN(16) CartDataCtr;
 
 typedef struct {
@@ -154,6 +162,8 @@ typedef struct {
     CardSPIType save_type;
     u32 arm9i_rom_offset;
 } PACKED_ALIGN(16) CartDataNtrTwl;
+
+STATIC_ASSERT(sizeof(CartData) == sizeof(CartDataCtr) && sizeof(CartData) == sizeof(CartDataNtrTwl));
 
 u32 GetCartName(char* name, CartData* cdata);
 u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata);
