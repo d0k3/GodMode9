@@ -33,7 +33,8 @@ typedef struct {
     u8  sector_zero_offset[0x4];
     u8  partition_flags[8];
     u8  partitionId_table[8][8];
-    u8  reserved[0x30];
+    u8  reserved[0x2F];
+    u8  extra_save_keysel;
 } PACKED_STRUCT NcsdHeader;
 
 u32 ValidateNcsdHeader(NcsdHeader* header);

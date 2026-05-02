@@ -1,11 +1,13 @@
 #include "vcart.h"
 #include "gamecart.h"
+#include "ui.h"
 
 #define FAT_LIMIT   0x100000000
-#define VFLAG_SECURE_AREA_ENC   (1UL<<28)
-#define VFLAG_GAMECART_NFO      (1UL<<29)
-#define VFLAG_SAVEGAME          (1UL<<30)
-#define VFLAG_PRIV_HDR          (1UL<<31)
+#define VFLAG_DECRYPTED_SAVEGAME (1UL<<27)
+#define VFLAG_SECURE_AREA_ENC    (1UL<<28)
+#define VFLAG_GAMECART_NFO       (1UL<<29)
+#define VFLAG_SAVEGAME           (1UL<<30)
+#define VFLAG_PRIV_HDR           (1UL<<31)
 
 static CartData* cdata = NULL;
 static bool cart_init = false;
@@ -33,8 +35,12 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     memset(vfile, 0, sizeof(VirtualFile));
     vfile->keyslot = 0xFF; // unused
     vfile->flags = VFLAG_READONLY;
+    
+    CartDataCtr *ctr_cdata = (CartDataCtr *)cdata;
+    bool ctr_dec_save_supported = (cdata->cart_type & CART_CTR) && cdata->save_crypto_type != CARD_SAVE_CRYPTO_INVALID &&
+        (ctr_cdata->wear_leveling.type == CARD_SAVE_WEAR_LEVELING_NONE || ctr_cdata->wear_leveling.initialized);
 
-    while (++vdir->index <= 9) {
+    while (++vdir->index <= 10) {
         if ((vdir->index == 0) && (cdata->data_size < FAT_LIMIT)) { // standard full rom
             snprintf(vfile->name, 32, "%s.%s", name, ext);
             vfile->size = cdata->cart_size;
@@ -73,11 +79,16 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
                 vfile->flags |= VFLAG_READONLY;
             }
             return true;
-        } else if (vdir->index == 8) { // gamecart info
-            char info[256];
+        } else if ((vdir->index == 8) && ctr_dec_save_supported) {
+            snprintf(vfile->name, 32, "%s.dec.sav", name);
+            vfile->size = (cdata->cart_id & 0x8000000) /* card2 */ ? cdata->save_size : cdata->save_size - 0x1000;
+            vfile->flags = VFLAG_DECRYPTED_SAVEGAME | VFLAG_READONLY /* for now */;
+            return true;
+        } else if (vdir->index == 9) { // gamecart info
+            char info[301];
             GetCartInfoString(info, sizeof(info), cdata);
             snprintf(vfile->name, 32, "%s.txt", name);
-            vfile->size = strnlen(info, 255);
+            vfile->size = strnlen(info, 300);
             vfile->flags |= VFLAG_GAMECART_NFO;
             return true;
         }
@@ -94,6 +105,8 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_SAVEGAME)
         return ReadCartSave(buffer, foffset, count, cdata);
+    else if (vfile->flags & VFLAG_DECRYPTED_SAVEGAME)
+        return ReadDecryptedCartSave(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_GAMECART_NFO)
         return ReadCartInfo(buffer, foffset, count, cdata);
 
