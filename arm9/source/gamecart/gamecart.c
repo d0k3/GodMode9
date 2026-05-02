@@ -1,5 +1,6 @@
 #include "gamecart.h"
 #include "aes.h"
+#include "crc16.h"
 #include "fsdrive.h"
 #include "fsinit.h"
 #include "image.h"
@@ -129,24 +130,6 @@ static u32 GetCtrCartSaveSize(CartData* cdata) {
     } else {
         return 0;
     }
-}
-
-static uint16_t blockmap_crc16( const u8 *buf, unsigned int len )
-{
-	static const uint16_t table[16] = {
-	0x0000, 0xcc01, 0xd801, 0x1400, 0xf001, 0x3c00, 0x2800, 0xe401,
-	0xa001, 0x6c00, 0x7800, 0xb401, 0x5000, 0x9c01, 0x8801, 0x4400 };
-
-	uint16_t crc = 0xFFFF;
-
-	while(len--)
-	{
-	    u16 byte = *buf++;
-	    u16 tmp0 = table[byte & 0xF] ^ (crc >> 4) ^ table[crc & 0xF];
-		crc      = table[byte >> 4] ^ (tmp0 >> 4) ^ table[tmp0 & 0xF];
-	}
-
-	return crc;
 }
 
 void SetBlockmapEntry(u32 index, SaveBlockmapEntry *in_entry, CartWearLevelingData *wldata) {
@@ -357,7 +340,7 @@ void InitCtrCardSaveWearLeveling(CartData *cdata) {
     
     u8 *crcLoc = &ctr_cdata->wear_leveling.blockmap[ctr_cdata->wear_leveling.blockmap_size - 2];
     u16 expected_bmap_crc = crcLoc[0] | crcLoc[1] << 8;
-    u16 calc_bmap_crc = blockmap_crc16(ctr_cdata->wear_leveling.blockmap, ctr_cdata->wear_leveling.blockmap_size - 2);
+    u16 calc_bmap_crc = crc16_quick(ctr_cdata->wear_leveling.blockmap, ctr_cdata->wear_leveling.blockmap_size - 2);
     if (expected_bmap_crc != calc_bmap_crc)
         return;
     
