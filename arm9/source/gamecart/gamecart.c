@@ -133,7 +133,7 @@ static u32 GetCtrCartSaveSize(CartData* cdata) {
 }
 
 void SetBlockmapEntry(u32 index, SaveBlockmapEntry *in_entry, CartWearLevelingData *wldata) {
-    u8 *base_ptr = &wldata->blockmap[wldata->type == CARD_SAVE_WEAR_LEVELING_V2 ? 0 : sizeof(SaveBlockmapHeader)];
+    u8 *base_ptr = &wldata->blockmap[sizeof(SaveBlockmapHeader)];
     if (wldata->type == CARD_SAVE_WEAR_LEVELING_V2) {
         SaveBlockmapEntryV2 *entry = &((SaveBlockmapEntryV2 *)base_ptr)[index];
         entry->phys_sec = in_entry->phys_sec;
@@ -149,7 +149,7 @@ void SetBlockmapEntry(u32 index, SaveBlockmapEntry *in_entry, CartWearLevelingDa
 }
 
 SaveBlockmapEntry GetBlockmapEntry(u32 index, CartWearLevelingData *wldata) {
-    u8 *base_ptr = &wldata->blockmap[wldata->type == CARD_SAVE_WEAR_LEVELING_V2 ? 0 : sizeof(SaveBlockmapHeader)];
+    u8 *base_ptr = &wldata->blockmap[sizeof(SaveBlockmapHeader)];
     if (wldata->type == CARD_SAVE_WEAR_LEVELING_V2) {
         SaveBlockmapEntryV2 *entries = (SaveBlockmapEntryV2 *)base_ptr;
         return (SaveBlockmapEntry) { .checksums = { 0 }, .phys_sec = entries[index].phys_sec, .remap_count = entries[index].remap_count, .used = entries[index].used };
