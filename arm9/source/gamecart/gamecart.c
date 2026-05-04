@@ -746,12 +746,17 @@ static u32 ReadDecryptedCard2Save(u8 *buffer, u64 offset, u64 count, CartData* c
     if (offset >= cdata->save_size) return 1;
     if (offset + count > cdata->save_size) count = cdata->save_size - offset;
     
+    CartDataCtr *ctr_cdata = (CartDataCtr *)cdata;
+
     u32 first_sector = offset / 0x200;
     u32 outbuf_offset = 0;
     
     u8 ctr[16];
     memset(ctr, 0, sizeof(ctr));
-    
+
+    u32 crypto_keyslot = ctr_cdata->save_crypto_type == CARD_SAVE_CRYPTO_V1_N3DS ? CARD_SAVE_CRYPTO_KEYSLOT_N3DS : CARD_SAVE_CRYPTO_KEYSLOT_O3DS;
+    use_aeskey(crypto_keyslot);
+
     u8 sector_tmp[0x200];
     
     // handle misalignment at the start
