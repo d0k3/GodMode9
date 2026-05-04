@@ -196,9 +196,9 @@ void InitCtrCardSaveCryptoKey(NcsdHeader *ncsd, CartData *cdata) {
     bool is_card2 = cdata->cart_id & 0x8000000;
     
     bool supported_save_crypto =
-        (save_media_new == 0 && save_media_old == 0) || /* SPI save flash (very old carts) */
-        (save_media_new == 1) || /* newer(?) SPI flash */
-        (save_media_new == 0 && save_media_old == 1) || /* also newer(?) SPI flash */
+        (save_media_old == 0 && save_media_new == 0) || /* SPI save flash (very old carts) */
+        (save_media_old == 1) || /* old SPI flash */
+        (save_media_old == 0 && save_media_new == 1) || /* newer SPI flash */
         is_card2 /* CARD2 */;
     
     // skip everything if there isn't save data or its crypto is not supported
@@ -212,9 +212,9 @@ void InitCtrCardSaveCryptoKey(NcsdHeader *ncsd, CartData *cdata) {
 
     if (is_card2)
         save_crypto_keysel = save_crypto_keysel_base + save_crypto_keysel_extra;
-    else if (save_media_new != 0)
-        save_crypto_keysel = 0;
     else if (save_media_old != 0)
+        save_crypto_keysel = 0;
+    else if (save_media_new != 0)
         save_crypto_keysel = save_crypto_keysel_base + save_crypto_keysel_extra;
     else
         save_crypto_keysel = -1;

@@ -211,10 +211,10 @@ void Cart_Secure_Init(u32 *buf, u32 *out)
         CTR_SendCommand(C5_cmd, 0, 1, 0x100002C, NULL);
     }
 
-    for (int i = 0; i < 5; ++i) {
-        CTR_SendCommand(A2_cmd, 4, 1, 0x701002C, &test);
-        ARM_WaitCycles(0xF0000 * 8);
-    }
+    //for (int i = 0; i < 5; ++i) {
+    //    CTR_SendCommand(A2_cmd, 4, 1, 0x701002C, &test);
+    //    ARM_WaitCycles(0xF0000 * 8);
+    //}
 }
 
 void Cart_Dummy(void) {
