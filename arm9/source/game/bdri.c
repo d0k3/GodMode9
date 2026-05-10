@@ -288,15 +288,17 @@ static u32 RemoveBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_of
         if (BDRIWrite(fht_offset + hash_bucket * sizeof(u32), sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
             return 1;
     } else {
+        u32 prev_hash_index = 0;
         do {
             if (index_hash == 0) // This shouldn't happen if the entry was properly added
                 break;
 
+            prev_hash_index = index_hash;
             if (BDRIRead(fet_offset + index_hash * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &index_hash) != FR_OK)
                 return 1;
         } while (index_hash != index);
 
-        if ((index_hash != 0) && BDRIWrite(fet_offset + index_hash * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
+        if ((prev_hash_index != 0) && BDRIWrite(fet_offset + prev_hash_index * sizeof(TdbFileEntry) + 0x28, sizeof(u32), &(file_entry.hash_bucket_next_index)) != FR_OK)
             return 1;
     }
 
@@ -322,16 +324,26 @@ static u32 RemoveBDRIEntry(const BDRIFsHeader* fs_header, const u32 fs_header_of
             return 1;
     } while (getfatindex(fat_entry[1]) != 0);
 
-    fat_entry[1] |= next_free_index;
+    // Bug fix: use buildfatuv to explicitly clear Bit 31 (the multi-block flag).
+    // If the tail of the freed chain is a multi-block node start, Bit 31 is already
+    // set in fat_entry[1]. A plain |= would keep it set, corrupting the free list.
+    fat_entry[1] = buildfatuv(next_free_index, false);
 
-    if ((BDRIWrite(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK) ||
-        (BDRIRead(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK))
+    if (BDRIWrite(fat_offset + fat_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
         return 1;
 
-    fat_entry[0] = buildfatuv(fat_index, false);
+    // Bug fix: guard against next_free_index == 0 (freed entry was the last free
+    // block). Without this guard, FAT[0] (the free-list sentinel) gets corrupted
+    // by a stray back-pointer write.
+    if (next_free_index != 0) {
+        if (BDRIRead(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
 
-    if (BDRIWrite(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
-        return 1;
+        fat_entry[0] = buildfatuv(fat_index, false);
+
+        if (BDRIWrite(fat_offset + next_free_index * FAT_ENTRY_SIZE, FAT_ENTRY_SIZE, fat_entry) != FR_OK)
+            return 1;
+    }
 
     return 0;
 }
