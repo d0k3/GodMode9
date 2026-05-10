@@ -37,7 +37,7 @@
         STR_LAB_EMUNAND_CTRNAND, STR_LAB_EMUNAND_TWLN, STR_LAB_EMUNAND_TWLP, STR_LAB_EMUNAND_SD, STR_LAB_EMUNAND_VIRTUAL, \
         STR_LAB_IMGNAND_CTRNAND, STR_LAB_IMGNAND_TWLN, STR_LAB_IMGNAND_TWLP, STR_LAB_IMGNAND_VIRTUAL, \
         STR_LAB_GAMECART, \
-        STR_LAB_GAME_IMAGE, STR_LAB_AESKEYDB_IMAGE, STR_LAB_BDRI_IMAGE, STR_LAB_DISA_DIFF_IMAGE, \
+        STR_LAB_GAME_IMAGE, STR_LAB_AESKEYDB_IMAGE, STR_LAB_BDRI_IMAGE, STR_LAB_DISA_DIFF_IMAGE, STR_LAB_SAVE_FILE_IMAGE, \
         STR_LAB_MEMORY_VIRTUAL, \
         STR_LAB_VRAM_VIRTUAL, \
         STR_LAB_TITLE_MANAGER, \
@@ -45,7 +45,7 @@
 
 #define FS_DRVNUM \
     "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", \
-    "I:", "C:", "G:", "K:", "T:", "D:", "M:", "V:", "Y:", "Z:"
+    "I:", "C:", "G:", "K:", "T:", "D:", "F:", "M:", "V:", "Y:", "Z:"
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);

@@ -1566,7 +1566,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         ShowSelectPrompt(n_opt, optionstr, STR_PATH_N_FILES_SELECTED, pathstr, n_marked) :
         ShowSelectPrompt(n_opt, optionstr, "%s%s", pathstr, tidstr));
     if (user_select == mount) { // -> mount file as image
-        const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:", "D:" }; // maybe move that to fsdrive.h
+        const char* mnt_drv_paths[] = { "7:", "G:", "K:", "T:", "I:", "F:", "D:" }; // maybe move that to fsdrive.h
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
         SetTitleManagerMode(false); // disable title manager mode

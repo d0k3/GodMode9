@@ -3,6 +3,7 @@
 #include "common.h"
 #include "image.h"
 #include "vbdri.h" // So we can mount a file as vdisadiff and vbdri simeltaneously
+#include "vsave.h"
 
 #define VFLAG_PARTITION_B (1 << 31)
 
@@ -194,7 +195,9 @@ u64 InitVDisaDiffDrive(void) {
         partitionB_info->rw_info = info;
     }
 
+    // could be either of these
     InitVBDRIDrive();
+    InitVSaveDrive();
 
     return type;
 }
