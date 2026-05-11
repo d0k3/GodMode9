@@ -1,9 +1,9 @@
+#include "vsaveexsv.h" // for mounting savedata/extdata
 #include "vdisadiff.h"
 #include "disadiff.h"
 #include "common.h"
 #include "image.h"
 #include "vbdri.h" // So we can mount a file as vdisadiff and vbdri simeltaneously
-#include "vsave.h"
 
 #define VFLAG_PARTITION_B (1 << 31)
 

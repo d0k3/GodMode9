@@ -826,5 +826,6 @@
     "STANDARD_CRYPTO": "Standard encryption",
     "ORIGINAL_CRYPTO": "Original encryption",
     "SELECT_TYPE_OF_ENCRYPTION": "Select type of encryption",
-    "LAB_SAVE_FILE_IMAGE": "SAVE FILE IMAGE"
+    "LAB_SAVE_FILE_IMAGE": "SAVE FILE IMAGE",
+    "LAB_EXTDATA_IMAGE": "EXTDATA IMAGE"
 }

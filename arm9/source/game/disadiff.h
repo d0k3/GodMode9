@@ -16,6 +16,7 @@
 
 // condensed info to enable reading/writing IVFC lvl4
 typedef struct {
+    u64 unique_id;
     u32 offset_table;
     u32 size_table;
     u32 offset_partition_hash;

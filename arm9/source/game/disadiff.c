@@ -200,6 +200,7 @@ u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB) {
         DiffHeader* diff = (DiffHeader*) (void*) header;
         offset_partition = (u32) diff->offset_partition;
         size_partition = (u32) diff->size_partition;
+        info->unique_id = diff->unique_id;
         info->offset_table = (diff->active_table) ? diff->offset_table1 : diff->offset_table0;
         info->size_table = diff->size_table;
         offset_difi = info->offset_table;
