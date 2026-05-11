@@ -46,7 +46,8 @@ int SaveFileInit(SaveFile *sav) {
     u32 file_table_offset = 0, file_table_size = 0;
 
     if (fvx_read(&part_a, &sav->header, sizeof(SaveHeader), &nread) != FR_OK || nread != sizeof(SaveHeader) ||
-        sav->header.magic != 0x45564153 /* SAVE (EVAS as int) */ || sav->header.version != 0x40000)
+        sav->header.magic != 0x45564153 /* SAVE (EVAS as int) */ || sav->header.version != 0x40000 ||
+        sav->header.fs_info_offset != 0x20)
         goto err_exit;
 
     u64 part_a_size = fvx_size(&part_a);
