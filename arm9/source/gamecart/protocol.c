@@ -211,6 +211,8 @@ void Cart_Secure_Init(u32 *buf, u32 *out)
         CTR_SendCommand(C5_cmd, 0, 1, 0x100002C, NULL);
     }
 
+    // Process9 (or at least the latest version of it, in NATIVE_FIRM v32673) does not use this in its init routine.
+    // leaving this in adds an unnecessary 2.4-2.6s of init time.
     //for (int i = 0; i < 5; ++i) {
     //    CTR_SendCommand(A2_cmd, 4, 1, 0x701002C, &test);
     //    ARM_WaitCycles(0xF0000 * 8);

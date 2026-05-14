@@ -1,7 +1,6 @@
 #include "godmode.h"
 #include "paint9.h"
 #include "memmap.h"
-#include "protocol.h"
 #include "support.h"
 #include "ui.h"
 #include "swkbd.h"
