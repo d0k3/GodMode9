@@ -31,8 +31,8 @@
 
 // virtual file flag (subject to change):
 // bits 0...3  : reserved for NAND virtual sources and info
-// bits 4...10  : reserved for other virtual sources
-// bits 11...15: reserved for external flags
+// bits 4...11  : reserved for other virtual sources
+// bits 12...16: reserved for external flags
 // bits 17...31: reserved for internal flags (different per source, see vgame.c)
 typedef struct {
     char name[32];
