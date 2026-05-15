@@ -85,7 +85,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             return true;
         } else if ((vdir->index == 8) && enable_dec_ctr_save) {
             snprintf(vfile->name, 32, "%s.dec.sav", name);
-            vfile->size = (cdata->cart_id & 0x8000000) /* card2 */ ? cdata->save_size : cdata->save_size - 0x1000;
+            vfile->size = (cdata->cart_id & 0x8000000) /* card2 */ ? cdata->save_size : cdata->save_size - 0x2000;
             vfile->flags = VFLAG_DECRYPTED_SAVEGAME | VFLAG_READONLY /* for now */;
             return true;
         } else if (vdir->index == 9) { // gamecart info
