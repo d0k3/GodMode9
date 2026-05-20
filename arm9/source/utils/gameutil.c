@@ -24,24 +24,24 @@
 u32 GetCbcBlocks(FIL* file, void* buffer, u64 offset, u32 count, u8* titlekey, u8* forced_iv) {
     u8 iv[16] __attribute__((aligned(4)));
     UINT btr;
-    
+
     // sanity, get IV
     if ((count % 0x10) || (offset % 0x10)) return 1; // not possible
     if (forced_iv) memcpy(iv, forced_iv, 0x10);
     else if ((offset < 0x10) || (fvx_lseek(file, offset - 0x10) != FR_OK) ||
         (fvx_read(file, iv, 0x10, &btr) != FR_OK) || (btr != 0x10))
         return 1;
-    
+
     // load data
     if ((fvx_lseek(file, offset) != FR_OK) ||
         (fvx_read(file, buffer, count, &btr) != FR_OK) || (btr != count))
         return 1;
-    
+
     // decrypt
     if (titlekey) {
         setup_aeskey(0x11, titlekey);
         use_aeskey(0x11);
-        cbc_decrypt(buffer, buffer, count / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, iv);   
+        cbc_decrypt(buffer, buffer, count / 0x10, AES_CNT_TITLEKEY_DECRYPT_MODE, iv);
     }
 
     return 0;
@@ -231,7 +231,7 @@ u32 LoadTmdFile(TitleMetaData* tmd, const char* path) {
         return 1;
 
     // second part (read full size)
-    if (ValidateTmd(tmd) == 0) {        
+    if (ValidateTmd(tmd) == 0) {
         if (fvx_qread(path, tmd, 0, TMD_SIZE_N(getbe16(tmd->content_count)), NULL) != FR_OK)
             return 1;
     } else if ((ValidateTwlTmd(tmd) == 0) && (getbe16(tmd->content_count) == 1)) {
@@ -310,7 +310,7 @@ u32 LoadTicketForTitleId(Ticket** ticket, const u64 title_id) {
     char* path_bak = NULL;
     strncpy(path_store, GetMountPath(), 256);
     if (*path_store) path_bak = path_store;
-    
+
     // path to ticket.db
     char path_ticketdb[32];
     char drv = *path_store;
@@ -330,7 +330,7 @@ u32 LoadTicketForTitleId(Ticket** ticket, const u64 title_id) {
 
 u32 GetTmdContentPath(char* path_content, const char* path_tmd) {
     // path_content should be 256 bytes in size!
-    
+
     // get path to TMD first content
     static const u8 dlc_tid_high[] = { DLC_TID_HIGH };
 
@@ -904,7 +904,7 @@ u32 VerifyTadFile(const char* path) {
         return 1;
 
     // verify contents
-    u32 content_start = sizeof(TadStub); 
+    u32 content_start = sizeof(TadStub);
     for (u32 i = 0; i < TAD_NUM_CONTENT; i++) {
         u8 hash[32];
         u32 len = align(hdr->content_size[i], 0x10);
@@ -1049,7 +1049,7 @@ u32 VerifyTicketFile(const char* path) {
 u32 LoadNcchFromTmdFile(const char *path, NcchHeader *ncch, NcchExtHeader *extheader) {
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, path, 32, 8);
-    
+
     // content path
     char path_content[256];
     char *name_content; // points to content file name (%08lx)
@@ -1058,7 +1058,7 @@ u32 LoadNcchFromTmdFile(const char *path, NcchHeader *ncch, NcchExtHeader *exthe
     name_content = strrchr(path_content, '/');
     if (!name_content) return 1;
     name_content++;
-    
+
     TitleMetaData *tmd = (TitleMetaData*) malloc(TMD_SIZE_MAX);
     TmdContentChunk *content_list = (TmdContentChunk*) (tmd + 1);
     if ((LoadTmdFile(tmd, path) != 0) || (VerifyTmd(tmd) != 0)) {
@@ -1066,7 +1066,7 @@ u32 LoadNcchFromTmdFile(const char *path, NcchHeader *ncch, NcchExtHeader *exthe
         free(tmd);
         return 1;
     }
-    
+
     u8 titlekey[0x10] = { 0xFF };
     Ticket* ticket = NULL;
     if (!((LoadCdnTicketFile(&ticket, path) == 0) ||
@@ -1080,7 +1080,7 @@ u32 LoadNcchFromTmdFile(const char *path, NcchHeader *ncch, NcchExtHeader *exthe
         return 1;
     }
     free(ticket);
-    
+
     u32 content_count = getbe16(tmd->content_count);
     u32 res = 0;
     bool found = false;
@@ -1093,34 +1093,34 @@ u32 LoadNcchFromTmdFile(const char *path, NcchHeader *ncch, NcchExtHeader *exthe
             break;
         }
     }
-    
+
     free(tmd);
-    
+
     if (!found) {
         return 1;
     }
-    
+
     // path to content with index 0
     snprintf(name_content, 256 - (name_content - path_content), "%08lx", getbe32(chunk.id));
     bool encrypted = getbe16(chunk.type) & 0x1;
     u8 ctr[16];
-    
+
     GetTmdCtr(ctr, &chunk);
-    
+
     if (fvx_qread(path_content, ncch, 0, sizeof(NcchHeader), NULL) != FR_OK ||
         (extheader && (fvx_qread(path_content, extheader, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), NULL) != FR_OK)))
         return 1;
-    
+
     if (encrypted) {
         DecryptCiaContentSequential(ncch, sizeof(NcchHeader), ctr, titlekey);
         if (extheader)
             DecryptCiaContentSequential(extheader, sizeof(NcchExtHeader), ctr, titlekey);
     }
-    
+
     if (ValidateNcchHeader(ncch) != 0 ||
         (extheader && (DecryptNcch(extheader, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), ncch, NULL) != 0)))
         return 1;
-    
+
     return 0;
 }
 
@@ -1129,9 +1129,9 @@ u32 LoadNcchFromGameFile(const char* path, NcchHeader* ncch, NcchExtHeader* exth
 
     if (filetype & GAME_NCCH) {
         if ((fvx_qread(path, ncch, 0, sizeof(NcchHeader), NULL) == FR_OK) &&
-            (ValidateNcchHeader(ncch) == 0) && 
-            (!extheader || (fvx_qread(path, extheader, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), NULL) == FR_OK)) &&
-            DecryptNcch(extheader, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), ncch, NULL) == 0) return 0;
+            (ValidateNcchHeader(ncch) == 0) &&
+            (!extheader || ((fvx_qread(path, extheader, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), NULL) == FR_OK) &&
+            DecryptNcch(extheader, NCCH_EXTHDR_OFFSET, sizeof(NcchExtHeader), ncch, NULL) == 0))) return 0;
     } else if (filetype & GAME_NCSD) {
         if ((fvx_qread(path, ncch, NCSD_CNT0_OFFSET, sizeof(NcchHeader), NULL) == FR_OK) &&
             (ValidateNcchHeader(ncch) == 0) &&
@@ -1674,7 +1674,7 @@ u32 GetInstallDataDriveGeneric(char* drv, u64 tid64, bool to_emunand) {
 
     // sanity
     if (!tid64) return 1;
-    
+
     return to_twl ? GetTwlInstallDataDrive(drv, to_emunand) :
             to_sd ? GetSdInstallDataDrive(drv, to_emunand) : GetNandInstallDataDrive(drv, to_emunand);
 }
@@ -1851,11 +1851,11 @@ u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, 
     // get title ID
     if (sscanf(path, "T:/%016llx", &tid64) != 1)
         return 1;
-    
+
     // tid here is in the 00048000... format if it's a TWL title
     bool is_twl = ((tid64 >> 32) & 0x8000) == 0x8000;
     char drv[3] = { 0xFF, ':', '\0' };
-    
+
     // in all cases except for TWL titles, the uninstall drive is the same as the drive
     // containing the .db file that is mounted.
     if (is_twl)
@@ -1881,7 +1881,7 @@ u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, void* hdr, bool 
 
     void* data = (void*) malloc(max(sizeof(CiaStub), 0x1000));
     if (!data) return 0;
-    
+
     // get content path/offset and TMD data
     TitleMetaData* tmd = (TitleMetaData*) data;
     Ticket* ticket = NULL;
@@ -1902,7 +1902,7 @@ u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, void* hdr, bool 
         free(data);
         return 0;
     }
-    
+
     // title_id, titlekey & iv
     TmdContentChunk* chunk = (TmdContentChunk*) (tmd+1);
     GetTmdCtr(iv, chunk);
@@ -1915,7 +1915,7 @@ u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, void* hdr, bool 
             return 0;
         }
     }
-    
+
     // load first block of data
     FIL file;
     if (fvx_open(&file, path_cnt, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
@@ -1927,7 +1927,7 @@ u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, void* hdr, bool 
         free(data);
         return 0;
     }
-    
+
     // find out what it is and proceed
     u32 ret = 0;
     if (!cia_meta && ValidateTwlHeader((TwlHeader*) data) == 0) {
@@ -1945,7 +1945,7 @@ u32 LoadEncryptedIconFromCiaTmd(const char* path, void* output, void* hdr, bool 
         if (cia_meta) {
             CiaMeta* meta = (CiaMeta*) output;
             NcchExtHeader* exthdr = (NcchExtHeader*) (void*) (((u8*)data) + NCCH_EXTHDR_OFFSET);
-            if (!ncch->size_exthdr || 
+            if (!ncch->size_exthdr ||
                 (DecryptNcch(exthdr, NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_SIZE, ncch, NULL) != 0) ||
                 (BuildCiaMeta(meta, exthdr, NULL) != 0)) {
                 fvx_close(&file);
@@ -2351,7 +2351,7 @@ u32 BuildCiaLegitTicket(Ticket* ticket, u8* title_id, const char* path_cnt, bool
     bool src_emunand = ((*path_cnt == 'B') || (*path_cnt == '4'));
 
     if (BuildFakeTicket(ticket, title_id) != 0)
-        return 1; 
+        return 1;
 
     if (force_legit) {
         Ticket* ticket_tmp = NULL;
@@ -2426,7 +2426,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
     if ((fvx_qread(path_tad, &tad, 0, sizeof(TadStub), NULL) != FR_OK) ||
         (VerifyTadStub(&tad) != 0) || (hdr->content_size[0] < TMD_SIZE_N(1)))
         return 1;
-    
+
     // build the CIA stub
     CiaStub* cia = (CiaStub*) malloc(sizeof(CiaStub));
     if (!cia) return 1;
@@ -2443,7 +2443,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
         free(cia);
         return 1;
     }
-    
+
     // extract info from TMD
     u32 content_count = getbe16(tmd->content_count);
     u8* title_id = tmd->title_id;
@@ -2451,7 +2451,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
         free(cia);
         return 1;
     }
-    
+
     // check for legit TMD
     if (force_legit && ((ValidateTmdSignature(tmd) != 0) || VerifyTmd(tmd) != 0)) {
         ShowPrompt(false, STR_ID_N_TMD_IN_TAD_NOT_LEGIT, getbe64(title_id));
@@ -2478,7 +2478,7 @@ u32 BuildCiaFromTadFile(const char* path_tad, const char* path_dest, bool force_
         free(cia);
         return 1;
     }
-    
+
     // attempt to find a titlekey
     u8 titlekey[16] = { 0xFF };
     FindTitleKey((Ticket*) ticket, title_id);
@@ -2948,7 +2948,7 @@ u32 GetGameFileTitleVersion(const char* path) {
         if (cia && LoadCiaStub(cia, path) == 0)
             version = getbe16(cia->tmd.title_version);
         if (cia) free(cia);
-    }   
+    }
 
     return version;
 }
@@ -3263,7 +3263,7 @@ u32 DumpTicketForGameFile(const char* path, bool force_legit) {
         free(ticket);
         return 1;
     }
-    
+
     // build output name
     char dest[256];
     snprintf(dest, sizeof(dest), OUTPUT_PATH "/");
@@ -3326,7 +3326,7 @@ u32 DumpCxiSrlFromGameFile(const char* path) {
             return 1;
         path_tmd = path_data;
     }
-    
+
     return DumpCxiSrlFromTmdFile(path_tmd);
 }
 
@@ -3463,7 +3463,7 @@ u32 CompressCode(const char* path, const char* path_out) {
 u64 GetAnyFileTrimmedSize(const char* path) {
     u64 fsize = 0;
     u64 trimsize = 0;
-    u8 pad_byte = 0x7F; 
+    u8 pad_byte = 0x7F;
     FIL fp;
     UINT br;
 
@@ -3708,7 +3708,7 @@ u32 ShowGameCheckerInfo(const char* path) {
             content_found = content_count = getbe16(tmd->content_count);
             sd_title = (*path_tmd == 'A') || (*path_tmd == 'B');
         }
-        
+
         // load ticket
         u64 tid64 = tmd ? getbe64(tmd->title_id) : 0;
         if (LoadTicketForTitleId(&ticket, tid64) != 0)
@@ -3747,7 +3747,7 @@ u32 ShowGameCheckerInfo(const char* path) {
         memcpy(tmd, &(cia->tmd), cia->header.size_tmd);
         ticket = (Ticket*) malloc(cia->header.size_ticket);
         if (ticket) memcpy(ticket, &(cia->ticket), cia->header.size_ticket);
-        
+
         free(cia);
     }
 
@@ -4049,7 +4049,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
         u32 num_entries = 0;
         u8* title_ids = NULL;
 
-        if (!InitImgFS(path_in) || 
+        if (!InitImgFS(path_in) ||
             !(num_entries = GetNumTickets(PART_PATH)) ||
             !(title_ids = (u8*) malloc(num_entries * 8)) ||
             (ListTicketTitleIDs(PART_PATH, title_ids, num_entries) != 0)) {
@@ -4066,7 +4066,7 @@ u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump) {
                 AddTicketToInfo(tik_info, ticket, dec); // ignore result
             free(ticket);
         }
-        
+
         free(title_ids);
         InitImgFS(NULL);
     } else if (filetype & BIN_TIKDB) {
