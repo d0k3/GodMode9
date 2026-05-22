@@ -158,7 +158,7 @@ static void ApplyJournalEntryToBlockmap(SaveJournalEntry *entry) {
     }
 }
 
-static int InitSaveWearLeveling(CartData *cdata, u32 header_offset) {
+static u32 InitSaveWearLeveling(CartData *cdata, u32 header_offset) {
     // CARD2 does not implement wear leveling for the writable portion of the "ROM"
     if (cdata->cart_id & 0x8000000) {
         savectx.type = CARD_SAVE_WEAR_LEVELING_NONE;
@@ -233,7 +233,7 @@ static int InitSaveWearLeveling(CartData *cdata, u32 header_offset) {
 
 // crypto
 
-static int InitCtrCardSaveCryptoKey(CartData *cdata) {
+static u32 InitCtrCardSaveCryptoKey(CartData *cdata) {
     NcsdHeader *ncsd = (NcsdHeader *) (void *) cdata->header;
     // save data crypto (if supported)
     u32 save_media_old = ncsd->partition_flags[7];
@@ -349,14 +349,15 @@ static int InitCtrCardSaveCryptoKey(CartData *cdata) {
     return 0;
 }
 
-int InitCtrCardSave(CartData *cdata) {
-    memset(&savectx, 0, sizeof(savectx));
-
+u32 InitCtrCardSave(CartData *cdata) {
     // the wear leveling header exists twice:
     // the one at 0x0 is the main one
     // the one at 0x1000 is used as a failsafe if the one above is corrupt
-    if (InitSaveWearLeveling(cdata, 0) != 0 && InitSaveWearLeveling(cdata, 0x1000) != 0)
-        return 1;
+    if (InitSaveWearLeveling(cdata, 0) != 0) {
+        memset(&savectx, 0, sizeof(savectx));
+        if (InitSaveWearLeveling(cdata, 0x1000) != 0)
+            return 1;
+    }
 
     if (InitCtrCardSaveCryptoKey(cdata) != 0)
         return 1;
