@@ -1841,7 +1841,7 @@ u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, 
     u64 tid64;
 
     const char* mntpath = GetMountPath();
-    if (!mntpath) return 1;
+    if (!mntpath || !*mntpath) return 1;
 
     // title.db from emunand?
     if ((strncasecmp(mntpath, "B:/dbs/title.db", 16) == 0) ||
@@ -1861,7 +1861,7 @@ u32 UninstallGameDataTie(const char* path, bool remove_tie, bool remove_ticket, 
     if (is_twl)
         drv[0] = from_emunand ? '5' : '2';
     else
-        drv[0] = GetMountPath()[0];
+        drv[0] = mntpath[0];
 
     return UninstallGameData(drv, tid64, remove_tie, remove_ticket, remove_save);
 }
