@@ -80,8 +80,9 @@ u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata) {
             "Product Code : %.10s\n"
             "Revision     : %lu\n"
             "Cart ID      : %08lX\n"
+            "Cart ID2     : %08lX\n"
             "Platform     : %s\n",
-            ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id,
+            ncsd->mediaId, ncch->productcode, cdata_i->rom_version, cdata_i->cart_id, cdata_i->cart_id2,
             (ncch->flags[4] == 0x2) ? "N3DS" : "O3DS");
     }  else if (cdata->cart_type & CART_NTR) {
         CartDataNtrTwl* cdata_i = (CartDataNtrTwl*)cdata;
@@ -220,9 +221,10 @@ u32 InitCartRead(CartData* cdata) {
         memcpy(priv_header + 0x44, &(cdata->cart_id2), 4);
         memset(priv_header + 0x48, 0xFF, 8);
 
-        // save data
+        bool is_card2 = cdata->cart_id & 0x8000000;
         u32 card2_offset = getle32(cdata->header + 0x200);
-        if (card2_offset != 0xFFFFFFFF) {
+
+        if (is_card2 && card2_offset != 0xFFFFFFFF) {
             cdata->save_type = CARD_SAVE_CARD2;
             cdata->save_size = GetCtrCartSaveSize(cdata);
             // Sanity checks
@@ -433,11 +435,11 @@ u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata) 
 }
 
 u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata) {
-    char info[256];
+    char info[301];
     u32 len;
 
     GetCartInfoString(info, sizeof(info), cdata);
-    len = strnlen(info, 255);
+    len = strnlen(info, 300);
 
     if (offset >= len) return 0;
     if (offset + count > len) count = len - offset;

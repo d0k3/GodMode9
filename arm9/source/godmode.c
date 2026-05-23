@@ -3079,8 +3079,13 @@ u32 GodMode(int entrypoint) {
             if (!InitVCartDrive() && (pad_state & CART_INSERT) &&
                 (curr_drvtype & DRV_CART)) // reinit virtual cart drive
                 ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
-            if (!(*current_path) || (curr_drvtype & DRV_CART))
+            // unmount any gamecart image if the gamecart was removed
+            if (pad_state & CART_EJECT && *GetMountPath() && DriveType(GetMountPath()) & DRV_CART) {
+                InitImgFS(NULL);
+            }
+            if (!(*current_path) || (curr_drvtype & DRV_CART)) {
                 GetDirContents(current_dir, current_path); // refresh dir contents
+            }
         } else if (pad_state & SD_INSERT) {
             while (!InitSDCardFS() && ShowPrompt(true, "%s", STR_INITIALIZING_SD_FAILED_RETRY));
             ClearScreenF(true, true, COLOR_STD_BG);

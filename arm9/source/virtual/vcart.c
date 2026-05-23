@@ -1,15 +1,21 @@
 #include "vcart.h"
+#include "fsdrive.h"
+#include "fsinit.h"
 #include "gamecart.h"
+#include "image.h"
+#include "save_ctr.h"
 
 #define FAT_LIMIT   0x100000000
-#define VFLAG_SECURE_AREA_ENC   (1UL<<28)
-#define VFLAG_GAMECART_NFO      (1UL<<29)
-#define VFLAG_SAVEGAME          (1UL<<30)
-#define VFLAG_PRIV_HDR          (1UL<<31)
+#define VFLAG_DECRYPTED_SAVEGAME (1UL<<27)
+#define VFLAG_SECURE_AREA_ENC    (1UL<<28)
+#define VFLAG_GAMECART_NFO       (1UL<<29)
+#define VFLAG_SAVEGAME           (1UL<<30)
+#define VFLAG_PRIV_HDR           (1UL<<31)
 
 static CartData* cdata = NULL;
 static bool cart_init = false;
 static bool cart_checked = false;
+static bool enable_dec_ctr_save = false;
 
 u32 InitVCartDrive(void) {
     if (!cart_checked) cart_checked = true;
@@ -18,6 +24,10 @@ u32 InitVCartDrive(void) {
     if (!cart_init && cdata) {
         free(cdata);
         cdata = NULL;
+    }
+    if (cart_init && (cdata->cart_type & CART_CTR)) {
+        // for compatibility purposes save crypto and wear leveling init are optional
+        enable_dec_ctr_save = InitCtrCardSave(cdata) == 0;
     }
     return cart_init ? cdata->cart_id : 0;
 }
@@ -34,7 +44,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
     vfile->keyslot = 0xFF; // unused
     vfile->flags = VFLAG_READONLY;
 
-    while (++vdir->index <= 9) {
+    while (++vdir->index <= 10) {
         if ((vdir->index == 0) && (cdata->data_size < FAT_LIMIT)) { // standard full rom
             snprintf(vfile->name, 32, "%s.%s", name, ext);
             vfile->size = cdata->cart_size;
@@ -73,11 +83,16 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
                 vfile->flags |= VFLAG_READONLY;
             }
             return true;
-        } else if (vdir->index == 8) { // gamecart info
-            char info[256];
+        } else if ((vdir->index == 8) && enable_dec_ctr_save) {
+            snprintf(vfile->name, 32, "%s.dec.sav", name);
+            vfile->size = (cdata->cart_id & 0x8000000) /* card2 */ ? cdata->save_size : cdata->save_size - 0x2000;
+            vfile->flags = VFLAG_DECRYPTED_SAVEGAME | VFLAG_READONLY /* for now */;
+            return true;
+        } else if (vdir->index == 9) { // gamecart info
+            char info[301];
             GetCartInfoString(info, sizeof(info), cdata);
             snprintf(vfile->name, 32, "%s.txt", name);
-            vfile->size = strnlen(info, 255);
+            vfile->size = strnlen(info, 300);
             vfile->flags |= VFLAG_GAMECART_NFO;
             return true;
         }
@@ -94,6 +109,8 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_SAVEGAME)
         return ReadCartSave(buffer, foffset, count, cdata);
+    else if (vfile->flags & VFLAG_DECRYPTED_SAVEGAME)
+        return ReadDecryptedCtrCardSave(buffer, foffset, count, cdata);
     else if (vfile->flags & VFLAG_GAMECART_NFO)
         return ReadCartInfo(buffer, foffset, count, cdata);
 
@@ -104,7 +121,15 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
 int WriteVCartFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
     if (!cdata) return -1;
     if (vfile->flags & VFLAG_SAVEGAME) {
-        return WriteCartSave(buffer, offset, count, cdata);
+        int res = WriteCartSave(buffer, offset, count, cdata);
+        if (cdata->cart_type & CART_CTR) {
+            enable_dec_ctr_save = InitCtrCardSave(cdata) == 0;
+            if (*GetMountPath() && !enable_dec_ctr_save && (DriveType(GetMountPath()) & DRV_CART) && strstr(GetMountPath(), ".sav")) {
+                // unmount the virtual DISA archive if user invalidated the encrypted and wear-leveled source
+                InitImgFS(NULL);
+            }
+        }
+        return res;
     }
     return -1;
 }
