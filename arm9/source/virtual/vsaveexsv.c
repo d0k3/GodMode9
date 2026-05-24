@@ -4,15 +4,8 @@
 #include "vsaveexsv.h"
 #include "saveexsv.h"
 #include "filetype.h"
-#include "vff.h"
-#include "ff.h"
-
-#define PART_A_PATH "D:/partitionA.bin"
-#define PART_B_PATH "D:/partitionB.bin"
 
 static SaveExsvFile sav = { 0 };
-
-static FIL part_a = { 0 }, part_b = { 0 };
 
 static char exsv_root_path[256] = { 0 };
 static char exsv_file_tmp_path[256] = { 0 };
@@ -44,14 +37,16 @@ u64 InitVSaveDrive(void) { // prerequisite: save mounted as virtual disa image
 
     DeinitVSaveDrive();
 
-    if (SaveExsvFileInit(&sav))
+    if (SaveExsvFileInit(&sav) != 0) {
         DeinitVSaveDrive();
+        return 0;
+    }
 
     if (sav.is_exsv) {
         // ensure we're initializing extdata from a correct structure
         const char *exsv_root = GetMountPath();
         int pathlen = strlen(exsv_root);
-        
+
         if (pathlen < 20 || strcmp(&exsv_root[pathlen - 17], "00000000/00000001") != 0) {
             DeinitVSaveDrive();
             return 0;
@@ -71,8 +66,6 @@ u64 CheckVSaveDrive(void) {
 
 void DeinitVSaveDrive() {
     SaveExsvFileFree(&sav);
-    fvx_close(&part_a);
-    fvx_close(&part_b);
     memset(exsv_root_path, 0, sizeof(exsv_root_path));
     memset(exsv_file_tmp_path, 0, sizeof(exsv_file_tmp_path));
     memset(&exsv_cur_file_cache, 0, sizeof(exsv_cur_file_cache));
@@ -82,7 +75,7 @@ void DeinitVSaveDrive() {
 bool ReadVSaveDir(VirtualFile* vfile, VirtualDir* vdir) {
     if (!CheckVSaveDrive())
         return false;
-    
+
     if (vdir->index == -1)
         vdir->index = 0;
 
@@ -149,7 +142,7 @@ bool ReadVSaveDir(VirtualFile* vfile, VirtualDir* vdir) {
 
         return true;
     }
-    
+
     return false;
 }
 
@@ -178,6 +171,6 @@ u64 GetVSaveDriveSize(void) {
     }
 }
 
-bool VSaveIsExtData() {
+bool VSaveIsExtData(void) {
     return sav.is_exsv;
 }

@@ -25,11 +25,15 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
     UINT nread = 0;
     int retval = 0;
 
+    // this shouldn't happen, but if it does, it should be a no-op
+    if (sav->init_ok) {
+        return 0;
+    }
+
     // partitionA is mandatory
     if (fvx_open(&part_a, PART_A_PATH, FA_READ) != FR_OK)
         goto err_exit;
-    
-    
+
     if (PathExist(PART_B_PATH)) {
         // if partitionB exists, we need it
         if (fvx_open(&part_b, PART_B_PATH, FA_READ) != FR_OK)
@@ -73,7 +77,7 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
 
         dir_table_offset = sav->fs_info.data_region.offset + sav->fs_info.dirtable_info.dupdata.starting_block_index * sav->fs_info.data_region_blocksize;
         dir_table_size = sav->fs_info.data_region_blocksize * sav->fs_info.dirtable_info.dupdata.block_count;
-        
+
         file_table_offset = sav->fs_info.data_region.offset + sav->fs_info.filetable_info.dupdata.starting_block_index * sav->fs_info.data_region_blocksize;
         file_table_size = sav->fs_info.data_region_blocksize * sav->fs_info.filetable_info.dupdata.block_count;
 
@@ -95,10 +99,10 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
 
         dir_table_offset = sav->fs_info.dirtable_info.dupmeta.offset;
         dir_table_size = (sav->fs_info.dirtable_info.dupmeta.count + 2) * sizeof(SaveDirectoryEntry);
-        
+
         file_table_offset = sav->fs_info.filetable_info.dupmeta.offset;
         file_table_size = (sav->fs_info.filetable_info.dupmeta.count + 1) * sizeof(SaveFileEntry);
-        
+
         // duplicate meta has the dir and file tables outside the data region
         u64 part_b_size = fvx_size(&part_b);
 
@@ -110,9 +114,9 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
                                     file_table_size,
                                     sav->pre_header.fs_image_blocksize);
         u64 min_part_b_size = sav->fs_info.data_region.count * sav->fs_info.data_region_blocksize;
-                              
+
         if (part_a_size < min_part_a_size || part_b_size < min_part_b_size)
-            return 1;
+            goto err_exit;
     }
 
     if (!dir_table_offset || !dir_table_size || !file_table_offset || !file_table_size)
@@ -128,8 +132,6 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
         read_alloc_chunk((void **)&sav->file_entries, &part_a, file_table_offset, file_table_size)) {
         goto err_exit;
     }
-
-    sav->init_ok = true;
 ret:
     fvx_close(&part_a);
     fvx_close(&part_b);
@@ -209,7 +211,7 @@ static int ProcessFatChain(SaveExsvFile *save, u32 initial_index, follow_cb cb, 
     do {
         if (idx >= save->fs_info.fat.count) // shouldn't happen
             return 1;
-        
+
         SaveFatEntry *ent = &save->fat_entries[idx];
 
         ret = ProcessFatDataBlock(save, idx, &file_offset, cb, arg);
@@ -243,16 +245,17 @@ int SaveExsvReadFatFile(SaveExsvFile *sav, u32 index, void *buffer, u32 offset, 
         return 1;
 
     if (sav->is_exsv) {
-        return 0;
+        // Extdata uses physical files. Therefore, reading extdata files this way should be impossible.
+        return 1;
     } else {
         SaveFileEntry *fent = &sav->file_entries[index];
-    
+
         // empty file
         if (fent->ent.first_block_index == 0x80000000)
             return 1;
-    
+
         ReadFileData data = { .offset = offset, .size = count, .outbuf = (char *)buffer };
-    
+
         return ProcessFatChain(sav, fent->ent.first_block_index + 1, ReadFile, &data);
     }
 }

@@ -69,7 +69,7 @@ typedef struct __attribute__((packed)) ExsvExtraHeader {
     u64 last_file_id;
     char LastFilePath[256];
 } ExsvExtraHeader;
- 
+
 typedef struct __attribute__((packed)) SaveFatEntryHalf {
     u32 index: 31;
     u32 flag: 1;
@@ -156,7 +156,6 @@ typedef struct SaveExsvFile {
     u32 max_num_dir_entries;
     SaveFileEntry *file_entries;
     u32 max_num_file_entries;
-    u8 *block_buffer;
     bool duplicate_meta;
     bool is_exsv;
     bool init_ok;
