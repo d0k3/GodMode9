@@ -284,7 +284,7 @@ The image must not be larger than 400 pixels horizontal or 240 pixels vertical. 
 
 * **Arguments**
 	* `path` - Path to PNG file
-* **Throws** 
+* **Throws**
 	* `"Could not read (file)"` - file does not exist or there was another read error
 	* `"Invalid PNG file"` - file is not a valid PNG
 	* `"PNG too large"` - too large horizontal or vertical, or an out-of-memory error
@@ -756,6 +756,24 @@ Fix CMACs for a directory.
 * **Throws**
 	* `fixcmac failed` - user denied permission, or fixing failed
 
+#### fs.create_dbs
+
+* `void fs.create_dbs(string destdrv[, table opts {bool silent, bool overwrite}])`
+
+(Re)create potentially missing .db files (except certs.db) for the given drive.
+
+Supported drives are:
+- SysNAND/EmuNAND CTRNAND (`1:`/`4:`): `import.db`, `ticket.db`, `title.db`, `tmp_i.db`, `tmp_t.db`
+- SysNAND/EmuNAND SD (`A:`/`B:`): `import.db`, `title.db`
+
+* **Arguments**
+	* `destdrv` - Drive to (re)create .db files for.
+* `opts` (optional) - Option flags
+	* `overwrite` - Overwrite existing .db files (use with caution!)
+	* `silent` - Do not show any messages during the process (e.g. which specific file couldn't be created, number of created/already existing files, etc.)
+* **Throws**
+	* `createdbs failed` - user denied permission, or .db file(s) creation failed
+
 #### fs.read_file
 
 * `string fs.read_file(string path, int offset, int/string size)`
@@ -1168,9 +1186,9 @@ VERSION_LOW | 0x1 | Minor version of the MCU firmware.
 RESET_EVENTS | 0x2 | @ref mcu.reset_event_flags
 VCOM_TOP | 0x3 | Flicker/VCOM value for the top screen.
 VCOM_BOTTOM | 0x4 | Flicker/VCOM value for the bottom screen.
-FIRMWARE_UPLOAD_0 | 0x5 | Firmware upload register. 
+FIRMWARE_UPLOAD_0 | 0x5 | Firmware upload register.
 FIRMWARE_UPLOAD_1 | 0x6 | Firmware upload register.
-FIRMWARE_UPLOAD_2 | 0x7 | Firmware upload register. 
+FIRMWARE_UPLOAD_2 | 0x7 | Firmware upload register.
 RAW_3D_SLIDER_POSITION | 0x8 | Position of the 3D slider.
 VOLUME_SLIDER_POSITION | 0x9 | Position of the volume slider.
 BATTERY_PCB_TEMPERATURE | 0xA | Temperature of the battery, measured on a sensor on the PCB.

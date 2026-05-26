@@ -16,3 +16,5 @@ u32 RemoveTitleInfoEntryFromDB(const char* path, const u8* title_id);
 u32 RemoveTicketFromDB(const char* path, const u8* title_id);
 u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoEntry* tie, bool replace);
 u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bool replace);
+
+u32 CreateBDRI(const char *path, u64 image_offset, u64 image_size, u32 blocksize, u32 num_files);

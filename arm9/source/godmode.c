@@ -1071,7 +1071,7 @@ u32 CartRawDump(void) {
 
     if (ret) ShowPrompt(false, STR_FAILED_DUMPING_CART, cname);
     else ShowPrompt(false, STR_PATH_DUMPED_TO_OUT, cname, OUTPUT_PATH);
-    
+
     free(buf);
     free(cdata);
     return ret;
@@ -2654,7 +2654,7 @@ u32 GodMode(int entrypoint) {
         // basic navigation commands
         if ((pad_state & BUTTON_A) && (curr_entry->type != T_FILE) && (curr_entry->type != T_DOTDOT)) { // for dirs
             if (switched && !(DriveType(curr_entry->path) & (DRV_SEARCH|DRV_TITLEMAN))) { // exclude Y/Z
-                const char* optionstr[8] = { NULL };
+                const char* optionstr[9] = { NULL };
                 char tpath[16], copyToOut[UTF_BUFFER_BYTESIZE(64)], dumpToOut[UTF_BUFFER_BYTESIZE(64)];
                 snprintf(tpath, sizeof(tpath), "%2.2s/dbs/title.db", curr_entry->path);
                 snprintf(copyToOut, sizeof(copyToOut), STR_COPY_TO_OUT, OUTPUT_PATH);
@@ -2664,6 +2664,7 @@ u32 GodMode(int entrypoint) {
                     ((strncmp(curr_entry->path, tpath, 16) == 0) ||
                      (!*current_path && PathExist(tpath)))) ? ++n_opt : -1;
                 int srch_f = ++n_opt;
+                int createdbs = (!*current_path && (strspn(curr_entry->path, "14AB") == 1)) ? ++n_opt : -1;
                 int fixcmac = (!*current_path && ((strspn(curr_entry->path, "14AB") == 1) ||
                     ((GetMountState() == IMG_NAND) && (*(curr_entry->path) == '7')))) ? ++n_opt : -1;
                 int dirnfo = ++n_opt;
@@ -2671,6 +2672,7 @@ u32 GodMode(int entrypoint) {
                 int rawdump = (!*current_path && (DriveType(curr_entry->path) & DRV_CART)) ? ++n_opt : -1;
                 if (tman > 0) optionstr[tman-1] = STR_OPEN_TITLE_MANAGER;
                 if (srch_f > 0) optionstr[srch_f-1] = STR_SEARCH_FOR_FILES;
+                if (createdbs > 0) optionstr[createdbs-1] = STR_CREATE_MISSING_DB_FILES;
                 if (fixcmac > 0) optionstr[fixcmac-1] = STR_FIX_CMACS_FOR_DRIVE;
                 if (dirnfo > 0) optionstr[dirnfo-1] = (*current_path) ? STR_SHOW_DIRECTORY_INFO : STR_SHOW_DRIVE_INFO;
                 if (stdcpy > 0) optionstr[stdcpy-1] = copyToOut;
@@ -2698,6 +2700,9 @@ u32 GodMode(int entrypoint) {
                         cursor = 1;
                         scroll = 0;
                     }
+                } else if (user_select == createdbs) {
+                    char drv[3] = { *curr_entry->path, ':', '\0' };
+                    CreateDbFilesForDrive(drv, false, false);
                 } else if (user_select == fixcmac) {
                     RecursiveFixFileCmac(curr_entry->path);
                     ShowPrompt(false, "%s", STR_FIX_CMACS_FOR_DRIVE_FINISHED);

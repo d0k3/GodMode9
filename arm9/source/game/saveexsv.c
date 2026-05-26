@@ -49,10 +49,10 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
     u32 dir_table_offset = 0, dir_table_size = 0;
     u32 file_table_offset = 0, file_table_size = 0;
 
-    if (fvx_read(&part_a, &sav->pre_header, sizeof(SavePreHeader), &nread) != FR_OK || nread != sizeof(SavePreHeader))
+    if (fvx_read(&part_a, &sav->pre_header, sizeof(IFatPreHeader), &nread) != FR_OK || nread != sizeof(IFatPreHeader))
         goto err_exit;
 
-    u32 full_header_size = sizeof(SavePreHeader) + sizeof(SaveFsInfo);
+    u32 full_header_size = sizeof(IFatPreHeader) + sizeof(IFatFsInfo);
 
     if (sav->pre_header.magic == 0x45564153 ) { /* SAVE */
         if (sav->pre_header.version != 0x40000 || sav->pre_header.fs_info_offset != 0x20)
@@ -68,26 +68,26 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
         goto err_exit;
     }
 
-    if (fvx_read(&part_a, &sav->fs_info, sizeof(SaveFsInfo), &nread) != FR_OK || nread != sizeof(SaveFsInfo))
+    if (fvx_read(&part_a, &sav->fs_info, sizeof(IFatFsInfo), &nread) != FR_OK || nread != sizeof(IFatFsInfo))
         goto err_exit;
 
     u64 part_a_size = fvx_size(&part_a);
 
     if (!sav->duplicate_meta) {
 
-        dir_table_offset = sav->fs_info.data_region.offset + sav->fs_info.dirtable_info.dupdata.starting_block_index * sav->fs_info.data_region_blocksize;
-        dir_table_size = sav->fs_info.data_region_blocksize * sav->fs_info.dirtable_info.dupdata.block_count;
+        dir_table_offset = sav->fs_info.data_region.outfat_offset + sav->fs_info.dirtable_info.starting_block_index * sav->fs_info.data_region_blocksize;
+        dir_table_size = sav->fs_info.data_region_blocksize * sav->fs_info.dirtable_info.block_count;
 
-        file_table_offset = sav->fs_info.data_region.offset + sav->fs_info.filetable_info.dupdata.starting_block_index * sav->fs_info.data_region_blocksize;
-        file_table_size = sav->fs_info.data_region_blocksize * sav->fs_info.filetable_info.dupdata.block_count;
+        file_table_offset = sav->fs_info.data_region.outfat_offset + sav->fs_info.filetable_info.starting_block_index * sav->fs_info.data_region_blocksize;
+        file_table_size = sav->fs_info.data_region_blocksize * sav->fs_info.filetable_info.block_count;
 
         // duplicate data has the dir and file tables in the data region, so we don't need to count them separately
         u64 min_part_a_size = align(full_header_size +
-                                    sav->fs_info.dir_hashtbl.count * sizeof(u32) +
-                                    sav->fs_info.file_hashtbl.count * sizeof(u32) +
-                                    (sav->fs_info.fat.count + 1) * sizeof(SaveFatEntry),
+                                    sav->fs_info.dir_hashtbl.outfat_count * sizeof(u32) +
+                                    sav->fs_info.file_hashtbl.outfat_count * sizeof(u32) +
+                                    (sav->fs_info.fat.outfat_count + 1) * sizeof(IFatEntry),
                                     sav->pre_header.fs_image_blocksize) +
-                              sav->fs_info.data_region.count * sav->fs_info.data_region_blocksize;
+                              sav->fs_info.data_region.outfat_count * sav->fs_info.data_region_blocksize;
 
         if (part_a_size < min_part_a_size) {
             goto err_exit;
@@ -97,23 +97,23 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
         if (sav->is_exsv)
             goto err_exit;
 
-        dir_table_offset = sav->fs_info.dirtable_info.dupmeta.offset;
-        dir_table_size = (sav->fs_info.dirtable_info.dupmeta.count + 2) * sizeof(SaveDirectoryEntry);
+        dir_table_offset = sav->fs_info.dirtable_info.outfat_offset;
+        dir_table_size = (sav->fs_info.dirtable_info.outfat_count + 2) * sizeof(SaveDirectoryEntry);
 
-        file_table_offset = sav->fs_info.filetable_info.dupmeta.offset;
-        file_table_size = (sav->fs_info.filetable_info.dupmeta.count + 1) * sizeof(SaveFileEntry);
+        file_table_offset = sav->fs_info.filetable_info.outfat_offset;
+        file_table_size = (sav->fs_info.filetable_info.outfat_count + 1) * sizeof(SaveFileEntry);
 
         // duplicate meta has the dir and file tables outside the data region
         u64 part_b_size = fvx_size(&part_b);
 
         u64 min_part_a_size = align(full_header_size +
-                                    sav->fs_info.dir_hashtbl.count * sizeof(u32) +
-                                    sav->fs_info.file_hashtbl.count * sizeof(u32) +
-                                    (sav->fs_info.fat.count + 1) * sizeof(SaveFatEntry) +
+                                    sav->fs_info.dir_hashtbl.outfat_count * sizeof(u32) +
+                                    sav->fs_info.file_hashtbl.outfat_count * sizeof(u32) +
+                                    (sav->fs_info.fat.outfat_count + 1) * sizeof(IFatEntry) +
                                     dir_table_size +
                                     file_table_size,
                                     sav->pre_header.fs_image_blocksize);
-        u64 min_part_b_size = sav->fs_info.data_region.count * sav->fs_info.data_region_blocksize;
+        u64 min_part_b_size = sav->fs_info.data_region.outfat_count * sav->fs_info.data_region_blocksize;
 
         if (part_a_size < min_part_a_size || part_b_size < min_part_b_size)
             goto err_exit;
@@ -125,9 +125,9 @@ int SaveExsvFileInit(SaveExsvFile *sav) {
     sav->max_num_file_entries = file_table_size / sizeof(SaveFileEntry);
     sav->max_num_dir_entries = dir_table_size / sizeof(SaveDirectoryEntry);
 
-    if (read_alloc_chunk((void **)&sav->dir_hashtbl, &part_a, sav->fs_info.dir_hashtbl.offset, sav->fs_info.dir_hashtbl.count * 4) ||
-        read_alloc_chunk((void **)&sav->file_hashtbl, &part_a, sav->fs_info.file_hashtbl.offset, sav->fs_info.file_hashtbl.count * 4) ||
-        read_alloc_chunk((void **)&sav->fat_entries, &part_a, sav->fs_info.fat.offset, (sav->fs_info.fat.count + 1) * sizeof(SaveFatEntry)) ||
+    if (read_alloc_chunk((void **)&sav->dir_hashtbl, &part_a, sav->fs_info.dir_hashtbl.outfat_offset, sav->fs_info.dir_hashtbl.outfat_count * 4) ||
+        read_alloc_chunk((void **)&sav->file_hashtbl, &part_a, sav->fs_info.file_hashtbl.outfat_offset, sav->fs_info.file_hashtbl.outfat_count * 4) ||
+        read_alloc_chunk((void **)&sav->fat_entries, &part_a, sav->fs_info.fat.outfat_offset, (sav->fs_info.fat.outfat_count + 1) * sizeof(IFatEntry)) ||
         read_alloc_chunk((void **)&sav->dir_entries, &part_a, dir_table_offset, dir_table_size) ||
         read_alloc_chunk((void **)&sav->file_entries, &part_a, file_table_offset, file_table_size)) {
         goto err_exit;
@@ -195,7 +195,7 @@ static int ProcessFatDataBlock(SaveExsvFile *save, u32 index, u32 *file_offset, 
     if (!index)
         return 0; // not yet
 
-    int cb_ret = cb(save->fs_info.data_region.offset + (index - 1) * save->fs_info.data_region_blocksize, *file_offset, save->fs_info.data_region_blocksize, cb_arg);
+    int cb_ret = cb(save->fs_info.data_region.outfat_offset + (index - 1) * save->fs_info.data_region_blocksize, *file_offset, save->fs_info.data_region_blocksize, cb_arg);
     if (cb_ret)
         return cb_ret;
 
@@ -209,10 +209,10 @@ static int ProcessFatChain(SaveExsvFile *save, u32 initial_index, follow_cb cb, 
     int ret = 0;
 
     do {
-        if (idx >= save->fs_info.fat.count) // shouldn't happen
+        if (idx >= save->fs_info.fat.outfat_count) // shouldn't happen
             return 1;
 
-        SaveFatEntry *ent = &save->fat_entries[idx];
+        IFatEntry *ent = &save->fat_entries[idx];
 
         ret = ProcessFatDataBlock(save, idx, &file_offset, cb, arg);
         if      (ret == 2) return 0;
@@ -220,7 +220,7 @@ static int ProcessFatChain(SaveExsvFile *save, u32 initial_index, follow_cb cb, 
 
         /* process extended nodes first */
         if (ent->V.flag) {
-            if (idx + 1 >= save->fs_info.fat.count) // same as above, shouldn't happen, but still
+            if (idx + 1 >= save->fs_info.fat.outfat_count) // same as above, shouldn't happen, but still
                 return 1;
             u32 end_index = save->fat_entries[idx + 1].V.index;
             for (u32 i = idx + 1; i < end_index + 1; i++) {

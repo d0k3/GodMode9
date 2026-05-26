@@ -4360,3 +4360,175 @@ u32 GetGoodName(char* name, const char* path, bool quick) {
 
     return 0;
 }
+
+typedef struct DbFileConfig {
+    const char *path;
+    const char *magic;
+    u32 version;
+    u32 full_data_size;
+    u32 image_offset; // also pre-header size
+    u32 image_size;
+    u32 image_blocksize;
+    u32 num_entries;
+} DbFileConfig;
+
+typedef enum DbType {
+    NAND_TICKET_DB = 0, NAND_IMPORT_DB, NAND_TITLE_DB, NAND_TMP_I_DB, NAND_TMP_T_DB,
+    SDMC_TITLE_DB, SDMC_IMPORT_DB,
+} DbType;
+
+static const DbFileConfig DbConfigs[7] = {
+    // NAND dbs
+    { "/dbs/ticket.db", "TICK"   , 1, 0x10A2010, 0x10, 0x10A2000, 0x200, 8192 }, // ticket.db is the only db where the image size is correct...
+    { "/dbs/import.db", "NANDIDB", 0, 0x17800  , 0x80, 0x17800  , 0x80 , 512  }, // ---
+    { "/dbs/title.db" , "NANDTDB", 0, 0x2ED80  , 0x80, 0x2ED80  , 0x80,  1024 }, //   | *all* of these are missing 0x80 bytes at the end.
+    { "/dbs/tmp_i.db" , "TEMPIDB", 0, 0xE00    , 0x80, 0xE00    , 0x80,  16   }, //   | the image size should be file size - 0x80 because
+    { "/dbs/tmp_t.db" , "TEMPIDB", 0, 0x6000   , 0x80, 0x6000   , 0x80,  128  }, //   | of the pre-header. keeping it the same just for
+    // SDMC dbs                                                                  //   | consistency with Process9, really.
+    { "/dbs/title.db" , "TEMPTDB", 0, 0x175A80 , 0x80, 0x175A80 , 0x80,  8192 }, //   |
+    { "/dbs/import.db", "TEMPTDB", 0, 0x175A80 , 0x80, 0x175A80 , 0x80 , 8192 }, // ---
+};
+
+static const DbFileConfig *GetDbFileConfigBuildPath(char *outpath, u32 pathsize, u32 type, bool emunand) {
+    if (type >= countof(DbConfigs))
+        return NULL;
+
+    bool nand = type <= NAND_TMP_T_DB;
+
+    char dest_drive =
+        nand ?
+            emunand ? '4' : '1' :
+            emunand ? 'B' : 'A';
+
+    const DbFileConfig *config = &DbConfigs[type];
+
+    snprintf(outpath, pathsize, "%c:%s", dest_drive, config->path);
+
+    return config;
+}
+
+u32 CreateDbFile(u32 type, bool emunand) {
+    char path[256] = { 0 };
+
+    const DbFileConfig *config = GetDbFileConfigBuildPath(path, sizeof(path), type, emunand);
+    if (!config)
+        return 1;
+
+    u64 reqsize = BuildDiffCalcRequiredSize(config->full_data_size, false, true);
+
+    if (!CheckWritePermissions(path))
+        return 1;
+
+    // ensure remounting the old mount path
+    char path_store[256] = { 0 };
+    char* path_bak = NULL;
+    strncpy(path_store, GetMountPath(), 256);
+    if (*path_store) path_bak = path_store;
+
+    // unmount any mounted image since we're about to create a DIFF that will need to be mounted
+    InitImgFS(NULL);
+
+    // create the raw file
+    if (fvx_qcreate(path, reqsize) != FR_OK) {
+        InitImgFS(path_bak);
+        return 1;
+    }
+
+    // create the DIFF container and mount it
+    if (CreateDiff(path, config->full_data_size, false, true, NULL) != 0 ||
+        !InitImgFS(path)) {
+        InitImgFS(path_bak);
+        fvx_unlink(path);
+        return 1;
+    }
+
+    char db_hdr[0x80];
+    memset(db_hdr, 0, sizeof(db_hdr));
+    u32 version_offset = align_pow2(strlen(config->magic), 4);
+    memcpy(db_hdr, config->magic, strlen(config->magic));
+    memcpy(&db_hdr[version_offset], &config->version, 4);
+
+    UINT written = 0;
+
+    // write the BDRI filesystem image
+    if (fvx_qwrite("D:/partitionA.bin", db_hdr, 0, config->image_offset, &written) != 0 ||
+        CreateBDRI("D:/partitionA.bin", config->image_offset, config->image_size, config->image_blocksize, config->num_entries) != 0) {
+        InitImgFS(path_bak);
+        fvx_unlink(path);
+        return 1;
+    }
+
+    // remount previously mounted image, if there was one
+    InitImgFS(path_bak);
+
+    // make sure CMAC is fixed
+    if (FixFileCmac(path, true) != 0) {
+        fvx_unlink(path);
+        return 1;
+    }
+
+    return 0;
+}
+
+u32 CreateDbFilesForDrive(const char *destdrv, bool silent, bool force_overwrite) {
+    static const DbType db_types_nand[5] = { NAND_TICKET_DB, NAND_IMPORT_DB, NAND_TITLE_DB, NAND_TMP_I_DB, NAND_TMP_T_DB };
+    static const DbType db_types_sdmc[2] = { SDMC_TITLE_DB, SDMC_IMPORT_DB };
+
+    if (*destdrv != 'A' && *destdrv != 'B' && *destdrv != '1' && *destdrv != '4') {
+        return 1;
+    }
+
+    bool emunand = *destdrv == 'B' /* EmuNAND SD */ || *destdrv == '4' /* EmuNAND CTRNAND */;
+    bool sd = *destdrv == 'A' || *destdrv == 'B' /* Sys/EmuNAND SD */;
+    const DbType *dbs_to_check = sd ? db_types_sdmc : db_types_nand;
+    u32 db_count = sd ? countof(db_types_sdmc) : countof(db_types_nand);
+
+    u32 num_to_create = db_count;
+    u32 num_already_exist = 0;
+    u32 num_failed = 0;
+    u32 num_created_ok = 0;
+
+    char db_path[256] = { 0 };
+    const DbFileConfig *config = NULL;
+
+    for (u32 i = 0; i < db_count; i++) {
+        if (!(config = GetDbFileConfigBuildPath(db_path, sizeof(db_path), dbs_to_check[i], emunand))) {
+            return 1;
+        }
+
+        if (fvx_stat(db_path, NULL) == FR_OK) {
+            if (!force_overwrite && fvx_qsize(db_path) == BuildDiffCalcRequiredSize(config->full_data_size, false, true)) {
+                ++num_already_exist;
+                --num_to_create;
+                continue;
+            }
+        }
+
+        if (CreateDbFile(dbs_to_check[i], emunand) == 0) {
+            ++num_created_ok;
+        } else {
+            ++num_failed;
+            if (!silent) {
+                ShowPrompt(false, STR_PATH_CREATE_DB_FILE_FAILED, db_path);
+            }
+        }
+    }
+
+    if (!silent) {
+        if (num_already_exist) {
+            if (num_already_exist == db_count) {
+                ShowPrompt(false, "%s", STR_NO_MISSING_DB_FILES_DETECTED);
+            } else {
+                ShowPrompt(false, STR_CREATE_DB_FILES_N_N_N_OK_FAILED_ALREADY_EXIST, num_created_ok, num_failed, num_already_exist);
+            }
+        } else {
+            if (num_created_ok == db_count) {
+                ShowPrompt(false, "%s", STR_SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE);
+            } else {
+                ShowPrompt(false, STR_CREATE_DB_FILES_N_N_OK_FAILED, num_created_ok, num_failed);
+            }
+        }
+    }
+
+    return num_to_create == num_created_ok ? 0 : 1;
+}

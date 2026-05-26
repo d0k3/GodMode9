@@ -27,3 +27,4 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv);
 u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump);
 u32 BuildSeedInfo(const char* path, bool dump);
 u32 GetGoodName(char* name, const char* path, bool quick);
+u32 CreateDbFilesForDrive(const char *destdrv, bool silent, bool force_overwrite);

@@ -1,59 +1,13 @@
 #pragma once
 
 #include "types.h"
+#include "ifat_common.h"
 
 // SAVE images may be created in two modes:
 // - "duplicate data" mode, in which both filesystem metadata and the actual data FAT are duplicated
 //   (partitionA: file metadata and FAT, duplicated by DPFS tree)
 // - "duplicate meta" mode, in which only the filesystem metadata is duplicated, and the FAT is not
 //   (partitionA: file metadata, duplicated by DPFS tree. partitionB: data FAT)
-
-// for dupdata, this describes data inside the data FAT
-typedef struct __attribute__((packed)) SaveTableInfoDataRegion {
-    u32 starting_block_index;
-    u32 block_count;
-    u32 max_entry_count;
-    u32 _pad;
-} SaveTableInfoDataRegion;
-
-// for dupmeta, this describes data outside the FAT
-typedef struct __attribute__((packed)) SaveTableInfoStandalone {
-    u64 offset;
-    u32 count;
-    u32 _pad;
-} SaveTableInfoStandalone;
-
-typedef union SaveTableInfo {
-    SaveTableInfoDataRegion dupdata;
-    SaveTableInfoStandalone dupmeta;
-} SaveTableInfo;
-
-typedef struct __attribute__((packed)) SavePreHeader {
-    u32 magic; /* 0x0-0x4 */
-    u32 version; /* 0x4-0x8 */
-    u64 fs_info_offset; /* 0x8-0x10 */
-    u64 fs_image_size_blocks; /* 0x10-0x18 */
-    u32 fs_image_blocksize; /* 0x18-0x1C */
-    u32 __pad; /* 0x1C-0x20 */
-} SavePreHeader;
-
-typedef struct __attribute__((packed)) SaveFsInfo {
-    u32 _unk; /* 0x20-0x24 */
-    u32 data_region_blocksize; /* 0x24-0x28 */
-    SaveTableInfoStandalone dir_hashtbl;
-    SaveTableInfoStandalone file_hashtbl;
-    SaveTableInfoStandalone fat;
-    SaveTableInfoStandalone data_region;
-    SaveTableInfo dirtable_info; /* 0x68-0x78 */
-    SaveTableInfo filetable_info; /* 0x78-0x88 */
-} SaveFsInfo;
-
-/* starting block index -> rel to data region */
-/* everything else -> rel to header start */
-typedef struct __attribute__((packed)) SaveHeader {
-    SavePreHeader pre_header;
-    SaveFsInfo fs_info;
-} SaveHeader;
 
 typedef enum ExsvAction
 {
@@ -69,29 +23,6 @@ typedef struct __attribute__((packed)) ExsvExtraHeader {
     u64 last_file_id;
     char LastFilePath[256];
 } ExsvExtraHeader;
-
-typedef struct __attribute__((packed)) SaveFatEntryHalf {
-    u32 index: 31;
-    u32 flag: 1;
-} SaveFatEntryHalf;
-
-/*
- * for node head,
- * - U.index --> index of previous node head.
- * - U.flag --> set if this is the first node head.
- * - V.index --> index of next node head.
- * - V.flag --> whether or not this node has extended entries (multiple entries)
- */
-/*
- * for extended node,
- * - U.index --> index of previous entry in this node.
- * - U.flag --> always set.
- * - V.index --> index of next entry in this node.
- * - V.flag -->  never set.
- */
-typedef struct __attribute__((packed)) SaveFatEntry {
-    SaveFatEntryHalf U, V;
-} SaveFatEntry;
 
 // same for files and directories
 typedef struct __attribute__((packed)) SaveEntryKey {
@@ -126,8 +57,8 @@ typedef struct __attribute__((packed)) SaveFileEntryData {
     u32 __pad;
     u32 first_block_index; /* in data region; 0x80000000 if no data */
     union {
-        u64 file_size; // for SAVE
-        u64 file_unique_id;   // for EXSV
+        u64 file_size;      // for SAVE
+        u64 file_unique_id; // for EXSV
     };
     u32 _unk_pad;
     u32 next_file_in_bucket_index;
@@ -147,11 +78,11 @@ typedef union SaveFileEntry {
 
 typedef struct SaveExsvFile {
     ExsvExtraHeader exsv_extra_hdr;
-    SaveFsInfo fs_info;
-    SavePreHeader pre_header;
+    IFatFsInfo fs_info;
+    IFatPreHeader pre_header;
     u32 *dir_hashtbl;
     u32 *file_hashtbl;
-    SaveFatEntry *fat_entries;
+    IFatEntry *fat_entries;
     SaveDirectoryEntry *dir_entries;
     u32 max_num_dir_entries;
     SaveFileEntry *file_entries;
