@@ -18,3 +18,4 @@ u32 AddTitleInfoEntryToDB(const char* path, const u8* title_id, const TitleInfoE
 u32 AddTicketToDB(const char* path, const u8* title_id, const Ticket* ticket, bool replace);
 
 u32 CreateBDRI(const char *path, u64 image_offset, u64 image_size, u32 blocksize, u32 num_files);
+u32 CreateDbFilesForDrive(const char *destdrv, bool silent, bool force_overwrite);

@@ -797,8 +797,12 @@ u32 CreateDiff(const char *path, u64 data_size, bool ext_lv4, bool db, u64 *out_
     FIL fp;
     UINT written = 0;
 
-    if (fvx_open(&fp, path, FA_WRITE | FA_OPEN_EXISTING) != FR_OK ||
-        fvx_size(&fp) < CalcDiffFileSize(&diff) ||
+    if (fvx_open(&fp, path, FA_WRITE | FA_OPEN_EXISTING) != FR_OK) {
+        free(part_desc);
+        return 1;
+    }
+
+    if (fvx_size(&fp) < CalcDiffFileSize(&diff) ||
         (fvx_write(&fp, cmac, sizeof(cmac), &written) != FR_OK || written != sizeof(cmac)) ||
         (fvx_write(&fp, &diff, sizeof(diff), &written) != FR_OK || written != sizeof(diff)) ||
         fvx_lseek(&fp, diff.offset_table1) != FR_OK ||

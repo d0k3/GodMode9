@@ -8,7 +8,6 @@
 #include "image.h"
 #include "ui.h"
 #include "vff.h"
-#include "vsaveexsv.h"
 
 // last search pattern, path & mode
 static char search_pattern[256] = { 0 };
@@ -125,7 +124,9 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         else if (*(drvnum[i]) == '0') // SD card handling
             snprintf(entry->name, 252, "[%s] %s (%s)", drvnum[i], drvname[i], sdlabel);
         else if (*(drvnum[i]) == 'F') // Save/Extdata handling
-            snprintf(entry->name, 252, "[%s] %s", drvnum[i], VSaveIsExtData() ? STR_LAB_EXTDATA_IMAGE : STR_LAB_SAVE_FILE_IMAGE);
+            snprintf(entry->name, 252, "[%s] %s", drvnum[i],
+               (GetMountState() & SYS_DIFF) ? STR_LAB_EXTDATA_IMAGE :
+               (GetMountState() & SYS_DISA) ? STR_LAB_SAVE_FILE_IMAGE : "UNK");
         else snprintf(entry->name, 252, "[%s] %s", drvnum[i], drvname[i]);
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;

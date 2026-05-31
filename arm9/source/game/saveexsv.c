@@ -143,8 +143,6 @@ err_exit:
 }
 
 void SaveExsvFileFree(SaveExsvFile *sav) {
-    fvx_close(&part_a);
-    fvx_close(&part_b);
     data_part = NULL;
     if (sav->dir_hashtbl) { free(sav->dir_hashtbl); sav->dir_hashtbl = NULL; }
     if (sav->file_hashtbl) { free(sav->file_hashtbl); sav->file_hashtbl = NULL; }

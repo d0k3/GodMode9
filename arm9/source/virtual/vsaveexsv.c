@@ -170,7 +170,3 @@ u64 GetVSaveDriveSize(void) {
         return sav.pre_header.fs_image_size_blocks * sav.pre_header.fs_image_blocksize;
     }
 }
-
-bool VSaveIsExtData(void) {
-    return sav.is_exsv;
-}
