@@ -1,3 +1,4 @@
+#include "vsaveexsv.h" // for mounting savedata/extdata
 #include "vdisadiff.h"
 #include "disadiff.h"
 #include "common.h"
@@ -194,7 +195,9 @@ u64 InitVDisaDiffDrive(void) {
         partitionB_info->rw_info = info;
     }
 
+    // could be either of these
     InitVBDRIDrive();
+    InitVSaveDrive();
 
     return type;
 }

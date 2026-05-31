@@ -80,7 +80,7 @@ static int internalfs_remove(lua_State* L) {
     if (!(PathDelete(path))) {
         return luaL_error(L, "PathDelete failed on %s", path);
     }
-    
+
     return 0;
 }
 
@@ -179,6 +179,22 @@ static int internalfs_fix_cmacs(lua_State* L) {
     ShowString("%s", STR_FIXING_CMACS_PLEASE_WAIT);
     if (RecursiveFixFileCmac(path) != 0) {
         return luaL_error(L, "fixcmac failed");
+    }
+
+    return 0;
+}
+
+static int internalfs_create_dbs(lua_State* L) {
+    bool extra = CheckLuaArgCountPlusExtra(L, 1, "_fs.create_dbs");
+    const char* destdrv = luaL_checkstring(L, 1);
+
+    u32 flags = 0;
+    if (extra) {
+        flags = GetFlagsFromTable(L, 2, flags, SILENT | OVERWRITE_ALL);
+    }
+
+    if (CreateDbFilesForDrive(destdrv, (flags & SILENT), (flags & OVERWRITE_ALL)) != 0) {
+        return luaL_error(L, "createdbs failed");
     }
 
     return 0;
@@ -421,7 +437,7 @@ static int internalfs_write_file(lua_State* L) {
     const char* data = luaL_checklstring(L, 3, &data_length);
 
     CheckWritePermissionsLuaError(L, path);
-    
+
     UINT bytes_written = 0;
     FRESULT res = fvx_qwrite(path, data, offset, data_length, &bytes_written);
     if (res != FR_OK) {
@@ -517,9 +533,9 @@ static int internalfs_img_mount(lua_State* L) {
 
 static int internalfs_img_umount(lua_State* L) {
     CheckLuaArgCount(L, 0, "_fs.img_umount");
-    
+
     InitImgFS(NULL);
-    
+
     return 0;
 }
 
@@ -793,6 +809,7 @@ static const luaL_Reg internalfs_lib[] = {
     {"sd_is_mounted", internalfs_sd_is_mounted},
     {"sd_switch", internalfs_sd_switch},
     {"fix_cmacs", internalfs_fix_cmacs},
+    {"create_dbs", internalfs_create_dbs},
     {"key_dump", internalfs_key_dump},
     {"cart_dump", internalfs_cart_dump},
     {NULL, NULL}

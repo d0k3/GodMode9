@@ -49,7 +49,7 @@ int DriveType(const char* path) {
             type = DRV_VIRTUAL | DRV_SYSNAND;
         } else if (vsrc == VRT_EMUNAND) {
             type = DRV_VIRTUAL | DRV_EMUNAND;
-        } else if ((vsrc == VRT_IMGNAND) || (vsrc == VRT_DISADIFF) || (vsrc == VRT_BDRI)) {
+        } else if ((vsrc == VRT_IMGNAND) || (vsrc == VRT_DISADIFF) || (vsrc == VRT_BDRI) || (vsrc == VRT_SAVE)) {
             type = DRV_VIRTUAL | DRV_IMAGE;
         } else if (vsrc == VRT_XORPAD) {
             type = DRV_VIRTUAL | DRV_XORPAD;
@@ -123,6 +123,10 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
             snprintf(entry->name, 252, "[%s] %s (%s)", drvnum[i], drvname[i], carttype);
         else if (*(drvnum[i]) == '0') // SD card handling
             snprintf(entry->name, 252, "[%s] %s (%s)", drvnum[i], drvname[i], sdlabel);
+        else if (*(drvnum[i]) == 'F') // Save/Extdata handling
+            snprintf(entry->name, 252, "[%s] %s", drvnum[i],
+               (GetMountState() & SYS_DIFF) ? STR_LAB_EXTDATA_IMAGE :
+               (GetMountState() & SYS_DISA) ? STR_LAB_SAVE_FILE_IMAGE : "UNK");
         else snprintf(entry->name, 252, "[%s] %s", drvnum[i], drvname[i]);
         entry->size = GetTotalSpace(entry->path);
         entry->type = T_ROOT;

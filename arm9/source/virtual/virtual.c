@@ -5,6 +5,7 @@
 #include "vbdri.h"
 #include "vkeydb.h"
 #include "vcart.h"
+#include "vsaveexsv.h"
 #include "vvram.h"
 #include "vdisadiff.h"
 #include "ff.h"
@@ -29,13 +30,14 @@ u32 GetVirtualSource(const char* path) {
 void DeinitVirtualImageDrive(void) {
     DeinitVGameDrive();
     DeinitVBDRIDrive();
+    DeinitVSaveDrive();
     DeinitVKeyDbDrive();
     DeinitVDisaDiffDrive();
 }
 
 bool InitVirtualImageDrive(void) {
     DeinitVirtualImageDrive();
-    return InitVGameDrive() || InitVDisaDiffDrive() || InitVKeyDbDrive();
+    return InitVGameDrive() || InitVDisaDiffDrive() /* calls InitVBDRIDrive and InitVSaveDrive */ || InitVKeyDbDrive();
 }
 
 bool CheckVirtualDrive(const char* path) {
@@ -52,6 +54,8 @@ bool CheckVirtualDrive(const char* path) {
         return CheckVKeyDbDrive();
     else if (virtual_src & VRT_DISADIFF)
         return CheckVDisaDiffDrive();
+    else if (virtual_src & VRT_SAVE)
+        return CheckVSaveDrive();
     return virtual_src; // this is safe for SysNAND & memory
 }
 
@@ -74,6 +78,8 @@ bool ReadVirtualDir(VirtualFile* vfile, VirtualDir* vdir) {
         ret = ReadVVramDir(vfile, vdir);
     } else if (virtual_src & VRT_DISADIFF) {
         ret = ReadVDisaDiffDir(vfile, vdir);
+    } else if (virtual_src & VRT_SAVE) {
+        ret = ReadVSaveDir(vfile, vdir);
     }
     vfile->flags |= virtual_src; // add source flag
     return ret;
@@ -185,6 +191,8 @@ int ReadVirtualFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 coun
         return ReadVVramFile(vfile, buffer, offset, count);
     } else if (vfile->flags & VRT_DISADIFF) {
         return ReadVDisaDiffFile(vfile, buffer, offset, count);
+    } else if (vfile->flags & VRT_SAVE) {
+        return ReadVSaveFile(vfile, buffer, offset, count);
     }
 
     return -1;
@@ -253,5 +261,7 @@ u64 GetVirtualDriveSize(const char* path) {
         return GetVCartDriveSize();
     else if (virtual_src & VRT_VRAM)
         return GetVVramDriveSize();
+    else if (virtual_src & VRT_SAVE)
+        return GetVSaveDriveSize();
     return 0;
 }
