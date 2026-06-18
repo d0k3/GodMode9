@@ -1128,6 +1128,24 @@ Determines if the currently executing script was directly run, or was imported b
 
 * **Returns:** `true` if the current script was imported as a module
 
+#### util.utf16_to_utf8
+
+* `string util.utf16_to_utf8(string data)`
+
+* **Arguments:**
+	* `data` - Byte string with text in UTF16 format
+
+* **Returns:** Byte string with text in UTF8 format
+
+#### util.utf8_to_utf16
+
+* `string util.utf8_to_utf16(string data)`
+
+* **Arguments:**
+	* `data` - Byte string with text in UTF8 format
+
+* **Returns:** Byte string with text in UTF16 format
+
 ---
 
 ### `i2c` module
