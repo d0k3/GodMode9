@@ -10,9 +10,11 @@
 
 static int read_alloc_chunk(void **output, FIL *file, u64 offset, u32 size) {
     UINT nread = 0;
+    *output = NULL;
     if (!(*output = malloc(size)) ||
         fvx_lseek(file, offset) != FR_OK ||
         fvx_read(file, *output, size, &nread) != FR_OK || nread != size) {
+        if (*output) { free(*output); *output = NULL; };
         return 1;
     }
     return 0;
