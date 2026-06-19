@@ -1078,7 +1078,7 @@ u32 CreateBDRI(const char *path, u64 image_offset, u64 image_size, u32 blocksize
     // no need to do the calculation
     u32 dir_hash_value = 1;
 
-    if (BDRIWrite(image_offset + fs_info->dir_hashtbl.outfat_offset, sizeof(u32), &dir_hash_value) != 0) {
+    if (BDRIWrite(image_offset + fs_info->dir_hashtbl.outfat_offset, sizeof(u32), &dir_hash_value) != FR_OK) {
         fvx_close(&file);
         bdrifp = NULL;
         return 1;
@@ -1094,7 +1094,7 @@ u32 CreateBDRI(const char *path, u64 image_offset, u64 image_size, u32 blocksize
     while (remaining_fht) {
         u32 writesize = min(remaining_fht, sizeof(zero));
 
-        if (BDRIWrite(image_offset + fht_cur_offset, writesize, zero) != 0) {
+        if (BDRIWrite(image_offset + fht_cur_offset, writesize, zero) != FR_OK) {
             fvx_close(&file);
             bdrifp = NULL;
             return 1;
