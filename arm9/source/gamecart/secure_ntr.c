@@ -23,6 +23,7 @@
 #include "card_ntr.h"
 // #include "draw.h"
 #include "timer.h"
+#include "support.h"
 
 
 #define BSWAP32(val) ((((val >> 24) & 0xFF)) | (((val >> 16) & 0xFF) << 8) | (((val >> 8) & 0xFF) << 16) | ((val & 0xFF) << 24))
@@ -119,7 +120,15 @@ void NTR_ApplyKey (u32* pCardHash, int nCardHash, u32* pKeyCode)
 
 void NTR_InitKey (u32 aGameCode, u32* pCardHash, int nCardHash, u32* pKeyCode, int level, int iCardDevice)
 {
-    if(iCardDevice)
+    if(iCardDevice == 2)
+    {
+        size_t len = LoadSupportFile(BLOWFISHKEYDEV_NAME, pCardHash, 0x1048);
+        pKeyCode[0] = 0;
+		pKeyCode[1] = 0;
+		pKeyCode[2] = 0;
+		return;
+    }
+    else if(iCardDevice == 1)
     {
         const u8* BlowfishTwl = (const u8*)0x01FFD3E0;
         memcpy (pCardHash, BlowfishTwl, 0x1048);
@@ -252,7 +261,18 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
 
     iGameCode = *((vu32*)(void*)&header[0x0C]);
     ReadDataFlags = cardControl13 & ~ NTRCARD_BLK_SIZE(7);
-    NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, iCardDevice?1:2, iCardDevice);
+
+    if(iCardDevice && ((header[0x1BF] & 0x80) || ((header[0x1C] & 0x7) == 7))) // dsi dev app
+    {
+        size_t fsize;
+        if (!CheckSupportFile(BLOWFISHKEYDEV_NAME, &fsize)) return false;
+        if (fsize != 0x1048) return false;
+        NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, 1, 2);
+    }
+    else // retail
+    {
+        NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, iCardDevice?1:2, iCardDevice);
+    }
 
     if(!iCheapCard) flagsKey1 |= NTRCARD_SEC_LARGE;
     //Debug("iCheapCard=%d, readTimeout=%d", iCheapCard, readTimeout);

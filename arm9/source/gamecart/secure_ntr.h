@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#define BLOWFISHKEYDEV_NAME "TwlBlowfishKeyDev.bin"
 
 typedef struct _IKEY1{
     u32 iii;
