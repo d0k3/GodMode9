@@ -262,7 +262,7 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
     iGameCode = *((vu32*)(void*)&header[0x0C]);
     ReadDataFlags = cardControl13 & ~ NTRCARD_BLK_SIZE(7);
 
-    if(iCardDevice && ((header[0x1BF] & 0x80) || ((header[0x1C] & 0x7) == 7))) // dsi dev app
+    if(iCardDevice && ((header[0x1BF] & 0x80) || (header[0x1C] & 0x04))) // dsi dev app
     {
         size_t fsize;
         if (!CheckSupportFile(BLOWFISHKEYDEV_NAME, &fsize)) return false;
