@@ -198,7 +198,7 @@ void ButtonToString(u32 button, char* str) {
     if (button) {
         u32 b = 0;
         for (b = 0; !((button>>b)&0x1); b++);
-        if (b < countof(strings)) strcpy(str, strings[b]);
+        if (b < countof(strings)) snprintf(str, 16, "%s", strings[b]);
     }
 }
 
