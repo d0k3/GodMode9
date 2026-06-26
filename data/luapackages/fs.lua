@@ -30,6 +30,7 @@ fs.allow = _fs.allow
 fs.sd_is_mounted = _fs.sd_is_mounted
 fs.sd_switch = _fs.sd_switch
 fs.fix_cmacs = _fs.fix_cmacs
+fs.create_dbs = _fs.create_dbs
 fs.key_dump = _fs.key_dump
 fs.cart_dump = _fs.cart_dump
 
@@ -38,27 +39,27 @@ function os.remove(path)
     local success, allowed, stat, error
     success, stat = pcall(fs.stat, path)
     if not success then
-        return nil, path..": No such file or directory", 2
+        return nil, path .. ": No such file or directory", 2
     end
     if stat.type == "dir" then
         -- os.remove can remove an empty directory, so we gotta check
         success, dir_list = pcall(fs.list_dir, path)
         if not success then
-            return nil, "Error occurred listing directory: "..dir_list, 2001
+            return nil, "Error occurred listing directory: " .. dir_list, 2001
         end
         if #dir_list ~= 0 then
-            return nil, path..": Directory not empty", 39
+            return nil, path .. ": Directory not empty", 39
         end
     end
     allowed = fs.allow(path)
     if not allowed then
-        return nil, path..": Operation not permitted", 1
+        return nil, path .. ": Operation not permitted", 1
     end
-    success, error = pcall(fs.remove, path, {recursive=true})
+    success, error = pcall(fs.remove, path, { recursive = true })
     if success then
         return true
     else
-        return nil, "Error occurred removing item: "..error, 2001
+        return nil, "Error occurred removing item: " .. error, 2001
     end
 end
 
@@ -100,7 +101,7 @@ end
 
 function fs.verify_with_sha_file(path)
     local success, file_hash, sha_data, path_sha
-    path_sha = path..".sha"
+    path_sha = path .. ".sha"
     success, sha_data = pcall(fs.read_file, path_sha, 0, 0x20)
     if not success then
         return nil

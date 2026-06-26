@@ -49,6 +49,15 @@
 #define align(v,a) \
     (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
 
+#define align_pow2(v,a) \
+    (((v) + (a) - 1) & ~((a) - 1))
+
+#define ceil_div(v,a) \
+    (((v) + (a) - 1) / (a))
+
+#define log_2(x) \
+    (31 - __builtin_clz(x))
+
 #define countof(x) \
     (sizeof(x) / sizeof(*(x)))
 

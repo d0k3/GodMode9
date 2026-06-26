@@ -16,6 +16,7 @@
 
 // condensed info to enable reading/writing IVFC lvl4
 typedef struct {
+    u64 unique_id;
     u32 offset_table;
     u32 size_table;
     u32 offset_partition_hash;
@@ -46,9 +47,13 @@ typedef struct {
     u8* dpfs_lvl2_cache; // optional, NULL when unused
 } __attribute__((packed)) DisaDiffRWInfo;
 
+u64 BuildDiffCalcRequiredSize(u64 data_size, bool ext_lv4, bool db);
+u32 CreateDiff(const char *path, u64 data_size, bool ext_lv4, bool db, u64 *out_uid);
+
 u32 GetDisaDiffRWInfo(const char* path, DisaDiffRWInfo* info, bool partitionB);
 u32 BuildDisaDiffDpfsLvl2Cache(const char* path, const DisaDiffRWInfo* info, u8* cache, u32 cache_size);
 u32 ReadDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offset, u32 size, void* buffer);
 u32 WriteDisaDiffIvfcLvl4(const char* path, const DisaDiffRWInfo* info, u32 offset, u32 size, const void* buffer);
+
 // Not intended for external use other than vdisadiff
 u32 FixDisaDiffIvfcLevel(const DisaDiffRWInfo* info, u32 level, u32 offset, u32 size, u32* next_offset, u32* next_size);
