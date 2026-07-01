@@ -825,5 +825,14 @@
 	"VERIFY_SIGNATURES": "서명 검증",
 	"STANDARD_CRYPTO": "스탠다드 암호화",
 	"ORIGINAL_CRYPTO": "원본 암호화",
-	"SELECT_TYPE_OF_ENCRYPTION": "암호화 유형을 선택하세요"
+	"SELECT_TYPE_OF_ENCRYPTION": "암호화 유형을 선택하세요",
+	"LAB_SAVE_FILE_IMAGE": "SAVE FILE IMAGE",
+	"LAB_EXTDATA_IMAGE": "EXTDATA IMAGE",
+	"CREATE_MISSING_DB_FILES": "Create missing .db files",
+	"PATH_FILE_ALREADY_EXISTS_RECREATE_IT_ANYWAY": "%s\nFile already exists. Recreate it anyway?",
+	"CREATE_DB_FILES_N_N_N_OK_FAILED_ALREADY_EXIST": "Create .db files ok/failed/already exist %d/%d/%d",
+	"CREATE_DB_FILES_N_N_OK_FAILED": "Create .db files ok/failed %d/%d",
+	"PATH_CREATE_DB_FILE_FAILED": "%s\nCreate .db file failed",
+	"NO_MISSING_DB_FILES_DETECTED": "No missing .db files detected.",
+	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "Successfully created .db files for drive."
 }

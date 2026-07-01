@@ -825,5 +825,14 @@
 	"VERIFY_SIGNATURES": "Signaturen überprüfen",
 	"STANDARD_CRYPTO": "Standardverschlüsselung",
 	"ORIGINAL_CRYPTO": "Original Verschlüsselung",
-	"SELECT_TYPE_OF_ENCRYPTION": "Art der Verschlüsselung auswählen"
+	"SELECT_TYPE_OF_ENCRYPTION": "Art der Verschlüsselung auswählen",
+	"LAB_SAVE_FILE_IMAGE": "SAVE FILE IMAGE",
+	"LAB_EXTDATA_IMAGE": "EXTDATA IMAGE",
+	"CREATE_MISSING_DB_FILES": "Create missing .db files",
+	"PATH_FILE_ALREADY_EXISTS_RECREATE_IT_ANYWAY": "%s\nFile already exists. Recreate it anyway?",
+	"CREATE_DB_FILES_N_N_N_OK_FAILED_ALREADY_EXIST": "Create .db files ok/failed/already exist %d/%d/%d",
+	"CREATE_DB_FILES_N_N_OK_FAILED": "Create .db files ok/failed %d/%d",
+	"PATH_CREATE_DB_FILE_FAILED": "%s\nCreate .db file failed",
+	"NO_MISSING_DB_FILES_DETECTED": "No missing .db files detected.",
+	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "Successfully created .db files for drive."
 }

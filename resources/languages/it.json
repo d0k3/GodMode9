@@ -825,5 +825,14 @@
 	"VERIFY_SIGNATURES": "Verifica le firme",
 	"STANDARD_CRYPTO": "Crittografia standard",
 	"ORIGINAL_CRYPTO": "Crittografia originale",
-	"SELECT_TYPE_OF_ENCRYPTION": "Seleziona il tipo di crittografia"
+	"SELECT_TYPE_OF_ENCRYPTION": "Seleziona il tipo di crittografia",
+	"LAB_SAVE_FILE_IMAGE": "SALVA FILE IMMAGINE",
+	"LAB_EXTDATA_IMAGE": "EXTDATA IMMAGINE",
+	"CREATE_MISSING_DB_FILES": "Crea file .db mancanti",
+	"PATH_FILE_ALREADY_EXISTS_RECREATE_IT_ANYWAY": "%s\nIl file esiste già. Vuoi ricrearlo?",
+	"CREATE_DB_FILES_N_N_N_OK_FAILED_ALREADY_EXIST": "Creazione file .db ok/non riuscita/già esistono %d/%d/%d",
+	"CREATE_DB_FILES_N_N_OK_FAILED": "Creazione file .db ok/non riuscita %d/%d",
+	"PATH_CREATE_DB_FILE_FAILED": "%s\nCreazione file .db non riuscita",
+	"NO_MISSING_DB_FILES_DETECTED": "Nessun file .db mancante rilevato.",
+	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "File .db creati con successo sull'unità."
 }
