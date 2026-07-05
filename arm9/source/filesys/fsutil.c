@@ -12,6 +12,7 @@
 #include "ui.h"
 #include "swkbd.h"
 #include "language.h"
+#include "timer.h"
 
 #define SKIP_CUR        (1UL<<11)
 #define OVERWRITE_CUR   (1UL<<12)
@@ -39,6 +40,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x55, 0xAA
     };
+    u32 disk_id = (u32) timer_start(); // free running HW timer, ticking since boot -> random enough
     u32 sd_size = getMMCDevice(1)->total_size;
     u32 emu_sector = 1;
     u32 emu_size = (u32) ((hidden_mb * 1024 * 1024) / 512);
@@ -62,6 +64,7 @@ bool FormatSDCard(u64 hidden_mb, u32 cluster_size, const char* label) {
     memcpy(mbrdata + 0x0C, &fat_size, 4);
     memcpy(mbrdata + 0x18, &emu_sector, 4);
     memcpy(mbrdata + 0x1C, &emu_size, 4);
+    memcpy(mbr + 0x1B8, &disk_id, 4);
     memcpy(mbr + 0x1BE, mbrdata, 0x42);
     if (hidden_mb) memcpy(mbr, "GATEWAYNAND", 12); // legacy
     else memset(mbr + 0x1CE, 0, 0x10);
