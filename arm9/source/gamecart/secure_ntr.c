@@ -120,15 +120,7 @@ void NTR_ApplyKey (u32* pCardHash, int nCardHash, u32* pKeyCode)
 
 void NTR_InitKey (u32 aGameCode, u32* pCardHash, int nCardHash, u32* pKeyCode, int level, int iCardDevice)
 {
-    if(iCardDevice == 2)
-    {
-        size_t len = LoadSupportFile(BLOWFISHKEYDEV_NAME, pCardHash, 0x1048);
-        pKeyCode[0] = 0;
-		pKeyCode[1] = 0;
-		pKeyCode[2] = 0;
-		return;
-    }
-    else if(iCardDevice == 1)
+    if(iCardDevice)
     {
         const u8* BlowfishTwl = (const u8*)0x01FFD3E0;
         memcpy (pCardHash, BlowfishTwl, 0x1048);
@@ -262,12 +254,12 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
     iGameCode = *((vu32*)(void*)&header[0x0C]);
     ReadDataFlags = cardControl13 & ~ NTRCARD_BLK_SIZE(7);
 
-    if(iCardDevice && ((header[0x1BF] & 0x80) || (header[0x1C] & 0x04))) // dsi dev app
+    if (iCardDevice && ((header[0x1BF] & 0x80) || (header[0x1C] & 0x04))) // dsi dev app
     {
         size_t fsize;
-        if (!CheckSupportFile(BLOWFISHKEYDEV_NAME, &fsize)) return false;
-        if (fsize != 0x1048) return false;
-        NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, 1, 2);
+        if (!CheckSupportFile(BLOWFISHKEYDEV_NAME, &fsize) || (fsize != 0x1048)) return false;
+        if (LoadSupportFile(BLOWFISHKEYDEV_NAME, iCardHash, 0x1048) != 0x1048) return false;
+        memset(iKeyCode, 0, sizeof(iKeyCode));
     }
     else // retail
     {
