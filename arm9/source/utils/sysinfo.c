@@ -256,6 +256,8 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
                 strncpy(info->sub_model, "IS-CTR-BOX", countof("IS-CTR-BOX"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_OLD_3DS_XL)) {
                 strncpy(info->sub_model, "IS-SPR-BOX", countof("IS-SPR-BOX"));
+            } else if ((first_digit == '9') && (second_digit == '0') && (info->int_model == MODEL_NEW_3DS)){
+                strncpy(info->sub_model, "IS-RAY-DEBUGGER", countof("IS-RAY-DEBUGGER"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_NEW_3DS)) {
                 strncpy(info->sub_model, "IS-SNAKE-BOX", countof("IS-SNAKE-BOX"));
             } else {
