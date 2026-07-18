@@ -254,7 +254,7 @@ bool ShowKeyboard(char* inputstr, const u32 max_size, const char *format, ...) {
     static const u8 layout_special[] = { SWKBD_LAYOUT_SPECIAL };
     static const u8 layout_numpad[] = { SWKBD_LAYOUT_NUMPAD };
     TouchBox swkbd_alphabet[64];
-    TouchBox swkbd_special[32];
+    TouchBox swkbd_special[40];
     TouchBox swkbd_numpad[32];
     TouchBox* textbox = swkbd_alphabet; // always use this textbox
 

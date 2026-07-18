@@ -1881,7 +1881,7 @@ bool MemTextViewer(const char* text, u32 len, u32 start, bool as_script, u32 max
     static const u8 layout_special[] = { SWKBD_LAYOUT_SPECIAL };
     static const u8 layout_numpad[] = { SWKBD_LAYOUT_NUMPAD };
     TouchBox swkbd_alphabet[64];
-    TouchBox swkbd_special[32];
+    TouchBox swkbd_special[40];
     TouchBox swkbd_numpad[32];
 
     u32 uppercase = 0;
