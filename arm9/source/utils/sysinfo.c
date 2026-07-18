@@ -250,13 +250,14 @@ void GetSysInfo_SecureInfo(SysInfo* info, char nand_drive) {
     // Determine the sub-model from the first two digits of the digit part.
     if (first_digit && second_digit) {
         if (IS_DEVKIT) {
-            // missing: identification for IS-CLOSER-BOX (issue #276)
             if ((first_digit == '9') && (second_digit == '0') && (info->int_model == MODEL_OLD_3DS)) {
                 strncpy(info->sub_model, "Partner-CTR", countof("Partner-CTR"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_OLD_3DS)) {
                 strncpy(info->sub_model, "IS-CTR-BOX", countof("IS-CTR-BOX"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_OLD_3DS_XL)) {
                 strncpy(info->sub_model, "IS-SPR-BOX", countof("IS-SPR-BOX"));
+            } else if ((first_digit == '9') && (second_digit == '0') && (info->int_model == MODEL_NEW_3DS)){
+                strncpy(info->sub_model, "IS-RAY-DEBUGGER", countof("IS-RAY-DEBUGGER"));
             } else if ((first_digit == '9') && (second_digit == '1') && (info->int_model == MODEL_NEW_3DS)) {
                 strncpy(info->sub_model, "IS-SNAKE-BOX", countof("IS-SNAKE-BOX"));
             } else {
