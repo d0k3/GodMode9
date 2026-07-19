@@ -23,6 +23,7 @@
 #include "card_ntr.h"
 // #include "draw.h"
 #include "timer.h"
+#include "support.h"
 
 
 #define BSWAP32(val) ((((val >> 24) & 0xFF)) | (((val >> 16) & 0xFF) << 8) | (((val >> 8) & 0xFF) << 16) | ((val & 0xFF) << 24))
@@ -252,7 +253,18 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
 
     iGameCode = *((vu32*)(void*)&header[0x0C]);
     ReadDataFlags = cardControl13 & ~ NTRCARD_BLK_SIZE(7);
-    NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, iCardDevice?1:2, iCardDevice);
+
+    if (iCardDevice && ((header[0x1BF] & 0x80) || (header[0x1C] & 0x04))) // dsi dev app
+    {
+        size_t fsize;
+        if (!CheckSupportFile(BLOWFISHKEYDEV_NAME, &fsize) || (fsize != 0x1048)) return false;
+        if (LoadSupportFile(BLOWFISHKEYDEV_NAME, iCardHash, 0x1048) != 0x1048) return false;
+        memset(iKeyCode, 0, sizeof(iKeyCode));
+    }
+    else // retail
+    {
+        NTR_InitKey (iGameCode, iCardHash, nCardHash, iKeyCode, iCardDevice?1:2, iCardDevice);
+    }
 
     if(!iCheapCard) flagsKey1 |= NTRCARD_SEC_LARGE;
     //Debug("iCheapCard=%d, readTimeout=%d", iCheapCard, readTimeout);
