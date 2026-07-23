@@ -47,4 +47,7 @@ function util.running_as_module()
     return type(required) == "string"
 end
 
+util.utf16_to_utf8 = _util.utf16_to_utf8
+util.utf8_to_utf16 = _util.utf8_to_utf16
+
 return util

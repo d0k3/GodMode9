@@ -16,6 +16,7 @@
 #include "gm9internali2c.h"
 #include "gm9internalfs.h"
 #include "gm9internalsys.h"
+#include "gm9internalutil.h"
 
 #define DEBUGSP(x) ShowPrompt(false, (x))
 
@@ -117,6 +118,7 @@ static const luaL_Reg gm9lualibs[] = {
     {GM9LUA_INTERNALFSLIBNAME, gm9lua_open_internalfs},
     {GM9LUA_INTERNALSYSLIBNAME, gm9lua_open_internalsys},
     {GM9LUA_I2CLIBNAME, gm9lua_open_internali2c},
+    {GM9LUA_INTERNALUTILLIBNAME, gm9lua_open_internalutil},
 
     {NULL, NULL}
 };
