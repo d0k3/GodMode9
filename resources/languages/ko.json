@@ -826,13 +826,13 @@
 	"STANDARD_CRYPTO": "스탠다드 암호화",
 	"ORIGINAL_CRYPTO": "원본 암호화",
 	"SELECT_TYPE_OF_ENCRYPTION": "암호화 유형을 선택하세요",
-	"LAB_SAVE_FILE_IMAGE": "SAVE FILE IMAGE",
-	"LAB_EXTDATA_IMAGE": "EXTDATA IMAGE",
-	"CREATE_MISSING_DB_FILES": "Create missing .db files",
-	"PATH_FILE_ALREADY_EXISTS_RECREATE_IT_ANYWAY": "%s\nFile already exists. Recreate it anyway?",
-	"CREATE_DB_FILES_N_N_N_OK_FAILED_ALREADY_EXIST": "Create .db files ok/failed/already exist %d/%d/%d",
-	"CREATE_DB_FILES_N_N_OK_FAILED": "Create .db files ok/failed %d/%d",
-	"PATH_CREATE_DB_FILE_FAILED": "%s\nCreate .db file failed",
-	"NO_MISSING_DB_FILES_DETECTED": "No missing .db files detected.",
-	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "Successfully created .db files for drive."
+	"LAB_SAVE_FILE_IMAGE": "파일 이미지 저장",
+	"LAB_EXTDATA_IMAGE": "EXTDATA 이미지",
+	"CREATE_MISSING_DB_FILES": "누락된 .db 파일 생성",
+	"PATH_FILE_ALREADY_EXISTS_RECREATE_IT_ANYWAY": "%s\n파일이 이미 존재합니다. 그래도 다시 만들겠습니까?",
+	"CREATE_DB_FILES_N_N_N_OK_FAILED_ALREADY_EXIST": ".db 파일 생성 성공/실패/이미 존재 %d/%d/%d",
+	"CREATE_DB_FILES_N_N_OK_FAILED": ".db 파일 생성 성공/실패 %d/%d",
+	"PATH_CREATE_DB_FILE_FAILED": "%s\n.db 파일 생성 실패",
+	"NO_MISSING_DB_FILES_DETECTED": "누락된 .db 파일이 발견되지 않았습니다.",
+	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "드라이브에 대한 .db 파일을 성공적으로 생성했습니다."
 }
