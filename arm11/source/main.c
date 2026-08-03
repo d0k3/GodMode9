@@ -157,7 +157,7 @@ void __attribute__((noreturn)) MainLoop(void)
 
 				devId = (args[0] & 0xff);
 				regAddr = (args[0] >> 8) & 0xFF;
-				size = (args[0] >> 16) % SHMEM_BUFFER_SIZE;
+				size = ((args[0] >> 16) & 0x7FFF) % SHMEM_BUFFER_SIZE;
 
 				if (args[0] & BIT(31)) {
 					pxiReply = I2C_writeRegBuf(devId, regAddr, sharedMem.dataBuffer.b, size);
