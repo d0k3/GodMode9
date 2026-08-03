@@ -9,9 +9,8 @@ bool I2C_readRegBuf(I2cDevice devId, u8 regAddr, u8 *out, u32 size)
 {
 	int ret;
 
-	if (size >= SHMEM_BUFFER_SIZE)
-		return false;
-	if (size > 0x7FFF)
+	_Static_assert(SHMEM_BUFFER_SIZE < BIT(15));
+	if (size >= BIT(15))
 		return false;
 
 	u8 *const dataBuffer = ARM_GetSHMEM()->dataBuffer.b;
@@ -28,9 +27,8 @@ bool I2C_writeRegBuf(I2cDevice devId, u8 regAddr, const u8 *in, u32 size)
 {
 	int ret;
 
-	if (size >= SHMEM_BUFFER_SIZE)
-		return false;
-	if (size > 0x7FFF)
+	_Static_assert(SHMEM_BUFFER_SIZE < BIT(15));
+	if (size >= BIT(15))
 		return false;
 
 	u8 *const dataBuffer = ARM_GetSHMEM()->dataBuffer.b;
