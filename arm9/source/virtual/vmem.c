@@ -145,9 +145,16 @@ int ReadVMemMCURegisters(const VirtualFile* vfile, void* buffer, u64 offset, u64
 
     // The table puts the device ID into the keyslot field.
     u8 device = (u8) vfile->keyslot;
+    u8 *byteBuffer = (u8*)buffer;
 
-    // Read the data.
-    return (I2C_readRegBuf(device, (u8) offset, (u8*) buffer, (u32) count)) ? 0 : 1;
+    if (offset > 0x100 || count > 0x100 || (offset + count) > 0x100)
+        return 1;
+
+    // Read the data byte-by-byte, some registers are multi-byte deep and
+    // this will return the first byte of each register.
+    for (u32 i = 0; i < count; i++)
+        byteBuffer[i] = I2C_readReg(device, offset + i);
+    return 0;
 }
 
 // Read NAND / SD CID.
