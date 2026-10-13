@@ -2,6 +2,7 @@
 #include "fsdrive.h"
 #include "fsinit.h"
 #include "gamecart.h"
+#include "command_dspico.h"
 #include "image.h"
 #include "save_ctr.h"
 
@@ -16,11 +17,107 @@ static CartData* cdata = NULL;
 static bool cart_init = false;
 static bool cart_checked = false;
 static bool enable_dec_ctr_save = false;
+static bool dspico_present = false;
+
+static bool EnterRomMode(void) {
+    if (!DSpico_IsDirty()) return true;
+    return cdata && (InitCartRead(cdata) == 0);
+}
+
+static bool EnterSdMode(void) {
+    if (!dspico_present) return false;
+    if (DSpico_IsReady() || DSpico_Enter()) return true;
+    // retry once from a fresh cart init
+    return cdata && (InitCartRead(cdata) == 0) && DSpico_Enter();
+}
+
+// a failed transfer can leave the card mid-command, start over from a fresh init
+static bool RecoverSdMode(void) {
+    DSpico_Reset();
+    return cdata && (InitCartRead(cdata) == 0) && DSpico_Enter();
+}
+
+static int WriteSectorsRetry(const void* buffer, u32 sec, u32 n) {
+    for (u32 i = 0; i < 3; i++) {
+        if (DSpico_WriteSectors(buffer, sec, n) == 0) return 0;
+        if (!RecoverSdMode()) break;
+    }
+    return -1;
+}
+
+static int ReadSectorsRetry(void* buffer, u32 sec, u32 n) {
+    for (u32 i = 0; i < 3; i++) {
+        if (DSpico_ReadSectors(buffer, sec, n) == 0) return 0;
+        if (!RecoverSdMode()) break;
+    }
+    return -1;
+}
+
+int ReadVCartDSpicoBytes(void* buffer, u64 offset, u64 count) {
+    u8 ALIGN(32) sector[0x200];
+    u8* buffer8 = (u8*) buffer;
+    if (!EnterSdMode()) return -1;
+    while (count) {
+        u32 sec = offset / 0x200;
+        u32 soff = offset % 0x200;
+        u32 len = min(0x200 - soff, count);
+        if (!soff && (len == 0x200)) {
+            u32 n = min(count / 0x200, 0x80);
+            if (ReadSectorsRetry(buffer8, sec, n) != 0) return -1;
+            len = n * 0x200;
+        } else {
+            if (ReadSectorsRetry(sector, sec, 1) != 0) return -1;
+            memcpy(buffer8, sector + soff, len);
+        }
+        buffer8 += len;
+        offset += len;
+        count -= len;
+    }
+    return 0;
+}
+
+int WriteVCartDSpicoBytes(const void* buffer, u64 offset, u64 count) {
+    u8 ALIGN(32) sector[0x200];
+    const u8* buffer8 = (const u8*) buffer;
+    if (!EnterSdMode()) return -1;
+    while (count) {
+        u32 sec = offset / 0x200;
+        u32 soff = offset % 0x200;
+        u32 len = min(0x200 - soff, count);
+        if (len == 0x200) {
+            u32 n = min(count / 0x200, 0x80);
+            if (WriteSectorsRetry(buffer8, sec, n) != 0) return -1;
+            len = n * 0x200;
+        } else {
+            if (ReadSectorsRetry(sector, sec, 1) != 0) return -1;
+            memcpy(sector + soff, buffer8, len);
+            if (WriteSectorsRetry(sector, sec, 1) != 0) return -1;
+        }
+        buffer8 += len;
+        offset += len;
+        count -= len;
+    }
+    return 0;
+}
+
+const char* GetVCartDSpicoImagePath(void) {
+    return (cart_init && dspico_present) ? DSPICO_IMAGE_PATH : NULL;
+}
+
+u64 GetVCartDSpicoSize(void) {
+    return (cart_init && dspico_present) ? DSpico_GetSdSize() : 0;
+}
 
 u32 InitVCartDrive(void) {
     if (!cart_checked) cart_checked = true;
     if (!cdata) cdata = (CartData*) malloc(sizeof(CartData));
-    cart_init = (cdata && (InitCartRead(cdata) == 0) && (cdata->cart_size <= FAT_LIMIT));
+    dspico_present = false;
+    cart_init = (cdata && (InitCartRead(cdata) == 0));
+    cart_init = cart_init && (cdata->cart_size <= FAT_LIMIT);
+    if (cart_init && (cdata->cart_type & CART_NTR) && DSpico_CheckGameCode(cdata->header)) {
+        dspico_present = DSpico_Enter(); // probe, then back to ROM mode
+        cart_init = (InitCartRead(cdata) == 0);
+    }
     if (!cart_init && cdata) {
         free(cdata);
         cdata = NULL;
@@ -90,6 +187,7 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             return true;
         } else if (vdir->index == 9) { // gamecart info
             char info[301];
+            EnterRomMode();
             GetCartInfoString(info, sizeof(info), cdata);
             snprintf(vfile->name, 32, "%s.txt", name);
             vfile->size = strnlen(info, 300);
@@ -102,8 +200,9 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
 }
 
 int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
-    u32 foffset = vfile->offset + offset;
     if (!cdata) return -1;
+    u32 foffset = vfile->offset + offset;
+    if (!EnterRomMode()) return -1;
 
     if (vfile->flags & VFLAG_PRIV_HDR)
         return ReadCartPrivateHeader(buffer, foffset, count, cdata);
@@ -120,6 +219,7 @@ int ReadVCartFile(const VirtualFile* vfile, void* buffer, u64 offset, u64 count)
 
 int WriteVCartFile(const VirtualFile* vfile, const void* buffer, u64 offset, u64 count) {
     if (!cdata) return -1;
+    if (!EnterRomMode()) return -1;
     if (vfile->flags & VFLAG_SAVEGAME) {
         int res = WriteCartSave(buffer, offset, count, cdata);
         if (cdata->cart_type & CART_CTR) {
@@ -141,6 +241,7 @@ u64 GetVCartDriveSize(void) {
 void GetVCartTypeString(char* typestr) {
     // typestr needs to be at least 11 + 1 chars big
     if (!cart_init || !cdata) sprintf(typestr, cart_checked ? "EMPTY" : "");
+    else if (dspico_present) sprintf(typestr, "DSPICO SD");
     else sprintf(typestr, "%s%08lX",
         (cdata->cart_type & CART_CTR) ? "CTR" :
         (cdata->cart_type & CART_TWL) ? "TWL" :

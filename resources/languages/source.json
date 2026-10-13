@@ -1,6 +1,6 @@
 {
 	"GM9_LANGUAGE": "[LANGUAGE NAME]",
-	"GM9_TRANS_VER": 2,
+	"GM9_TRANS_VER": 3,
 	"DATE_TIME_FORMAT": "%1$s%2$02lX-%3$02lX-%4$02lX %5$02lX:%6$02lX",
 	"DECIMAL_SEPARATOR": ".",
 	"THOUSAND_SEPARATOR": ",",
@@ -72,6 +72,9 @@
 	"UNMOUNT_IMAGE": "R+X - Unmount image\n",
 	"UNMOUNT_SD": "R+B - Unmount SD card\n",
 	"REMOUNT_SD": "R+B - Remount SD card\n",
+	"UNEXPECTED_DSPICO_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT": "!Unexpected DSpico removal!\n \nTo prevent data loss, unmount\nbefore ejecting the DSpico cart.",
+	"UNMOUNT_DSPICO_SD": "R+X - Unmount DSpico SD card\n",
+	"MOUNT_DSPICO_SD": "R+X - Mount DSpico SD card\n",
 	"DIRECTORY_OPTIONS": "R+A - Directory options\n",
 	"DRIVE_OPTIONS": "R+A - Drive options\n",
 	"MAKE_SCREENSHOT": "R+L - Make a Screenshot\n",

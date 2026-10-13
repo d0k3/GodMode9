@@ -89,6 +89,7 @@ GodMode9 provides access to system data via drives, a listing of what each drive
 * __`9: RAM DRIVE / IMGNAND TWLP`__: This provides access to the RAM drive. All data stored inside the RAM drive is temporary and will be wiped after a reboot. When a NAND image is mounted, this provides access to the mounted NAND image's TWLP.
 * __`I: IMGNAND VIRTUAL`__: When a NAND image is mounted, this provides access to the partitions inside the NAND image.
 * __`C: GAMECART`__: This is read-only and provides access to the game cartridge currently inserted into the cart slot. This can be used for dumps of CTR and TWL mode cartridges. Flash cards are supported only to a limited extent.
+* __`7: DSPICO SD`__: This provides access to the SD card of a DSpico flashcart inserted into the cart slot. It is mounted automatically and works like the regular SD card. It shares `7:` with FAT images, so only one can be mounted at a time. Use `R+X` to unmount or remount it, and unmount before ejecting the cart.
 * __`G: GAME IMAGE`__: CIA/NCSD/NCCH/EXEFS/ROMFS/FIRM images can be accessed via this drive when mounted. This is read-only.
 * __`K: AESKEYDB IMAGE`__: An `aeskeydb.bin` image can be mounted and accessed via this drive. The drive shows all keys inside the aeskeydb.bin. This is read-only.
 * __`T: TICKET.DB IMAGE / BDRI IMAGE`__: Ticket database files can be mounted and accessed via this drive. This provides easy and quick access to all tickets inside the `ticket.db`. This drive also provides access to other BDRI images, such as the Title database (`title.db`).

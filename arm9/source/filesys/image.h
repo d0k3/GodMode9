@@ -11,5 +11,6 @@ int SyncImage(void);
 
 u64 GetMountSize(void);
 u64 GetMountState(void);
+bool IsMountedDSpico(void);
 const char* GetMountPath(void);
 u64 MountImage(const char* path);

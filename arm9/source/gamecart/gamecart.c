@@ -2,6 +2,7 @@
 #include "protocol.h"
 #include "command_ctr.h"
 #include "command_ntr.h"
+#include "command_dspico.h"
 #include "card_spi.h"
 #include "nds.h"
 #include "ncch.h"
@@ -163,6 +164,7 @@ static u32 GetCtrCartSaveSize(CartData* cdata) {
 
 u32 InitCartRead(CartData* cdata) {
     get_dstime(&init_time);
+    DSpico_Reset();
     encrypted_sa = false;
     memset(cdata, 0x00, sizeof(CartData));
     cdata->cart_type = CART_NONE;
@@ -262,8 +264,11 @@ u32 InitCartRead(CartData* cdata) {
         cdata->data_size = nds_header->ntr_rom_size;
         cdata->arm9i_rom_offset = 0;
 
+        // DSpico serves a DSi ROM with odd TWL offsets, treat as plain NTR
+        bool dspico = DSpico_CheckGameCode(cdata->header);
+
         // TWL header
-        if (nds_header->unit_code != 0x00) { // DSi or NDS+DSi
+        if ((nds_header->unit_code != 0x00) && !dspico) { // DSi or NDS+DSi
             cdata->cart_type |= CART_TWL;
             cdata->data_size = nds_header->ntr_twl_rom_size;
             cdata->arm9i_rom_offset = nds_header->arm9i_rom_offset;
@@ -291,6 +296,9 @@ u32 InitCartRead(CartData* cdata) {
 
         // store encrypted secure area
         memcpy(cdata->storage, secure_area_enc, 0x4000);
+
+        if (dspico && (cdata->data_size > cdata->cart_size))
+            cdata->cart_size = cdata->data_size;
 
         // last safety check
         if (cdata->data_size > cdata->cart_size) return 1;

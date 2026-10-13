@@ -298,7 +298,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         ((CheckSDMountState()) ? (1<<2) : 0) |
         ((GetMountState()) ? (1<<3) : 0) |
         ((GetWritePermissions() > PERM_BASE) ? (1<<4) : 0) |
-        (curr_pane<<5);
+        (curr_pane<<5) |
+        ((GetVCartDSpicoImagePath()) ? (1<<8) : 0); // hint line count depends on DSpico
 
     if (state_prev != state_curr) {
         ClearScreenF(true, false, COLOR_STD_BG);
@@ -367,7 +368,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         FLAVOR " " VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? STR_MARK_DELETE_COPY : STR_MARK_DELETE_PASTE) :
         ((GetWritePermissions() > PERM_BASE) ? STR_RELOCK_WRITE_PERMISSION : ""),
-        (*curr_path) ? "" : (GetMountState()) ? STR_UNMOUNT_IMAGE : "",
+        (*curr_path) ? "" : (GetMountState()) ? (IsMountedDSpico() ? STR_UNMOUNT_DSPICO_SD : STR_UNMOUNT_IMAGE) : (GetVCartDSpicoImagePath()) ? STR_MOUNT_DSPICO_SD : "",
         (*curr_path) ? "" : (CheckSDMountState()) ? STR_UNMOUNT_SD : STR_REMOUNT_SD,
         (*curr_path) ? STR_DIRECTORY_OPTIONS : STR_DRIVE_OPTIONS,
         STR_MAKE_SCREENSHOT,
@@ -1014,6 +1015,12 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
     }
 
     return 0;
+}
+
+// a DSpico SD card is mounted on the image drive, unless another image is already mounted
+static void AutoMountDSpico(void) {
+    if (GetVCartDSpicoImagePath() && !*GetMountPath())
+        InitImgFS(GetVCartDSpicoImagePath());
 }
 
 u32 CartRawDump(void) {
@@ -2507,6 +2514,8 @@ u32 GodMode(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
+    InitVCartDrive(); // fails harmlessly without a cart
+    AutoMountDSpico();
     if (!CalibrateTouchFromSupportFile())
         CalibrateTouchFromFlash();
 
@@ -2818,7 +2827,11 @@ u32 GodMode(int entrypoint) {
 
         // highly specific commands
         if (!*current_path) { // in the root folder...
-            if (switched && (pad_state & BUTTON_X)) { // unmount image
+            if (switched && (pad_state & BUTTON_X) && !GetMountState() && GetVCartDSpicoImagePath()) { // remount DSpico SD
+                AutoMountDSpico();
+                ClearScreenF(false, true, COLOR_STD_BG);
+                GetDirContents(current_dir, current_path);
+            } else if (switched && (pad_state & BUTTON_X)) { // unmount image
                 if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
                     clipboard->n_entries = 0; // remove last mounted image clipboard entries
                 SetTitleManagerMode(false);
@@ -3081,14 +3094,26 @@ u32 GodMode(int entrypoint) {
                 break;
             }
         } else if (pad_state & (CART_INSERT|CART_EJECT)) {
+            if (IsMountedDSpico()) { // same handling as SD_EJECT
+                if (pad_state & CART_EJECT)
+                    ShowPrompt(false, "%s", STR_UNEXPECTED_DSPICO_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT);
+                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
+                    clipboard->n_entries = 0; // remove card clipboard entries
+                InitImgFS(NULL);
+                if (curr_drvtype & DRV_IMAGE) {
+                    *current_path = '\0';
+                    cursor = 0;
+                }
+            }
             if (!InitVCartDrive() && (pad_state & CART_INSERT) &&
                 (curr_drvtype & DRV_CART)) // reinit virtual cart drive
                 ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
+            if (pad_state & CART_INSERT) AutoMountDSpico();
             // unmount any gamecart image if the gamecart was removed
             if (pad_state & CART_EJECT && *GetMountPath() && DriveType(GetMountPath()) & DRV_CART) {
                 InitImgFS(NULL);
             }
-            if (!(*current_path) || (curr_drvtype & DRV_CART)) {
+            if (!(*current_path) || (curr_drvtype & (DRV_CART|DRV_IMAGE))) {
                 GetDirContents(current_dir, current_path); // refresh dir contents
             }
         } else if (pad_state & SD_INSERT) {

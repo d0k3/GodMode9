@@ -104,7 +104,12 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         entry->name = entry->path + entry->p_name;
         memset(entry->path, 0x00, 256);
         snprintf(entry->path,  4, "%s", drvnum[i]);
-        if ((*(drvnum[i]) >= '7') && (*(drvnum[i]) <= '9') && !(GetMountState() & IMG_NAND)) // Drive 7...9 handling
+        if ((*(drvnum[i]) == '7') && IsMountedDSpico()) { // DSpico SD card
+            char dslabel[DRV_LABEL_LEN];
+            if (!GetFATVolumeLabel("7:", dslabel) || !(*dslabel))
+                strcpy(dslabel, STR_LAB_NOLABEL);
+            snprintf(entry->name, 252, "[%s] DSPICO SD (%s)", drvnum[i], dslabel);
+        } else if ((*(drvnum[i]) >= '7') && (*(drvnum[i]) <= '9') && !(GetMountState() & IMG_NAND)) // Drive 7...9 handling
             snprintf(entry->name, 252, "[%s] %s", drvnum[i],
                 (*(drvnum[i]) == '7') ? STR_LAB_FAT_IMAGE :
                 (*(drvnum[i]) == '8') ? STR_LAB_BONUS_DRIVE :
