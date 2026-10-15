@@ -234,7 +234,7 @@ u64 GetVCartDriveSize(void) {
 void GetVCartTypeString(char* typestr) {
     // typestr needs to be at least 11 + 1 chars big
     if (!cart_init || !cdata) sprintf(typestr, cart_checked ? "EMPTY" : "");
-    else if (dspico_present) sprintf(typestr, "DSPICO SD");
+    else if (dspico_present) sprintf(typestr, "DSPICO CART");
     else sprintf(typestr, "%s%08lX",
         (cdata->cart_type & CART_CTR) ? "CTR" :
         (cdata->cart_type & CART_TWL) ? "TWL" :
