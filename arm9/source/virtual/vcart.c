@@ -18,6 +18,7 @@ static bool cart_init = false;
 static bool cart_checked = false;
 static bool enable_dec_ctr_save = false;
 static bool dspico_present = false;
+static size_t info_size = 0;
 
 static bool EnterRomMode(void) {
     if (!DSpico_IsDirty()) return true;
@@ -31,26 +32,13 @@ static bool EnterSdMode(void) {
     return cdata && (InitCartRead(cdata) == 0) && DSpico_Enter();
 }
 
-// a failed transfer can leave the card mid-command, start over from a fresh init
-static bool RecoverSdMode(void) {
-    DSpico_Reset();
-    return cdata && (InitCartRead(cdata) == 0) && DSpico_Enter();
+// like native SD and cart access: one attempt, a failure is returned to the caller.
+static int WriteSectorsOnce(const void* buffer, u32 sec, u32 n) {
+    return DSpico_WriteSectors(buffer, sec, n) == 0 ? 0 : -1;
 }
 
-static int WriteSectorsRetry(const void* buffer, u32 sec, u32 n) {
-    for (u32 i = 0; i < 3; i++) {
-        if (DSpico_WriteSectors(buffer, sec, n) == 0) return 0;
-        if (!RecoverSdMode()) break;
-    }
-    return -1;
-}
-
-static int ReadSectorsRetry(void* buffer, u32 sec, u32 n) {
-    for (u32 i = 0; i < 3; i++) {
-        if (DSpico_ReadSectors(buffer, sec, n) == 0) return 0;
-        if (!RecoverSdMode()) break;
-    }
-    return -1;
+static int ReadSectorsOnce(void* buffer, u32 sec, u32 n) {
+    return DSpico_ReadSectors(buffer, sec, n) == 0 ? 0 : -1;
 }
 
 int ReadVCartDSpicoBytes(void* buffer, u64 offset, u64 count) {
@@ -63,10 +51,10 @@ int ReadVCartDSpicoBytes(void* buffer, u64 offset, u64 count) {
         u32 len = min(0x200 - soff, count);
         if (!soff && (len == 0x200)) {
             u32 n = min(count / 0x200, 0x80);
-            if (ReadSectorsRetry(buffer8, sec, n) != 0) return -1;
+            if (ReadSectorsOnce(buffer8, sec, n) != 0) return -1;
             len = n * 0x200;
         } else {
-            if (ReadSectorsRetry(sector, sec, 1) != 0) return -1;
+            if (ReadSectorsOnce(sector, sec, 1) != 0) return -1;
             memcpy(buffer8, sector + soff, len);
         }
         buffer8 += len;
@@ -86,12 +74,12 @@ int WriteVCartDSpicoBytes(const void* buffer, u64 offset, u64 count) {
         u32 len = min(0x200 - soff, count);
         if (len == 0x200) {
             u32 n = min(count / 0x200, 0x80);
-            if (WriteSectorsRetry(buffer8, sec, n) != 0) return -1;
+            if (WriteSectorsOnce(buffer8, sec, n) != 0) return -1;
             len = n * 0x200;
         } else {
-            if (ReadSectorsRetry(sector, sec, 1) != 0) return -1;
+            if (ReadSectorsOnce(sector, sec, 1) != 0) return -1;
             memcpy(sector + soff, buffer8, len);
-            if (WriteSectorsRetry(sector, sec, 1) != 0) return -1;
+            if (WriteSectorsOnce(sector, sec, 1) != 0) return -1;
         }
         buffer8 += len;
         offset += len;
@@ -112,6 +100,7 @@ u32 InitVCartDrive(void) {
     if (!cart_checked) cart_checked = true;
     if (!cdata) cdata = (CartData*) malloc(sizeof(CartData));
     dspico_present = false;
+    info_size = 0;
     cart_init = (cdata && (InitCartRead(cdata) == 0));
     cart_init = cart_init && (cdata->cart_size <= FAT_LIMIT);
     if (cart_init && (cdata->cart_type & CART_NTR) && DSpico_CheckGameCode(cdata->header)) {
@@ -186,11 +175,15 @@ bool ReadVCartDir(VirtualFile* vfile, VirtualDir* vdir) {
             vfile->flags = VFLAG_DECRYPTED_SAVEGAME | VFLAG_READONLY /* for now */;
             return true;
         } else if (vdir->index == 9) { // gamecart info
-            char info[301];
-            EnterRomMode();
-            GetCartInfoString(info, sizeof(info), cdata);
+            // while the DSpico SD is active, reuse the known size instead of switching back to the cart
+            if (!info_size || !DSpico_IsDirty()) {
+                char info[301];
+                EnterRomMode();
+                GetCartInfoString(info, sizeof(info), cdata);
+                info_size = strnlen(info, 300);
+            }
             snprintf(vfile->name, 32, "%s.txt", name);
-            vfile->size = strnlen(info, 300);
+            vfile->size = info_size;
             vfile->flags |= VFLAG_GAMECART_NFO;
             return true;
         }
