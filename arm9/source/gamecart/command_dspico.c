@@ -1,6 +1,7 @@
 // DSpico SD protocol based on the open DSpico firmware and DLDI driver
 // (LNH-team/dspico-firmware, LNH-team/dspico-dldi), zlib license.
 #include "command_dspico.h"
+#include "protocol.h"
 #include "protocol_ntr.h"
 #include "timer.h"
 
@@ -8,14 +9,18 @@
 #define DSPICO_LEN_4    NTRCARD_PAGESIZE_4
 #define DSPICO_LEN_512  NTRCARD_PAGESIZE_512
 
-#define DSPICO_POLL_RETRIES 1000000
-#define DSPICO_TIMEOUT_TICKS ((u64)(TICKS_PER_SEC * 2))
-#define DSPICO_POLL_GAP_TICKS ((u64)(TICKS_PER_SEC / 20000)) // ~50 us
+#define DSPICO_PROBE_TICKS ((u64)(TICKS_PER_SEC * 2))
 #define DSPICO_SETTLE_MS    500 // GodMode9i waits ~30 frames after card init
 
 static u64 sd_size = 0;
 static bool sd_dirty = false; // not in ROM mode, needs InitCartRead
 static bool sd_ready = false;
+static bool probing = false;
+
+// waits never time out, only a removed cart ends them (same as the DSpico DLDI driver)
+static bool DSpico_CartPresent(void) {
+    return !(REG_CARDSTATUS & 0x1);
+}
 
 static void DSpico_SetCmd(u64 cmd) {
     for (u32 i = 0; i < 8; i++)
@@ -29,17 +34,17 @@ static u32 DSpico_Flags(u32 len, u32 latency2, u32 latency1, bool data_descrambl
 }
 
 static bool DSpico_WaitBusy(void) {
-    u64 start = timer_start();
-    while (timer_ticks(start) < DSPICO_TIMEOUT_TICKS)
-        if (!(REG_NTRCARDROMCNT & NTRCARD_BUSY)) return true;
-    return false;
+    while (REG_NTRCARDROMCNT & NTRCARD_BUSY)
+        if (!DSpico_CartPresent()) return false;
+    return true;
 }
 
 // polled transfer, words are read from or written to the data FIFO
 static bool DSpico_Transfer(u64 cmd, u32 flags, void* buffer, u32 words, bool write) {
     u8* data = (u8*) buffer;
+    u32* data32 = (u32*) buffer;
+    bool aligned = !(((u32) buffer) & 3);
     u32 done = 0;
-    u64 start = timer_start();
     REG_NTRCARDMCNT = NTRCARD_CR1_ENABLE;
     DSpico_SetCmd(cmd);
     REG_NTRCARDROMCNT = flags | (write ? NTRCARD_WR : 0);
@@ -49,15 +54,20 @@ static bool DSpico_Transfer(u64 cmd, u32 flags, void* buffer, u32 words, bool wr
         if (ctrl & NTRCARD_DATA_READY) {
             if (write) {
                 u32 word = 0;
-                if (done < words) memcpy(&word, data + (done * 4), 4);
+                if (done < words) {
+                    if (aligned) word = data32[done];
+                    else memcpy(&word, data + (done * 4), 4);
+                }
                 REG_NTRCARDFIFO = word;
             } else {
                 u32 word = REG_NTRCARDFIFO;
-                if (done < words) memcpy(data + (done * 4), &word, 4);
+                if (done < words) {
+                    if (aligned) data32[done] = word;
+                    else memcpy(data + (done * 4), &word, 4);
+                }
             }
             done++;
-        }
-        if (timer_ticks(start) > DSPICO_TIMEOUT_TICKS) return false;
+        } else if (!DSpico_CartPresent()) return false;
     } while (ctrl & NTRCARD_BUSY);
     return done >= words;
 }
@@ -69,15 +79,15 @@ static bool DSpico_RequestRead(u32 sector) {
 
 static bool DSpico_PollReady(void) {
     u32 result = 0;
-    for (u32 i = 0; i < DSPICO_POLL_RETRIES; i++) {
+    u64 begin = timer_start();
+    while (true) {
         if (!DSpico_Transfer(0xE400000000000000ull,
             DSpico_Flags(DSPICO_LEN_4, 4, 0, true), &result, 1, false)) return false;
         if (result == 1) return true;
-        // the card firmware needs a gap between polls
-        u64 t = timer_start();
-        while (timer_ticks(t) < DSPICO_POLL_GAP_TICKS);
+        if (!DSpico_CartPresent()) return false;
+        // only the probe is bounded, so a cart that is not a DSpico cannot hang it
+        if (probing && (timer_ticks(begin) > DSPICO_PROBE_TICKS)) return false;
     }
-    return false;
 }
 
 static bool DSpico_GetData(void* buffer) {
@@ -96,6 +106,8 @@ bool DSpico_CheckGameCode(const u8* header) {
     return (memcmp(header + 0x0C, "DSPI", 4) == 0) || (memcmp(header + 0x0C, "NTRJ", 4) == 0);
 }
 
+// the DSpico has no command for the SD size yet, so it is derived from the partition table
+// (see https://github.com/LNH-team/dspico-firmware/pull/7)
 static u64 DSpico_DetectSize(const u8* sector0) {
     if ((sector0[0x1FE] != 0x55) || (sector0[0x1FF] != 0xAA)) return 0;
     u64 size = 0;
@@ -137,7 +149,10 @@ bool DSpico_Enter(void) {
 
     // probe: a DSpico serves a valid MBR or FAT boot sector at sector 0
     u8 ALIGN(32) sector0[0x200];
-    if (DSpico_ReadSectors(sector0, 0, 1) != 0) return false;
+    probing = true;
+    int probe_res = DSpico_ReadSectors(sector0, 0, 1);
+    probing = false;
+    if (probe_res != 0) return false;
     sd_size = DSpico_DetectSize(sector0);
     if (!sd_size) return false;
     sd_ready = true;
