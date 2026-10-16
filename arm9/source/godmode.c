@@ -922,7 +922,7 @@ u32 ShaCalculator(const char* path, bool sha1) {
         bool have_sha = (FileGetData(sha_path, sha_file, hashlen, 0) == hashlen);
         bool match_sha = have_sha && (memcmp(hash, sha_file, hashlen) == 0);
         bool match_prev = (memcmp(hash, hash_prev, hashlen) == 0);
-        bool write_sha = (!have_sha || !match_sha) && (drvtype & DRV_SDCARD); // writing only on SD
+        bool write_sha = (!have_sha || !match_sha) && ((drvtype & DRV_SDCARD) || ((drvtype & DRV_IMAGE) && IsMountedDSpico())); // writing only on SD and the DSpico SD
         char hash_str[32+1+32+1];
         if (sha1)
             snprintf(hash_str, sizeof(hash_str), "%016llX%04X\n%016llX%04X", getbe64(hash + 0), getbe16(hash + 8),
