@@ -9,7 +9,6 @@ static char mount_path[256] = { 0 };
 
 static bool fix_cmac = false;
 
-
 int ReadImageBytes(void* buffer, u64 offset, u64 count) {
     UINT bytes_read;
     UINT ret;
@@ -36,11 +35,11 @@ int WriteImageBytes(const void* buffer, u64 offset, u64 count) {
 }
 
 int ReadImageSectors(void* buffer, u32 sector, u32 count) {
-    return ReadImageBytes(buffer, sector * 0x200, count * 0x200);
+    return ReadImageBytes(buffer, (u64) sector * 0x200, (u64) count * 0x200);
 }
 
 int WriteImageSectors(const void* buffer, u32 sector, u32 count) {
-    return WriteImageBytes(buffer, sector * 0x200, count * 0x200);
+    return WriteImageBytes(buffer, (u64) sector * 0x200, (u64) count * 0x200);
 }
 
 int SyncImage(void) {

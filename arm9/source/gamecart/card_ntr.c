@@ -24,6 +24,7 @@
 
 
 ---------------------------------------------------------------------------------*/
+#include "timer.h"
 #include "ndscard.h"
 
 //---------------------------------------------------------------------------------
@@ -40,21 +41,24 @@ void cardWriteCommand(const u8 *command) {
 
 
 //---------------------------------------------------------------------------------
-void cardPolledTransfer(u32 flags, u32 *destination, u32 length, const u8 *command) {
+bool cardPolledTransfer(u32 flags, u32 *destination, u32 length, const u8 *command) {
 //---------------------------------------------------------------------------------
 	u32 data;
 	cardWriteCommand(command);
 	REG_ROMCTRL = flags;
-	u32 * target = destination + length;
+	u32 received = 0;
+	u64 begin = timer_start();
 	do {
+		if (timer_ticks(begin) >= TICKS_PER_SEC * 2) return false;
 		// Read data if available
 		if (REG_ROMCTRL & CARD_DATA_READY) {
 			data=CARD_DATA_RD;
-			if (destination < target)
-				*destination = data;
-			destination++;
+			if (received < length && destination)
+				destination[received] = data;
+			received++;
 		}
 	} while (REG_ROMCTRL & CARD_BUSY);
+	return received >= length;
 }
 
 
@@ -77,12 +81,15 @@ u32 cardWriteAndRead(const u8 *command, u32 flags) {
 //---------------------------------------------------------------------------------
 	cardWriteCommand(command);
 	REG_ROMCTRL = flags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(7);
-	while (!(REG_ROMCTRL & CARD_DATA_READY)) ;
+	u64 begin = timer_start();
+	while (!(REG_ROMCTRL & CARD_DATA_READY)) {
+		if (timer_ticks(begin) >= TICKS_PER_SEC * 2) return UINT32_MAX;
+	}
 	return CARD_DATA_RD;
 }
 
 //---------------------------------------------------------------------------------
-void cardParamCommand (u8 command, u32 parameter, u32 flags, u32 *destination, u32 length) {
+bool cardParamCommand (u8 command, u32 parameter, u32 flags, u32 *destination, u32 length) {
 //---------------------------------------------------------------------------------
 	u8 cmdData[8];
 
@@ -95,7 +102,7 @@ void cardParamCommand (u8 command, u32 parameter, u32 flags, u32 *destination, u
 	cmdData[1] = 0;
 	cmdData[0] = 0;
 
-	cardPolledTransfer(flags, destination, length, cmdData);
+	return cardPolledTransfer(flags, destination, length, cmdData);
 }
 
 //---------------------------------------------------------------------------------
@@ -123,14 +130,16 @@ u32 cardReadID(u32 flags) {
 
 
 //---------------------------------------------------------------------------------
-void cardReset() {
+bool cardReset(void) {
 //---------------------------------------------------------------------------------
 	const u8 cmdData[8]={0,0,0,0,0,0,0,CARD_CMD_DUMMY};
 	cardWriteCommand(cmdData);
 	REG_ROMCTRL=CARD_ACTIVATE|CARD_nRESET|CARD_CLK_SLOW|CARD_BLK_SIZE(5)|CARD_DELAY2(0x18);
 	u32 read=0;
+	u64 begin = timer_start();
 
 	do {
+		if (timer_ticks(begin) >= TICKS_PER_SEC * 2) return false;
 		if(REG_ROMCTRL&CARD_DATA_READY) {
 			if(read<0x2000) {
 				u32 data=CARD_DATA_RD;
@@ -139,4 +148,5 @@ void cardReset() {
 			}
 		}
 	} while(REG_ROMCTRL&CARD_BUSY);
+	return true;
 }

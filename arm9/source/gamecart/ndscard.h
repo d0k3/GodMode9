@@ -97,4 +97,4 @@
 #define DMA_REPEAT      (1u << 25)
 #define DMA_SRC_FIX     (1u << 24)
 
-void cardReset();
+bool cardReset(void);

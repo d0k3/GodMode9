@@ -12,6 +12,10 @@ bool InitExtFS();
 // mount and init image file system
 bool InitImgFS(const char* path);
 
+bool InitFlashcartFS(void);
+bool DeinitFlashcartFS(void);
+bool IsMountedFlashcart(void);
+
 // deinitialize external filesystem
 void DeinitExtFS();
 
