@@ -3,9 +3,10 @@
 #include "virtual.h"
 #include "sddata.h"
 #include "image.h"
+#include "vcart.h"
 #include "ff.h"
 
-// FATFS filesystem objects (x10)
+// FATFS filesystem objects
 static FATFS fs[NORM_FS];
 
 // currently open file systems
@@ -19,12 +20,11 @@ bool InitSDCardFS() {
 bool InitExtFS() {
     static bool ramdrv_ready = false;
 
-    for (u32 i = 1; i < NORM_FS; i++) {
-        char fsname[8];
-        snprintf(fsname, sizeof(fsname), "%lu:", i);
+    for (u32 i = 1; i < FAT_IMAGE_END; i++) {
+        const char* fsname = GetFatDrivePath(i);
         if (fs_mounted[i]) continue;
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
-        if ((!fs_mounted[i] || !ramdrv_ready) && (i == NORM_FS - 1) && !(GetMountState() & IMG_NAND)) {
+        if ((!fs_mounted[i] || !ramdrv_ready) && (i == FAT_RAM_VOLUME) && !(GetMountState() & IMG_NAND)) {
             u8* buffer = (u8*) malloc(STD_BUFFER_SIZE);
             if (!buffer) bkpt; // whatever, this won't go wrong anyways
             f_mkfs(fsname, NULL, buffer, STD_BUFFER_SIZE); // format ramdrive if required
@@ -40,11 +40,11 @@ bool InitExtFS() {
 }
 
 bool InitImgFS(const char* path) {
+    if (path && (DriveType(path) & DRV_IMAGE)) return false;
     // find drive # of the last image FAT drive
-    u32 drv_i = NORM_FS - IMGN_FS;
-    char fsname[8];
-    for (; drv_i < NORM_FS; drv_i++) {
-        snprintf(fsname, sizeof(fsname), "%lu:", drv_i);
+    u32 drv_i = FAT_IMAGE_FIRST;
+    for (; drv_i < FAT_IMAGE_END; drv_i++) {
+        const char* fsname = GetFatDrivePath(drv_i);
         if (!(DriveType(fsname)&DRV_IMAGE)) break;
     }
     // deinit virtual filesystem
@@ -54,14 +54,35 @@ bool InitImgFS(const char* path) {
     // (re)mount image, done if path == NULL
     u64 type = MountImage(path);
     InitVirtualImageDrive();
-    if ((type&IMG_NAND) && (drv_i < NORM_FS)) drv_i = NORM_FS;
-    else if ((type&IMG_FAT) && (drv_i < NORM_FS - IMGN_FS + 1)) drv_i = NORM_FS - IMGN_FS + 1;
+    if ((type&IMG_NAND) && (drv_i < FAT_IMAGE_END)) drv_i = FAT_IMAGE_END;
+    else if ((type&IMG_FAT) && (drv_i < FAT_IMAGE_FIRST + 1)) drv_i = FAT_IMAGE_FIRST + 1;
     // reinit image filesystem
-    for (u32 i = NORM_FS - IMGN_FS; i < drv_i; i++) {
-        snprintf(fsname, sizeof(fsname), "%lu:", i);
+    for (u32 i = FAT_IMAGE_FIRST; i < drv_i; i++) {
+        const char* fsname = GetFatDrivePath(i);
         fs_mounted[i] = (f_mount(fs + i, fsname, 1) == FR_OK);
     }
     return GetMountState();
+}
+
+bool InitFlashcartFS(void) {
+    if (fs_mounted[FAT_FLASHCART_VOLUME]) return true;
+    if (!GetVCartDSpicoSize()) return false;
+    fs_mounted[FAT_FLASHCART_VOLUME] =
+        (f_mount(fs + FAT_FLASHCART_VOLUME, FLASHCART_DRIVE, 1) == FR_OK);
+    if (!fs_mounted[FAT_FLASHCART_VOLUME])
+        f_mount(NULL, FLASHCART_DRIVE, 0);
+    return fs_mounted[FAT_FLASHCART_VOLUME];
+}
+
+bool DeinitFlashcartFS(void) {
+    if ((DriveType(GetMountPath()) & DRV_FLASHCART) && (SyncImage() != FR_OK))
+        return false;
+    DismountDriveType(DRV_FLASHCART);
+    return true;
+}
+
+bool IsMountedFlashcart(void) {
+    return fs_mounted[FAT_FLASHCART_VOLUME];
 }
 
 void DeinitExtFS() {
@@ -70,9 +91,7 @@ void DeinitExtFS() {
     SetupNandSdDrive(NULL, NULL, NULL, 1);
     for (u32 i = NORM_FS - 1; i > 0; i--) {
         if (fs_mounted[i]) {
-            char fsname[8];
-            snprintf(fsname, sizeof(fsname), "%lu:", i);
-            f_mount(NULL, fsname, 1);
+            f_mount(NULL, GetFatDrivePath(i), 1);
             fs_mounted[i] = false;
         }
     }
@@ -90,8 +109,7 @@ void DismountDriveType(u32 type) { // careful with this - no safety checks
         SetupNandSdDrive(NULL, NULL, NULL, 1);
     }
     for (u32 i = 0; i < NORM_FS; i++) {
-        char fsname[8];
-        snprintf(fsname, sizeof(fsname), "%lu:", i);
+        const char* fsname = GetFatDrivePath(i);
         if (!fs_mounted[i] || !(type & DriveType(fsname)))
             continue;
         f_mount(NULL, fsname, 1);
@@ -104,10 +122,11 @@ bool CheckSDMountState(void) {
 }
 
 int GetMountedFSNum(const char* path) {
+    if (!path || !path[0] || (path[1] != ':')) return -1;
     char alias[256];
     dealias_path(alias, path);
-    int fsnum = *alias - (int) '0';
-    if ((fsnum < 0) || (fsnum >= NORM_FS) || (alias[1] != ':') || !fs_mounted[fsnum])
+    int fsnum = GetFatDriveIndex(alias);
+    if ((fsnum < 0) || !fs_mounted[fsnum])
         return -1;
     return fsnum;
 }

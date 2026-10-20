@@ -214,9 +214,11 @@ u32 NTR_GetIDSafe (u32 flags, const u8* command)
     u32 data = 0;
     cardWriteCommand(command);
     REG_NTRCARDROMCNT = flags | NTRCARD_BLK_SIZE(7);
+    u64 begin = timer_start();
 
     do
     {
+        if (timer_ticks(begin) >= TICKS_PER_SEC * 2) return UINT32_MAX;
         if (REG_NTRCARDROMCNT & NTRCARD_DATA_READY)
         {
             data = REG_NTRCARDFIFO;
@@ -227,9 +229,10 @@ u32 NTR_GetIDSafe (u32 flags, const u8* command)
     return data;
 }
 
-void NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd)
+bool NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd)
 {
-    cardPolledTransfer (flags, buffer, length, pcmd);
+    // Secure commands use byte lengths; cardPolledTransfer expects words.
+    return cardPolledTransfer (flags, buffer, length / sizeof(u32), pcmd);
 }
 
 bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
@@ -274,16 +277,16 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
     //Debug("iKey1=%08X %08X %08X", iKey1.iii, iKey1. jjj, iKey1. kkkkk);
     //Debug("iKey1=%08X %08X %08X", iKey1. llll, iKey1. mmm, iKey1. nnn);
 
-    NTR_CmdSecure ((cardControl13&(NTRCARD_CLK_SLOW|NTRCARD_DELAY2(0x3f)|NTRCARD_DELAY1(0x1fff)))|NTRCARD_ACTIVATE|NTRCARD_nRESET, NULL, 0, cmdData);
+    if (!NTR_CmdSecure ((cardControl13&(NTRCARD_CLK_SLOW|NTRCARD_DELAY2(0x3f)|NTRCARD_DELAY1(0x1fff)))|NTRCARD_ACTIVATE|NTRCARD_nRESET, NULL, 0, cmdData)) return false;
 
     NTR_CreateEncryptedCommand (NTRCARD_CMD_ACTIVATE_SEC, iCardHash, cmdData, &iKey1, 0);
     //Debug("cmdData=%02X %02X %02X %02X %02X %02X %02X %02X ", cmdData[0], cmdData[1], cmdData[2], cmdData[3], cmdData[4], cmdData[5], cmdData[6], cmdData[7]);
     if(iCheapCard)
     {
-        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+        if (!NTR_CmdSecure (flagsKey1, NULL, 0, cmdData)) return false;
         NTR_SecureDelay(readTimeout);
     }
-    NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+    if (!NTR_CmdSecure (flagsKey1, NULL, 0, cmdData)) return false;
 
     REG_NTRCARDROMCNT = 0;
     REG_NTRCARDSEEDX_L = cardSeedBytes[deviceType & 0x07] | (iKey1.nnn << 15) | (iKey1.mmm << 27) | 0x6000;
@@ -298,7 +301,7 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
     u32 SecureCartID = 0;
     if(iCheapCard)
     {
-        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+        if (!NTR_CmdSecure (flagsKey1, NULL, 0, cmdData)) return false;
         NTR_SecureDelay(readTimeout);
     }
 
@@ -317,17 +320,17 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
         NTR_CreateEncryptedCommand (NTRCARD_CMD_SECURE_READ, iCardHash, cmdData, &iKey1, secureBlockNumber);
         if (iCheapCard)
         {
-            NTR_CmdSecure (flagsSec, NULL, 0, cmdData);
+            if (!NTR_CmdSecure (flagsSec, NULL, 0, cmdData)) return false;
             NTR_SecureDelay(readTimeout);
             for(int ii=8;ii>0;--ii)
             {
-                NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(1), secureArea + secureAreaOffset, 0x200, cmdData);
+                if (!NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(1), secureArea + secureAreaOffset, 0x200, cmdData)) return false;
                 secureAreaOffset += 0x200 / sizeof (u32);
             }
         }
         else
         {
-            NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(4) | NTRCARD_SEC_LARGE, secureArea + secureAreaOffset, 0x1000, cmdData);
+            if (!NTR_CmdSecure (flagsSec | NTRCARD_BLK_SIZE(4) | NTRCARD_SEC_LARGE, secureArea + secureAreaOffset, 0x1000, cmdData)) return false;
             secureAreaOffset += 0x1000 / sizeof (u32);
         }
     }
@@ -335,10 +338,10 @@ bool NTR_Secure_Init (u8* header, u8* sa_copy, u32 CartID, int iCardDevice)
     NTR_CreateEncryptedCommand (NTRCARD_CMD_DATA_MODE, iCardHash, cmdData, &iKey1, 0);
     if(iCheapCard)
     {
-        NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+        if (!NTR_CmdSecure (flagsKey1, NULL, 0, cmdData)) return false;
         NTR_SecureDelay(readTimeout);
     }
-    NTR_CmdSecure (flagsKey1, NULL, 0, cmdData);
+    if (!NTR_CmdSecure (flagsKey1, NULL, 0, cmdData)) return false;
 
     //CycloDS doesn't like the dsi secure area being decrypted
     if (sa_copy) memcpy(sa_copy, secureArea, 0x4000);

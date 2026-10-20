@@ -19,12 +19,6 @@
 
 #define _MAX_FS_OPT     8 // max file selector options
 
-// Volume2Partition resolution table
-PARTITION VolToPart[] = {
-    {0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
-    {5, 0}, {6, 0}, {7, 0}, {8, 0}, {9, 0}
-};
-
 uint64_t GetSDCardSize() {
     if (sdmmc_sdcard_init() != 0) return 0;
     return (u64) getMMCDevice(1)->total_size * 512;

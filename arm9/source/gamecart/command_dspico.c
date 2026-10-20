@@ -16,10 +16,16 @@ static u64 sd_size = 0;
 static bool sd_dirty = false; // not in ROM mode, needs InitCartRead
 static bool sd_ready = false;
 static bool probing = false;
+static u64 probe_begin;
 
-// waits never time out, only a removed cart ends them (same as the DSpico DLDI driver)
+// Normal transfers retain the DLDI driver's waits; initialization is bounded.
 static bool DSpico_CartPresent(void) {
     return !(REG_CARDSTATUS & 0x1);
+}
+
+static bool DSpico_CanWait(void) {
+    return DSpico_CartPresent() &&
+        (!probing || (timer_ticks(probe_begin) < DSPICO_PROBE_TICKS));
 }
 
 static void DSpico_SetCmd(u64 cmd) {
@@ -35,7 +41,7 @@ static u32 DSpico_Flags(u32 len, u32 latency2, u32 latency1, bool data_descrambl
 
 static bool DSpico_WaitBusy(void) {
     while (REG_NTRCARDROMCNT & NTRCARD_BUSY)
-        if (!DSpico_CartPresent()) return false;
+        if (!DSpico_CanWait()) return false;
     return true;
 }
 
@@ -50,6 +56,7 @@ static bool DSpico_Transfer(u64 cmd, u32 flags, void* buffer, u32 words, bool wr
     REG_NTRCARDROMCNT = flags | (write ? NTRCARD_WR : 0);
     u32 ctrl;
     do {
+        if (probing && !DSpico_CanWait()) return false;
         ctrl = REG_NTRCARDROMCNT;
         if (ctrl & NTRCARD_DATA_READY) {
             if (write) {
@@ -79,14 +86,12 @@ static bool DSpico_RequestRead(u32 sector) {
 
 static bool DSpico_PollReady(void) {
     u32 result = 0;
-    u64 begin = timer_start();
     while (true) {
+        if (probing && !DSpico_CanWait()) return false;
         if (!DSpico_Transfer(0xE400000000000000ull,
             DSpico_Flags(DSPICO_LEN_4, 4, 0, true), &result, 1, false)) return false;
         if (result == 1) return true;
         if (!DSpico_CartPresent()) return false;
-        // only the probe is bounded, so a cart that is not a DSpico cannot hang it
-        if (probing && (timer_ticks(begin) > DSPICO_PROBE_TICKS)) return false;
     }
 }
 
@@ -126,13 +131,7 @@ static u64 DSpico_DetectSize(const u8* sector0) {
     return (u64) total * 0x200;
 }
 
-bool DSpico_Enter(void) {
-    sd_size = 0;
-    sd_ready = false;
-    sd_dirty = true;
-
-    wait_msec(DSPICO_SETTLE_MS);
-
+static bool DSpico_Probe(void) {
     // disable the KEY2 scrambler
     if (!DSpico_Transfer(0xFC00000000000000ull,
         DSpico_Flags(DSPICO_LEN_0, 0, 24, false), NULL, 0, false)) return false;
@@ -149,14 +148,25 @@ bool DSpico_Enter(void) {
 
     // probe: a DSpico serves a valid MBR or FAT boot sector at sector 0
     u8 ALIGN(32) sector0[0x200];
-    probing = true;
     int probe_res = DSpico_ReadSectors(sector0, 0, 1);
-    probing = false;
     if (probe_res != 0) return false;
     sd_size = DSpico_DetectSize(sector0);
     if (!sd_size) return false;
     sd_ready = true;
     return true;
+}
+
+bool DSpico_Enter(void) {
+    sd_size = 0;
+    sd_ready = false;
+    sd_dirty = true;
+
+    wait_msec(DSPICO_SETTLE_MS);
+    probe_begin = timer_start();
+    probing = true;
+    bool ready = DSpico_Probe();
+    probing = false;
+    return ready;
 }
 
 void DSpico_Reset(void) {

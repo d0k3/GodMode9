@@ -169,7 +169,7 @@ u32 InitCartRead(CartData* cdata) {
     memset(cdata, 0x00, sizeof(CartData));
     cdata->cart_type = CART_NONE;
     if (!CART_INSERTED) return 1;
-    Cart_Init();
+    if (!Cart_Init()) return 1;
     cdata->cart_id = Cart_GetID();
     cdata->cart_type = (cdata->cart_id & 0x10000000) ? CART_CTR : CART_NTR;
 
@@ -252,7 +252,7 @@ u32 InitCartRead(CartData* cdata) {
         // NTR header
         TwlHeader* nds_header = (void*)cdata->header;
         u8 secure_area_enc[0x4000];
-        NTR_CmdReadHeader(cdata->header);
+        if (!NTR_CmdReadHeader(cdata->header)) return 1;
         if (!(*(cdata->header))) return 1; // error reading the header
         if (!NTR_Secure_Init(cdata->header, secure_area_enc, Cart_GetID(), 0)) return 1;
 
@@ -279,8 +279,8 @@ u32 InitCartRead(CartData* cdata) {
             // Some NTR dev carts have TWL ROMs flashed to them.
             // We'll only want to use TWL secure init if this is a TWL cartridge.
             if (cdata->cart_id & 0x40000000U) { // TWL cartridge
-                Cart_Init();
-                NTR_CmdReadHeader(cdata->storage);
+                if (!Cart_Init()) return 1;
+                if (!NTR_CmdReadHeader(cdata->storage)) return 1;
                 if (!NTR_Secure_Init(cdata->storage, NULL, Cart_GetID(), 1)) return 1;
             }
         } else {
@@ -382,7 +382,7 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool c
         // regular cart data
         u32 off = sector * 0x200;
         for (u32 i = 0; i < count; i++, off += 0x200, buff += 0x200)
-            NTR_CmdReadData(off, buff);
+            if (!NTR_CmdReadData(off, buff)) return 1;
 
         // modcrypt area handling
         if ((cdata->cart_type & CART_TWL) &&

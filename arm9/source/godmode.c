@@ -299,7 +299,8 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
         ((GetMountState()) ? (1<<3) : 0) |
         ((GetWritePermissions() > PERM_BASE) ? (1<<4) : 0) |
         (curr_pane<<5) |
-        ((GetVCartDSpicoImagePath()) ? (1<<8) : 0); // hint line count depends on DSpico
+        ((GetVCartDSpicoSize()) ? (1<<8) : 0) |
+        ((IsMountedFlashcart()) ? (1<<9) : 0);
 
     if (state_prev != state_curr) {
         ClearScreenF(true, false, COLOR_STD_BG);
@@ -322,7 +323,7 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
     } else if (curr_entry->type == T_ROOT) {
         int drvtype = DriveType(curr_entry->path);
         const char* drvstr =
-            (drvtype & DRV_SDCARD) ? STR_SD_FAT : (drvtype & DRV_RAMDRIVE) ? STR_RAMDRIVE_FAT : (drvtype & DRV_GAME) ? STR_GAME_VIRTUAL :
+            (drvtype & (DRV_SDCARD|DRV_FLASHCART)) ? STR_SD_FAT : (drvtype & DRV_RAMDRIVE) ? STR_RAMDRIVE_FAT : (drvtype & DRV_GAME) ? STR_GAME_VIRTUAL :
             (drvtype & (DRV_SYSNAND | DRV_FAT)) ? STR_SYSNAND_FAT : (drvtype & (DRV_SYSNAND | DRV_VIRTUAL)) ? STR_SYSNAND_VIRTUAL :
             (drvtype & (DRV_EMUNAND | DRV_FAT)) ? STR_EMUNAND_FAT : (drvtype & (DRV_EMUNAND | DRV_VIRTUAL)) ? STR_EMUNAND_VIRTUAL :
             (drvtype & DRV_IMAGE) ? STR_IMAGE_FAT : (drvtype & DRV_XORPAD) ? STR_XORPAD_VIRTUAL : (drvtype & DRV_MEMORY) ? STR_MEMORY_VIRTUAL :
@@ -364,11 +365,12 @@ void DrawUserInterface(const char* curr_path, DirEntry* curr_entry, u32 curr_pan
 
     // bottom: instruction block
     char instr[UTF_BUFFER_BYTESIZE(512)];
-    snprintf(instr, sizeof(instr), "%s\n%s%s%s%s%s%s%s%s",
+    snprintf(instr, sizeof(instr), "%s\n%s%s%s%s%s%s%s%s%s",
         FLAVOR " " VERSION, // generic start part
         (*curr_path) ? ((clipboard->n_entries == 0) ? STR_MARK_DELETE_COPY : STR_MARK_DELETE_PASTE) :
         ((GetWritePermissions() > PERM_BASE) ? STR_RELOCK_WRITE_PERMISSION : ""),
-        (*curr_path) ? "" : (GetMountState()) ? (IsMountedDSpico() ? STR_UNMOUNT_DSPICO_SD : STR_UNMOUNT_IMAGE) : (GetVCartDSpicoImagePath()) ? STR_MOUNT_DSPICO_SD : "",
+        (*curr_path || !GetMountState()) ? "" : STR_UNMOUNT_IMAGE,
+        (*curr_path || !GetVCartDSpicoSize()) ? "" : IsMountedFlashcart() ? STR_UNMOUNT_DSPICO_SD : STR_MOUNT_DSPICO_SD,
         (*curr_path) ? "" : (CheckSDMountState()) ? STR_UNMOUNT_SD : STR_REMOUNT_SD,
         (*curr_path) ? STR_DIRECTORY_OPTIONS : STR_DRIVE_OPTIONS,
         STR_MAKE_SCREENSHOT,
@@ -922,7 +924,7 @@ u32 ShaCalculator(const char* path, bool sha1) {
         bool have_sha = (FileGetData(sha_path, sha_file, hashlen, 0) == hashlen);
         bool match_sha = have_sha && (memcmp(hash, sha_file, hashlen) == 0);
         bool match_prev = (memcmp(hash, hash_prev, hashlen) == 0);
-        bool write_sha = (!have_sha || !match_sha) && ((drvtype & DRV_SDCARD) || ((drvtype & DRV_IMAGE) && IsMountedDSpico())); // writing only on SD and the DSpico SD
+        bool write_sha = (!have_sha || !match_sha) && (drvtype & (DRV_SDCARD|DRV_FLASHCART));
         char hash_str[32+1+32+1];
         if (sha1)
             snprintf(hash_str, sizeof(hash_str), "%016llX%04X\n%016llX%04X", getbe64(hash + 0), getbe16(hash + 8),
@@ -1017,10 +1019,45 @@ u32 StandardCopy(u32* cursor, u32* scroll) {
     return 0;
 }
 
-// a DSpico SD card is mounted on the image drive, unless another image is already mounted
-static void AutoMountDSpico(void) {
-    if (GetVCartDSpicoImagePath() && !*GetMountPath())
-        InitImgFS(GetVCartDSpicoImagePath());
+static void InvalidateDriveReferences(u32 types, char* current_path, u32* cursor, u32* scroll, u32* last_clipboard_size) {
+    if (types & DRV_IMAGE) types |= DRV_TITLEMAN;
+    if (DriveType(GetFSSearchPath()) & types) types |= DRV_SEARCH;
+    for (u32 i = 0; i < max(clipboard->n_entries, *last_clipboard_size); i++) {
+        if (DriveType(clipboard->entry[i].path) & types) {
+            clipboard->n_entries = *last_clipboard_size = 0;
+            break;
+        }
+    }
+    for (u32 i = 0; i < N_PANES; i++) {
+        if (DriveType(panedata[i].path) & types)
+            memset(panedata + i, 0, sizeof(PaneData));
+    }
+    if (DriveType(current_path) & types) {
+        *current_path = '\0';
+        *cursor = *scroll = 0;
+    }
+    if (types & DRV_IMAGE) SetTitleManagerMode(false);
+    if (types & DRV_SEARCH) SetFSSearch(NULL, NULL);
+}
+
+static void UnmountCartStorage(char* current_path, u32* cursor, u32* scroll, u32* last_clipboard_size) {
+    u32 types = DRV_CART | DRV_FLASHCART;
+    if (DriveType(GetMountPath()) & types) types |= DRV_IMAGE;
+    InvalidateDriveReferences(types, current_path, cursor, scroll, last_clipboard_size);
+    DismountDriveType(DRV_CART | DRV_FLASHCART);
+}
+
+static void HandleCartChange(u32 event, char* current_path, u32* cursor, u32* scroll, u32* last_clipboard_size) {
+    bool unexpected = IsMountedFlashcart() && (event & CART_EJECT);
+    UnmountCartStorage(current_path, cursor, scroll, last_clipboard_size);
+    if (unexpected)
+        ShowPrompt(false, "%s", STR_UNEXPECTED_DSPICO_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT);
+    if (!InitVCartDrive() && (event & CART_INSERT))
+        ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
+    if ((event & CART_INSERT) &&
+        (VCartDSpicoProbeFailed() || (GetVCartDSpicoSize() && !InitFlashcartFS())))
+        ShowPrompt(false, "%s", STR_FLASHCART_MOUNT_FAILED);
+    GetDirContents(current_dir, current_path);
 }
 
 u32 CartRawDump(void) {
@@ -1577,7 +1614,10 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
             clipboard->n_entries = 0; // remove last mounted image clipboard entries
         SetTitleManagerMode(false); // disable title manager mode
-        InitImgFS((filetype & GAME_TMD) ? cxi_path : file_path);
+        if (!InitImgFS((filetype & GAME_TMD) ? cxi_path : file_path)) {
+            ShowPrompt(false, "%s", STR_MOUNTING_IMAGE_FAILED);
+            return 0;
+        }
 
         const char* drv_path = NULL; // find path of mounted drive
         for (u32 i = 0; i < (sizeof(mnt_drv_paths) / sizeof(const char*)); i++) {
@@ -2472,6 +2512,7 @@ u32 GodMode(int entrypoint) {
     int mark_next = -1;
     u32 last_write_perm = GetWritePermissions();
     u32 last_clipboard_size = 0;
+    bool cart_present = false;
 
     bool bootloader = IS_UNLOCKED && (entrypoint == ENTRY_NANDBOOT);
     bool bootmenu = bootloader && (BOOTMENU_KEY != BUTTON_START) && CheckButton(BOOTMENU_KEY);
@@ -2514,8 +2555,10 @@ u32 GodMode(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
-    InitVCartDrive(); // fails harmlessly without a cart
-    AutoMountDSpico();
+    cart_present = (CART_STATE != 0);
+    bool cart_init_failed = !InitVCartDrive() && cart_present;
+    bool flashcart_mount_failed = VCartDSpicoProbeFailed() ||
+        (GetVCartDSpicoSize() && !InitFlashcartFS());
     if (!CalibrateTouchFromSupportFile())
         CalibrateTouchFromFlash();
 
@@ -2526,6 +2569,10 @@ u32 GodMode(int entrypoint) {
 
     // load font and language, ask if language is not set up
     LoadLanguageAndFont(true);
+    if (cart_init_failed)
+        ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
+    if (flashcart_mount_failed)
+        ShowPrompt(false, "%s", STR_FLASHCART_MOUNT_FAILED);
 
     // check for embedded essential backup
     if (((entrypoint == ENTRY_NANDBOOT) || (entrypoint == ENTRY_B9S)) &&
@@ -2622,6 +2669,13 @@ u32 GodMode(int entrypoint) {
 
     PaneData* pane = panedata;
     while (godmode9) { // this is the main loop
+        // Changes during a file operation can precede InputWait's event snapshot.
+        bool cart_now = (CART_STATE != 0);
+        if ((cart_present != cart_now) || (IsMountedFlashcart() && !GetVCartDSpicoSize())) {
+            HandleCartChange(cart_now ? CART_INSERT : CART_EJECT,
+                current_path, &cursor, &scroll, &last_clipboard_size);
+            cart_present = cart_now;
+        }
         // basic sanity checking
         if (!current_dir->n_entries) { // current dir is empty -> revert to root
             ShowPrompt(false, "%s", STR_INVALID_DIRECTORY_OBJECT);
@@ -2821,21 +2875,34 @@ u32 GodMode(int entrypoint) {
             // unswitched L - mark/unmark single entry
             if (mark_next < -1) mark_next = -1;
             else curr_entry->marked ^= 0x1;
-        } else if (pad_state & BUTTON_SELECT) { // clear/restore clipboard
+        } else if ((pad_state & BUTTON_SELECT) && (!switched || *current_path || !GetVCartDSpicoSize())) { // clear/restore clipboard
             clipboard->n_entries = (clipboard->n_entries > 0) ? 0 : last_clipboard_size;
         }
 
         // highly specific commands
         if (!*current_path) { // in the root folder...
-            if (switched && (pad_state & BUTTON_X) && !GetMountState() && GetVCartDSpicoImagePath()) { // remount DSpico SD
-                AutoMountDSpico();
+            if (switched && (pad_state & BUTTON_SELECT) && GetVCartDSpicoSize()) {
+                if (IsMountedFlashcart()) {
+                    u32 types = DRV_FLASHCART;
+                    if (DriveType(GetMountPath()) & DRV_FLASHCART) types |= DRV_IMAGE;
+                    // Keep references valid until the backing image has been flushed.
+                    if (!(types & DRV_IMAGE) || (SyncImage() == FR_OK)) {
+                        InvalidateDriveReferences(types, current_path, &cursor, &scroll, &last_clipboard_size);
+                        if (!DeinitFlashcartFS())
+                            ShowPrompt(false, "%s", STR_FLASHCART_UNMOUNT_FAILED);
+                    } else ShowPrompt(false, "%s", STR_FLASHCART_UNMOUNT_FAILED);
+                } else if (!InitFlashcartFS()) {
+                    ShowPrompt(false, "%s", STR_FLASHCART_MOUNT_FAILED);
+                }
                 ClearScreenF(false, true, COLOR_STD_BG);
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_X)) { // unmount image
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
-                    clipboard->n_entries = 0; // remove last mounted image clipboard entries
-                SetTitleManagerMode(false);
-                InitImgFS(NULL);
+                if (GetMountState() && (SyncImage() != FR_OK)) {
+                    ShowPrompt(false, "%s", STR_IMAGE_UNMOUNT_FAILED);
+                } else {
+                    InvalidateDriveReferences(DRV_IMAGE, current_path, &cursor, &scroll, &last_clipboard_size);
+                    InitImgFS(NULL);
+                }
                 ClearScreenF(false, true, COLOR_STD_BG);
                 GetDirContents(current_dir, current_path);
             } else if (switched && (pad_state & BUTTON_Y)) {
@@ -3094,28 +3161,8 @@ u32 GodMode(int entrypoint) {
                 break;
             }
         } else if (pad_state & (CART_INSERT|CART_EJECT)) {
-            if (IsMountedDSpico()) { // same handling as SD_EJECT
-                if (pad_state & CART_EJECT)
-                    ShowPrompt(false, "%s", STR_UNEXPECTED_DSPICO_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT);
-                if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & DRV_IMAGE))
-                    clipboard->n_entries = 0; // remove card clipboard entries
-                InitImgFS(NULL);
-                if (curr_drvtype & DRV_IMAGE) {
-                    *current_path = '\0';
-                    cursor = 0;
-                }
-            }
-            if (!InitVCartDrive() && (pad_state & CART_INSERT) &&
-                (curr_drvtype & DRV_CART)) // reinit virtual cart drive
-                ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
-            if (pad_state & CART_INSERT) AutoMountDSpico();
-            // unmount any gamecart image if the gamecart was removed
-            if (pad_state & CART_EJECT && *GetMountPath() && DriveType(GetMountPath()) & DRV_CART) {
-                InitImgFS(NULL);
-            }
-            if (!(*current_path) || (curr_drvtype & (DRV_CART|DRV_IMAGE))) {
-                GetDirContents(current_dir, current_path); // refresh dir contents
-            }
+            HandleCartChange(pad_state, current_path, &cursor, &scroll, &last_clipboard_size);
+            cart_present = (CART_STATE != 0);
         } else if (pad_state & SD_INSERT) {
             while (!InitSDCardFS() && ShowPrompt(true, "%s", STR_INITIALIZING_SD_FAILED_RETRY));
             ClearScreenF(true, true, COLOR_STD_BG);
@@ -3124,12 +3171,11 @@ u32 GodMode(int entrypoint) {
             GetDirContents(current_dir, current_path);
         } else if ((pad_state & SD_EJECT) && CheckSDMountState()) {
             ShowPrompt(false, "%s", STR_UNEXPECTED_SD_CARD_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT);
-            DeinitExtFS();
+            u32 types = DRV_SDCARD | DRV_ALIAS | DRV_EMUNAND;
+            if (DriveType(GetMountPath()) & types) types |= DRV_IMAGE;
+            InvalidateDriveReferences(types, current_path, &cursor, &scroll, &last_clipboard_size);
             DeinitSDCardFS();
             InitExtFS();
-            if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) &
-                (DRV_SDCARD|DRV_ALIAS|DRV_EMUNAND|DRV_IMAGE)))
-                clipboard->n_entries = 0; // remove SD clipboard entries
             GetDirContents(current_dir, current_path);
         }
     }

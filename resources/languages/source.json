@@ -73,8 +73,8 @@
 	"UNMOUNT_SD": "R+B - Unmount SD card\n",
 	"REMOUNT_SD": "R+B - Remount SD card\n",
 	"UNEXPECTED_DSPICO_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT": "!Unexpected DSpico removal!\n \nTo prevent data loss, unmount\nbefore ejecting the DSpico cart.",
-	"UNMOUNT_DSPICO_SD": "R+X - Unmount DSpico SD card\n",
-	"MOUNT_DSPICO_SD": "R+X - Mount DSpico SD card\n",
+	"UNMOUNT_DSPICO_SD": "R+SELECT - Unmount DSpico SD\n",
+	"MOUNT_DSPICO_SD": "R+SELECT - Mount DSpico SD\n",
 	"DIRECTORY_OPTIONS": "R+A - Directory options\n",
 	"DRIVE_OPTIONS": "R+A - Drive options\n",
 	"MAKE_SCREENSHOT": "R+L - Make a Screenshot\n",
@@ -837,5 +837,8 @@
 	"CREATE_DB_FILES_N_N_OK_FAILED": "Create .db files ok/failed %d/%d",
 	"PATH_CREATE_DB_FILE_FAILED": "%s\nCreate .db file failed",
 	"NO_MISSING_DB_FILES_DETECTED": "No missing .db files detected.",
-	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "Successfully created .db files for drive."
+	"SUCCESSFULLY_CREATED_DB_FILES_FOR_DRIVE": "Successfully created .db files for drive.",
+	"FLASHCART_MOUNT_FAILED": "Could not mount DSpico SD.\nCheck the card and retry\nwith R+SELECT at the drive list.",
+	"FLASHCART_UNMOUNT_FAILED": "Could not save the mounted image.\nDSpico SD is still mounted.\nRetry before removing the cart.",
+	"IMAGE_UNMOUNT_FAILED": "Could not save the mounted image.\nIt is still mounted.\nRetry before removing its storage."
 }

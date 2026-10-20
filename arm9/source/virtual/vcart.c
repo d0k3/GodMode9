@@ -5,6 +5,7 @@
 #include "command_dspico.h"
 #include "image.h"
 #include "save_ctr.h"
+#include "hid.h"
 
 #define FAT_LIMIT   0x100000000
 #define VFLAG_DECRYPTED_SAVEGAME (1UL<<27)
@@ -18,6 +19,7 @@ static bool cart_init = false;
 static bool cart_checked = false;
 static bool enable_dec_ctr_save = false;
 static bool dspico_present = false;
+static bool dspico_probe_failed = false;
 static size_t info_size = 0;
 
 static bool EnterRomMode(void) {
@@ -88,23 +90,25 @@ int WriteVCartDSpicoBytes(const void* buffer, u64 offset, u64 count) {
     return 0;
 }
 
-const char* GetVCartDSpicoImagePath(void) {
-    return (cart_init && dspico_present) ? DSPICO_IMAGE_PATH : NULL;
+u64 GetVCartDSpicoSize(void) {
+    return (cart_init && dspico_present && CART_STATE) ? DSpico_GetSdSize() : 0;
 }
 
-u64 GetVCartDSpicoSize(void) {
-    return (cart_init && dspico_present) ? DSpico_GetSdSize() : 0;
+bool VCartDSpicoProbeFailed(void) {
+    return dspico_probe_failed;
 }
 
 u32 InitVCartDrive(void) {
     if (!cart_checked) cart_checked = true;
     if (!cdata) cdata = (CartData*) malloc(sizeof(CartData));
     dspico_present = false;
+    dspico_probe_failed = false;
     info_size = 0;
     cart_init = (cdata && (InitCartRead(cdata) == 0));
     cart_init = cart_init && (cdata->cart_size <= FAT_LIMIT);
     if (cart_init && (cdata->cart_type & CART_NTR) && DSpico_CheckGameCode(cdata->header)) {
         dspico_present = DSpico_Enter(); // probe, then back to ROM mode
+        dspico_probe_failed = !dspico_present;
         cart_init = (InitCartRead(cdata) == 0);
     }
     if (!cart_init && cdata) {

@@ -35,11 +35,8 @@ bool CheckWritePermissions(const char* path) {
         if (!path_f[i]) break;
     }
 
-    // a mounted DSpico SD card is handled like the SD card
-    bool dspico = (drvtype & DRV_IMAGE) && IsMountedDSpico();
-
     // check mounted image write permissions
-    if ((drvtype & DRV_IMAGE) && !dspico && !CheckWritePermissions(GetMountPath()))
+    if ((drvtype & DRV_IMAGE) && !CheckWritePermissions(GetMountPath()))
         return false; // endless loop when mounted file inside image, but not possible
 
     // SD card write protection check
@@ -90,7 +87,7 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_XORPAD) {
         perm = PERM_XORPAD;
         snprintf(area_name, sizeof(area_name), "XORpads");
-    } else if (dspico) {
+    } else if (drvtype & DRV_FLASHCART) {
         perm = PERM_SDCARD;
         snprintf(area_name, sizeof(area_name), "%s", STR_SD_CARD);
     } else if (drvtype & DRV_IMAGE) {

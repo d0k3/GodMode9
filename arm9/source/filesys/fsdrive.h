@@ -2,9 +2,10 @@
 
 #include "common.h"
 #include "fsdir.h"
+#include "volume.h"
 
-#define NORM_FS  10
-#define IMGN_FS  3 // image normal filesystems
+#define NORM_FS  FAT_VOLUME_COUNT
+#define IMGN_FS  FAT_IMAGE_COUNT // image normal filesystems
 
 // primary drive types
 #define DRV_UNKNOWN     (0<<0)
@@ -28,6 +29,7 @@
 #define DRV_TITLEMAN    (1UL<<16)
 #define DRV_SEARCH      (1UL<<17)
 #define DRV_STDFAT      (1UL<<18) // standard FAT drive without limitations
+#define DRV_FLASHCART   (1UL<<19)
 
 #define DRV_LABEL_LEN   (36)
 
@@ -41,17 +43,19 @@
         STR_LAB_MEMORY_VIRTUAL, \
         STR_LAB_VRAM_VIRTUAL, \
         STR_LAB_TITLE_MANAGER, \
-        STR_LAB_LAST_SEARCH
+        STR_LAB_LAST_SEARCH, \
+        "DSPICO SD"
 
 #define FS_DRVNUM \
     "0:", "1:", "2:", "3:", "A:", "S:", "4:", "5:", "6:", "B:", "E:", "7:", "8:", "9:", \
-    "I:", "C:", "G:", "K:", "T:", "D:", "F:", "M:", "V:", "Y:", "Z:"
+    "I:", "C:", "G:", "K:", "T:", "D:", "F:", "M:", "V:", "Y:", "Z:", FLASHCART_DRIVE
 
 /** Function to identify the type of a drive **/
 int DriveType(const char* path);
 
 /** Set search pattern / path / mode for special Z: drive **/
 void SetFSSearch(const char* pattern, const char* path);
+const char* GetFSSearchPath(void);
 
 /** Enable title manager for special processing of mounted title.db **/
 void SetTitleManagerMode(bool mode);
