@@ -40,6 +40,8 @@ typedef int ReadVMemFileCallback(const VirtualFile* vfile, void* buffer, u64 off
 enum VMemCallbackType {
     VMEM_CALLBACK_OTP_DECRYPTED,
     VMEM_CALLBACK_MCU_REGISTERS,
+    VMEM_CALLBACK_MCU_REGISTER_BUFFER,
+    VMEM_CALLBACK_MCU_STORAGE_AREA,
     VMEM_CALLBACK_FLASH_CID,
     VMEM_CALLBACK_NVRAM,
     VMEM_NUM_CALLBACKS
@@ -47,12 +49,16 @@ enum VMemCallbackType {
 
 ReadVMemFileCallback ReadVMemOTPDecrypted;
 ReadVMemFileCallback ReadVMemMCURegisters;
+ReadVMemFileCallback ReadVMemMCURegisterBuffer;
+ReadVMemFileCallback ReadVMemMCUStorageArea;
 ReadVMemFileCallback ReadVMemFlashCID;
 ReadVMemFileCallback ReadVMemNVRAM;
 
 static ReadVMemFileCallback* const vMemCallbacks[] = {
     ReadVMemOTPDecrypted,
     ReadVMemMCURegisters,
+    ReadVMemMCURegisterBuffer,
+    ReadVMemMCUStorageArea,
     ReadVMemFlashCID,
     ReadVMemNVRAM
 };
@@ -77,12 +83,17 @@ static const VirtualFile vMemFileTemplates[] = {
 
     // Custom callback implementations.
     // Keyslot field has arbitrary meaning, and may not actually be a keyslot.
-    { "otp_dec.mem"      , VMEM_CALLBACK_OTP_DECRYPTED, __OTP_LEN , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP | VFLAG_OTP_KEY },
-    { "mcu_3ds_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "mcu_dsi_regs.mem" , VMEM_CALLBACK_MCU_REGISTERS, 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "sd_cid.mem"       , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "nand_cid.mem"     , VMEM_CALLBACK_FLASH_CID    , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
-    { "nvram.mem"        , VMEM_CALLBACK_NVRAM        , 0x00000000, 0x00, VFLAG_CALLBACK }
+    { "otp_dec.mem"               , VMEM_CALLBACK_OTP_DECRYPTED      , __OTP_LEN , 0x11, VFLAG_CALLBACK | VFLAG_READONLY | VFLAG_OTP | VFLAG_OTP_KEY },
+    { "mcu_3ds_regs.mem"          , VMEM_CALLBACK_MCU_REGISTERS      , 0x00000100, I2C_DEV_MCU, VFLAG_CALLBACK | VFLAG_READONLY },
+    { "mcu_dsi_regs.mem"          , VMEM_CALLBACK_MCU_REGISTERS      , 0x00000100, I2C_DEV_POWER, VFLAG_CALLBACK | VFLAG_READONLY },
+    // register buffer: n << 8: n = start reg
+    // storage area: n << 8: n = data register, m << 16: m = offset selection register
+    { "mcu_3ds_info.mem"          , VMEM_CALLBACK_MCU_REGISTER_BUFFER, 0x00000013, I2C_DEV_MCU | (0x7F << 8), VFLAG_CALLBACK | VFLAG_READONLY },
+    { "mcu_3ds_step_history.mem"  , VMEM_CALLBACK_MCU_REGISTER_BUFFER, 0x00000150, I2C_DEV_MCU | (0x4F << 8), VFLAG_CALLBACK | VFLAG_READONLY },
+    { "mcu_3ds_storage_area.mem"  , VMEM_CALLBACK_MCU_STORAGE_AREA   , 0x000000C8, I2C_DEV_MCU | (0x61 << 8) | (0x60 << 16), VFLAG_CALLBACK | VFLAG_READONLY },
+    { "sd_cid.mem"                , VMEM_CALLBACK_FLASH_CID          , 0x00000010, 0x00, VFLAG_CALLBACK | VFLAG_READONLY },
+    { "nand_cid.mem"              , VMEM_CALLBACK_FLASH_CID          , 0x00000010, 0x01, VFLAG_CALLBACK | VFLAG_READONLY },
+    { "nvram.mem"                 , VMEM_CALLBACK_NVRAM              , 0x00000000, 0x00, VFLAG_CALLBACK }
 };
 
 bool ReadVMemDir(VirtualFile* vfile, VirtualDir* vdir) { // uses a generic vdir object generated in virtual.c
@@ -138,6 +149,29 @@ int ReadVMemOTPDecrypted(const VirtualFile* vfile, void* buffer, u64 offset, u64
     return 0;
 }
 
+int ReadVMemMCURegisterBuffer(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
+    u8 device = (u8) vfile->keyslot;
+    u8 reg = (u8) ((vfile->keyslot >> 8) & 0xFF);
+
+    if (offset != 0 || count > vfile->size)
+        return 1;
+
+    return I2C_readRegBuf(device, reg, (u8 *)buffer, count) ? 0 : 1;
+}
+
+int ReadVMemMCUStorageArea(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
+    u8 device = (u8) vfile->keyslot;
+    u8 reg = (u8) ((vfile->keyslot >> 8) & 0xFF);
+    u8 sel_reg = (u8) ((vfile->keyslot >> 16) & 0xFF);
+
+    if (offset > vfile->size || count > vfile->size || (offset + count) > vfile->size)
+        return 1;
+
+    if (!I2C_writeReg(device, sel_reg, (u8)offset)) return 1;
+
+    return I2C_readRegBuf(device, reg, (u8 *)buffer, (u8)count) ? 0 : 1;
+}
+
 // Read MCU registers.
 int ReadVMemMCURegisters(const VirtualFile* vfile, void* buffer, u64 offset, u64 count) {
     // While it is possible to write MCU registers, that's a good way to
@@ -145,9 +179,17 @@ int ReadVMemMCURegisters(const VirtualFile* vfile, void* buffer, u64 offset, u64
 
     // The table puts the device ID into the keyslot field.
     u8 device = (u8) vfile->keyslot;
+    u8 *byteBuffer = (u8*)buffer;
 
-    // Read the data.
-    return (I2C_readRegBuf(device, (u8) offset, (u8*) buffer, (u32) count)) ? 0 : 1;
+    if (offset > vfile->size || count > vfile->size || (offset + count) > vfile->size)
+        return 1;
+
+    // Read the data byte-by-byte, some registers are multi-byte deep and
+    // this will return the first byte of each register.
+    for (u32 i = 0; i < count; i++)
+        byteBuffer[i] = I2C_readReg(device, offset + i);
+
+    return 0;
 }
 
 // Read NAND / SD CID.
