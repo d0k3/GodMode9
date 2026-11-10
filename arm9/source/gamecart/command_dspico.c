@@ -18,7 +18,7 @@ static bool sd_ready = false;
 static bool probing = false;
 static u64 probe_begin;
 
-// Normal transfers retain the DLDI driver's waits; initialization is bounded.
+// normal transfers wait like the DLDI driver, only the probe has a timeout
 static bool DSpico_CartPresent(void) {
     return !(REG_CARDSTATUS & 0x1);
 }
@@ -115,20 +115,25 @@ bool DSpico_CheckGameCode(const u8* header) {
 // (see https://github.com/LNH-team/dspico-firmware/pull/7)
 static u64 DSpico_DetectSize(const u8* sector0) {
     if ((sector0[0x1FE] != 0x55) || (sector0[0x1FF] != 0xAA)) return 0;
+    // FAT volume without a partition table, checked first like FatFs does
+    if (((sector0[0] == 0xE9) || (sector0[0] == 0xEB) || (sector0[0] == 0xE8)) &&
+        ((memcmp(sector0 + 0x36, "FAT", 3) == 0) || (memcmp(sector0 + 0x52, "FAT32", 5) == 0))) {
+        if (getle16(sector0 + 0x0B) != 0x200) return 0; // only 512 byte sectors
+        u32 total = getle16(sector0 + 0x13);
+        if (!total) total = getle32(sector0 + 0x20);
+        return (u64) total * 0x200;
+    }
     u64 size = 0;
     // MBR partition table
     for (u32 i = 0; i < 4; i++) {
         const u8* p = sector0 + 0x1BE + (i * 16);
         if (((p[0] != 0x00) && (p[0] != 0x80)) || !p[4]) continue; // type must be set
+        if (p[4] == 0xEE) continue; // GPT is not supported
         u64 start = getle32(p + 8);
         u64 count = getle32(p + 12);
         if (count && ((start + count) > size)) size = start + count;
     }
-    if (size) return size * 0x200;
-    // FAT boot sector without partition table
-    u32 total = getle16(sector0 + 0x13);
-    if (!total) total = getle32(sector0 + 0x20);
-    return (u64) total * 0x200;
+    return size * 0x200;
 }
 
 static bool DSpico_Probe(void) {

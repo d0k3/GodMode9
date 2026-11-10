@@ -2,9 +2,8 @@
 
 #include "common.h"
 
-// DSpico flashcart SD card access, protocol based on the open DSpico firmware.
-// The cart must have completed a normal NTR init (InitCartRead) before entering.
-// While active, normal ROM reads do not work. Run InitCartRead again to leave.
+// DSpico SD access, needs a normal NTR init (InitCartRead) first
+// ROM reads stop working until InitCartRead runs again
 
 bool DSpico_CheckGameCode(const u8* header); // NTR header game code, as used by GodMode9i
 bool DSpico_Enter(void);
