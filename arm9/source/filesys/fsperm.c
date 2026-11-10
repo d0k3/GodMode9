@@ -87,6 +87,9 @@ bool CheckWritePermissions(const char* path) {
     } else if (drvtype & DRV_XORPAD) {
         perm = PERM_XORPAD;
         snprintf(area_name, sizeof(area_name), "XORpads");
+    } else if (drvtype & DRV_FLASHCART) {
+        perm = PERM_SDCARD;
+        snprintf(area_name, sizeof(area_name), "%s", STR_SD_CARD);
     } else if (drvtype & DRV_IMAGE) {
         perm = PERM_IMAGE;
         snprintf(area_name, sizeof(area_name), "%s", STR_IMAGES);

@@ -14,11 +14,21 @@
 #include "nand.h"
 #include "sdmmc.h"
 #include "rtc.h"
+#include "vcart.h"
 
 
 #define FREE_MIN_SECTORS 0x2000 // minimum sectors for the free drive to appear (4MB)
 
-#define FPDRV(pdrv) (((pdrv >= 7) && !imgnand_mode) ? pdrv + 3 : pdrv)
+// Volume2Partition resolution table
+PARTITION VolToPart[] = {
+    {0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0},
+    {5, 0}, {6, 0}, {7, 0}, {8, 0}, {9, 0}, {FAT_FLASHCART_VOLUME, 0}
+};
+
+STATIC_ASSERT(countof(VolToPart) == FAT_VOLUME_COUNT);
+
+#define FPDRV(pdrv) ((((pdrv) >= FAT_IMAGE_FIRST) && ((pdrv) < FAT_IMAGE_END) && !imgnand_mode) ? \
+    (pdrv) + FAT_VOLUME_COUNT - FAT_IMAGE_FIRST : (pdrv))
 #define PART_INFO(pdrv) (DriveInfo + FPDRV(pdrv))
 #define PART_TYPE(pdrv) (DriveInfo[FPDRV(pdrv)].type)
 
@@ -29,6 +39,7 @@
 #define TYPE_SDCARD     (1UL<<4)
 #define TYPE_IMAGE      (1UL<<5)
 #define TYPE_RAMDRV     (1UL<<6)
+#define TYPE_FLASHCART  (1UL<<7)
 
 #define SUBTYPE_CTRN    0
 #define SUBTYPE_CTRN_N  1
@@ -47,7 +58,7 @@ typedef struct {
     BYTE  keyslot;
 } FATpartition;
 
-FATpartition DriveInfo[13] = {
+FATpartition DriveInfo[FAT_VOLUME_COUNT + FAT_IMAGE_COUNT] = {
     { TYPE_SDCARD,  SUBTYPE_NONE, 0, 0, 0xFF },     // 0 - SDCARD
     { TYPE_SYSNAND, SUBTYPE_CTRN, 0, 0, 0xFF },     // 1 - SYSNAND CTRNAND
     { TYPE_SYSNAND, SUBTYPE_TWLN, 0, 0, 0xFF },     // 2 - SYSNAND TWLN
@@ -58,9 +69,10 @@ FATpartition DriveInfo[13] = {
     { TYPE_IMGNAND, SUBTYPE_CTRN, 0, 0, 0xFF },     // 7 - IMGNAND CTRNAND
     { TYPE_IMGNAND, SUBTYPE_TWLN, 0, 0, 0xFF },     // 8 - IMGNAND TWLN
     { TYPE_IMGNAND, SUBTYPE_TWLP, 0, 0, 0xFF },     // 9 - IMGNAND TWLP
-    { TYPE_IMAGE,   SUBTYPE_NONE, 0, 0, 0xFF },     // X - IMAGE
-    { TYPE_SYSNAND, SUBTYPE_FREE, 0, 0, 0xFF },     // Y - SYSNAND BONUS
-    { TYPE_RAMDRV,  SUBTYPE_NONE, 0, 0, 0xFF }      // Z - RAMDRIVE
+    { TYPE_FLASHCART, SUBTYPE_NONE, 0, 0, 0xFF },   // H - FLASHCART
+    { TYPE_IMAGE,   SUBTYPE_NONE, 0, 0, 0xFF },     // 7 - IMAGE (without NAND image)
+    { TYPE_SYSNAND, SUBTYPE_FREE, 0, 0, 0xFF },     // 8 - SYSNAND BONUS (without NAND image)
+    { TYPE_RAMDRV,  SUBTYPE_NONE, 0, 0, 0xFF }      // 9 - RAMDRIVE (without NAND image)
 };
 
 static BYTE imgnand_mode = 0x00;
@@ -96,6 +108,12 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
+    if ((pdrv == FAT_FLASHCART_VOLUME) && !GetVCartDSpicoSize())
+        return STA_NOINIT|STA_NODISK;
+    if ((pdrv >= FAT_IMAGE_FIRST) && (pdrv < FAT_IMAGE_END) &&
+        ((PART_TYPE(pdrv) == TYPE_IMAGE) || (PART_TYPE(pdrv) == TYPE_IMGNAND)) &&
+        (GetFatDriveIndex(GetMountPath()) == FAT_FLASHCART_VOLUME) && !GetVCartDSpicoSize())
+        return STA_NOINIT|STA_NODISK;
     return RES_OK;
 }
 
@@ -148,6 +166,10 @@ DSTATUS disk_initialize (
     } else if (type == TYPE_RAMDRV) {
         InitRamDrive();
         fat_info->size = (GetRamDriveSize() + 0x1FF) / 0x200;
+    } else if (type == TYPE_FLASHCART) {
+        u64 sectors = GetVCartDSpicoSize() / 0x200;
+        if (!sectors || (sectors > UINT32_MAX)) return STA_NOINIT|STA_NODISK;
+        fat_info->size = sectors;
     }
 
 	return RES_OK;
@@ -167,6 +189,7 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
+    if (disk_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
     BYTE type = PART_TYPE(pdrv);
 
     if (type == TYPE_NONE) {
@@ -179,6 +202,11 @@ DRESULT disk_read (
             return RES_ERROR;
     } else if (type == TYPE_RAMDRV) {
         if (ReadRamDriveSectors(buff, sector, count) != 0)
+            return RES_ERROR;
+    } else if (type == TYPE_FLASHCART) {
+        if (!count || (sector >= PART_INFO(pdrv)->size) || (count > PART_INFO(pdrv)->size - sector))
+            return RES_PARERR;
+        if (ReadVCartDSpicoBytes(buff, (u64) sector * 0x200, (u64) count * 0x200) != 0)
             return RES_ERROR;
     } else {
         FATpartition* fat_info = PART_INFO(pdrv);
@@ -204,6 +232,7 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
+    if (disk_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
     BYTE type = PART_TYPE(pdrv);
 
     if (type == TYPE_NONE) {
@@ -216,6 +245,11 @@ DRESULT disk_write (
             return RES_ERROR;
     } else if (type == TYPE_RAMDRV) {
         if (WriteRamDriveSectors(buff, sector, count) != 0)
+            return RES_ERROR;
+    } else if (type == TYPE_FLASHCART) {
+        if (!count || (sector >= PART_INFO(pdrv)->size) || (count > PART_INFO(pdrv)->size - sector))
+            return RES_PARERR;
+        if (WriteVCartDSpicoBytes(buff, (u64) sector * 0x200, (u64) count * 0x200) != 0)
             return RES_ERROR;
     } else {
         FATpartition* fat_info = PART_INFO(pdrv);
@@ -243,6 +277,7 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
+    if (disk_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
     BYTE type = PART_TYPE(pdrv);
     FATpartition* fat_info = PART_INFO(pdrv);
 
@@ -254,11 +289,11 @@ DRESULT disk_ioctl (
             *((DWORD*) buff) = fat_info->size;
             return RES_OK;
         case GET_BLOCK_SIZE:
-            *((DWORD*) buff) = ((type == TYPE_IMAGE) || (type == TYPE_RAMDRV)) ? 0x1 : 0x2000;
+            *((DWORD*) buff) = ((type == TYPE_IMAGE) || (type == TYPE_RAMDRV) || (type == TYPE_FLASHCART)) ? 0x1 : 0x2000;
             return RES_OK;
         case CTRL_SYNC:
             if ((type == TYPE_IMAGE) || (type == TYPE_IMGNAND))
-                SyncImage();
+                return (SyncImage() == FR_OK) ? RES_OK : RES_ERROR;
             // nothing else to do here - sdmmc.c handles the rest
             return RES_OK;
     }

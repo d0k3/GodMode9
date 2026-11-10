@@ -454,7 +454,9 @@ typedef struct {
 /* File/Volume controls           */
 /*--------------------------------*/
 
-#if FF_VOLUMES < 1 || FF_VOLUMES > 10
+/* Local extension: extra volumes require string IDs and no numeric getcwd(). */
+#if FF_VOLUMES < 1 || FF_VOLUMES > 255 || \
+	(FF_VOLUMES > 10 && (FF_STR_VOLUME_ID != 1 || FF_FS_RPATH != 0))
 #error Wrong FF_VOLUMES setting
 #endif
 static FATFS* FatFs[FF_VOLUMES];	/* Pointer to the filesystem objects (logical drives) */

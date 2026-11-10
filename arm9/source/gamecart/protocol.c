@@ -38,14 +38,16 @@ static u32 rand1 = 0;
 static u32 rand2 = 0;
 
 // updated function by profi200
-static void ResetCardSlot(void)
+static bool ResetCardSlot(void)
 {
     REG_CARDCYCLES0 = 0x1988;
     REG_CARDCYCLES1 = 0x264C;
     // boot9 waits here. Unnecessary?
 
     REG_CARDSTATUS = 3u<<2;     // Request power off
-    while(REG_CARDSTATUS != 0); // Aotomatically changes to 0 (off)
+    u64 begin = timer_start();
+    while (REG_CARDSTATUS != 0)
+        if (timer_ticks(begin) >= TICKS_PER_SEC * 2) return false;
     wait_msec(1*2);
 
     REG_CARDSTATUS = 1u<<2;     // Prepare power on
@@ -59,6 +61,7 @@ static void ResetCardSlot(void)
     REG_NTRCARDMCNT = NTRCARD_CR1_ENABLE | NTRCARD_CR1_IRQ;
     REG_NTRCARDROMCNT = 0x20000000;
     wait_msec(120*2);
+    return true;
 }
 
 static void SwitchToNTRCARD(void)
@@ -90,13 +93,14 @@ u32 Cart_GetID2(void)
     return CartID2;
 }
 
-void Cart_Init(void)
+bool Cart_Init(void)
 {
-    ResetCardSlot(); //Seems to reset the cart slot?
+    if (!ResetCardSlot()) return false; //Seems to reset the cart slot?
 
     // Reset
-    NTR_CmdReset();
+    if (!NTR_CmdReset()) return false;
     CartID = NTR_CmdGetCartId();
+    if (CartID == UINT32_MAX) return false;
 
     // 3ds
     if (CartID & 0x10000000) {
@@ -108,6 +112,7 @@ void Cart_Init(void)
 
         REG_CTRCARDBLKCNT = 0;
     }
+    return true;
 }
 
 static void AES_SetKeyControl(u32 a) {
