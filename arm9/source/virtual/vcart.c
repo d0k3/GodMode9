@@ -34,7 +34,7 @@ static bool EnterSdMode(void) {
     return cdata && (InitCartRead(cdata) == 0) && DSpico_Enter();
 }
 
-// like native SD and cart access: one attempt, a failure is returned to the caller.
+// one attempt, like native SD and cart access
 static int WriteSectorsOnce(const void* buffer, u32 sec, u32 n) {
     return DSpico_WriteSectors(buffer, sec, n) == 0 ? 0 : -1;
 }

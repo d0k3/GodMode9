@@ -231,7 +231,7 @@ u32 NTR_GetIDSafe (u32 flags, const u8* command)
 
 bool NTR_CmdSecure (u32 flags, void* buffer, u32 length, u8* pcmd)
 {
-    // Secure commands use byte lengths; cardPolledTransfer expects words.
+    // length is in bytes, cardPolledTransfer counts words
     return cardPolledTransfer (flags, buffer, length / sizeof(u32), pcmd);
 }
 

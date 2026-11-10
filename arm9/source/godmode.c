@@ -160,6 +160,15 @@ u32 SplashInit(const char* modestr) {
     return 0;
 }
 
+// returns the message to show, strings are only set once the language is loaded
+static const char** InitCartStorage(void) {
+    bool cart_ok = InitVCartDrive();
+    if (!cart_ok) return CART_STATE ? &STR_CART_INIT_FAILED : NULL;
+    if (VCartDSpicoProbeFailed() || (GetVCartDSpicoSize() && !InitFlashcartFS()))
+        return &STR_FLASHCART_MOUNT_FAILED;
+    return NULL;
+}
+
 #ifndef SCRIPT_RUNNER
 static DirStruct* current_dir = NULL;
 static DirStruct* clipboard   = NULL;
@@ -1052,11 +1061,9 @@ static void HandleCartChange(u32 event, char* current_path, u32* cursor, u32* sc
     UnmountCartStorage(current_path, cursor, scroll, last_clipboard_size);
     if (unexpected)
         ShowPrompt(false, "%s", STR_UNEXPECTED_DSPICO_REMOVAL_TO_PREVENT_DATA_LOSS_UNMOUNT_BEFORE_EJECT);
-    if (!InitVCartDrive() && (event & CART_INSERT))
-        ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
-    if ((event & CART_INSERT) &&
-        (VCartDSpicoProbeFailed() || (GetVCartDSpicoSize() && !InitFlashcartFS())))
-        ShowPrompt(false, "%s", STR_FLASHCART_MOUNT_FAILED);
+    const char** cart_error = InitCartStorage();
+    if (cart_error && (event & CART_INSERT))
+        ShowPrompt(false, "%s", *cart_error);
     GetDirContents(current_dir, current_path);
 }
 
@@ -2556,9 +2563,7 @@ u32 GodMode(int entrypoint) {
     InitNandCrypto(true); // (entrypoint != ENTRY_B9S);
     InitExtFS();
     cart_present = (CART_STATE != 0);
-    bool cart_init_failed = !InitVCartDrive() && cart_present;
-    bool flashcart_mount_failed = VCartDSpicoProbeFailed() ||
-        (GetVCartDSpicoSize() && !InitFlashcartFS());
+    const char** cart_error = InitCartStorage();
     if (!CalibrateTouchFromSupportFile())
         CalibrateTouchFromFlash();
 
@@ -2569,10 +2574,8 @@ u32 GodMode(int entrypoint) {
 
     // load font and language, ask if language is not set up
     LoadLanguageAndFont(true);
-    if (cart_init_failed)
-        ShowPrompt(false, "%s", STR_CART_INIT_FAILED);
-    if (flashcart_mount_failed)
-        ShowPrompt(false, "%s", STR_FLASHCART_MOUNT_FAILED);
+    if (cart_error)
+        ShowPrompt(false, "%s", *cart_error);
 
     // check for embedded essential backup
     if (((entrypoint == ENTRY_NANDBOOT) || (entrypoint == ENTRY_B9S)) &&
@@ -2669,7 +2672,7 @@ u32 GodMode(int entrypoint) {
 
     PaneData* pane = panedata;
     while (godmode9) { // this is the main loop
-        // Changes during a file operation can precede InputWait's event snapshot.
+        // catch cart changes that happened during a file operation
         bool cart_now = (CART_STATE != 0);
         if ((cart_present != cart_now) || (IsMountedFlashcart() && !GetVCartDSpicoSize())) {
             HandleCartChange(cart_now ? CART_INSERT : CART_EJECT,
@@ -2885,7 +2888,7 @@ u32 GodMode(int entrypoint) {
                 if (IsMountedFlashcart()) {
                     u32 types = DRV_FLASHCART;
                     if (DriveType(GetMountPath()) & DRV_FLASHCART) types |= DRV_IMAGE;
-                    // Keep references valid until the backing image has been flushed.
+                    // flush the image before dropping references to it
                     if (!(types & DRV_IMAGE) || (SyncImage() == FR_OK)) {
                         InvalidateDriveReferences(types, current_path, &cursor, &scroll, &last_clipboard_size);
                         if (!DeinitFlashcartFS())
@@ -3203,6 +3206,7 @@ u32 ScriptRunner(int entrypoint) {
     AutoEmuNandBase(true);
     InitNandCrypto(entrypoint != ENTRY_B9S);
     InitExtFS();
+    InitCartStorage();
     if (!CalibrateTouchFromSupportFile())
         CalibrateTouchFromFlash();
 
