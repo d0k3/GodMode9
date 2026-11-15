@@ -27,6 +27,8 @@ int DriveType(const char* path) {
     } else if ((pdrv >= 0) && (pdrv < NORM_FS)) {
         if (pdrv == 0) {
             type = DRV_FAT | DRV_SDCARD | DRV_STDFAT;
+        } else if (pdrv == FAT_FLASHCART_VOLUME) {
+            type = DRV_FAT | DRV_FLASHCART | DRV_STDFAT;
         } else if ((pdrv == 8) && !(GetMountState() & IMG_NAND)) {
             type = DRV_FAT | DRV_SYSNAND | DRV_BONUS | DRV_STDFAT;
         } else if ((pdrv == 9) && !(GetMountState() & IMG_NAND)) {
@@ -39,7 +41,7 @@ int DriveType(const char* path) {
             type = DRV_FAT | DRV_EMUNAND | DRV_CTRNAND | DRV_STDFAT;
         } else if ((pdrv == 5) || (pdrv == 6)) {
             type = DRV_FAT | DRV_EMUNAND | DRV_TWLNAND | DRV_STDFAT;
-        }  else if ((pdrv >= 7) && (pdrv <= 9) &&
+        }  else if ((pdrv >= FAT_IMAGE_FIRST) && (pdrv < FAT_IMAGE_END) &&
             (GetMountState() & (IMG_FAT|IMG_NAND))) {
             type = DRV_FAT | DRV_IMAGE | DRV_STDFAT;
         }
@@ -76,6 +78,10 @@ void SetFSSearch(const char* pattern, const char* path) {
     } else *search_pattern = *search_path = '\0';
 }
 
+const char* GetFSSearchPath(void) {
+    return search_path;
+}
+
 void SetTitleManagerMode(bool mode) {
     title_manager_mode = mode;
 }
@@ -104,7 +110,12 @@ bool GetRootDirContentsWorker(DirStruct* contents) {
         entry->name = entry->path + entry->p_name;
         memset(entry->path, 0x00, 256);
         snprintf(entry->path,  4, "%s", drvnum[i]);
-        if ((*(drvnum[i]) >= '7') && (*(drvnum[i]) <= '9') && !(GetMountState() & IMG_NAND)) // Drive 7...9 handling
+        if (GetFatDriveIndex(drvnum[i]) == FAT_FLASHCART_VOLUME) {
+            char dslabel[DRV_LABEL_LEN];
+            if (!GetFATVolumeLabel(FLASHCART_DRIVE, dslabel) || !(*dslabel))
+                strcpy(dslabel, STR_LAB_NOLABEL);
+            snprintf(entry->name, 252, "[%s] %s (%s)", drvnum[i], drvname[i], dslabel);
+        } else if ((*(drvnum[i]) >= '7') && (*(drvnum[i]) <= '9') && !(GetMountState() & IMG_NAND)) // Drive 7...9 handling
             snprintf(entry->name, 252, "[%s] %s", drvnum[i],
                 (*(drvnum[i]) == '7') ? STR_LAB_FAT_IMAGE :
                 (*(drvnum[i]) == '8') ? STR_LAB_BONUS_DRIVE :
@@ -231,13 +242,11 @@ uint64_t GetFreeSpace(const char* path)
 {
     DWORD free_clusters;
     FATFS* fsptr;
-    char fsname[4] = { '\0' };
     int pdrv = GetMountedFSNum(path);
     FATFS* fsobj = GetMountedFSObject(path);
     if ((pdrv < 0) || !fsobj) return 0;
 
-    snprintf(fsname, sizeof(fsname), "%i:", pdrv);
-    if (f_getfree(fsname, &free_clusters, &fsptr) != FR_OK)
+    if (f_getfree(GetFatDrivePath(pdrv), &free_clusters, &fsptr) != FR_OK)
         return 0;
 
     return (uint64_t) free_clusters * fsobj->csize * FF_MAX_SS;

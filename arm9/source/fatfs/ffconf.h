@@ -163,12 +163,13 @@
 / Drive/Volume Configurations
 /---------------------------------------------------------------------------*/
 
-#define FF_VOLUMES		10
-/* Number of volumes (logical drives) to be used. (1-10) */
+#include "volume.h"
+#define FF_VOLUMES		FAT_VOLUME_COUNT
+/* Volumes above 9 use string IDs; see the local guard in ff.c. */
 
 
-#define FF_STR_VOLUME_ID	0
-#define FF_VOLUME_STRS		"sdcard","sysnand","systwln","systwlp","emunand","emutwln","emutwlp","imgnand","imgtwln","imgtwlp"
+#define FF_STR_VOLUME_ID	1
+#define FF_VOLUME_STRS		FAT_VOLUME_STRS
 /* FF_STR_VOLUME_ID switches support for volume ID in arbitrary strings.
 /  When FF_STR_VOLUME_ID is set to 1 or 2, arbitrary strings can be used as drive
 /  number in the path name. FF_VOLUME_STRS defines the volume ID strings for each

@@ -15,7 +15,7 @@
 #define BSWAP32(n)  __builtin_bswap32(n)
 
 
-void Cart_Init(void);
+bool Cart_Init(void);
 int Cart_IsInserted(void);
 u32 Cart_GetID(void);
 u32 Cart_GetID2(void);

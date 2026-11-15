@@ -9,11 +9,10 @@
 
 #include "common.h"
 
-void NTR_CmdReset(void);
+bool NTR_CmdReset(void);
 u32 NTR_CmdGetCartId(void);
 void NTR_CmdEnter16ByteMode(void);
-void NTR_CmdReadHeader (u8* buffer);
-void NTR_CmdReadData (u32 offset, void* buffer);
+bool NTR_CmdReadHeader (u8* buffer);
+bool NTR_CmdReadData (u32 offset, void* buffer);
 
 bool NTR_Secure_Init (u8* buffer, u8* sa_copy, u32 CartID, int iCardDevice);
-
